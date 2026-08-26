@@ -25,7 +25,8 @@ const generateSchema = z.object({
 });
 
 const SCHEMA =
-  "template (classic|midnight|street|cafe|bold|chalkboard|sketch|bifold|editorial|breakfast|bakery), " +
+  "template (classic|midnight|street|cafe|bold|chalkboard|sketch|bifold|editorial|breakfast|bakery|" +
+  "poster|coffeehouse|emerald|script|retro|brush|nautical|ornate|tiles|wellness), " +
   "bg, surface, text, muted, primary, primaryText, accent (all 6-digit hex like #1a1a1a), " +
   "bodyFont and headingFont (sans|serif|rounded|mono|display|condensed|script), " +
   "layout (list|grid|magazine|columns), hero (cover|gradient|minimal|chalk|stamp|ribbon|blob|sidebar), " +
@@ -33,7 +34,7 @@ const SCHEMA =
   "buttonStyle (solid|pill|soft|outline), cardStyle (flat|elevated|outline|glass), " +
   "bgStyle (solid|gradient|dots|glow), density (compact|comfortable|airy), " +
   "animation (none|fade|rise|pop|slide), texture (none|chalk|paper|grain), " +
-  "decor (none|veg|fastfood|bakery|shapes), sectionStyle (plain|boxed|rule|tab|ribbon), " +
+  "decor (none|veg|fastfood|bakery|shapes|ornate|coffee|seafood), sectionStyle (plain|boxed|rule|tab|ribbon), " +
   "priceStyle (inline|right|leader), columns (1 or 2), upperTitles (boolean), " +
   "scriptAccent (boolean), tagline (short string, max 5 words, matching the brand language)";
 
