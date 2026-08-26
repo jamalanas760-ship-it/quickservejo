@@ -169,8 +169,8 @@ export function isFrontlineOnly(roles: AppRole[]): boolean {
 
 /** Where a frontline-only user belongs: their operational display. */
 export function frontlineHome(roles: AppRole[]): string {
-  if (roles.includes("cashier")) return "/cashier";
-  if (roles.includes("waiter")) return "/waiter";
+  // Kitchen display is the shared operational screen for all frontline roles.
+  void roles;
   return "/kitchen";
 }
 
