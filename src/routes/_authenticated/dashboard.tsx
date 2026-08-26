@@ -100,11 +100,19 @@ function DashboardPage() {
                           : "Inactive"}
                     </p>
                   </div>
-                  <p className="mt-4 text-xs text-muted-foreground">
-                    {lang === "ar"
-                      ? `مساحة العمل: ${ROLE_HOME[m.role]} — تُبنى في المرحلة القادمة`
-                      : `Workspace: ${ROLE_HOME[m.role]} — ships in the next phase`}
-                  </p>
+                  {(m.role === "restaurant_admin" || m.role === "manager") && m.restaurant_id ? (
+                    <Button asChild className="mt-4 w-full" size="sm">
+                      <Link to="/manage/$restaurantId" params={{ restaurantId: m.restaurant_id }}>
+                        {t("dash.open")}
+                      </Link>
+                    </Button>
+                  ) : (
+                    <p className="mt-4 text-xs text-muted-foreground">
+                      {lang === "ar"
+                        ? `مساحة العمل: ${ROLE_HOME[m.role]} — تُبنى في المرحلة القادمة`
+                        : `Workspace: ${ROLE_HOME[m.role]} — ships in the next phase`}
+                    </p>
+                  )}
                 </div>
               ))}
 
