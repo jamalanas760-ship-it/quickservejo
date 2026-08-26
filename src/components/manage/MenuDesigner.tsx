@@ -568,7 +568,7 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
               className="max-h-[560px] overflow-y-auto p-3"
               style={{
                 ...themeVars(theme),
-                background: "var(--qs-bg)",
+                ...pageBackground(theme),
                 color: "var(--qs-text)",
                 fontFamily: "var(--qs-body-font)",
               }}
@@ -592,7 +592,7 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
 
               <div
                 className="mb-3 flex items-center gap-2 p-3"
-                style={{ background: "var(--qs-surface)", borderRadius: "var(--qs-radius)" }}
+                style={surfaceStyle(theme)}
               >
                 {restaurant.data?.logo_url ? (
                   <img
@@ -615,24 +615,10 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
               </div>
 
               <div className="mb-3 flex gap-1.5">
-                <span
-                  className="px-2.5 py-1 text-[11px] font-medium"
-                  style={{
-                    background: "var(--qs-primary)",
-                    color: "var(--qs-primary-text)",
-                    borderRadius: "var(--qs-radius)",
-                  }}
-                >
+                <span className="px-2.5 py-1 text-[11px] font-medium" style={buttonStyleFor(theme)}>
                   {lang === "ar" ? "الكل" : "All"}
                 </span>
-                <span
-                  className="px-2.5 py-1 text-[11px]"
-                  style={{
-                    background: "var(--qs-surface)",
-                    color: "var(--qs-muted)",
-                    borderRadius: "var(--qs-radius)",
-                  }}
-                >
+                <span className="px-2.5 py-1 text-[11px]" style={buttonStyleFor(theme, false)}>
                   {lang === "ar" ? "الأطباق" : "Dishes"}
                 </span>
               </div>
@@ -664,12 +650,8 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
               </div>
 
               <div
-                className="mt-3 py-2 text-center text-xs font-semibold"
-                style={{
-                  background: "var(--qs-primary)",
-                  color: "var(--qs-primary-text)",
-                  borderRadius: "var(--qs-radius)",
-                }}
+                className="mt-3 py-2.5 text-center text-xs font-semibold"
+                style={buttonStyleFor(theme)}
               >
                 {lang === "ar" ? "إرسال الطلب" : "Send order"}
               </div>
@@ -703,7 +685,7 @@ function PreviewCard({
   return (
     <div
       className={cn("p-2", stacked ? "" : "flex items-center gap-2")}
-      style={{ background: "var(--qs-surface)", borderRadius: "var(--qs-radius)" }}
+      style={surfaceStyle(theme)}
     >
       {theme.showImages ? (
         image ? (
