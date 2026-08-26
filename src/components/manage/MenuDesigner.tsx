@@ -6,34 +6,16 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { humanError } from "@/lib/errors";
 import { logAudit } from "@/lib/audit";
 import { useI18n } from "@/lib/i18n";
 import { generateMenuTheme } from "@/lib/theme.functions";
 import {
-  BG_STYLE_LABELS,
-  BUTTON_STYLE_LABELS,
-  CARD_STYLE_LABELS,
-  DENSITY_LABELS,
   DEFAULT_THEME,
-  FONT_LABELS,
-  FONT_STACKS,
-  HERO_LABELS,
-  LAYOUT_LABELS,
   TEMPLATES,
   imageShapeClass,
   parseMenuTheme,
@@ -41,21 +23,12 @@ import {
   buttonStyle as buttonStyleFor,
   pageBackground,
   surfaceStyle,
-  type BgStyleId,
-  type ButtonStyleId,
-  type CardStyleId,
-  type DensityId,
-  type FontId,
-  type HeroId,
-  type ImageShape,
-  type LayoutId,
   type MenuTheme,
-  type TemplateId,
 } from "@/lib/menu-theme";
 import { cn } from "@/lib/utils";
 
-const FONT_IDS: FontId[] = ["sans", "serif", "rounded", "mono", "display"];
 const MAX_IMAGES = 3;
+
 
 const AI_IDEAS: { en: string; ar: string }[] = [
   { en: "Warm premium steakhouse, dark and confident", ar: "ستيك هاوس فخم دافئ وجاد" },
