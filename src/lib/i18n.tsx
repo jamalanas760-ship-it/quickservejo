@@ -8,11 +8,14 @@ import {
   type ReactNode,
 } from "react";
 
+import { superAdminDict } from "./i18n.superadmin";
+
 export type Language = "en" | "ar";
 
 const STORAGE_KEY = "quickserve.language";
 
 type Dict = Record<string, { en: string; ar: string }>;
+
 
 const dict: Dict = {
   "brand.tagline": {
@@ -55,7 +58,9 @@ const dict: Dict = {
   "common.error": { en: "Something went wrong", ar: "حدث خطأ ما" },
   "common.retry": { en: "Try again", ar: "إعادة المحاولة" },
   "common.language": { en: "العربية", ar: "English" },
+  ...superAdminDict,
 };
+
 
 type I18nValue = {
   lang: Language;
