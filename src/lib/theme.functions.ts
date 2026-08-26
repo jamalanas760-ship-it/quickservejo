@@ -63,7 +63,12 @@ const CRAFT =
   "guarantee a strong hero, clearly separated sections, one visual focal point, consistent price alignment " +
   "and generous breathing room; choose motion that matches the energy (calm fades, street food pops/slides). " +
   "Photo-forward restaurants use showImages true with circle or full-width crops; illustration-forward ones " +
-  "lean on texture plus decor line-art. Everything must read beautifully on a phone.";
+  "lean on texture plus decor line-art. Everything must read beautifully on a phone. " +
+  "Realism bar: the result must look printed and made by a human designer's hand — pick a texture " +
+  "(chalk, paper or grain) unless the direction is deliberately clinical, prefer hand-drawn decor bands " +
+  "and leader-dot prices over sterile geometry, and choose slightly imperfect, characterful type pairings " +
+  "over default-looking sans stacks. Avoid anything that reads as an auto-generated web template.";
+
 
 /**
  * Generates three distinct professional menu design variations from the
