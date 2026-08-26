@@ -185,23 +185,35 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-h-screen flex-col">
-        <header className="sticky top-0 z-30 flex items-center gap-2 border-b bg-background/95 px-4 py-3 backdrop-blur">
+        <header className="safe-top sticky top-0 z-30 flex items-center gap-1.5 border-b bg-background/95 px-3 py-2.5 backdrop-blur sm:gap-2 sm:px-4 sm:py-3">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden" aria-label={t("sa.brand")}>
-                <MenuIcon className="size-4" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-10 shrink-0 lg:hidden"
+                aria-label={t("sa.brand")}
+              >
+                <MenuIcon className="size-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-72 bg-sidebar p-0 text-sidebar-foreground">
+            <SheetContent
+              side="left"
+              className="w-[86vw] max-w-xs bg-sidebar p-0 text-sidebar-foreground"
+            >
               <SheetTitle className="sr-only">{t("sa.brand")}</SheetTitle>
               <SidebarContent onNavigate={() => setMobileOpen(false)} />
             </SheetContent>
           </Sheet>
 
+          <Link to={"/super-admin" as never} className="shrink-0 lg:hidden">
+            <BrandLogo className="size-7" markOnly />
+          </Link>
+
           <Button
             variant="outline"
             size="sm"
-            className="min-w-0 flex-1 justify-start gap-2 text-muted-foreground sm:max-w-sm"
+            className="h-10 min-w-0 flex-1 justify-start gap-2 text-muted-foreground sm:max-w-sm"
             onClick={() => setSearchOpen(true)}
           >
             <Search className="size-4 shrink-0" />
@@ -209,12 +221,12 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
             <kbd className="ms-auto hidden text-xs sm:inline">⌘K</kbd>
           </Button>
 
-          <div className="ms-auto flex items-center gap-1">
+          <div className="ms-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
             <Badge variant="secondary" className="hidden sm:inline-flex">
               {t("sa.brand")}
             </Badge>
             <Notifications />
-            <Button variant="ghost" size="sm" onClick={toggleLang}>
+            <Button variant="ghost" size="sm" className="h-10 px-2" onClick={toggleLang}>
               {t("common.language")}
             </Button>
             <DropdownMenu>
