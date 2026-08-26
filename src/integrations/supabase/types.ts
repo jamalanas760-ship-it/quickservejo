@@ -863,7 +863,16 @@ export type Database = {
     }
     Functions: {
       claim_platform_ownership: { Args: { _name?: string }; Returns: boolean }
+      create_restaurant_with_setup: {
+        Args: { _payload: Json; _table_count?: number }
+        Returns: {
+          id: string
+          name: string
+          slug: string
+        }[]
+      }
       is_platform_owner: { Args: never; Returns: boolean }
+      restaurant_slug_available: { Args: { _slug: string }; Returns: boolean }
     }
     Enums: {
       app_role:

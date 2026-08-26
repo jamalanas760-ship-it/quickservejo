@@ -125,6 +125,28 @@ export const superAdminDict: Record<string, { en: string; ar: string }> = {
   "sa.created.menu": { en: "Manage menu", ar: "إدارة القائمة" },
   "sa.created.tables": { en: "Manage tables", ar: "إدارة الطاولات" },
   "sa.created.qr": { en: "Download QR codes", ar: "تنزيل رموز QR" },
+  "sa.created.staff": { en: "Add staff", ar: "إضافة موظفين" },
+  "sa.created.progress": { en: "Setup progress", ar: "تقدم التهيئة" },
+
+  "sa.err.nameRequired": { en: "Restaurant name is required.", ar: "اسم المطعم مطلوب." },
+  "sa.err.slugRequired": { en: "Restaurant slug is required.", ar: "رابط المطعم مطلوب." },
+  "sa.err.slugFormat": {
+    en: "Use lowercase letters, numbers and hyphens only (e.g. my-restaurant).",
+    ar: "استخدم أحرفاً إنجليزية صغيرة وأرقاماً وشرطات فقط (مثال: my-restaurant).",
+  },
+  "sa.err.slugTaken": {
+    en: "Restaurant slug already exists. Please choose another.",
+    ar: "رابط المطعم مستخدم بالفعل. اختر رابطاً آخر.",
+  },
+  "sa.err.email": { en: "Please enter a valid email.", ar: "أدخل بريداً إلكترونياً صحيحاً." },
+  "sa.err.tax": { en: "Tax rate must be between 0 and 100.", ar: "نسبة الضريبة يجب أن تكون بين 0 و100." },
+  "sa.err.service": {
+    en: "Service charge must be between 0 and 100.",
+    ar: "رسوم الخدمة يجب أن تكون بين 0 و100.",
+  },
+  "sa.err.tables": { en: "Enter between 1 and 200 tables.", ar: "أدخل عدداً بين 1 و200." },
+  "sa.slug.checking": { en: "Checking…", ar: "جارٍ التحقق…" },
+  "sa.slug.available": { en: "This slug is available.", ar: "هذا الرابط متاح." },
 
   "sa.detail.overview": { en: "Overview", ar: "نظرة عامة" },
   "sa.detail.edit": { en: "Edit restaurant", ar: "تعديل المطعم" },
