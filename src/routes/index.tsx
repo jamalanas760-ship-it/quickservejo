@@ -4,6 +4,8 @@ import { useI18n } from "@/lib/i18n";
 import { useSupabaseSession } from "@/hooks/useSession";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { BottomNav } from "@/components/nav/BottomNav";
+import { WorkspaceHome } from "@/components/home/WorkspaceHome";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -56,6 +58,24 @@ function Landing() {
   const { lang, t, toggleLang } = useI18n();
   const session = useSupabaseSession();
   const signedIn = Boolean(session.data);
+
+  // Signed-in users land in their workspace home instead of the marketing page.
+  if (signedIn) {
+    return (
+      <div className="min-h-screen bg-background pb-24">
+        <header className="safe-top sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
+          <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-2 px-4">
+            <BrandLogo className="size-8" textClassName="hidden sm:inline" />
+            <Button variant="ghost" size="sm" className="h-9" onClick={toggleLang}>
+              {t("common.language")}
+            </Button>
+          </div>
+        </header>
+        <WorkspaceHome />
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
