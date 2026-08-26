@@ -14,6 +14,7 @@ export type ButtonStyleId = "solid" | "pill" | "soft" | "outline";
 export type CardStyleId = "flat" | "elevated" | "outline" | "glass";
 export type BgStyleId = "solid" | "gradient" | "dots" | "glow";
 export type DensityId = "compact" | "comfortable" | "airy";
+export type AnimationId = "none" | "fade" | "rise" | "pop" | "slide";
 
 export type MenuTheme = {
   template: TemplateId;
@@ -36,6 +37,8 @@ export type MenuTheme = {
   cardStyle: CardStyleId;
   bgStyle: BgStyleId;
   density: DensityId;
+  /** Entrance motion applied to menu item cards. */
+  animation: AnimationId;
 };
 
 export const FONT_STACKS: Record<FontId, string> = {
@@ -90,6 +93,7 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       cardStyle: "elevated",
       bgStyle: "solid",
       density: "comfortable",
+      animation: "rise",
     },
   },
   midnight: {
@@ -115,6 +119,7 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       cardStyle: "outline",
       bgStyle: "glow",
       density: "airy",
+      animation: "fade",
     },
   },
   street: {
@@ -140,6 +145,7 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       cardStyle: "elevated",
       bgStyle: "dots",
       density: "comfortable",
+      animation: "pop",
     },
   },
   cafe: {
@@ -165,6 +171,7 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       cardStyle: "flat",
       bgStyle: "gradient",
       density: "airy",
+      animation: "fade",
     },
   },
   bold: {
@@ -190,6 +197,7 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       cardStyle: "glass",
       bgStyle: "glow",
       density: "compact",
+      animation: "slide",
     },
   },
 };
@@ -255,6 +263,11 @@ export function parseMenuTheme(raw: unknown): MenuTheme {
       input["density"],
       ["compact", "comfortable", "airy"],
       base.density,
+    ),
+    animation: oneOf<AnimationId>(
+      input["animation"],
+      ["none", "fade", "rise", "pop", "slide"],
+      base.animation,
     ),
   };
 }
@@ -411,4 +424,24 @@ export function densityPadding(theme: MenuTheme): string {
   if (theme.density === "compact") return "0.625rem";
   if (theme.density === "airy") return "1.125rem";
   return "0.875rem";
+}
+
+export const ANIMATION_LABELS: Record<AnimationId, { en: string; ar: string }> = {
+  none: { en: "None", ar: "بدون" },
+  fade: { en: "Soft fade", ar: "تلاشٍ ناعم" },
+  rise: { en: "Rise up", ar: "صعود" },
+  pop: { en: "Pop in", ar: "ظهور نابض" },
+  slide: { en: "Slide in", ar: "انسياب" },
+};
+
+/** Entrance animation class + staggered delay for a menu item card. */
+export function itemMotion(
+  theme: MenuTheme,
+  index: number,
+): { className: string; style: React.CSSProperties } {
+  if (theme.animation === "none") return { className: "", style: {} };
+  return {
+    className: `qs-anim qs-anim-${theme.animation}`,
+    style: { animationDelay: `${Math.min(index, 12) * 45}ms` },
+  };
 }
