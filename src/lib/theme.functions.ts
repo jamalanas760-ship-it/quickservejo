@@ -91,8 +91,9 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
     if (!match) throw new Error("Theme generation returned no design");
 
     try {
-      return { theme: JSON.parse(match[0]) as Record<string, unknown> };
+      JSON.parse(match[0]);
     } catch {
       throw new Error("Theme generation returned no design");
     }
+    return { themeJson: match[0] };
   });
