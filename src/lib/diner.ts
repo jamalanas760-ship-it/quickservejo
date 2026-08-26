@@ -202,7 +202,7 @@ export async function placePublicOrder(input: {
       notes: line.notes || null,
       modifier_ids: line.modifiers.map((m) => m.id),
     })),
-    _notes: input.notes || undefined,
+    ...(input.notes ? { _notes: input.notes } : {}),
   });
   if (error) throw error;
   const row = (data as PlacedOrder[] | null)?.[0];
@@ -231,7 +231,7 @@ export async function fetchPublicOrderStatus(token: string) {
 export async function callWaiter(qrToken: string, note: string) {
   const { error } = await supabase.rpc("public_call_waiter", {
     _qr_token: qrToken,
-    _note: note || undefined,
+    ...(note ? { _note: note } : {}),
   });
   if (error) throw error;
 }
