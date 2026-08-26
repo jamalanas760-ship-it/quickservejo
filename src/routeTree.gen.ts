@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
 import { Route as AuthenticatedManageRouteRouteImport } from './routes/_authenticated/manage/route'
 import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_authenticated/super-admin/route'
 import { Route as OTokenRouteImport } from './routes/o/$token'
@@ -58,6 +59,11 @@ const AuthRoute = AuthRouteImport.update({
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedKitchenRoute = AuthenticatedKitchenRouteImport.update({
+  id: '/kitchen',
+  path: '/kitchen',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedManageRouteRoute =
@@ -234,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/manage': typeof AuthenticatedManageRouteRouteWithChildren
   '/super-admin': typeof AuthenticatedSuperAdminRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/kitchen': typeof AuthenticatedKitchenRoute
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
   '/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
@@ -264,6 +271,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/kitchen': typeof AuthenticatedKitchenRoute
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
@@ -296,6 +304,7 @@ export interface FileRoutesById {
   '/_authenticated/manage': typeof AuthenticatedManageRouteRouteWithChildren
   '/_authenticated/super-admin': typeof AuthenticatedSuperAdminRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
   '/_authenticated/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
@@ -330,6 +339,7 @@ export interface FileRouteTypes {
     | '/manage'
     | '/super-admin'
     | '/dashboard'
+    | '/kitchen'
     | '/o/$token'
     | '/r/$slug'
     | '/manage/$restaurantId'
@@ -360,6 +370,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/kitchen'
     | '/o/$token'
     | '/r/$slug'
     | '/super-admin/analytics'
@@ -391,6 +402,7 @@ export interface FileRouteTypes {
     | '/_authenticated/manage'
     | '/_authenticated/super-admin'
     | '/_authenticated/dashboard'
+    | '/_authenticated/kitchen'
     | '/o/$token'
     | '/r/$slug'
     | '/_authenticated/manage/$restaurantId'
@@ -454,6 +466,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/kitchen': {
+      id: '/_authenticated/kitchen'
+      path: '/kitchen'
+      fullPath: '/kitchen'
+      preLoaderRoute: typeof AuthenticatedKitchenRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/manage': {
@@ -765,6 +784,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedManageRouteRoute: typeof AuthenticatedManageRouteRouteWithChildren
   AuthenticatedSuperAdminRouteRoute: typeof AuthenticatedSuperAdminRouteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedKitchenRoute: typeof AuthenticatedKitchenRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -772,6 +792,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSuperAdminRouteRoute:
     AuthenticatedSuperAdminRouteRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedKitchenRoute: AuthenticatedKitchenRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
