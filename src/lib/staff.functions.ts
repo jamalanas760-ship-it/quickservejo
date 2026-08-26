@@ -99,6 +99,18 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
       .single();
     if (inserted.error) throw inserted.error;
 
+    if (passwordIsNew) {
+      await supabaseAdmin.from("staff_login_secrets").upsert(
+        {
+          staff_id: inserted.data.id,
+          restaurant_id: data.restaurantId,
+          email,
+          password,
+        },
+        { onConflict: "staff_id" },
+      );
+    }
+
     return {
       staffId: inserted.data.id,
       email,
@@ -128,6 +140,16 @@ export const resetStaffPassword = createServerFn({ method: "POST" })
       email_confirm: true,
     });
     if (updated.error) throw updated.error;
+
+    await supabaseAdmin.from("staff_login_secrets").upsert(
+      {
+        staff_id: row.id,
+        restaurant_id: row.restaurant_id,
+        email: row.email ?? updated.data.user?.email ?? null,
+        password,
+      },
+      { onConflict: "staff_id" },
+    );
 
     return { email: row.email ?? updated.data.user?.email ?? "", password };
   });
@@ -165,4 +187,43 @@ export const removeStaffMember = createServerFn({ method: "POST" })
     }
 
     return { removed: true };
+  });
+
+/**
+ * Admin-only directory of staff logins for one restaurant, including the last
+ * password issued through QuickServe. Guarded by the same manage check as the
+ * rest of staff administration; the underlying table is unreachable from the
+ * client because it has no Data API grants.
+ */
+export const listStaffLogins = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ restaurantId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertCanManage(supabase as never, userId, data.restaurantId);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [staff, secrets] = await Promise.all([
+      supabaseAdmin
+        .from("staff")
+        .select("id, name, email, role, is_active, created_at")
+        .eq("restaurant_id", data.restaurantId)
+        .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("staff_login_secrets")
+        .select("staff_id, password")
+        .eq("restaurant_id", data.restaurantId),
+    ]);
+    if (staff.error) throw staff.error;
+    if (secrets.error) throw secrets.error;
+
+    const byStaff = new Map((secrets.data ?? []).map((r) => [r.staff_id, r.password]));
+    return (staff.data ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role,
+      isActive: row.is_active,
+      password: byStaff.get(row.id) ?? null,
+    }));
   });
