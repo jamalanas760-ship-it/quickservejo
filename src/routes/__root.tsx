@@ -15,6 +15,7 @@ import { I18nProvider } from "@/lib/i18n";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SplashScreen } from "@/components/app/SplashScreen";
+import { NotificationPrompt } from "@/components/app/NotificationPrompt";
 
 function NotFoundComponent() {
   return (
@@ -136,7 +137,18 @@ function RootComponent() {
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
-    return () => data.subscription.unsubscribe();
+    // Keep long-lived sessions alive: refreshing on focus renews the stored
+    // token so staff and admins stay signed in between shifts.
+    const onFocus = () => {
+      if (document.visibilityState === "visible") void supabase.auth.getSession();
+    };
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      data.subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("focus", onFocus);
+    };
   }, [router, queryClient]);
 
   return (
@@ -145,6 +157,7 @@ function RootComponent() {
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <SplashScreen />
+        <NotificationPrompt />
         <Toaster />
       </I18nProvider>
     </QueryClientProvider>
