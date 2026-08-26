@@ -29,6 +29,7 @@ import {
   buttonStyle as buttonStyleFor,
   densityGap,
   imageShapeClass,
+  itemMotion,
   pageBackground,
   surfaceStyle,
   themeVars,
