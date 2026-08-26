@@ -6,6 +6,7 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { useI18n } from "@/lib/i18n";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { humanError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -151,7 +152,7 @@ function AuthPage() {
     <main className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
       <section className="hidden flex-col justify-between bg-sidebar p-12 text-sidebar-foreground lg:flex">
         <Link to="/" className="font-display text-xl font-bold">
-          Quick<span className="text-sidebar-primary">Serve</span>
+          <BrandLogo className="size-9" accentClassName="text-sidebar-primary" textClassName="text-xl" />
         </Link>
         <div className="max-w-md space-y-4">
           <h1 className="text-4xl font-bold leading-tight">
@@ -172,7 +173,7 @@ function AuthPage() {
         <div className="w-full max-w-sm space-y-6">
           <div className="flex items-center justify-between">
             <Link to="/" className="font-display text-lg font-bold lg:hidden">
-              Quick<span className="text-accent">Serve</span>
+              <BrandLogo className="size-8" />
             </Link>
             <Button variant="ghost" size="sm" onClick={toggleLang} type="button">
               {t("common.language")}

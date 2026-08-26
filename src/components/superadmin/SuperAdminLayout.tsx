@@ -30,6 +30,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "@/components/superadmin/GlobalSearch";
 import { useRestaurantsWithStats } from "@/hooks/useSuperAdmin";
@@ -89,9 +90,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: (() => void) | undefined 
   return (
     <div className="flex h-full flex-col gap-6 p-4">
       <Link to={"/super-admin" as never} onClick={onNavigate} className="px-2">
-        <span className="font-display text-lg font-bold">
-          Quick<span className="text-sidebar-primary">Serve</span>
-        </span>
+        <BrandLogo className="size-8" accentClassName="text-sidebar-primary" />
         <span className="mt-0.5 block text-xs text-sidebar-foreground/60">{t("sa.brand")}</span>
       </Link>
       <NavLinks onNavigate={onNavigate} />
