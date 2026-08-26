@@ -132,17 +132,17 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
       return payload.choices?.[0]?.message?.content ?? null;
     }
 
-    // Pass 1 — Claude art-directs the concept from the brand, brief and references.
+    // Pass 1 — the concept model art-directs from the brand, brief and references.
     const draftMessages = [
       { role: "system", content: draftSystem },
       { role: "user", content: userContent },
     ];
     let draft =
-      extractJson((await content("anthropic/claude-sonnet-4-5", draftMessages)) ?? "") ??
-      extractJson((await content("google/gemini-3-pro", draftMessages)) ?? "");
+      extractJson((await content("openai/gpt-5.5", draftMessages)) ?? "") ??
+      extractJson((await content("google/gemini-3.1-pro-preview", draftMessages)) ?? "");
     if (!draft) throw new Error("Theme generation is unavailable right now");
 
-    // Pass 2 — GPT critiques and refines Claude's concept as a design director:
+    // Pass 2 — a second model critiques and refines the concept as design director:
     // contrast, hierarchy, motion and coherence get one more expert pass.
     const refineSystem =
       "You are the design director reviewing a junior-free, senior concept for a mobile QR menu. " +
@@ -166,6 +166,6 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
       ])) ?? "",
     );
 
-    // The refined design wins when it arrives; Claude's concept ships otherwise.
+    // The refined design wins when it arrives; the concept ships otherwise.
     return { themeJson: JSON.stringify({ ...draft, ...(refined ?? {}) }) };
   });
