@@ -482,6 +482,82 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-1.5">
+              <Label>{t("design.buttonStyle")}</Label>
+              <Select
+                value={theme.buttonStyle}
+                onValueChange={(v) => setTheme((p) => ({ ...p, buttonStyle: v as ButtonStyleId }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(BUTTON_STYLE_LABELS) as ButtonStyleId[]).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {BUTTON_STYLE_LABELS[k][lang]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>{t("design.cardStyle")}</Label>
+              <Select
+                value={theme.cardStyle}
+                onValueChange={(v) => setTheme((p) => ({ ...p, cardStyle: v as CardStyleId }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(CARD_STYLE_LABELS) as CardStyleId[]).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {CARD_STYLE_LABELS[k][lang]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>{t("design.bgStyle")}</Label>
+              <Select
+                value={theme.bgStyle}
+                onValueChange={(v) => setTheme((p) => ({ ...p, bgStyle: v as BgStyleId }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(BG_STYLE_LABELS) as BgStyleId[]).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {BG_STYLE_LABELS[k][lang]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>{t("design.density")}</Label>
+              <Select
+                value={theme.density}
+                onValueChange={(v) => setTheme((p) => ({ ...p, density: v as DensityId }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(DENSITY_LABELS) as DensityId[]).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {DENSITY_LABELS[k][lang]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </section>
         </div>
 
