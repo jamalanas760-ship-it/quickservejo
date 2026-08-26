@@ -24,7 +24,7 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
     restaurantId,
     ...(status !== "all" ? { status } : {}),
   });
-  const currency = restaurant?.currency ?? "SAR";
+  const currency = restaurant?.currency ?? "JOD";
 
   return (
     <div className="space-y-4">

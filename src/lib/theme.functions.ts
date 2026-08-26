@@ -5,7 +5,19 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const generateSchema = z.object({
   restaurantId: z.string().uuid(),
-  brief: z.string().max(400).optional(),
+  brief: z.string().max(1200).optional(),
+  /** Up to 3 inspiration images as data URLs (image/*) or https URLs. */
+  images: z
+    .array(
+      z
+        .string()
+        .max(6_000_000)
+        .refine((v) => v.startsWith("data:image/") || v.startsWith("https://"), {
+          message: "Unsupported image",
+        }),
+    )
+    .max(3)
+    .optional(),
 });
 
 /**
@@ -51,27 +63,40 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
       restaurant.description_ar ? `Arabic description: ${restaurant.description_ar}` : "",
       `Brand colours: primary ${restaurant.primary_color}, accent ${restaurant.accent_color}`,
       data.brief ? `Owner brief: ${data.brief}` : "",
+      data.images?.length
+        ? "Inspiration images are attached — extract their palette, typography feel, spacing and mood."
+        : "",
     ]
       .filter(Boolean)
       .join("\n");
+
+    const userContent: unknown[] = [{ type: "text", text: prompt }];
+    for (const url of data.images ?? []) {
+      userContent.push({ type: "image_url", image_url: { url } });
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3.7-flash",
         messages: [
           {
             role: "system",
             content:
-              "You design mobile QR restaurant menus. Reply ONLY with a JSON object using these keys: " +
+              "You are a senior product designer specialising in mobile QR restaurant menus. " +
+              "Reply ONLY with a JSON object using exactly these keys: " +
               "template (classic|midnight|street|cafe|bold), bg, surface, text, muted, primary, primaryText, accent " +
               "(all 6-digit hex like #1a1a1a), bodyFont and headingFont (sans|serif|rounded|mono|display), " +
               "layout (list|grid|magazine), hero (cover|gradient|minimal), radius (0-32 integer), " +
-              "showImages (boolean), imageShape (rounded|circle|square), showIcons (boolean). " +
-              "Ensure strong contrast between text and surface, and between primary and primaryText.",
+              "showImages (boolean), imageShape (rounded|circle|square), showIcons (boolean), " +
+              "buttonStyle (solid|pill|soft|outline), cardStyle (flat|elevated|outline|glass), " +
+              "bgStyle (solid|gradient|dots|glow), density (compact|comfortable|airy). " +
+              "Design for thumb-first mobile reading: WCAG AA contrast between text and surface and between " +
+              "primary and primaryText, a distinctive accent that is not generic purple-on-white, and a coherent " +
+              "pairing of typography, radius, card style and background style. No prose, no markdown fences.",
           },
-          { role: "user", content: prompt },
+          { role: "user", content: userContent },
         ],
         temperature: 0.8,
       }),

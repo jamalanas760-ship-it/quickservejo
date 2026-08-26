@@ -42,27 +42,63 @@ function OrderStatusPage() {
   });
 
   return (
-    <div className="mx-auto max-w-md space-y-4 p-6">
-      <h1 className="text-xl font-semibold">{t("diner.trackOrder")}</h1>
+    <div className="safe-top safe-bottom mx-auto w-full max-w-md space-y-4 px-4 py-6 sm:px-6">
+      <h1 className="text-lg font-semibold sm:text-xl">{t("diner.trackOrder")}</h1>
       {order.isPending ? (
-        <Skeleton className="h-40 rounded-xl" />
+        <Skeleton className="h-56 rounded-2xl" />
       ) : !order.data ? (
         <p className="text-sm text-muted-foreground">{t("diner.orderNotFound")}</p>
       ) : (
-        <div className="panel space-y-3 p-6 text-center">
-          <p className="text-xs text-muted-foreground">{t("diner.orderNumber")}</p>
-          <p className="text-3xl font-bold">{order.data.order_number}</p>
-          <Badge variant="secondary" className="text-sm">
-            {STATUS_LABELS[order.data.status]?.[lang] ?? order.data.status}
-          </Badge>
-          <p className="text-sm font-medium">
-            {formatMoney(order.data.total, order.data.currency, lang)}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {formatDateTime(order.data.created_at, lang)}
-          </p>
+        <div className="panel space-y-5 p-5 sm:p-6">
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">{t("diner.orderNumber")}</p>
+            <p className="text-3xl font-bold tabular-nums sm:text-4xl">
+              {order.data.order_number}
+            </p>
+            <Badge variant="secondary" className="mt-2 text-sm">
+              {STATUS_LABELS[order.data.status]?.[lang] ?? order.data.status}
+            </Badge>
+          </div>
+
+          <ol className="space-y-2">
+            {STEPS.map((step, index) => {
+              const current = STEPS.indexOf(order.data?.status ?? "");
+              const done = current >= 0 && index <= current;
+              return (
+                <li key={step} className="flex items-center gap-3">
+                  <span
+                    className={
+                      done
+                        ? "grid size-8 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
+                        : "grid size-8 shrink-0 place-items-center rounded-full border text-xs font-semibold text-muted-foreground"
+                    }
+                  >
+                    {index + 1}
+                  </span>
+                  <span
+                    className={
+                      done ? "text-sm font-medium" : "text-sm text-muted-foreground"
+                    }
+                  >
+                    {STATUS_LABELS[step]?.[lang] ?? step}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+
+          <div className="flex items-center justify-between gap-3 border-t pt-4 text-sm">
+            <span className="font-semibold">
+              {formatMoney(order.data.total, order.data.currency, lang)}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {formatDateTime(order.data.created_at, lang)}
+            </span>
+          </div>
         </div>
       )}
     </div>
   );
 }
+
+const STEPS = ["new", "accepted", "preparing", "ready", "served"];

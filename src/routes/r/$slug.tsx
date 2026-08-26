@@ -25,7 +25,14 @@ import { useI18n } from "@/lib/i18n";
 import { humanError } from "@/lib/errors";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { imageShapeClass, themeVars } from "@/lib/menu-theme";
+import {
+  buttonStyle as buttonStyleFor,
+  densityGap,
+  imageShapeClass,
+  pageBackground,
+  surfaceStyle,
+  themeVars,
+} from "@/lib/menu-theme";
 import {
   callWaiter,
   loadDinerMenu,
@@ -79,7 +86,7 @@ function DinerPage() {
   const [busy, setBusy] = useState(false);
 
   const restaurant = menu.data?.restaurant;
-  const currency = restaurant?.currency ?? "SAR";
+  const currency = restaurant?.currency ?? "JOD";
   const showPrices = menu.data?.settings?.show_prices ?? true;
   const ordersEnabled = (menu.data?.settings?.enable_orders ?? true) && Boolean(menu.data?.table);
 
@@ -181,17 +188,15 @@ function DinerPage() {
   }
 
   const theme = restaurant.menu_theme;
-  const cardStyle = {
-    background: "var(--qs-surface)",
-    borderRadius: "var(--qs-radius)",
-  } as const;
+  const cardStyle = surfaceStyle(theme);
+  const gap = densityGap(theme);
 
   return (
     <div
       className="min-h-screen pb-28"
       style={{
         ...themeVars(theme),
-        background: "var(--qs-bg)",
+        ...pageBackground(theme),
         color: "var(--qs-text)",
         fontFamily: "var(--qs-body-font)",
       }}
@@ -252,12 +257,11 @@ function DinerPage() {
             </div>
             <span
               className="inline-block px-2 py-0.5 text-[11px] font-medium"
-              style={{
-                background: menu.data?.table ? "var(--qs-primary)" : "transparent",
-                color: menu.data?.table ? "var(--qs-primary-text)" : "var(--qs-muted)",
-                border: menu.data?.table ? "none" : "1px solid var(--qs-muted)",
-                borderRadius: "var(--qs-radius)",
-              }}
+              style={
+                menu.data?.table
+                  ? buttonStyleFor(theme)
+                  : buttonStyleFor(theme, false)
+              }
             >
               {menu.data?.table
                 ? `${t("diner.table")} ${menu.data.table.table_name || menu.data.table.table_number}`
@@ -281,12 +285,8 @@ function DinerPage() {
                 key={chip.id}
                 type="button"
                 onClick={() => setActiveCategory(chip.id)}
-                className="shrink-0 px-3.5 py-1.5 text-sm font-medium transition-opacity"
-                style={{
-                  background: active ? "var(--qs-primary)" : "var(--qs-surface)",
-                  color: active ? "var(--qs-primary-text)" : "var(--qs-muted)",
-                  borderRadius: "var(--qs-radius)",
-                }}
+                className="min-h-10 shrink-0 px-4 py-2 text-sm font-medium transition-transform active:scale-95"
+                style={buttonStyleFor(theme, active)}
               >
                 {chip.label}
               </button>
@@ -301,13 +301,14 @@ function DinerPage() {
         ) : (
           <ul
             className={cn(
-              "mt-4",
+              "mt-4 grid",
               theme.layout === "grid"
-                ? "grid grid-cols-2 gap-3 sm:grid-cols-3"
+                ? "grid-cols-2 sm:grid-cols-3"
                 : theme.layout === "magazine"
-                  ? "grid gap-3 sm:grid-cols-2"
-                  : "space-y-3",
+                  ? "sm:grid-cols-2"
+                  : "grid-cols-1",
             )}
+            style={{ gap }}
           >
             {items.map((item) => {
               const stacked = theme.layout !== "list";
@@ -316,7 +317,7 @@ function DinerPage() {
                   <button
                     type="button"
                     className={cn(
-                      "w-full p-3 text-start",
+                      "w-full p-3 text-start transition-transform active:scale-[0.98]",
                       stacked ? "block h-full" : "flex items-center gap-3",
                     )}
                     style={cardStyle}

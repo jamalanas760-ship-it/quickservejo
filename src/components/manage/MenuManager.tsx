@@ -110,7 +110,7 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
   const { t, lang, pick } = useI18n();
   const queryClient = useQueryClient();
   const { data: restaurant } = useRestaurant(restaurantId);
-  const currency = restaurant?.currency ?? "SAR";
+  const currency = restaurant?.currency ?? "JOD";
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [categoryForm, setCategoryForm] = useState<CategoryForm | null>(null);

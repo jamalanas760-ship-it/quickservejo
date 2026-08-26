@@ -250,7 +250,7 @@ function PlatformOrdersPage() {
                     ) : null}
                   </span>
                   <span className="tabular-nums">
-                    {formatMoney(it.total_price, current?.currency ?? "SAR", lang)}
+                    {formatMoney(it.total_price, current?.currency ?? "JOD", lang)}
                   </span>
                 </li>
               ))}
