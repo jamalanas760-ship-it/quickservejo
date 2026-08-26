@@ -77,7 +77,7 @@ function SubscriptionsPage() {
         {plans.isPending ? (
           <Skeleton className="h-40 rounded-xl" />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             {(plans.data ?? []).map((p) => (
               <div key={p.plan} className="panel space-y-2 p-5">
                 <p className="text-sm font-semibold">{pick(p.name_en, p.name_ar)}</p>

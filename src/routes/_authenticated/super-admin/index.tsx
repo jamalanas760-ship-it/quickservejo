@@ -69,7 +69,7 @@ function PlatformDashboard() {
         </div>
       )}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
           label={t("sa.stat.totalRestaurants")}
           value={formatNumber(s?.restaurants, lang)}
