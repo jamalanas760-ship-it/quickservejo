@@ -31,6 +31,8 @@ export type AuditAction =
   | "staff.reactivated"
   | "staff.access_removed"
   | "staff.password_reset"
+  | "staff.access_issued"
+  | "menu.theme_updated"
   | "staff.deleted"
   | "order.cancelled"
   | "platform.settings_updated"

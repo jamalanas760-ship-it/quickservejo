@@ -620,12 +620,14 @@ export type Database = {
           logo_url: string | null
           longitude: number | null
           menu_style: string
+          menu_theme: Json
           name: string
           phone: string | null
           primary_color: string
           secondary_color: string
           service_charge: number
           slug: string
+          staff_code: string | null
           subscription_end: string | null
           subscription_plan: Database["public"]["Enums"]["subscription_plan"]
           subscription_start: string
@@ -658,12 +660,14 @@ export type Database = {
           logo_url?: string | null
           longitude?: number | null
           menu_style?: string
+          menu_theme?: Json
           name: string
           phone?: string | null
           primary_color?: string
           secondary_color?: string
           service_charge?: number
           slug: string
+          staff_code?: string | null
           subscription_end?: string | null
           subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
           subscription_start?: string
@@ -696,12 +700,14 @@ export type Database = {
           logo_url?: string | null
           longitude?: number | null
           menu_style?: string
+          menu_theme?: Json
           name?: string
           phone?: string | null
           primary_color?: string
           secondary_color?: string
           service_charge?: number
           slug?: string
+          staff_code?: string | null
           subscription_end?: string | null
           subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
           subscription_start?: string
@@ -754,6 +760,48 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_credentials: {
+        Row: {
+          created_at: string
+          login_code: string | null
+          pin_hash: string | null
+          restaurant_id: string | null
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          login_code?: string | null
+          pin_hash?: string | null
+          restaurant_id?: string | null
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          login_code?: string | null
+          pin_hash?: string | null
+          restaurant_id?: string | null
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_credentials_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_credentials_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: true
+            referencedRelation: "staff"
             referencedColumns: ["id"]
           },
         ]

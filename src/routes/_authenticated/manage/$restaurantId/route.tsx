@@ -13,6 +13,7 @@ export const Route = createFileRoute("/_authenticated/manage/$restaurantId")({
 
 const TABS = [
   { to: "/manage/$restaurantId", labelKey: "sa.detail.menu", exact: true },
+  { to: "/manage/$restaurantId/design", labelKey: "sa.detail.design" },
   { to: "/manage/$restaurantId/tables", labelKey: "sa.detail.tables" },
   { to: "/manage/$restaurantId/staff", labelKey: "sa.detail.staff" },
   { to: "/manage/$restaurantId/orders", labelKey: "sa.detail.orders" },
