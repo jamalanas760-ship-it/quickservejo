@@ -178,44 +178,85 @@ function DinerPage() {
     );
   }
 
+  const theme = restaurant.menu_theme;
+  const cardStyle = {
+    background: "var(--qs-surface)",
+    borderRadius: "var(--qs-radius)",
+  } as const;
+
   return (
-    <div className="min-h-screen bg-background pb-28">
+    <div
+      className="min-h-screen pb-28"
+      style={{
+        ...themeVars(theme),
+        background: "var(--qs-bg)",
+        color: "var(--qs-text)",
+        fontFamily: "var(--qs-body-font)",
+      }}
+    >
       <header className="relative">
-        {restaurant.cover_image_url ? (
+        {theme.hero === "cover" && restaurant.cover_image_url ? (
           <img
             src={restaurant.cover_image_url}
             alt={restaurant.name}
             className="h-40 w-full object-cover"
           />
+        ) : theme.hero === "gradient" ? (
+          <div
+            className="h-32 w-full"
+            style={{
+              background: `linear-gradient(135deg, ${theme.primary}, ${theme.accent})`,
+            }}
+          />
         ) : (
-          <div className="h-24 w-full bg-primary/10" />
+          <div className="h-10 w-full" />
         )}
         <div className="mx-auto max-w-3xl px-4">
-          <div className="panel -mt-8 flex items-center gap-3 p-4">
+          <div
+            className={cn(
+              "flex items-center gap-3 p-4",
+              theme.hero === "minimal" ? "" : "-mt-8",
+            )}
+            style={cardStyle}
+          >
             {restaurant.logo_url ? (
               <img
                 src={restaurant.logo_url}
                 alt=""
-                className="size-14 rounded-lg object-cover"
+                className={cn("size-14 object-cover", imageShapeClass(theme))}
               />
             ) : null}
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-lg font-semibold">{restaurant.name}</h1>
-              <p className="truncate text-xs text-muted-foreground">
+              <h1
+                className="truncate text-lg font-semibold"
+                style={{ fontFamily: "var(--qs-heading-font)" }}
+              >
+                {restaurant.name}
+              </h1>
+              <p className="truncate text-xs" style={{ color: "var(--qs-muted)" }}>
                 {pick(restaurant.description_en, restaurant.description_ar) ||
                   t("brand.tagline")}
               </p>
-              {menu.data?.table ? (
-                <Badge variant="secondary" className="mt-1">
-                  {t("diner.table")} {menu.data.table.table_name || menu.data.table.table_number}
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="mt-1">
-                  {t("diner.browseOnly")}
-                </Badge>
-              )}
+              <span
+                className="mt-1 inline-block px-2 py-0.5 text-[11px] font-medium"
+                style={{
+                  background: menu.data?.table ? "var(--qs-primary)" : "transparent",
+                  color: menu.data?.table ? "var(--qs-primary-text)" : "var(--qs-muted)",
+                  border: menu.data?.table ? "none" : "1px solid var(--qs-muted)",
+                  borderRadius: "var(--qs-radius)",
+                }}
+              >
+                {menu.data?.table
+                  ? `${t("diner.table")} ${menu.data.table.table_name || menu.data.table.table_number}`
+                  : t("diner.browseOnly")}
+              </span>
             </div>
-            <Button size="sm" variant="ghost" onClick={toggleLang}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={toggleLang}
+              style={{ color: "var(--qs-muted)" }}
+            >
               {t("common.language")}
             </Button>
           </div>
@@ -224,69 +265,119 @@ function DinerPage() {
 
       <div className="mx-auto max-w-3xl px-4">
         <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto pb-1">
-          <Button
-            size="sm"
-            variant={activeCategory === "all" ? "default" : "outline"}
-            onClick={() => setActiveCategory("all")}
-          >
-            {t("diner.all")}
-          </Button>
-          {(menu.data?.categories ?? []).map((c) => (
-            <Button
-              key={c.id}
-              size="sm"
-              variant={activeCategory === c.id ? "default" : "outline"}
-              onClick={() => setActiveCategory(c.id)}
-            >
-              {pick(c.name_en, c.name_ar)}
-            </Button>
-          ))}
+          {[{ id: "all", label: t("diner.all") } as const].concat(
+            (menu.data?.categories ?? []).map((c) => ({
+              id: c.id,
+              label: pick(c.name_en, c.name_ar),
+            })) as never,
+          ).map((chip) => {
+            const active = activeCategory === chip.id;
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={() => setActiveCategory(chip.id)}
+                className="shrink-0 px-3.5 py-1.5 text-sm font-medium transition-opacity"
+                style={{
+                  background: active ? "var(--qs-primary)" : "var(--qs-surface)",
+                  color: active ? "var(--qs-primary-text)" : "var(--qs-muted)",
+                  borderRadius: "var(--qs-radius)",
+                }}
+              >
+                {chip.label}
+              </button>
+            );
+          })}
         </div>
 
         {items.length === 0 ? (
-          <div className="panel mt-4 p-8 text-center text-sm text-muted-foreground">
+          <div className="mt-4 p-8 text-center text-sm" style={{ ...cardStyle, color: "var(--qs-muted)" }}>
             {t("diner.emptyMenu")}
           </div>
         ) : (
-          <ul className="mt-4 space-y-3">
-            {items.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  className="panel flex w-full items-center gap-3 p-3 text-start"
-                  onClick={() => setDetail(item)}
-                >
-                  {item.image_url ? (
-                    <img
-                      src={item.image_url}
-                      alt=""
-                      className="size-20 shrink-0 rounded-lg object-cover"
-                      loading="lazy"
-                    />
-                  ) : null}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate font-medium">{pick(item.name_en, item.name_ar)}</p>
-                      {item.is_featured ? (
-                        <Badge variant="secondary">{t("diner.featured")}</Badge>
+          <ul
+            className={cn(
+              "mt-4",
+              theme.layout === "grid"
+                ? "grid grid-cols-2 gap-3 sm:grid-cols-3"
+                : theme.layout === "magazine"
+                  ? "grid gap-3 sm:grid-cols-2"
+                  : "space-y-3",
+            )}
+          >
+            {items.map((item) => {
+              const stacked = theme.layout !== "list";
+              return (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "w-full p-3 text-start",
+                      stacked ? "block h-full" : "flex items-center gap-3",
+                    )}
+                    style={cardStyle}
+                    onClick={() => setDetail(item)}
+                  >
+                    {theme.showImages && item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt=""
+                        className={cn(
+                          "shrink-0 object-cover",
+                          imageShapeClass(theme),
+                          stacked
+                            ? theme.layout === "magazine"
+                              ? "mb-2 h-40 w-full"
+                              : "mb-2 h-28 w-full"
+                            : "size-20",
+                        )}
+                        loading="lazy"
+                      />
+                    ) : null}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p
+                          className="truncate font-medium"
+                          style={{ fontFamily: "var(--qs-heading-font)" }}
+                        >
+                          {pick(item.name_en, item.name_ar)}
+                        </p>
+                        {item.is_featured ? (
+                          <span
+                            className="shrink-0 px-1.5 py-0.5 text-[10px] font-semibold"
+                            style={{
+                              background: "var(--qs-accent)",
+                              color: "var(--qs-primary-text)",
+                              borderRadius: "var(--qs-radius)",
+                            }}
+                          >
+                            {t("diner.featured")}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="line-clamp-2 text-xs" style={{ color: "var(--qs-muted)" }}>
+                        {pick(item.description_en, item.description_ar)}
+                      </p>
+                      {showPrices ? (
+                        <p
+                          className="mt-1 text-sm font-semibold"
+                          style={{ color: "var(--qs-accent)" }}
+                        >
+                          {formatMoney(item.price, currency, lang)}
+                        </p>
                       ) : null}
                     </div>
-                    <p className="line-clamp-2 text-xs text-muted-foreground">
-                      {pick(item.description_en, item.description_ar)}
-                    </p>
-                    {showPrices ? (
-                      <p className="mt-1 text-sm font-semibold">
-                        {formatMoney(item.price, currency, lang)}
-                      </p>
+                    {ordersEnabled && theme.showIcons ? (
+                      <Plus className="size-5 shrink-0" style={{ color: "var(--qs-muted)" }} />
                     ) : null}
-                  </div>
-                  {ordersEnabled ? <Plus className="size-5 text-muted-foreground" /> : null}
-                </button>
-              </li>
-            ))}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
+
 
       {menu.data?.settings?.enable_waiter_calls && menu.data.table ? (
         <div className="mx-auto mt-6 max-w-3xl px-4">
