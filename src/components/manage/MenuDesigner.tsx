@@ -244,19 +244,87 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
                 );
               })}
             </div>
-            <div className="flex flex-wrap items-end gap-2 border-t pt-3">
-              <div className="min-w-52 flex-1 space-y-1.5">
-                <Label>{t("design.aiBrief")}</Label>
-                <Input value={brief} onChange={(e) => setBrief(e.target.value)} />
+          </section>
+
+          <section className="panel space-y-3 p-4">
+            <div className="flex items-center gap-2">
+              <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
+                <Wand2 className="size-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-semibold">{t("design.aiStudio")}</h3>
+                <p className="text-xs text-muted-foreground">{t("design.aiStudioHint")}</p>
               </div>
-              <Button variant="secondary" disabled={aiBusy} onClick={() => void runAi()}>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>{t("design.aiBrief")}</Label>
+              <Textarea
+                rows={3}
+                value={brief}
+                placeholder={t("design.aiPlaceholder")}
+                onChange={(e) => setBrief(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {AI_IDEAS.map((idea) => (
+                <button
+                  key={idea.en}
+                  type="button"
+                  onClick={() => setBrief(idea[lang])}
+                  className="rounded-full border px-3 py-1.5 text-xs transition-colors hover:border-primary/50 hover:bg-primary/5"
+                >
+                  {idea[lang]}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("design.aiRefs")}</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                {refs.map((src, index) => (
+                  <div key={src.slice(-24) + index} className="relative">
+                    <img
+                      src={src}
+                      alt=""
+                      className="size-16 rounded-lg border object-cover"
+                    />
+                    <button
+                      type="button"
+                      aria-label={t("common.delete")}
+                      onClick={() => setRefs((prev) => prev.filter((_, i) => i !== index))}
+                      className="absolute -end-1.5 -top-1.5 grid size-6 place-items-center rounded-full border bg-background shadow"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ))}
+                {refs.length < MAX_IMAGES ? (
+                  <label className="grid size-16 cursor-pointer place-items-center rounded-lg border border-dashed text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary">
+                    <ImagePlus className="size-5" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        void addRefs(e.target.files);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                ) : null}
+              </div>
+              <p className="text-xs text-muted-foreground">{t("design.aiRefsHint")}</p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 border-t pt-3">
+              <Button className="flex-1 sm:flex-none" disabled={aiBusy} onClick={() => void runAi()}>
                 <Sparkles className="size-4" />
                 {aiBusy ? t("design.aiWorking") : t("design.ai")}
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setTheme(TEMPLATES[theme.template].theme)}
-              >
+              <Button variant="ghost" onClick={() => setTheme(TEMPLATES[theme.template].theme)}>
                 {t("design.reset")}
               </Button>
             </div>
