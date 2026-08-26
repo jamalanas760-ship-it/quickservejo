@@ -62,7 +62,7 @@ function OrderStatusPage() {
 
           <ol className="space-y-2">
             {STEPS.map((step, index) => {
-              const current = STEPS.indexOf(order.data.status);
+              const current = STEPS.indexOf(order.data?.status ?? "");
               const done = current >= 0 && index <= current;
               return (
                 <li key={step} className="flex items-center gap-3">
