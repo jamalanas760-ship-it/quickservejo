@@ -18,6 +18,7 @@ import { Route as AuthenticatedManageRouteRouteImport } from './routes/_authenti
 import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_authenticated/super-admin/route'
 import { Route as OTokenRouteImport } from './routes/o/$token'
 import { Route as RSlugRouteImport } from './routes/r/$slug'
+import { Route as StaffIndexRouteImport } from './routes/staff/index'
 import { Route as AuthenticatedManageIndexRouteImport } from './routes/_authenticated/manage/index'
 import { Route as AuthenticatedManageRestaurantIdRouteRouteImport } from './routes/_authenticated/manage/$restaurantId/route'
 import { Route as AuthenticatedSuperAdminIndexRouteImport } from './routes/_authenticated/super-admin/index'
@@ -86,6 +87,11 @@ const OTokenRoute = OTokenRouteImport.update({
 const RSlugRoute = RSlugRouteImport.update({
   id: '/r/$slug',
   path: '/r/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffIndexRoute = StaffIndexRouteImport.update({
+  id: '/staff/',
+  path: '/staff/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedManageIndexRoute =
@@ -243,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
+  '/staff/': typeof StaffIndexRoute
   '/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
@@ -274,6 +281,7 @@ export interface FileRoutesByTo {
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
+  '/staff': typeof StaffIndexRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
   '/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
@@ -307,6 +315,7 @@ export interface FileRoutesById {
   '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
+  '/staff/': typeof StaffIndexRoute
   '/_authenticated/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
   '/_authenticated/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/_authenticated/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
@@ -342,6 +351,7 @@ export interface FileRouteTypes {
     | '/kitchen'
     | '/o/$token'
     | '/r/$slug'
+    | '/staff/'
     | '/manage/$restaurantId'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
@@ -373,6 +383,7 @@ export interface FileRouteTypes {
     | '/kitchen'
     | '/o/$token'
     | '/r/$slug'
+    | '/staff'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
     | '/super-admin/orders'
@@ -405,6 +416,7 @@ export interface FileRouteTypes {
     | '/_authenticated/kitchen'
     | '/o/$token'
     | '/r/$slug'
+    | '/staff/'
     | '/_authenticated/manage/$restaurantId'
     | '/_authenticated/super-admin/analytics'
     | '/_authenticated/super-admin/audit-logs'
@@ -436,6 +448,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   OTokenRoute: typeof OTokenRoute
   RSlugRoute: typeof RSlugRoute
+  StaffIndexRoute: typeof StaffIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -501,6 +514,13 @@ declare module '@tanstack/react-router' {
       path: '/r/$slug'
       fullPath: '/r/$slug'
       preLoaderRoute: typeof RSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff/': {
+      id: '/staff/'
+      path: '/staff'
+      fullPath: '/staff/'
+      preLoaderRoute: typeof StaffIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/manage/': {
@@ -804,6 +824,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   OTokenRoute: OTokenRoute,
   RSlugRoute: RSlugRoute,
+  StaffIndexRoute: StaffIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
