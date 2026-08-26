@@ -1,7 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, LayoutDashboard, Store, User } from "lucide-react";
+import { Home, LayoutDashboard, MonitorPlay, Store, User } from "lucide-react";
 
+import { useAccess } from "@/hooks/useSession";
 import { useI18n } from "@/lib/i18n";
+import { isFrontlineOnly } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 type Item = {
@@ -12,10 +14,16 @@ type Item = {
   exact?: boolean;
 };
 
-const ITEMS: Item[] = [
+const ADMIN_ITEMS: Item[] = [
   { to: "/", icon: Home, en: "Home", ar: "الرئيسية", exact: true },
   { to: "/dashboard", icon: LayoutDashboard, en: "Dashboard", ar: "لوحة التحكم" },
   { to: "/manage", icon: Store, en: "Restaurant", ar: "المطعم" },
+  { to: "/profile", icon: User, en: "Profile", ar: "الملف الشخصي" },
+];
+
+/** Frontline staff only get their operational display and their own profile. */
+const STAFF_ITEMS: Item[] = [
+  { to: "/kitchen", icon: MonitorPlay, en: "Orders", ar: "الطلبات" },
   { to: "/profile", icon: User, en: "Profile", ar: "الملف الشخصي" },
 ];
 
@@ -23,11 +31,17 @@ const ITEMS: Item[] = [
 export function BottomNav() {
   const { lang } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { roles, isPending } = useAccess();
+
+  const frontline = !isPending && isFrontlineOnly(roles);
+  const items = frontline ? STAFF_ITEMS : ADMIN_ITEMS;
 
   return (
     <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur">
-      <ul className="mx-auto grid max-w-lg grid-cols-4">
-        {ITEMS.map((item) => {
+      <ul
+        className={cn("mx-auto grid max-w-lg", frontline ? "grid-cols-2" : "grid-cols-4")}
+      >
+        {items.map((item) => {
           const active = item.exact
             ? pathname === "/"
             : pathname === item.to || pathname.startsWith(`${item.to}/`);

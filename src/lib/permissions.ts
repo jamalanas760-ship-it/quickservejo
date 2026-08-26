@@ -158,3 +158,29 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
 export function isWithinLimit(limit: number | null, current: number): boolean {
   return limit === null || current < limit;
 }
+
+/** Roles that can administer a workspace (dashboard, menu, staff, settings). */
+export const MANAGEMENT_ROLES: AppRole[] = ["super_admin", "restaurant_admin", "manager"];
+
+/** True when the user only holds frontline roles (kitchen / waiter / cashier). */
+export function isFrontlineOnly(roles: AppRole[]): boolean {
+  return roles.length > 0 && !roles.some((role) => MANAGEMENT_ROLES.includes(role));
+}
+
+/** Where a frontline-only user belongs: their operational display. */
+export function frontlineHome(roles: AppRole[]): string {
+  // Kitchen display is the shared operational screen for all frontline roles.
+  void roles;
+  return "/kitchen";
+}
+
+export type AccessLevel = "admin" | "member";
+
+export function accessLevelFor(role: AppRole): AccessLevel {
+  return MANAGEMENT_ROLES.includes(role) ? "admin" : "member";
+}
+
+export const ACCESS_LEVEL_LABELS: Record<AccessLevel, { en: string; ar: string }> = {
+  admin: { en: "Admin", ar: "مدير" },
+  member: { en: "Member", ar: "عضو" },
+};
