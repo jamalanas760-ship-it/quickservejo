@@ -23,6 +23,7 @@ import { Route as AuthenticatedSuperAdminAuditLogsRouteImport } from './routes/_
 import { Route as AuthenticatedSuperAdminOrdersRouteImport } from './routes/_authenticated/super-admin/orders'
 import { Route as AuthenticatedSuperAdminSettingsRouteImport } from './routes/_authenticated/super-admin/settings'
 import { Route as AuthenticatedSuperAdminSubscriptionsRouteImport } from './routes/_authenticated/super-admin/subscriptions'
+import { Route as AuthenticatedManageRestaurantIdIndexRouteImport } from './routes/_authenticated/manage/$restaurantId/index'
 import { Route as AuthenticatedSuperAdminRestaurantsIndexRouteImport } from './routes/_authenticated/super-admin/restaurants/index'
 import { Route as AuthenticatedSuperAdminRestaurantsRestaurantIdRouteRouteImport } from './routes/_authenticated/super-admin/restaurants/$restaurantId/route'
 import { Route as AuthenticatedSuperAdminRestaurantsNewRouteImport } from './routes/_authenticated/super-admin/restaurants/new'
@@ -113,6 +114,12 @@ const AuthenticatedSuperAdminSubscriptionsRoute =
     path: '/subscriptions',
     getParentRoute: () => AuthenticatedSuperAdminRouteRoute,
   } as any)
+const AuthenticatedManageRestaurantIdIndexRoute =
+  AuthenticatedManageRestaurantIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedManageRestaurantIdRouteRoute,
+  } as any)
 const AuthenticatedSuperAdminRestaurantsIndexRoute =
   AuthenticatedSuperAdminRestaurantsIndexRouteImport.update({
     id: '/restaurants/',
@@ -187,7 +194,7 @@ export interface FileRoutesByFullPath {
   '/manage': typeof AuthenticatedManageRouteRouteWithChildren
   '/super-admin': typeof AuthenticatedSuperAdminRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRoute
+  '/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
   '/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
@@ -197,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/super-admin/': typeof AuthenticatedSuperAdminIndexRoute
   '/super-admin/restaurants/$restaurantId': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdRouteRouteWithChildren
   '/super-admin/restaurants/new': typeof AuthenticatedSuperAdminRestaurantsNewRoute
+  '/manage/$restaurantId/': typeof AuthenticatedManageRestaurantIdIndexRoute
   '/super-admin/restaurants/': typeof AuthenticatedSuperAdminRestaurantsIndexRoute
   '/super-admin/restaurants/$restaurantId/analytics': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdAnalyticsRoute
   '/super-admin/restaurants/$restaurantId/edit': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdEditRoute
@@ -210,7 +218,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
   '/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
@@ -219,6 +226,7 @@ export interface FileRoutesByTo {
   '/manage': typeof AuthenticatedManageIndexRoute
   '/super-admin': typeof AuthenticatedSuperAdminIndexRoute
   '/super-admin/restaurants/new': typeof AuthenticatedSuperAdminRestaurantsNewRoute
+  '/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdIndexRoute
   '/super-admin/restaurants': typeof AuthenticatedSuperAdminRestaurantsIndexRoute
   '/super-admin/restaurants/$restaurantId/analytics': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdAnalyticsRoute
   '/super-admin/restaurants/$restaurantId/edit': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdEditRoute
@@ -236,7 +244,7 @@ export interface FileRoutesById {
   '/_authenticated/manage': typeof AuthenticatedManageRouteRouteWithChildren
   '/_authenticated/super-admin': typeof AuthenticatedSuperAdminRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRoute
+  '/_authenticated/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
   '/_authenticated/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/_authenticated/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
   '/_authenticated/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
@@ -246,6 +254,7 @@ export interface FileRoutesById {
   '/_authenticated/super-admin/': typeof AuthenticatedSuperAdminIndexRoute
   '/_authenticated/super-admin/restaurants/$restaurantId': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdRouteRouteWithChildren
   '/_authenticated/super-admin/restaurants/new': typeof AuthenticatedSuperAdminRestaurantsNewRoute
+  '/_authenticated/manage/$restaurantId/': typeof AuthenticatedManageRestaurantIdIndexRoute
   '/_authenticated/super-admin/restaurants/': typeof AuthenticatedSuperAdminRestaurantsIndexRoute
   '/_authenticated/super-admin/restaurants/$restaurantId/analytics': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdAnalyticsRoute
   '/_authenticated/super-admin/restaurants/$restaurantId/edit': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdEditRoute
@@ -273,6 +282,7 @@ export interface FileRouteTypes {
     | '/super-admin/'
     | '/super-admin/restaurants/$restaurantId'
     | '/super-admin/restaurants/new'
+    | '/manage/$restaurantId/'
     | '/super-admin/restaurants/'
     | '/super-admin/restaurants/$restaurantId/analytics'
     | '/super-admin/restaurants/$restaurantId/edit'
@@ -286,7 +296,6 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
-    | '/manage/$restaurantId'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
     | '/super-admin/orders'
@@ -295,6 +304,7 @@ export interface FileRouteTypes {
     | '/manage'
     | '/super-admin'
     | '/super-admin/restaurants/new'
+    | '/manage/$restaurantId'
     | '/super-admin/restaurants'
     | '/super-admin/restaurants/$restaurantId/analytics'
     | '/super-admin/restaurants/$restaurantId/edit'
@@ -321,6 +331,7 @@ export interface FileRouteTypes {
     | '/_authenticated/super-admin/'
     | '/_authenticated/super-admin/restaurants/$restaurantId'
     | '/_authenticated/super-admin/restaurants/new'
+    | '/_authenticated/manage/$restaurantId/'
     | '/_authenticated/super-admin/restaurants/'
     | '/_authenticated/super-admin/restaurants/$restaurantId/analytics'
     | '/_authenticated/super-admin/restaurants/$restaurantId/edit'
@@ -437,6 +448,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSuperAdminSubscriptionsRouteImport
       parentRoute: typeof AuthenticatedSuperAdminRouteRoute
     }
+    '/_authenticated/manage/$restaurantId/': {
+      id: '/_authenticated/manage/$restaurantId/'
+      path: '/'
+      fullPath: '/manage/$restaurantId/'
+      preLoaderRoute: typeof AuthenticatedManageRestaurantIdIndexRouteImport
+      parentRoute: typeof AuthenticatedManageRestaurantIdRouteRoute
+    }
     '/_authenticated/super-admin/restaurants/': {
       id: '/_authenticated/super-admin/restaurants/'
       path: '/restaurants'
@@ -510,15 +528,30 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedManageRestaurantIdRouteRouteChildren {
+  AuthenticatedManageRestaurantIdIndexRoute: typeof AuthenticatedManageRestaurantIdIndexRoute
+}
+
+const AuthenticatedManageRestaurantIdRouteRouteChildren: AuthenticatedManageRestaurantIdRouteRouteChildren =
+  {
+    AuthenticatedManageRestaurantIdIndexRoute:
+      AuthenticatedManageRestaurantIdIndexRoute,
+  }
+
+const AuthenticatedManageRestaurantIdRouteRouteWithChildren =
+  AuthenticatedManageRestaurantIdRouteRoute._addFileChildren(
+    AuthenticatedManageRestaurantIdRouteRouteChildren,
+  )
+
 interface AuthenticatedManageRouteRouteChildren {
-  AuthenticatedManageRestaurantIdRouteRoute: typeof AuthenticatedManageRestaurantIdRouteRoute
+  AuthenticatedManageRestaurantIdRouteRoute: typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
   AuthenticatedManageIndexRoute: typeof AuthenticatedManageIndexRoute
 }
 
 const AuthenticatedManageRouteRouteChildren: AuthenticatedManageRouteRouteChildren =
   {
     AuthenticatedManageRestaurantIdRouteRoute:
-      AuthenticatedManageRestaurantIdRouteRoute,
+      AuthenticatedManageRestaurantIdRouteRouteWithChildren,
     AuthenticatedManageIndexRoute: AuthenticatedManageIndexRoute,
   }
 
