@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
 import { StaffHeader } from "@/components/staff/StaffHeader";
 import { useAccess } from "@/hooks/useSession";
