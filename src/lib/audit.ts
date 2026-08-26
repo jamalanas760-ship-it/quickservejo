@@ -27,6 +27,7 @@ export type AuditAction =
   | "table.qr_regenerated"
   | "staff.created"
   | "staff.role_changed"
+  | "staff.updated"
   | "staff.deactivated"
   | "staff.reactivated"
   | "staff.access_removed"
