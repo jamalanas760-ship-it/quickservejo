@@ -48,7 +48,15 @@ export type AnimationId = "none" | "fade" | "rise" | "pop" | "slide";
 /** Paper / surface texture layered over the page background. */
 export type TextureId = "none" | "chalk" | "paper" | "grain";
 /** Decorative thin line-art band drawn at the foot of the menu. */
-export type DecorId = "none" | "veg" | "fastfood" | "bakery" | "shapes";
+export type DecorId =
+  | "none"
+  | "veg"
+  | "fastfood"
+  | "bakery"
+  | "shapes"
+  | "ornate"
+  | "coffee"
+  | "seafood";
 /** How each category block is framed. */
 export type SectionStyleId = "plain" | "boxed" | "rule" | "tab" | "ribbon";
 /** How prices sit relative to the item name. */
