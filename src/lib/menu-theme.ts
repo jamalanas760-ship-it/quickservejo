@@ -986,7 +986,7 @@ export function parseMenuTheme(raw: unknown): MenuTheme {
     texture: oneOf<TextureId>(input["texture"], ["none", "chalk", "paper", "grain"], base.texture),
     decor: oneOf<DecorId>(
       input["decor"],
-      ["none", "veg", "fastfood", "bakery", "shapes"],
+      ["none", "veg", "fastfood", "bakery", "shapes", "ornate", "coffee", "seafood"],
       base.decor,
     ),
     sectionStyle: oneOf<SectionStyleId>(
