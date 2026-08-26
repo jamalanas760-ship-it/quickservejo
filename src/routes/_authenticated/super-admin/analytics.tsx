@@ -112,7 +112,7 @@ function AnalyticsPage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <StatCard
           label={t("sa.analytics.sales")}
-          value={formatMoney(a?.revenue, "SAR", lang)}
+          value={formatMoney(a?.revenue, "JOD", lang)}
           {...(analytics.isPending ? { loading: true } : {})}
         />
         <StatCard
@@ -122,7 +122,7 @@ function AnalyticsPage() {
         />
         <StatCard
           label={t("sa.analytics.aov")}
-          value={formatMoney(a?.aov, "SAR", lang)}
+          value={formatMoney(a?.aov, "JOD", lang)}
           {...(analytics.isPending ? { loading: true } : {})}
         />
       </div>

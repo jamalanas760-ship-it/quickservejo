@@ -86,8 +86,8 @@ function PlatformDashboard() {
         />
         <StatCard
           label={t("sa.stat.salesToday")}
-          value={formatMoney(s?.salesToday, "SAR", lang)}
-          hint={`${t("sa.stat.salesMonth")}: ${formatMoney(s?.salesMonth, "SAR", lang)}`}
+          value={formatMoney(s?.salesToday, "JOD", lang)}
+          hint={`${t("sa.stat.salesMonth")}: ${formatMoney(s?.salesMonth, "JOD", lang)}`}
           icon={<Wallet className="size-4" />}
           {...(loading ? { loading: true } : {})}
         />

@@ -450,7 +450,7 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
                         description={lang === "ar" ? "وصف قصير للصنف" : "A short item description"}
                         price="9.50"
                         image={null}
-                        currency={restaurant.data?.currency ?? "SAR"}
+                        currency={restaurant.data?.currency ?? "JOD"}
                       />
                     ))
                   : (sample.data ?? []).map((item) => (
@@ -461,7 +461,7 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
                         description={pick(item.description_en, item.description_ar)}
                         price={Number(item.price).toFixed(2)}
                         image={item.image_url}
-                        currency={restaurant.data?.currency ?? "SAR"}
+                        currency={restaurant.data?.currency ?? "JOD"}
                       />
                     ))}
               </div>

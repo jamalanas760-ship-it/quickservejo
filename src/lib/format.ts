@@ -2,7 +2,7 @@ import type { Language } from "@/lib/i18n";
 
 export function formatMoney(
   amount: number | string | null | undefined,
-  currency = "SAR",
+  currency = "JOD",
   lang: Language = "en",
 ): string {
   const value = typeof amount === "string" ? Number(amount) : (amount ?? 0);

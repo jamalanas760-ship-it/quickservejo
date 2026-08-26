@@ -11,7 +11,7 @@ import { daysAgoIso, formatMoney, formatNumber } from "@/lib/format";
 export function AnalyticsManager({ restaurantId }: { restaurantId: string }) {
   const { t, lang } = useI18n();
   const { data: restaurant } = useRestaurant(restaurantId);
-  const currency = restaurant?.currency ?? "SAR";
+  const currency = restaurant?.currency ?? "JOD";
 
   const stats = useQuery({
     queryKey: ["platform", "restaurant-analytics", restaurantId],

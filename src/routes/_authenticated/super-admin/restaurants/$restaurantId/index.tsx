@@ -149,7 +149,7 @@ function RestaurantOverview() {
         />
         <StatCard
           label={t("sa.stat.salesMonth")}
-          value={formatMoney(m?.revenue, r?.currency ?? "SAR", lang)}
+          value={formatMoney(m?.revenue, r?.currency ?? "JOD", lang)}
           {...(metrics.isPending ? { loading: true } : {})}
         />
         <StatCard

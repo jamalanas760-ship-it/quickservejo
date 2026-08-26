@@ -79,7 +79,7 @@ function DinerPage() {
   const [busy, setBusy] = useState(false);
 
   const restaurant = menu.data?.restaurant;
-  const currency = restaurant?.currency ?? "SAR";
+  const currency = restaurant?.currency ?? "JOD";
   const showPrices = menu.data?.settings?.show_prices ?? true;
   const ordersEnabled = (menu.data?.settings?.enable_orders ?? true) && Boolean(menu.data?.table);
 

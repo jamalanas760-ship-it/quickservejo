@@ -82,7 +82,7 @@ function SubscriptionsPage() {
               <div key={p.plan} className="panel space-y-2 p-5">
                 <p className="text-sm font-semibold">{pick(p.name_en, p.name_ar)}</p>
                 <p className="text-2xl font-semibold">
-                  {formatMoney(p.price_monthly, "SAR", lang)}
+                  {formatMoney(p.price_monthly, "JOD", lang)}
                 </p>
                 <ul className="space-y-1 text-xs text-muted-foreground">
                   <li>
