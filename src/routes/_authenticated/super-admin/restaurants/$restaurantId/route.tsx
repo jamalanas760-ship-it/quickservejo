@@ -3,6 +3,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-r
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RestaurantSwitcher } from "@/components/manage/RestaurantSwitcher";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,8 @@ const TABS: Tab[] = [
   { to: "/super-admin/restaurants/$restaurantId/menu", labelKey: "sa.detail.menu" },
   { to: "/super-admin/restaurants/$restaurantId/tables", labelKey: "sa.detail.tables" },
   { to: "/super-admin/restaurants/$restaurantId/staff", labelKey: "sa.detail.staff" },
+  { to: "/super-admin/restaurants/$restaurantId/orders", labelKey: "sa.detail.orders" },
+  { to: "/super-admin/restaurants/$restaurantId/analytics", labelKey: "sa.detail.analytics" },
 ];
 
 function RestaurantShell() {
@@ -70,9 +73,12 @@ function RestaurantShell() {
             </Badge>
           ) : null}
         </div>
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/super-admin/restaurants">← {t("sa.rest.title")}</Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <RestaurantSwitcher restaurantId={restaurantId} />
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/super-admin/restaurants">← {t("sa.rest.title")}</Link>
+          </Button>
+        </div>
       </div>
 
       <nav className="flex flex-wrap gap-1 border-b pb-2">
