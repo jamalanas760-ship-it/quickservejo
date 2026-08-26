@@ -61,7 +61,10 @@ function Landing() {
     <div className="min-h-screen bg-background">
       <header className="safe-top border-b border-border">
         <div className="mx-auto grid h-auto max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 sm:h-16 sm:py-0">
-          <BrandLogo className="size-8 shrink-0 sm:size-9" markOnly mobileMarkOnly />
+          <BrandLogo
+            className="size-8 shrink-0 sm:size-9"
+            textClassName="hidden sm:inline"
+          />
           <div className="flex shrink-0 items-center gap-1">
             <Button variant="ghost" size="sm" className="h-10 px-2" onClick={toggleLang}>
               {t("common.language")}
