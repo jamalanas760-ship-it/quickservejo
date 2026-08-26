@@ -263,7 +263,7 @@ function NewRestaurantPage() {
     const tables = form.wantsTables === "yes" ? Number(form.tableCount) : 0;
     return (
       <div className="mx-auto max-w-2xl space-y-6">
-        <div className="panel space-y-4 p-6">
+        <div className="panel space-y-4 p-4 sm:p-6">
           <h1 className="text-2xl font-semibold">{t("sa.created.title")}</h1>
           <dl className="grid gap-2 text-sm sm:grid-cols-2">
             <Row label={t("sa.field.name")} value={created.name} />
@@ -328,12 +328,12 @@ function NewRestaurantPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-5 sm:space-y-6">
       <div>
         <Button asChild variant="ghost" size="sm">
           <Link to="/super-admin/restaurants">← {t("sa.rest.title")}</Link>
         </Button>
-        <h1 className="mt-2 text-2xl font-semibold">{t("sa.wizard.title")}</h1>
+        <h1 className="mt-2 text-xl font-semibold sm:text-2xl">{t("sa.wizard.title")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {t("sa.wizard.step")} {step + 1} {t("sa.wizard.of")} {STEP_KEYS.length} —{" "}
           {t(STEP_KEYS[step]!)}
@@ -625,16 +625,16 @@ function NewRestaurantPage() {
         )}
       </div>
 
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" disabled={step === 0 || busy} onClick={() => setStep(step - 1)}>
+      <div className="safe-bottom sticky bottom-0 z-20 -mx-1 flex items-center justify-between gap-3 border-t bg-background/95 px-1 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+        <Button variant="ghost" className="h-11" disabled={step === 0 || busy} onClick={() => setStep(step - 1)}>
           {t("sa.wizard.back")}
         </Button>
         {step < STEP_KEYS.length - 1 ? (
-          <Button disabled={checking} onClick={() => void handleNext()}>
+          <Button className="h-11 min-w-28" disabled={checking} onClick={() => void handleNext()}>
             {checking ? t("sa.slug.checking") : t("sa.wizard.next")}
           </Button>
         ) : (
-          <Button disabled={busy} onClick={() => void handleCreate()}>
+          <Button className="h-11 min-w-28" disabled={busy} onClick={() => void handleCreate()}>
             {t("sa.wizard.create")}
           </Button>
         )}
