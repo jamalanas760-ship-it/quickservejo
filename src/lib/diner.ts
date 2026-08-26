@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { parseMenuTheme, type MenuTheme } from "@/lib/menu-theme";
 
 export type DinerModifier = {
   id: string;
@@ -46,6 +47,7 @@ export type DinerMenu = {
     service_charge: number;
     primary_color: string;
     accent_color: string;
+    menu_theme: MenuTheme;
   };
   settings: {
     enable_orders: boolean;
@@ -66,7 +68,7 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
   const { data: restaurant, error } = await supabase
     .from("restaurants")
     .select(
-      "id, name, slug, logo_url, cover_image_url, description_en, description_ar, currency, tax_rate, service_charge, primary_color, accent_color",
+      "id, name, slug, logo_url, cover_image_url, description_en, description_ar, currency, tax_rate, service_charge, primary_color, accent_color, menu_theme",
     )
     .eq("slug", slug)
     .eq("is_active", true)
@@ -160,6 +162,7 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
       ...restaurant,
       tax_rate: Number(restaurant.tax_rate),
       service_charge: Number(restaurant.service_charge),
+      menu_theme: parseMenuTheme(restaurant.menu_theme),
     },
     settings: settingsRes.data
       ? { ...settingsRes.data, minimum_order: Number(settingsRes.data.minimum_order) }
