@@ -10,6 +10,10 @@ export type FontId = "sans" | "serif" | "rounded" | "mono" | "display";
 export type LayoutId = "list" | "grid" | "magazine";
 export type HeroId = "cover" | "gradient" | "minimal";
 export type ImageShape = "rounded" | "circle" | "square";
+export type ButtonStyleId = "solid" | "pill" | "soft" | "outline";
+export type CardStyleId = "flat" | "elevated" | "outline" | "glass";
+export type BgStyleId = "solid" | "gradient" | "dots" | "glow";
+export type DensityId = "compact" | "comfortable" | "airy";
 
 export type MenuTheme = {
   template: TemplateId;
@@ -28,6 +32,10 @@ export type MenuTheme = {
   showImages: boolean;
   imageShape: ImageShape;
   showIcons: boolean;
+  buttonStyle: ButtonStyleId;
+  cardStyle: CardStyleId;
+  bgStyle: BgStyleId;
+  density: DensityId;
 };
 
 export const FONT_STACKS: Record<FontId, string> = {
@@ -78,6 +86,10 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       showImages: true,
       imageShape: "rounded",
       showIcons: true,
+      buttonStyle: "pill",
+      cardStyle: "elevated",
+      bgStyle: "solid",
+      density: "comfortable",
     },
   },
   midnight: {
@@ -99,6 +111,10 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       showImages: true,
       imageShape: "square",
       showIcons: false,
+      buttonStyle: "outline",
+      cardStyle: "outline",
+      bgStyle: "glow",
+      density: "airy",
     },
   },
   street: {
@@ -120,6 +136,10 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       showImages: true,
       imageShape: "rounded",
       showIcons: true,
+      buttonStyle: "pill",
+      cardStyle: "elevated",
+      bgStyle: "dots",
+      density: "comfortable",
     },
   },
   cafe: {
@@ -141,6 +161,10 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       showImages: true,
       imageShape: "circle",
       showIcons: true,
+      buttonStyle: "soft",
+      cardStyle: "flat",
+      bgStyle: "gradient",
+      density: "airy",
     },
   },
   bold: {
@@ -162,6 +186,10 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       showImages: true,
       imageShape: "square",
       showIcons: true,
+      buttonStyle: "solid",
+      cardStyle: "glass",
+      bgStyle: "glow",
+      density: "compact",
     },
   },
 };
@@ -212,6 +240,22 @@ export function parseMenuTheme(raw: unknown): MenuTheme {
       base.imageShape,
     ),
     showIcons: typeof input["showIcons"] === "boolean" ? input["showIcons"] : base.showIcons,
+    buttonStyle: oneOf<ButtonStyleId>(
+      input["buttonStyle"],
+      ["solid", "pill", "soft", "outline"],
+      base.buttonStyle,
+    ),
+    cardStyle: oneOf<CardStyleId>(
+      input["cardStyle"],
+      ["flat", "elevated", "outline", "glass"],
+      base.cardStyle,
+    ),
+    bgStyle: oneOf<BgStyleId>(input["bgStyle"], ["solid", "gradient", "dots", "glow"], base.bgStyle),
+    density: oneOf<DensityId>(
+      input["density"],
+      ["compact", "comfortable", "airy"],
+      base.density,
+    ),
   };
 }
 
