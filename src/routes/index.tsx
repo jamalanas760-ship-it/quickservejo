@@ -67,11 +67,20 @@ function Landing() {
             <Button variant="ghost" size="sm" onClick={toggleLang}>
               {t("common.language")}
             </Button>
-            <Button asChild size="sm">
-              <Link to={signedIn ? "/dashboard" : "/auth"}>
-                {signedIn ? t("nav.dashboard") : t("nav.signIn")}
-              </Link>
-            </Button>
+            {signedIn ? (
+              <Button asChild size="sm">
+                <Link to="/dashboard">{t("nav.dashboard")}</Link>
+              </Button>
+            ) : (
+              <>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/staff">{lang === "ar" ? "دخول الموظفين" : "Staff sign in"}</Link>
+                </Button>
+                <Button asChild size="sm">
+                  <Link to="/auth">{lang === "ar" ? "دخول الإدارة" : "Admin sign in"}</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -92,11 +101,20 @@ function Landing() {
               : "QuickServe runs many restaurants from one codebase — each with its own branding, menu, tables and team, isolated by database-enforced security."}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button asChild size="lg">
-              <Link to={signedIn ? "/dashboard" : "/auth"}>
-                {signedIn ? t("nav.dashboard") : t("nav.signIn")}
-              </Link>
-            </Button>
+            {signedIn ? (
+              <Button asChild size="lg">
+                <Link to="/dashboard">{t("nav.dashboard")}</Link>
+              </Button>
+            ) : (
+              <>
+                <Button asChild size="lg">
+                  <Link to="/auth">{lang === "ar" ? "دخول الإدارة" : "Admin sign in"}</Link>
+                </Button>
+                <Button asChild variant="outline" size="lg">
+                  <Link to="/staff">{lang === "ar" ? "دخول الموظفين بالرمز" : "Staff sign in with PIN"}</Link>
+                </Button>
+              </>
+            )}
           </div>
         </section>
 
