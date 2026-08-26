@@ -130,13 +130,15 @@ function PlatformOrdersPage() {
             ))}
           </SelectContent>
         </Select>
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">{t("sa.orders.dateFrom")}</Label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">{t("sa.orders.dateTo")}</Label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        <div className="grid grid-cols-2 gap-3 sm:contents">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">{t("sa.orders.dateFrom")}</Label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">{t("sa.orders.dateTo")}</Label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
         </div>
       </div>
 
@@ -147,46 +149,83 @@ function PlatformOrdersPage() {
           {t("sa.orders.empty")}
         </p>
       ) : (
-        <div className="panel overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="p-3 text-start">{t("sa.orders.number")}</th>
-                <th className="p-3 text-start">{t("sa.orders.restaurant")}</th>
-                <th className="p-3 text-start">{t("sa.orders.table")}</th>
-                <th className="p-3 text-start">{t("sa.orders.status")}</th>
-                <th className="p-3 text-start">{t("sa.orders.payment")}</th>
-                <th className="p-3 text-start">{t("sa.orders.total")}</th>
-                <th className="p-3 text-start">{t("sa.orders.created")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {(orders.data ?? []).map((o) => (
-                <tr
-                  key={o.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => setOpenOrder(o.id)}
-                >
-                  <td className="p-3 font-medium">{o.order_number}</td>
-                  <td className="p-3">{o.restaurant?.name ?? "—"}</td>
-                  <td className="p-3">{o.table?.table_number ?? "—"}</td>
-                  <td className="p-3">
-                    <Badge variant={o.status === "cancelled" ? "outline" : "secondary"}>
-                      {o.status}
-                    </Badge>
-                  </td>
-                  <td className="p-3">{o.payment_status}</td>
-                  <td className="p-3 tabular-nums">
+        <>
+          {/* Phone: tappable cards. Desktop: full table. */}
+          <div className="grid gap-2 md:hidden">
+            {(orders.data ?? []).map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => setOpenOrder(o.id)}
+                className="panel w-full space-y-2 p-4 text-start active:bg-muted/60"
+              >
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold tabular-nums">{o.order_number}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {o.restaurant?.name ?? "—"}
+                      {o.table?.table_number ? ` · ${t("sa.orders.table")} ${o.table.table_number}` : ""}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={o.status === "cancelled" ? "outline" : "secondary"}
+                    className="shrink-0"
+                  >
+                    {o.status}
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span className="font-semibold tabular-nums text-foreground">
                     {formatMoney(o.total, o.restaurant?.currency ?? o.currency, lang)}
-                  </td>
-                  <td className="whitespace-nowrap p-3 text-muted-foreground">
-                    {formatDateTime(o.created_at, lang)}
-                  </td>
+                  </span>
+                  <span>{o.payment_status}</span>
+                  <span className="tabular-nums">{formatDateTime(o.created_at, lang)}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="panel hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead className="border-b text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="p-3 text-start">{t("sa.orders.number")}</th>
+                  <th className="p-3 text-start">{t("sa.orders.restaurant")}</th>
+                  <th className="p-3 text-start">{t("sa.orders.table")}</th>
+                  <th className="p-3 text-start">{t("sa.orders.status")}</th>
+                  <th className="p-3 text-start">{t("sa.orders.payment")}</th>
+                  <th className="p-3 text-start">{t("sa.orders.total")}</th>
+                  <th className="p-3 text-start">{t("sa.orders.created")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y">
+                {(orders.data ?? []).map((o) => (
+                  <tr
+                    key={o.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => setOpenOrder(o.id)}
+                  >
+                    <td className="p-3 font-medium">{o.order_number}</td>
+                    <td className="p-3">{o.restaurant?.name ?? "—"}</td>
+                    <td className="p-3">{o.table?.table_number ?? "—"}</td>
+                    <td className="p-3">
+                      <Badge variant={o.status === "cancelled" ? "outline" : "secondary"}>
+                        {o.status}
+                      </Badge>
+                    </td>
+                    <td className="p-3">{o.payment_status}</td>
+                    <td className="p-3 tabular-nums">
+                      {formatMoney(o.total, o.restaurant?.currency ?? o.currency, lang)}
+                    </td>
+                    <td className="whitespace-nowrap p-3 text-muted-foreground">
+                      {formatDateTime(o.created_at, lang)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <Dialog open={openOrder !== null} onOpenChange={(o) => !o && setOpenOrder(null)}>

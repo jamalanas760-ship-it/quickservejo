@@ -215,52 +215,54 @@ function DinerPage() {
         )}
         <div className="mx-auto max-w-3xl px-4">
           <div
-            className={cn(
-              "flex items-center gap-3 p-4",
-              theme.hero === "minimal" ? "" : "-mt-8",
-            )}
+            className={cn("space-y-2 p-4", theme.hero === "minimal" ? "" : "-mt-8")}
             style={cardStyle}
           >
-            {restaurant.logo_url ? (
-              <img
-                src={restaurant.logo_url}
-                alt=""
-                className={cn("size-14 object-cover", imageShapeClass(theme))}
-              />
-            ) : null}
-            <div className="min-w-0 flex-1">
-              <h1
-                className="truncate text-lg font-semibold"
-                style={{ fontFamily: "var(--qs-heading-font)" }}
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+              {restaurant.logo_url ? (
+                <img
+                  src={restaurant.logo_url}
+                  alt=""
+                  className={cn("size-12 shrink-0 object-cover sm:size-14", imageShapeClass(theme))}
+                />
+              ) : (
+                <span />
+              )}
+              <div className="min-w-0">
+                <h1
+                  className="truncate text-base font-semibold sm:text-lg"
+                  style={{ fontFamily: "var(--qs-heading-font)" }}
+                >
+                  {restaurant.name}
+                </h1>
+                <p className="truncate text-xs" style={{ color: "var(--qs-muted)" }}>
+                  {pick(restaurant.description_en, restaurant.description_ar) ||
+                    t("brand.tagline")}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-10 shrink-0 px-2"
+                onClick={toggleLang}
+                style={{ color: "var(--qs-muted)" }}
               >
-                {restaurant.name}
-              </h1>
-              <p className="truncate text-xs" style={{ color: "var(--qs-muted)" }}>
-                {pick(restaurant.description_en, restaurant.description_ar) ||
-                  t("brand.tagline")}
-              </p>
-              <span
-                className="mt-1 inline-block px-2 py-0.5 text-[11px] font-medium"
-                style={{
-                  background: menu.data?.table ? "var(--qs-primary)" : "transparent",
-                  color: menu.data?.table ? "var(--qs-primary-text)" : "var(--qs-muted)",
-                  border: menu.data?.table ? "none" : "1px solid var(--qs-muted)",
-                  borderRadius: "var(--qs-radius)",
-                }}
-              >
-                {menu.data?.table
-                  ? `${t("diner.table")} ${menu.data.table.table_name || menu.data.table.table_number}`
-                  : t("diner.browseOnly")}
-              </span>
+                {t("common.language")}
+              </Button>
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={toggleLang}
-              style={{ color: "var(--qs-muted)" }}
+            <span
+              className="inline-block px-2 py-0.5 text-[11px] font-medium"
+              style={{
+                background: menu.data?.table ? "var(--qs-primary)" : "transparent",
+                color: menu.data?.table ? "var(--qs-primary-text)" : "var(--qs-muted)",
+                border: menu.data?.table ? "none" : "1px solid var(--qs-muted)",
+                borderRadius: "var(--qs-radius)",
+              }}
             >
-              {t("common.language")}
-            </Button>
+              {menu.data?.table
+                ? `${t("diner.table")} ${menu.data.table.table_name || menu.data.table.table_number}`
+                : t("diner.browseOnly")}
+            </span>
           </div>
         </div>
       </header>
@@ -390,7 +392,7 @@ function DinerPage() {
       ) : null}
 
       {ordersEnabled && cartCount > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 border-t bg-card/95 p-3 backdrop-blur">
+        <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 p-3 backdrop-blur">
           <div className="mx-auto flex max-w-3xl items-center gap-3">
             <Button className="flex-1" onClick={() => setCartOpen(true)}>
               <ShoppingBag className="size-4" />

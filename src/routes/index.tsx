@@ -59,24 +59,27 @@ function Landing() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <BrandLogo className="size-9" />
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={toggleLang}>
+      <header className="safe-top border-b border-border">
+        <div className="mx-auto grid h-auto max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 sm:h-16 sm:py-0">
+          <BrandLogo
+            className="size-8 shrink-0 sm:size-9"
+            textClassName="hidden sm:inline"
+          />
+          <div className="flex shrink-0 items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-10 px-2" onClick={toggleLang}>
               {t("common.language")}
             </Button>
             {signedIn ? (
-              <Button asChild size="sm">
+              <Button asChild size="sm" className="h-10">
                 <Link to="/dashboard">{t("nav.dashboard")}</Link>
               </Button>
             ) : (
               <>
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/staff">{lang === "ar" ? "دخول الموظفين" : "Staff sign in"}</Link>
+                <Button asChild variant="outline" size="sm" className="h-10">
+                  <Link to="/staff">{lang === "ar" ? "الموظفين" : "Staff"}</Link>
                 </Button>
-                <Button asChild size="sm">
-                  <Link to="/auth">{lang === "ar" ? "دخول الإدارة" : "Admin sign in"}</Link>
+                <Button asChild size="sm" className="h-10">
+                  <Link to="/auth">{lang === "ar" ? "الإدارة" : "Admin"}</Link>
                 </Button>
               </>
             )}
