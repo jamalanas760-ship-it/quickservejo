@@ -17,7 +17,17 @@ export type TemplateId =
   | "bifold"
   | "editorial"
   | "breakfast"
-  | "bakery";
+  | "bakery"
+  | "poster"
+  | "coffeehouse"
+  | "emerald"
+  | "script"
+  | "retro"
+  | "brush"
+  | "nautical"
+  | "ornate"
+  | "tiles"
+  | "wellness";
 export type FontId = "sans" | "serif" | "rounded" | "mono" | "display" | "condensed" | "script";
 export type LayoutId = "list" | "grid" | "magazine" | "columns";
 export type HeroId =
