@@ -1087,29 +1087,73 @@ export function pageBackground(theme: MenuTheme): React.CSSProperties {
   return { backgroundColor: theme.bg };
 }
 
-/** Fixed, non-interactive texture layer painted over the page background. */
+/**
+ * Fixed, non-interactive texture layer painted over the page background.
+ * Each recipe stacks several irregular layers (fibres, blotches, dust) so the
+ * result reads like a real printed surface rather than a flat CSS pattern.
+ */
 export function textureStyle(theme: MenuTheme): React.CSSProperties | null {
   if (theme.texture === "none") return null;
+  const ink = (a: number) => hexAlpha(theme.text, a);
+
   if (theme.texture === "chalk") {
+    // Chalk dust + eraser smears drifting across a slate board.
     return {
-      backgroundImage: `radial-gradient(${hexAlpha(theme.text, 0.09)} 0.6px, transparent 0.7px), radial-gradient(${hexAlpha(theme.text, 0.05)} 0.5px, transparent 0.6px)`,
-      backgroundSize: "7px 7px, 13px 11px",
-      backgroundPosition: "0 0, 4px 6px",
-      opacity: 0.9,
+      backgroundImage: [
+        `radial-gradient(${ink(0.1)} 0.6px, transparent 0.8px)`,
+        `radial-gradient(${ink(0.055)} 0.5px, transparent 0.7px)`,
+        `radial-gradient(${ink(0.04)} 0.9px, transparent 1.1px)`,
+        `radial-gradient(60% 32% at 22% 18%, ${hexAlpha("#ffffff", 0.05)} 0%, transparent 70%)`,
+        `radial-gradient(45% 26% at 78% 62%, ${hexAlpha("#ffffff", 0.035)} 0%, transparent 72%)`,
+      ].join(", "),
+      backgroundSize: "7px 7px, 13px 11px, 23px 19px, 100% 100%, 100% 100%",
+      backgroundPosition: "0 0, 4px 6px, 11px 3px, 0 0, 0 0",
+      opacity: 0.95,
     };
   }
+
   if (theme.texture === "paper") {
+    // Kraft fibres: crossed threads, long grain streaks and uneven pulp patches.
     return {
-      backgroundImage: `repeating-linear-gradient(90deg, ${hexAlpha(theme.text, 0.035)} 0 1px, transparent 1px 3px), repeating-linear-gradient(0deg, ${hexAlpha(theme.text, 0.03)} 0 1px, transparent 1px 4px)`,
-      opacity: 0.8,
+      backgroundImage: [
+        `repeating-linear-gradient(94deg, ${ink(0.035)} 0 1px, transparent 1px 3px)`,
+        `repeating-linear-gradient(3deg, ${ink(0.028)} 0 1px, transparent 1px 4px)`,
+        `repeating-linear-gradient(48deg, ${ink(0.02)} 0 1px, transparent 1px 7px)`,
+        `radial-gradient(38% 24% at 12% 26%, ${ink(0.05)} 0%, transparent 70%)`,
+        `radial-gradient(30% 20% at 82% 44%, ${ink(0.045)} 0%, transparent 72%)`,
+        `radial-gradient(42% 26% at 58% 84%, ${ink(0.04)} 0%, transparent 70%)`,
+      ].join(", "),
+      opacity: 0.85,
     };
   }
+
+  // Fine offset-print grain with an uneven rosette.
   return {
-    backgroundImage: `radial-gradient(${hexAlpha(theme.text, 0.06)} 0.5px, transparent 0.6px)`,
-    backgroundSize: "4px 4px",
-    opacity: 0.7,
+    backgroundImage: [
+      `radial-gradient(${ink(0.065)} 0.5px, transparent 0.7px)`,
+      `radial-gradient(${ink(0.035)} 0.5px, transparent 0.7px)`,
+      `radial-gradient(50% 30% at 70% 12%, ${ink(0.035)} 0%, transparent 74%)`,
+    ].join(", "),
+    backgroundSize: "4px 4px, 9px 7px, 100% 100%",
+    backgroundPosition: "0 0, 2px 3px, 0 0",
+    opacity: 0.8,
   };
 }
+
+/**
+ * Soft press vignette + light fall-off, the way a real printed card darkens at
+ * its edges. Painted above the texture, below the content.
+ */
+export function paperVignetteStyle(theme: MenuTheme): React.CSSProperties {
+  const dark = hexAlpha(theme.text, 0.13);
+  return {
+    backgroundImage: [
+      `radial-gradient(115% 78% at 50% 34%, transparent 52%, ${dark} 100%)`,
+      `linear-gradient(196deg, ${hexAlpha("#ffffff", 0.05)} 0%, transparent 38%)`,
+    ].join(", "),
+  };
+}
+
 
 /** Card / panel surface styling for the diner menu. */
 export function surfaceStyle(theme: MenuTheme): React.CSSProperties {
