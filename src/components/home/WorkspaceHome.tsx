@@ -19,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { useAccess } from "@/hooks/useSession";
 import { useWorkspaceMembers, useWorkspaceReport, useWorkspaceScope } from "@/hooks/useWorkspace";
 import { formatDateTime, formatMoney, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
@@ -79,7 +78,6 @@ function loadPrefs(): Prefs {
 /** Signed-in home: personalised greeting, team, and reports the user configures. */
 export function WorkspaceHome() {
   const { lang } = useI18n();
-  const access = useAccess();
   const scope = useWorkspaceScope();
   const report = useWorkspaceReport(scope.restaurantId);
   const members = useWorkspaceMembers(scope.restaurantId);
