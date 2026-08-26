@@ -436,19 +436,25 @@ export function SectionHeading({
   title: string;
   compact?: boolean;
 }) {
+  const inked = sectionTitleStyle(theme);
+  const handSet = theme.texture !== "none" || theme.decor !== "none";
   return (
     <div className="mb-2">
       <h2
         className={cn("font-bold", compact ? "text-xs" : "text-sm sm:text-base")}
-        style={sectionTitleStyle(theme)}
+        style={{
+          ...inked,
+          // Ink bleed: a hair of colour spread, like letterpress on soft stock.
+          textShadow: `0 0 0.6px ${hexAlpha(theme.text, 0.35)}`,
+          ...(theme.sectionStyle === "ribbon" && handSet
+            ? { transform: "rotate(-0.7deg)" }
+            : {}),
+        }}
       >
         {title}
       </h2>
       {theme.sectionStyle === "rule" || theme.sectionStyle === "boxed" ? (
-        <div
-          className="mt-1.5 h-px w-full"
-          style={{ background: hexAlpha(theme.muted, 0.45) }}
-        />
+        <HandRule theme={theme} className="mt-1" opacity={0.5} />
       ) : null}
     </div>
   );
@@ -468,8 +474,15 @@ export function PriceLine({
     return (
       <span className={cn("flex flex-1 items-baseline gap-1", className)}>
         <span
-          className="mx-1 flex-1 translate-y-[-2px] border-b border-dotted"
-          style={{ borderColor: hexAlpha(theme.muted, 0.7) }}
+          aria-hidden
+          className="mx-1 h-[3px] flex-1 translate-y-[-3px] self-center"
+          style={{
+            // Uneven leader dots — inked by hand, not typeset.
+            backgroundImage: `radial-gradient(circle, ${hexAlpha(theme.muted, 0.85)} 44%, transparent 46%), radial-gradient(circle, ${hexAlpha(theme.muted, 0.5)} 40%, transparent 44%)`,
+            backgroundSize: "5px 3px, 9px 3px",
+            backgroundPosition: "0 1px, 2px 0",
+            backgroundRepeat: "repeat-x",
+          }}
         />
         <span className="font-bold" style={{ color: theme.accent }}>
           {price}
@@ -477,6 +490,7 @@ export function PriceLine({
       </span>
     );
   }
+
   return (
     <span className={cn("font-bold", className)} style={{ color: theme.accent }}>
       {price}
