@@ -2,7 +2,20 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Eye, EyeOff, IdCard, KeyRound, Printer, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import {
+  Copy,
+  Eye,
+  EyeOff,
+  IdCard,
+  KeyRound,
+  Pencil,
+  Printer,
+  Search,
+  ShieldCheck,
+  Trash2,
+  UserRound,
+} from "lucide-react";
+
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
