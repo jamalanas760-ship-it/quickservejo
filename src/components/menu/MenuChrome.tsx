@@ -154,23 +154,36 @@ export function DecorBand({ theme, className }: { theme: MenuTheme; className?: 
     );
   }
   const paths = LINE_ART[theme.decor] ?? [];
+  // Per-motif jitter in weight, rotation and baseline: a drawn band, not a stencil.
+  const jitter = [-1.4, 0.8, -0.6, 1.6, -1];
   return (
     <svg
       aria-hidden
       viewBox="0 0 170 48"
       className={cn("h-14 w-full", className)}
       fill="none"
-      stroke={hexAlpha(theme.text, 0.45)}
-      strokeWidth="1.1"
+      stroke={hexAlpha(theme.text, 0.5)}
       strokeLinecap="round"
       strokeLinejoin="round"
+      style={{ filter: "url(#qs-hand)" }}
     >
-      {paths.map((d) => (
-        <path key={d} d={d} />
+      <HandDrawnFilters />
+      {paths.map((d, i) => (
+        <path
+          key={d}
+          d={d}
+          strokeWidth={1 + ((i % 3) * 0.18)}
+          opacity={0.82 + ((i % 4) * 0.045)}
+          style={{
+            transform: `rotate(${jitter[i % jitter.length]}deg) translateY(${(i % 2 ? 0.6 : -0.5).toFixed(1)}px)`,
+            transformOrigin: "center",
+          }}
+        />
       ))}
     </svg>
   );
 }
+
 
 /** Sub-line rendered in the script face when the theme asks for it. */
 function ScriptLine({ theme, text }: { theme: MenuTheme; text: string }) {
