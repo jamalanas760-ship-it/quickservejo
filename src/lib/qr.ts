@@ -50,14 +50,24 @@ export async function printQrCards(
     <title>${escapeHtml(restaurantName)} — QR</title>
     <style>
       *{box-sizing:border-box}
-      body{margin:0;padding:16px;font-family:ui-sans-serif,system-ui,sans-serif;display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+      body{margin:0;padding:16px 16px 88px;font-family:ui-sans-serif,system-ui,sans-serif}
+      .bar{position:sticky;top:0;display:flex;gap:8px;align-items:center;background:#fff;padding:8px 0 12px;border-bottom:1px solid #e5e7eb;margin-bottom:16px}
+      .bar button{font:inherit;font-weight:600;font-size:14px;padding:10px 16px;border-radius:999px;border:1px solid #d1d5db;background:#fff;color:#111827;cursor:pointer}
+      .bar button.primary{background:#111827;color:#fff;border-color:#111827}
+      .sheet{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
       .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;text-align:center;page-break-inside:avoid}
       .card img{width:100%;max-width:220px}
       .name{font-weight:700;font-size:14px;color:#111827}
       .table{font-weight:700;font-size:20px;margin-top:4px}
       .hint{font-size:11px;color:#6b7280;margin-top:2px}
-      @media print{body{padding:0}}
-    </style></head><body>${cards.join("")}</body></html>`);
+      @media print{body{padding:0}.bar{display:none}}
+    </style></head><body>
+      <div class="bar">
+        <button type="button" onclick="window.close()">${escapeHtml(backLabel)}</button>
+        <button type="button" class="primary" onclick="window.print()">${escapeHtml(printLabel)}</button>
+      </div>
+      <div class="sheet">${cards.join("")}</div>
+    </body></html>`);
   win.document.close();
   win.focus();
   setTimeout(() => win.print(), 400);
