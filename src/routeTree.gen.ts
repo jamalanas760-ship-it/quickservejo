@@ -27,6 +27,7 @@ import { Route as AuthenticatedSuperAdminAuditLogsRouteImport } from './routes/_
 import { Route as AuthenticatedSuperAdminOrdersRouteImport } from './routes/_authenticated/super-admin/orders'
 import { Route as AuthenticatedSuperAdminSettingsRouteImport } from './routes/_authenticated/super-admin/settings'
 import { Route as AuthenticatedSuperAdminSubscriptionsRouteImport } from './routes/_authenticated/super-admin/subscriptions'
+import { Route as StaffBadgeCodeRouteImport } from './routes/staff/badge.$code'
 import { Route as AuthenticatedManageRestaurantIdIndexRouteImport } from './routes/_authenticated/manage/$restaurantId/index'
 import { Route as AuthenticatedManageRestaurantIdAnalyticsRouteImport } from './routes/_authenticated/manage/$restaurantId/analytics'
 import { Route as AuthenticatedManageRestaurantIdOrdersRouteImport } from './routes/_authenticated/manage/$restaurantId/orders'
@@ -142,6 +143,11 @@ const AuthenticatedSuperAdminSubscriptionsRoute =
     path: '/subscriptions',
     getParentRoute: () => AuthenticatedSuperAdminRouteRoute,
   } as any)
+const StaffBadgeCodeRoute = StaffBadgeCodeRouteImport.update({
+  id: '/staff/badge/$code',
+  path: '/staff/badge/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedManageRestaurantIdIndexRoute =
   AuthenticatedManageRestaurantIdIndexRouteImport.update({
     id: '/',
@@ -256,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
   '/super-admin/settings': typeof AuthenticatedSuperAdminSettingsRoute
   '/super-admin/subscriptions': typeof AuthenticatedSuperAdminSubscriptionsRoute
+  '/staff/badge/$code': typeof StaffBadgeCodeRoute
   '/manage/': typeof AuthenticatedManageIndexRoute
   '/super-admin/': typeof AuthenticatedSuperAdminIndexRoute
   '/super-admin/restaurants/$restaurantId': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdRouteRouteWithChildren
@@ -287,6 +294,7 @@ export interface FileRoutesByTo {
   '/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
   '/super-admin/settings': typeof AuthenticatedSuperAdminSettingsRoute
   '/super-admin/subscriptions': typeof AuthenticatedSuperAdminSubscriptionsRoute
+  '/staff/badge/$code': typeof StaffBadgeCodeRoute
   '/manage': typeof AuthenticatedManageIndexRoute
   '/super-admin': typeof AuthenticatedSuperAdminIndexRoute
   '/manage/$restaurantId/analytics': typeof AuthenticatedManageRestaurantIdAnalyticsRoute
@@ -322,6 +330,7 @@ export interface FileRoutesById {
   '/_authenticated/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
   '/_authenticated/super-admin/settings': typeof AuthenticatedSuperAdminSettingsRoute
   '/_authenticated/super-admin/subscriptions': typeof AuthenticatedSuperAdminSubscriptionsRoute
+  '/staff/badge/$code': typeof StaffBadgeCodeRoute
   '/_authenticated/manage/': typeof AuthenticatedManageIndexRoute
   '/_authenticated/super-admin/': typeof AuthenticatedSuperAdminIndexRoute
   '/_authenticated/super-admin/restaurants/$restaurantId': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdRouteRouteWithChildren
@@ -358,6 +367,7 @@ export interface FileRouteTypes {
     | '/super-admin/orders'
     | '/super-admin/settings'
     | '/super-admin/subscriptions'
+    | '/staff/badge/$code'
     | '/manage/'
     | '/super-admin/'
     | '/super-admin/restaurants/$restaurantId'
@@ -389,6 +399,7 @@ export interface FileRouteTypes {
     | '/super-admin/orders'
     | '/super-admin/settings'
     | '/super-admin/subscriptions'
+    | '/staff/badge/$code'
     | '/manage'
     | '/super-admin'
     | '/manage/$restaurantId/analytics'
@@ -423,6 +434,7 @@ export interface FileRouteTypes {
     | '/_authenticated/super-admin/orders'
     | '/_authenticated/super-admin/settings'
     | '/_authenticated/super-admin/subscriptions'
+    | '/staff/badge/$code'
     | '/_authenticated/manage/'
     | '/_authenticated/super-admin/'
     | '/_authenticated/super-admin/restaurants/$restaurantId'
@@ -449,6 +461,7 @@ export interface RootRouteChildren {
   OTokenRoute: typeof OTokenRoute
   RSlugRoute: typeof RSlugRoute
   StaffIndexRoute: typeof StaffIndexRoute
+  StaffBadgeCodeRoute: typeof StaffBadgeCodeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -578,6 +591,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/super-admin/subscriptions'
       preLoaderRoute: typeof AuthenticatedSuperAdminSubscriptionsRouteImport
       parentRoute: typeof AuthenticatedSuperAdminRouteRoute
+    }
+    '/staff/badge/$code': {
+      id: '/staff/badge/$code'
+      path: '/staff/badge/$code'
+      fullPath: '/staff/badge/$code'
+      preLoaderRoute: typeof StaffBadgeCodeRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/manage/$restaurantId/': {
       id: '/_authenticated/manage/$restaurantId/'
@@ -825,6 +845,7 @@ const rootRouteChildren: RootRouteChildren = {
   OTokenRoute: OTokenRoute,
   RSlugRoute: RSlugRoute,
   StaffIndexRoute: StaffIndexRoute,
+  StaffBadgeCodeRoute: StaffBadgeCodeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
