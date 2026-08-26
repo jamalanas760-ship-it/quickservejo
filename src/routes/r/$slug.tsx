@@ -31,9 +31,17 @@ import {
   imageShapeClass,
   itemMotion,
   pageBackground,
+  sectionFrameStyle,
   surfaceStyle,
   themeVars,
 } from "@/lib/menu-theme";
+import {
+  DecorBand,
+  MenuHero,
+  PriceLine,
+  SectionHeading,
+  TextureLayer,
+} from "@/components/menu/MenuChrome";
 import {
   callWaiter,
   loadDinerMenu,
