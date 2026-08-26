@@ -114,7 +114,56 @@ function SubscriptionsPage() {
         {restaurants.isPending ? (
           <Skeleton className="h-64 rounded-xl" />
         ) : (
-          <div className="panel overflow-x-auto">
+          <>
+            <div className="grid gap-2 md:hidden">
+              {(restaurants.data ?? []).map((r) => (
+                <div key={r.id} className="panel space-y-3 p-4">
+                  <p className="truncate font-semibold">{r.name}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select
+                      value={r.subscription_plan}
+                      onValueChange={(v) =>
+                        void update(r.id, { subscription_plan: v as SubscriptionPlan })
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PLANS.map((p) => (
+                          <SelectItem key={p} value={p}>
+                            {p}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={r.subscription_status}
+                      onValueChange={(v) => void update(r.id, { subscription_status: v })}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUSES.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(r.subscription_start, lang)} → {formatDate(r.subscription_end, lang)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatNumber(r.productCount, lang)} · {formatNumber(r.tableCount, lang)} ·{" "}
+                    {formatNumber(r.staffCount, lang)}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="panel hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead className="border-b text-xs uppercase text-muted-foreground">
                 <tr>

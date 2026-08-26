@@ -28,10 +28,10 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">{t("sa.orders.title")}</h1>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:justify-between">
+        <h1 className="truncate text-lg font-semibold">{t("sa.orders.title")}</h1>
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-36 shrink-0 sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -52,36 +52,63 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
           {t("sa.orders.empty")}
         </p>
       ) : (
-        <div className="panel overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b text-start text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="p-3 text-start">{t("sa.orders.number")}</th>
-                <th className="p-3 text-start">{t("sa.orders.table")}</th>
-                <th className="p-3 text-start">{t("sa.orders.status")}</th>
-                <th className="p-3 text-start">{t("sa.orders.payment")}</th>
-                <th className="p-3 text-start">{t("sa.orders.total")}</th>
-                <th className="p-3 text-start">{t("sa.orders.created")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {(orders.data ?? []).map((o) => (
-                <tr key={o.id}>
-                  <td className="p-3 font-medium">{o.order_number}</td>
-                  <td className="p-3">{o.table?.table_number ?? "—"}</td>
-                  <td className="p-3">
-                    <Badge variant="secondary">{o.status}</Badge>
-                  </td>
-                  <td className="p-3">{o.payment_status}</td>
-                  <td className="p-3">{formatMoney(o.total, currency, lang)}</td>
-                  <td className="p-3 text-muted-foreground">
-                    {formatDateTime(o.created_at, lang)}
-                  </td>
+        <>
+          <div className="grid gap-2 md:hidden">
+            {(orders.data ?? []).map((o) => (
+              <div key={o.id} className="panel space-y-2 p-4">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold tabular-nums">{o.order_number}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {t("sa.orders.table")}: {o.table?.table_number ?? "—"}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="shrink-0">
+                    {o.status}
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">
+                    {formatMoney(o.total, currency, lang)}
+                  </span>
+                  <span>{o.payment_status}</span>
+                  <span>{formatDateTime(o.created_at, lang)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="panel hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead className="border-b text-start text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="p-3 text-start">{t("sa.orders.number")}</th>
+                  <th className="p-3 text-start">{t("sa.orders.table")}</th>
+                  <th className="p-3 text-start">{t("sa.orders.status")}</th>
+                  <th className="p-3 text-start">{t("sa.orders.payment")}</th>
+                  <th className="p-3 text-start">{t("sa.orders.total")}</th>
+                  <th className="p-3 text-start">{t("sa.orders.created")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y">
+                {(orders.data ?? []).map((o) => (
+                  <tr key={o.id}>
+                    <td className="p-3 font-medium">{o.order_number}</td>
+                    <td className="p-3">{o.table?.table_number ?? "—"}</td>
+                    <td className="p-3">
+                      <Badge variant="secondary">{o.status}</Badge>
+                    </td>
+                    <td className="p-3">{o.payment_status}</td>
+                    <td className="p-3">{formatMoney(o.total, currency, lang)}</td>
+                    <td className="p-3 text-muted-foreground">
+                      {formatDateTime(o.created_at, lang)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
