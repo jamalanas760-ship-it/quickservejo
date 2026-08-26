@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useI18n } from "@/lib/i18n";
 import { useSupabaseSession } from "@/hooks/useSession";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -60,9 +61,7 @@ function Landing() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <span className="font-display text-lg font-bold">
-            Quick<span className="text-accent">Serve</span>
-          </span>
+          <BrandLogo className="size-9" />
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="sm" onClick={toggleLang}>
               {t("common.language")}
