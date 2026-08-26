@@ -6,34 +6,16 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { humanError } from "@/lib/errors";
 import { logAudit } from "@/lib/audit";
 import { useI18n } from "@/lib/i18n";
 import { generateMenuTheme } from "@/lib/theme.functions";
 import {
-  BG_STYLE_LABELS,
-  BUTTON_STYLE_LABELS,
-  CARD_STYLE_LABELS,
-  DENSITY_LABELS,
   DEFAULT_THEME,
-  FONT_LABELS,
-  FONT_STACKS,
-  HERO_LABELS,
-  LAYOUT_LABELS,
   TEMPLATES,
   imageShapeClass,
   parseMenuTheme,
@@ -41,21 +23,12 @@ import {
   buttonStyle as buttonStyleFor,
   pageBackground,
   surfaceStyle,
-  type BgStyleId,
-  type ButtonStyleId,
-  type CardStyleId,
-  type DensityId,
-  type FontId,
-  type HeroId,
-  type ImageShape,
-  type LayoutId,
   type MenuTheme,
-  type TemplateId,
 } from "@/lib/menu-theme";
 import { cn } from "@/lib/utils";
 
-const FONT_IDS: FontId[] = ["sans", "serif", "rounded", "mono", "display"];
 const MAX_IMAGES = 3;
+
 
 const AI_IDEAS: { en: string; ar: string }[] = [
   { en: "Warm premium steakhouse, dark and confident", ar: "ستيك هاوس فخم دافئ وجاد" },
@@ -178,16 +151,6 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
 
   if (restaurant.isPending) return <Skeleton className="h-96 rounded-xl" />;
 
-  const colorFields: { key: keyof MenuTheme; labelKey: string }[] = [
-    { key: "bg", labelKey: "design.bg" },
-    { key: "surface", labelKey: "design.surface" },
-    { key: "text", labelKey: "design.text" },
-    { key: "muted", labelKey: "design.muted" },
-    { key: "primary", labelKey: "design.primary" },
-    { key: "primaryText", labelKey: "design.primaryText" },
-    { key: "accent", labelKey: "design.accent" },
-  ];
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -209,51 +172,6 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
-          <section className="panel space-y-3 p-4">
-            <h3 className="text-sm font-semibold">{t("design.templates")}</h3>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {(Object.keys(TEMPLATES) as TemplateId[]).map((id) => {
-                const preset = TEMPLATES[id];
-                const active = theme.template === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setTheme(preset.theme)}
-                    className={cn(
-                      "rounded-xl border p-3 text-start transition-all",
-                      active ? "ring-2 ring-primary" : "hover:border-primary/40",
-                    )}
-                  >
-                    <div
-                      className="mb-2 h-16 w-full rounded-lg border"
-                      style={{ background: preset.theme.bg }}
-                    >
-                      <div
-                        className="m-2 h-6 rounded"
-                        style={{ background: preset.theme.surface }}
-                      />
-                      <div className="mx-2 flex gap-1">
-                        <span
-                          className="h-3 w-8 rounded"
-                          style={{ background: preset.theme.primary }}
-                        />
-                        <span
-                          className="h-3 w-4 rounded"
-                          style={{ background: preset.theme.accent }}
-                        />
-                      </div>
-                    </div>
-                    <p className="text-sm font-medium">{preset.label[lang]}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {LAYOUT_LABELS[preset.theme.layout][lang]}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
           <section className="panel space-y-3 p-4">
             <div className="flex items-center gap-2">
               <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -335,228 +253,6 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
               <Button variant="ghost" onClick={() => setTheme(TEMPLATES[theme.template].theme)}>
                 {t("design.reset")}
               </Button>
-            </div>
-          </section>
-
-          <section className="panel space-y-3 p-4">
-            <h3 className="text-sm font-semibold">{t("design.colors")}</h3>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {colorFields.map((field) => (
-                <div key={String(field.key)} className="space-y-1.5">
-                  <Label>{t(field.labelKey)}</Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={String(theme[field.key])}
-                      onChange={(e) =>
-                        setTheme((prev) => ({ ...prev, [field.key]: e.target.value }))
-                      }
-                      className="size-9 cursor-pointer rounded border bg-transparent"
-                      aria-label={t(field.labelKey)}
-                    />
-                    <Input
-                      value={String(theme[field.key])}
-                      onChange={(e) =>
-                        setTheme((prev) => ({ ...prev, [field.key]: e.target.value }))
-                      }
-                      className="font-mono"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="panel grid gap-4 p-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>{t("design.headingFont")}</Label>
-              <Select
-                value={theme.headingFont}
-                onValueChange={(v) => setTheme((p) => ({ ...p, headingFont: v as FontId }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FONT_IDS.map((f) => (
-                    <SelectItem key={f} value={f} style={{ fontFamily: FONT_STACKS[f] }}>
-                      {FONT_LABELS[f][lang]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t("design.bodyFont")}</Label>
-              <Select
-                value={theme.bodyFont}
-                onValueChange={(v) => setTheme((p) => ({ ...p, bodyFont: v as FontId }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FONT_IDS.map((f) => (
-                    <SelectItem key={f} value={f} style={{ fontFamily: FONT_STACKS[f] }}>
-                      {FONT_LABELS[f][lang]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t("design.layout")}</Label>
-              <Select
-                value={theme.layout}
-                onValueChange={(v) => setTheme((p) => ({ ...p, layout: v as LayoutId }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(LAYOUT_LABELS) as LayoutId[]).map((l) => (
-                    <SelectItem key={l} value={l}>
-                      {LAYOUT_LABELS[l][lang]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t("design.hero")}</Label>
-              <Select
-                value={theme.hero}
-                onValueChange={(v) => setTheme((p) => ({ ...p, hero: v as HeroId }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(HERO_LABELS) as HeroId[]).map((h) => (
-                    <SelectItem key={h} value={h}>
-                      {HERO_LABELS[h][lang]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label>
-                {t("design.radius")} — {theme.radius}px
-              </Label>
-              <Slider
-                value={[theme.radius]}
-                min={0}
-                max={32}
-                step={1}
-                onValueChange={([v]) => setTheme((p) => ({ ...p, radius: v ?? 0 }))}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-              <Label>{t("design.showImages")}</Label>
-              <Switch
-                checked={theme.showImages}
-                onCheckedChange={(v) => setTheme((p) => ({ ...p, showImages: v }))}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-              <Label>{t("design.showIcons")}</Label>
-              <Switch
-                checked={theme.showIcons}
-                onCheckedChange={(v) => setTheme((p) => ({ ...p, showIcons: v }))}
-              />
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>{t("design.imageShape")}</Label>
-              <Select
-                value={theme.imageShape}
-                onValueChange={(v) => setTheme((p) => ({ ...p, imageShape: v as ImageShape }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="rounded">{lang === "ar" ? "حواف ناعمة" : "Rounded"}</SelectItem>
-                  <SelectItem value="circle">{lang === "ar" ? "دائري" : "Circle"}</SelectItem>
-                  <SelectItem value="square">{lang === "ar" ? "مربّع" : "Square"}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>{t("design.buttonStyle")}</Label>
-              <Select
-                value={theme.buttonStyle}
-                onValueChange={(v) => setTheme((p) => ({ ...p, buttonStyle: v as ButtonStyleId }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(BUTTON_STYLE_LABELS) as ButtonStyleId[]).map((k) => (
-                    <SelectItem key={k} value={k}>
-                      {BUTTON_STYLE_LABELS[k][lang]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>{t("design.cardStyle")}</Label>
-              <Select
-                value={theme.cardStyle}
-                onValueChange={(v) => setTheme((p) => ({ ...p, cardStyle: v as CardStyleId }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(CARD_STYLE_LABELS) as CardStyleId[]).map((k) => (
-                    <SelectItem key={k} value={k}>
-                      {CARD_STYLE_LABELS[k][lang]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>{t("design.bgStyle")}</Label>
-              <Select
-                value={theme.bgStyle}
-                onValueChange={(v) => setTheme((p) => ({ ...p, bgStyle: v as BgStyleId }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(BG_STYLE_LABELS) as BgStyleId[]).map((k) => (
-                    <SelectItem key={k} value={k}>
-                      {BG_STYLE_LABELS[k][lang]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>{t("design.density")}</Label>
-              <Select
-                value={theme.density}
-                onValueChange={(v) => setTheme((p) => ({ ...p, density: v as DensityId }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(DENSITY_LABELS) as DensityId[]).map((k) => (
-                    <SelectItem key={k} value={k}>
-                      {DENSITY_LABELS[k][lang]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </section>
         </div>
