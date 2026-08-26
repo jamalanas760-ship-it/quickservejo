@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { IdCard, KeyRound, Printer, Trash2 } from "lucide-react";
+import { Eye, EyeOff, IdCard, KeyRound, Printer, ShieldCheck, Trash2, UserRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,8 +38,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { humanError } from "@/lib/errors";
 import { logAudit } from "@/lib/audit";
-import { ROLE_LABELS, type AppRole } from "@/lib/permissions";
-import { inviteStaffMember, removeStaffMember, resetStaffPassword } from "@/lib/staff.functions";
+import {
+  ACCESS_LEVEL_LABELS,
+  accessLevelFor,
+  ROLE_LABELS,
+  type AppRole,
+} from "@/lib/permissions";
+import {
+  inviteStaffMember,
+  listStaffLogins,
+  removeStaffMember,
+  resetStaffPassword,
+} from "@/lib/staff.functions";
 import { formatDate } from "@/lib/format";
 import { getStaffAccess, issueStaffAccess } from "@/lib/staff-auth.functions";
 import { downloadDataUrl, qrDataUrl } from "@/lib/qr";
@@ -69,6 +79,8 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
   const removeStaff = useServerFn(removeStaffMember);
   const issueAccess = useServerFn(issueStaffAccess);
   const readAccess = useServerFn(getStaffAccess);
+  const readLogins = useServerFn(listStaffLogins);
+  const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [access, setAccess] = useState<Access | null>(null);
   const [accessBusy, setAccessBusy] = useState(false);
   const [badgeImage, setBadgeImage] = useState<string | null>(null);
@@ -89,6 +101,11 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
       if (error) throw error;
       return data ?? [];
     },
+  });
+
+  const logins = useQuery({
+    queryKey: ["platform", "staff-logins", restaurantId],
+    queryFn: () => readLogins({ data: { restaurantId } }),
   });
 
   async function refresh() {
@@ -250,6 +267,9 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={accessLevelFor(member.role) === "admin" ? "default" : "outline"}>
+                  {ACCESS_LEVEL_LABELS[accessLevelFor(member.role)][lang]}
+                </Badge>
                 <Badge variant={member.is_active ? "secondary" : "outline"}>
                   {member.is_active ? t("common.active") : t("common.inactive")}
                 </Badge>
@@ -308,6 +328,120 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
           ))}
         </div>
       )}
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="size-4 text-primary" aria-hidden />
+          <h2 className="font-semibold">
+            {lang === "ar" ? "صلاحيات المستخدمين" : "User permissions"}
+          </h2>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {lang === "ar"
+            ? "قائمة المستخدمين مع بيانات الدخول — مرئية للمديرين فقط."
+            : "Sign-in details for every user. Visible to admins only."}
+        </p>
+
+        {logins.isPending ? (
+          <Skeleton className="h-40 rounded-xl" />
+        ) : (logins.data ?? []).length === 0 ? (
+          <div className="panel p-6 text-center text-sm text-muted-foreground">
+            {t("sa.staff.empty")}
+          </div>
+        ) : (
+          <div className="panel divide-y">
+            {(logins.data ?? []).map((row) => {
+              const level = accessLevelFor(row.role as AppRole);
+              const show = revealed[row.id] === true;
+              return (
+                <div key={row.id} className="flex flex-wrap items-center gap-3 p-4">
+                  <div className="flex min-w-48 flex-1 items-center gap-2">
+                    <UserRound className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{row.name}</p>
+                      <p className="truncate font-mono text-xs text-muted-foreground">
+                        {row.email ?? "—"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="min-w-40">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      {t("auth.password")}
+                    </p>
+                    <p className="font-mono text-sm break-all">
+                      {row.password
+                        ? show
+                          ? row.password
+                          : "••••••••••"
+                        : lang === "ar"
+                          ? "غير متاح"
+                          : "Not available"}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={level === "admin" ? "default" : "outline"}>
+                      {ACCESS_LEVEL_LABELS[level][lang]}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={!row.password}
+                      onClick={() => setRevealed((r) => ({ ...r, [row.id]: !show }))}
+                    >
+                      {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      <span className="sr-only sm:not-sr-only">
+                        {show
+                          ? lang === "ar"
+                            ? "إخفاء"
+                            : "Hide"
+                          : lang === "ar"
+                            ? "إظهار"
+                            : "Show"}
+                      </span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!row.email}
+                      onClick={() => {
+                        void navigator.clipboard.writeText(
+                          `${row.email ?? ""}${row.password ? ` / ${row.password}` : ""}`,
+                        );
+                        toast.success(t("common.saved"));
+                      }}
+                    >
+                      {lang === "ar" ? "نسخ" : "Copy"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        void changeRole(row.id, level === "admin" ? "waiter" : "restaurant_admin")
+                      }
+                    >
+                      {level === "admin"
+                        ? lang === "ar"
+                          ? "تعيين كعضو"
+                          : "Make member"
+                        : lang === "ar"
+                          ? "تعيين كمدير"
+                          : "Make admin"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void issuePassword(row.id, row.name)}
+                    >
+                      <KeyRound className="size-4" />
+                      <span className="sr-only sm:not-sr-only">{t("sa.staff.newPassword")}</span>
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
