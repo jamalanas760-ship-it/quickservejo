@@ -166,11 +166,19 @@
     border-color: var(--color-border);
   }
 
+  html {
+    /* Never allow sideways page scroll on phones. */
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
 
   h1,
@@ -179,6 +187,7 @@
   h4 {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
+    overflow-wrap: break-word;
   }
 
   [dir="rtl"] body {
@@ -189,6 +198,22 @@
     outline: 2px solid var(--color-ring);
     outline-offset: 2px;
   }
+
+  /* iOS Safari zooms the page when a focused field is under 16px. */
+  @media (max-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  img,
+  svg,
+  video,
+  canvas {
+    max-width: 100%;
+  }
 }
 
 @utility panel {
@@ -197,5 +222,26 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-panel);
+}
+
+/* iOS/Android safe-area helpers for sticky bars and full-height screens. */
+@utility safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+@utility safe-top {
+  padding-top: max(env(safe-area-inset-top), 0px);
+}
+
+@utility safe-x {
+  padding-inline: max(env(safe-area-inset-left), env(safe-area-inset-right), 0px);
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
