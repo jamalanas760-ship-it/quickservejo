@@ -806,6 +806,48 @@ export type Database = {
           },
         ]
       }
+      staff_login_secrets: {
+        Row: {
+          created_at: string
+          email: string | null
+          password: string | null
+          restaurant_id: string | null
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          password?: string | null
+          restaurant_id?: string | null
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          password?: string | null
+          restaurant_id?: string | null
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_login_secrets_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_login_secrets_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: true
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_plans: {
         Row: {
           advanced_features: boolean
