@@ -13,6 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_authenticated/super-admin/route'
+import { Route as AuthenticatedSuperAdminIndexRouteImport } from './routes/_authenticated/super-admin/index'
+import { Route as AuthenticatedSuperAdminRestaurantsIndexRouteImport } from './routes/_authenticated/super-admin/restaurants/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -33,31 +36,70 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSuperAdminRouteRoute =
+  AuthenticatedSuperAdminRouteRouteImport.update({
+    id: '/super-admin',
+    path: '/super-admin',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSuperAdminIndexRoute =
+  AuthenticatedSuperAdminIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSuperAdminRouteRoute,
+  } as any)
+const AuthenticatedSuperAdminRestaurantsIndexRoute =
+  AuthenticatedSuperAdminRestaurantsIndexRouteImport.update({
+    id: '/restaurants/',
+    path: '/restaurants/',
+    getParentRoute: () => AuthenticatedSuperAdminRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/super-admin': typeof AuthenticatedSuperAdminRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/super-admin/': typeof AuthenticatedSuperAdminIndexRoute
+  '/super-admin/restaurants/': typeof AuthenticatedSuperAdminRestaurantsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/super-admin': typeof AuthenticatedSuperAdminIndexRoute
+  '/super-admin/restaurants': typeof AuthenticatedSuperAdminRestaurantsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/super-admin': typeof AuthenticatedSuperAdminRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/super-admin/': typeof AuthenticatedSuperAdminIndexRoute
+  '/_authenticated/super-admin/restaurants/': typeof AuthenticatedSuperAdminRestaurantsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/dashboard'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/super-admin'
+    | '/dashboard'
+    | '/super-admin/'
+    | '/super-admin/restaurants/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard'
+  to: '/' | '/auth' | '/dashboard' | '/super-admin' | '/super-admin/restaurants'
   id:
-    '__root__' | '/' | '/_authenticated' | '/auth' | '/_authenticated/dashboard'
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/super-admin'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/super-admin/'
+    | '/_authenticated/super-admin/restaurants/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -96,14 +138,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/super-admin': {
+      id: '/_authenticated/super-admin'
+      path: '/super-admin'
+      fullPath: '/super-admin'
+      preLoaderRoute: typeof AuthenticatedSuperAdminRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/super-admin/': {
+      id: '/_authenticated/super-admin/'
+      path: '/'
+      fullPath: '/super-admin/'
+      preLoaderRoute: typeof AuthenticatedSuperAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedSuperAdminRouteRoute
+    }
+    '/_authenticated/super-admin/restaurants/': {
+      id: '/_authenticated/super-admin/restaurants/'
+      path: '/restaurants'
+      fullPath: '/super-admin/restaurants/'
+      preLoaderRoute: typeof AuthenticatedSuperAdminRestaurantsIndexRouteImport
+      parentRoute: typeof AuthenticatedSuperAdminRouteRoute
+    }
   }
 }
 
+interface AuthenticatedSuperAdminRouteRouteChildren {
+  AuthenticatedSuperAdminIndexRoute: typeof AuthenticatedSuperAdminIndexRoute
+  AuthenticatedSuperAdminRestaurantsIndexRoute: typeof AuthenticatedSuperAdminRestaurantsIndexRoute
+}
+
+const AuthenticatedSuperAdminRouteRouteChildren: AuthenticatedSuperAdminRouteRouteChildren =
+  {
+    AuthenticatedSuperAdminIndexRoute: AuthenticatedSuperAdminIndexRoute,
+    AuthenticatedSuperAdminRestaurantsIndexRoute:
+      AuthenticatedSuperAdminRestaurantsIndexRoute,
+  }
+
+const AuthenticatedSuperAdminRouteRouteWithChildren =
+  AuthenticatedSuperAdminRouteRoute._addFileChildren(
+    AuthenticatedSuperAdminRouteRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedSuperAdminRouteRoute: typeof AuthenticatedSuperAdminRouteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedSuperAdminRouteRoute:
+    AuthenticatedSuperAdminRouteRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
 }
 

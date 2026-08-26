@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { useI18n } from "@/lib/i18n";
+import { humanError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,28 +52,50 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // A signed-in user landing on /auth goes straight to their workspaces.
+  useEffect(() => {
+    let cancelled = false;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled && data.session) navigate({ to: target, replace: true });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, target]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
           password,
           options: {
-            data: { full_name: name },
+            data: { full_name: name.trim() },
             emailRedirectTo: `${window.location.origin}${target}`,
           },
         });
         if (error) throw error;
-        toast.success(t("auth.checkEmail"));
+        if (data.session) {
+          // Email confirmation is disabled for staff onboarding, so the account
+          // is usable immediately.
+          navigate({ to: target, replace: true });
+        } else {
+          toast.success(t("auth.checkEmail"));
+          setMode("signin");
+        }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
         if (error) throw error;
-        navigate({ to: target });
+        navigate({ to: target, replace: true });
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t("common.error"));
+      toast.error(humanError(error, lang));
     } finally {
       setBusy(false);
     }
@@ -85,17 +108,18 @@ function AuthPage() {
         redirect_uri: window.location.origin,
       });
       if (result.error) {
-        toast.error(result.error.message ?? t("common.error"));
+        toast.error(humanError(result.error, lang));
         return;
       }
       if (result.redirected) return;
-      navigate({ to: target });
+      navigate({ to: target, replace: true });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t("common.error"));
+      toast.error(humanError(error, lang));
     } finally {
       setBusy(false);
     }
   }
+
 
   return (
     <main className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">

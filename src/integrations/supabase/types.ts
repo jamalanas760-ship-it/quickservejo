@@ -602,6 +602,7 @@ export type Database = {
           accent_color: string
           address_ar: string | null
           address_en: string | null
+          archived_at: string | null
           background_color: string
           card_style: string
           cover_image_url: string | null
@@ -639,6 +640,7 @@ export type Database = {
           accent_color?: string
           address_ar?: string | null
           address_en?: string | null
+          archived_at?: string | null
           background_color?: string
           card_style?: string
           cover_image_url?: string | null
@@ -676,6 +678,7 @@ export type Database = {
           accent_color?: string
           address_ar?: string | null
           address_en?: string | null
+          archived_at?: string | null
           background_color?: string
           card_style?: string
           cover_image_url?: string | null
@@ -859,7 +862,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      claim_platform_ownership: { Args: { _name?: string }; Returns: boolean }
+      is_platform_owner: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role:
