@@ -330,58 +330,77 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
       )}
 
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="size-4 text-primary" aria-hidden />
-          <h2 className="font-semibold">
-            {lang === "ar" ? "صلاحيات المستخدمين" : "User permissions"}
-          </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="size-4 text-primary" aria-hidden />
+            <h2 className="font-semibold">
+              {lang === "ar" ? "صلاحيات المستخدمين" : "User permissions"}
+            </h2>
+            <Badge variant="outline">{(logins.data ?? []).length}</Badge>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Search
+              className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={lang === "ar" ? "ابحث بالاسم أو البريد" : "Search name or email"}
+              className="ps-9"
+            />
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">
           {lang === "ar"
-            ? "قائمة المستخدمين مع بيانات الدخول — مرئية للمديرين فقط."
-            : "Sign-in details for every user. Visible to admins only."}
+            ? "عدّل الاسم والبريد وكلمة المرور والصلاحية لكل مستخدم — مرئية للمديرين فقط."
+            : "Edit each user's name, email, password and access level. Visible to admins only."}
         </p>
 
         {logins.isPending ? (
           <Skeleton className="h-40 rounded-xl" />
-        ) : (logins.data ?? []).length === 0 ? (
+        ) : filteredLogins.length === 0 ? (
           <div className="panel p-6 text-center text-sm text-muted-foreground">
             {t("sa.staff.empty")}
           </div>
         ) : (
           <div className="panel divide-y">
-            {(logins.data ?? []).map((row) => {
+            {filteredLogins.map((row) => {
               const level = accessLevelFor(row.role as AppRole);
               const show = revealed[row.id] === true;
               return (
-                <div key={row.id} className="flex flex-wrap items-center gap-3 p-4">
-                  <div className="flex min-w-48 flex-1 items-center gap-2">
-                    <UserRound className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{row.name}</p>
+                <div key={row.id} className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-sm font-semibold uppercase">
+                      {row.name.trim().charAt(0) || <UserRound className="size-4" />}
+                    </span>
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate font-medium">{row.name}</p>
+                        <Badge variant={level === "admin" ? "default" : "outline"}>
+                          {ACCESS_LEVEL_LABELS[level][lang]}
+                        </Badge>
+                        <Badge variant="secondary">{ROLE_LABELS[row.role as AppRole][lang]}</Badge>
+                        {row.isActive ? null : (
+                          <Badge variant="outline">{t("common.inactive")}</Badge>
+                        )}
+                      </div>
                       <p className="truncate font-mono text-xs text-muted-foreground">
                         {row.email ?? "—"}
                       </p>
+                      <p className="font-mono text-xs text-muted-foreground">
+                        {t("auth.password")}:{" "}
+                        {row.password
+                          ? show
+                            ? row.password
+                            : "••••••••••"
+                          : lang === "ar"
+                            ? "غير متاح"
+                            : "Not available"}
+                      </p>
                     </div>
                   </div>
-                  <div className="min-w-40">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      {t("auth.password")}
-                    </p>
-                    <p className="font-mono text-sm break-all">
-                      {row.password
-                        ? show
-                          ? row.password
-                          : "••••••••••"
-                        : lang === "ar"
-                          ? "غير متاح"
-                          : "Not available"}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={level === "admin" ? "default" : "outline"}>
-                      {ACCESS_LEVEL_LABELS[level][lang]}
-                    </Badge>
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                     <Button
                       size="sm"
                       variant="ghost"
@@ -389,19 +408,13 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                       onClick={() => setRevealed((r) => ({ ...r, [row.id]: !show }))}
                     >
                       {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                      <span className="sr-only sm:not-sr-only">
-                        {show
-                          ? lang === "ar"
-                            ? "إخفاء"
-                            : "Hide"
-                          : lang === "ar"
-                            ? "إظهار"
-                            : "Show"}
+                      <span className="sr-only">
+                        {show ? (lang === "ar" ? "إخفاء" : "Hide") : lang === "ar" ? "إظهار" : "Show"}
                       </span>
                     </Button>
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
                       disabled={!row.email}
                       onClick={() => {
                         void navigator.clipboard.writeText(
@@ -410,22 +423,27 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                         toast.success(t("common.saved"));
                       }}
                     >
-                      {lang === "ar" ? "نسخ" : "Copy"}
+                      <Copy className="size-4" />
+                      <span className="sr-only">{lang === "ar" ? "نسخ" : "Copy"}</span>
                     </Button>
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="outline"
                       onClick={() =>
-                        void changeRole(row.id, level === "admin" ? "waiter" : "restaurant_admin")
+                        setEditing({
+                          id: row.id,
+                          name: row.name,
+                          email: row.email ?? "",
+                          password: "",
+                          role: row.role as AppRole,
+                          isActive: row.isActive,
+                        })
                       }
                     >
-                      {level === "admin"
-                        ? lang === "ar"
-                          ? "تعيين كعضو"
-                          : "Make member"
-                        : lang === "ar"
-                          ? "تعيين كمدير"
-                          : "Make admin"}
+                      <Pencil className="size-4" />
+                      <span className="sr-only sm:not-sr-only">
+                        {lang === "ar" ? "تعديل" : "Edit"}
+                      </span>
                     </Button>
                     <Button
                       size="sm"
@@ -433,7 +451,16 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                       onClick={() => void issuePassword(row.id, row.name)}
                     >
                       <KeyRound className="size-4" />
-                      <span className="sr-only sm:not-sr-only">{t("sa.staff.newPassword")}</span>
+                      <span className="sr-only">{t("sa.staff.newPassword")}</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive"
+                      onClick={() => setPendingDelete({ id: row.id, name: row.name })}
+                    >
+                      <Trash2 className="size-4" />
+                      <span className="sr-only">{t("common.delete")}</span>
                     </Button>
                   </div>
                 </div>
@@ -442,6 +469,118 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
           </div>
         )}
       </div>
+
+      <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{lang === "ar" ? "تعديل المستخدم" : "Edit user"}</DialogTitle>
+            <DialogDescription>
+              {lang === "ar"
+                ? "حدّث بيانات الدخول والصلاحية. اترك كلمة المرور فارغة لعدم تغييرها."
+                : "Update sign-in details and access level. Leave the password blank to keep it."}
+            </DialogDescription>
+          </DialogHeader>
+          {editing ? (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>{t("common.name")}</Label>
+                <Input
+                  value={editing.name}
+                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("common.email")}</Label>
+                <Input
+                  type="email"
+                  value={editing.email}
+                  onChange={(e) => setEditing({ ...editing, email: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{lang === "ar" ? "كلمة مرور جديدة" : "New password"}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={editing.password}
+                    placeholder={lang === "ar" ? "بدون تغيير" : "Unchanged"}
+                    onChange={(e) => setEditing({ ...editing, password: e.target.value })}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditing({ ...editing, password: suggestPassword() })}
+                  >
+                    {lang === "ar" ? "توليد" : "Generate"}
+                  </Button>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>{lang === "ar" ? "مستوى الوصول" : "Access level"}</Label>
+                  <Select
+                    value={accessLevelFor(editing.role)}
+                    onValueChange={(v) =>
+                      setEditing({
+                        ...editing,
+                        role:
+                          v === "admin"
+                            ? accessLevelFor(editing.role) === "admin"
+                              ? editing.role
+                              : "restaurant_admin"
+                            : accessLevelFor(editing.role) === "member"
+                              ? editing.role
+                              : "waiter",
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">{ACCESS_LEVEL_LABELS.admin[lang]}</SelectItem>
+                      <SelectItem value="member">{ACCESS_LEVEL_LABELS.member[lang]}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t("sa.staff.role")}</Label>
+                  <Select
+                    value={editing.role}
+                    onValueChange={(v) => setEditing({ ...editing, role: v as AppRole })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLES.map((role) => (
+                        <SelectItem key={role} value={role}>
+                          {ROLE_LABELS[role][lang]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <label className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
+                <span>{lang === "ar" ? "الحساب مفعّل" : "Account active"}</span>
+                <Switch
+                  checked={editing.isActive}
+                  onCheckedChange={(v) => setEditing({ ...editing, isActive: v })}
+                />
+              </label>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditing(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button disabled={editBusy} onClick={() => void saveEdit()}>
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
