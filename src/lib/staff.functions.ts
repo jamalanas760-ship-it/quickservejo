@@ -227,3 +227,69 @@ export const listStaffLogins = createServerFn({ method: "POST" })
       password: byStaff.get(row.id) ?? null,
     }));
   });
+
+const updateSchema = z.object({
+  staffId: z.string().uuid(),
+  name: z.string().trim().min(1).max(120).optional(),
+  email: z.string().trim().email().optional(),
+  password: z.string().min(8).max(72).optional(),
+  role: z.enum(["restaurant_admin", "manager", "kitchen", "waiter", "cashier"]).optional(),
+  isActive: z.boolean().optional(),
+});
+
+/**
+ * Single admin entry point for editing a staff member: name, email, password,
+ * role (member/admin) and active state. Email/password changes are mirrored
+ * into the auth account so the person can sign in with the new details.
+ */
+export const updateStaffMember = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => updateSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error } = await supabase
+      .from("staff")
+      .select("id, restaurant_id, auth_user_id, email, name, role")
+      .eq("id", data.staffId)
+      .single();
+    if (error) throw error;
+    if (!row.restaurant_id || row.role === "super_admin") throw new Error("Forbidden");
+    await assertCanManage(supabase as never, userId, row.restaurant_id);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const email = data.email ? data.email.toLowerCase() : undefined;
+
+    if (email || data.password) {
+      const authUpdate: { email?: string; password?: string; email_confirm?: boolean } = {
+        email_confirm: true,
+      };
+      if (email) authUpdate.email = email;
+      if (data.password) authUpdate.password = data.password;
+      const updated = await supabaseAdmin.auth.admin.updateUserById(row.auth_user_id, authUpdate);
+      if (updated.error) throw updated.error;
+    }
+
+    const staffUpdate: Record<string, unknown> = {};
+    if (data.name) staffUpdate['name'] = data.name;
+    if (email) staffUpdate['email'] = email;
+    if (data.role) staffUpdate['role'] = data.role;
+    if (typeof data.isActive === "boolean") staffUpdate['is_active'] = data.isActive;
+    if (Object.keys(staffUpdate).length > 0) {
+      const saved = await supabaseAdmin.from("staff").update(staffUpdate).eq("id", row.id);
+      if (saved.error) throw saved.error;
+    }
+
+    if (email || data.password) {
+      await supabaseAdmin.from("staff_login_secrets").upsert(
+        {
+          staff_id: row.id,
+          restaurant_id: row.restaurant_id,
+          email: email ?? row.email ?? null,
+          ...(data.password ? { password: data.password } : {}),
+        },
+        { onConflict: "staff_id" },
+      );
+    }
+
+    return { ok: true, email: email ?? row.email ?? null };
+  });
