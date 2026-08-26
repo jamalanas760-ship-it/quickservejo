@@ -280,3 +280,135 @@ export function imageShapeClass(theme: MenuTheme): string {
   if (theme.imageShape === "square") return "rounded-none";
   return "rounded-xl";
 }
+
+export const BUTTON_STYLE_LABELS: Record<ButtonStyleId, { en: string; ar: string }> = {
+  solid: { en: "Solid", ar: "صلب" },
+  pill: { en: "Pill", ar: "كبسولة" },
+  soft: { en: "Soft tint", ar: "تدرّج ناعم" },
+  outline: { en: "Outline", ar: "محدد" },
+};
+
+export const CARD_STYLE_LABELS: Record<CardStyleId, { en: string; ar: string }> = {
+  flat: { en: "Flat", ar: "مسطح" },
+  elevated: { en: "Elevated", ar: "بارز" },
+  outline: { en: "Outlined", ar: "بإطار" },
+  glass: { en: "Glass", ar: "زجاجي" },
+};
+
+export const BG_STYLE_LABELS: Record<BgStyleId, { en: string; ar: string }> = {
+  solid: { en: "Solid colour", ar: "لون واحد" },
+  gradient: { en: "Soft gradient", ar: "تدرّج هادئ" },
+  dots: { en: "Dot pattern", ar: "نقشة نقاط" },
+  glow: { en: "Ambient glow", ar: "توهّج محيط" },
+};
+
+export const DENSITY_LABELS: Record<DensityId, { en: string; ar: string }> = {
+  compact: { en: "Compact", ar: "مضغوط" },
+  comfortable: { en: "Comfortable", ar: "مريح" },
+  airy: { en: "Airy", ar: "فسيح" },
+};
+
+function hexAlpha(hex: string, alpha: number): string {
+  const a = Math.round(Math.min(1, Math.max(0, alpha)) * 255)
+    .toString(16)
+    .padStart(2, "0");
+  return `${hex}${a}`;
+}
+
+/** Page background for the diner menu, derived from the theme's background style. */
+export function pageBackground(theme: MenuTheme): React.CSSProperties {
+  if (theme.bgStyle === "gradient") {
+    return {
+      backgroundColor: theme.bg,
+      backgroundImage: `linear-gradient(170deg, ${hexAlpha(theme.accent, 0.16)} 0%, ${hexAlpha(theme.bg, 0)} 45%), linear-gradient(20deg, ${hexAlpha(theme.primary, 0.12)} 0%, ${hexAlpha(theme.bg, 0)} 55%)`,
+    };
+  }
+  if (theme.bgStyle === "dots") {
+    return {
+      backgroundColor: theme.bg,
+      backgroundImage: `radial-gradient(${hexAlpha(theme.muted, 0.28)} 1px, transparent 1.2px)`,
+      backgroundSize: "18px 18px",
+    };
+  }
+  if (theme.bgStyle === "glow") {
+    return {
+      backgroundColor: theme.bg,
+      backgroundImage: `radial-gradient(120% 60% at 50% -10%, ${hexAlpha(theme.primary, 0.35)} 0%, ${hexAlpha(theme.bg, 0)} 70%), radial-gradient(80% 50% at 100% 20%, ${hexAlpha(theme.accent, 0.22)} 0%, ${hexAlpha(theme.bg, 0)} 70%)`,
+    };
+  }
+  return { backgroundColor: theme.bg };
+}
+
+/** Card / panel surface styling for the diner menu. */
+export function surfaceStyle(theme: MenuTheme): React.CSSProperties {
+  const base: React.CSSProperties = {
+    background: theme.surface,
+    borderRadius: `${theme.radius}px`,
+    transition: "transform .18s ease, box-shadow .18s ease",
+  };
+  if (theme.cardStyle === "elevated") {
+    return { ...base, boxShadow: `0 10px 30px -18px ${hexAlpha(theme.text, 0.55)}` };
+  }
+  if (theme.cardStyle === "outline") {
+    return { ...base, border: `1px solid ${hexAlpha(theme.muted, 0.4)}` };
+  }
+  if (theme.cardStyle === "glass") {
+    return {
+      ...base,
+      background: hexAlpha(theme.surface, 0.62),
+      border: `1px solid ${hexAlpha(theme.text, 0.12)}`,
+      backdropFilter: "blur(14px)",
+      WebkitBackdropFilter: "blur(14px)",
+    } as React.CSSProperties;
+  }
+  return base;
+}
+
+/** Button / chip styling. `active` false renders the quiet variant. */
+export function buttonStyle(theme: MenuTheme, active = true): React.CSSProperties {
+  const radius =
+    theme.buttonStyle === "pill" ? "999px" : `${Math.max(6, theme.radius)}px`;
+  if (!active) {
+    return {
+      borderRadius: radius,
+      background: theme.cardStyle === "glass" ? hexAlpha(theme.surface, 0.6) : theme.surface,
+      color: theme.muted,
+      border: `1px solid ${hexAlpha(theme.muted, 0.28)}`,
+    };
+  }
+  if (theme.buttonStyle === "outline") {
+    return {
+      borderRadius: radius,
+      background: "transparent",
+      color: theme.primary,
+      border: `1.5px solid ${theme.primary}`,
+    };
+  }
+  if (theme.buttonStyle === "soft") {
+    return {
+      borderRadius: radius,
+      background: hexAlpha(theme.primary, 0.16),
+      color: theme.primary,
+      border: `1px solid ${hexAlpha(theme.primary, 0.28)}`,
+    };
+  }
+  return {
+    borderRadius: radius,
+    background: theme.primary,
+    color: theme.primaryText,
+    border: "none",
+    boxShadow: `0 8px 20px -12px ${hexAlpha(theme.primary, 0.9)}`,
+  };
+}
+
+export function densityGap(theme: MenuTheme): string {
+  if (theme.density === "compact") return "0.5rem";
+  if (theme.density === "airy") return "1.25rem";
+  return "0.75rem";
+}
+
+export function densityPadding(theme: MenuTheme): string {
+  if (theme.density === "compact") return "0.625rem";
+  if (theme.density === "airy") return "1.125rem";
+  return "0.875rem";
+}
