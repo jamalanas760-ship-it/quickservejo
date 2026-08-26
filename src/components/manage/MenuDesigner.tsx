@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { Sparkles, ExternalLink, Plus } from "lucide-react";
+import { Sparkles, ExternalLink, Plus, ImagePlus, X, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import {
   Select,
@@ -24,6 +25,10 @@ import { logAudit } from "@/lib/audit";
 import { useI18n } from "@/lib/i18n";
 import { generateMenuTheme } from "@/lib/theme.functions";
 import {
+  BG_STYLE_LABELS,
+  BUTTON_STYLE_LABELS,
+  CARD_STYLE_LABELS,
+  DENSITY_LABELS,
   DEFAULT_THEME,
   FONT_LABELS,
   FONT_STACKS,
@@ -33,6 +38,13 @@ import {
   imageShapeClass,
   parseMenuTheme,
   themeVars,
+  buttonStyle as buttonStyleFor,
+  pageBackground,
+  surfaceStyle,
+  type BgStyleId,
+  type ButtonStyleId,
+  type CardStyleId,
+  type DensityId,
   type FontId,
   type HeroId,
   type ImageShape,
@@ -43,6 +55,22 @@ import {
 import { cn } from "@/lib/utils";
 
 const FONT_IDS: FontId[] = ["sans", "serif", "rounded", "mono", "display"];
+const MAX_IMAGES = 3;
+
+/** Downscales an uploaded reference image to a compact data URL for the AI call. */
+async function toCompactDataUrl(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const max = 900;
+  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Cannot read image");
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvas.toDataURL("image/jpeg", 0.82);
+}
 
 export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
   const { t, lang, pick } = useI18n();
@@ -50,6 +78,7 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
   const generate = useServerFn(generateMenuTheme);
   const [theme, setTheme] = useState<MenuTheme>(DEFAULT_THEME);
   const [brief, setBrief] = useState("");
+  const [refs, setRefs] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
 
@@ -108,11 +137,27 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
     }
   }
 
+  async function addRefs(files: FileList | null) {
+    if (!files?.length) return;
+    try {
+      const room = MAX_IMAGES - refs.length;
+      const picked = Array.from(files).slice(0, Math.max(0, room));
+      const urls = await Promise.all(picked.map(toCompactDataUrl));
+      setRefs((prev) => [...prev, ...urls].slice(0, MAX_IMAGES));
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    }
+  }
+
   async function runAi() {
     setAiBusy(true);
     try {
       const result = await generate({
-        data: { restaurantId, ...(brief.trim() ? { brief: brief.trim() } : {}) },
+        data: {
+          restaurantId,
+          ...(brief.trim() ? { brief: brief.trim() } : {}),
+          ...(refs.length ? { images: refs } : {}),
+        },
       });
       setTheme(parseMenuTheme(JSON.parse(result.themeJson)));
       toast.success(t("design.aiDone"));
