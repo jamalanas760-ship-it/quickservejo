@@ -100,7 +100,6 @@ function DashboardPage() {
                           : "Inactive"}
                     </p>
                   </div>
-                  </div>
                   {(m.role === "restaurant_admin" || m.role === "manager") && m.restaurant_id ? (
                     <Button asChild className="mt-4 w-full" size="sm">
                       <Link to="/manage/$restaurantId" params={{ restaurantId: m.restaurant_id }}>
