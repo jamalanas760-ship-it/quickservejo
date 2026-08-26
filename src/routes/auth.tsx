@@ -241,6 +241,10 @@ function AuthPage() {
             {t("auth.google")}
           </Button>
 
+          <Button type="button" variant="secondary" className="w-full" asChild>
+            <Link to="/staff">{t("staffAuth.usePin")}</Link>
+          </Button>
+
           <p className="text-center text-sm text-muted-foreground">
             {mode === "signup" ? t("auth.haveAccount") : t("auth.noAccount")}{" "}
             <button
@@ -251,6 +255,7 @@ function AuthPage() {
               {mode === "signup" ? t("auth.signIn") : t("auth.signUp")}
             </button>
           </p>
+
         </div>
       </section>
     </main>
