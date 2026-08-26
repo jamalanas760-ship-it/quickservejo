@@ -2,12 +2,23 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
+import { KeyRound, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -28,19 +39,24 @@ import { useI18n } from "@/lib/i18n";
 import { humanError } from "@/lib/errors";
 import { logAudit } from "@/lib/audit";
 import { ROLE_LABELS, type AppRole } from "@/lib/permissions";
-import { inviteStaffMember } from "@/lib/staff.functions";
+import { inviteStaffMember, removeStaffMember, resetStaffPassword } from "@/lib/staff.functions";
 import { formatDate } from "@/lib/format";
 
 const ROLES: AppRole[] = ["restaurant_admin", "manager", "kitchen", "waiter", "cashier"];
+
+type Credentials = { name: string; email: string; password: string | null };
 
 export function StaffManager({ restaurantId }: { restaurantId: string }) {
   const { t, lang } = useI18n();
   const queryClient = useQueryClient();
   const invite = useServerFn(inviteStaffMember);
+  const resetPassword = useServerFn(resetStaffPassword);
+  const removeStaff = useServerFn(removeStaffMember);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", role: "waiter" as AppRole });
-  const [setupLink, setSetupLink] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<Credentials | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
 
   const staff = useQuery({
     queryKey: ["platform", "staff", restaurantId],
@@ -77,7 +93,7 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
         metadata: { role: form.role },
       });
       await refresh();
-      setSetupLink(result.setupLink);
+      setCredentials({ name: form.name.trim(), email: result.email, password: result.password });
       setOpen(false);
       setForm({ name: "", email: "", role: "waiter" });
       toast.success(t("sa.staff.invited"));
@@ -119,6 +135,39 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
       toast.error(humanError(error, lang));
     }
   }
+
+  async function issuePassword(id: string, name: string) {
+    try {
+      const result = await resetPassword({ data: { staffId: id } });
+      await logAudit("staff.password_reset", { restaurantId, entity: "staff", entityId: id });
+      setCredentials({ name, email: result.email, password: result.password });
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    }
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const target = pendingDelete;
+    setPendingDelete(null);
+    try {
+      await removeStaff({ data: { staffId: target.id } });
+      await logAudit("staff.deleted", {
+        restaurantId,
+        entity: "staff",
+        entityId: target.id,
+        metadata: { name: target.name },
+      });
+      await refresh();
+      toast.success(t("sa.staff.deleted"));
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    }
+  }
+
+  const credentialText = credentials
+    ? `${credentials.email}${credentials.password ? ` / ${credentials.password}` : ""}`
+    : "";
 
   return (
     <div className="space-y-4">
@@ -174,6 +223,23 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                   onClick={() => void toggleActive(member.id, member.is_active)}
                 >
                   {member.is_active ? t("sa.staff.deactivate") : t("sa.staff.reactivate")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void issuePassword(member.id, member.name)}
+                >
+                  <KeyRound className="size-4" />
+                  <span className="sr-only sm:not-sr-only">{t("sa.staff.newPassword")}</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive"
+                  onClick={() => setPendingDelete({ id: member.id, name: member.name })}
+                >
+                  <Trash2 className="size-4" />
+                  <span className="sr-only">{t("common.delete")}</span>
                 </Button>
               </div>
             </div>
@@ -233,31 +299,55 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={setupLink !== null} onOpenChange={(o) => !o && setSetupLink(null)}>
+      <Dialog open={credentials !== null} onOpenChange={(o) => !o && setCredentials(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("sa.staff.invited")}</DialogTitle>
-            <DialogDescription>
-              {lang === "ar"
-                ? "شارك هذا الرابط مع الموظف لتعيين كلمة المرور."
-                : "Share this link with the staff member so they can set a password."}
-            </DialogDescription>
+            <DialogTitle>{t("sa.staff.credentials")}</DialogTitle>
+            <DialogDescription>{t("sa.staff.credentialsHelp")}</DialogDescription>
           </DialogHeader>
-          <p className="break-all rounded-md bg-muted p-3 text-xs">{setupLink}</p>
+          <div className="space-y-2 rounded-md bg-muted p-3 text-sm">
+            <p>
+              <span className="text-muted-foreground">{t("sa.staff.username")}: </span>
+              <span className="font-mono break-all">{credentials?.email}</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">{t("auth.password")}: </span>
+              <span className="font-mono break-all">
+                {credentials?.password ?? t("sa.staff.passwordUnchanged")}
+              </span>
+            </p>
+          </div>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
-                if (setupLink) void navigator.clipboard.writeText(setupLink);
+                void navigator.clipboard.writeText(credentialText);
                 toast.success(t("common.saved"));
               }}
             >
               {lang === "ar" ? "نسخ" : "Copy"}
             </Button>
-            <Button onClick={() => setSetupLink(null)}>{t("common.close")}</Button>
+            <Button onClick={() => setCredentials(null)}>{t("common.close")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={pendingDelete !== null} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("sa.staff.deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("sa.staff.deleteBody")} {pendingDelete?.name}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void confirmDelete()}>
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

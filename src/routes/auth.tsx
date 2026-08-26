@@ -61,6 +61,7 @@ async function roleDestination(fallback: string): Promise<string> {
     if ((row.role === "restaurant_admin" || row.role === "manager") && row.restaurant_id) {
       return `/manage/${row.restaurant_id}`;
     }
+    if (row.role === "kitchen" || row.role === "waiter") return "/kitchen";
   }
   return fallback;
 }

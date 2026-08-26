@@ -13,8 +13,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
 import { Route as AuthenticatedManageRouteRouteImport } from './routes/_authenticated/manage/route'
 import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_authenticated/super-admin/route'
+import { Route as OTokenRouteImport } from './routes/o/$token'
+import { Route as RSlugRouteImport } from './routes/r/$slug'
 import { Route as AuthenticatedManageIndexRouteImport } from './routes/_authenticated/manage/index'
 import { Route as AuthenticatedManageRestaurantIdRouteRouteImport } from './routes/_authenticated/manage/$restaurantId/route'
 import { Route as AuthenticatedSuperAdminIndexRouteImport } from './routes/_authenticated/super-admin/index'
@@ -58,6 +61,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedKitchenRoute = AuthenticatedKitchenRouteImport.update({
+  id: '/kitchen',
+  path: '/kitchen',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedManageRouteRoute =
   AuthenticatedManageRouteRouteImport.update({
     id: '/manage',
@@ -70,6 +78,16 @@ const AuthenticatedSuperAdminRouteRoute =
     path: '/super-admin',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const OTokenRoute = OTokenRouteImport.update({
+  id: '/o/$token',
+  path: '/o/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RSlugRoute = RSlugRouteImport.update({
+  id: '/r/$slug',
+  path: '/r/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedManageIndexRoute =
   AuthenticatedManageIndexRouteImport.update({
     id: '/',
@@ -222,6 +240,9 @@ export interface FileRoutesByFullPath {
   '/manage': typeof AuthenticatedManageRouteRouteWithChildren
   '/super-admin': typeof AuthenticatedSuperAdminRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/kitchen': typeof AuthenticatedKitchenRoute
+  '/o/$token': typeof OTokenRoute
+  '/r/$slug': typeof RSlugRoute
   '/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
@@ -250,6 +271,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/kitchen': typeof AuthenticatedKitchenRoute
+  '/o/$token': typeof OTokenRoute
+  '/r/$slug': typeof RSlugRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
   '/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
@@ -280,6 +304,9 @@ export interface FileRoutesById {
   '/_authenticated/manage': typeof AuthenticatedManageRouteRouteWithChildren
   '/_authenticated/super-admin': typeof AuthenticatedSuperAdminRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
+  '/o/$token': typeof OTokenRoute
+  '/r/$slug': typeof RSlugRoute
   '/_authenticated/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
   '/_authenticated/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/_authenticated/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
@@ -312,6 +339,9 @@ export interface FileRouteTypes {
     | '/manage'
     | '/super-admin'
     | '/dashboard'
+    | '/kitchen'
+    | '/o/$token'
+    | '/r/$slug'
     | '/manage/$restaurantId'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
@@ -340,6 +370,9 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/kitchen'
+    | '/o/$token'
+    | '/r/$slug'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
     | '/super-admin/orders'
@@ -369,6 +402,9 @@ export interface FileRouteTypes {
     | '/_authenticated/manage'
     | '/_authenticated/super-admin'
     | '/_authenticated/dashboard'
+    | '/_authenticated/kitchen'
+    | '/o/$token'
+    | '/r/$slug'
     | '/_authenticated/manage/$restaurantId'
     | '/_authenticated/super-admin/analytics'
     | '/_authenticated/super-admin/audit-logs'
@@ -398,6 +434,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  OTokenRoute: typeof OTokenRoute
+  RSlugRoute: typeof RSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -430,6 +468,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/kitchen': {
+      id: '/_authenticated/kitchen'
+      path: '/kitchen'
+      fullPath: '/kitchen'
+      preLoaderRoute: typeof AuthenticatedKitchenRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/manage': {
       id: '/_authenticated/manage'
       path: '/manage'
@@ -443,6 +488,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/super-admin'
       preLoaderRoute: typeof AuthenticatedSuperAdminRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/o/$token': {
+      id: '/o/$token'
+      path: '/o/$token'
+      fullPath: '/o/$token'
+      preLoaderRoute: typeof OTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/r/$slug': {
+      id: '/r/$slug'
+      path: '/r/$slug'
+      fullPath: '/r/$slug'
+      preLoaderRoute: typeof RSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/manage/': {
       id: '/_authenticated/manage/'
@@ -725,6 +784,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedManageRouteRoute: typeof AuthenticatedManageRouteRouteWithChildren
   AuthenticatedSuperAdminRouteRoute: typeof AuthenticatedSuperAdminRouteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedKitchenRoute: typeof AuthenticatedKitchenRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -732,6 +792,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSuperAdminRouteRoute:
     AuthenticatedSuperAdminRouteRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedKitchenRoute: AuthenticatedKitchenRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -741,6 +802,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  OTokenRoute: OTokenRoute,
+  RSlugRoute: RSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

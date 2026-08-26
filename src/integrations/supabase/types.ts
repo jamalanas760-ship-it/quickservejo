@@ -872,6 +872,31 @@ export type Database = {
         }[]
       }
       is_platform_owner: { Args: never; Returns: boolean }
+      place_public_order: {
+        Args: { _items: Json; _notes?: string; _qr_token: string }
+        Returns: {
+          currency: string
+          order_id: string
+          order_number: string
+          public_token: string
+          total: number
+        }[]
+      }
+      public_call_waiter: {
+        Args: { _note?: string; _qr_token: string }
+        Returns: boolean
+      }
+      public_order_status: {
+        Args: { _public_token: string }
+        Returns: {
+          created_at: string
+          currency: string
+          order_number: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          status: Database["public"]["Enums"]["order_status"]
+          total: number
+        }[]
+      }
       restaurant_slug_available: { Args: { _slug: string }; Returns: boolean }
     }
     Enums: {
