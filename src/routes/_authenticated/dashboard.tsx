@@ -73,11 +73,9 @@ function DashboardPage() {
                       : "Manage every restaurant and subscription."}
                   </p>
                 </div>
-                <p className="mt-4 text-xs text-muted-foreground">
-                  {lang === "ar"
-                    ? `مساحة العمل: ${ROLE_HOME.super_admin} — تُبنى في المرحلة القادمة`
-                    : `Workspace: ${ROLE_HOME.super_admin} — ships in the next phase`}
-                </p>
+                <Button asChild className="mt-4 w-full" size="sm">
+                  <Link to="/super-admin">{t("dash.open")}</Link>
+                </Button>
               </div>
             )}
 
