@@ -41,6 +41,7 @@ export const superAdminDict: Record<string, { en: string; ar: string }> = {
   "sa.activity": { en: "Platform activity", ar: "نشاط المنصة" },
   "sa.activity.empty": { en: "No activity recorded yet.", ar: "لا يوجد نشاط مسجل بعد." },
 
+  "sa.manage.title": { en: "My restaurant", ar: "مطعمي" },
   "sa.rest.title": { en: "Restaurants", ar: "المطاعم" },
   "sa.rest.subtitle": {
     en: "Every tenant on the platform, with onboarding health at a glance.",
