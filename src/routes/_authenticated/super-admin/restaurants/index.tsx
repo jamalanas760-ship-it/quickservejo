@@ -190,7 +190,7 @@ function RestaurantsPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <Link
-                      to="/super-admin/restaurants/$restaurantId"
+                      to="/super-admin/restaurants/$restaurantId/menu"
                       params={{ restaurantId: r.id }}
                       className="block truncate font-semibold underline-offset-4 hover:underline"
                     >
@@ -232,17 +232,17 @@ function RestaurantsPage() {
                 </p>
 
                 <div className="mt-auto flex gap-2">
-                  <Button asChild size="sm" variant="outline" className="flex-1">
-                    <Link to="/super-admin/restaurants/$restaurantId" params={{ restaurantId: r.id }}>
-                      {t("sa.detail.overview")}
-                    </Link>
-                  </Button>
-                  <Button asChild size="sm" variant="ghost">
+                  <Button asChild size="sm" className="flex-1">
                     <Link
                       to="/super-admin/restaurants/$restaurantId/menu"
                       params={{ restaurantId: r.id }}
                     >
                       {t("sa.detail.menu")}
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link to="/super-admin/restaurants/$restaurantId" params={{ restaurantId: r.id }}>
+                      {t("sa.detail.overview")}
                     </Link>
                   </Button>
                 </div>
