@@ -392,7 +392,7 @@ function DinerPage() {
       ) : null}
 
       {ordersEnabled && cartCount > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 border-t bg-card/95 p-3 backdrop-blur">
+        <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 p-3 backdrop-blur">
           <div className="mx-auto flex max-w-3xl items-center gap-3">
             <Button className="flex-1" onClick={() => setCartOpen(true)}>
               <ShoppingBag className="size-4" />
