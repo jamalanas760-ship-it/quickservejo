@@ -26,6 +26,9 @@ import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
 import { humanError } from "@/lib/errors";
 import { ROLE_LABELS, type AppRole } from "@/lib/permissions";
+import type { Database } from "@/integrations/supabase/types";
+
+type RestaurantUpdate = Database["public"]["Tables"]["restaurants"]["Update"];
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -112,7 +115,7 @@ function ProfilePage() {
     window.localStorage.setItem(NOTIF_KEY, JSON.stringify(next));
   }
 
-  async function saveRestaurant(patch: Record<string, unknown>) {
+  async function saveRestaurant(patch: RestaurantUpdate) {
     if (!restaurantId) return;
     setSaving(true);
     try {
