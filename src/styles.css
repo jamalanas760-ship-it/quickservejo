@@ -245,3 +245,46 @@
   }
 }
 
+
+/* Menu entrance motion (AI-designed themes). Respects reduced-motion. */
+@keyframes qs-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes qs-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes qs-pop {
+  0% { opacity: 0; transform: scale(0.94); }
+  70% { opacity: 1; transform: scale(1.015); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes qs-slide {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@utility qs-anim {
+  animation-duration: 460ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+}
+@utility qs-anim-fade {
+  animation-name: qs-fade;
+}
+@utility qs-anim-rise {
+  animation-name: qs-rise;
+}
+@utility qs-anim-pop {
+  animation-name: qs-pop;
+}
+@utility qs-anim-slide {
+  animation-name: qs-slide;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qs-anim {
+    animation: none !important;
+  }
+}

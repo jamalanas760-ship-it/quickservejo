@@ -29,6 +29,7 @@ import {
   buttonStyle as buttonStyleFor,
   densityGap,
   imageShapeClass,
+  itemMotion,
   pageBackground,
   surfaceStyle,
   themeVars,
@@ -310,14 +311,15 @@ function DinerPage() {
             )}
             style={{ gap }}
           >
-            {items.map((item) => {
+            {items.map((item, itemIndex) => {
               const stacked = theme.layout !== "list";
+              const motion = itemMotion(theme, itemIndex);
               return (
-                <li key={item.id}>
+                <li key={item.id} className={motion.className} style={motion.style}>
                   <button
                     type="button"
                     className={cn(
-                      "w-full p-3 text-start transition-transform active:scale-[0.98]",
+                      "w-full p-3 text-start transition-transform duration-200 hover:-translate-y-0.5 active:scale-[0.98]",
                       stacked ? "block h-full" : "flex items-center gap-3",
                     )}
                     style={cardStyle}

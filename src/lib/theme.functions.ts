@@ -75,60 +75,97 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
       userContent.push({ type: "image_url", image_url: { url } });
     }
 
-    const systemPrompt =
-      "You are Claude, a senior product designer specialising in mobile QR restaurant menus. " +
-      "Reply ONLY with a JSON object using exactly these keys: " +
+    const SCHEMA =
       "template (classic|midnight|street|cafe|bold), bg, surface, text, muted, primary, primaryText, accent " +
       "(all 6-digit hex like #1a1a1a), bodyFont and headingFont (sans|serif|rounded|mono|display), " +
       "layout (list|grid|magazine), hero (cover|gradient|minimal), radius (0-32 integer), " +
       "showImages (boolean), imageShape (rounded|circle|square), showIcons (boolean), " +
       "buttonStyle (solid|pill|soft|outline), cardStyle (flat|elevated|outline|glass), " +
-      "bgStyle (solid|gradient|dots|glow), density (compact|comfortable|airy). " +
-      "Design for thumb-first mobile reading: WCAG AA contrast between text and surface and between " +
-      "primary and primaryText, a distinctive accent that is not generic purple-on-white, and a coherent " +
-      "pairing of typography, radius, card style and background style. No prose, no markdown fences.";
+      "bgStyle (solid|gradient|dots|glow), density (compact|comfortable|airy), " +
+      "animation (none|fade|rise|pop|slide)";
 
-    async function ask(model: string) {
+    const CRAFT =
+      "Craft bar: 25+ years of art direction across hospitality branding, editorial design and motion. " +
+      "Treat the menu as a brand surface, not a form: commit to one decisive direction, " +
+      "derive the palette from the cuisine and mood (never generic purple-on-white, never muddy greys), " +
+      "keep WCAG AA contrast between text/surface and primary/primaryText, pair typography with radius, " +
+      "card style, background texture and density so they tell the same story, and choose an entrance " +
+      "animation that matches the energy (calm rooms fade, energetic street food pops or slides). " +
+      "Dark themes need luminous accents; light themes need warmth and depth instead of flat white.";
+
+    const draftSystem =
+      "You are the lead designer of a mobile QR restaurant menu. " +
+      CRAFT +
+      " Reply ONLY with a JSON object using exactly these keys: " +
+      SCHEMA +
+      ". No prose, no markdown fences.";
+
+    async function ask(model: string, messages: unknown[]) {
       return fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userContent },
-          ],
-          temperature: 0.8,
-        }),
+        body: JSON.stringify({ model, messages }),
       });
     }
 
-    // Claude leads the design work; a fast fallback keeps the studio usable if
-    // the Claude model is momentarily unavailable on the gateway.
-    let response = await ask("anthropic/claude-sonnet-4-5");
-    if (!response.ok && response.status !== 429) {
-      console.error("Claude design error", response.status, await response.text());
-      response = await ask("google/gemini-3.7-flash");
+    function extractJson(text: string): Record<string, unknown> | null {
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) return null;
+      try {
+        const parsed = JSON.parse(match[0]);
+        return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+      } catch {
+        return null;
+      }
     }
 
-    if (!response.ok) {
-      if (response.status === 429) throw new Error("AI rate limit reached, try again shortly");
-      console.error("AI gateway error", response.status, await response.text());
-      throw new Error("Theme generation is unavailable right now");
+    async function content(model: string, messages: unknown[]): Promise<string | null> {
+      const response = await ask(model, messages);
+      if (!response.ok) {
+        if (response.status === 429) throw new Error("AI rate limit reached, try again shortly");
+        console.error("AI gateway error", model, response.status, await response.text());
+        return null;
+      }
+      const payload = (await response.json()) as {
+        choices?: { message?: { content?: string } }[];
+      };
+      return payload.choices?.[0]?.message?.content ?? null;
     }
 
+    // Pass 1 — the concept model art-directs from the brand, brief and references.
+    const draftMessages = [
+      { role: "system", content: draftSystem },
+      { role: "user", content: userContent },
+    ];
+    let draft =
+      extractJson((await content("openai/gpt-5.5", draftMessages)) ?? "") ??
+      extractJson((await content("google/gemini-3.1-pro-preview", draftMessages)) ?? "");
+    if (!draft) throw new Error("Theme generation is unavailable right now");
 
-    const payload = (await response.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const content = payload.choices?.[0]?.message?.content ?? "";
-    const match = content.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Theme generation returned no design");
+    // Pass 2 — a second model critiques and refines the concept as design director:
+    // contrast, hierarchy, motion and coherence get one more expert pass.
+    const refineSystem =
+      "You are the design director reviewing a junior-free, senior concept for a mobile QR menu. " +
+      CRAFT +
+      " You receive the current design JSON. Fix contrast failures, weak or clashing accents, " +
+      "incoherent typography/radius/card/background pairings and mismatched motion, and push the " +
+      "result to portfolio quality without losing the concept's identity. " +
+      "Reply ONLY with the improved JSON object using exactly these keys: " +
+      SCHEMA +
+      ". No prose, no markdown fences.";
+    const refined = extractJson(
+      (await content("openai/gpt-5", [
+        { role: "system", content: refineSystem },
+        {
+          role: "user",
+          content: [
+            ...(userContent as { type: string }[]),
+            { type: "text", text: `Current design JSON:\n${JSON.stringify(draft)}` },
+          ],
+        },
+      ])) ?? "",
+    );
 
-    try {
-      JSON.parse(match[0]);
-    } catch {
-      throw new Error("Theme generation returned no design");
-    }
-    return { themeJson: match[0] };
+    // The refined design wins when it arrives; the concept ships otherwise.
+    return { themeJson: JSON.stringify({ ...draft, ...(refined ?? {}) }) };
   });

@@ -15,9 +15,11 @@ import { logAudit } from "@/lib/audit";
 import { useI18n } from "@/lib/i18n";
 import { generateMenuTheme } from "@/lib/theme.functions";
 import {
+  ANIMATION_LABELS,
   DEFAULT_THEME,
   TEMPLATES,
   imageShapeClass,
+  itemMotion,
   parseMenuTheme,
   themeVars,
   buttonStyle as buttonStyleFor,
@@ -324,6 +326,7 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
                   ? [1, 2, 3].map((i) => (
                       <PreviewCard
                         key={i}
+                        index={i - 1}
                         theme={theme}
                         title={lang === "ar" ? `صنف ${i}` : `Sample item ${i}`}
                         description={lang === "ar" ? "وصف قصير للصنف" : "A short item description"}
@@ -332,9 +335,10 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
                         currency={restaurant.data?.currency ?? "JOD"}
                       />
                     ))
-                  : (sample.data ?? []).map((item) => (
+                  : (sample.data ?? []).map((item, index) => (
                       <PreviewCard
                         key={item.id}
+                        index={index}
                         theme={theme}
                         title={pick(item.name_en, item.name_ar)}
                         description={pick(item.description_en, item.description_ar)}
@@ -355,6 +359,9 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
           </div>
           <div className="mt-2 text-center">
             <Badge variant="outline">{TEMPLATES[theme.template].label[lang]}</Badge>
+            <Badge variant="outline" className="ms-2">
+              {ANIMATION_LABELS[theme.animation][lang]}
+            </Badge>
           </div>
         </div>
       </div>
@@ -363,6 +370,7 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
 }
 
 function PreviewCard({
+  index,
   theme,
   title,
   description,
@@ -370,6 +378,7 @@ function PreviewCard({
   image,
   currency,
 }: {
+  index: number;
   theme: MenuTheme;
   title: string;
   description: string;
@@ -378,10 +387,11 @@ function PreviewCard({
   currency: string;
 }) {
   const stacked = theme.layout !== "list";
+  const motion = itemMotion(theme, index);
   return (
     <div
-      className={cn("p-2", stacked ? "" : "flex items-center gap-2")}
-      style={surfaceStyle(theme)}
+      className={cn("p-2", stacked ? "" : "flex items-center gap-2", motion.className)}
+      style={{ ...surfaceStyle(theme), ...motion.style }}
     >
       {theme.showImages ? (
         image ? (
