@@ -31,7 +31,10 @@ export async function printQrCards(
   restaurantName: string,
   scanLabel: string,
   tables: PrintableTable[],
+  labels?: { back?: string; print?: string },
 ): Promise<void> {
+  const backLabel = labels?.back ?? "← Back";
+  const printLabel = labels?.print ?? "Print";
   const cards = await Promise.all(
     tables.map(async (table) => {
       const img = await qrDataUrl(table.url, 420);
