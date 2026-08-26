@@ -106,6 +106,10 @@ function DashboardPage() {
                         {t("dash.open")}
                       </Link>
                     </Button>
+                  ) : m.role === "kitchen" || m.role === "waiter" ? (
+                    <Button asChild className="mt-4 w-full" size="sm">
+                      <Link to="/kitchen">{t("dash.open")}</Link>
+                    </Button>
                   ) : (
                     <p className="mt-4 text-xs text-muted-foreground">
                       {lang === "ar"
