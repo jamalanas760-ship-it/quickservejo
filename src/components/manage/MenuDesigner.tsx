@@ -57,6 +57,14 @@ import { cn } from "@/lib/utils";
 const FONT_IDS: FontId[] = ["sans", "serif", "rounded", "mono", "display"];
 const MAX_IMAGES = 3;
 
+const AI_IDEAS: { en: string; ar: string }[] = [
+  { en: "Warm premium steakhouse, dark and confident", ar: "ستيك هاوس فخم دافئ وجاد" },
+  { en: "Bright modern café, airy and minimal", ar: "مقهى عصري مشرق وبسيط" },
+  { en: "Bold street food, playful and high contrast", ar: "أكل شارع جسور ومرح وعالي التباين" },
+  { en: "Elegant Levantine fine dining", ar: "مطبخ شامي راقٍ وأنيق" },
+  { en: "Fresh juice bar, fruity and energetic", ar: "بار عصائر منعش وحيوي" },
+];
+
 /** Downscales an uploaded reference image to a compact data URL for the AI call. */
 async function toCompactDataUrl(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file);
