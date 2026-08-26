@@ -5,16 +5,43 @@
  * have its own template, palette, typography and layout without code changes.
  */
 
-export type TemplateId = "classic" | "midnight" | "street" | "cafe" | "bold";
-export type FontId = "sans" | "serif" | "rounded" | "mono" | "display";
-export type LayoutId = "list" | "grid" | "magazine";
-export type HeroId = "cover" | "gradient" | "minimal";
+export type TemplateId =
+  | "classic"
+  | "midnight"
+  | "street"
+  | "cafe"
+  | "bold"
+  | "chalkboard"
+  | "sketch"
+  | "bifold"
+  | "editorial"
+  | "breakfast"
+  | "bakery";
+export type FontId = "sans" | "serif" | "rounded" | "mono" | "display" | "condensed" | "script";
+export type LayoutId = "list" | "grid" | "magazine" | "columns";
+export type HeroId =
+  | "cover"
+  | "gradient"
+  | "minimal"
+  | "chalk"
+  | "stamp"
+  | "ribbon"
+  | "blob"
+  | "sidebar";
 export type ImageShape = "rounded" | "circle" | "square";
 export type ButtonStyleId = "solid" | "pill" | "soft" | "outline";
 export type CardStyleId = "flat" | "elevated" | "outline" | "glass";
 export type BgStyleId = "solid" | "gradient" | "dots" | "glow";
 export type DensityId = "compact" | "comfortable" | "airy";
 export type AnimationId = "none" | "fade" | "rise" | "pop" | "slide";
+/** Paper / surface texture layered over the page background. */
+export type TextureId = "none" | "chalk" | "paper" | "grain";
+/** Decorative illustration band drawn with thin line art. */
+export type DecorId = "none" | "veg" | "fastfood" | "bakery" | "shapes";
+/** How each category block is framed. */
+export type SectionStyleId = "plain" | "boxed" | "rule" | "tab" | "ribbon";
+/** How prices sit relative to the item name. */
+export type PriceStyleId = "inline" | "right" | "leader";
 
 export type MenuTheme = {
   template: TemplateId;
@@ -39,7 +66,20 @@ export type MenuTheme = {
   density: DensityId;
   /** Entrance motion applied to menu item cards. */
   animation: AnimationId;
+  texture: TextureId;
+  decor: DecorId;
+  sectionStyle: SectionStyleId;
+  priceStyle: PriceStyleId;
+  /** Number of item columns on phones (1 or 2). */
+  columns: 1 | 2;
+  /** Uppercase, letter-spaced section + hero titles. */
+  upperTitles: boolean;
+  /** Script/handwritten accent word under the hero title. */
+  scriptAccent: boolean;
+  /** Short script line rendered under the restaurant name. */
+  tagline: string;
 };
+
 
 export const FONT_STACKS: Record<FontId, string> = {
   sans: "ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif",
