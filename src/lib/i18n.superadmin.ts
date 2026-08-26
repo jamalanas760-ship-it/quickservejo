@@ -244,7 +244,7 @@ export const superAdminDict: Record<string, { en: string; ar: string }> = {
   },
   "diner.orderNumber": { en: "Order number", ar: "رقم الطلب" },
   "diner.trackOrder": { en: "Track my order", ar: "تتبع طلبي" },
-  "diner.orderNotFound": { en: "We couldn't find this order.", ar: "لم نتمكن من العثon على هذا الطلب." },
+  "diner.orderNotFound": { en: "We couldn't find this order.", ar: "لم نتمكن من العثور على هذا الطلب." },
   "diner.callWaiter": { en: "Call the waiter", ar: "نداء النادل" },
   "diner.waiterCalled": { en: "A waiter is on the way", ar: "النادل في الطريق" },
   "diner.scanToOrder": {
