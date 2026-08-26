@@ -173,12 +173,11 @@ export function WorkspaceHome() {
             <Users className="size-4 text-primary" />
             {lang === "ar" ? "أعضاء مساحة العمل" : "Workspace members"}
           </h2>
-          {access.isSuperAdmin || scope.restaurantId ? (
+          {scope.restaurantId ? (
             <Button asChild size="sm" variant="ghost" className="h-8">
               <Link
                 to="/manage/$restaurantId/staff"
-                params={{ restaurantId: scope.restaurantId ?? "" }}
-                disabled={!scope.restaurantId}
+                params={{ restaurantId: scope.restaurantId }}
               >
                 {lang === "ar" ? "إدارة" : "Manage"}
                 <ChevronRight className="size-4" />
