@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BellRing, BellOff, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import { useMemberships } from "@/hooks/useSession";
 import { humanError } from "@/lib/errors";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
+import { playOrderAlert, unlockAlertSound } from "@/lib/order-alert";
 import type { Database } from "@/integrations/supabase/types";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
@@ -66,6 +68,9 @@ function KitchenPage() {
   const queryClient = useQueryClient();
   const memberships = useMemberships();
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [soundOn, setSoundOn] = useState(true);
+  const [live, setLive] = useState(false);
+  const seenRef = useRef<Set<string> | null>(null);
 
   const options = useMemo(
     () =>
@@ -80,7 +85,7 @@ function KitchenPage() {
   const orders = useQuery({
     queryKey: ["kitchen", "orders", activeId],
     enabled: Boolean(activeId),
-    refetchInterval: 6000,
+    refetchInterval: 20000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
@@ -94,6 +99,67 @@ function KitchenPage() {
       return data ?? [];
     },
   });
+
+  // Live push: new/updated orders arrive instantly; polling stays as a safety net.
+  useEffect(() => {
+    if (!activeId) return;
+    setLive(false);
+    const channel = supabase
+      .channel(`kitchen-${activeId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `restaurant_id=eq.${activeId}`,
+        },
+        (payload) => {
+          void queryClient.invalidateQueries({ queryKey: ["kitchen"] });
+          const row = payload.new as { status?: string } | null;
+          if (payload.eventType === "INSERT" && row?.status === "new") {
+            if (soundOn) playOrderAlert();
+            toast.info(lang === "ar" ? "طلب جديد وصل" : "New order received");
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "waiter_calls",
+          filter: `restaurant_id=eq.${activeId}`,
+        },
+        () => {
+          if (soundOn) playOrderAlert();
+          toast.info(lang === "ar" ? "طلب مناداة نادل" : "A table is calling a waiter");
+        },
+      )
+      .subscribe((status) => setLive(status === "SUBSCRIBED"));
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [activeId, queryClient, soundOn, lang]);
+
+  // Fallback chime when a brand-new order arrives through polling instead.
+  useEffect(() => {
+    const rows = orders.data;
+    if (!rows) return;
+    const ids = new Set(rows.filter((o) => o.status === "new").map((o) => o.id));
+    if (seenRef.current === null) {
+      seenRef.current = ids;
+      return;
+    }
+    const fresh = [...ids].some((id) => !seenRef.current!.has(id));
+    seenRef.current = ids;
+    if (fresh && soundOn && !live) playOrderAlert();
+  }, [orders.data, soundOn, live]);
+
+  useEffect(() => {
+    seenRef.current = null;
+  }, [activeId]);
 
   async function advance(id: string, next: OrderStatus) {
     try {
@@ -129,6 +195,38 @@ function KitchenPage() {
           <h1 className="text-lg font-semibold">
             {lang === "ar" ? "شاشة المطبخ" : "Kitchen display"}
           </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={live ? "secondary" : "outline"} className="gap-1">
+              {live ? <BellRing className="size-3" /> : <BellOff className="size-3" />}
+              {live
+                ? lang === "ar"
+                  ? "مباشر"
+                  : "Live"
+                : lang === "ar"
+                  ? "تحديث دوري"
+                  : "Polling"}
+            </Badge>
+            <Button
+              size="sm"
+              variant={soundOn ? "secondary" : "outline"}
+              onClick={() => {
+                const next = !soundOn;
+                setSoundOn(next);
+                if (next) {
+                  void unlockAlertSound().then(() => playOrderAlert());
+                }
+              }}
+            >
+              <Volume2 className="size-4" />
+              {soundOn
+                ? lang === "ar"
+                  ? "الصوت مفعّل"
+                  : "Sound on"
+                : lang === "ar"
+                  ? "الصوت مغلق"
+                  : "Sound off"}
+            </Button>
+          </div>
           {options.length > 1 ? (
             <Select value={activeId ?? ""} onValueChange={setRestaurantId}>
               <SelectTrigger className="w-56">
