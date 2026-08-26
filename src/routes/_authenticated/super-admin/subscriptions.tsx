@@ -187,9 +187,3 @@ function SubscriptionsPage() {
     </div>
   );
 }
-
-        )}
-      </section>
-    </div>
-  );
-}
