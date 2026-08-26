@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { KeyRound, Trash2 } from "lucide-react";
+import { IdCard, KeyRound, Printer, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,10 +41,25 @@ import { logAudit } from "@/lib/audit";
 import { ROLE_LABELS, type AppRole } from "@/lib/permissions";
 import { inviteStaffMember, removeStaffMember, resetStaffPassword } from "@/lib/staff.functions";
 import { formatDate } from "@/lib/format";
+import { getStaffAccess, issueStaffAccess } from "@/lib/staff-auth.functions";
+import { downloadDataUrl, qrDataUrl } from "@/lib/qr";
 
 const ROLES: AppRole[] = ["restaurant_admin", "manager", "kitchen", "waiter", "cashier"];
 
 type Credentials = { name: string; email: string; password: string | null };
+
+type Access = {
+  name: string;
+  restaurantCode: string;
+  pin: string | null;
+  badgeCode: string | null;
+  hasPin: boolean;
+};
+
+function badgeUrl(code: string): string {
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  return `${origin}/staff/badge/${code}`;
+}
 
 export function StaffManager({ restaurantId }: { restaurantId: string }) {
   const { t, lang } = useI18n();
@@ -52,6 +67,11 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
   const invite = useServerFn(inviteStaffMember);
   const resetPassword = useServerFn(resetStaffPassword);
   const removeStaff = useServerFn(removeStaffMember);
+  const issueAccess = useServerFn(issueStaffAccess);
+  const readAccess = useServerFn(getStaffAccess);
+  const [access, setAccess] = useState<Access | null>(null);
+  const [accessBusy, setAccessBusy] = useState(false);
+  const [badgeImage, setBadgeImage] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", role: "waiter" as AppRole });
@@ -165,6 +185,37 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
     }
   }
 
+  async function openAccess(id: string) {
+    setAccessBusy(true);
+    setBadgeImage(null);
+    try {
+      const result = await readAccess({ data: { staffId: id } });
+      setAccess({ ...result, pin: null });
+      if (result.badgeCode) setBadgeImage(await qrDataUrl(badgeUrl(result.badgeCode), 420));
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setAccessBusy(false);
+    }
+  }
+
+  async function issueNewAccess(id: string) {
+    setAccessBusy(true);
+    try {
+      const result = await issueAccess({ data: { staffId: id } });
+      setAccess({ ...result, hasPin: true });
+      setBadgeImage(await qrDataUrl(badgeUrl(result.badgeCode), 420));
+      await logAudit("staff.access_issued", { restaurantId, entity: "staff", entityId: id });
+      toast.success(t("sa.staff.issueAccess"));
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setAccessBusy(false);
+    }
+  }
+
+  const [accessStaffId, setAccessStaffId] = useState<string | null>(null);
+
   const credentialText = credentials
     ? `${credentials.email}${credentials.password ? ` / ${credentials.password}` : ""}`
     : "";
@@ -231,6 +282,17 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                 >
                   <KeyRound className="size-4" />
                   <span className="sr-only sm:not-sr-only">{t("sa.staff.newPassword")}</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setAccessStaffId(member.id);
+                    void openAccess(member.id);
+                  }}
+                >
+                  <IdCard className="size-4" />
+                  <span className="sr-only sm:not-sr-only">{t("sa.staff.access")}</span>
                 </Button>
                 <Button
                   size="sm"
@@ -328,6 +390,73 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
               {lang === "ar" ? "نسخ" : "Copy"}
             </Button>
             <Button onClick={() => setCredentials(null)}>{t("common.close")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={access !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setAccess(null);
+            setAccessStaffId(null);
+            setBadgeImage(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("sa.staff.access")}</DialogTitle>
+            <DialogDescription>{t("sa.staff.accessHelp")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid gap-2 rounded-md bg-muted p-3 text-sm sm:grid-cols-2">
+              <p>
+                <span className="text-muted-foreground">{t("staffAuth.restaurantCode")}: </span>
+                <span className="font-mono text-base font-semibold">
+                  {access?.restaurantCode || "—"}
+                </span>
+              </p>
+              <p>
+                <span className="text-muted-foreground">{t("staffAuth.pin")}: </span>
+                <span className="font-mono text-base font-semibold tracking-widest">
+                  {access?.pin ?? (access?.hasPin ? "••••••" : t("sa.staff.noPin"))}
+                </span>
+              </p>
+            </div>
+            {badgeImage ? (
+              <div className="flex flex-col items-center gap-2">
+                <img src={badgeImage} alt="" className="size-40 rounded-lg border bg-white p-2" />
+                <p className="text-xs text-muted-foreground">{t("sa.staff.badgeReady")}</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    downloadDataUrl(badgeImage, `badge-${access?.name ?? "staff"}.png`)
+                  }
+                >
+                  <Printer className="size-4" /> {t("sa.staff.printBadge")}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={accessBusy || !accessStaffId}
+              onClick={() => accessStaffId && void issueNewAccess(accessStaffId)}
+            >
+              <KeyRound className="size-4" /> {t("sa.staff.issueAccess")}
+            </Button>
+            <Button
+              onClick={() => {
+                setAccess(null);
+                setAccessStaffId(null);
+                setBadgeImage(null);
+              }}
+            >
+              {t("common.close")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
