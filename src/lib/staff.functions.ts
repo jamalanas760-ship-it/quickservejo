@@ -269,11 +269,12 @@ export const updateStaffMember = createServerFn({ method: "POST" })
       if (updated.error) throw updated.error;
     }
 
-    const staffUpdate: Record<string, unknown> = {};
-    if (data.name) staffUpdate['name'] = data.name;
-    if (email) staffUpdate['email'] = email;
-    if (data.role) staffUpdate['role'] = data.role;
-    if (typeof data.isActive === "boolean") staffUpdate['is_active'] = data.isActive;
+    const staffUpdate = {
+      ...(data.name ? { name: data.name } : {}),
+      ...(email ? { email } : {}),
+      ...(data.role ? { role: data.role } : {}),
+      ...(typeof data.isActive === "boolean" ? { is_active: data.isActive } : {}),
+    };
     if (Object.keys(staffUpdate).length > 0) {
       const saved = await supabaseAdmin.from("staff").update(staffUpdate).eq("id", row.id);
       if (saved.error) throw saved.error;

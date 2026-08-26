@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,6 +63,7 @@ import {
   listStaffLogins,
   removeStaffMember,
   resetStaffPassword,
+  updateStaffMember,
 } from "@/lib/staff.functions";
 import { formatDate } from "@/lib/format";
 import { getStaffAccess, issueStaffAccess } from "@/lib/staff-auth.functions";
@@ -70,6 +72,23 @@ import { downloadDataUrl, qrDataUrl } from "@/lib/qr";
 const ROLES: AppRole[] = ["restaurant_admin", "manager", "kitchen", "waiter", "cashier"];
 
 type Credentials = { name: string; email: string; password: string | null };
+
+type EditForm = {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  role: AppRole;
+  isActive: boolean;
+};
+
+/** Readable temporary password suggestion for the edit dialog. */
+function suggestPassword(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const bytes = new Uint8Array(10);
+  crypto.getRandomValues(bytes);
+  return `Qs-${Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("")}!7`;
+}
 
 type Access = {
   name: string;
@@ -102,6 +121,10 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
   const [form, setForm] = useState({ name: "", email: "", role: "waiter" as AppRole });
   const [credentials, setCredentials] = useState<Credentials | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+  const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState<EditForm | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const updateStaff = useServerFn(updateStaffMember);
 
   const staff = useQuery({
     queryKey: ["platform", "staff", restaurantId],
@@ -120,6 +143,42 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
     queryKey: ["platform", "staff-logins", restaurantId],
     queryFn: () => readLogins({ data: { restaurantId } }),
   });
+
+  const filteredLogins = (logins.data ?? []).filter((row) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return `${row.name} ${row.email ?? ""}`.toLowerCase().includes(q);
+  });
+
+  async function saveEdit() {
+    if (!editing) return;
+    setEditBusy(true);
+    try {
+      await updateStaff({
+        data: {
+          staffId: editing.id,
+          name: editing.name.trim(),
+          email: editing.email.trim(),
+          ...(editing.password.trim() ? { password: editing.password.trim() } : {}),
+          role: editing.role as Exclude<AppRole, "super_admin">,
+          isActive: editing.isActive,
+        },
+      });
+      await logAudit("staff.updated", {
+        restaurantId,
+        entity: "staff",
+        entityId: editing.id,
+        metadata: { role: editing.role, isActive: editing.isActive },
+      });
+      toast.success(t("common.saved"));
+      setEditing(null);
+      await refresh();
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setEditBusy(false);
+    }
+  }
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ["platform"] });
