@@ -180,7 +180,14 @@ function SubscriptionsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
         )}
       </section>
     </div>
