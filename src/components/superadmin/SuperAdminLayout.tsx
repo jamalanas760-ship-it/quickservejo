@@ -112,14 +112,14 @@ function Notifications() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={t("sa.notifications")}>
+        <Button variant="ghost" size="icon" className="relative size-10" aria-label={t("sa.notifications")}>
           <Bell className="size-4" />
           {alerts.length > 0 ? (
             <span className="absolute end-1.5 top-1.5 size-2 rounded-full bg-destructive" />
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80">
+      <PopoverContent align="end" className="w-[min(20rem,calc(100vw-1.5rem))]">
         <p className="text-sm font-semibold">{t("sa.notifications")}</p>
         {alerts.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">{t("sa.notifications.empty")}</p>
@@ -231,7 +231,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label={t("sa.profile")}>
+                <Button variant="ghost" size="icon" className="size-10" aria-label={t("sa.profile")}>
                   <Users className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
