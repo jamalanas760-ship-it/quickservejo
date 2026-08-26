@@ -4,6 +4,8 @@ import { useI18n } from "@/lib/i18n";
 import { useSupabaseSession } from "@/hooks/useSession";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { BottomNav } from "@/components/nav/BottomNav";
+import { WorkspaceHome } from "@/components/home/WorkspaceHome";
 
 export const Route = createFileRoute("/")({
   head: () => ({
