@@ -31,9 +31,17 @@ import {
   imageShapeClass,
   itemMotion,
   pageBackground,
+  sectionFrameStyle,
   surfaceStyle,
   themeVars,
 } from "@/lib/menu-theme";
+import {
+  DecorBand,
+  MenuHero,
+  PriceLine,
+  SectionHeading,
+  TextureLayer,
+} from "@/components/menu/MenuChrome";
 import {
   callWaiter,
   loadDinerMenu,
@@ -191,10 +199,36 @@ function DinerPage() {
   const theme = restaurant.menu_theme;
   const cardStyle = surfaceStyle(theme);
   const gap = densityGap(theme);
+  const categories = menu.data?.categories ?? [];
+  const sections =
+    activeCategory === "all"
+      ? [
+          ...categories
+            .map((c) => ({
+              id: c.id,
+              title: pick(c.name_en, c.name_ar),
+              items: items.filter((i) => i.category_id === c.id),
+            }))
+            .filter((s) => s.items.length > 0),
+          ...(items.some((i) => !i.category_id)
+            ? [{ id: "other", title: t("diner.all"), items: items.filter((i) => !i.category_id) }]
+            : []),
+        ]
+      : [
+          {
+            id: activeCategory,
+            title:
+              pick(
+                categories.find((c) => c.id === activeCategory)?.name_en ?? "",
+                categories.find((c) => c.id === activeCategory)?.name_ar ?? "",
+              ) || t("diner.all"),
+            items,
+          },
+        ];
 
   return (
     <div
-      className="min-h-screen pb-28"
+      className="relative min-h-screen pb-28"
       style={{
         ...themeVars(theme),
         ...pageBackground(theme),
@@ -202,50 +236,19 @@ function DinerPage() {
         fontFamily: "var(--qs-body-font)",
       }}
     >
-      <header className="relative">
-        {theme.hero === "cover" && restaurant.cover_image_url ? (
-          <img
-            src={restaurant.cover_image_url}
-            alt={restaurant.name}
-            className="h-40 w-full object-cover"
-          />
-        ) : theme.hero === "gradient" ? (
-          <div
-            className="h-32 w-full"
-            style={{
-              background: `linear-gradient(135deg, ${theme.primary}, ${theme.accent})`,
-            }}
-          />
-        ) : (
-          <div className="h-10 w-full" />
-        )}
-        <div className="mx-auto max-w-3xl px-4">
-          <div
-            className={cn("space-y-2 p-4", theme.hero === "minimal" ? "" : "-mt-8")}
-            style={cardStyle}
-          >
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
-              {restaurant.logo_url ? (
-                <img
-                  src={restaurant.logo_url}
-                  alt=""
-                  className={cn("size-12 shrink-0 object-cover sm:size-14", imageShapeClass(theme))}
-                />
-              ) : (
-                <span />
-              )}
-              <div className="min-w-0">
-                <h1
-                  className="truncate text-base font-semibold sm:text-lg"
-                  style={{ fontFamily: "var(--qs-heading-font)" }}
-                >
-                  {restaurant.name}
-                </h1>
-                <p className="truncate text-xs" style={{ color: "var(--qs-muted)" }}>
-                  {pick(restaurant.description_en, restaurant.description_ar) ||
-                    t("brand.tagline")}
-                </p>
-              </div>
+      <TextureLayer theme={theme} />
+
+      <div className="relative z-10">
+        <header className="mx-auto max-w-3xl">
+          <MenuHero
+            theme={theme}
+            name={restaurant.name}
+            subtitle={
+              pick(restaurant.description_en, restaurant.description_ar) || t("brand.tagline")
+            }
+            logoUrl={restaurant.logo_url}
+            coverUrl={restaurant.cover_image_url}
+            aside={
               <Button
                 size="sm"
                 variant="ghost"
@@ -255,135 +258,175 @@ function DinerPage() {
               >
                 {t("common.language")}
               </Button>
-            </div>
+            }
+          />
+          <div className="mt-3 px-4">
             <span
-              className="inline-block px-2 py-0.5 text-[11px] font-medium"
-              style={
-                menu.data?.table
-                  ? buttonStyleFor(theme)
-                  : buttonStyleFor(theme, false)
-              }
+              className="inline-block px-2.5 py-1 text-[11px] font-medium"
+              style={menu.data?.table ? buttonStyleFor(theme) : buttonStyleFor(theme, false)}
             >
               {menu.data?.table
                 ? `${t("diner.table")} ${menu.data.table.table_name || menu.data.table.table_number}`
                 : t("diner.browseOnly")}
             </span>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <div className="mx-auto max-w-3xl px-4">
-        <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto pb-1">
-          {[{ id: "all", label: t("diner.all") } as const].concat(
-            (menu.data?.categories ?? []).map((c) => ({
-              id: c.id,
-              label: pick(c.name_en, c.name_ar),
-            })) as never,
-          ).map((chip) => {
-            const active = activeCategory === chip.id;
-            return (
-              <button
-                key={chip.id}
-                type="button"
-                onClick={() => setActiveCategory(chip.id)}
-                className="min-h-10 shrink-0 px-4 py-2 text-sm font-medium transition-transform active:scale-95"
-                style={buttonStyleFor(theme, active)}
-              >
-                {chip.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {items.length === 0 ? (
-          <div className="mt-4 p-8 text-center text-sm" style={{ ...cardStyle, color: "var(--qs-muted)" }}>
-            {t("diner.emptyMenu")}
-          </div>
-        ) : (
-          <ul
-            className={cn(
-              "mt-4 grid",
-              theme.layout === "grid"
-                ? "grid-cols-2 sm:grid-cols-3"
-                : theme.layout === "magazine"
-                  ? "sm:grid-cols-2"
-                  : "grid-cols-1",
-            )}
-            style={{ gap }}
-          >
-            {items.map((item, itemIndex) => {
-              const stacked = theme.layout !== "list";
-              const motion = itemMotion(theme, itemIndex);
-              return (
-                <li key={item.id} className={motion.className} style={motion.style}>
+        <div className="mx-auto max-w-3xl px-4">
+          <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto pb-1">
+            {[{ id: "all", label: t("diner.all") } as const]
+              .concat(
+                categories.map((c) => ({
+                  id: c.id,
+                  label: pick(c.name_en, c.name_ar),
+                })) as never,
+              )
+              .map((chip) => {
+                const active = activeCategory === chip.id;
+                return (
                   <button
+                    key={chip.id}
                     type="button"
-                    className={cn(
-                      "w-full p-3 text-start transition-transform duration-200 hover:-translate-y-0.5 active:scale-[0.98]",
-                      stacked ? "block h-full" : "flex items-center gap-3",
-                    )}
-                    style={cardStyle}
-                    onClick={() => setDetail(item)}
+                    onClick={() => setActiveCategory(chip.id)}
+                    className="min-h-10 shrink-0 px-4 py-2 text-sm font-medium transition-transform active:scale-95"
+                    style={buttonStyleFor(theme, active)}
                   >
-                    {theme.showImages && item.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt=""
-                        className={cn(
-                          "shrink-0 object-cover",
-                          imageShapeClass(theme),
-                          stacked
-                            ? theme.layout === "magazine"
-                              ? "mb-2 h-40 w-full"
-                              : "mb-2 h-28 w-full"
-                            : "size-20",
-                        )}
-                        loading="lazy"
-                      />
-                    ) : null}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p
-                          className="truncate font-medium"
-                          style={{ fontFamily: "var(--qs-heading-font)" }}
-                        >
-                          {pick(item.name_en, item.name_ar)}
-                        </p>
-                        {item.is_featured ? (
-                          <span
-                            className="shrink-0 px-1.5 py-0.5 text-[10px] font-semibold"
-                            style={{
-                              background: "var(--qs-accent)",
-                              color: "var(--qs-primary-text)",
-                              borderRadius: "var(--qs-radius)",
-                            }}
-                          >
-                            {t("diner.featured")}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="line-clamp-2 text-xs" style={{ color: "var(--qs-muted)" }}>
-                        {pick(item.description_en, item.description_ar)}
-                      </p>
-                      {showPrices ? (
-                        <p
-                          className="mt-1 text-sm font-semibold"
-                          style={{ color: "var(--qs-accent)" }}
-                        >
-                          {formatMoney(item.price, currency, lang)}
-                        </p>
-                      ) : null}
-                    </div>
-                    {ordersEnabled && theme.showIcons ? (
-                      <Plus className="size-5 shrink-0" style={{ color: "var(--qs-muted)" }} />
-                    ) : null}
+                    {chip.label}
                   </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                );
+              })}
+          </div>
+
+          {items.length === 0 ? (
+            <div
+              className="mt-4 p-8 text-center text-sm"
+              style={{ ...cardStyle, color: "var(--qs-muted)" }}
+            >
+              {t("diner.emptyMenu")}
+            </div>
+          ) : (
+            <div className="mt-5 space-y-6">
+              {sections.map((section) => (
+                <section key={section.id} style={sectionFrameStyle(theme)}>
+                  <SectionHeading theme={theme} title={section.title} />
+                  <ul
+                    className={cn(
+                      "grid",
+                      theme.layout === "grid"
+                        ? theme.columns === 2
+                          ? "grid-cols-2 sm:grid-cols-3"
+                          : "grid-cols-1 sm:grid-cols-3"
+                        : theme.layout === "magazine"
+                          ? "sm:grid-cols-2"
+                          : theme.layout === "columns"
+                            ? theme.columns === 2
+                              ? "grid-cols-2 sm:grid-cols-2"
+                              : "grid-cols-1 sm:grid-cols-2"
+                            : "grid-cols-1",
+                    )}
+                    style={{ gap }}
+                  >
+                    {section.items.map((item, itemIndex) => {
+                      const printed = theme.layout === "columns";
+                      const stacked = theme.layout === "grid" || theme.layout === "magazine";
+                      const motion = itemMotion(theme, itemIndex);
+                      const showImage = theme.showImages && Boolean(item.image_url);
+                      return (
+                        <li key={item.id} className={motion.className} style={motion.style}>
+                          <button
+                            type="button"
+                            className={cn(
+                              "w-full text-start transition-transform duration-200 hover:-translate-y-0.5 active:scale-[0.98]",
+                              printed ? "py-2" : "p-3",
+                              stacked ? "block h-full" : "flex items-start gap-3",
+                            )}
+                            style={printed ? undefined : cardStyle}
+                            onClick={() => setDetail(item)}
+                          >
+                            {showImage ? (
+                              <img
+                                src={item.image_url as string}
+                                alt=""
+                                className={cn(
+                                  "shrink-0 object-cover",
+                                  imageShapeClass(theme),
+                                  stacked
+                                    ? theme.layout === "magazine"
+                                      ? "mb-2 h-40 w-full"
+                                      : "mb-2 h-28 w-full"
+                                    : printed
+                                      ? "size-14"
+                                      : "size-20",
+                                )}
+                                loading="lazy"
+                              />
+                            ) : null}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-baseline gap-2">
+                                <p
+                                  className={cn(
+                                    "min-w-0 truncate font-semibold",
+                                    theme.upperTitles ? "tracking-wide uppercase" : "",
+                                  )}
+                                  style={{ fontFamily: "var(--qs-heading-font)" }}
+                                >
+                                  {pick(item.name_en, item.name_ar)}
+                                </p>
+                                {item.is_featured ? (
+                                  <span
+                                    className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold tracking-widest uppercase"
+                                    style={{
+                                      background: "var(--qs-accent)",
+                                      color: "var(--qs-primary-text)",
+                                      borderRadius: "999px",
+                                    }}
+                                  >
+                                    {t("diner.featured")}
+                                  </span>
+                                ) : null}
+                                {showPrices && theme.priceStyle !== "inline" ? (
+                                  <PriceLine
+                                    theme={theme}
+                                    price={formatMoney(item.price, currency, lang)}
+                                    className={cn(
+                                      "shrink-0 text-sm",
+                                      theme.priceStyle === "right" ? "ms-auto" : "",
+                                    )}
+                                  />
+                                ) : null}
+                              </div>
+                              <p
+                                className="line-clamp-2 text-xs"
+                                style={{ color: "var(--qs-muted)" }}
+                              >
+                                {pick(item.description_en, item.description_ar)}
+                              </p>
+                              {showPrices && theme.priceStyle === "inline" ? (
+                                <p
+                                  className="mt-1 text-sm font-semibold"
+                                  style={{ color: "var(--qs-accent)" }}
+                                >
+                                  {formatMoney(item.price, currency, lang)}
+                                </p>
+                              ) : null}
+                            </div>
+                            {ordersEnabled && theme.showIcons ? (
+                              <Plus className="size-5 shrink-0" style={{ color: "var(--qs-muted)" }} />
+                            ) : null}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
+
+          <DecorBand theme={theme} className="mt-6" />
+        </div>
       </div>
+
 
 
       {menu.data?.settings?.enable_waiter_calls && menu.data.table ? (

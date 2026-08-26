@@ -2,19 +2,47 @@
  * Menu design system for tenant-facing (diner) menus.
  *
  * A theme is stored on `restaurants.menu_theme` as JSON so every restaurant can
- * have its own template, palette, typography and layout without code changes.
+ * have its own template, palette, typography, decoration and layout without
+ * code changes.
  */
 
-export type TemplateId = "classic" | "midnight" | "street" | "cafe" | "bold";
-export type FontId = "sans" | "serif" | "rounded" | "mono" | "display";
-export type LayoutId = "list" | "grid" | "magazine";
-export type HeroId = "cover" | "gradient" | "minimal";
+export type TemplateId =
+  | "classic"
+  | "midnight"
+  | "street"
+  | "cafe"
+  | "bold"
+  | "chalkboard"
+  | "sketch"
+  | "bifold"
+  | "editorial"
+  | "breakfast"
+  | "bakery";
+export type FontId = "sans" | "serif" | "rounded" | "mono" | "display" | "condensed" | "script";
+export type LayoutId = "list" | "grid" | "magazine" | "columns";
+export type HeroId =
+  | "cover"
+  | "gradient"
+  | "minimal"
+  | "chalk"
+  | "stamp"
+  | "ribbon"
+  | "blob"
+  | "sidebar";
 export type ImageShape = "rounded" | "circle" | "square";
 export type ButtonStyleId = "solid" | "pill" | "soft" | "outline";
 export type CardStyleId = "flat" | "elevated" | "outline" | "glass";
 export type BgStyleId = "solid" | "gradient" | "dots" | "glow";
 export type DensityId = "compact" | "comfortable" | "airy";
 export type AnimationId = "none" | "fade" | "rise" | "pop" | "slide";
+/** Paper / surface texture layered over the page background. */
+export type TextureId = "none" | "chalk" | "paper" | "grain";
+/** Decorative thin line-art band drawn at the foot of the menu. */
+export type DecorId = "none" | "veg" | "fastfood" | "bakery" | "shapes";
+/** How each category block is framed. */
+export type SectionStyleId = "plain" | "boxed" | "rule" | "tab" | "ribbon";
+/** How prices sit relative to the item name. */
+export type PriceStyleId = "inline" | "right" | "leader";
 
 export type MenuTheme = {
   template: TemplateId;
@@ -39,6 +67,18 @@ export type MenuTheme = {
   density: DensityId;
   /** Entrance motion applied to menu item cards. */
   animation: AnimationId;
+  texture: TextureId;
+  decor: DecorId;
+  sectionStyle: SectionStyleId;
+  priceStyle: PriceStyleId;
+  /** Number of item columns on phones (1 or 2). */
+  columns: 1 | 2;
+  /** Uppercase, letter-spaced section + hero titles. */
+  upperTitles: boolean;
+  /** Script/handwritten accent word under the hero title. */
+  scriptAccent: boolean;
+  /** Short line rendered under the restaurant name in the hero. */
+  tagline: string;
 };
 
 export const FONT_STACKS: Record<FontId, string> = {
@@ -47,6 +87,9 @@ export const FONT_STACKS: Record<FontId, string> = {
   rounded: "'Trebuchet MS', 'Segoe UI', Verdana, sans-serif",
   mono: "ui-monospace, 'SFMono-Regular', Menlo, monospace",
   display: "'Palatino Linotype', 'Book Antiqua', Georgia, serif",
+  condensed:
+    "'Haettenschweiler', 'Arial Narrow', 'Oswald', 'Impact', ui-sans-serif, system-ui, sans-serif",
+  script: "'Snell Roundhand', 'Brush Script MT', 'Segoe Script', cursive",
 };
 
 export const FONT_LABELS: Record<FontId, { en: string; ar: string }> = {
@@ -55,21 +98,77 @@ export const FONT_LABELS: Record<FontId, { en: string; ar: string }> = {
   rounded: { en: "Friendly rounded", ar: "مستدير ودود" },
   mono: { en: "Technical mono", ar: "مونو تقني" },
   display: { en: "Elegant display", ar: "عرض أنيق" },
+  condensed: { en: "Bold condensed", ar: "عريض مضغوط" },
+  script: { en: "Handwritten script", ar: "خط يدوي" },
 };
 
 export const LAYOUT_LABELS: Record<LayoutId, { en: string; ar: string }> = {
   list: { en: "Photo list", ar: "قائمة بالصور" },
   grid: { en: "Card grid", ar: "شبكة بطاقات" },
   magazine: { en: "Magazine", ar: "مجلة" },
+  columns: { en: "Printed columns", ar: "أعمدة مطبوعة" },
 };
 
 export const HERO_LABELS: Record<HeroId, { en: string; ar: string }> = {
   cover: { en: "Cover photo", ar: "صورة غلاف" },
   gradient: { en: "Colour gradient", ar: "تدرّج لوني" },
   minimal: { en: "Minimal bar", ar: "شريط بسيط" },
+  chalk: { en: "Chalkboard title", ar: "عنوان سبورة" },
+  stamp: { en: "Sketch stamp", ar: "طابع مرسوم" },
+  ribbon: { en: "Editorial ribbon", ar: "شريط تحريري" },
+  blob: { en: "Colour blob", ar: "كتلة لونية" },
+  sidebar: { en: "Vertical wordmark", ar: "شعار عمودي" },
 };
 
-export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; theme: MenuTheme }> = {
+export const TEXTURE_LABELS: Record<TextureId, { en: string; ar: string }> = {
+  none: { en: "Clean", ar: "نظيف" },
+  chalk: { en: "Chalk dust", ar: "غبار طباشير" },
+  paper: { en: "Kraft paper", ar: "ورق كرافت" },
+  grain: { en: "Fine grain", ar: "حبيبات ناعمة" },
+};
+
+export const DECOR_LABELS: Record<DecorId, { en: string; ar: string }> = {
+  none: { en: "No illustration", ar: "بدون رسوم" },
+  veg: { en: "Herbs & vegetables", ar: "أعشاب وخضار" },
+  fastfood: { en: "Fast-food sketches", ar: "رسومات وجبات سريعة" },
+  bakery: { en: "Bakery line art", ar: "رسوم مخبوزات" },
+  shapes: { en: "Geometric shapes", ar: "أشكال هندسية" },
+};
+
+export const SECTION_STYLE_LABELS: Record<SectionStyleId, { en: string; ar: string }> = {
+  plain: { en: "Plain heading", ar: "عنوان بسيط" },
+  boxed: { en: "Bordered box", ar: "صندوق بإطار" },
+  rule: { en: "Hairline rule", ar: "خط رفيع" },
+  tab: { en: "Side tab", ar: "تبويب جانبي" },
+  ribbon: { en: "Filled ribbon", ar: "شريط ملوّن" },
+};
+
+export const PRICE_STYLE_LABELS: Record<PriceStyleId, { en: string; ar: string }> = {
+  inline: { en: "Under the name", ar: "تحت الاسم" },
+  right: { en: "Aligned right", ar: "محاذاة لليمين" },
+  leader: { en: "Dotted leaders", ar: "خطوط منقطة" },
+};
+
+type Extras = Pick<
+  MenuTheme,
+  "texture" | "decor" | "sectionStyle" | "priceStyle" | "columns" | "upperTitles" | "scriptAccent" | "tagline"
+>;
+
+const NEUTRAL_EXTRAS: Extras = {
+  texture: "none",
+  decor: "none",
+  sectionStyle: "rule",
+  priceStyle: "inline",
+  columns: 1,
+  upperTitles: false,
+  scriptAccent: false,
+  tagline: "",
+};
+
+export const TEMPLATES: Record<
+  TemplateId,
+  { label: { en: string; ar: string }; theme: MenuTheme }
+> = {
   classic: {
     label: { en: "Classic light", ar: "كلاسيكي فاتح" },
     theme: {
@@ -94,6 +193,7 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       bgStyle: "solid",
       density: "comfortable",
       animation: "rise",
+      ...NEUTRAL_EXTRAS,
     },
   },
   midnight: {
@@ -120,6 +220,9 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       bgStyle: "glow",
       density: "airy",
       animation: "fade",
+      ...NEUTRAL_EXTRAS,
+      sectionStyle: "rule",
+      upperTitles: true,
     },
   },
   street: {
@@ -146,6 +249,8 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       bgStyle: "dots",
       density: "comfortable",
       animation: "pop",
+      ...NEUTRAL_EXTRAS,
+      columns: 2,
     },
   },
   cafe: {
@@ -172,6 +277,7 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       bgStyle: "gradient",
       density: "airy",
       animation: "fade",
+      ...NEUTRAL_EXTRAS,
     },
   },
   bold: {
@@ -198,11 +304,230 @@ export const TEMPLATES: Record<TemplateId, { label: { en: string; ar: string }; 
       bgStyle: "glow",
       density: "compact",
       animation: "slide",
+      ...NEUTRAL_EXTRAS,
+      columns: 2,
+      upperTitles: true,
+    },
+  },
+  chalkboard: {
+    label: { en: "Dark chalkboard", ar: "سبورة داكنة" },
+    theme: {
+      template: "chalkboard",
+      bg: "#131313",
+      surface: "#1c1c1c",
+      text: "#f5f1e8",
+      muted: "#a29c8f",
+      primary: "#e8772e",
+      primaryText: "#131313",
+      accent: "#e8772e",
+      bodyFont: "sans",
+      headingFont: "condensed",
+      layout: "list",
+      hero: "chalk",
+      radius: 8,
+      showImages: true,
+      imageShape: "circle",
+      showIcons: true,
+      buttonStyle: "outline",
+      cardStyle: "outline",
+      bgStyle: "solid",
+      density: "comfortable",
+      animation: "fade",
+      texture: "chalk",
+      decor: "veg",
+      sectionStyle: "boxed",
+      priceStyle: "right",
+      columns: 1,
+      upperTitles: true,
+      scriptAccent: true,
+      tagline: "Dinner",
+    },
+  },
+  sketch: {
+    label: { en: "Vintage sketch", ar: "رسم قديم" },
+    theme: {
+      template: "sketch",
+      bg: "#efe7d6",
+      surface: "#f7f1e3",
+      text: "#3b2418",
+      muted: "#8a6f57",
+      primary: "#d2691e",
+      primaryText: "#fff8ec",
+      accent: "#e0952a",
+      bodyFont: "serif",
+      headingFont: "condensed",
+      layout: "columns",
+      hero: "stamp",
+      radius: 4,
+      showImages: false,
+      imageShape: "square",
+      showIcons: false,
+      buttonStyle: "solid",
+      cardStyle: "flat",
+      bgStyle: "solid",
+      density: "comfortable",
+      animation: "rise",
+      texture: "paper",
+      decor: "fastfood",
+      sectionStyle: "tab",
+      priceStyle: "right",
+      columns: 1,
+      upperTitles: true,
+      scriptAccent: true,
+      tagline: "Fresh daily",
+    },
+  },
+  bifold: {
+    label: { en: "Dark bi-fold", ar: "طيّة داكنة" },
+    theme: {
+      template: "bifold",
+      bg: "#0b0b0b",
+      surface: "#141414",
+      text: "#f2f2f2",
+      muted: "#8b8b8b",
+      primary: "#e9a53a",
+      primaryText: "#151007",
+      accent: "#e9a53a",
+      bodyFont: "sans",
+      headingFont: "sans",
+      layout: "columns",
+      hero: "gradient",
+      radius: 6,
+      showImages: true,
+      imageShape: "circle",
+      showIcons: false,
+      buttonStyle: "solid",
+      cardStyle: "flat",
+      bgStyle: "solid",
+      density: "compact",
+      animation: "fade",
+      texture: "grain",
+      decor: "veg",
+      sectionStyle: "plain",
+      priceStyle: "right",
+      columns: 1,
+      upperTitles: true,
+      scriptAccent: false,
+      tagline: "Delivery available",
+    },
+  },
+  editorial: {
+    label: { en: "Clean editorial", ar: "تحريري نظيف" },
+    theme: {
+      template: "editorial",
+      bg: "#fbf9f4",
+      surface: "#ffffff",
+      text: "#111111",
+      muted: "#7a7570",
+      primary: "#111111",
+      primaryText: "#ffffff",
+      accent: "#f2a13b",
+      bodyFont: "sans",
+      headingFont: "display",
+      layout: "columns",
+      hero: "ribbon",
+      radius: 2,
+      showImages: true,
+      imageShape: "circle",
+      showIcons: false,
+      buttonStyle: "solid",
+      cardStyle: "flat",
+      bgStyle: "solid",
+      density: "airy",
+      animation: "fade",
+      texture: "none",
+      decor: "none",
+      sectionStyle: "boxed",
+      priceStyle: "leader",
+      columns: 1,
+      upperTitles: true,
+      scriptAccent: true,
+      tagline: "Mains",
+    },
+  },
+  breakfast: {
+    label: { en: "Bright breakfast", ar: "فطور مشرق" },
+    theme: {
+      template: "breakfast",
+      bg: "#ffffff",
+      surface: "#ffffff",
+      text: "#22201d",
+      muted: "#8a8377",
+      primary: "#f59310",
+      primaryText: "#ffffff",
+      accent: "#f59310",
+      bodyFont: "sans",
+      headingFont: "sans",
+      layout: "list",
+      hero: "blob",
+      radius: 20,
+      showImages: true,
+      imageShape: "rounded",
+      showIcons: true,
+      buttonStyle: "pill",
+      cardStyle: "elevated",
+      bgStyle: "solid",
+      density: "airy",
+      animation: "rise",
+      texture: "none",
+      decor: "shapes",
+      sectionStyle: "ribbon",
+      priceStyle: "right",
+      columns: 1,
+      upperTitles: false,
+      scriptAccent: true,
+      tagline: "Breakfast menu set",
+    },
+  },
+  bakery: {
+    label: { en: "Dark bakery", ar: "مخبز داكن" },
+    theme: {
+      template: "bakery",
+      bg: "#1a1d1c",
+      surface: "#212524",
+      text: "#f6f2e8",
+      muted: "#9d9789",
+      primary: "#f2b134",
+      primaryText: "#1a1512",
+      accent: "#f2b134",
+      bodyFont: "sans",
+      headingFont: "condensed",
+      layout: "list",
+      hero: "sidebar",
+      radius: 4,
+      showImages: false,
+      imageShape: "square",
+      showIcons: false,
+      buttonStyle: "solid",
+      cardStyle: "outline",
+      bgStyle: "solid",
+      density: "comfortable",
+      animation: "slide",
+      texture: "grain",
+      decor: "bakery",
+      sectionStyle: "ribbon",
+      priceStyle: "leader",
+      columns: 1,
+      upperTitles: true,
+      scriptAccent: true,
+      tagline: "Baked fresh, served warm",
     },
   },
 };
 
-export const DEFAULT_THEME: MenuTheme = TEMPLATES.classic.theme;
+export const DEFAULT_THEME: MenuTheme = TEMPLATES.chalkboard.theme;
+
+/** The six professionally art-directed bases surfaced in the studio. */
+export const SIGNATURE_TEMPLATES: TemplateId[] = [
+  "chalkboard",
+  "sketch",
+  "bifold",
+  "editorial",
+  "breakfast",
+  "bakery",
+];
+
+const TEMPLATE_IDS = Object.keys(TEMPLATES) as TemplateId[];
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -216,17 +541,27 @@ function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback
     : fallback;
 }
 
+function bool(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
 /** Normalizes anything stored in the database into a complete, safe theme. */
 export function parseMenuTheme(raw: unknown): MenuTheme {
   const input = (raw ?? {}) as Record<string, unknown>;
-  const template = oneOf<TemplateId>(
-    input["template"],
-    ["classic", "midnight", "street", "cafe", "bold"],
-    "classic",
-  );
+  const template = oneOf<TemplateId>(input["template"], TEMPLATE_IDS, "chalkboard");
   const base = TEMPLATES[template].theme;
-  const fonts: FontId[] = ["sans", "serif", "rounded", "mono", "display"];
+  const fonts: FontId[] = [
+    "sans",
+    "serif",
+    "rounded",
+    "mono",
+    "display",
+    "condensed",
+    "script",
+  ];
   const radius = Number(input["radius"]);
+  const columns = Number(input["columns"]);
+  const tagline = typeof input["tagline"] === "string" ? input["tagline"].slice(0, 60) : base.tagline;
   return {
     template,
     bg: color(input["bg"], base.bg),
@@ -238,16 +573,24 @@ export function parseMenuTheme(raw: unknown): MenuTheme {
     accent: color(input["accent"], base.accent),
     bodyFont: oneOf<FontId>(input["bodyFont"], fonts, base.bodyFont),
     headingFont: oneOf<FontId>(input["headingFont"], fonts, base.headingFont),
-    layout: oneOf<LayoutId>(input["layout"], ["list", "grid", "magazine"], base.layout),
-    hero: oneOf<HeroId>(input["hero"], ["cover", "gradient", "minimal"], base.hero),
+    layout: oneOf<LayoutId>(
+      input["layout"],
+      ["list", "grid", "magazine", "columns"],
+      base.layout,
+    ),
+    hero: oneOf<HeroId>(
+      input["hero"],
+      ["cover", "gradient", "minimal", "chalk", "stamp", "ribbon", "blob", "sidebar"],
+      base.hero,
+    ),
     radius: Number.isFinite(radius) ? Math.min(32, Math.max(0, radius)) : base.radius,
-    showImages: typeof input["showImages"] === "boolean" ? input["showImages"] : base.showImages,
+    showImages: bool(input["showImages"], base.showImages),
     imageShape: oneOf<ImageShape>(
       input["imageShape"],
       ["rounded", "circle", "square"],
       base.imageShape,
     ),
-    showIcons: typeof input["showIcons"] === "boolean" ? input["showIcons"] : base.showIcons,
+    showIcons: bool(input["showIcons"], base.showIcons),
     buttonStyle: oneOf<ButtonStyleId>(
       input["buttonStyle"],
       ["solid", "pill", "soft", "outline"],
@@ -269,6 +612,26 @@ export function parseMenuTheme(raw: unknown): MenuTheme {
       ["none", "fade", "rise", "pop", "slide"],
       base.animation,
     ),
+    texture: oneOf<TextureId>(input["texture"], ["none", "chalk", "paper", "grain"], base.texture),
+    decor: oneOf<DecorId>(
+      input["decor"],
+      ["none", "veg", "fastfood", "bakery", "shapes"],
+      base.decor,
+    ),
+    sectionStyle: oneOf<SectionStyleId>(
+      input["sectionStyle"],
+      ["plain", "boxed", "rule", "tab", "ribbon"],
+      base.sectionStyle,
+    ),
+    priceStyle: oneOf<PriceStyleId>(
+      input["priceStyle"],
+      ["inline", "right", "leader"],
+      base.priceStyle,
+    ),
+    columns: columns === 2 ? 2 : columns === 1 ? 1 : base.columns,
+    upperTitles: bool(input["upperTitles"], base.upperTitles),
+    scriptAccent: bool(input["scriptAccent"], base.scriptAccent),
+    tagline,
   };
 }
 
@@ -285,6 +648,7 @@ export function themeVars(theme: MenuTheme): React.CSSProperties {
     "--qs-radius": `${theme.radius}px`,
     "--qs-body-font": FONT_STACKS[theme.bodyFont],
     "--qs-heading-font": FONT_STACKS[theme.headingFont],
+    "--qs-script-font": FONT_STACKS.script,
   } as React.CSSProperties;
 }
 
@@ -321,7 +685,7 @@ export const DENSITY_LABELS: Record<DensityId, { en: string; ar: string }> = {
   airy: { en: "Airy", ar: "فسيح" },
 };
 
-function hexAlpha(hex: string, alpha: number): string {
+export function hexAlpha(hex: string, alpha: number): string {
   const a = Math.round(Math.min(1, Math.max(0, alpha)) * 255)
     .toString(16)
     .padStart(2, "0");
@@ -352,6 +716,30 @@ export function pageBackground(theme: MenuTheme): React.CSSProperties {
   return { backgroundColor: theme.bg };
 }
 
+/** Fixed, non-interactive texture layer painted over the page background. */
+export function textureStyle(theme: MenuTheme): React.CSSProperties | null {
+  if (theme.texture === "none") return null;
+  if (theme.texture === "chalk") {
+    return {
+      backgroundImage: `radial-gradient(${hexAlpha(theme.text, 0.09)} 0.6px, transparent 0.7px), radial-gradient(${hexAlpha(theme.text, 0.05)} 0.5px, transparent 0.6px)`,
+      backgroundSize: "7px 7px, 13px 11px",
+      backgroundPosition: "0 0, 4px 6px",
+      opacity: 0.9,
+    };
+  }
+  if (theme.texture === "paper") {
+    return {
+      backgroundImage: `repeating-linear-gradient(90deg, ${hexAlpha(theme.text, 0.035)} 0 1px, transparent 1px 3px), repeating-linear-gradient(0deg, ${hexAlpha(theme.text, 0.03)} 0 1px, transparent 1px 4px)`,
+      opacity: 0.8,
+    };
+  }
+  return {
+    backgroundImage: `radial-gradient(${hexAlpha(theme.text, 0.06)} 0.5px, transparent 0.6px)`,
+    backgroundSize: "4px 4px",
+    opacity: 0.7,
+  };
+}
+
 /** Card / panel surface styling for the diner menu. */
 export function surfaceStyle(theme: MenuTheme): React.CSSProperties {
   const base: React.CSSProperties = {
@@ -377,10 +765,61 @@ export function surfaceStyle(theme: MenuTheme): React.CSSProperties {
   return base;
 }
 
+/** Frame around a whole category block (used with `sectionStyle`). */
+export function sectionFrameStyle(theme: MenuTheme): React.CSSProperties {
+  if (theme.sectionStyle === "boxed") {
+    return {
+      border: `1px solid ${hexAlpha(theme.accent, 0.55)}`,
+      borderRadius: `${Math.max(4, theme.radius)}px`,
+      padding: "0.875rem",
+      background: hexAlpha(theme.surface, theme.cardStyle === "flat" ? 0.55 : 0.9),
+    };
+  }
+  if (theme.sectionStyle === "tab") {
+    return {
+      borderInlineStart: `3px solid ${theme.primary}`,
+      paddingInlineStart: "0.75rem",
+    };
+  }
+  return {};
+}
+
+/** Heading typography for a category title. */
+export function sectionTitleStyle(theme: MenuTheme): React.CSSProperties {
+  const base: React.CSSProperties = {
+    fontFamily: "var(--qs-heading-font)",
+    letterSpacing: theme.upperTitles ? "0.14em" : "0",
+    textTransform: theme.upperTitles ? "uppercase" : "none",
+    color: theme.accent,
+  };
+  if (theme.sectionStyle === "ribbon") {
+    return {
+      ...base,
+      background: theme.primary,
+      color: theme.primaryText,
+      padding: "0.35rem 0.75rem",
+      borderRadius: `${Math.max(2, Math.min(theme.radius, 10))}px`,
+      display: "inline-block",
+    };
+  }
+  return base;
+}
+
+export function densityGap(theme: MenuTheme): string {
+  if (theme.density === "compact") return "0.5rem";
+  if (theme.density === "airy") return "1.25rem";
+  return "0.75rem";
+}
+
+export function densityPadding(theme: MenuTheme): string {
+  if (theme.density === "compact") return "0.625rem";
+  if (theme.density === "airy") return "1.125rem";
+  return "0.875rem";
+}
+
 /** Button / chip styling. `active` false renders the quiet variant. */
 export function buttonStyle(theme: MenuTheme, active = true): React.CSSProperties {
-  const radius =
-    theme.buttonStyle === "pill" ? "999px" : `${Math.max(6, theme.radius)}px`;
+  const radius = theme.buttonStyle === "pill" ? "999px" : `${Math.max(6, theme.radius)}px`;
   if (!active) {
     return {
       borderRadius: radius,
@@ -414,18 +853,6 @@ export function buttonStyle(theme: MenuTheme, active = true): React.CSSPropertie
   };
 }
 
-export function densityGap(theme: MenuTheme): string {
-  if (theme.density === "compact") return "0.5rem";
-  if (theme.density === "airy") return "1.25rem";
-  return "0.75rem";
-}
-
-export function densityPadding(theme: MenuTheme): string {
-  if (theme.density === "compact") return "0.625rem";
-  if (theme.density === "airy") return "1.125rem";
-  return "0.875rem";
-}
-
 export const ANIMATION_LABELS: Record<AnimationId, { en: string; ar: string }> = {
   none: { en: "None", ar: "بدون" },
   fade: { en: "Soft fade", ar: "تلاشٍ ناعم" },
@@ -445,3 +872,14 @@ export function itemMotion(
     style: { animationDelay: `${Math.min(index, 12) * 45}ms` },
   };
 }
+
+/** Nudge phrases the studio offers for one-tap regeneration tweaks. */
+export const TWEAKS: { id: string; en: string; ar: string }[] = [
+  { id: "darker", en: "Make it darker", ar: "اجعله أغمق" },
+  { id: "brighter", en: "Brighter and warmer", ar: "أكثر إشراقًا ودفئًا" },
+  { id: "photos", en: "Add more photos", ar: "أضف صورًا أكثر" },
+  { id: "illustrated", en: "Illustration-led, no photos", ar: "رسوم بدل الصور" },
+  { id: "minimal", en: "More minimal", ar: "أكثر بساطة" },
+  { id: "editorial", en: "More editorial and typographic", ar: "أكثر تحريرًا وطباعة" },
+  { id: "playful", en: "More playful", ar: "أكثر مرحًا" },
+];
