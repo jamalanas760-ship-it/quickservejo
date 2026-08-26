@@ -75,38 +75,48 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
       userContent.push({ type: "image_url", image_url: { url } });
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-3.7-flash",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a senior product designer specialising in mobile QR restaurant menus. " +
-              "Reply ONLY with a JSON object using exactly these keys: " +
-              "template (classic|midnight|street|cafe|bold), bg, surface, text, muted, primary, primaryText, accent " +
-              "(all 6-digit hex like #1a1a1a), bodyFont and headingFont (sans|serif|rounded|mono|display), " +
-              "layout (list|grid|magazine), hero (cover|gradient|minimal), radius (0-32 integer), " +
-              "showImages (boolean), imageShape (rounded|circle|square), showIcons (boolean), " +
-              "buttonStyle (solid|pill|soft|outline), cardStyle (flat|elevated|outline|glass), " +
-              "bgStyle (solid|gradient|dots|glow), density (compact|comfortable|airy). " +
-              "Design for thumb-first mobile reading: WCAG AA contrast between text and surface and between " +
-              "primary and primaryText, a distinctive accent that is not generic purple-on-white, and a coherent " +
-              "pairing of typography, radius, card style and background style. No prose, no markdown fences.",
-          },
-          { role: "user", content: userContent },
-        ],
-        temperature: 0.8,
-      }),
-    });
+    const systemPrompt =
+      "You are Claude, a senior product designer specialising in mobile QR restaurant menus. " +
+      "Reply ONLY with a JSON object using exactly these keys: " +
+      "template (classic|midnight|street|cafe|bold), bg, surface, text, muted, primary, primaryText, accent " +
+      "(all 6-digit hex like #1a1a1a), bodyFont and headingFont (sans|serif|rounded|mono|display), " +
+      "layout (list|grid|magazine), hero (cover|gradient|minimal), radius (0-32 integer), " +
+      "showImages (boolean), imageShape (rounded|circle|square), showIcons (boolean), " +
+      "buttonStyle (solid|pill|soft|outline), cardStyle (flat|elevated|outline|glass), " +
+      "bgStyle (solid|gradient|dots|glow), density (compact|comfortable|airy). " +
+      "Design for thumb-first mobile reading: WCAG AA contrast between text and surface and between " +
+      "primary and primaryText, a distinctive accent that is not generic purple-on-white, and a coherent " +
+      "pairing of typography, radius, card style and background style. No prose, no markdown fences.";
+
+    async function ask(model: string) {
+      return fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userContent },
+          ],
+          temperature: 0.8,
+        }),
+      });
+    }
+
+    // Claude leads the design work; a fast fallback keeps the studio usable if
+    // the Claude model is momentarily unavailable on the gateway.
+    let response = await ask("anthropic/claude-sonnet-4-5");
+    if (!response.ok && response.status !== 429) {
+      console.error("Claude design error", response.status, await response.text());
+      response = await ask("google/gemini-3.7-flash");
+    }
 
     if (!response.ok) {
       if (response.status === 429) throw new Error("AI rate limit reached, try again shortly");
       console.error("AI gateway error", response.status, await response.text());
       throw new Error("Theme generation is unavailable right now");
     }
+
 
     const payload = (await response.json()) as {
       choices?: { message?: { content?: string } }[];
