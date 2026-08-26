@@ -134,6 +134,10 @@ export function TablesManager({ restaurantId }: { restaurantId: string }) {
         table_name: tb.table_name,
         url: tableMenuUrl(restaurant.slug, tb.qr_token),
       })),
+      {
+        back: lang === "ar" ? "← رجوع" : "← Back",
+        print: lang === "ar" ? "طباعة" : "Print",
+      },
     );
   }
 
