@@ -25,7 +25,8 @@ const generateSchema = z.object({
 });
 
 const SCHEMA =
-  "template (classic|midnight|street|cafe|bold|chalkboard|sketch|bifold|editorial|breakfast|bakery), " +
+  "template (classic|midnight|street|cafe|bold|chalkboard|sketch|bifold|editorial|breakfast|bakery|" +
+  "poster|coffeehouse|emerald|script|retro|brush|nautical|ornate|tiles|wellness), " +
   "bg, surface, text, muted, primary, primaryText, accent (all 6-digit hex like #1a1a1a), " +
   "bodyFont and headingFont (sans|serif|rounded|mono|display|condensed|script), " +
   "layout (list|grid|magazine|columns), hero (cover|gradient|minimal|chalk|stamp|ribbon|blob|sidebar), " +
@@ -33,7 +34,7 @@ const SCHEMA =
   "buttonStyle (solid|pill|soft|outline), cardStyle (flat|elevated|outline|glass), " +
   "bgStyle (solid|gradient|dots|glow), density (compact|comfortable|airy), " +
   "animation (none|fade|rise|pop|slide), texture (none|chalk|paper|grain), " +
-  "decor (none|veg|fastfood|bakery|shapes), sectionStyle (plain|boxed|rule|tab|ribbon), " +
+  "decor (none|veg|fastfood|bakery|shapes|ornate|coffee|seafood), sectionStyle (plain|boxed|rule|tab|ribbon), " +
   "priceStyle (inline|right|leader), columns (1 or 2), upperTitles (boolean), " +
   "scriptAccent (boolean), tagline (short string, max 5 words, matching the brand language)";
 
@@ -45,7 +46,17 @@ const CRAFT =
   "dark bi-fold (black, two printed columns, leader-dot prices, circular photos), " +
   "clean minimal editorial (cream, oversized display wordmark, ribbon accent, hairline rules, huge whitespace), " +
   "bright modern breakfast (bold colour blob background, floating white card, full-bleed photo, script subhead), " +
-  "dark bakery editorial (vertical sidebar wordmark, bordered accent boxes, bakery line-art, script tagline). " +
+  "dark bakery editorial (vertical sidebar wordmark, bordered accent boxes, bakery line-art, script tagline), " +
+  "yellow poster (charcoal ground, oversized two-tone serif FOOD MENU, ribbon logo flag, circular photos down one side), " +
+  "vintage coffee house (kraft cream, red serif wordmark, two tight columns, coffee/pastry line-art), " +
+  "emerald grid (deep green, cream display MENU block, two-column plated circular photos, hairline column dividers), " +
+  "crimson script (white ground, crimson script Menu, red veg line-art, two-column list with right-aligned prices), " +
+  "retro splash (dark brown ground with organic cream/orange blobs, pill section ribbons, leader-dot prices), " +
+  "orange brush (charcoal card on orange field, brush-stroke section ribbons, square photo blocks, condensed prices), " +
+  "nautical fine dining (antique cream, navy serif with magenta rules, three dense columns, seafood engravings), " +
+  "ornate navy (deep navy, white filigree ornament bands, centred serif titles, dotted leader prices), " +
+  "photo tiles (dark textured ground, uniform circular photo grid with small price badges under names), " +
+  "teal wellness (cream ground, teal script headings, boxed sections, compact two-column list). " +
   "Rules: commit to ONE decisive direction; 2-3 colours max with one dominant; pair a strong display heading " +
   "font with a clean body font; keep WCAG AA contrast for text/surface and primary/primaryText; make " +
   "typography, radius, card style, texture, decoration, section framing and density tell the same story; " +
