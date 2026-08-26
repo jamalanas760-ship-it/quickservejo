@@ -24,6 +24,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useI18n } from "@/lib/i18n";
 import { humanError } from "@/lib/errors";
 import { formatMoney } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { imageShapeClass, themeVars } from "@/lib/menu-theme";
 import {
   callWaiter,
   loadDinerMenu,
