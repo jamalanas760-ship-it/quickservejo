@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { roleDestination } from "@/lib/post-signin";
 import { staffPinSignIn } from "@/lib/staff-auth.functions";
 
@@ -80,7 +81,7 @@ function StaffPinPage() {
       <div className="w-full max-w-sm space-y-6">
         <div className="flex items-center justify-between">
           <Link to="/" className="font-display text-lg font-bold">
-            Quick<span className="text-accent">Serve</span>
+            <BrandLogo className="size-8" />
           </Link>
           <Button variant="ghost" size="sm" onClick={toggleLang} type="button">
             {t("common.language")}
