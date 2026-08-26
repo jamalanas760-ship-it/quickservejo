@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { BottomNav } from "@/components/nav/BottomNav";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -10,5 +11,17 @@ export const Route = createFileRoute("/_authenticated")({
     }
     return { user: data.user };
   },
-  component: () => <Outlet />,
+  component: AuthenticatedShell,
 });
+
+function AuthenticatedShell() {
+  return (
+    <>
+      <div className="pb-20">
+        <Outlet />
+      </div>
+      <BottomNav />
+    </>
+  );
+}
+
