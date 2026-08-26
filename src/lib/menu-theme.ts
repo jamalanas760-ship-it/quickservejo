@@ -150,6 +150,9 @@ export const DECOR_LABELS: Record<DecorId, { en: string; ar: string }> = {
   veg: { en: "Herbs & vegetables", ar: "أعشاب وخضار" },
   fastfood: { en: "Fast-food sketches", ar: "رسومات وجبات سريعة" },
   bakery: { en: "Bakery line art", ar: "رسوم مخبوزات" },
+  ornate: { en: "Ornate filigree", ar: "زخرفة كلاسيكية" },
+  coffee: { en: "Coffee & pastry", ar: "قهوة ومعجنات" },
+  seafood: { en: "Seafood engraving", ar: "نقوش بحرية" },
   shapes: { en: "Geometric shapes", ar: "أشكال هندسية" },
 };
 
