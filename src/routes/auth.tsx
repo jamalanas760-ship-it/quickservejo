@@ -40,6 +40,31 @@ function safeRedirect(value?: string): string {
   return value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
 }
 
+/**
+ * Sends each role to the workspace it can actually use. The dashboard is the
+ * fallback whenever the user has several memberships or none yet.
+ */
+async function roleDestination(fallback: string): Promise<string> {
+  if (fallback !== "/dashboard") return fallback;
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData.user?.id;
+  if (!uid) return fallback;
+  const { data } = await supabase
+    .from("staff")
+    .select("role, restaurant_id")
+    .eq("auth_user_id", uid)
+    .eq("is_active", true);
+  const rows = data ?? [];
+  if (rows.some((r) => r.role === "super_admin")) return "/super-admin";
+  if (rows.length === 1) {
+    const row = rows[0]!;
+    if ((row.role === "restaurant_admin" || row.role === "manager") && row.restaurant_id) {
+      return `/manage/${row.restaurant_id}`;
+    }
+  }
+  return fallback;
+}
+
 function AuthPage() {
   const { t, lang, toggleLang } = useI18n();
   const navigate = useNavigate();
@@ -92,7 +117,7 @@ function AuthPage() {
           password,
         });
         if (error) throw error;
-        navigate({ to: target, replace: true });
+        navigate({ to: await roleDestination(target), replace: true });
       }
     } catch (error) {
       toast.error(humanError(error, lang));
