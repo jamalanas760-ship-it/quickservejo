@@ -100,14 +100,11 @@ function DashboardPage() {
                           : "Inactive"}
                     </p>
                   </div>
-                  <Button asChild className="mt-4 w-fit" size="sm" variant="outline">
-                    <Link
-                      to={ROLE_HOME[m.role]}
-                      search={{ restaurant: m.restaurant?.slug ?? "" }}
-                    >
-                      {t("dash.open")}
-                    </Link>
-                  </Button>
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    {lang === "ar"
+                      ? `مساحة العمل: ${ROLE_HOME[m.role]} — تُبنى في المرحلة القادمة`
+                      : `Workspace: ${ROLE_HOME[m.role]} — ships in the next phase`}
+                  </p>
                 </div>
               ))}
 
