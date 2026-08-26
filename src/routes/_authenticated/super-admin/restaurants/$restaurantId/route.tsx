@@ -18,6 +18,7 @@ const TABS: Tab[] = [
   { to: "/super-admin/restaurants/$restaurantId", labelKey: "sa.detail.overview", exact: true },
   { to: "/super-admin/restaurants/$restaurantId/edit", labelKey: "sa.detail.edit" },
   { to: "/super-admin/restaurants/$restaurantId/menu", labelKey: "sa.detail.menu" },
+  { to: "/super-admin/restaurants/$restaurantId/design", labelKey: "sa.detail.design" },
   { to: "/super-admin/restaurants/$restaurantId/tables", labelKey: "sa.detail.tables" },
   { to: "/super-admin/restaurants/$restaurantId/staff", labelKey: "sa.detail.staff" },
   { to: "/super-admin/restaurants/$restaurantId/orders", labelKey: "sa.detail.orders" },
