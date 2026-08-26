@@ -7,23 +7,84 @@
  */
 import {
   hexAlpha,
+  paperVignetteStyle,
   sectionTitleStyle,
   textureStyle,
   type MenuTheme,
 } from "@/lib/menu-theme";
 import { cn } from "@/lib/utils";
 
-export function TextureLayer({ theme }: { theme: MenuTheme }) {
-  const style = textureStyle(theme);
-  if (!style) return null;
+/**
+ * Shared SVG filter that warps strokes with fractal noise, so rules and
+ * line-art read as drawn by hand instead of plotted by a machine.
+ */
+export function HandDrawnFilters() {
   return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-0 z-0"
-      style={{ ...style, mixBlendMode: "overlay" }}
-    />
+    <svg aria-hidden width="0" height="0" className="absolute" focusable="false">
+      <defs>
+        <filter id="qs-hand" x="-12%" y="-40%" width="124%" height="180%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.032 0.06" numOctaves={3} seed={7} result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="2.1" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+        <filter id="qs-hand-soft" x="-12%" y="-60%" width="124%" height="220%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.02 0.09" numOctaves={2} seed={19} result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="1.4" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </defs>
+    </svg>
   );
 }
+
+export function TextureLayer({ theme }: { theme: MenuTheme }) {
+  const style = textureStyle(theme);
+  return (
+    <>
+      {style ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{ ...style, mixBlendMode: "overlay" }}
+        />
+      ) : null}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{ ...paperVignetteStyle(theme), mixBlendMode: "multiply", opacity: 0.75 }}
+      />
+      <HandDrawnFilters />
+    </>
+  );
+}
+
+/** Slightly irregular, hand-inked horizontal rule. */
+export function HandRule({
+  theme,
+  className,
+  color,
+  opacity = 0.55,
+}: {
+  theme: MenuTheme;
+  className?: string;
+  color?: string;
+  opacity?: number;
+}) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 300 6"
+      preserveAspectRatio="none"
+      className={cn("h-[6px] w-full", className)}
+      style={{ filter: "url(#qs-hand-soft)", opacity }}
+      fill="none"
+      stroke={color ?? hexAlpha(theme.muted, 0.9)}
+      strokeWidth="1.1"
+      strokeLinecap="round"
+    >
+      <path d="M1 3.2C60 2.4 120 3.6 180 2.8 224 2.2 262 3.4 299 2.6" />
+    </svg>
+  );
+}
+
 
 const LINE_ART: Record<string, string[]> = {
   // Herbs, leaves, mushroom, chilli — chalkboard bottom band.
