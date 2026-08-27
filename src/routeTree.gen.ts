@@ -23,6 +23,7 @@ import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_auth
 import { Route as OTokenRouteImport } from './routes/o/$token'
 import { Route as RSlugRouteImport } from './routes/r/$slug'
 import { Route as StaffIndexRouteImport } from './routes/staff/index'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedManageIndexRouteImport } from './routes/_authenticated/manage/index'
 import { Route as AuthenticatedManageRestaurantIdRouteRouteImport } from './routes/_authenticated/manage/$restaurantId/route'
@@ -122,6 +123,11 @@ const RSlugRoute = RSlugRouteImport.update({
 const StaffIndexRoute = StaffIndexRouteImport.update({
   id: '/staff/',
   path: '/staff/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
@@ -309,6 +315,7 @@ export interface FileRoutesByFullPath {
   '/r/$slug': typeof RSlugRoute
   '/staff/': typeof StaffIndexRoute
   '/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
@@ -348,6 +355,7 @@ export interface FileRoutesByTo {
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
   '/staff': typeof StaffIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
@@ -391,6 +399,7 @@ export interface FileRoutesById {
   '/r/$slug': typeof RSlugRoute
   '/staff/': typeof StaffIndexRoute
   '/_authenticated/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/_authenticated/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
@@ -435,6 +444,7 @@ export interface FileRouteTypes {
     | '/r/$slug'
     | '/staff/'
     | '/manage/$restaurantId'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
@@ -474,6 +484,7 @@ export interface FileRouteTypes {
     | '/o/$token'
     | '/r/$slug'
     | '/staff'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
@@ -516,6 +527,7 @@ export interface FileRouteTypes {
     | '/r/$slug'
     | '/staff/'
     | '/_authenticated/manage/$restaurantId'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/super-admin/analytics'
     | '/_authenticated/super-admin/audit-logs'
@@ -554,6 +566,7 @@ export interface RootRouteChildren {
   OTokenRoute: typeof OTokenRoute
   RSlugRoute: typeof RSlugRoute
   StaffIndexRoute: typeof StaffIndexRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   StaffBadgeCodeRoute: typeof StaffBadgeCodeRoute
 }
@@ -656,6 +669,13 @@ declare module '@tanstack/react-router' {
       path: '/staff'
       fullPath: '/staff/'
       preLoaderRoute: typeof StaffIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/invoke-tool/$tool': {
@@ -1000,6 +1020,7 @@ const rootRouteChildren: RootRouteChildren = {
   OTokenRoute: OTokenRoute,
   RSlugRoute: RSlugRoute,
   StaffIndexRoute: StaffIndexRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   StaffBadgeCodeRoute: StaffBadgeCodeRoute,
 }
