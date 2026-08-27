@@ -183,6 +183,10 @@ export const upgradeDict: Record<string, { en: string; ar: string }> = {
   "land.footer.contact": { en: "Contact us", ar: "اتصل بنا" },
   "land.footer.rights": { en: "All rights reserved.", ar: "جميع الحقوق محفوظة." },
 
+  "nav.cashier": { en: "Cashier", ar: "الكاشير" },
+  "nav.waiter": { en: "Tables", ar: "الطاولات" },
+  "nav.kitchen": { en: "Kitchen", ar: "المطبخ" },
+
   "common.all": { en: "All", ar: "الكل" },
   "common.clear": { en: "Clear", ar: "مسح" },
 };
