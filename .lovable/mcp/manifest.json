@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "sdk_version": "0.28.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://ezzqdvnktsirtxzqhepm.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "quickserve",
+      "version": "0.1.0",
+      "title": "QuickServe"
+    },
+    "tools": [
+      {
+        "name": "list_restaurants",
+        "title": "List restaurants",
+        "description": "List the restaurants the signed-in user can access, with slug, activity status and contact details.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "include_archived": {
+              "description": "Include archived restaurants.",
+              "type": "boolean"
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_menu_items",
+        "title": "List menu items",
+        "description": "List menu items for one restaurant, including price, availability and sold-out state.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "restaurant_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Restaurant id from list_restaurants."
+            },
+            "only_unavailable": {
+              "description": "Return only items marked unavailable.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "restaurant_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "set_item_availability",
+        "title": "Set menu item availability",
+        "description": "Mark a menu item available or sold out, optionally until a given time, with an optional note.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "item_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Menu item id."
+            },
+            "is_available": {
+              "type": "boolean",
+              "description": "True to make the item orderable, false to mark it sold out."
+            },
+            "sold_out_until": {
+              "description": "ISO timestamp when the item becomes available again.",
+              "type": "string"
+            },
+            "sold_out_note": {
+              "description": "Short reason shown to staff.",
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          "required": [
+            "item_id",
+            "is_available"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_orders",
+        "title": "List orders",
+        "description": "List recent orders for one restaurant, optionally filtered by status, newest first.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "restaurant_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Restaurant id from list_restaurants."
+            },
+            "status": {
+              "description": "Filter by order status.",
+              "type": "string",
+              "enum": [
+                "pending",
+                "confirmed",
+                "preparing",
+                "ready",
+                "served",
+                "completed",
+                "cancelled"
+              ]
+            },
+            "limit": {
+              "description": "Maximum rows (default 20).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "restaurant_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "update_order_status",
+        "title": "Update order status",
+        "description": "Move an order to a new status. Cancelling requires a reason code that is stored on the order.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "order_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Order id from list_orders."
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "confirmed",
+                "preparing",
+                "ready",
+                "served",
+                "completed",
+                "cancelled"
+              ],
+              "description": "New order status."
+            },
+            "cancellation_reason": {
+              "description": "Reason code, required when status is cancelled.",
+              "type": "string",
+              "maxLength": 60
+            },
+            "cancellation_note": {
+              "description": "Optional cancellation detail.",
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          "required": [
+            "order_id",
+            "status"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
