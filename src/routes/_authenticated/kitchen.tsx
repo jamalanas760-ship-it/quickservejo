@@ -797,9 +797,196 @@ function KitchenPage() {
           </div>
         )}
       </main>
+
+      <CancelDialog
+        order={cancelTarget}
+        ar={ar}
+        lang={lang}
+        isManager={isManager}
+        onClose={() => setCancelTarget(null)}
+        onDone={async () => {
+          setCancelTarget(null);
+          await queryClient.invalidateQueries({ queryKey: ["kitchen"] });
+        }}
+      />
+
+      <WorklogDialog
+        order={openLog}
+        events={openLog ? (eventsByOrder.get(openLog.id) ?? []) : []}
+        ar={ar}
+        lang={lang}
+        now={now}
+        onClose={() => setOpenLog(null)}
+      />
     </div>
   );
 }
+
+function CancelDialog({
+  order,
+  ar,
+  lang,
+  isManager,
+  onClose,
+  onDone,
+}: {
+  order: OrderRow | null;
+  ar: boolean;
+  lang: "en" | "ar";
+  isManager: boolean;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setReason("");
+    setNote("");
+  }, [order?.id]);
+
+  const lateStage = order ? LATE_STAGES.includes(order.status) : false;
+  const blocked = lateStage && !isManager;
+  const selected = CANCEL_REASONS.find((r) => r.code === reason);
+  const needsNote = reason === "other";
+  const canSubmit =
+    Boolean(reason) && !blocked && !saving && (!needsNote || note.trim().length > 2);
+
+  async function submit() {
+    if (!order || !canSubmit) return;
+    setSaving(true);
+    try {
+      await cancelOrder({ orderId: order.id, reason, note });
+      toast.success(ar ? "تم إلغاء الطلب" : "Order cancelled");
+      await onDone();
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={Boolean(order)} onOpenChange={(open) => (open ? null : onClose())}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {ar ? "إلغاء الطلب" : "Cancel order"} {order?.order_number}
+          </DialogTitle>
+          <DialogDescription>
+            {ar
+              ? "اختيار السبب إلزامي — يُسجَّل في سجل الطلب."
+              : "A reason is required — it is written to the order log."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {blocked ? (
+          <p className="flex items-start gap-2 rounded-2xl bg-destructive/10 p-3 text-sm font-semibold text-destructive">
+            <ShieldAlert className="mt-0.5 size-4 shrink-0" />
+            {ar
+              ? "هذا الطلب في مرحلة متقدمة — يحتاج موافقة المدير للإلغاء."
+              : "This order is already in a late stage — a manager must approve the cancellation."}
+          </p>
+        ) : null}
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">{ar ? "السبب" : "Reason"}</Label>
+            <Select value={reason} onValueChange={setReason} disabled={blocked}>
+              <SelectTrigger>
+                <SelectValue placeholder={ar ? "اختر السبب" : "Select a reason"} />
+              </SelectTrigger>
+              <SelectContent>
+                {CANCEL_REASONS.filter((r) => isManager || !r.managerOnly).map((r) => (
+                  <SelectItem key={r.code} value={r.code}>
+                    {ar ? r.ar : r.en}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">
+              {ar ? "تفاصيل" : "Details"}
+              {needsNote ? " *" : ` (${ar ? "اختياري" : "optional"})`}
+            </Label>
+            <Textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              disabled={blocked}
+              placeholder={
+                selected
+                  ? ar
+                    ? "ماذا حدث بالضبط؟"
+                    : "What exactly happened?"
+                  : undefined
+              }
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {ar ? "رجوع" : "Back"}
+          </Button>
+          <Button variant="destructive" disabled={!canSubmit} onClick={() => void submit()}>
+            {ar ? "تأكيد الإلغاء" : "Confirm cancellation"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function WorklogDialog({
+  order,
+  events,
+  ar,
+  lang,
+  now,
+  onClose,
+}: {
+  order: OrderRow | null;
+  events: StatusEvent[];
+  ar: boolean;
+  lang: "en" | "ar";
+  now: number;
+  onClose: () => void;
+}) {
+  const stages = order ? stageDurations(events, order.created_at, now) : [];
+  return (
+    <Dialog open={Boolean(order)} onOpenChange={(open) => (open ? null : onClose())}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {ar ? "سجل الطلب" : "Order worklog"} {order?.order_number}
+          </DialogTitle>
+          <DialogDescription>
+            {ar ? "الوقت المستغرق في كل مرحلة ومن نفّذها." : "Time spent in each stage and who moved it."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <ul className="space-y-2">
+          {stages.map((stage, index) => (
+            <li
+              key={`${stage.status}-${index}`}
+              className="flex items-center justify-between gap-3 rounded-2xl bg-muted/60 px-3 py-2"
+            >
+              <span className="text-sm font-bold">{STATUS_LABELS[stage.status][lang]}</span>
+              <span className="text-sm font-semibold tabular-nums text-muted-foreground">
+                {durationLabel(stage.seconds)}
+                {events[index]?.actor_name ? ` · ${events[index]!.actor_name}` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function ScheduleView({
   rows,
