@@ -189,6 +189,8 @@ export type Database = {
           preparation_time: number
           price: number
           restaurant_id: string
+          sold_out_note: string | null
+          sold_out_until: string | null
           updated_at: string
         }
         Insert: {
@@ -207,6 +209,8 @@ export type Database = {
           preparation_time?: number
           price?: number
           restaurant_id: string
+          sold_out_note?: string | null
+          sold_out_until?: string | null
           updated_at?: string
         }
         Update: {
@@ -225,6 +229,8 @@ export type Database = {
           preparation_time?: number
           price?: number
           restaurant_id?: string
+          sold_out_note?: string | null
+          sold_out_until?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -371,8 +377,68 @@ export type Database = {
           },
         ]
       }
+      order_status_events: {
+        Row: {
+          actor_name: string | null
+          actor_role: Database["public"]["Enums"]["app_role"] | null
+          actor_user_id: string | null
+          created_at: string
+          from_status: Database["public"]["Enums"]["order_status"] | null
+          id: string
+          note: string | null
+          order_id: string
+          restaurant_id: string
+          to_status: Database["public"]["Enums"]["order_status"]
+        }
+        Insert: {
+          actor_name?: string | null
+          actor_role?: Database["public"]["Enums"]["app_role"] | null
+          actor_user_id?: string | null
+          created_at?: string
+          from_status?: Database["public"]["Enums"]["order_status"] | null
+          id?: string
+          note?: string | null
+          order_id: string
+          restaurant_id: string
+          to_status: Database["public"]["Enums"]["order_status"]
+        }
+        Update: {
+          actor_name?: string | null
+          actor_role?: Database["public"]["Enums"]["app_role"] | null
+          actor_user_id?: string | null
+          created_at?: string
+          from_status?: Database["public"]["Enums"]["order_status"] | null
+          id?: string
+          note?: string | null
+          order_id?: string
+          restaurant_id?: string
+          to_status?: Database["public"]["Enums"]["order_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_status_events_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
+          assigned_at: string | null
+          assigned_staff_id: string | null
+          cancellation_note: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string
           currency: string
           customer_notes: string | null
@@ -391,6 +457,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_at?: string | null
+          assigned_staff_id?: string | null
+          cancellation_note?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           currency?: string
           customer_notes?: string | null
@@ -409,6 +481,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_at?: string | null
+          assigned_staff_id?: string | null
+          cancellation_note?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           currency?: string
           customer_notes?: string | null
@@ -427,6 +505,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_assigned_staff_id_fkey"
+            columns: ["assigned_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_restaurant_id_fkey"
             columns: ["restaurant_id"]

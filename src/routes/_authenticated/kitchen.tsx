@@ -14,6 +14,9 @@ import {
   CalendarClock,
   Settings2,
   X,
+  ChefHat,
+  History,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,7 +26,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -38,8 +50,20 @@ import { formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { playOrderAlert, unlockAlertSound } from "@/lib/order-alert";
 import { detectTags, TAG_META, type DietTag } from "@/lib/kitchen-tags";
+import { anyRoleHasCapability, MANAGEMENT_ROLES, type AppRole } from "@/lib/permissions";
+import {
+  CANCEL_REASONS,
+  LATE_STAGES,
+  assignOrderToStaff,
+  cancelOrder,
+  durationLabel,
+  fetchStatusEvents,
+  stageDurations,
+  type StatusEvent,
+} from "@/lib/order-ops";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
+
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 type ViewMode = "board" | "list" | "schedule";
@@ -139,6 +163,8 @@ type OrderRow = {
   currency: string;
   customer_notes: string | null;
   created_at: string;
+  assigned_staff_id: string | null;
+  assigned_at: string | null;
   table: { table_number: string; table_name: string | null } | null;
   items: {
     id: string;
@@ -149,6 +175,9 @@ type OrderRow = {
     selected_modifiers: unknown;
   }[];
 };
+
+type StaffOption = { id: string; name: string; role: AppRole };
+
 
 function KitchenPage() {
   const { lang, pick } = useI18n();
@@ -161,8 +190,11 @@ function KitchenPage() {
   const [section, setSection] = useState<string>("all");
   const [live, setLive] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [cancelTarget, setCancelTarget] = useState<OrderRow | null>(null);
+  const [openLog, setOpenLog] = useState<OrderRow | null>(null);
   const seenRef = useRef<Set<string> | null>(null);
   const ar = lang === "ar";
+
 
   const setPref = useCallback(<K extends keyof Prefs>(key: K, value: Prefs[K]) => {
     setPrefs((p) => ({ ...p, [key]: value }));
@@ -200,6 +232,17 @@ function KitchenPage() {
 
   const activeId = restaurantId ?? options[0]?.id ?? null;
 
+  // Roles held in the active restaurant decide price visibility and whether
+  // late-stage cancellations are allowed without a manager override.
+  const activeRoles = useMemo<AppRole[]>(() => {
+    const rows = memberships.data ?? [];
+    return rows
+      .filter((m) => m.restaurant_id === activeId || m.restaurant_id === null)
+      .map((m) => m.role);
+  }, [memberships.data, activeId]);
+  const canViewPrices = anyRoleHasCapability(activeRoles, "view_order_prices");
+  const isManager = activeRoles.some((r) => MANAGEMENT_ROLES.includes(r));
+
   const orders = useQuery({
     queryKey: ["kitchen", "orders", activeId],
     enabled: Boolean(activeId),
@@ -208,7 +251,7 @@ function KitchenPage() {
       const { data, error } = await supabase
         .from("orders")
         .select(
-          "id, order_number, status, total, currency, customer_notes, created_at, table:restaurant_tables(table_number, table_name), items:order_items(id, quantity, product_name_en:product_name_snapshot_en, product_name_ar:product_name_snapshot_ar, notes, selected_modifiers)",
+          "id, order_number, status, total, currency, customer_notes, created_at, assigned_staff_id, assigned_at, table:restaurant_tables(table_number, table_name), items:order_items(id, quantity, product_name_en:product_name_snapshot_en, product_name_ar:product_name_snapshot_ar, notes, selected_modifiers)",
         )
         .eq("restaurant_id", activeId!)
         .in("status", ["new", "accepted", "preparing", "ready"])
@@ -217,6 +260,50 @@ function KitchenPage() {
       return (data ?? []) as unknown as OrderRow[];
     },
   });
+
+  const staffOptions = useQuery({
+    queryKey: ["kitchen", "staff", activeId],
+    enabled: Boolean(activeId),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff")
+        .select("id, name, role")
+        .eq("restaurant_id", activeId!)
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as StaffOption[];
+    },
+  });
+
+  const activeOrderIds = (orders.data ?? []).map((o) => o.id);
+  const statusLog = useQuery({
+    queryKey: ["kitchen", "events", activeId, activeOrderIds.join(",")],
+    enabled: activeOrderIds.length > 0,
+    queryFn: () => fetchStatusEvents(activeOrderIds),
+  });
+
+  const eventsByOrder = useMemo(() => {
+    const map = new Map<string, StatusEvent[]>();
+    (statusLog.data ?? []).forEach((ev) => {
+      const list = map.get(ev.order_id) ?? [];
+      list.push(ev);
+      map.set(ev.order_id, list);
+    });
+    return map;
+  }, [statusLog.data]);
+
+  async function assign(orderId: string, staffId: string | null) {
+    try {
+      await assignOrderToStaff(orderId, staffId);
+      await queryClient.invalidateQueries({ queryKey: ["kitchen"] });
+      toast.success(ar ? "تم تعيين الطلب" : "Order assigned");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    }
+  }
+
 
   useEffect(() => {
     if (!activeId) return;
@@ -348,9 +435,16 @@ function KitchenPage() {
       warnMinutes={prefs.warnMinutes}
       lateMinutes={prefs.lateMinutes}
       compact={prefs.compact || opts.dense === true}
+      canViewPrices={canViewPrices}
+      staff={staffOptions.data ?? []}
+      events={eventsByOrder.get(order.id) ?? []}
       onAdvance={advance}
+      onAssign={assign}
+      onRequestCancel={setCancelTarget}
+      onOpenLog={setOpenLog}
     />
   );
+
 
   if (memberships.isPending) return <Skeleton className="m-6 h-64 rounded-3xl" />;
 
@@ -703,9 +797,196 @@ function KitchenPage() {
           </div>
         )}
       </main>
+
+      <CancelDialog
+        order={cancelTarget}
+        ar={ar}
+        lang={lang}
+        isManager={isManager}
+        onClose={() => setCancelTarget(null)}
+        onDone={async () => {
+          setCancelTarget(null);
+          await queryClient.invalidateQueries({ queryKey: ["kitchen"] });
+        }}
+      />
+
+      <WorklogDialog
+        order={openLog}
+        events={openLog ? (eventsByOrder.get(openLog.id) ?? []) : []}
+        ar={ar}
+        lang={lang}
+        now={now}
+        onClose={() => setOpenLog(null)}
+      />
     </div>
   );
 }
+
+function CancelDialog({
+  order,
+  ar,
+  lang,
+  isManager,
+  onClose,
+  onDone,
+}: {
+  order: OrderRow | null;
+  ar: boolean;
+  lang: "en" | "ar";
+  isManager: boolean;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setReason("");
+    setNote("");
+  }, [order?.id]);
+
+  const lateStage = order ? LATE_STAGES.includes(order.status) : false;
+  const blocked = lateStage && !isManager;
+  const selected = CANCEL_REASONS.find((r) => r.code === reason);
+  const needsNote = reason === "other";
+  const canSubmit =
+    Boolean(reason) && !blocked && !saving && (!needsNote || note.trim().length > 2);
+
+  async function submit() {
+    if (!order || !canSubmit) return;
+    setSaving(true);
+    try {
+      await cancelOrder({ orderId: order.id, reason, note });
+      toast.success(ar ? "تم إلغاء الطلب" : "Order cancelled");
+      await onDone();
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={Boolean(order)} onOpenChange={(open) => (open ? null : onClose())}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {ar ? "إلغاء الطلب" : "Cancel order"} {order?.order_number}
+          </DialogTitle>
+          <DialogDescription>
+            {ar
+              ? "اختيار السبب إلزامي — يُسجَّل في سجل الطلب."
+              : "A reason is required — it is written to the order log."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {blocked ? (
+          <p className="flex items-start gap-2 rounded-2xl bg-destructive/10 p-3 text-sm font-semibold text-destructive">
+            <ShieldAlert className="mt-0.5 size-4 shrink-0" />
+            {ar
+              ? "هذا الطلب في مرحلة متقدمة — يحتاج موافقة المدير للإلغاء."
+              : "This order is already in a late stage — a manager must approve the cancellation."}
+          </p>
+        ) : null}
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">{ar ? "السبب" : "Reason"}</Label>
+            <Select value={reason} onValueChange={setReason} disabled={blocked}>
+              <SelectTrigger>
+                <SelectValue placeholder={ar ? "اختر السبب" : "Select a reason"} />
+              </SelectTrigger>
+              <SelectContent>
+                {CANCEL_REASONS.filter((r) => isManager || !r.managerOnly).map((r) => (
+                  <SelectItem key={r.code} value={r.code}>
+                    {ar ? r.ar : r.en}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">
+              {ar ? "تفاصيل" : "Details"}
+              {needsNote ? " *" : ` (${ar ? "اختياري" : "optional"})`}
+            </Label>
+            <Textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              disabled={blocked}
+              placeholder={
+                selected
+                  ? ar
+                    ? "ماذا حدث بالضبط؟"
+                    : "What exactly happened?"
+                  : undefined
+              }
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {ar ? "رجوع" : "Back"}
+          </Button>
+          <Button variant="destructive" disabled={!canSubmit} onClick={() => void submit()}>
+            {ar ? "تأكيد الإلغاء" : "Confirm cancellation"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function WorklogDialog({
+  order,
+  events,
+  ar,
+  lang,
+  now,
+  onClose,
+}: {
+  order: OrderRow | null;
+  events: StatusEvent[];
+  ar: boolean;
+  lang: "en" | "ar";
+  now: number;
+  onClose: () => void;
+}) {
+  const stages = order ? stageDurations(events, order.created_at, now) : [];
+  return (
+    <Dialog open={Boolean(order)} onOpenChange={(open) => (open ? null : onClose())}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {ar ? "سجل الطلب" : "Order worklog"} {order?.order_number}
+          </DialogTitle>
+          <DialogDescription>
+            {ar ? "الوقت المستغرق في كل مرحلة ومن نفّذها." : "Time spent in each stage and who moved it."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <ul className="space-y-2">
+          {stages.map((stage, index) => (
+            <li
+              key={`${stage.status}-${index}`}
+              className="flex items-center justify-between gap-3 rounded-2xl bg-muted/60 px-3 py-2"
+            >
+              <span className="text-sm font-bold">{STATUS_LABELS[stage.status][lang]}</span>
+              <span className="text-sm font-semibold tabular-nums text-muted-foreground">
+                {durationLabel(stage.seconds)}
+                {events[index]?.actor_name ? ` · ${events[index]!.actor_name}` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function ScheduleView({
   rows,
@@ -800,7 +1081,13 @@ function Ticket({
   warnMinutes,
   lateMinutes,
   compact,
+  canViewPrices,
+  staff,
+  events,
   onAdvance,
+  onAssign,
+  onRequestCancel,
+  onOpenLog,
 }: {
   order: OrderRow;
   now: number;
@@ -810,8 +1097,15 @@ function Ticket({
   warnMinutes: number;
   lateMinutes: number;
   compact: boolean;
+  canViewPrices: boolean;
+  staff: StaffOption[];
+  events: StatusEvent[];
   onAdvance: (id: string, next: OrderStatus) => Promise<void>;
+  onAssign: (id: string, staffId: string | null) => Promise<void>;
+  onRequestCancel: (order: OrderRow) => void;
+  onOpenLog: (order: OrderRow) => void;
 }) {
+
   const age = elapsed(order.created_at, now);
   const overdue = age.minutes >= lateMinutes;
   const warn = !overdue && age.minutes >= warnMinutes;
@@ -964,9 +1258,47 @@ function Ticket({
           </div>
         ) : null}
 
-        <p className="text-xs font-semibold tabular-nums text-muted-foreground">
-          {formatMoney(order.total, order.currency, lang)}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {canViewPrices ? (
+            <p className="text-xs font-semibold tabular-nums text-muted-foreground">
+              {formatMoney(order.total, order.currency, lang)}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => onOpenLog(order)}
+            className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground hover:bg-muted/70"
+          >
+            <History className="size-3.5" />
+            {events.length > 0
+              ? `${events.length} ${ar ? "تحديث" : "updates"}`
+              : ar
+                ? "السجل"
+                : "Worklog"}
+          </button>
+        </div>
+
+        {staff.length > 0 ? (
+          <div className="flex items-center gap-2">
+            <ChefHat className="size-4 shrink-0 text-muted-foreground" />
+            <Select
+              value={order.assigned_staff_id ?? "unassigned"}
+              onValueChange={(v) => void onAssign(order.id, v === "unassigned" ? null : v)}
+            >
+              <SelectTrigger className="h-9 rounded-xl text-xs font-semibold">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">{ar ? "غير معيّن" : "Unassigned"}</SelectItem>
+                {staff.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex gap-2 border-t border-border bg-muted/40 p-2">
@@ -986,11 +1318,12 @@ function Ticket({
             "flex-1 rounded-2xl text-xs font-bold uppercase tracking-wider text-muted-foreground",
             compact ? "h-12" : "h-14",
           )}
-          onClick={() => void onAdvance(order.id, "cancelled")}
+          onClick={() => onRequestCancel(order)}
         >
           {ar ? "إلغاء" : "Cancel"}
         </Button>
       </div>
+
     </article>
   );
 }

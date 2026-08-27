@@ -7,6 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { usePlatformOrders, useOrderItems, useRestaurant } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
 import { formatDateTime, formatMoney } from "@/lib/format";
+import { cancelReasonLabel } from "@/lib/order-ops";
+
 import { cn } from "@/lib/utils";
 
 const FILTERS = [
@@ -139,7 +141,11 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
                   </span>
                   <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                     {formatDateTime(o.created_at, lang)} · {o.payment_status}
+                    {o.status === "cancelled"
+                      ? ` · ${cancelReasonLabel(o.cancellation_reason, lang === "ar")}`
+                      : ""}
                   </span>
+
                 </span>
                 <span className="shrink-0 text-end">
                   <span className="block text-sm font-semibold">

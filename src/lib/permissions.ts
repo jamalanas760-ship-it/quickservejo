@@ -42,6 +42,7 @@ export type Capability =
   | "manage_appearance"
   | "view_analytics"
   | "view_orders"
+  | "view_order_prices"
   | "update_order_status"
   | "manage_payments"
   | "handle_waiter_calls";
@@ -56,6 +57,7 @@ const ROLE_CAPABILITIES: Record<AppRole, Capability[]> = {
     "manage_appearance",
     "view_analytics",
     "view_orders",
+    "view_order_prices",
     "update_order_status",
     "manage_payments",
     "handle_waiter_calls",
@@ -68,6 +70,7 @@ const ROLE_CAPABILITIES: Record<AppRole, Capability[]> = {
     "manage_appearance",
     "view_analytics",
     "view_orders",
+    "view_order_prices",
     "update_order_status",
     "manage_payments",
     "handle_waiter_calls",
@@ -79,13 +82,14 @@ const ROLE_CAPABILITIES: Record<AppRole, Capability[]> = {
     "manage_appearance",
     "view_analytics",
     "view_orders",
+    "view_order_prices",
     "update_order_status",
     "manage_payments",
     "handle_waiter_calls",
   ],
   kitchen: ["view_orders", "update_order_status"],
-  waiter: ["view_orders", "update_order_status", "handle_waiter_calls"],
-  cashier: ["view_orders", "manage_payments"],
+  waiter: ["view_orders", "view_order_prices", "update_order_status", "handle_waiter_calls"],
+  cashier: ["view_orders", "view_order_prices", "manage_payments"],
 };
 
 export function roleHasCapability(role: AppRole, capability: Capability): boolean {
