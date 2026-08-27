@@ -1,7 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Building2, ClipboardList, LayoutGrid, Users, Wallet, Bell } from "lucide-react";
+import { useState } from "react";
+import {
+  AlertTriangle,
+  Building2,
+  ClipboardList,
+  LayoutGrid,
+  Users,
+  Wallet,
+  Bell,
+} from "lucide-react";
 
 import { StatCard } from "@/components/superadmin/StatCard";
+import { RevenueTrend } from "@/components/superadmin/RevenueTrend";
+import { DateRangePicker } from "@/components/common/DateRangePicker";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,9 +22,11 @@ import {
   useRestaurantsWithStats,
 } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
-import { formatDateTime, formatMoney, formatNumber } from "@/lib/format";
+import { formatDate, formatDateTime, formatMoney, formatNumber } from "@/lib/format";
 import { healthOf } from "@/lib/health";
 import { humanError } from "@/lib/errors";
+import { rangeFromPreset, type DateRange } from "@/lib/range";
+
 
 export const Route = createFileRoute("/_authenticated/super-admin/")({
   head: () => ({
