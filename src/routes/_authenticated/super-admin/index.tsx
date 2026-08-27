@@ -49,6 +49,7 @@ export const Route = createFileRoute("/_authenticated/super-admin/")({
 
 function PlatformDashboard() {
   const { t, lang } = useI18n();
+  const [range, setRange] = useState<DateRange>(() => rangeFromPreset("30d"));
   const stats = usePlatformStats();
   const restaurants = useRestaurantsWithStats();
   const activity = useAuditLogs({});
@@ -60,6 +61,21 @@ function PlatformDashboard() {
     .map((r) => ({ restaurant: r, health: healthOf(r) }))
     .filter((x) => x.health.level !== "healthy");
 
+  // Subscription health: anything a platform owner should chase this week.
+  const soon = Date.now() + 7 * 86_400_000;
+  const billing = (restaurants.data ?? [])
+    .map((r) => {
+      const ends = r.subscription_end ? new Date(r.subscription_end).getTime() : null;
+      if (r.subscription_status === "suspended")
+        return { restaurant: r, flag: t("sa.sub.suspended"), tone: "destructive" as const };
+      if (r.subscription_status === "past_due")
+        return { restaurant: r, flag: t("sa.sub.pastDue"), tone: "destructive" as const };
+      if (r.subscription_status === "trialing" && ends && ends <= soon)
+        return { restaurant: r, flag: t("sa.sub.trialEnding"), tone: "outline" as const };
+      return null;
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -67,10 +83,14 @@ function PlatformDashboard() {
           <h1 className="text-2xl font-semibold">{t("sa.nav.dashboard")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("sa.rest.subtitle")}</p>
         </div>
-        <Button asChild>
-          <Link to="/super-admin/restaurants/new">{t("sa.rest.new")}</Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <DateRangePicker value={range} onChange={setRange} />
+          <Button asChild>
+            <Link to="/super-admin/restaurants/new">{t("sa.rest.new")}</Link>
+          </Button>
+        </div>
       </div>
+
 
       {stats.isError && (
         <div className="panel p-6">
