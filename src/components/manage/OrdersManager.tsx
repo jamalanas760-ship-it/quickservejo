@@ -139,7 +139,11 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
                   </span>
                   <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                     {formatDateTime(o.created_at, lang)} · {o.payment_status}
+                    {o.status === "cancelled"
+                      ? ` · ${cancelReasonLabel(o.cancellation_reason, lang === "ar")}`
+                      : ""}
                   </span>
+
                 </span>
                 <span className="shrink-0 text-end">
                   <span className="block text-sm font-semibold">
