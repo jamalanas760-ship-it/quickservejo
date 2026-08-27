@@ -244,7 +244,13 @@ export function useOrderItems(orderId: string | null) {
   });
 }
 
-export function useAuditLogs(params: { restaurantId?: string; action?: string; search?: string }) {
+export function useAuditLogs(params: {
+  restaurantId?: string;
+  action?: string;
+  search?: string;
+  from?: string;
+  to?: string;
+}) {
   return useQuery<AuditRow[]>({
     queryKey: ["platform", "audit", params],
     queryFn: async () => {
@@ -255,6 +261,8 @@ export function useAuditLogs(params: { restaurantId?: string; action?: string; s
         .limit(300);
       if (params.restaurantId) query = query.eq("restaurant_id", params.restaurantId);
       if (params.action) query = query.eq("action", params.action);
+      if (params.from) query = query.gte("created_at", params.from);
+      if (params.to) query = query.lt("created_at", params.to);
       const { data, error } = await query;
       if (error) throw error;
       const rows = data ?? [];
@@ -265,6 +273,23 @@ export function useAuditLogs(params: { restaurantId?: string; action?: string; s
           .filter(Boolean)
           .some((v) => String(v).toLowerCase().includes(needle)),
       );
+    },
+  });
+}
+
+/** Distinct audit action types, for the audit-log filter dropdown. */
+export function useAuditActions() {
+  return useQuery<string[]>({
+    queryKey: ["platform", "audit-actions"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("audit_logs")
+        .select("action")
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return [...new Set((data ?? []).map((r) => r.action))].sort();
     },
   });
 }
