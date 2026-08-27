@@ -35,7 +35,7 @@ export const Route = createFileRoute("/_authenticated/waiter")({
   component: WaiterFloor,
 });
 
-const OPEN_STATUSES = ["new", "accepted", "preparing", "ready", "served"];
+const OPEN_STATUSES = ["new", "accepted", "preparing", "ready", "served"] as const;
 
 type FloorTable = {
   id: string;
@@ -109,11 +109,12 @@ function WaiterFloor() {
 
   const setCall = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "acknowledged" | "resolved" }) => {
-      const stamp = status === "acknowledged" ? "acknowledged_at" : "resolved_at";
-      const { error } = await supabase
-        .from("waiter_calls")
-        .update({ status, [stamp]: new Date().toISOString() })
-        .eq("id", id);
+      const now = new Date().toISOString();
+      const patch =
+        status === "acknowledged"
+          ? { status, acknowledged_at: now }
+          : { status, resolved_at: now };
+      const { error } = await supabase.from("waiter_calls").update(patch).eq("id", id);
       if (error) throw error;
     },
     onSuccess: async (_data, variables) => {
