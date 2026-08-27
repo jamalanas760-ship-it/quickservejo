@@ -232,6 +232,17 @@ function KitchenPage() {
 
   const activeId = restaurantId ?? options[0]?.id ?? null;
 
+  // Roles held in the active restaurant decide price visibility and whether
+  // late-stage cancellations are allowed without a manager override.
+  const activeRoles = useMemo<AppRole[]>(() => {
+    const rows = memberships.data ?? [];
+    return rows
+      .filter((m) => m.restaurant_id === activeId || m.restaurant_id === null)
+      .map((m) => m.role);
+  }, [memberships.data, activeId]);
+  const canViewPrices = anyRoleHasCapability(activeRoles, "view_order_prices");
+  const isManager = activeRoles.some((r) => MANAGEMENT_ROLES.includes(r));
+
   const orders = useQuery({
     queryKey: ["kitchen", "orders", activeId],
     enabled: Boolean(activeId),
@@ -240,7 +251,7 @@ function KitchenPage() {
       const { data, error } = await supabase
         .from("orders")
         .select(
-          "id, order_number, status, total, currency, customer_notes, created_at, table:restaurant_tables(table_number, table_name), items:order_items(id, quantity, product_name_en:product_name_snapshot_en, product_name_ar:product_name_snapshot_ar, notes, selected_modifiers)",
+          "id, order_number, status, total, currency, customer_notes, created_at, assigned_staff_id, assigned_at, table:restaurant_tables(table_number, table_name), items:order_items(id, quantity, product_name_en:product_name_snapshot_en, product_name_ar:product_name_snapshot_ar, notes, selected_modifiers)",
         )
         .eq("restaurant_id", activeId!)
         .in("status", ["new", "accepted", "preparing", "ready"])
@@ -249,6 +260,50 @@ function KitchenPage() {
       return (data ?? []) as unknown as OrderRow[];
     },
   });
+
+  const staffOptions = useQuery({
+    queryKey: ["kitchen", "staff", activeId],
+    enabled: Boolean(activeId),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff")
+        .select("id, name, role")
+        .eq("restaurant_id", activeId!)
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as StaffOption[];
+    },
+  });
+
+  const activeOrderIds = (orders.data ?? []).map((o) => o.id);
+  const statusLog = useQuery({
+    queryKey: ["kitchen", "events", activeId, activeOrderIds.join(",")],
+    enabled: activeOrderIds.length > 0,
+    queryFn: () => fetchStatusEvents(activeOrderIds),
+  });
+
+  const eventsByOrder = useMemo(() => {
+    const map = new Map<string, StatusEvent[]>();
+    (statusLog.data ?? []).forEach((ev) => {
+      const list = map.get(ev.order_id) ?? [];
+      list.push(ev);
+      map.set(ev.order_id, list);
+    });
+    return map;
+  }, [statusLog.data]);
+
+  async function assign(orderId: string, staffId: string | null) {
+    try {
+      await assignOrderToStaff(orderId, staffId);
+      await queryClient.invalidateQueries({ queryKey: ["kitchen"] });
+      toast.success(ar ? "تم تعيين الطلب" : "Order assigned");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    }
+  }
+
 
   useEffect(() => {
     if (!activeId) return;
