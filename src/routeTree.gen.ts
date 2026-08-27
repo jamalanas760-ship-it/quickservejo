@@ -12,6 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
 import { Route as AuthenticatedManageRouteRouteImport } from './routes/_authenticated/manage/route'
@@ -20,6 +23,7 @@ import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_auth
 import { Route as OTokenRouteImport } from './routes/o/$token'
 import { Route as RSlugRouteImport } from './routes/r/$slug'
 import { Route as StaffIndexRouteImport } from './routes/staff/index'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedManageIndexRouteImport } from './routes/_authenticated/manage/index'
 import { Route as AuthenticatedManageRestaurantIdRouteRouteImport } from './routes/_authenticated/manage/$restaurantId/route'
 import { Route as AuthenticatedSuperAdminIndexRouteImport } from './routes/_authenticated/super-admin/index'
@@ -61,6 +65,23 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -103,6 +124,12 @@ const StaffIndexRoute = StaffIndexRouteImport.update({
   path: '/staff/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedManageIndexRoute =
   AuthenticatedManageIndexRouteImport.update({
     id: '/',
@@ -270,8 +297,11 @@ const AuthenticatedSuperAdminRestaurantsRestaurantIdTablesRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
   '/manage': typeof AuthenticatedManageRouteRouteWithChildren
   '/super-admin': typeof AuthenticatedSuperAdminRouteRouteWithChildren
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/profile': typeof AuthenticatedProfileRoute
@@ -279,6 +309,7 @@ export interface FileRoutesByFullPath {
   '/r/$slug': typeof RSlugRoute
   '/staff/': typeof StaffIndexRoute
   '/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
   '/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
@@ -308,12 +339,16 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
   '/staff': typeof StaffIndexRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
   '/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
@@ -344,8 +379,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
   '/_authenticated/manage': typeof AuthenticatedManageRouteRouteWithChildren
   '/_authenticated/super-admin': typeof AuthenticatedSuperAdminRouteRouteWithChildren
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
@@ -353,6 +391,7 @@ export interface FileRoutesById {
   '/r/$slug': typeof RSlugRoute
   '/staff/': typeof StaffIndexRoute
   '/_authenticated/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/_authenticated/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
   '/_authenticated/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
@@ -384,8 +423,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/mcp'
     | '/manage'
     | '/super-admin'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/dashboard'
     | '/kitchen'
     | '/profile'
@@ -393,6 +435,7 @@ export interface FileRouteTypes {
     | '/r/$slug'
     | '/staff/'
     | '/manage/$restaurantId'
+    | '/.mcp/invoke-tool/$tool'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
     | '/super-admin/orders'
@@ -422,12 +465,16 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/mcp'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/dashboard'
     | '/kitchen'
     | '/profile'
     | '/o/$token'
     | '/r/$slug'
     | '/staff'
+    | '/.mcp/invoke-tool/$tool'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
     | '/super-admin/orders'
@@ -457,8 +504,11 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/mcp'
     | '/_authenticated/manage'
     | '/_authenticated/super-admin'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/dashboard'
     | '/_authenticated/kitchen'
     | '/_authenticated/profile'
@@ -466,6 +516,7 @@ export interface FileRouteTypes {
     | '/r/$slug'
     | '/staff/'
     | '/_authenticated/manage/$restaurantId'
+    | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/super-admin/analytics'
     | '/_authenticated/super-admin/audit-logs'
     | '/_authenticated/super-admin/orders'
@@ -497,9 +548,13 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  McpRoute: typeof McpRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   OTokenRoute: typeof OTokenRoute
   RSlugRoute: typeof RSlugRoute
   StaffIndexRoute: typeof StaffIndexRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   StaffBadgeCodeRoute: typeof StaffBadgeCodeRoute
 }
 
@@ -524,6 +579,27 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dashboard': {
@@ -580,6 +656,13 @@ declare module '@tanstack/react-router' {
       path: '/staff'
       fullPath: '/staff/'
       preLoaderRoute: typeof StaffIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/manage/': {
@@ -910,9 +993,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  McpRoute: McpRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   OTokenRoute: OTokenRoute,
   RSlugRoute: RSlugRoute,
   StaffIndexRoute: StaffIndexRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   StaffBadgeCodeRoute: StaffBadgeCodeRoute,
 }
 export const routeTree = rootRouteImport
