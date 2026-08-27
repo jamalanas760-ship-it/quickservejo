@@ -20,6 +20,7 @@ import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedManageRouteRouteImport } from './routes/_authenticated/manage/route'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_authenticated/super-admin/route'
+import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
 import { Route as OTokenRouteImport } from './routes/o/$token'
 import { Route as RSlugRouteImport } from './routes/r/$slug'
 import { Route as StaffIndexRouteImport } from './routes/staff/index'
@@ -110,6 +111,11 @@ const AuthenticatedSuperAdminRouteRoute =
     path: '/super-admin',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedWaiterRoute = AuthenticatedWaiterRouteImport.update({
+  id: '/waiter',
+  path: '/waiter',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const OTokenRoute = OTokenRouteImport.update({
   id: '/o/$token',
   path: '/o/$token',
@@ -311,6 +317,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/waiter': typeof AuthenticatedWaiterRoute
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
   '/staff/': typeof StaffIndexRoute
@@ -352,6 +359,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/waiter': typeof AuthenticatedWaiterRoute
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
   '/staff': typeof StaffIndexRoute
@@ -395,6 +403,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
   '/staff/': typeof StaffIndexRoute
@@ -440,6 +449,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/kitchen'
     | '/profile'
+    | '/waiter'
     | '/o/$token'
     | '/r/$slug'
     | '/staff/'
@@ -481,6 +491,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/kitchen'
     | '/profile'
+    | '/waiter'
     | '/o/$token'
     | '/r/$slug'
     | '/staff'
@@ -523,6 +534,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/kitchen'
     | '/_authenticated/profile'
+    | '/_authenticated/waiter'
     | '/o/$token'
     | '/r/$slug'
     | '/staff/'
@@ -648,6 +660,13 @@ declare module '@tanstack/react-router' {
       path: '/super-admin'
       fullPath: '/super-admin'
       preLoaderRoute: typeof AuthenticatedSuperAdminRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/waiter': {
+      id: '/_authenticated/waiter'
+      path: '/waiter'
+      fullPath: '/waiter'
+      preLoaderRoute: typeof AuthenticatedWaiterRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/o/$token': {
@@ -995,6 +1014,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedKitchenRoute: typeof AuthenticatedKitchenRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedWaiterRoute: typeof AuthenticatedWaiterRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -1004,6 +1024,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedKitchenRoute: AuthenticatedKitchenRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedWaiterRoute: AuthenticatedWaiterRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
