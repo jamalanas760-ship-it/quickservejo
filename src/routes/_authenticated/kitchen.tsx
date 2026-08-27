@@ -435,9 +435,16 @@ function KitchenPage() {
       warnMinutes={prefs.warnMinutes}
       lateMinutes={prefs.lateMinutes}
       compact={prefs.compact || opts.dense === true}
+      canViewPrices={canViewPrices}
+      staff={staffOptions.data ?? []}
+      events={eventsByOrder.get(order.id) ?? []}
       onAdvance={advance}
+      onAssign={assign}
+      onRequestCancel={setCancelTarget}
+      onOpenLog={setOpenLog}
     />
   );
+
 
   if (memberships.isPending) return <Skeleton className="m-6 h-64 rounded-3xl" />;
 
