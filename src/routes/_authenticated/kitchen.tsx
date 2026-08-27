@@ -190,8 +190,11 @@ function KitchenPage() {
   const [section, setSection] = useState<string>("all");
   const [live, setLive] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [cancelTarget, setCancelTarget] = useState<OrderRow | null>(null);
+  const [openLog, setOpenLog] = useState<OrderRow | null>(null);
   const seenRef = useRef<Set<string> | null>(null);
   const ar = lang === "ar";
+
 
   const setPref = useCallback(<K extends keyof Prefs>(key: K, value: Prefs[K]) => {
     setPrefs((p) => ({ ...p, [key]: value }));
