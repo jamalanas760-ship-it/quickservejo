@@ -1258,9 +1258,47 @@ function Ticket({
           </div>
         ) : null}
 
-        <p className="text-xs font-semibold tabular-nums text-muted-foreground">
-          {formatMoney(order.total, order.currency, lang)}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {canViewPrices ? (
+            <p className="text-xs font-semibold tabular-nums text-muted-foreground">
+              {formatMoney(order.total, order.currency, lang)}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => onOpenLog(order)}
+            className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground hover:bg-muted/70"
+          >
+            <History className="size-3.5" />
+            {events.length > 0
+              ? `${events.length} ${ar ? "تحديث" : "updates"}`
+              : ar
+                ? "السجل"
+                : "Worklog"}
+          </button>
+        </div>
+
+        {staff.length > 0 ? (
+          <div className="flex items-center gap-2">
+            <ChefHat className="size-4 shrink-0 text-muted-foreground" />
+            <Select
+              value={order.assigned_staff_id ?? "unassigned"}
+              onValueChange={(v) => void onAssign(order.id, v === "unassigned" ? null : v)}
+            >
+              <SelectTrigger className="h-9 rounded-xl text-xs font-semibold">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">{ar ? "غير معيّن" : "Unassigned"}</SelectItem>
+                {staff.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex gap-2 border-t border-border bg-muted/40 p-2">
@@ -1280,11 +1318,12 @@ function Ticket({
             "flex-1 rounded-2xl text-xs font-bold uppercase tracking-wider text-muted-foreground",
             compact ? "h-12" : "h-14",
           )}
-          onClick={() => void onAdvance(order.id, "cancelled")}
+          onClick={() => onRequestCancel(order)}
         >
           {ar ? "إلغاء" : "Cancel"}
         </Button>
       </div>
+
     </article>
   );
 }
