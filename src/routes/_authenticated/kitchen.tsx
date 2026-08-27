@@ -1081,7 +1081,13 @@ function Ticket({
   warnMinutes,
   lateMinutes,
   compact,
+  canViewPrices,
+  staff,
+  events,
   onAdvance,
+  onAssign,
+  onRequestCancel,
+  onOpenLog,
 }: {
   order: OrderRow;
   now: number;
@@ -1091,8 +1097,15 @@ function Ticket({
   warnMinutes: number;
   lateMinutes: number;
   compact: boolean;
+  canViewPrices: boolean;
+  staff: StaffOption[];
+  events: StatusEvent[];
   onAdvance: (id: string, next: OrderStatus) => Promise<void>;
+  onAssign: (id: string, staffId: string | null) => Promise<void>;
+  onRequestCancel: (order: OrderRow) => void;
+  onOpenLog: (order: OrderRow) => void;
 }) {
+
   const age = elapsed(order.created_at, now);
   const overdue = age.minutes >= lateMinutes;
   const warn = !overdue && age.minutes >= warnMinutes;
