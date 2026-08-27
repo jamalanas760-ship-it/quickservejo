@@ -14,6 +14,9 @@ import {
   CalendarClock,
   Settings2,
   X,
+  ChefHat,
+  History,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,7 +26,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -38,8 +50,20 @@ import { formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { playOrderAlert, unlockAlertSound } from "@/lib/order-alert";
 import { detectTags, TAG_META, type DietTag } from "@/lib/kitchen-tags";
+import { anyRoleHasCapability, MANAGEMENT_ROLES, type AppRole } from "@/lib/permissions";
+import {
+  CANCEL_REASONS,
+  LATE_STAGES,
+  assignOrderToStaff,
+  cancelOrder,
+  durationLabel,
+  fetchStatusEvents,
+  stageDurations,
+  type StatusEvent,
+} from "@/lib/order-ops";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
+
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 type ViewMode = "board" | "list" | "schedule";
