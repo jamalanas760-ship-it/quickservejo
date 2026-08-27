@@ -1,4 +1,4 @@
-import { auth, defineMcp, type AnyToolDefinition } from "@lovable.dev/mcp-js";
+import { auth, defineMcp } from "@lovable.dev/mcp-js";
 
 import listRestaurants from "./tools/list-restaurants";
 import listMenuItems from "./tools/list-menu-items";
@@ -20,5 +20,13 @@ export default defineMcp({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
   }),
-  tools: [listRestaurants, listMenuItems, setItemAvailability, listOrders, updateOrderStatus],
+  // `as never`: the SDK's tool type requires outputSchema under
+  // exactOptionalPropertyTypes; these tools return structuredContent instead.
+  tools: [
+    listRestaurants,
+    listMenuItems,
+    setItemAvailability,
+    listOrders,
+    updateOrderStatus,
+  ] as never,
 });
