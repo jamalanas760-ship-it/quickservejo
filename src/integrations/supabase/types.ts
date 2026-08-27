@@ -709,6 +709,7 @@ export type Database = {
           name: string
           phone: string | null
           primary_color: string
+          seat_limit: number | null
           secondary_color: string
           service_charge: number
           slug: string
@@ -749,6 +750,7 @@ export type Database = {
           name: string
           phone?: string | null
           primary_color?: string
+          seat_limit?: number | null
           secondary_color?: string
           service_charge?: number
           slug: string
@@ -789,6 +791,7 @@ export type Database = {
           name?: string
           phone?: string | null
           primary_color?: string
+          seat_limit?: number | null
           secondary_color?: string
           service_charge?: number
           slug?: string
@@ -1071,6 +1074,14 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"]
           total: number
         }[]
+      }
+      restaurant_seat_limit: {
+        Args: { _restaurant_id: string }
+        Returns: number
+      }
+      restaurant_seats_used: {
+        Args: { _restaurant_id: string }
+        Returns: number
       }
       restaurant_slug_available: { Args: { _slug: string }; Returns: boolean }
     }

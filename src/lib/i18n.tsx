@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { superAdminDict } from "./i18n.superadmin";
+import { upgradeDict } from "./i18n.upgrade";
 
 export type Language = "en" | "ar";
 
@@ -59,6 +60,7 @@ const dict: Dict = {
   "common.retry": { en: "Try again", ar: "إعادة المحاولة" },
   "common.language": { en: "العربية", ar: "English" },
   ...superAdminDict,
+  ...upgradeDict,
 };
 
 

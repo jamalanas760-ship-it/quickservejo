@@ -5,6 +5,7 @@
  * have its own template, palette, typography, decoration and layout without
  * code changes.
  */
+import { ensureContrast } from "./contrast";
 
 export type TemplateId =
   | "classic"
@@ -916,11 +917,28 @@ function bool(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
 
+/**
+ * Contrast safety net: whatever the AI (or a hand-picked palette) proposes,
+ * body text, muted text and button labels must clear WCAG AA against the
+ * surface they sit on. Only the foreground colours move — the art direction
+ * (background, accents, textures) is preserved.
+ */
+function withSafeContrast(theme: MenuTheme): MenuTheme {
+  const text = ensureContrast(theme.text, theme.bg, 4.5);
+  return {
+    ...theme,
+    text: ensureContrast(text, theme.surface, 4.5),
+    muted: ensureContrast(ensureContrast(theme.muted, theme.bg, 3), theme.surface, 3),
+    primaryText: ensureContrast(theme.primaryText, theme.primary, 4.5),
+  };
+}
+
 /** Normalizes anything stored in the database into a complete, safe theme. */
 export function parseMenuTheme(raw: unknown): MenuTheme {
   const input = (raw ?? {}) as Record<string, unknown>;
   const template = oneOf<TemplateId>(input["template"], TEMPLATE_IDS, "chalkboard");
   const base = TEMPLATES[template].theme;
+
   const fonts: FontId[] = [
     "sans",
     "serif",
@@ -933,7 +951,7 @@ export function parseMenuTheme(raw: unknown): MenuTheme {
   const radius = Number(input["radius"]);
   const columns = Number(input["columns"]);
   const tagline = typeof input["tagline"] === "string" ? input["tagline"].slice(0, 60) : base.tagline;
-  return {
+  return withSafeContrast({
     template,
     bg: color(input["bg"], base.bg),
     surface: color(input["surface"], base.surface),
@@ -1003,7 +1021,7 @@ export function parseMenuTheme(raw: unknown): MenuTheme {
     upperTitles: bool(input["upperTitles"], base.upperTitles),
     scriptAccent: bool(input["scriptAccent"], base.scriptAccent),
     tagline,
-  };
+  });
 }
 
 /** CSS custom properties consumed by the diner menu and its live preview. */

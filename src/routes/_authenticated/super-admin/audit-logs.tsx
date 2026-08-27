@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -10,9 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAuditLogs, useRestaurantsWithStats } from "@/hooks/useSuperAdmin";
+import { DateRangePicker } from "@/components/common/DateRangePicker";
+import { useAuditActions, useAuditLogs, useRestaurantsWithStats } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/format";
+import { rangeFromPreset, type DateRange } from "@/lib/range";
+
 
 export const Route = createFileRoute("/_authenticated/super-admin/audit-logs")({
   head: () => ({
@@ -33,11 +37,19 @@ function AuditLogsPage() {
   const { t, lang } = useI18n();
   const [search, setSearch] = useState("");
   const [restaurantId, setRestaurantId] = useState("all");
+  const [action, setAction] = useState("all");
+  const [range, setRange] = useState<DateRange>(() => rangeFromPreset("30d"));
   const restaurants = useRestaurantsWithStats();
+  const actions = useAuditActions();
   const logs = useAuditLogs({
     ...(restaurantId !== "all" ? { restaurantId } : {}),
+    ...(action !== "all" ? { action } : {}),
     search,
+    from: range.from,
+    to: range.to,
   });
+
+  const dirty = restaurantId !== "all" || action !== "all" || search !== "";
 
   return (
     <div className="space-y-4">
@@ -45,7 +57,7 @@ function AuditLogsPage() {
         <h1 className="text-xl font-semibold">{t("sa.audit.title")}</h1>
       </div>
 
-      <div className="grid gap-2 sm:flex sm:flex-wrap">
+      <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
         <Input
           className="w-full sm:max-w-xs"
           placeholder={t("common.search")}
@@ -53,8 +65,8 @@ function AuditLogsPage() {
           onChange={(e) => setSearch(e.target.value)}
         />
         <Select value={restaurantId} onValueChange={setRestaurantId}>
-          <SelectTrigger className="w-full sm:w-56">
-            <SelectValue />
+          <SelectTrigger className="w-full sm:w-56" aria-label={t("sa.audit.restaurant")}>
+            <SelectValue placeholder={t("sa.audit.restaurant")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("sa.filter.all")}</SelectItem>
@@ -65,7 +77,36 @@ function AuditLogsPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={action} onValueChange={setAction}>
+          <SelectTrigger className="w-full sm:w-56" aria-label={t("sa.audit.action")}>
+            <SelectValue placeholder={t("sa.audit.action")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("sa.filter.all")}</SelectItem>
+            {(actions.data ?? []).map((a) => (
+              <SelectItem key={a} value={a}>
+                {a}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <DateRangePicker value={range} onChange={setRange} />
+        {dirty ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-10"
+            onClick={() => {
+              setSearch("");
+              setRestaurantId("all");
+              setAction("all");
+            }}
+          >
+            {t("sa.audit.reset")}
+          </Button>
+        ) : null}
       </div>
+
 
       {logs.isPending ? (
         <Skeleton className="h-96 rounded-xl" />

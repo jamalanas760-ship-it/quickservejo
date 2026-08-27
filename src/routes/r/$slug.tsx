@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { BellRing, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { BellRing, Minus, Plus, Search, ShoppingBag, Trash2, X } from "lucide-react";
 import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,7 @@ import {
   SectionHeading,
   TextureLayer,
 } from "@/components/menu/MenuChrome";
+import { TAG_META, detectTags, type DietTag } from "@/lib/kitchen-tags";
 import {
   callWaiter,
   loadDinerMenu,
@@ -50,6 +51,10 @@ import {
   type DinerItem,
   type PlacedOrder,
 } from "@/lib/diner";
+
+/** Filters a diner can apply to the menu, derived from item text. */
+const DIET_FILTERS: DietTag[] = ["vegetarian", "vegan", "spicy", "gluten", "nuts", "seafood"];
+
 
 const searchSchema = z.object({ t: z.string().optional() });
 
@@ -87,6 +92,8 @@ function DinerPage() {
   });
 
   const [activeCategory, setActiveCategory] = useState<string | "all">("all");
+  const [query, setQuery] = useState("");
+  const [diets, setDiets] = useState<DietTag[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [detail, setDetail] = useState<DinerItem | null>(null);
@@ -99,10 +106,45 @@ function DinerPage() {
   const showPrices = menu.data?.settings?.show_prices ?? true;
   const ordersEnabled = (menu.data?.settings?.enable_orders ?? true) && Boolean(menu.data?.table);
 
+  /** Dietary tags per item, derived once from the item's own text. */
+  const tagsByItem = useMemo(() => {
+    const map = new Map<string, DietTag[]>();
+    for (const item of menu.data?.items ?? []) {
+      map.set(
+        item.id,
+        detectTags(item.name_en, item.name_ar, item.description_en, item.description_ar),
+      );
+    }
+    return map;
+  }, [menu.data?.items]);
+
+  /** Tags actually present on this menu — no point offering empty filters. */
+  const availableDiets = useMemo(
+    () => DIET_FILTERS.filter((tag) => [...tagsByItem.values()].some((tags) => tags.includes(tag))),
+    [tagsByItem],
+  );
+
   const items = useMemo(() => {
-    const all = menu.data?.items ?? [];
-    return activeCategory === "all" ? all : all.filter((i) => i.category_id === activeCategory);
-  }, [menu.data?.items, activeCategory]);
+    const needle = query.trim().toLowerCase();
+    return (menu.data?.items ?? []).filter((i) => {
+      if (activeCategory !== "all" && i.category_id !== activeCategory) return false;
+      if (needle) {
+        const haystack = [i.name_en, i.name_ar, i.description_en, i.description_ar]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(needle)) return false;
+      }
+      if (diets.length > 0) {
+        const tags = tagsByItem.get(i.id) ?? [];
+        if (!diets.every((d) => tags.includes(d))) return false;
+      }
+      return true;
+    });
+  }, [menu.data?.items, activeCategory, query, diets, tagsByItem]);
+
+  const filtering = query.trim().length > 0 || diets.length > 0;
+
 
   const subtotal = cart.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
   const tax = (subtotal * (restaurant?.tax_rate ?? 0)) / 100;
@@ -262,8 +304,12 @@ function DinerPage() {
           />
           <div className="mt-3 px-4">
             <span
-              className="inline-block px-2.5 py-1 text-[11px] font-medium"
-              style={menu.data?.table ? buttonStyleFor(theme) : buttonStyleFor(theme, false)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-bold tracking-wide uppercase shadow-sm"
+              style={
+                menu.data?.table
+                  ? { ...buttonStyleFor(theme), letterSpacing: "0.06em" }
+                  : { ...buttonStyleFor(theme, false), letterSpacing: "0.06em" }
+              }
             >
               {menu.data?.table
                 ? `${t("diner.table")} ${menu.data.table.table_name || menu.data.table.table_number}`
@@ -272,39 +318,119 @@ function DinerPage() {
           </div>
         </header>
 
-        <div className="mx-auto max-w-3xl px-4">
-          <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto pb-1">
-            {[{ id: "all", label: t("diner.all") } as const]
-              .concat(
-                categories.map((c) => ({
-                  id: c.id,
-                  label: pick(c.name_en, c.name_ar),
-                })) as never,
-              )
-              .map((chip) => {
-                const active = activeCategory === chip.id;
-                return (
-                  <button
-                    key={chip.id}
-                    type="button"
-                    onClick={() => setActiveCategory(chip.id)}
-                    className="min-h-10 shrink-0 px-4 py-2 text-sm font-medium transition-transform active:scale-95"
-                    style={buttonStyleFor(theme, active)}
-                  >
-                    {chip.label}
-                  </button>
-                );
-              })}
-          </div>
+        {/* Sticky filter rail: search, dietary chips and categories stay reachable while scrolling. */}
+        <div
+          className="sticky top-0 z-30 backdrop-blur-md"
+          style={{ background: "color-mix(in oklab, var(--qs-bg) 88%, transparent)" }}
+        >
+          <div className="mx-auto max-w-3xl px-4 pt-3 pb-2">
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4"
+                style={{ color: "var(--qs-muted)" }}
+              />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t("diner.searchPlaceholder")}
+                aria-label={t("diner.searchPlaceholder")}
+                className="h-11 w-full border-0 px-10 text-base outline-none focus:ring-2"
+                style={{
+                  ...cardStyle,
+                  color: "var(--qs-text)",
+                }}
+              />
+              {query ? (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  aria-label={t("common.clear")}
+                  className="absolute inset-y-0 end-2 my-auto flex size-7 items-center justify-center"
+                  style={{ color: "var(--qs-muted)" }}
+                >
+                  <X className="size-4" />
+                </button>
+              ) : null}
+            </div>
 
+            {availableDiets.length > 0 ? (
+              <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto pb-1">
+                {availableDiets.map((tag) => {
+                  const active = diets.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() =>
+                        setDiets((prev) =>
+                          prev.includes(tag) ? prev.filter((d) => d !== tag) : [...prev, tag],
+                        )
+                      }
+                      className="min-h-9 shrink-0 px-3 py-1.5 text-xs font-medium transition-transform active:scale-95"
+                      style={buttonStyleFor(theme, active)}
+                    >
+                      {TAG_META[tag].icon} {lang === "ar" ? TAG_META[tag].ar : TAG_META[tag].en}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto pb-1">
+              {[{ id: "all", label: t("diner.all") } as const]
+                .concat(
+                  categories.map((c) => ({
+                    id: c.id,
+                    label: pick(c.name_en, c.name_ar),
+                  })) as never,
+                )
+                .map((chip) => {
+                  const active = activeCategory === chip.id;
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      onClick={() => setActiveCategory(chip.id)}
+                      className="min-h-10 shrink-0 px-4 py-2 text-sm font-medium transition-transform active:scale-95"
+                      style={buttonStyleFor(theme, active)}
+                    >
+                      {chip.label}
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-3xl px-4">
           {items.length === 0 ? (
-            <div
-              className="mt-4 p-8 text-center text-sm"
-              style={{ ...cardStyle, color: "var(--qs-muted)" }}
-            >
-              {t("diner.emptyMenu")}
+            <div className="mt-4 p-8 text-center" style={{ ...cardStyle }}>
+              <Search className="mx-auto size-6" style={{ color: "var(--qs-muted)" }} />
+              <p className="mt-3 text-sm font-semibold">
+                {filtering ? t("diner.noResults") : t("diner.emptyMenu")}
+              </p>
+              {filtering ? (
+                <>
+                  <p className="mt-1 text-xs" style={{ color: "var(--qs-muted)" }}>
+                    {t("diner.noResultsHelp")}
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-4 min-h-10 px-4 py-2 text-sm font-medium"
+                    style={buttonStyleFor(theme)}
+                    onClick={() => {
+                      setQuery("");
+                      setDiets([]);
+                    }}
+                  >
+                    {t("diner.clearFilters")}
+                  </button>
+                </>
+              ) : null}
             </div>
           ) : (
+
             <div className="mt-5 space-y-6">
               {sections.map((section) => (
                 <section key={section.id} style={sectionFrameStyle(theme)}>
@@ -464,6 +590,17 @@ function DinerPage() {
             <SheetTitle>{t("diner.yourOrder")}</SheetTitle>
           </SheetHeader>
           <div className="space-y-3 p-4">
+            {cart.length === 0 ? (
+              <div className="py-8 text-center">
+                <ShoppingBag className="mx-auto size-8 text-muted-foreground" />
+                <p className="mt-3 font-semibold">{t("diner.emptyCart")}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{t("diner.emptyCartHelp")}</p>
+                <Button className="mt-4" variant="outline" onClick={() => setCartOpen(false)}>
+                  {t("diner.browseMenu")}
+                </Button>
+              </div>
+            ) : null}
+
             {cart.map((line) => (
               <div key={line.key} className="flex items-start gap-3 rounded-lg border p-3">
                 <div className="min-w-0 flex-1">
@@ -510,6 +647,8 @@ function DinerPage() {
               </div>
             ) : null}
 
+            {cart.length > 0 ? (
+            <>
             <div className="space-y-1 rounded-lg bg-muted p-3 text-sm">
               <Row label={t("diner.subtotal")} value={formatMoney(subtotal, currency, lang)} />
               {tax > 0 ? (
@@ -531,6 +670,8 @@ function DinerPage() {
             >
               {t("diner.sendToKitchen")}
             </Button>
+            </>
+            ) : null}
           </div>
         </SheetContent>
       </Sheet>
