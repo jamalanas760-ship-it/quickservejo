@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -10,9 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAuditLogs, useRestaurantsWithStats } from "@/hooks/useSuperAdmin";
+import { DateRangePicker } from "@/components/common/DateRangePicker";
+import { useAuditActions, useAuditLogs, useRestaurantsWithStats } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/format";
+import { rangeFromPreset, type DateRange } from "@/lib/range";
+
 
 export const Route = createFileRoute("/_authenticated/super-admin/audit-logs")({
   head: () => ({
