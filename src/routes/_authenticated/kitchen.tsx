@@ -163,6 +163,8 @@ type OrderRow = {
   currency: string;
   customer_notes: string | null;
   created_at: string;
+  assigned_staff_id: string | null;
+  assigned_at: string | null;
   table: { table_number: string; table_name: string | null } | null;
   items: {
     id: string;
@@ -173,6 +175,9 @@ type OrderRow = {
     selected_modifiers: unknown;
   }[];
 };
+
+type StaffOption = { id: string; name: string; role: AppRole };
+
 
 function KitchenPage() {
   const { lang, pick } = useI18n();
