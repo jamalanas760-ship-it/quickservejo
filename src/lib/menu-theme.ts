@@ -978,7 +978,17 @@ export function parseMenuTheme(raw: unknown): MenuTheme {
     headingFont: oneOf<FontId>(input["headingFont"], fonts, base.headingFont),
     layout: oneOf<LayoutId>(
       input["layout"],
-      ["list", "grid", "magazine", "columns"],
+      [
+        "list",
+        "grid",
+        "magazine",
+        "columns",
+        "gallery",
+        "mosaic",
+        "spotlight",
+        "rail",
+        "ticket",
+      ],
       base.layout,
     ),
     hero: oneOf<HeroId>(
