@@ -135,6 +135,11 @@ export const LAYOUT_LABELS: Record<LayoutId, { en: string; ar: string }> = {
   grid: { en: "Card grid", ar: "شبكة بطاقات" },
   magazine: { en: "Magazine", ar: "مجلة" },
   columns: { en: "Printed columns", ar: "أعمدة مطبوعة" },
+  gallery: { en: "Full-bleed gallery", ar: "معرض صور كامل" },
+  mosaic: { en: "Bento mosaic", ar: "فسيفساء بينتو" },
+  spotlight: { en: "Editorial spotlight", ar: "تسليط تحريري" },
+  rail: { en: "Swipe rail", ar: "شريط تمرير" },
+  ticket: { en: "Receipt ticket", ar: "قائمة إيصال" },
 };
 
 export const HERO_LABELS: Record<HeroId, { en: string; ar: string }> = {
