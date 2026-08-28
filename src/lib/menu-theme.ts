@@ -30,7 +30,16 @@ export type TemplateId =
   | "tiles"
   | "wellness";
 export type FontId = "sans" | "serif" | "rounded" | "mono" | "display" | "condensed" | "script";
-export type LayoutId = "list" | "grid" | "magazine" | "columns";
+export type LayoutId =
+  | "list"
+  | "grid"
+  | "magazine"
+  | "columns"
+  | "gallery"
+  | "mosaic"
+  | "spotlight"
+  | "rail"
+  | "ticket";
 export type HeroId =
   | "cover"
   | "gradient"
