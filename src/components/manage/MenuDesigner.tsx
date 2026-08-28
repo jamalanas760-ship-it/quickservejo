@@ -33,6 +33,13 @@ import {
   type TemplateId,
 } from "@/lib/menu-theme";
 import {
+  isTicket,
+  itemImageClass,
+  itemSpanClass,
+  itemVariant,
+  itemsContainerClass,
+} from "@/lib/menu-layout";
+import {
   DecorBand,
   MenuHero,
   PriceLine,
