@@ -33,6 +33,13 @@ import {
   type TemplateId,
 } from "@/lib/menu-theme";
 import {
+  isTicket,
+  itemImageClass,
+  itemSpanClass,
+  itemVariant,
+  itemsContainerClass,
+} from "@/lib/menu-layout";
+import {
   DecorBand,
   MenuHero,
   PriceLine,
@@ -415,14 +422,7 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
                       title={lang === "ar" ? "الأطباق الرئيسية" : "Main course"}
                     />
                     <div
-                      className={cn(
-                        "grid",
-                        theme.layout === "grid" || theme.layout === "columns"
-                          ? theme.columns === 2
-                            ? "grid-cols-2"
-                            : "grid-cols-1"
-                          : "grid-cols-1",
-                      )}
+                      className={itemsContainerClass(theme)}
                       style={{ gap: densityGap(theme) }}
                     >
                       {previewItems.map((item, index) => (
@@ -503,36 +503,60 @@ function PreviewCard({
   image: string | null;
   currency: string;
 }) {
-  const printed = theme.layout === "columns";
-  const stacked = theme.layout === "grid" || theme.layout === "magazine";
+  const variant = itemVariant(theme, index);
+  const printed = variant === "printed";
+  const stacked = variant === "stacked";
+  const overlay = variant === "overlay";
   const motion = itemMotion(theme, index);
+  const imgClass = itemImageClass(theme, variant, index, true);
   return (
     <div
-      className={cn(printed ? "py-1.5" : "p-2", stacked ? "" : "flex items-center gap-2", motion.className)}
+      className={cn(
+        printed ? "flex items-center gap-2 py-1.5" : "",
+        stacked ? "p-2" : "",
+        variant === "row" ? "flex items-center gap-2 p-2" : "",
+        overlay ? "relative min-h-28 overflow-hidden" : "",
+        itemSpanClass(theme, index),
+        motion.className,
+      )}
       style={{ ...(printed ? {} : surfaceStyle(theme)), ...motion.style }}
     >
+      {isTicket(theme) ? (
+        <span
+          className="w-4 shrink-0 text-[10px] font-bold tabular-nums"
+          style={{ color: "var(--qs-muted)", fontFamily: "ui-monospace, monospace" }}
+        >
+          {String(index + 1).padStart(2, "0")}
+        </span>
+      ) : null}
       {theme.showImages ? (
         image ? (
           <img
             src={image}
             alt=""
-            className={cn(
-              "object-cover",
-              imageShapeClass(theme),
-              stacked ? "mb-1.5 h-20 w-full" : printed ? "size-10 shrink-0" : "size-14 shrink-0",
-            )}
+            className={cn("object-cover", overlay ? "" : imageShapeClass(theme), imgClass)}
           />
         ) : (
           <div
-            className={cn(
-              imageShapeClass(theme),
-              stacked ? "mb-1.5 h-20 w-full" : printed ? "size-10 shrink-0" : "size-14 shrink-0",
-            )}
+            className={cn(overlay ? "" : imageShapeClass(theme), imgClass)}
             style={{ background: `${theme.accent}33` }}
           />
         )
       ) : null}
-      <div className="min-w-0 flex-1">
+      {overlay ? (
+        <span
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to top, rgba(0,0,0,0.82) 14%, rgba(0,0,0,0.15) 60%, transparent)",
+          }}
+        />
+      ) : null}
+      <div
+        className={cn("min-w-0 flex-1", overlay ? "absolute inset-x-0 bottom-0 p-2" : "")}
+        style={overlay ? { color: "#fff" } : undefined}
+      >
         <div className="flex items-baseline gap-1">
           <p
             className={cn(

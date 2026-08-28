@@ -30,7 +30,16 @@ export type TemplateId =
   | "tiles"
   | "wellness";
 export type FontId = "sans" | "serif" | "rounded" | "mono" | "display" | "condensed" | "script";
-export type LayoutId = "list" | "grid" | "magazine" | "columns";
+export type LayoutId =
+  | "list"
+  | "grid"
+  | "magazine"
+  | "columns"
+  | "gallery"
+  | "mosaic"
+  | "spotlight"
+  | "rail"
+  | "ticket";
 export type HeroId =
   | "cover"
   | "gradient"
@@ -126,6 +135,11 @@ export const LAYOUT_LABELS: Record<LayoutId, { en: string; ar: string }> = {
   grid: { en: "Card grid", ar: "شبكة بطاقات" },
   magazine: { en: "Magazine", ar: "مجلة" },
   columns: { en: "Printed columns", ar: "أعمدة مطبوعة" },
+  gallery: { en: "Full-bleed gallery", ar: "معرض صور كامل" },
+  mosaic: { en: "Bento mosaic", ar: "فسيفساء بينتو" },
+  spotlight: { en: "Editorial spotlight", ar: "تسليط تحريري" },
+  rail: { en: "Swipe rail", ar: "شريط تمرير" },
+  ticket: { en: "Receipt ticket", ar: "قائمة إيصال" },
 };
 
 export const HERO_LABELS: Record<HeroId, { en: string; ar: string }> = {
@@ -260,7 +274,7 @@ export const TEMPLATES: Record<
       accent: "#ffb703",
       bodyFont: "rounded",
       headingFont: "rounded",
-      layout: "grid",
+      layout: "mosaic",
       hero: "cover",
       radius: 22,
       showImages: true,
@@ -344,7 +358,7 @@ export const TEMPLATES: Record<
       accent: "#e8772e",
       bodyFont: "sans",
       headingFont: "condensed",
-      layout: "list",
+      layout: "gallery",
       hero: "chalk",
       radius: 8,
       showImages: true,
@@ -480,7 +494,7 @@ export const TEMPLATES: Record<
       accent: "#f59310",
       bodyFont: "sans",
       headingFont: "sans",
-      layout: "list",
+      layout: "rail",
       hero: "blob",
       radius: 20,
       showImages: true,
@@ -582,7 +596,7 @@ export const TEMPLATES: Record<
       accent: "#a02c2c",
       bodyFont: "serif",
       headingFont: "serif",
-      layout: "columns",
+      layout: "ticket",
       hero: "stamp",
       radius: 4,
       showImages: true,
@@ -684,7 +698,7 @@ export const TEMPLATES: Record<
       accent: "#f08a24",
       bodyFont: "sans",
       headingFont: "serif",
-      layout: "list",
+      layout: "spotlight",
       hero: "blob",
       radius: 28,
       showImages: true,
@@ -718,7 +732,7 @@ export const TEMPLATES: Record<
       accent: "#f5a623",
       bodyFont: "condensed",
       headingFont: "rounded",
-      layout: "list",
+      layout: "rail",
       hero: "stamp",
       radius: 12,
       showImages: true,
@@ -786,7 +800,7 @@ export const TEMPLATES: Record<
       accent: "#d8cfa8",
       bodyFont: "serif",
       headingFont: "serif",
-      layout: "list",
+      layout: "mosaic",
       hero: "chalk",
       radius: 2,
       showImages: false,
@@ -820,7 +834,7 @@ export const TEMPLATES: Record<
       accent: "#7bc47f",
       bodyFont: "condensed",
       headingFont: "sans",
-      layout: "grid",
+      layout: "gallery",
       hero: "minimal",
       radius: 14,
       showImages: true,
@@ -964,7 +978,17 @@ export function parseMenuTheme(raw: unknown): MenuTheme {
     headingFont: oneOf<FontId>(input["headingFont"], fonts, base.headingFont),
     layout: oneOf<LayoutId>(
       input["layout"],
-      ["list", "grid", "magazine", "columns"],
+      [
+        "list",
+        "grid",
+        "magazine",
+        "columns",
+        "gallery",
+        "mosaic",
+        "spotlight",
+        "rail",
+        "ticket",
+      ],
       base.layout,
     ),
     hero: oneOf<HeroId>(
