@@ -435,68 +435,89 @@ function DinerPage() {
               {sections.map((section) => (
                 <section key={section.id} style={sectionFrameStyle(theme)}>
                   <SectionHeading theme={theme} title={section.title} />
-                  <ul
-                    className={cn(
-                      "grid",
-                      theme.layout === "grid"
-                        ? theme.columns === 2
-                          ? "grid-cols-2 sm:grid-cols-3"
-                          : "grid-cols-1 sm:grid-cols-3"
-                        : theme.layout === "magazine"
-                          ? "sm:grid-cols-2"
-                          : theme.layout === "columns"
-                            ? theme.columns === 2
-                              ? "grid-cols-2 sm:grid-cols-2"
-                              : "grid-cols-1 sm:grid-cols-2"
-                            : "grid-cols-1",
-                    )}
-                    style={{ gap }}
-                  >
+                  <ul className={itemsContainerClass(theme)} style={{ gap }}>
                     {section.items.map((item, itemIndex) => {
-                      const printed = theme.layout === "columns";
-                      const stacked = theme.layout === "grid" || theme.layout === "magazine";
+                      const variant = itemVariant(theme, itemIndex);
+                      const printed = variant === "printed";
+                      const stacked = variant === "stacked";
+                      const overlay = variant === "overlay";
                       const motion = itemMotion(theme, itemIndex);
                       const showImage = theme.showImages && Boolean(item.image_url);
+                      const name = pick(item.name_en, item.name_ar);
+                      const price = formatMoney(item.price, currency, lang);
                       return (
-                        <li key={item.id} className={motion.className} style={motion.style}>
+                        <li
+                          key={item.id}
+                          className={cn(motion.className, itemSpanClass(theme, itemIndex))}
+                          style={motion.style}
+                        >
                           <button
                             type="button"
                             className={cn(
                               "w-full text-start transition-transform duration-200 hover:-translate-y-0.5 active:scale-[0.98]",
-                              printed ? "py-2" : "p-3",
-                              stacked ? "block h-full" : "flex items-start gap-3",
+                              printed ? "flex items-center gap-3 py-2" : "",
+                              overlay ? "relative block h-full min-h-40 overflow-hidden" : "",
+                              stacked ? "block h-full p-3" : "",
+                              variant === "row" ? "flex items-start gap-3 p-3" : "",
                             )}
                             style={printed ? undefined : cardStyle}
                             onClick={() => setDetail(item)}
                           >
+                            {isTicket(theme) ? (
+                              <span
+                                className="w-6 shrink-0 text-xs font-bold tabular-nums"
+                                style={{ color: "var(--qs-muted)", fontFamily: "ui-monospace, monospace" }}
+                              >
+                                {String(itemIndex + 1).padStart(2, "0")}
+                              </span>
+                            ) : null}
                             {showImage ? (
                               <img
                                 src={item.image_url as string}
                                 alt=""
                                 className={cn(
-                                  "shrink-0 object-cover",
-                                  imageShapeClass(theme),
-                                  stacked
-                                    ? theme.layout === "magazine"
-                                      ? "mb-2 h-40 w-full"
-                                      : "mb-2 h-28 w-full"
-                                    : printed
-                                      ? "size-14"
-                                      : "size-20",
+                                  "object-cover",
+                                  overlay ? "" : imageShapeClass(theme),
+                                  itemImageClass(theme, variant, itemIndex),
                                 )}
                                 loading="lazy"
                               />
                             ) : null}
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-baseline gap-2">
+                            {overlay ? (
+                              <span
+                                aria-hidden
+                                className="absolute inset-0"
+                                style={{
+                                  background:
+                                    "linear-gradient(to top, rgba(0,0,0,0.82) 12%, rgba(0,0,0,0.18) 55%, transparent)",
+                                }}
+                              />
+                            ) : null}
+                            <div
+                              className={cn(
+                                "min-w-0 flex-1",
+                                overlay ? "absolute inset-x-0 bottom-0 p-3" : "",
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  "flex items-baseline gap-2",
+                                  overlay ? "flex-wrap" : "",
+                                )}
+                              >
                                 <p
                                   className={cn(
                                     "min-w-0 truncate font-semibold",
                                     theme.upperTitles ? "tracking-wide uppercase" : "",
+                                    overlay ? "text-base" : "",
+                                    stacked && theme.layout === "spotlight" ? "text-lg" : "",
                                   )}
-                                  style={{ fontFamily: "var(--qs-heading-font)" }}
+                                  style={{
+                                    fontFamily: "var(--qs-heading-font)",
+                                    ...(overlay ? { color: "#fff" } : {}),
+                                  }}
                                 >
-                                  {pick(item.name_en, item.name_ar)}
+                                  {name}
                                 </p>
                                 {item.is_featured ? (
                                   <span
@@ -510,33 +531,35 @@ function DinerPage() {
                                     {t("diner.featured")}
                                   </span>
                                 ) : null}
-                                {showPrices && theme.priceStyle !== "inline" ? (
+                                {showPrices && (overlay || theme.priceStyle !== "inline") ? (
                                   <PriceLine
                                     theme={theme}
-                                    price={formatMoney(item.price, currency, lang)}
+                                    price={price}
                                     className={cn(
                                       "shrink-0 text-sm",
-                                      theme.priceStyle === "right" ? "ms-auto" : "",
+                                      theme.priceStyle === "right" || overlay ? "ms-auto" : "",
                                     )}
                                   />
                                 ) : null}
                               </div>
                               <p
                                 className="line-clamp-2 text-xs"
-                                style={{ color: "var(--qs-muted)" }}
+                                style={{
+                                  color: overlay ? "rgba(255,255,255,0.82)" : "var(--qs-muted)",
+                                }}
                               >
                                 {pick(item.description_en, item.description_ar)}
                               </p>
-                              {showPrices && theme.priceStyle === "inline" ? (
+                              {showPrices && !overlay && theme.priceStyle === "inline" ? (
                                 <p
                                   className="mt-1 text-sm font-semibold"
                                   style={{ color: "var(--qs-accent)" }}
                                 >
-                                  {formatMoney(item.price, currency, lang)}
+                                  {price}
                                 </p>
                               ) : null}
                             </div>
-                            {ordersEnabled && theme.showIcons ? (
+                            {ordersEnabled && theme.showIcons && !overlay && !stacked ? (
                               <Plus className="size-5 shrink-0" style={{ color: "var(--qs-muted)" }} />
                             ) : null}
                           </button>
