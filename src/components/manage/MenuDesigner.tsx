@@ -422,14 +422,7 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
                       title={lang === "ar" ? "الأطباق الرئيسية" : "Main course"}
                     />
                     <div
-                      className={cn(
-                        "grid",
-                        theme.layout === "grid" || theme.layout === "columns"
-                          ? theme.columns === 2
-                            ? "grid-cols-2"
-                            : "grid-cols-1"
-                          : "grid-cols-1",
-                      )}
+                      className={itemsContainerClass(theme)}
                       style={{ gap: densityGap(theme) }}
                     >
                       {previewItems.map((item, index) => (
