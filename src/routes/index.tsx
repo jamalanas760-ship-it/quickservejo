@@ -54,6 +54,48 @@ const capabilities = [
   },
 ];
 
+const plans = [
+  {
+    price: 19,
+    seats: 5,
+    featured: false,
+    en: {
+      name: "Starter",
+      features: ["One restaurant", "QR ordering", "Kitchen display", "Arabic & English"],
+    },
+    ar: {
+      name: "البداية",
+      features: ["مطعم واحد", "طلبات QR", "شاشة المطبخ", "عربي وإنجليزي"],
+    },
+  },
+  {
+    price: 39,
+    seats: 15,
+    featured: true,
+    en: {
+      name: "Growth",
+      features: ["Waiter & cashier tools", "AI menu studio", "Analytics", "Priority support"],
+    },
+    ar: {
+      name: "النمو",
+      features: ["أدوات النادل والكاشير", "استوديو القوائم بالذكاء", "التحليلات", "دعم مُقدَّم"],
+    },
+  },
+  {
+    price: 89,
+    seats: 50,
+    featured: false,
+    en: {
+      name: "Multi-brand",
+      features: ["Unlimited restaurants", "Super admin console", "Audit logs", "Agent integrations"],
+    },
+    ar: {
+      name: "متعدد العلامات",
+      features: ["مطاعم غير محدودة", "لوحة المشرف العام", "سجلات التدقيق", "تكاملات الوكلاء"],
+    },
+  },
+] as const;
+
 function Landing() {
   const { lang, t, toggleLang } = useI18n();
   const session = useSupabaseSession();
