@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 
+import { SeatUsage } from "@/components/manage/SeatUsage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -317,6 +318,9 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
           {t("sa.staff.new")}
         </Button>
       </div>
+
+      <SeatUsage restaurantId={restaurantId} />
+
 
       {staff.isPending ? (
         <Skeleton className="h-64 rounded-xl" />
