@@ -62,6 +62,8 @@ export type WorkspaceReport = {
   openOrders: number;
   paidToday: number;
   topItems: { name: string; quantity: number }[];
+  /** Last 7 days, oldest first: daily sales total and order count. */
+  series: { day: string; sales: number; orders: number }[];
   recent: {
     id: string;
     order_number: string;
@@ -74,6 +76,26 @@ export type WorkspaceReport = {
 };
 
 const OPEN_STATUSES = ["new", "accepted", "preparing", "ready"];
+
+/** Daily buckets for the sparkline strips on the home and dashboard cards. */
+function buildSeries(orders: { total: number; created_at: string }[]) {
+  const days: { day: string; sales: number; orders: number }[] = [];
+  const now = new Date();
+  for (let i = 6; i >= 0; i -= 1) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    days.push({ day: d.toISOString().slice(0, 10), sales: 0, orders: 0 });
+  }
+  const index = new Map(days.map((d, i) => [d.day, i]));
+  for (const order of orders) {
+    const key = order.created_at.slice(0, 10);
+    const i = index.get(key);
+    if (i === undefined) continue;
+    days[i]!.sales += Number(order.total ?? 0);
+    days[i]!.orders += 1;
+  }
+  return days;
+}
 
 /** One round-trip pair that powers every home widget and the dashboard. */
 export function useWorkspaceReport(restaurantId: string | null) {
@@ -136,6 +158,7 @@ export function useWorkspaceReport(restaurantId: string | null) {
         openOrders: counted.filter((o) => OPEN_STATUSES.includes(o.status)).length,
         paidToday: todayOrders.filter((o) => o.payment_status === "paid").length,
         topItems,
+        series: buildSeries(counted),
         recent: orders.slice(0, 6).map((o) => ({
           id: o.id,
           order_number: o.order_number,
