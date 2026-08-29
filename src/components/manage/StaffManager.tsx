@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 
+import { SeatUsage } from "@/components/manage/SeatUsage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
