@@ -318,6 +318,9 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
         </Button>
       </div>
 
+      <SeatUsage restaurantId={restaurantId} />
+
+
       {staff.isPending ? (
         <Skeleton className="h-64 rounded-xl" />
       ) : (staff.data ?? []).length === 0 ? (
