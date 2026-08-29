@@ -150,12 +150,66 @@ function Landing() {
             ))}
           </div>
         </section>
+        <section className="border-t border-border py-16">
+          <div className="mx-auto max-w-6xl px-4">
+            <h2 className="text-2xl font-bold">
+              {lang === "ar" ? "خطط بحسب عدد المقاعد" : "Seat-based plans"}
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              {lang === "ar"
+                ? "كل مطعم يحصل على مساحة عمل خاصة، وتدفع بحسب عدد حسابات الفريق النشطة."
+                : "Every restaurant gets its own workspace; you pay for the active team accounts you need."}
+            </p>
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+              {plans.map((plan) => (
+                <article
+                  key={plan.en.name}
+                  className={
+                    plan.featured
+                      ? "panel border-primary p-6 ring-1 ring-primary/30"
+                      : "panel p-6"
+                  }
+                >
+                  <h3 className="text-base font-semibold">{plan[lang].name}</h3>
+                  <p className="mt-2 text-2xl font-bold">
+                    {plan.price} <span className="text-sm font-medium text-muted-foreground">JOD</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {lang === "ar" ? "شهرياً" : "per month"} · {plan.seats}{" "}
+                    {lang === "ar" ? "مقعد" : "seats"}
+                  </p>
+                  <ul className="mt-4 space-y-1.5 text-sm text-muted-foreground">
+                    {plan[lang].features.map((f) => (
+                      <li key={f}>· {f}</li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
       </main>
 
-      <footer className="border-t border-border py-8">
-        <p className="mx-auto max-w-6xl px-4 text-xs text-muted-foreground">
-          © {new Date().getFullYear()} QuickServe — {t("brand.tagline")}
-        </p>
+      <footer className="border-t border-border py-10">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} QuickServe — {t("brand.tagline")}
+          </p>
+          <nav className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+            <Link to="/privacy" className="hover:text-foreground">
+              {lang === "ar" ? "الخصوصية" : "Privacy"}
+            </Link>
+            <Link to="/terms" className="hover:text-foreground">
+              {lang === "ar" ? "الشروط" : "Terms"}
+            </Link>
+            <Link to="/contact" className="hover:text-foreground">
+              {lang === "ar" ? "اتصل بنا" : "Contact"}
+            </Link>
+            <Link to="/staff" className="hover:text-foreground">
+              {lang === "ar" ? "دخول الموظفين" : "Staff sign in"}
+            </Link>
+          </nav>
+        </div>
       </footer>
     </div>
   );
