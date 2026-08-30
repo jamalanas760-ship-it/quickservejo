@@ -5,77 +5,82 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const generateSchema = z.object({
   restaurantId: z.string().uuid(),
-  brief: z.string().max(1200).optional(),
-  /** Optional base template DNA the designs should build from. */
-  base: z.string().max(40).optional(),
-  /** Short refinement instruction, e.g. "make it darker", "more minimal". */
-  tweak: z.string().max(200).optional(),
-  /** Up to 3 inspiration images as data URLs (image/*) or https URLs. */
+  brief: z.string().max(2400).optional(),
+  base: z.string().max(80).optional(),
+  tweak: z.string().max(500).optional(),
   images: z
     .array(
       z
         .string()
         .max(6_000_000)
-        .refine((v) => v.startsWith("data:image/") || v.startsWith("https://"), {
-          message: "Unsupported image",
-        }),
+        .refine((v) => v.startsWith("data:image/") || v.startsWith("https://"), "Unsupported image"),
     )
-    .max(3)
+    .max(5)
     .optional(),
 });
 
-const SCHEMA =
-  "template (classic|midnight|street|cafe|bold|chalkboard|sketch|bifold|editorial|breakfast|bakery|" +
-  "poster|coffeehouse|emerald|script|retro|brush|nautical|ornate|tiles|wellness), " +
-  "bg, surface, text, muted, primary, primaryText, accent (all 6-digit hex like #1a1a1a), " +
-  "bodyFont and headingFont (sans|serif|rounded|mono|display|condensed|script), " +
-  "layout (list|grid|magazine|columns), hero (cover|gradient|minimal|chalk|stamp|ribbon|blob|sidebar), " +
-  "radius (0-32 integer), showImages (boolean), imageShape (rounded|circle|square), showIcons (boolean), " +
-  "buttonStyle (solid|pill|soft|outline), cardStyle (flat|elevated|outline|glass), " +
-  "bgStyle (solid|gradient|dots|glow), density (compact|comfortable|airy), " +
-  "animation (none|fade|rise|pop|slide), texture (none|chalk|paper|grain), " +
-  "decor (none|veg|fastfood|bakery|shapes|ornate|coffee|seafood), sectionStyle (plain|boxed|rule|tab|ribbon), " +
-  "priceStyle (inline|right|leader), columns (1 or 2), upperTitles (boolean), " +
-  "scriptAccent (boolean), tagline (short string, max 5 words, matching the brand language)";
+const SCHEMA = `Return an object {"designs":[d1,d2,d3]} and nothing else. Each design must contain exactly these keys: template (classic|midnight|street|cafe|bold|chalkboard|sketch|bifold|editorial|breakfast|bakery|poster|coffeehouse|emerald|script|retro|brush|nautical|ornate|tiles|wellness), bg, surface, text, muted, primary, primaryText, accent (6-digit hex), bodyFont and headingFont (sans|serif|rounded|mono|display|condensed|script), layout (list|grid|magazine|columns|gallery|mosaic|spotlight|rail|ticket), hero (cover|gradient|minimal|chalk|stamp|ribbon|blob|sidebar), radius (0-32 integer), showImages (boolean), imageShape (rounded|circle|square), showIcons (boolean), buttonStyle (solid|pill|soft|outline), cardStyle (flat|elevated|outline|glass), bgStyle (solid|gradient|dots|glow), density (compact|comfortable|airy), animation (none|fade|rise|pop|slide), texture (none|chalk|paper|grain), decor (none|veg|fastfood|bakery|shapes|ornate|coffee|seafood), sectionStyle (plain|boxed|rule|tab|ribbon), priceStyle (inline|right|leader), columns (1 or 2), upperTitles (boolean), scriptAccent (boolean), tagline (max 5 words).`;
 
-const CRAFT =
-  "Craft bar: 25+ years of art direction across hospitality branding, editorial design and motion. " +
-  "Design magazine-quality menus, never generic templates. Theme DNA to draw from and blend: " +
-  "dark chalkboard (chalk texture, boxed sections, veg line-art, orange/white on charcoal), " +
-  "vintage sketch (kraft paper texture, condensed display type, fastfood line-art, mustard/brown), " +
-  "dark bi-fold (black, two printed columns, leader-dot prices, circular photos), " +
-  "clean minimal editorial (cream, oversized display wordmark, ribbon accent, hairline rules, huge whitespace), " +
-  "bright modern breakfast (bold colour blob background, floating white card, full-bleed photo, script subhead), " +
-  "dark bakery editorial (vertical sidebar wordmark, bordered accent boxes, bakery line-art, script tagline), " +
-  "yellow poster (charcoal ground, oversized two-tone serif FOOD MENU, ribbon logo flag, circular photos down one side), " +
-  "vintage coffee house (kraft cream, red serif wordmark, two tight columns, coffee/pastry line-art), " +
-  "emerald grid (deep green, cream display MENU block, two-column plated circular photos, hairline column dividers), " +
-  "crimson script (white ground, crimson script Menu, red veg line-art, two-column list with right-aligned prices), " +
-  "retro splash (dark brown ground with organic cream/orange blobs, pill section ribbons, leader-dot prices), " +
-  "orange brush (charcoal card on orange field, brush-stroke section ribbons, square photo blocks, condensed prices), " +
-  "nautical fine dining (antique cream, navy serif with magenta rules, three dense columns, seafood engravings), " +
-  "ornate navy (deep navy, white filigree ornament bands, centred serif titles, dotted leader prices), " +
-  "photo tiles (dark textured ground, uniform circular photo grid with small price badges under names), " +
-  "teal wellness (cream ground, teal script headings, boxed sections, compact two-column list). " +
-  "Rules: commit to ONE decisive direction; 2-3 colours max with one dominant; pair a strong display heading " +
-  "font with a clean body font; keep WCAG AA contrast for text/surface and primary/primaryText; make " +
-  "typography, radius, card style, texture, decoration, section framing and density tell the same story; " +
-  "guarantee a strong hero, clearly separated sections, one visual focal point, consistent price alignment " +
-  "and generous breathing room; choose motion that matches the energy (calm fades, street food pops/slides). " +
-  "Photo-forward restaurants use showImages true with circle or full-width crops; illustration-forward ones " +
-  "lean on texture plus decor line-art. Everything must read beautifully on a phone. " +
-  "Realism bar: the result must look printed and made by a human designer's hand — pick a texture " +
-  "(chalk, paper or grain) unless the direction is deliberately clinical, prefer hand-drawn decor bands " +
-  "and leader-dot prices over sterile geometry, and choose slightly imperfect, characterful type pairings " +
-  "over default-looking sans stacks. Avoid anything that reads as an auto-generated web template.";
+const ART_DIRECTION = `You are the creative director of an elite restaurant menu studio. Build designs that look human-made, premium, realistic and print-ready rather than like a SaaS template. Study reference images deeply: composition, hierarchy, typography, image crops, spacing, texture, framing, decorative language and colour relationships. Recreate the design DNA faithfully when references are supplied, then improve it creatively without copying logos or protected text.
 
+Use a decisive art direction. Prefer 2-3 core colours. Use strong display typography paired with a readable body font. Make one clear visual focal point. Use realistic food photography whenever showImages is true. Prefer circle, rounded, square, arch-like visual language through hero/decor/layout combinations. Use paper, chalk or grain texture when appropriate. Use leader prices for editorial/printed menus and right-aligned prices for modern menus. Motion must be subtle and purposeful: fade/rise for premium, pop/slide for street food. Keep everything highly legible on mobile QR menus and in Arabic RTL as well as English LTR. Avoid generic cards, default gradients and repetitive layouts. Produce three genuinely different creative directions, not recolours.`;
 
-/**
- * Generates three distinct professional menu design variations from the
- * restaurant's identity, an optional brief, tweak and inspiration images.
- * Returns raw JSON strings that the client normalizes through `parseMenuTheme`,
- * so a malformed model answer can never break the menu.
- */
+function extractOutputText(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+  const value = payload as {
+    output_text?: unknown;
+    output?: Array<{ content?: Array<{ text?: string; type?: string }> }>;
+  };
+  if (typeof value.output_text === "string") return value.output_text;
+  return (value.output ?? [])
+    .flatMap((item) => item.content ?? [])
+    .filter((item) => item.type === "output_text" && typeof item.text === "string")
+    .map((item) => item.text as string)
+    .join("\n");
+}
+
+function extractDesigns(text: string): Record<string, unknown>[] {
+  const cleaned = text.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start < 0 || end <= start) return [];
+  try {
+    const parsed = JSON.parse(cleaned.slice(start, end + 1)) as { designs?: unknown };
+    return Array.isArray(parsed.designs)
+      ? parsed.designs.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+async function callOpenAI(messages: unknown[], apiKey: string): Promise<string> {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: process.env["OPENAI_MENU_MODEL"] || "gpt-5.6-luna",
+      input: messages,
+      temperature: 0.8,
+      max_output_tokens: 6000,
+    }),
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    console.error("OpenAI menu designer error", response.status, details.slice(0, 500));
+    if (response.status === 401) throw new Error("OpenAI API key is invalid or not configured");
+    if (response.status === 429) throw new Error("OpenAI rate limit reached. Please try again shortly");
+    if (response.status === 402) throw new Error("OpenAI billing is not available for this project");
+    throw new Error("AI menu generation is temporarily unavailable");
+  }
+
+  return extractOutputText(await response.json());
+}
+
 export const generateMenuTheme = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => generateSchema.parse(input))
@@ -92,92 +97,51 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
         .eq("auth_user_id", userId)
         .eq("is_active", true);
       if (error) throw error;
-      const allowed = (rows ?? []).some(
-        (r) => r.role === "restaurant_admin" || r.role === "manager",
-      );
+      const allowed = (rows ?? []).some((row) => row.role === "restaurant_admin" || row.role === "manager");
       if (!allowed) throw new Error("Forbidden");
     }
 
-    const { data: restaurant, error: restError } = await supabase
+    const { data: restaurant, error: restaurantError } = await supabase
       .from("restaurants")
       .select("name, description_en, description_ar, primary_color, accent_color")
       .eq("id", data.restaurantId)
       .single();
-    if (restError) throw restError;
+    if (restaurantError) throw restaurantError;
 
-    const apiKey = process.env["LOVABLE_API_KEY"];
-    if (!apiKey) throw new Error("AI is not configured");
+    const apiKey = process.env["OPENAI_API_KEY"];
+    if (!apiKey) {
+      throw new Error("AI menu designer is not configured. Add OPENAI_API_KEY to the server environment.");
+    }
 
     const prompt = [
-      `Restaurant name: ${restaurant.name}`,
-      restaurant.description_en ? `Description: ${restaurant.description_en}` : "",
+      ART_DIRECTION,
+      SCHEMA,
+      `Restaurant: ${restaurant.name}`,
+      restaurant.description_en ? `English description: ${restaurant.description_en}` : "",
       restaurant.description_ar ? `Arabic description: ${restaurant.description_ar}` : "",
-      `Brand colours: primary ${restaurant.primary_color}, accent ${restaurant.accent_color}`,
-      data.brief ? `Owner brief: ${data.brief}` : "",
-      data.base ? `Preferred base template DNA: ${data.base}` : "",
-      data.tweak ? `Refinement requested: ${data.tweak}` : "",
-      data.images?.length
-        ? "Inspiration images are attached — reproduce their palette, typography feel, texture, decoration and layout structure faithfully, then push it further."
-        : "",
-      "Return three clearly different directions, not three recolours of one idea.",
-    ]
-      .filter(Boolean)
-      .join("\n");
+      `Existing brand colours: primary ${restaurant.primary_color}, accent ${restaurant.accent_color}`,
+      data.base ? `Selected visual direction: ${data.base}` : "",
+      data.brief ? `Owner creative brief: ${data.brief}` : "",
+      data.tweak ? `Refinement: ${data.tweak}` : "",
+      data.images?.length ? "Reference images are attached. Treat them as high-priority visual references for layout, palette, typography, texture and photographic treatment." : "",
+    ].filter(Boolean).join("\n\n");
 
-    const userContent: unknown[] = [{ type: "text", text: prompt }];
-    for (const url of data.images ?? []) {
-      userContent.push({ type: "image_url", image_url: { url } });
-    }
-
-    const system =
-      "You are the lead designer of a mobile QR restaurant menu. " +
-      CRAFT +
-      ' Reply ONLY with JSON of the form {"designs":[d1,d2,d3]} where each design object uses exactly these keys: ' +
-      SCHEMA +
-      ". No prose, no markdown fences.";
-
-    async function content(model: string, messages: unknown[]): Promise<string | null> {
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages }),
-      });
-      if (!response.ok) {
-        if (response.status === 429) throw new Error("AI rate limit reached, try again shortly");
-        if (response.status === 402) throw new Error("AI credits exhausted for this workspace");
-        console.error("AI gateway error", model, response.status, await response.text());
-        return null;
-      }
-      const payload = (await response.json()) as {
-        choices?: { message?: { content?: string } }[];
-      };
-      return payload.choices?.[0]?.message?.content ?? null;
-    }
-
-    function extractDesigns(text: string): Record<string, unknown>[] {
-      const match = text.match(/\{[\s\S]*\}/);
-      if (!match) return [];
-      try {
-        const parsed = JSON.parse(match[0]) as {
-          designs?: unknown;
-        };
-        const list = Array.isArray(parsed.designs) ? parsed.designs : [];
-        return list.filter((d): d is Record<string, unknown> => Boolean(d) && typeof d === "object");
-      } catch {
-        return [];
-      }
+    const userContent: unknown[] = [{ type: "input_text", text: prompt }];
+    for (const image of data.images ?? []) {
+      userContent.push({ type: "input_image", image_url: image, detail: "high" });
     }
 
     const messages = [
-      { role: "system", content: system },
+      {
+        role: "system",
+        content: [{ type: "input_text", text: "You are a world-class hospitality art director. Output valid JSON only." }],
+      },
       { role: "user", content: userContent },
     ];
 
-    let designs = extractDesigns((await content("google/gemini-3.1-pro-preview", messages)) ?? "");
-    if (designs.length === 0) {
-      designs = extractDesigns((await content("google/gemini-3.7-flash", messages)) ?? "");
-    }
-    if (designs.length === 0) throw new Error("Theme generation is unavailable right now");
+    const text = await callOpenAI(messages, apiKey);
+    const designs = extractDesigns(text);
+    if (designs.length === 0) throw new Error("The AI returned an invalid menu design. Please try again.");
 
-    return { variants: designs.slice(0, 3).map((d) => JSON.stringify(d)) };
+    return { variants: designs.slice(0, 3).map((design) => JSON.stringify(design)) };
   });
