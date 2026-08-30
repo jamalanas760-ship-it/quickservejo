@@ -21,59 +21,68 @@ const ADMIN_ITEMS: Item[] = [
   { to: "/profile", icon: User, en: "Profile", ar: "الملف الشخصي" },
 ];
 
-/** Frontline staff only get their operational display and their own profile. */
 const STAFF_ITEMS: Item[] = [
   { to: "/kitchen", icon: MonitorPlay, en: "Orders", ar: "الطلبات" },
   { to: "/profile", icon: User, en: "Profile", ar: "الملف الشخصي" },
 ];
 
-/** Persistent bottom navigation for the signed-in app (mobile-first, safe-area aware). */
+/** Responsive app navigation: full-width on phones, compact floating dock on desktop. */
 export function BottomNav() {
   const { lang } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { roles, isPending } = useAccess();
-
   const frontline = !isPending && isFrontlineOnly(roles);
   const items = frontline ? STAFF_ITEMS : ADMIN_ITEMS;
 
   return (
-    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur">
-      <ul
-        className={cn("mx-auto grid max-w-lg", frontline ? "grid-cols-2" : "grid-cols-4")}
-      >
-        {items.map((item) => {
-          const active = item.exact
-            ? pathname === "/"
-            : pathname === item.to || pathname.startsWith(`${item.to}/`);
-          const Icon = item.icon;
-          return (
-            <li key={item.to} className="relative">
-              {active ? (
-                <span className="absolute inset-x-3 -top-px h-0.5 rounded-full bg-primary" aria-hidden />
-              ) : null}
-              <Link
-                to={item.to as never}
-                className={cn(
-                  "flex flex-col items-center gap-1 px-1 py-2 text-[11px] font-medium transition-colors",
-                  active
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <span
+    <nav
+      aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"}
+      className="safe-bottom fixed inset-x-0 bottom-0 z-40 px-2 pb-1 sm:px-3 sm:pb-2 lg:pointer-events-none lg:inset-x-auto lg:start-1/2 lg:w-auto lg:-translate-x-1/2 lg:px-0"
+    >
+      <div className="pointer-events-auto mx-auto overflow-hidden rounded-2xl border border-border/80 bg-background/96 shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur-xl lg:rounded-full">
+        <ul
+          className={cn(
+            "mx-auto grid w-full",
+            frontline ? "grid-cols-2" : "grid-cols-4",
+            "lg:w-auto lg:min-w-[440px]",
+          )}
+        >
+          {items.map((item) => {
+            const active = item.exact
+              ? pathname === "/"
+              : pathname === item.to || pathname.startsWith(`${item.to}/`);
+            const Icon = item.icon;
+            return (
+              <li key={item.to} className="relative">
+                <Link
+                  to={item.to as never}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
-                    "grid size-8 place-items-center rounded-full transition-colors",
-                    active && "bg-primary/10",
+                    "relative flex min-h-14 min-w-[72px] flex-col items-center justify-center gap-0.5 px-3 py-1.5 text-[10px] font-semibold transition-all duration-200 active:scale-[0.96] sm:min-h-15 sm:text-[11px] lg:min-h-12 lg:flex-row lg:gap-2 lg:px-5 lg:text-xs",
+                    active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <Icon className="size-5" aria-hidden />
-                </span>
-                <span className="truncate">{lang === "ar" ? item.ar : item.en}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+                  <span
+                    className={cn(
+                      "grid size-8 place-items-center rounded-xl transition-all duration-200 lg:size-7 lg:rounded-full",
+                      active && "bg-primary/10 shadow-sm",
+                    )}
+                  >
+                    <Icon className={cn("size-5 lg:size-4.5", active && "stroke-[2.4]")} aria-hidden />
+                  </span>
+                  <span className="max-w-24 truncate">{lang === "ar" ? item.ar : item.en}</span>
+                  {active ? (
+                    <span
+                      className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-primary lg:inset-x-8 lg:bottom-1"
+                      aria-hidden
+                    />
+                  ) : null}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </nav>
   );
 }
