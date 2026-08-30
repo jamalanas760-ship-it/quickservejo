@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { IdCard, KeyRound, MoreVertical, Pencil, Plus, Search, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { IdCard, KeyRound, MoreVertical, Pencil, Plus, Search, Trash2, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { SeatUsage } from "@/components/manage/SeatUsage";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import { useI18n } from "@/lib/i18n";
 import { humanError } from "@/lib/errors";
 import { logAudit } from "@/lib/audit";
 import { ACCESS_LEVEL_LABELS, accessLevelFor, ROLE_LABELS, type AppRole } from "@/lib/permissions";
-import { inviteStaffMember, listStaffLogins, removeStaffMember, resetStaffPassword } from "@/lib/staff.functions";
+import { inviteStaffMember, removeStaffMember, resetStaffPassword } from "@/lib/staff.functions";
 import { formatDate } from "@/lib/format";
 import { getStaffAccess, issueStaffAccess } from "@/lib/staff-auth.functions";
 import { qrDataUrl } from "@/lib/qr";
@@ -23,8 +23,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const ROLES: AppRole[] = ["restaurant_admin", "manager", "kitchen", "waiter", "cashier"];
 export function StaffManager({restaurantId}:{restaurantId:string}){
- const{t,lang}=useI18n();const qc=useQueryClient();const invite=useServerFn(inviteStaffMember);const reset=useServerFn(resetStaffPassword);const remove=useServerFn(removeStaffMember);const readLogins=useServerFn(listStaffLogins);const readAccess=useServerFn(getStaffAccess);const issueAccess=useServerFn(issueStaffAccess);const[open,setOpen]=useState(false);const[busy,setBusy]=useState(false);const[search,setSearch]=useState("");const[credentials,setCredentials]=useState<any>(null);const[editing,setEditing]=useState<any>(null);const[pending,setPending]=useState<any>(null);const[access,setAccess]=useState<any>(null);const[badge,setBadge]=useState<string|null>(null);
- const staff=useQuery({queryKey:["platform","staff",restaurantId],queryFn:async()=>{const{data,error}=await supabase.from("staff").select("*").eq("restaurant_id",restaurantId).order("created_at",{ascending:false});if(error)throw error;return data??[];}});const logins=useQuery({queryKey:["platform","staff-logins",restaurantId],queryFn:()=>readLogins({data:{restaurantId}})});const rows=(staff.data??[]).filter(x=>{const q=search.toLowerCase();return !q||`${x.name} ${x.email??""}`.toLowerCase().includes(q)});
+ const{t,lang}=useI18n();const qc=useQueryClient();const invite=useServerFn(inviteStaffMember);const reset=useServerFn(resetStaffPassword);const remove=useServerFn(removeStaffMember);const readAccess=useServerFn(getStaffAccess);const issueAccess=useServerFn(issueStaffAccess);const[open,setOpen]=useState(false);const[busy,setBusy]=useState(false);const[search,setSearch]=useState("");const[credentials,setCredentials]=useState<any>(null);const[editing,setEditing]=useState<any>(null);const[pending,setPending]=useState<any>(null);const[access,setAccess]=useState<any>(null);const[badge,setBadge]=useState<string|null>(null);
+ const staff=useQuery({queryKey:["platform","staff",restaurantId],queryFn:async()=>{const{data,error}=await supabase.from("staff").select("*").eq("restaurant_id",restaurantId).order("created_at",{ascending:false});if(error)throw error;return data??[];}});const rows=(staff.data??[]).filter(x=>{const q=search.toLowerCase();return !q||`${x.name} ${x.email??""}`.toLowerCase().includes(q)});
  async function refresh(){await qc.invalidateQueries({queryKey:["platform"]});}async function create(){setBusy(true);try{const r=await invite({data:{restaurantId,email:form.email.trim(),name:form.name.trim(),role:form.role}});setCredentials(r);setOpen(false);setForm({name:"",email:"",role:"waiter"});await refresh();toast.success(t("sa.staff.invited"));}catch(e){toast.error(humanError(e,lang));}finally{setBusy(false);}}async function password(id:string,name:string){try{const r=await reset({data:{staffId:id}});setCredentials({name,email:r.email,password:r.password});}catch(e){toast.error(humanError(e,lang));}}async function del(id:string,name:string){try{await remove({data:{staffId:id}});await refresh();setPending(null);toast.success(t("sa.staff.deleted"));}catch(e){toast.error(humanError(e,lang));}}async function openAccess(id:string){try{const r=await readAccess({data:{staffId:id}});setAccess(r);setBadge(await qrDataUrl(`${location.origin}/staff/badge/${r.badgeCode}`,420));}catch(e){toast.error(humanError(e,lang));}}
  const[form,setForm]=useState({name:"",email:"",role:"waiter" as AppRole});
  return <div className="space-y-5"><header><div className="flex items-end justify-between gap-3"><div><h1 className="text-[28px] font-bold tracking-[-0.04em]">{t("sa.staff.title")}</h1><p className="mt-1 text-sm text-muted-foreground">{lang==="ar"?"إدارة فريقك وصلاحيات الوصول":"Manage your team and access"}</p></div><Button onClick={()=>setOpen(true)}><Plus className="size-4"/>{t("sa.staff.new")}</Button></div></header><SeatUsage restaurantId={restaurantId}/><div className="relative"><Search className="absolute start-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input value={search} onChange={e=>setSearch(e.target.value)} placeholder={lang==="ar"?"ابحث عن موظف…":"Search staff…"} className="h-12 rounded-2xl bg-card ps-10"/></div>
