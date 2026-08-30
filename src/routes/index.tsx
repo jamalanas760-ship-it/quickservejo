@@ -105,14 +105,6 @@ function Landing() {
   if (signedIn) {
     return (
       <div className="min-h-screen bg-background pb-24">
-        <header className="safe-top sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
-          <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-2 px-4">
-            <BrandLogo className="size-8" textClassName="hidden sm:inline" />
-            <Button variant="ghost" size="sm" className="h-9" onClick={toggleLang}>
-              {t("common.language")}
-            </Button>
-          </div>
-        </header>
         <WorkspaceHome />
         <BottomNav />
       </div>
