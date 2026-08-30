@@ -7,9 +7,9 @@ export type SubscriptionPlan = "free" | "basic" | "professional" | "enterprise";
 
 export const ROLE_LABELS: Record<AppRole,{en:string;ar:string}> = {
  super_admin:{en:"Owner",ar:"المالك"}, restaurant_admin:{en:"Admin",ar:"المدير"}, manager:{en:"Manager",ar:"مشرف"},
- kitchen:{en:"Kitchen",ar:"المطبخ"}, waiter:{en:"Waiter",ar:"النادل"}, cashier:{en:"Cashier",ar:"الكاشير"},
+ kitchen:{en:"Staff",ar:"الموظف"}, waiter:{en:"Staff",ar:"الموظف"}, cashier:{en:"Staff",ar:"الموظف"},
 };
-export const ROLE_HOME:Record<AppRole,string>={super_admin:"/super-admin",restaurant_admin:"/manage",manager:"/manage",kitchen:"/kitchen",waiter:"/waiter",cashier:"/cashier"};
+export const ROLE_HOME:Record<AppRole,string>={super_admin:"/super-admin",restaurant_admin:"/",manager:"/",kitchen:"/kitchen",waiter:"/kitchen",cashier:"/kitchen"};
 export type Capability="manage_platform"|"manage_restaurant"|"manage_menu"|"manage_tables"|"manage_staff"|"manage_appearance"|"view_analytics"|"view_orders"|"view_order_prices"|"update_order_status"|"manage_payments"|"handle_waiter_calls";
 const ROLE_CAPABILITIES:Record<AppRole,Capability[]>={
  super_admin:["manage_platform","manage_restaurant","manage_menu","manage_tables","manage_staff","manage_appearance","view_analytics","view_orders","view_order_prices","update_order_status","manage_payments","handle_waiter_calls"],
