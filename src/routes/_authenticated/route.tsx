@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/nav/BottomNav";
+import { useAccess } from "@/hooks/useSession";
 import { frontlineHome, isFrontlineOnly } from "@/lib/permissions";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -28,5 +29,10 @@ function AuthenticatedShell() {
     if (blocked) void navigate({ to: frontlineHome(roles), replace: true });
   }, [blocked, navigate, roles]);
 
-  return <><div className="pb-20">{blocked ? null : <Outlet />}</div><BottomNav /></>;
+  return (
+    <>
+      <div className="pb-20">{blocked ? null : <Outlet />}</div>
+      <BottomNav />
+    </>
+  );
 }
