@@ -1,79 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { BarChart3, ChevronRight, Palette, QrCode, Store } from "lucide-react";
 import { useEffect } from "react";
-
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAccess } from "@/hooks/useSession";
 import { useI18n } from "@/lib/i18n";
 import { ROLE_LABELS } from "@/lib/permissions";
 
-export const Route = createFileRoute("/_authenticated/manage/")({
-  head: () => ({
-    meta: [
-      { title: "My restaurant — QuickServe" },
-      {
-        name: "description",
-        content: "Restaurant admin workspace: menu, tables, QR codes, staff, orders and analytics.",
-      },
-      { property: "og:title", content: "My restaurant — QuickServe" },
-      { property: "og:description", content: "Manage your restaurant on QuickServe." },
-    ],
-  }),
-  component: ManageIndex,
-});
-
-function ManageIndex() {
-  const { t, lang } = useI18n();
-  const navigate = useNavigate();
-  const { data, isPending, isSuperAdmin } = useAccess();
-
-  const tenants = (data ?? []).filter((m) => m.restaurant_id);
-  const only = tenants.length === 1 ? tenants[0] : null;
-
-  // A staff member with exactly one restaurant goes straight into it.
-  useEffect(() => {
-    if (only?.restaurant_id) {
-      void navigate({
-        to: "/manage/$restaurantId",
-        params: { restaurantId: only.restaurant_id },
-        replace: true,
-      });
-    }
-  }, [navigate, only?.restaurant_id]);
-
-  if (isPending) return <Skeleton className="h-40 rounded-xl" />;
-
-  if (tenants.length === 0) {
-    return (
-      <div className="panel p-8 text-center">
-        <p className="font-medium">{t("dash.noAccess")}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{t("dash.noAccessHelp")}</p>
-        {isSuperAdmin ? (
-          <Button asChild className="mt-4" size="sm">
-            <Link to="/super-admin/restaurants">{t("sa.rest.title")}</Link>
-          </Button>
-        ) : null}
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {tenants.map((m) => (
-        <div key={m.id} className="panel flex flex-col justify-between p-6">
-          <div>
-            <span className="text-xs uppercase text-muted-foreground">
-              {ROLE_LABELS[m.role][lang]}
-            </span>
-            <h2 className="mt-1 text-lg font-semibold">{m.restaurant?.name}</h2>
-          </div>
-          <Button asChild className="mt-4" size="sm">
-            <Link to="/manage/$restaurantId" params={{ restaurantId: m.restaurant_id! }}>
-              {t("dash.open")}
-            </Link>
-          </Button>
-        </div>
-      ))}
-    </div>
-  );
+export const Route = createFileRoute("/_authenticated/manage/")({ component: ManageIndex });
+function ManageIndex(){
+ const{t,lang}=useI18n();const navigate=useNavigate();const{data,isPending,isSuperAdmin}=useAccess();const tenants=(data??[]).filter(m=>m.restaurant_id);const only=tenants.length===1?tenants[0]:null;
+ useEffect(()=>{if(only?.restaurant_id)void navigate({to:"/manage/$restaurantId",params:{restaurantId:only.restaurant_id},replace:true});},[navigate,only?.restaurant_id]);
+ if(isPending)return <Skeleton className="mx-auto h-48 max-w-5xl rounded-3xl"/>;
+ if(!tenants.length)return <div className="mx-auto max-w-xl pt-10"><div className="panel rounded-3xl p-10 text-center"><div className="mx-auto grid size-16 place-items-center rounded-2xl bg-primary text-primary-foreground"><Store/></div><h1 className="mt-5 text-2xl font-bold">{t("dash.noAccess")}</h1><p className="mt-2 text-sm text-muted-foreground">{t("dash.noAccessHelp")}</p>{isSuperAdmin&&<Button asChild className="mt-5"><Link to="/super-admin/restaurants">{t("sa.rest.title")}</Link></Button>}</div></div>;
+ return <div className="mx-auto max-w-5xl space-y-6"><header><p className="text-sm font-semibold text-primary">QuickServe</p><h1 className="mt-1 text-[30px] font-bold tracking-[-0.04em]">{lang==="ar"?"مطاعمي":"My restaurants"}</h1><p className="mt-1 text-sm text-muted-foreground">{lang==="ar"?"اختر بيئة المطعم التي تريد إدارتها":"Choose a restaurant environment to manage"}</p></header><div className="grid gap-4 sm:grid-cols-2">{tenants.map(m=>{const r=m.restaurant;return <Link key={m.id} to="/manage/$restaurantId" params={{restaurantId:m.restaurant_id!}} className="group panel overflow-hidden rounded-3xl transition hover:-translate-y-0.5 hover:shadow-lift"><div className="relative h-36 overflow-hidden bg-muted">{r?.cover_image_url?<img src={r.cover_image_url} alt="" className="size-full object-cover transition duration-500 group-hover:scale-105"/>:<div className="size-full bg-gradient-to-br from-primary/15 via-muted to-accent/20"/>}<div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent"/><div className="absolute bottom-4 start-4 grid size-12 place-items-center overflow-hidden rounded-2xl border bg-card shadow">{r?.logo_url?<img src={r.logo_url} alt="" className="size-full object-cover"/>:<Store className="size-5"/>}</div></div><div className="p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-bold">{r?.name}</h2><p className="mt-1 text-xs text-muted-foreground">{ROLE_LABELS[m.role][lang]}</p></div><ChevronRight className="mt-1 size-5 text-muted-foreground transition group-hover:translate-x-1"/></div><div className="mt-5 grid grid-cols-4 gap-2 border-t pt-4 text-center text-[11px] text-muted-foreground"><span><Store className="mx-auto mb-1 size-4"/>Home</span><span><Palette className="mx-auto mb-1 size-4"/>Design</span><span><QrCode className="mx-auto mb-1 size-4"/>QR</span><span><BarChart3 className="mx-auto mb-1 size-4"/>Analytics</span></div></div></Link>})}</div></div>;
 }
