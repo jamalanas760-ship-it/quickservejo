@@ -1,4 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { BarChart3, ClipboardList, Palette, QrCode, ShoppingBag, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,12 +13,12 @@ export const Route = createFileRoute("/_authenticated/manage/$restaurantId")({
 });
 
 const TABS = [
-  { to: "/manage/$restaurantId", labelKey: "sa.detail.menu", exact: true },
-  { to: "/manage/$restaurantId/design", labelKey: "sa.detail.design" },
-  { to: "/manage/$restaurantId/tables", labelKey: "sa.detail.tables" },
-  { to: "/manage/$restaurantId/staff", labelKey: "sa.detail.staff" },
-  { to: "/manage/$restaurantId/orders", labelKey: "sa.detail.orders" },
-  { to: "/manage/$restaurantId/analytics", labelKey: "sa.detail.analytics" },
+  { to: "/manage/$restaurantId", labelKey: "sa.detail.menu", icon: ClipboardList, exact: true },
+  { to: "/manage/$restaurantId/design", labelKey: "sa.detail.design", icon: Palette },
+  { to: "/manage/$restaurantId/tables", labelKey: "sa.detail.tables", icon: QrCode },
+  { to: "/manage/$restaurantId/staff", labelKey: "sa.detail.staff", icon: Users },
+  { to: "/manage/$restaurantId/orders", labelKey: "sa.detail.orders", icon: ShoppingBag },
+  { to: "/manage/$restaurantId/analytics", labelKey: "sa.detail.analytics", icon: BarChart3 },
 ] as const;
 
 function ManageShell() {
@@ -67,24 +68,26 @@ function ManageShell() {
         ) : null}
       </div>
 
-      <nav className="flex flex-wrap gap-1 border-b pb-2">
+      <nav className="-mx-1 flex gap-1 overflow-x-auto border-b pb-2">
         {TABS.map((tab) => {
           const href = tab.to.replace("$restaurantId", restaurantId);
           const active =
             "exact" in tab && tab.exact ? pathname === base || pathname === `${base}/` : pathname === href;
+          const Icon = tab.icon;
           return (
             <Link
               key={tab.to}
               to={tab.to}
               params={{ restaurantId }}
               className={cn(
-                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                "flex shrink-0 flex-col items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
                 active
-                  ? "bg-secondary text-secondary-foreground"
-                  : "text-muted-foreground hover:bg-muted",
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              {t(tab.labelKey)}
+              <Icon className="size-5" aria-hidden />
+              <span>{t(tab.labelKey)}</span>
             </Link>
           );
         })}

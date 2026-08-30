@@ -183,6 +183,7 @@ export const superAdminDict: Record<string, { en: string; ar: string }> = {
   "sa.menu.required": { en: "Required", ar: "مطلوب" },
   "sa.menu.minMax": { en: "Min / Max selection", ar: "أقل / أقصى اختيار" },
   "sa.menu.priceDelta": { en: "Extra price", ar: "سعر إضافي" },
+  "sa.menu.filter": { en: "Filter", ar: "تصفية" },
 
   "sa.tables.title": { en: "Tables & QR codes", ar: "الطاولات ورموز QR" },
   "sa.tables.number": { en: "Table number", ar: "رقم الطاولة" },
@@ -353,6 +354,7 @@ export const superAdminDict: Record<string, { en: string; ar: string }> = {
   "common.actions": { en: "Actions", ar: "إجراءات" },
   "common.active": { en: "Active", ar: "نشط" },
   "common.inactive": { en: "Inactive", ar: "غير نشط" },
+  "common.all": { en: "All", ar: "الكل" },
   "sa.detail.design": { en: "Menu design", ar: "تصميم القائمة" },
   "design.title": { en: "Menu design studio", ar: "استوديو تصميم القائمة" },
   "design.subtitle": {

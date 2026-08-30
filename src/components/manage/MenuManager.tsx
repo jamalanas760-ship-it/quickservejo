@@ -1,7 +1,18 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Copy, Sliders, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Copy,
+  Filter,
+  GripVertical,
+  PauseCircle,
+  PlayCircle,
+  Search,
+  Sliders,
+  Trash2,
+} from "lucide-react";
 
 import { ImageUploader } from "@/components/media/ImageUploader";
 import { Badge } from "@/components/ui/badge";
@@ -36,12 +47,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
 import { humanError } from "@/lib/errors";
 import { logAudit } from "@/lib/audit";
 import { formatMoney } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 
 type CategoryRow = Database["public"]["Tables"]["menu_categories"]["Row"];
@@ -120,6 +141,7 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
     { kind: "category" | "product"; id: string; label: string } | null
   >(null);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "available" | "unavailable">("all");
   const [busy, setBusy] = useState(false);
 
   const categories = useQuery<CategoryRow[]>({
@@ -152,14 +174,20 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
   });
 
   const needle = search.trim().toLowerCase();
-  const visibleProducts = (products.data ?? []).filter((p) => {
-    if (needle) {
-      return [p.name_en, p.name_ar, p.description_en, p.description_ar]
-        .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(needle));
-    }
-    return p.category_id === activeCategory;
-  });
+  const visibleProducts = (products.data ?? [])
+    .filter((p) => {
+      if (needle) {
+        return [p.name_en, p.name_ar, p.description_en, p.description_ar]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(needle));
+      }
+      return p.category_id === activeCategory;
+    })
+    .filter((p) => {
+      if (statusFilter === "available") return p.is_available;
+      if (statusFilter === "unavailable") return !p.is_available;
+      return true;
+    });
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ["platform"] });
@@ -378,12 +406,48 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
           </h1>
           <p className="text-sm text-muted-foreground">{t("sa.menu.hierarchy")}</p>
         </div>
-        <Input
-          className="w-full sm:w-72"
-          placeholder={t("sa.menu.searchPlaceholder")}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="relative flex-1 sm:w-72">
+            <Search
+              className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              className="ps-9"
+              placeholder={t("sa.menu.searchPlaceholder")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="outline"
+                className={cn("shrink-0", statusFilter !== "all" && "border-primary text-primary")}
+                aria-label={t("sa.menu.filter")}
+              >
+                <Filter className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>{t("sa.menu.filter")}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                value={statusFilter}
+                onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
+              >
+                <DropdownMenuRadioItem value="all">{t("common.all")}</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="available">
+                  {t("sa.menu.available")}
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="unavailable">
+                  {t("common.inactive")}
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {showEmptyState ? (
@@ -437,6 +501,9 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
                   }}
                   className="flex items-center gap-1 p-2"
                 >
+                  <span className="shrink-0 cursor-grab text-muted-foreground/60" aria-hidden>
+                    <GripVertical className="size-4" />
+                  </span>
                   <button
                     type="button"
                     className={`flex-1 truncate px-1 text-start text-sm font-medium ${
@@ -458,6 +525,7 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
                     size="icon"
                     variant="ghost"
                     aria-label={t("sa.menu.moveUp")}
+                    disabled={index === 0}
                     onClick={() =>
                       void persistOrder("menu_categories", move(categoryList, index, index - 1))
                     }
@@ -468,6 +536,7 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
                     size="icon"
                     variant="ghost"
                     aria-label={t("sa.menu.moveDown")}
+                    disabled={index === categoryList.length - 1}
                     onClick={() =>
                       void persistOrder("menu_categories", move(categoryList, index, index + 1))
                     }
@@ -572,10 +641,10 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
                       ) ?? t("common.none")}
                     </p>
                     <p className="text-sm font-medium">{formatMoney(p.price, currency, lang)}</p>
-                    <div className="mt-2 flex flex-wrap gap-1">
+                    <div className="mt-2 grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant="outline"
                         onClick={() =>
                           setProductForm({
                             id: p.id,
@@ -597,20 +666,31 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
                       >
                         {t("common.edit")}
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setModifierProduct(p)}>
+                      <Button size="sm" variant="outline" onClick={() => setModifierProduct(p)}>
                         <Sliders className="me-1 size-4" />
                         {t("sa.menu.modifiers")}
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => void duplicateProduct(p)}>
+                      <Button size="sm" variant="outline" onClick={() => void duplicateProduct(p)}>
                         <Copy className="me-1 size-4" />
                         {t("sa.menu.duplicate")}
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => void toggleAvailability(p)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={p.is_available ? "text-destructive" : "text-emerald-600"}
+                        onClick={() => void toggleAvailability(p)}
+                      >
+                        {p.is_available ? (
+                          <PauseCircle className="me-1 size-4" />
+                        ) : (
+                          <PlayCircle className="me-1 size-4" />
+                        )}
                         {p.is_available ? t("sa.staff.deactivate") : t("sa.staff.reactivate")}
                       </Button>
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant="outline"
+                        className="col-span-2 text-destructive hover:text-destructive sm:col-span-1"
                         onClick={() =>
                           setConfirmDelete({
                             kind: "product",
