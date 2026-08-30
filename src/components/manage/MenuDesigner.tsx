@@ -1,1 +1,1 @@
-export { MenuDesigner } from "./MasterMenuDesigner";
+export { MenuDesigner } from "./UltimateMenuDesigner";
