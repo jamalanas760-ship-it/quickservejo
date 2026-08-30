@@ -12,13 +12,7 @@ import { cn } from "@/lib/utils";
  * The app chrome used on every signed-in screen: brand lockup, language
  * switch, notification bell with an open-order count and the account avatar.
  */
-export function AppHeader({
-  onMenu,
-  className,
-}: {
-  onMenu?: () => void;
-  className?: string;
-}) {
+export function AppHeader({ onMenu, className }: { onMenu?: () => void; className?: string }) {
   const { lang, toggleLang } = useI18n();
   const scope = useWorkspaceScope();
   const report = useWorkspaceReport(scope.restaurantId);
@@ -35,21 +29,11 @@ export function AppHeader({
   const openOrders = report.data?.openOrders ?? 0;
 
   return (
-    <header
-      className={cn(
-        "safe-top sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl",
-        className,
-      )}
-    >
+    <header className={cn("safe-top sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl", className)}>
       <div className="mx-auto grid h-16 max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4">
         <div className="flex min-w-0 items-center gap-2">
           {onMenu ? (
-            <button
-              type="button"
-              onClick={onMenu}
-              aria-label="Menu"
-              className="grid size-10 shrink-0 place-items-center rounded-xl text-foreground/80 hover:bg-muted"
-            >
+            <button type="button" onClick={onMenu} aria-label="Menu" className="grid size-10 shrink-0 place-items-center rounded-xl text-foreground/80 hover:bg-muted">
               <MenuIcon className="size-5" />
             </button>
           ) : null}
@@ -59,21 +43,16 @@ export function AppHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            onClick={toggleLang}
-            className="flex h-10 items-center gap-1.5 rounded-full px-2.5 text-sm font-medium text-foreground/80 hover:bg-muted sm:px-3"
-          >
+          <button type="button" onClick={toggleLang} className="flex h-10 items-center gap-1.5 rounded-full px-2.5 text-sm font-medium text-foreground/80 hover:bg-muted sm:px-3">
             <Globe className="size-[18px]" aria-hidden />
-            <span className="hidden xs:inline sm:inline">
-              {lang === "ar" ? "English" : "العربية"}
-            </span>
+            <span className="hidden sm:inline">{lang === "ar" ? "English" : "العربية"}</span>
           </button>
 
           <Link
-            to="/dashboard"
-            aria-label="Notifications"
+            to="/notifications"
+            aria-label={lang === "ar" ? "الإشعارات" : "Notifications"}
             className="relative grid size-10 place-items-center rounded-full text-foreground/80 hover:bg-muted"
+            activeProps={{ className: "relative grid size-10 place-items-center rounded-full bg-accent/15 text-foreground" }}
           >
             <Bell className="size-[20px]" aria-hidden />
             {openOrders > 0 ? (
@@ -84,9 +63,7 @@ export function AppHeader({
           </Link>
 
           <Link to="/profile" aria-label="Profile" className="relative shrink-0">
-            <span className="grid size-10 place-items-center rounded-full bg-accent/25 font-display text-base font-bold text-foreground">
-              {initial}
-            </span>
+            <span className="grid size-10 place-items-center rounded-full bg-accent/25 font-display text-base font-bold text-foreground">{initial}</span>
             <span className="absolute bottom-0 end-0 size-2.5 rounded-full border-2 border-background bg-success" />
           </Link>
         </div>
