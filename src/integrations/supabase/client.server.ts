@@ -39,7 +39,7 @@ function resolveSecretKey(): string | undefined {
   if (secretKeys) {
     try {
       const parsed = JSON.parse(secretKeys) as Record<string, string>;
-      if (parsed.default) return parsed.default;
+      if (parsed['default']) return parsed['default'];
       const first = Object.values(parsed).find((value) => typeof value === 'string' && value.length > 0);
       if (first) return first;
     } catch {

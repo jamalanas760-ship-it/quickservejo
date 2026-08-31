@@ -15,6 +15,7 @@ export type StaffMembership = {
     name: string;
     slug: string;
     logo_url: string | null;
+    cover_image_url: string | null;
     is_active: boolean;
     subscription_plan: string;
   } | null;
@@ -45,7 +46,7 @@ export function useMemberships() {
       const { data, error } = await supabase
         .from("staff")
         .select(
-          "id, restaurant_id, role, name, is_active, restaurant:restaurants(id, name, slug, logo_url, is_active, subscription_plan)",
+          "id, restaurant_id, role, name, is_active, restaurant:restaurants(id, name, slug, logo_url, cover_image_url, is_active, subscription_plan)",
         )
         .eq("auth_user_id", uid)
         .eq("is_active", true);

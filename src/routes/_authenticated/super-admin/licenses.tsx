@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useRestaurantsWithStats } from "@/hooks/useSuperAdmin";
+import { useRestaurantsWithStats, type RestaurantWithStats } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
 import { formatNumber } from "@/lib/format";
 import { humanError } from "@/lib/errors";
@@ -43,7 +43,7 @@ function LicensesPage() {
     [data],
   );
 
-  async function saveLicense(r: Restaurant) {
+  async function saveLicense(r: RestaurantWithStats) {
     const raw = drafts[r.id] ?? String(r.seat_limit ?? defaultLimit(r));
     const limit = Number(raw);
     const plan = plans[r.id] ?? r.subscription_plan;

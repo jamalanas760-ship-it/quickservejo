@@ -22,6 +22,7 @@ import { Route as AuthenticatedCashierRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
 import { Route as AuthenticatedManageRouteRouteImport } from './routes/_authenticated/manage/route'
+import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_authenticated/super-admin/route'
 import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
@@ -35,6 +36,7 @@ import { Route as AuthenticatedManageRestaurantIdRouteRouteImport } from './rout
 import { Route as AuthenticatedSuperAdminIndexRouteImport } from './routes/_authenticated/super-admin/index'
 import { Route as AuthenticatedSuperAdminAnalyticsRouteImport } from './routes/_authenticated/super-admin/analytics'
 import { Route as AuthenticatedSuperAdminAuditLogsRouteImport } from './routes/_authenticated/super-admin/audit-logs'
+import { Route as AuthenticatedSuperAdminLicensesRouteImport } from './routes/_authenticated/super-admin/licenses'
 import { Route as AuthenticatedSuperAdminOrdersRouteImport } from './routes/_authenticated/super-admin/orders'
 import { Route as AuthenticatedSuperAdminSettingsRouteImport } from './routes/_authenticated/super-admin/settings'
 import { Route as AuthenticatedSuperAdminSubscriptionsRouteImport } from './routes/_authenticated/super-admin/subscriptions'
@@ -124,6 +126,12 @@ const AuthenticatedManageRouteRoute =
     path: '/manage',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedNotificationsRoute =
+  AuthenticatedNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -194,6 +202,12 @@ const AuthenticatedSuperAdminAuditLogsRoute =
   AuthenticatedSuperAdminAuditLogsRouteImport.update({
     id: '/audit-logs',
     path: '/audit-logs',
+    getParentRoute: () => AuthenticatedSuperAdminRouteRoute,
+  } as any)
+const AuthenticatedSuperAdminLicensesRoute =
+  AuthenticatedSuperAdminLicensesRouteImport.update({
+    id: '/licenses',
+    path: '/licenses',
     getParentRoute: () => AuthenticatedSuperAdminRouteRoute,
   } as any)
 const AuthenticatedSuperAdminOrdersRoute =
@@ -344,6 +358,7 @@ export interface FileRoutesByFullPath {
   '/cashier': typeof AuthenticatedCashierRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/waiter': typeof AuthenticatedWaiterRoute
   '/o/$token': typeof OTokenRoute
@@ -354,6 +369,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
+  '/super-admin/licenses': typeof AuthenticatedSuperAdminLicensesRoute
   '/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
   '/super-admin/settings': typeof AuthenticatedSuperAdminSettingsRoute
   '/super-admin/subscriptions': typeof AuthenticatedSuperAdminSubscriptionsRoute
@@ -390,6 +406,7 @@ export interface FileRoutesByTo {
   '/cashier': typeof AuthenticatedCashierRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/waiter': typeof AuthenticatedWaiterRoute
   '/o/$token': typeof OTokenRoute
@@ -399,6 +416,7 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
+  '/super-admin/licenses': typeof AuthenticatedSuperAdminLicensesRoute
   '/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
   '/super-admin/settings': typeof AuthenticatedSuperAdminSettingsRoute
   '/super-admin/subscriptions': typeof AuthenticatedSuperAdminSubscriptionsRoute
@@ -438,6 +456,7 @@ export interface FileRoutesById {
   '/_authenticated/cashier': typeof AuthenticatedCashierRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
+  '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
   '/o/$token': typeof OTokenRoute
@@ -448,6 +467,7 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/_authenticated/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
+  '/_authenticated/super-admin/licenses': typeof AuthenticatedSuperAdminLicensesRoute
   '/_authenticated/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
   '/_authenticated/super-admin/settings': typeof AuthenticatedSuperAdminSettingsRoute
   '/_authenticated/super-admin/subscriptions': typeof AuthenticatedSuperAdminSubscriptionsRoute
@@ -488,6 +508,7 @@ export interface FileRouteTypes {
     | '/cashier'
     | '/dashboard'
     | '/kitchen'
+    | '/notifications'
     | '/profile'
     | '/waiter'
     | '/o/$token'
@@ -498,6 +519,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
+    | '/super-admin/licenses'
     | '/super-admin/orders'
     | '/super-admin/settings'
     | '/super-admin/subscriptions'
@@ -534,6 +556,7 @@ export interface FileRouteTypes {
     | '/cashier'
     | '/dashboard'
     | '/kitchen'
+    | '/notifications'
     | '/profile'
     | '/waiter'
     | '/o/$token'
@@ -543,6 +566,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
+    | '/super-admin/licenses'
     | '/super-admin/orders'
     | '/super-admin/settings'
     | '/super-admin/subscriptions'
@@ -581,6 +605,7 @@ export interface FileRouteTypes {
     | '/_authenticated/cashier'
     | '/_authenticated/dashboard'
     | '/_authenticated/kitchen'
+    | '/_authenticated/notifications'
     | '/_authenticated/profile'
     | '/_authenticated/waiter'
     | '/o/$token'
@@ -591,6 +616,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/super-admin/analytics'
     | '/_authenticated/super-admin/audit-logs'
+    | '/_authenticated/super-admin/licenses'
     | '/_authenticated/super-admin/orders'
     | '/_authenticated/super-admin/settings'
     | '/_authenticated/super-admin/subscriptions'
@@ -727,6 +753,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManageRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/notifications': {
+      id: '/_authenticated/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/profile': {
       id: '/_authenticated/profile'
       path: '/profile'
@@ -816,6 +849,13 @@ declare module '@tanstack/react-router' {
       path: '/audit-logs'
       fullPath: '/super-admin/audit-logs'
       preLoaderRoute: typeof AuthenticatedSuperAdminAuditLogsRouteImport
+      parentRoute: typeof AuthenticatedSuperAdminRouteRoute
+    }
+    '/_authenticated/super-admin/licenses': {
+      id: '/_authenticated/super-admin/licenses'
+      path: '/licenses'
+      fullPath: '/super-admin/licenses'
+      preLoaderRoute: typeof AuthenticatedSuperAdminLicensesRouteImport
       parentRoute: typeof AuthenticatedSuperAdminRouteRoute
     }
     '/_authenticated/super-admin/orders': {
@@ -1054,6 +1094,7 @@ const AuthenticatedSuperAdminRestaurantsRestaurantIdRouteRouteWithChildren =
 interface AuthenticatedSuperAdminRouteRouteChildren {
   AuthenticatedSuperAdminAnalyticsRoute: typeof AuthenticatedSuperAdminAnalyticsRoute
   AuthenticatedSuperAdminAuditLogsRoute: typeof AuthenticatedSuperAdminAuditLogsRoute
+  AuthenticatedSuperAdminLicensesRoute: typeof AuthenticatedSuperAdminLicensesRoute
   AuthenticatedSuperAdminOrdersRoute: typeof AuthenticatedSuperAdminOrdersRoute
   AuthenticatedSuperAdminSettingsRoute: typeof AuthenticatedSuperAdminSettingsRoute
   AuthenticatedSuperAdminSubscriptionsRoute: typeof AuthenticatedSuperAdminSubscriptionsRoute
@@ -1069,6 +1110,7 @@ const AuthenticatedSuperAdminRouteRouteChildren: AuthenticatedSuperAdminRouteRou
       AuthenticatedSuperAdminAnalyticsRoute,
     AuthenticatedSuperAdminAuditLogsRoute:
       AuthenticatedSuperAdminAuditLogsRoute,
+    AuthenticatedSuperAdminLicensesRoute: AuthenticatedSuperAdminLicensesRoute,
     AuthenticatedSuperAdminOrdersRoute: AuthenticatedSuperAdminOrdersRoute,
     AuthenticatedSuperAdminSettingsRoute: AuthenticatedSuperAdminSettingsRoute,
     AuthenticatedSuperAdminSubscriptionsRoute:
@@ -1093,6 +1135,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCashierRoute: typeof AuthenticatedCashierRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedKitchenRoute: typeof AuthenticatedKitchenRoute
+  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedWaiterRoute: typeof AuthenticatedWaiterRoute
 }
@@ -1104,6 +1147,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCashierRoute: AuthenticatedCashierRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedKitchenRoute: AuthenticatedKitchenRoute,
+  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedWaiterRoute: AuthenticatedWaiterRoute,
 }
