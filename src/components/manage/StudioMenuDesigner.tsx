@@ -1,5 +1,5 @@
-import { MasterMenuDesigner } from "./MasterMenuDesigner";
+import { MenuDesigner } from "./MasterMenuDesigner";
 
 export function StudioMenuDesigner({ restaurantId }: { restaurantId: string }) {
-  return <MasterMenuDesigner restaurantId={restaurantId} />;
+  return <MenuDesigner restaurantId={restaurantId} />;
 }
