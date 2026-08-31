@@ -34,6 +34,8 @@ export type AuditAction =
   | "staff.password_reset"
   | "staff.access_issued"
   | "menu.theme_updated"
+  | "menu.master_design_saved"
+  | "menu.ultimate_design_saved"
   | "staff.deleted"
   | "order.cancelled"
   | "platform.settings_updated"
