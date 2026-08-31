@@ -340,5 +340,6 @@ export function MenuDesigner({ restaurantId }: { restaurantId: string }) {
         </div>
       </aside>
     </div>
-  </div></div>;
+  </div>
+  </div>;
 }
