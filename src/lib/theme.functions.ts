@@ -6,9 +6,10 @@ import { ART_DIRECTION, DESIGN_SCHEMA, callMenuDesigner, extractDesigns } from "
 
 const generateSchema = z.object({
   restaurantId: z.string().uuid(),
-  brief: z.string().max(2400).optional(),
-  base: z.string().max(80).optional(),
-  tweak: z.string().max(500).optional(),
+  brief: z.string().max(6000).optional(),
+  base: z.string().max(120).optional(),
+  tweak: z.string().max(800).optional(),
+  provider: z.enum(["openai", "gemini", "claude", "adobe", "figma", "canva"]).optional(),
   images: z
     .array(
       z
@@ -19,6 +20,15 @@ const generateSchema = z.object({
     .max(5)
     .optional(),
 });
+
+const PROVIDER_GUIDANCE: Record<string, string> = {
+  openai: "Use a structured, decisive art-direction workflow: hierarchy first, composition second, styling third, responsive behavior last.",
+  gemini: "Treat attached images as visual evidence. Compare their composition, typography, material, crop logic and spacing before synthesizing the original direction.",
+  claude: "Prioritize editorial reasoning, accessibility, hierarchy and human-made visual character. Resolve ambiguity instead of producing generic UI.",
+  adobe: "Prepare an Adobe-friendly art direction with explicit photography, texture, palette, type, crop and print/digital handoff instructions.",
+  figma: "Think in editable frames, layers, reusable components, auto-layout groups, constraints and responsive variants.",
+  canva: "Think in editable Canva pages and elements with clear page structure, visual hierarchy, safe margins and practical image placement.",
+};
 
 export const generateMenuTheme = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -49,9 +59,12 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) throw new Error("AI menu designer is not configured.");
 
+    const provider = data.provider ?? "openai";
     const prompt = [
       ART_DIRECTION,
       DESIGN_SCHEMA,
+      `Target AI/design workflow: ${provider}`,
+      PROVIDER_GUIDANCE[provider],
       `Restaurant: ${restaurant.name}`,
       restaurant.description_en ? `English description: ${restaurant.description_en}` : "",
       restaurant.description_ar ? `Arabic description: ${restaurant.description_ar}` : "",
@@ -60,28 +73,19 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
       data.brief ? `Owner creative brief: ${data.brief}` : "",
       data.tweak ? `Refinement: ${data.tweak}` : "",
       data.images?.length
-        ? "Reference images are attached. Treat them as high-priority visual references for layout, palette, typography, texture and photographic treatment."
+        ? "Reference images are attached directly to this request. Analyze them as visual DNA and use them to improve composition, palette, typography, texture, image cropping and hierarchy. Do not reproduce protected logos or text."
         : "",
+      "Return a design that is immediately usable by the live composition preview. Never return only a palette or a list of cards.",
     ]
       .filter(Boolean)
       .join("\n\n");
 
     const userContent: unknown[] = [{ type: "input_text", text: prompt }];
-    for (const image of data.images ?? []) {
-      userContent.push({ type: "input_image", image_url: image, detail: "high" });
-    }
+    for (const image of data.images ?? []) userContent.push({ type: "input_image", image_url: image, detail: "high" });
 
     const text = await callMenuDesigner(
       [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: "You are a world-class hospitality art director. Output valid JSON only.",
-            },
-          ],
-        },
+        { role: "system", content: [{ type: "input_text", text: "You are a world-class hospitality art director and visual systems designer. Output valid JSON only." }] },
         { role: "user", content: userContent },
       ],
       apiKey,
