@@ -1,1 +1,1 @@
-export { StudioMenuDesigner as MenuDesigner } from "./StudioMenuDesigner";
+export { CanvaAdobeMenuStudio as MenuDesigner } from "./CanvaAdobeMenuStudio";
