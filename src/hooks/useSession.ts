@@ -15,6 +15,7 @@ export type StaffMembership = {
     name: string;
     slug: string;
     logo_url: string | null;
+    cover_image_url: string | null;
     is_active: boolean;
     subscription_plan: string;
   } | null;
