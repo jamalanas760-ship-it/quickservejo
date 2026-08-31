@@ -1,1 +1,1 @@
-export { MasterMenuDesignerMobile as MenuDesigner } from "./MasterMenuDesignerMobile";
+export { StudioMenuDesigner as MenuDesigner } from "./StudioMenuDesigner";
