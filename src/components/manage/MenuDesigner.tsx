@@ -1,1 +1,1 @@
-export { MenuDesigner } from "./UltimateMenuDesigner";
+export { MasterMenuDesignerMobile as MenuDesigner } from "./MasterMenuDesignerMobile";
