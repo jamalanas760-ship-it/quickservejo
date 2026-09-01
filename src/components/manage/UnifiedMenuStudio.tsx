@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { BrainCircuit, Camera, Check, FileImage, Layers3, Sparkles, Wand2 } from "lucide-react";
+import { BrainCircuit, Check, FileImage, Layers3, Sparkles, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,6 @@ type Mode="new"|"reference";
 type ElementId="hero"|"typography"|"category"|"item-card"|"price"|"imagery"|"background"|"spacing";
 const moods=[["Editorial","Magazine-led, confident and art-directed"],["Modern Levantine","Warm, cultural and contemporary"],["Quiet Luxury","Restrained, premium and tactile"],["Experimental","Unexpected composition and bold rhythm"],["Human Crafted","Print texture, imperfection and character"],["Photography First","Food imagery drives the composition"]] as const;
 const elementLabels:Record<ElementId,string>={hero:"Hero",typography:"Typography",category:"Category","item-card":"Item card",price:"Prices",imagery:"Imagery",background:"Background",spacing:"Spacing"};
-
 type Composition={concept?:string;artDirection?:string;background?:{color?:string;texture?:string};elements?:CompositionElement[]};
 
 export function UnifiedMenuStudio({restaurantId}:{restaurantId:string}){
@@ -26,6 +25,7 @@ export function UnifiedMenuStudio({restaurantId}:{restaurantId:string}){
  const [concepts,setConcepts]=useState<Array<{id:string;theme:string}>>([]); const [active,setActive]=useState(0); const [theme,setTheme]=useState<MenuTheme>(DEFAULT_THEME); const [composition,setComposition]=useState<Composition>();
  const [selected,setSelected]=useState<ElementId>("hero"); const [selectedNode,setSelectedNode]=useState<string>(); const [instruction,setInstruction]=useState(""); const [busy,setBusy]=useState(false); const [refining,setRefining]=useState(false); const [saving,setSaving]=useState(false);
  const restaurant=useQuery({queryKey:["unified-menu-studio",restaurantId],queryFn:async()=>{const {data,error}=await supabase.from("restaurants").select("id,name,menu_theme,currency").eq("id",restaurantId).single();if(error)throw error;return data;}});
+ useEffect(()=>{const raw=restaurant.data?.menu_theme;if(raw&&typeof raw==="object"){setTheme(parseMenuTheme(raw));setComposition((raw as {composition?:Composition}).composition);}},[restaurant.data?.menu_theme]);
  async function addFiles(files:FileList|null){if(!files)return;const encoded:string[]=[];for(const file of Array.from(files).slice(0,5-references.length)){if(!file.type.startsWith("image/"))continue;encoded.push(await new Promise<string>((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result));r.onerror=reject;r.readAsDataURL(file);}));}setReferences(old=>[...old,...encoded].slice(0,5));}
  async function design(){setBusy(true);try{const result=await orchestrate({data:{restaurantId,brief,references,direction:mood,language:"en"}});const next=result.concepts.map(c=>({id:c.id,theme:c.theme}));setConcepts(next);setActive(0);if(next[0]){const raw=JSON.parse(next[0].theme);setTheme(parseMenuTheme(raw));setComposition(raw.composition);}toast.success("Creative director created 3 distinct directions");}catch(e){toast.error(e instanceof Error?e.message:"Could not create the menu");}finally{setBusy(false);}}
  function selectConcept(i:number){setActive(i);const c=concepts[i];if(c){const raw=JSON.parse(c.theme);setTheme(parseMenuTheme(raw));setComposition(raw.composition);setSelectedNode(undefined);}}
@@ -43,6 +43,6 @@ export function UnifiedMenuStudio({restaurantId}:{restaurantId:string}){
   <main className="rounded-[2rem] border bg-[#ddd9d2] p-3 shadow-sm sm:p-5"><div className="mb-4 flex items-center justify-between rounded-2xl bg-white/80 p-3 backdrop-blur"><div><div className="text-sm font-bold">{restaurant.data?.name??"Restaurant"} — Creative Canvas</div><div className="text-xs text-black/40">Selected: {selectedNode??elementLabels[selected]}</div></div><Button onClick={save} disabled={saving}>{saving?"Saving…":"Save design"}</Button></div>
    <div className="mb-4 grid gap-2 sm:grid-cols-3">{concepts.map((c,i)=><button key={c.id} onClick={()=>selectConcept(i)} className={cn("rounded-2xl border bg-white p-3 text-left",active===i?"border-black ring-2 ring-black/10":"hover:border-black/30")}><div className="text-xs font-bold"><span className="mr-2 inline-grid size-6 place-items-center rounded-full bg-black text-white">{i+1}</span>Creative concept {i+1}</div><div className="mt-2 text-[11px] text-black/45">{i===0?"Balanced editorial direction":i===1?"Alternative composition":"Unexpected visual language"}</div></button>)}{!concepts.length&&<div className="sm:col-span-3 rounded-2xl border border-dashed border-black/15 bg-white/40 p-6 text-center text-sm text-black/40">Create a direction to activate the intelligent canvas.</div>}</div>
    <div className="grid min-h-[680px] place-items-center overflow-auto rounded-[1.5rem] bg-[#c9c5bd] p-6"><div className="w-full max-w-[760px]"><SmartCompositionCanvas theme={theme} composition={composition} selectedId={selectedNode} onSelect={handleCanvasSelect}/></div></div>
-   <div className="mt-4 grid gap-3 sm:grid-cols-3">{[{icon:BrainCircuit,title:"Creative Director",text:"Makes the design decision."},{icon:Layers3,title:"Editable composition",text:"Select, refine and preserve the rest."},{icon:Camera,title:"Humanized imagery",text:"Photography direction feels art-directed, not generic."}].map(({icon:Icon,title,text})=><div key={title} className="rounded-2xl bg-white/75 p-4"><Icon className="size-4"/><div className="mt-3 text-sm font-bold">{title}</div><div className="mt-1 text-xs text-black/45">{text}</div><div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-black/45"><Check className="size-3"/>One unified workflow</div></div>)}</div>
+   <div className="mt-4 grid gap-3 sm:grid-cols-3">{[{icon:BrainCircuit,title:"Creative Director",text:"Makes the design decision."},{icon:Layers3,title:"Editable composition",text:"Select, refine and preserve the rest."},{icon:Check,title:"Humanized system",text:"Realistic hierarchy, spacing and art direction."}].map(({icon:Icon,title,text})=><div key={title} className="rounded-2xl bg-white/75 p-4"><Icon className="size-4"/><div className="mt-3 text-sm font-bold">{title}</div><div className="mt-1 text-xs text-black/45">{text}</div><div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-black/45"><Check className="size-3"/>One unified workflow</div></div>)}</div>
   </main></div></div></div>;
 }
