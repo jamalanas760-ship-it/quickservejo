@@ -1,0 +1,8 @@
+{
+  "name": "QuickServe Smart Menu Bridge",
+  "id": "quickserve-smart-menu-bridge",
+  "api": "1.0.0",
+  "main": "code.js",
+  "editorType": ["figma"],
+  "networkAccess": { "allowedDomains": ["quickservejo.lovable.app", "localhost"] }
+}
