@@ -30,10 +30,20 @@ export function AppHeader({ onMenu, className }: { onMenu?: () => void; classNam
 
   return (
     <header className={cn("safe-top sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl", className)}>
-      <div className="mx-auto grid h-16 max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4">
+      <div
+        className={cn(
+          "mx-auto grid h-16 max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4",
+          onMenu && "ps-14",
+        )}
+      >
         <div className="flex min-w-0 items-center gap-2">
           {onMenu ? (
-            <button type="button" onClick={onMenu} aria-label="Menu" className="grid size-10 shrink-0 place-items-center rounded-xl text-foreground/80 hover:bg-muted">
+            <button
+              type="button"
+              onClick={onMenu}
+              aria-label="Menu"
+              className="fixed start-4 top-[calc(env(safe-area-inset-top)+0.75rem)] z-50 grid size-10 shrink-0 place-items-center rounded-xl border border-border/70 bg-background/95 text-foreground/80 shadow-sm backdrop-blur-xl transition-colors hover:bg-muted active:scale-95"
+            >
               <MenuIcon className="size-5" />
             </button>
           ) : null}
