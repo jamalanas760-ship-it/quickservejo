@@ -3,6 +3,15 @@
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/responses";
 export const MENU_MODEL = "openai/gpt-5.6-luna";
 
+export class MenuDesignerCreditsError extends Error {
+  readonly code = "AI_CREDITS_EXHAUSTED" as const;
+
+  constructor() {
+    super("AI credits are exhausted.");
+    this.name = "MenuDesignerCreditsError";
+  }
+}
+
 export const DESIGN_SCHEMA = `Return {"designs":[d1,d2,d3]} and nothing else.
 Each design must contain the existing MenuTheme keys plus a composition object.
 composition = {version:2,concept:string,artDirection:string,referenceAnalysis?:{matchLevel:string,layout:string,typography:string,color:string,imagery:string,details:string},background:{color:string,texture:string},elements:[...],responsive?:{mobile:string,tablet:string,desktop:string},motion?:{entrance:string,hover:string,scroll:string}}.
@@ -61,7 +70,7 @@ export async function callMenuDesigner(input: unknown[], apiKey: string): Promis
     const details = await response.text().catch(() => "");
     console.error("AI menu designer gateway error", response.status, details.slice(0, 500));
     if (response.status === 429) throw new Error("The AI designer is busy right now. Please try again in a moment.");
-    if (response.status === 402) throw new Error("AI credits are exhausted. Add credits to keep using the AI menu designer.");
+    if (response.status === 402) throw new MenuDesignerCreditsError();
     if (response.status === 403) throw new Error("AI access is blocked for this workspace.");
     if (response.status === 401) throw new Error("AI menu designer is not configured correctly.");
     throw new Error("AI menu generation is temporarily unavailable.");
