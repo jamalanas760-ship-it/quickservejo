@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { BrainCircuit, Check, FileImage, Layers3, Sparkles, Wand2 } from "lucide-react";
+import { BrainCircuit, Check, ChevronDown, FileImage, Layers3, Menu, Monitor, Save, Sparkles, Smartphone, Tablet, Wand2, X } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,37 +12,183 @@ import { orchestrateSmartMenuDesign } from "@/lib/smart-menu-orchestrator.server
 import { refineSmartMenuElement } from "@/lib/menu-element-intelligence.server";
 import { SmartCompositionCanvas, type CompositionElement } from "@/components/manage/SmartCompositionCanvas";
 import { cn } from "@/lib/utils";
+import "@/components/manage/MenuDesignMobileUX.css";
 
-type Mode="new"|"reference";
-type ElementId="hero"|"typography"|"category"|"item-card"|"price"|"imagery"|"background"|"spacing";
-const moods=[["Editorial","Magazine-led, confident and art-directed"],["Modern Levantine","Warm, cultural and contemporary"],["Quiet Luxury","Restrained, premium and tactile"],["Experimental","Unexpected composition and bold rhythm"],["Human Crafted","Print texture, imperfection and character"],["Photography First","Food imagery drives the composition"]] as const;
-const elementLabels:Record<ElementId,string>={hero:"Hero",typography:"Typography",category:"Category","item-card":"Item card",price:"Prices",imagery:"Imagery",background:"Background",spacing:"Spacing"};
-type Composition={concept?:string;artDirection?:string;background?:{color?:string;texture?:string};elements?:CompositionElement[];responsive?:{mobile?:string;tablet?:string;desktop?:string};motion?:{entrance?:string;hover?:string;scroll?:string}};
+type Mode = "new" | "reference";
+type MobileTab = "brief" | "canvas" | "edit" | "layers";
+type ElementId = "hero" | "typography" | "category" | "item-card" | "price" | "imagery" | "background" | "spacing";
+type Composition = { concept?: string; artDirection?: string; background?: { color?: string; texture?: string }; elements?: CompositionElement[]; responsive?: { mobile?: string; tablet?: string; desktop?: string }; motion?: { entrance?: string; hover?: string; scroll?: string } };
 
-export function UnifiedMenuStudio({restaurantId}:{restaurantId:string}){
- const inputRef=useRef<HTMLInputElement>(null); const queryClient=useQueryClient(); const orchestrate=useServerFn(orchestrateSmartMenuDesign); const refine=useServerFn(refineSmartMenuElement);
- const [mode,setMode]=useState<Mode>("new"); const [brief,setBrief]=useState(""); const [references,setReferences]=useState<string[]>([]); const [mood,setMood]=useState("Editorial");
- const [concepts,setConcepts]=useState<Array<{id:string;theme:string}>>([]); const [active,setActive]=useState(0); const [theme,setTheme]=useState<MenuTheme>(DEFAULT_THEME); const [composition,setComposition]=useState<Composition>();
- const [selected,setSelected]=useState<ElementId>("hero"); const [selectedNode,setSelectedNode]=useState<string>(); const [instruction,setInstruction]=useState(""); const [busy,setBusy]=useState(false); const [refining,setRefining]=useState(false); const [saving,setSaving]=useState(false);
- const restaurant=useQuery({queryKey:["unified-menu-studio",restaurantId],queryFn:async()=>{const {data,error}=await supabase.from("restaurants").select("id,name,menu_theme,currency").eq("id",restaurantId).single();if(error)throw error;return data;}});
- useEffect(()=>{const raw=restaurant.data?.menu_theme;if(raw&&typeof raw==="object"){setTheme(parseMenuTheme(raw));setComposition((raw as {composition?:Composition}).composition);}},[restaurant.data?.menu_theme]);
- async function addFiles(files:FileList|null){if(!files)return;const encoded:string[]=[];for(const file of Array.from(files).slice(0,5-references.length)){if(!file.type.startsWith("image/"))continue;encoded.push(await new Promise<string>((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result));r.onerror=reject;r.readAsDataURL(file);}));}setReferences(old=>[...old,...encoded].slice(0,5));}
- async function design(){setBusy(true);try{const seed=`${Date.now()}-${crypto.randomUUID?.()??Math.random().toString(36).slice(2)}`;const result=await orchestrate({data:{restaurantId,brief,references,direction:references.length?undefined:mood,language:"en",variationSeed:seed}});const next=result.concepts.map(c=>({id:c.id,theme:c.theme}));setConcepts(next);setActive(0);if(next[0]){const raw=JSON.parse(next[0].theme);setTheme(parseMenuTheme(raw));setComposition(raw.composition);}toast.success(references.length?"Reference reconstructed into 3 visual variations":"Creative director created 3 genuinely different directions");}catch(e){toast.error(e instanceof Error?e.message:"Could not create the menu");}finally{setBusy(false);}}
- function selectConcept(i:number){setActive(i);const c=concepts[i];if(c){const raw=JSON.parse(c.theme);setTheme(parseMenuTheme(raw));setComposition(raw.composition);setSelectedNode(undefined);}}
- async function refineElement(){if(!instruction.trim())return;setRefining(true);try{const result=await refine({data:{restaurantId,element:selected,instruction,currentTheme:JSON.stringify({...theme,composition})}});const raw=JSON.parse(result.theme);setTheme(parseMenuTheme(raw));setComposition(raw.composition);setConcepts(old=>old.map((c,i)=>i===active?{...c,theme:JSON.stringify(raw)}:c));setInstruction("");toast.success(`${elementLabels[selected]} refined by AI`);}catch(e){toast.error(e instanceof Error?e.message:"Could not refine element");}finally{setRefining(false);}}
- async function save(){setSaving(true);try{const {error}=await supabase.from("restaurants").update({menu_theme:{...theme,composition}}).eq("id",restaurantId);if(error)throw error;await queryClient.invalidateQueries({queryKey:["unified-menu-studio",restaurantId]});toast.success("Menu saved");}catch(e){toast.error(e instanceof Error?e.message:"Could not save");}finally{setSaving(false);}}
- const handleCanvasSelect=(id:string)=>{setSelectedNode(id);const node=composition?.elements?.find(e=>e.id===id);if(node){if(node.type==="image")setSelected("imagery");else if(node.type==="price")setSelected("price");else if(node.type==="category")setSelected("category");else if(node.type==="product")setSelected("item-card");else if(node.type==="title"||node.type==="eyebrow"||node.type==="copy")setSelected("typography");else setSelected("hero");}};
- return <div className="min-h-[calc(100vh-7rem)] bg-[#f4f2ee] text-[#171717]"><div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
-  <header className="mb-5 rounded-[2rem] border bg-[#171717] p-6 text-white shadow-xl sm:p-8"><Badge className="border-white/20 bg-white/10 text-white">CREATIVE INTELLIGENCE</Badge><h1 className="mt-3 text-3xl font-black tracking-[-.04em] sm:text-5xl">A designer, not a template machine.</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-white/60 sm:text-base">Prompt it. Show it a reference. Ask it to change one detail. The AI now treats your instruction or image as the source of truth.</p><div className="mt-6 flex flex-wrap gap-2 text-xs font-semibold text-white/70">{["Understand","Analyze","Art-direct","Compose","Humanize","Make editable","Quality-check"].map((s,i)=><span key={s} className="rounded-full border border-white/10 bg-white/[.06] px-3 py-2"><span className="mr-1 text-white/30">0{i+1}</span>{s}</span>)}</div></header>
-  <div className="grid gap-5 lg:grid-cols-[370px_minmax(0,1fr)]"><aside className="space-y-4">
-   <section className="rounded-[1.75rem] border bg-white p-5 shadow-sm"><div className="mb-3 text-xs font-bold uppercase tracking-[.18em] text-black/40">Creative mode</div><div className="grid grid-cols-2 gap-2"><button onClick={()=>setMode("new")} className={cn("rounded-2xl border p-4 text-left",mode==="new"?"border-black bg-black text-white":"hover:border-black/30")}><Wand2 className="mb-7 size-5"/><div className="font-bold">New direction</div><p className="mt-1 text-xs opacity-55">Invent from your prompt.</p></button><button onClick={()=>setMode("reference")} className={cn("rounded-2xl border p-4 text-left",mode==="reference"?"border-black bg-black text-white":"hover:border-black/30")}><FileImage className="mb-7 size-5"/><div className="font-bold">Match reference</div><p className="mt-1 text-xs opacity-55">Rebuild its visual DNA.</p></button></div></section>
-   {mode==="reference"&&<section className="rounded-[1.75rem] border bg-white p-5 shadow-sm"><div className="mb-3 flex items-center justify-between"><div className="text-xs font-bold uppercase tracking-[.18em] text-black/40">Visual DNA</div><span className="text-xs text-black/40">{references.length}/5</span></div><input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={e=>void addFiles(e.target.files)}/><button onClick={()=>inputRef.current?.click()} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-black/20 p-5 text-sm font-semibold"><FileImage className="size-5"/>Upload design image</button>{references.length>0&&<div className="mt-3 grid grid-cols-3 gap-2">{references.map((src,i)=><div key={src.slice(-24)+i} className="relative aspect-[3/4] overflow-hidden rounded-xl"><img src={src} alt="Reference" className="h-full w-full object-cover"/><button onClick={()=>setReferences(old=>old.filter((_,n)=>n!==i))} className="absolute right-1 top-1 rounded-full bg-black/70 px-2 py-1 text-xs text-white">×</button></div>)}</div>}<p className="mt-3 text-xs leading-5 text-black/45">Exact mode analyzes placement, font personality, hierarchy, colors, spacing, image crops, shapes, texture, borders, shadows, animation cues and rhythm — then rebuilds them as editable layers.</p></section>}
-   <section className="rounded-[1.75rem] border bg-white p-5 shadow-sm"><div className="mb-2 text-xs font-bold uppercase tracking-[.18em] text-black/40">Creative brief</div><Textarea value={brief} onChange={e=>setBrief(e.target.value)} placeholder="Tell the designer exactly what you want: font style, layout, colors, typography, image treatment, animation, mood, spacing…" className="min-h-32 resize-none rounded-2xl"/><div className="mt-4 text-xs font-bold uppercase tracking-[.18em] text-black/40">Creative personality</div><div className="mt-2 grid grid-cols-2 gap-2">{moods.map(([name,desc])=><button key={name} onClick={()=>setMood(name)} className={cn("rounded-xl border p-3 text-left",mood===name?"border-black bg-black text-white":"hover:bg-black/[.025]")}><div className="text-xs font-bold">{name}</div><div className="mt-1 text-[10px] opacity-50">{desc}</div></button>)}</div><Button className="mt-4 w-full rounded-xl" onClick={design} disabled={busy}>{busy?<><Sparkles className="mr-2 size-4 animate-pulse"/>Analyzing + designing…</>:<><Sparkles className="mr-2 size-4"/>{references.length?"Recreate this design":"Create my menu"}</>}</Button></section>
-   <section className="rounded-[1.75rem] border bg-white p-5 shadow-sm"><div className="mb-3 flex items-center gap-2"><Layers3 className="size-4"/><div className="text-xs font-bold uppercase tracking-[.18em] text-black/40">Edit anything with AI</div></div><div className="grid grid-cols-2 gap-2">{(Object.keys(elementLabels) as ElementId[]).map(id=><button key={id} onClick={()=>setSelected(id)} className={cn("rounded-xl border px-3 py-2 text-left text-xs font-semibold",selected===id?"border-black bg-black text-white":"hover:bg-black/[.025]")}>{elementLabels[id]}</button>)}</div><Textarea value={instruction} onChange={e=>setInstruction(e.target.value)} placeholder={`Change the ${elementLabels[selected].toLowerCase()}… e.g. “use a condensed serif, smaller price, more negative space”`} className="mt-3 min-h-24 resize-none rounded-xl"/><Button className="mt-3 w-full" onClick={refineElement} disabled={refining||!instruction.trim()}>{refining?<><Sparkles className="mr-2 size-4 animate-pulse"/>Refining…</>:<><Sparkles className="mr-2 size-4"/>Apply my instruction</>}</Button><p className="mt-2 text-[10px] leading-4 text-black/40">Select a layer, describe the change naturally, and the AI preserves the rest of the composition.</p></section>
-  </aside>
-  <main className="rounded-[2rem] border bg-[#ddd9d2] p-3 shadow-sm sm:p-5"><div className="mb-4 flex items-center justify-between rounded-2xl bg-white/80 p-3 backdrop-blur"><div><div className="text-sm font-bold">{restaurant.data?.name??"Restaurant"} — Creative Canvas</div><div className="text-xs text-black/40">Selected: {selectedNode??elementLabels[selected]}</div></div><Button onClick={save} disabled={saving}>{saving?"Saving…":"Save design"}</Button></div>
-   <div className="mb-4 grid gap-2 sm:grid-cols-3">{concepts.map((c,i)=><button key={c.id} onClick={()=>selectConcept(i)} className={cn("rounded-2xl border bg-white p-3 text-left",active===i?"border-black ring-2 ring-black/10":"hover:border-black/30")}><div className="text-xs font-bold"><span className="mr-2 inline-grid size-6 place-items-center rounded-full bg-black text-white">{i+1}</span>Creative concept {i+1}</div><div className="mt-2 text-[11px] text-black/45">{i===0?"Closest to the requested direction":i===1?"Alternative composition": "Bold new interpretation"}</div></button>)}{!concepts.length&&<div className="sm:col-span-3 rounded-2xl border border-dashed border-black/15 bg-white/40 p-6 text-center text-sm text-black/40">Give the designer a prompt or reference image to activate the intelligent canvas.</div>}</div>
-   <div className="grid min-h-[680px] place-items-center overflow-auto rounded-[1.5rem] bg-[#c9c5bd] p-6"><div className="w-full max-w-[760px]"><SmartCompositionCanvas theme={theme} composition={composition} selectedId={selectedNode} onSelect={handleCanvasSelect}/></div></div>
-   <div className="mt-4 grid gap-3 sm:grid-cols-3">{[{icon:BrainCircuit,title:"Prompt intelligence",text:"Every visual instruction becomes a design constraint."},{icon:Layers3,title:"Editable composition",text:"Typography, imagery, spacing and layers stay editable."},{icon:Check,title:"Reference fidelity",text:"Images are reverse-engineered instead of merely recolored."}].map(({icon:Icon,title,text})=><div key={title} className="rounded-2xl bg-white/75 p-4"><Icon className="size-4"/><div className="mt-3 text-sm font-bold">{title}</div><div className="mt-1 text-xs text-black/45">{text}</div><div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-black/45"><Check className="size-3"/>One unified workflow</div></div>)}</div>
-  </main></div></div></div>;
+const moods = ["Editorial", "Modern Levantine", "Quiet Luxury", "Experimental", "Human Crafted", "Photography First"];
+const elementLabels: Record<ElementId, string> = { hero: "Hero", typography: "Typography", category: "Category", "item-card": "Item card", price: "Prices", imagery: "Imagery", background: "Background", spacing: "Spacing" };
+
+export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const orchestrate = useServerFn(orchestrateSmartMenuDesign);
+  const refine = useServerFn(refineSmartMenuElement);
+  const [mode, setMode] = useState<Mode>("new");
+  const [brief, setBrief] = useState("");
+  const [references, setReferences] = useState<string[]>([]);
+  const [mood, setMood] = useState("Editorial");
+  const [concepts, setConcepts] = useState<Array<{ id: string; theme: string }>>([]);
+  const [active, setActive] = useState(0);
+  const [theme, setTheme] = useState<MenuTheme>(DEFAULT_THEME);
+  const [composition, setComposition] = useState<Composition>();
+  const [selected, setSelected] = useState<ElementId>("hero");
+  const [selectedNode, setSelectedNode] = useState<string>();
+  const [instruction, setInstruction] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [refining, setRefining] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [mobileTab, setMobileTab] = useState<MobileTab>("canvas");
+  const [showMobileControls, setShowMobileControls] = useState(false);
+
+  const restaurant = useQuery({ queryKey: ["unified-menu-studio", restaurantId], queryFn: async () => { const { data, error } = await supabase.from("restaurants").select("id,name,menu_theme,currency").eq("id", restaurantId).single(); if (error) throw error; return data; } });
+
+  useEffect(() => {
+    const raw = restaurant.data?.menu_theme;
+    if (raw && typeof raw === "object") { setTheme(parseMenuTheme(raw)); setComposition((raw as { composition?: Composition }).composition); }
+  }, [restaurant.data?.menu_theme]);
+
+  async function addFiles(files: FileList | null) {
+    if (!files) return;
+    const encoded: string[] = [];
+    for (const file of Array.from(files).slice(0, 5 - references.length)) {
+      if (!file.type.startsWith("image/")) continue;
+      encoded.push(await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); }));
+    }
+    setReferences(old => [...old, ...encoded].slice(0, 5));
+  }
+
+  async function design() {
+    setBusy(true);
+    try {
+      const result = await orchestrate({ data: { restaurantId, brief, references, direction: references.length ? undefined : mood, language: "en", variationSeed: `${Date.now()}-${crypto.randomUUID?.() ?? Math.random()}` } });
+      const next = result.concepts.map(c => ({ id: c.id, theme: c.theme }));
+      setConcepts(next); setActive(0);
+      if (next[0]) { const raw = JSON.parse(next[0].theme); setTheme(parseMenuTheme(raw)); setComposition(raw.composition); }
+      setMobileTab("canvas");
+      toast.success(references.length ? "Reference rebuilt into 3 directions" : "3 creative directions generated");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not create the menu"); }
+    finally { setBusy(false); }
+  }
+
+  function selectConcept(index: number) {
+    setActive(index);
+    const concept = concepts[index];
+    if (!concept) return;
+    const raw = JSON.parse(concept.theme);
+    setTheme(parseMenuTheme(raw)); setComposition(raw.composition); setSelectedNode(undefined);
+  }
+
+  async function refineElement() {
+    if (!instruction.trim()) return;
+    setRefining(true);
+    try {
+      const result = await refine({ data: { restaurantId, element: selected, instruction, currentTheme: JSON.stringify({ ...theme, composition }) } });
+      const raw = JSON.parse(result.theme);
+      setTheme(parseMenuTheme(raw)); setComposition(raw.composition);
+      setConcepts(old => old.map((c, i) => i === active ? { ...c, theme: JSON.stringify(raw) } : c));
+      setInstruction(""); toast.success(`${elementLabels[selected]} refined`);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not refine element"); }
+    finally { setRefining(false); }
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("restaurants").update({ menu_theme: { ...theme, composition } }).eq("id", restaurantId);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["unified-menu-studio", restaurantId] });
+      toast.success("Menu design saved");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not save"); }
+    finally { setSaving(false); }
+  }
+
+  function handleCanvasSelect(id: string) {
+    setSelectedNode(id);
+    const node = composition?.elements?.find(e => e.id === id);
+    if (!node) return;
+    if (node.type === "image") setSelected("imagery");
+    else if (node.type === "price") setSelected("price");
+    else if (node.type === "category") setSelected("category");
+    else if (node.type === "product") setSelected("item-card");
+    else if (["title", "eyebrow", "copy"].includes(node.type)) setSelected("typography");
+    else setSelected("hero");
+    setMobileTab("edit");
+  }
+
+  const Controls = () => <>
+    <section className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="mb-3 text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Create your menu</div>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => setMode("new")} className={cn("min-h-24 rounded-2xl border p-3 text-left", mode === "new" ? "border-black bg-black text-white" : "hover:border-black/30")}><Wand2 className="mb-4 size-5"/><div className="text-sm font-bold">Start fresh</div><p className="mt-1 text-[11px] opacity-55">Create a new visual direction.</p></button>
+        <button type="button" onClick={() => setMode("reference")} className={cn("min-h-24 rounded-2xl border p-3 text-left", mode === "reference" ? "border-black bg-black text-white" : "hover:border-black/30")}><FileImage className="mb-4 size-5"/><div className="text-sm font-bold">Match reference</div><p className="mt-1 text-[11px] opacity-55">Rebuild visual DNA.</p></button>
+      </div>
+    </section>
+
+    {mode === "reference" && <section className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between"><div className="text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Reference images</div><span className="text-xs text-black/40">{references.length}/5</span></div>
+      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => void addFiles(e.target.files)} />
+      <button type="button" onClick={() => inputRef.current?.click()} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-black/20 text-sm font-semibold"><FileImage className="size-4"/>Upload screenshots</button>
+      {references.length > 0 && <div className="mt-3 grid grid-cols-3 gap-2">{references.map((src, i) => <div key={src.slice(-24) + i} className="relative aspect-[3/4] overflow-hidden rounded-xl"><img src={src} alt="Reference" className="h-full w-full object-cover"/><button type="button" onClick={() => setReferences(old => old.filter((_, n) => n !== i))} className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white"><X className="size-3"/></button></div>)}</div>}
+    </section>}
+
+    <section className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="mb-2 text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Creative brief</div>
+      <Textarea value={brief} onChange={e => setBrief(e.target.value)} placeholder="Describe the menu: typography, colors, layout, imagery, mood and spacing…" className="min-h-28 resize-none rounded-xl text-base" />
+      <div className="mt-4 mb-2 text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Style direction</div>
+      <div className="grid grid-cols-2 gap-2">{moods.map(name => <button type="button" key={name} onClick={() => setMood(name)} className={cn("min-h-11 rounded-xl border px-3 text-left text-xs font-semibold", mood === name ? "border-black bg-black text-white" : "hover:bg-black/[.025]")}>{name}</button>)}</div>
+      <Button className="mt-4 h-12 w-full rounded-xl" onClick={() => void design()} disabled={busy}>{busy ? <><Sparkles className="mr-2 size-4 animate-pulse"/>Designing…</> : <><Sparkles className="mr-2 size-4"/>{references.length ? "Recreate design" : "Generate menu"}</>}</Button>
+    </section>
+  </>;
+
+  const EditPanel = () => <section className="rounded-2xl border bg-white p-4 shadow-sm">
+    <div className="mb-3 flex items-center gap-2"><Layers3 className="size-4"/><div className="text-[11px] font-bold uppercase tracking-[.16em] text-black/40">AI editing</div></div>
+    <div className="grid grid-cols-2 gap-2">{(Object.keys(elementLabels) as ElementId[]).map(id => <button type="button" key={id} onClick={() => setSelected(id)} className={cn("min-h-10 rounded-xl border px-3 text-left text-xs font-semibold", selected === id ? "border-black bg-black text-white" : "hover:bg-black/[.025]")}>{elementLabels[id]}</button>)}</div>
+    <Textarea value={instruction} onChange={e => setInstruction(e.target.value)} placeholder={`Change ${elementLabels[selected].toLowerCase()}…`} className="mt-3 min-h-24 resize-none rounded-xl text-base" />
+    <Button className="mt-3 h-11 w-full" onClick={() => void refineElement()} disabled={refining || !instruction.trim()}>{refining ? "Refining…" : "Apply with AI"}</Button>
+  </section>;
+
+  return <div className="menu-design-studio min-h-[100dvh]">
+    <div className="studio-shell mx-auto max-w-[1680px] px-3 py-3 sm:px-5 lg:px-8 lg:py-5">
+      <header className="studio-header mb-3 rounded-2xl border bg-white p-4 shadow-sm lg:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0"><h1 className="text-2xl font-black tracking-[-.035em] sm:text-3xl">Menu Design Studio</h1><p className="mt-1 text-sm text-black/50">Create, refine and publish a professional restaurant menu.</p></div>
+          <div className="studio-header-actions flex shrink-0 gap-2"><Button variant="outline" className="hidden sm:flex" onClick={() => setShowMobileControls(v => !v)}><Menu className="mr-2 size-4"/>Controls</Button><Button className="h-11 rounded-xl px-4" onClick={() => void save()} disabled={saving}><Save className="mr-2 size-4"/>{saving ? "Saving…" : "Save"}</Button></div>
+        </div>
+        <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold"><span className="flex h-8 shrink-0 items-center gap-2 rounded-full bg-black px-3 text-white"><span className="grid size-5 place-items-center rounded-full bg-white/20">1</span>Describe</span><span className="h-px w-8 shrink-0 bg-black/10"/><span className={cn("flex h-8 shrink-0 items-center gap-2 rounded-full px-3", concepts.length ? "bg-black/10" : "bg-black/[.04]")}><span className="grid size-5 place-items-center rounded-full bg-black/10">2</span>Create</span><span className="h-px w-8 shrink-0 bg-black/10"/><span className="flex h-8 shrink-0 items-center gap-2 rounded-full bg-black/[.04] px-3"><span className="grid size-5 place-items-center rounded-full bg-black/10">3</span>Customize</span></div>
+      </header>
+
+      <div className="studio-content studio-main-grid grid gap-3 lg:grid-cols-[330px_minmax(0,1fr)_300px] xl:gap-4">
+        <aside className={cn("space-y-3", mobileTab === "brief" ? "block" : "hidden lg:block")}><Controls/></aside>
+
+        <main className={cn("studio-preview-panel rounded-2xl border bg-[#dededb] p-2 shadow-sm sm:p-3 lg:p-4", mobileTab === "canvas" ? "block" : "hidden lg:block")}>
+          <div className="studio-toolbar mb-2 flex items-center justify-between rounded-xl bg-white/90 p-2 backdrop-blur">
+            <div className="flex items-center gap-1"><Button size="sm" variant="ghost" className="hidden sm:flex"><Monitor className="size-4"/></Button><Button size="sm" variant="ghost" className="sm:hidden"><Smartphone className="size-4"/></Button><Button size="sm" variant="ghost" className="hidden sm:flex"><Tablet className="size-4"/></Button></div>
+            <div className="text-xs font-semibold text-black/50">{restaurant.data?.name ?? "Restaurant"} · {selectedNode ? "Layer selected" : "Preview"}</div>
+            <Button size="sm" variant="outline" className="sm:hidden" onClick={() => setShowMobileControls(v => !v)}><ChevronDown className="size-4"/></Button>
+          </div>
+          {concepts.length > 0 && <div className="mb-2 grid grid-cols-3 gap-2">{concepts.map((c, i) => <button type="button" key={c.id} onClick={() => selectConcept(i)} className={cn("min-h-12 rounded-xl border bg-white px-2 text-left text-[11px] font-bold", active === i ? "border-black ring-1 ring-black/10" : "text-black/60")}>Concept {i + 1}<span className="ml-1 text-black/30">{i === 0 ? "Best match" : i === 1 ? "Alternative" : "Bold"}</span></button>)}</div>}
+          <div className="studio-preview-stage flex min-h-[620px] items-start justify-center overflow-auto rounded-xl bg-[#c9c9c6] p-4 sm:p-6"><div className="studio-preview-frame w-full max-w-[760px]"><SmartCompositionCanvas theme={theme} composition={composition} selectedId={selectedNode} onSelect={handleCanvasSelect}/></div></div>
+          <div className="mt-2 hidden grid-cols-3 gap-2 sm:grid">{[[BrainCircuit, "AI direction"], [Layers3, "Editable layers"], [Check, "Quality ready"]].map(([Icon, text]) => <div key={text as string} className="rounded-xl bg-white/75 p-3"><Icon className="size-4"/><div className="mt-2 text-xs font-bold">{text as string}</div></div>)}</div>
+        </main>
+
+        <aside className={cn("studio-side-panel space-y-3", mobileTab === "edit" || mobileTab === "layers" ? "block" : "hidden lg:block")}>
+          {mobileTab === "layers" ? <section className="rounded-2xl border bg-white p-4 shadow-sm"><div className="mb-3 flex items-center gap-2"><Layers3 className="size-4"/><div className="text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Layers</div></div>{(composition?.elements ?? []).map((el, i) => <button type="button" key={el.id} onClick={() => handleCanvasSelect(el.id)} className={cn("flex min-h-11 w-full items-center justify-between border-b text-left text-xs", selectedNode === el.id ? "font-bold" : "text-black/60")}><span>{el.text || el.type || `Layer ${i + 1}`}</span><span className="text-black/30">{i + 1}</span></button>)}</section> : <EditPanel/>}
+          <section className="rounded-2xl border bg-white p-4 shadow-sm"><div className="text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Design status</div><div className="mt-3 flex items-center gap-2 text-sm font-semibold"><span className="grid size-6 place-items-center rounded-full bg-black text-white"><Check className="size-3"/></span>{concepts.length ? "Design generated" : "Ready to create"}</div><p className="mt-2 text-xs leading-5 text-black/45">Select any visible layer to refine it without changing the rest of the composition.</p></section>
+        </aside>
+      </div>
+    </div>
+
+    <nav className="studio-bottom-nav">
+      <button type="button" onClick={() => setMobileTab("brief")} className={cn(mobileTab === "brief" && "bg-black text-white")}><Wand2 className="mx-auto mb-1 size-4"/>Create</button>
+      <button type="button" onClick={() => setMobileTab("canvas")} className={cn(mobileTab === "canvas" && "bg-black text-white")}><Smartphone className="mx-auto mb-1 size-4"/>Preview</button>
+      <button type="button" onClick={() => setMobileTab("edit")} className={cn(mobileTab === "edit" && "bg-black text-white")}><Sparkles className="mx-auto mb-1 size-4"/>Edit</button>
+      <button type="button" onClick={() => setMobileTab("layers")} className={cn(mobileTab === "layers" && "bg-black text-white")}><Layers3 className="mx-auto mb-1 size-4"/>Layers</button>
+    </nav>
+
+    {showMobileControls && <div className="fixed inset-0 z-[80] bg-black/30 p-3 backdrop-blur-sm sm:hidden" onClick={() => setShowMobileControls(false)}><div className="absolute bottom-3 left-3 right-3 max-h-[82dvh] overflow-auto rounded-3xl bg-[#f6f7fb] p-3 shadow-2xl" onClick={e => e.stopPropagation()}><div className="mb-2 flex items-center justify-between px-1"><span className="font-bold">Menu controls</span><button type="button" onClick={() => setShowMobileControls(false)} className="rounded-full bg-black/5 p-2"><X className="size-4"/></button></div><Controls/></div></div>}
+  </div>;
 }
