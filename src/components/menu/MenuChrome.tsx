@@ -247,7 +247,131 @@ export function MenuHero({
     />
   ) : null;
 
+  // Crest medallion over a solid band, with the split FOOD / DRINK wordmarks —
+  // the classic printed bill of fare.
+  if (theme.hero === "medallion") {
+    return (
+      <div className="relative">
+        <div className={cn("relative w-full", compact ? "h-16" : "h-24")} style={{ background: theme.primary }}>
+          <div className="absolute inset-0 flex items-center justify-between px-4">
+            <span
+              className={cn("font-black tracking-[0.18em]", compact ? "text-sm" : "text-2xl")}
+              style={{ ...titleStyle, color: theme.primaryText }}
+            >
+              Food
+            </span>
+            <span
+              className={cn("font-black tracking-[0.18em]", compact ? "text-sm" : "text-2xl")}
+              style={{ ...titleStyle, color: theme.primaryText }}
+            >
+              Drink
+            </span>
+          </div>
+          <div
+            className={cn(
+              "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 grid place-items-center rounded-full text-center",
+              compact ? "size-24" : "size-36",
+            )}
+            style={{
+              background: theme.surface,
+              border: `3px solid ${theme.text}`,
+              boxShadow: `0 0 0 5px ${theme.surface}, 0 0 0 8px ${theme.text}`,
+            }}
+          >
+            <div className="px-2">
+              <h1
+                className={cn("font-black leading-none", compact ? "text-base" : "text-3xl")}
+                style={{ ...titleStyle, color: theme.text }}
+              >
+                {name}
+              </h1>
+              <p
+                className={cn("mt-1 tracking-[0.28em]", compact ? "text-[7px]" : "text-[10px]")}
+                style={{ color: theme.muted, textTransform: "uppercase" }}
+              >
+                {theme.tagline || subtitle}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className={cn("flex justify-center px-4", compact ? "pt-14" : "pt-20")}>{aside}</div>
+      </div>
+    );
+  }
+
+  // Oversized vertical wordmark inside a full-height colour spine.
+  if (theme.hero === "spine") {
+    return (
+      <div className="relative flex items-stretch">
+        <div
+          className={cn("relative flex shrink-0 items-center justify-center", compact ? "w-14 py-6" : "w-24 py-10")}
+          style={{ background: theme.primary }}
+        >
+          <span
+            className="font-black leading-none"
+            style={{
+              ...titleStyle,
+              writingMode: "vertical-rl",
+              transform: "rotate(180deg)",
+              fontSize: compact ? "1.7rem" : "3.4rem",
+              letterSpacing: "0.12em",
+              color: theme.primaryText,
+            }}
+          >
+            Menu
+          </span>
+        </div>
+        <div className={cn("flex min-w-0 flex-1 flex-col justify-center gap-1", compact ? "px-3 py-4" : "px-5 py-8")}>
+          {logo}
+          <h1 className={cn("font-black", compact ? "text-lg" : "text-3xl")} style={titleStyle}>
+            {name}
+          </h1>
+          <ScriptLine theme={theme} text={theme.tagline} />
+          {subtitle ? (
+            <p className="text-xs" style={{ color: theme.muted }}>
+              {subtitle}
+            </p>
+          ) : null}
+          {aside}
+        </div>
+      </div>
+    );
+  }
+
+  // Poster banner: enormous headline between two hairlines, print-annual style.
+  if (theme.hero === "banner") {
+    return (
+      <div className={cn("px-4 text-center", compact ? "pt-6" : "pt-12")}>
+        <p
+          className={cn("tracking-[0.22em]", compact ? "text-[8px]" : "text-[10px]")}
+          style={{ color: theme.muted, textTransform: "uppercase" }}
+        >
+          {subtitle}
+        </p>
+        <h1
+          className={cn("mt-2 font-black leading-[0.86]", compact ? "text-4xl" : "text-6xl sm:text-7xl")}
+          style={{ ...titleStyle, letterSpacing: "-0.01em" }}
+        >
+          {name}
+        </h1>
+        <div className="mt-3 flex items-center justify-center gap-3">
+          <span className="h-px w-10" style={{ background: hexAlpha(theme.accent, 0.7) }} />
+          <span
+            className={cn("tracking-[0.3em]", compact ? "text-[8px]" : "text-[11px]")}
+            style={{ color: theme.accent, textTransform: "uppercase" }}
+          >
+            {theme.tagline || "Menu"}
+          </span>
+          <span className="h-px w-10" style={{ background: hexAlpha(theme.accent, 0.7) }} />
+        </div>
+        {logo ? <div className="mt-3 flex justify-center">{logo}</div> : null}
+        {aside ? <div className="mt-3">{aside}</div> : null}
+      </div>
+    );
+  }
+
   if (theme.hero === "sidebar") {
+
     return (
       <div className="relative flex items-stretch gap-4 px-4 pt-6">
         <div
