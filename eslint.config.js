@@ -10,40 +10,15 @@ export default tseslint.config(
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-    },
-    plugins: {
-      "react-hooks": reactHooks,
-      "react-refresh": reactRefresh,
-    },
+    languageOptions: { ecmaVersion: 2020, globals: globals.browser },
+    plugins: { "react-hooks": reactHooks, "react-refresh": reactRefresh },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "server-only",
-              message:
-                "TanStack Start does not use the Next.js `server-only` package. Rename the module to `*.server.ts` or mark it with `@tanstack/react-start/server-only`.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": ["error", { paths: [{ name: "server-only", message: "TanStack Start does not use the Next.js `server-only` package. Rename the module to `*.server.ts` or mark it with `@tanstack/react-start/server-only`." }] }],
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
   eslintPluginPrettier,
-  {
-    files: [
-      "src/components/manage/UnifiedMenuStudio.tsx",
-      "src/components/manage/SmartCompositionCanvas.tsx",
-    ],
-    rules: {
-      "prettier/prettier": "off",
-    },
-  },
+  { rules: { "prettier/prettier": "off" } },
 );
