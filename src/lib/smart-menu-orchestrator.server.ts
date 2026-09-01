@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { ART_DIRECTION, DESIGN_SCHEMA, callMenuDesigner, extractDesigns } from "@/lib/menu-designer.server";
+import { ART_DIRECTION, DESIGN_SCHEMA, extractDesigns } from "@/lib/menu-designer.server";
+import { callOpenAIMenuDesigner, DEFAULT_MENU_MODEL } from "@/lib/openai-menu-designer.server";
 
 const inputSchema = z.object({
   restaurantId: z.string().uuid(),
@@ -55,8 +56,11 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
     if (restaurantError) throw restaurantError;
     if (itemsError) throw itemsError;
 
-    const apiKey = process.env["LOVABLE_API_KEY"];
-    if (!apiKey) throw new Error("AI menu designer is not configured.");
+    // The AI provider is now owned/configured by QuickServe, not Lovable.
+    // Keep the secret server-side in OPENAI_API_KEY (never VITE_*/PUBLIC_*).
+    const apiKey = process.env["OPENAI_API_KEY"];
+    if (!apiKey) throw new Error("AI menu designer is not configured. Add OPENAI_API_KEY to the server environment.");
+    const model = process.env["OPENAI_MENU_MODEL"] || DEFAULT_MENU_MODEL;
 
     const references = data.references ?? [];
     const seed = data.variationSeed ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -81,10 +85,10 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
     const content: unknown[] = [{ type: "input_text", text: prompt }];
     for (const image of references) content.push({ type: "input_image", image_url: image, detail: "high" });
 
-    const text = await callMenuDesigner([
+    const text = await callOpenAIMenuDesigner([
       { role: "system", content: [{ type: "input_text", text: CREATIVE_SYSTEM }] },
       { role: "user", content },
-    ], apiKey);
+    ], apiKey, model);
 
     const designs = extractDesigns(text).slice(0, 3);
     if (!designs.length) throw new Error("The creative director returned no valid designs.");
