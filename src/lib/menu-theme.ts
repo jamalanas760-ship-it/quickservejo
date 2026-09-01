@@ -153,6 +153,9 @@ export const LAYOUT_LABELS: Record<LayoutId, { en: string; ar: string }> = {
   spotlight: { en: "Editorial spotlight", ar: "تسليط تحريري" },
   rail: { en: "Swipe rail", ar: "شريط تمرير" },
   ticket: { en: "Receipt ticket", ar: "قائمة إيصال" },
+  duo: { en: "Split bill of fare", ar: "عمودان متقابلان" },
+  triptych: { en: "Editorial triptych", ar: "ثلاثة أعمدة" },
+  panel: { en: "Feature side panel", ar: "لوحة جانبية" },
 };
 
 export const HERO_LABELS: Record<HeroId, { en: string; ar: string }> = {
@@ -164,7 +167,11 @@ export const HERO_LABELS: Record<HeroId, { en: string; ar: string }> = {
   ribbon: { en: "Editorial ribbon", ar: "شريط تحريري" },
   blob: { en: "Colour blob", ar: "كتلة لونية" },
   sidebar: { en: "Vertical wordmark", ar: "شعار عمودي" },
+  medallion: { en: "Crest medallion", ar: "شعار دائري" },
+  spine: { en: "Colour spine", ar: "عمود لوني" },
+  banner: { en: "Poster banner", ar: "لافتة كبيرة" },
 };
+
 
 export const TEXTURE_LABELS: Record<TextureId, { en: string; ar: string }> = {
   none: { en: "Clean", ar: "نظيف" },
