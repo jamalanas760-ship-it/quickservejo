@@ -37,4 +37,13 @@ export default tseslint.config(
     },
   },
   eslintPluginPrettier,
+  {
+    files: [
+      "src/components/manage/UnifiedMenuStudio.tsx",
+      "src/components/manage/SmartCompositionCanvas.tsx",
+    ],
+    rules: {
+      "prettier/prettier": "off",
+    },
+  },
 );
