@@ -12,42 +12,45 @@ const inputSchema = z.object({
   variationSeed: z.string().max(100).optional(),
 });
 
-const CREATIVE_SYSTEM = `You are QuickServe Creative Director, a world-class hospitality designer with 25+ years of experience across restaurant branding, editorial design, food photography, typography, packaging, digital products and premium menu systems.
+const ANALYSIS_SCHEMA = `Return JSON only in this shape: {"referenceAnalysis":{"canvas":{"ratio":"","orientation":"","safeArea":""},"layout":{"family":"","grid":"","anchors":"","alignment":"","spacing":"","elementBounds":[{"name":"","x":0,"y":0,"w":0,"h":0}]},"typography":{"primaryClass":"","secondaryClass":"","weights":"","scale":"","tracking":"","lineHeight":"","alignment":"","rtl":""},"color":{"background":"","primary":"","secondary":"","accent":"","roles":"","contrast":""},"imagery":{"subjects":"","placement":"","crop":"","ratio":"","lighting":"","treatment":""},"shapeAndSurface":{"shapes":"","radii":"","borders":"","shadows":"","texture":"","decorativeMotifs":""},"contentRhythm":{"density":"","sectionOrder":"","priceTreatment":"","negativeSpace":""},"motion":{"entrance":"","hover":"","scroll":""},"visualDNA":"","fidelityPriorities":[""]}}`;
 
-ONE UNIFIED DESIGNER: Figma, Canva and Adobe are internal creative disciplines. Never expose provider choices and never let a provider become a visual template.
-- Figma discipline: editable layers, grids, constraints, component logic and responsive structure.
-- Canva discipline: practical editable content, page systems, safe margins and easy restaurant-team changes.
-- Adobe discipline: art-directed photography, retouching, lighting, texture, compositing and polished finishing.
-- Creative Director discipline: decide which combination is right for THIS prompt/reference and synthesize it into one coherent visual system.
+const ANALYSIS_SYSTEM = `You are a forensic visual design analyst for QuickServe. You are not designing yet. Your only job is to inspect the user's prompt and every attached reference image and create a detailed, implementation-ready visual specification.
 
-INPUT PRIORITY:
-1. Explicit user instructions.
-2. Attached reference image(s), if present.
-3. Restaurant brand/content data.
-4. Creative variation seed.
-Never replace explicit instructions with a default QuickServe style.
+Treat the reference image as evidence. Analyze the actual image rather than guessing from a generic restaurant-menu template. Measure relationships and proportions conceptually: canvas ratio, margins, grid, element bounding boxes, alignment, typography scale and personality, color roles, image crops, whitespace, shapes, borders, shadows, texture, decorative motifs and motion cues. Identify what is visually dominant and what must remain unchanged for an exact recreation.
 
-REFERENCE-FIRST WORKFLOW:
-When an image is attached, do a deliberate visual reverse-engineering pass before generating anything. Inspect the image itself and infer: canvas ratio, visual anchors, bounding-box relationships, grid, margins, alignment, negative space, typography class/weight/scale, line rhythm, color roles, gradients, image crops, shapes, borders, shadows, texture, decorative motifs, section treatment, price treatment and motion cues. Encode those observations in referenceAnalysis and editable composition elements. Never use the screenshot as a background and never reduce it to a color palette.
+Treat the user's written prompt as an explicit requirement list. Resolve conflicts by prioritizing explicit user instructions, then the reference image, then restaurant identity. Never invent a house style.
 
-PROMPT-FIRST WORKFLOW:
-Treat every phrase in the user's prompt as a design requirement. Explicitly honor font personality, typography hierarchy, layout family, grid, columns, alignment, spacing, colors, imagery, crop, texture, shapes, decorative language, animation, interaction, density and RTL/LTR behavior. If the user asks for one change, preserve unrelated choices. If the user asks for a new design, change the composition strategy, not just colors.
+If the user requests exact/same/recreate/copy, identify the highest-fidelity constraints and state them as fidelity priorities. If a property cannot be known exactly from an image, describe the closest inferable class/range rather than pretending certainty.
 
-THREE-CONCEPT ART-DIRECTION:
-Return three genuinely different concepts when the request is for options:
-CONCEPT 1 = highest-fidelity answer to the current prompt/reference; preserve the most important visual relationships.
-CONCEPT 2 = intelligent reinterpretation; preserve the user's core intent but change composition, hierarchy and visual rhythm.
-CONCEPT 3 = bold art-directed alternative; push layout, typography, imagery and decorative language while remaining usable for a restaurant.
-If the user explicitly requests an exact recreation, Concept 1 must prioritize fidelity strongly and Concepts 2/3 should remain recognizably derived from the reference rather than becoming unrelated templates.
+The output will be handed to a second creative-design stage. Be concrete, structured and exhaustive. Do not generate a design or generic advice. Return JSON only.`;
 
-ANTI-REPETITION:
-Never return a memorized/default QuickServe composition. The creative seed is mandatory. Use it to vary meaningful decisions: layout family, visual anchor, typography pairing, image placement/crop, spacing scale, color relationship, shape language, texture, decoration, motion and density. Two materially different prompts or reference images must not collapse into the same composition unless their visual requirements genuinely match.
+const DESIGN_SYSTEM = `You are QuickServe Creative Director, a world-class hospitality designer with 25+ years of experience across restaurant branding, editorial design, food photography, typography, packaging, digital products and premium menu systems.
 
-REALISTIC HUMAN DESIGN BAR:
-Make the result look designed by an excellent human designer, not generated from a SaaS template. Avoid repetitive rounded cards, generic centered headers, excessive pills, symmetrical grids and predictable logo-at-top layouts unless the prompt/reference asks for them. Use editorial asymmetry, intentional negative space, varied scale, believable typographic contrast, art-directed food imagery, subtle material texture and controlled imperfections when appropriate. Food imagery should feel photographed and commercially art-directed. Typography must have a reason. Arabic must have correct RTL hierarchy and natural spacing. Animation must be intentional and subtle.
+You receive TWO sources: (1) a forensic visual analysis and (2) the original user prompt/reference images. The analysis is a design blueprint, not optional commentary. Build from it.
 
-OUTPUT CONTRACT:
-The generated JSON must explicitly encode font family/class, typography hierarchy, layout family, colors, spacing, imagery treatment, style details, responsive behavior and motion whenever inferable. Do not hide decisions only in prose. Every meaningful visual part must be editable. Return JSON only.`;
+ONE UNIFIED DESIGNER: Figma, Canva and Adobe are internal creative disciplines. Never expose provider choices and never let a provider become a visual template. Figma contributes editable layers/grids/constraints; Canva contributes practical editable content/page systems; Adobe contributes art direction, imagery, lighting, texture and finishing. Synthesize them into one coherent design.
+
+MASTER WORKFLOW:
+1. Reconcile the user's prompt with the forensic reference analysis.
+2. Convert the visual specification into editable coordinates, typography, colors, imagery and relationships.
+3. Create three concepts.
+4. Concept 1 = highest-fidelity reconstruction. If exact recreation was requested, this must be structurally and visually closest to the reference.
+5. Concept 2 = refined professional version: preserve the reference DNA and user intent while improving hierarchy/usability where appropriate.
+6. Concept 3 = creative art-directed alternative: preserve the core requirements but introduce a materially different composition.
+7. Every meaningful visual property must be encoded in editable composition data, not hidden in prose.
+
+ANTI-TEMPLATE RULE: never substitute a generic QuickServe template for the actual reference. Do not merely change colors, one font or border radius. Layout, hierarchy, typography pairing, image treatment, spacing, shape language and decorative details must respond to the current inputs.
+
+EDITABILITY RULE: every important visible element must be represented as an editable element with coordinates, dimensions, typography, color, imagery treatment and z-order where possible. Preserve real restaurant menu content while following the analyzed visual hierarchy.
+
+QUALITY GATE BEFORE RETURNING:
+- Compare each concept against the analysis field-by-field.
+- Verify explicit prompt requirements are present.
+- Verify Concept 1 is the closest match.
+- Verify Concept 2 is a meaningful refinement.
+- Verify Concept 3 is meaningfully creative but still faithful to the core brief.
+- Reject generic repeated layouts.
+- Return only valid JSON matching DESIGN_SCHEMA.`;
 
 export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -72,10 +75,7 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
     const apiKey = process.env["OPENAI_API_KEY"] ?? process.env["OPENAI_API_KEYS"];
     const references = data.references ?? [];
     const seed = data.variationSeed ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    const prompt = [
-      ART_DIRECTION,
-      DESIGN_SCHEMA,
-      `CREATIVE VARIATION SEED: ${seed}. This seed is unique to the user's current prompt/reference set. Use it to make meaningful creative decisions, not cosmetic random changes.`,
+    const baseContext = [
       `Restaurant: ${restaurant.name}`,
       `Language: ${data.language}`,
       `Currency: ${restaurant.currency ?? "JOD"}`,
@@ -83,19 +83,42 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
       restaurant.description_en ? `English identity: ${restaurant.description_en}` : "",
       restaurant.description_ar ? `Arabic identity: ${restaurant.description_ar}` : "",
       `Menu content sample: ${JSON.stringify(items ?? []).slice(0, 16000)}`,
-      data.brief ? `USER CREATIVE PROMPT — FOLLOW LITERALLY: ${data.brief}` : "USER CREATIVE PROMPT: none — make a fresh art-directed decision from the restaurant identity.",
+      data.brief ? `USER CREATIVE PROMPT: ${data.brief}` : "USER CREATIVE PROMPT: none",
       data.direction ? `USER PREFERRED PERSONALITY: ${data.direction}` : "",
-      references.length ? "REFERENCE IMAGE MODE: inspect every attached image at high detail. Extract the actual visual structure and rebuild it with editable elements. The reference is authoritative for layout/style when the user asks to match it." : "ORIGINAL MODE: invent a new visual language from the user's prompt and restaurant identity.",
-      references.length ? "REFERENCE FIDELITY CHECK: Concept 1 must resemble the reference in structure, proportions, hierarchy, typography personality, spacing, image treatment, color roles and decorative details — not merely its colors." : "",
-      "CONCEPT DIFFERENTIATION CHECK: Concepts 1/2/3 must have materially different composition strategies. Do not merely recolor, swap one font or change a border radius. Change visual anchors, layout, hierarchy, typography pairing, image treatment and rhythm according to the concept roles.",
-      "FINAL QA: reject any concept that looks like a generic QuickServe template or ignores an explicit user instruction. Return only the three strongest valid editable designs.",
+      `CREATIVE VARIATION SEED: ${seed}`,
     ].filter(Boolean).join("\n\n");
 
-    const content: unknown[] = [{ type: "input_text", text: prompt }];
+    // Stage 1: forensic analysis. The model sees the actual reference images and prompt before any design is generated.
+    let visualAnalysis = "No reference image was supplied. Build the visual specification from the user's prompt and restaurant identity.";
+    if (references.length && apiKey) {
+      const analysisContent: unknown[] = [{ type: "input_text", text: `${ANALYSIS_SCHEMA}\n\n${baseContext}\n\nAnalyze every attached reference image. Do not design yet.` }];
+      for (const image of references) analysisContent.push({ type: "input_image", image_url: image, detail: "high" });
+      const analysisText = await callMenuDesigner([
+        { role: "system", content: [{ type: "input_text", text: ANALYSIS_SYSTEM }] },
+        { role: "user", content: analysisContent },
+      ], apiKey);
+      visualAnalysis = analysisText;
+    }
+
+    // Stage 2: design generation. The original images are intentionally sent again so the designer can verify the analysis against pixels.
+    const designPrompt = [
+      DESIGN_SYSTEM,
+      ART_DIRECTION,
+      DESIGN_SCHEMA,
+      baseContext,
+      `FORENSIC VISUAL ANALYSIS — treat this as the implementation blueprint:\n${visualAnalysis}`,
+      references.length ? "REFERENCE VERIFICATION: inspect the attached image(s) again and compare them against the forensic analysis before returning the concepts. Do not blindly trust an incorrect inference." : "ORIGINAL DESIGN MODE: there is no reference image; create from the prompt and restaurant identity.",
+      "CONCEPT 1 REQUIREMENT: maximum fidelity. Match structure, proportions, hierarchy, typography personality, color roles, image treatment, spacing, shapes, texture and decorative details from the reference wherever inferable.",
+      "CONCEPT 2 REQUIREMENT: refined fidelity. Keep the reference's visual DNA and explicit prompt requirements while improving professional hierarchy and usability without becoming a generic template.",
+      "CONCEPT 3 REQUIREMENT: bold but relevant. Preserve the core brief/reference DNA while changing the composition strategy, visual rhythm and art direction materially.",
+      "FINAL MASTER QA: perform an internal field-by-field comparison before output. Every explicit user request must be represented. Every important visual part must be editable. Return exactly three strongest designs as JSON only.",
+    ].join("\n\n");
+
+    const content: unknown[] = [{ type: "input_text", text: designPrompt }];
     for (const image of references) content.push({ type: "input_image", image_url: image, detail: "high" });
 
     const text = await callMenuDesigner([
-      { role: "system", content: [{ type: "input_text", text: CREATIVE_SYSTEM }] },
+      { role: "system", content: [{ type: "input_text", text: DESIGN_SYSTEM }] },
       { role: "user", content },
     ], apiKey);
 
@@ -108,13 +131,14 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
         theme: JSON.stringify(design),
         creativeStack: { figma: "Editable layer + responsive system", canva: "Editable content/page schema", adobe: "Photography + texture + finishing direction" },
       })),
+      analysis: visualAnalysis,
       pipeline: [
-        "Parse prompt into explicit visual requirements",
-        references.length ? "Reverse-engineer the attached reference image(s)" : "Invent a new visual language",
+        "Analyze the user's prompt and reference image(s)",
+        "Build a forensic visual specification",
+        "Cross-check the specification against the original pixels",
         "Generate three differentiated art directions",
-        "Choose typography, layout, color, imagery and motion from the actual brief/reference",
-        "Build editable responsive layers",
-        "Run human-design, fidelity and anti-repetition QA",
+        "Run field-by-field fidelity and editability QA",
+        "Let the user choose one concept before editing/saving",
       ],
     };
   });
