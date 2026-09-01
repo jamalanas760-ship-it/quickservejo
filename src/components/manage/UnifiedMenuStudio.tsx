@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { BrainCircuit, Check, ChevronDown, FileImage, Layers3, Menu, Monitor, Save, Sparkles, Smartphone, Tablet, Wand2, X } from "lucide-react";
+import { BrainCircuit, Check, FileImage, Layers3, Monitor, Save, Sparkles, Smartphone, Tablet, Wand2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -42,13 +42,22 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
   const [refining, setRefining] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("canvas");
-  const [showMobileControls, setShowMobileControls] = useState(false);
 
-  const restaurant = useQuery({ queryKey: ["unified-menu-studio", restaurantId], queryFn: async () => { const { data, error } = await supabase.from("restaurants").select("id,name,menu_theme,currency").eq("id", restaurantId).single(); if (error) throw error; return data; } });
+  const restaurant = useQuery({
+    queryKey: ["unified-menu-studio", restaurantId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("restaurants").select("id,name,menu_theme,currency").eq("id", restaurantId).single();
+      if (error) throw error;
+      return data;
+    },
+  });
 
   useEffect(() => {
     const raw = restaurant.data?.menu_theme;
-    if (raw && typeof raw === "object") { setTheme(parseMenuTheme(raw)); setComposition((raw as { composition?: Composition }).composition); }
+    if (raw && typeof raw === "object") {
+      setTheme(parseMenuTheme(raw));
+      setComposition((raw as { composition?: Composition }).composition);
+    }
   }, [restaurant.data?.menu_theme]);
 
   async function addFiles(files: FileList | null) {
@@ -56,7 +65,12 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
     const encoded: string[] = [];
     for (const file of Array.from(files).slice(0, 5 - references.length)) {
       if (!file.type.startsWith("image/")) continue;
-      encoded.push(await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); }));
+      encoded.push(await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      }));
     }
     setReferences(old => [...old, ...encoded].slice(0, 5));
   }
@@ -64,35 +78,58 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
   async function design() {
     setBusy(true);
     try {
-      const result = await orchestrate({ data: { restaurantId, brief, references, direction: references.length ? undefined : mood, language: "en", variationSeed: `${Date.now()}-${crypto.randomUUID?.() ?? Math.random()}` } });
+      const result = await orchestrate({ data: { restaurantId, brief: brief.trim(), references, direction: references.length ? undefined : mood, language: "en", variationSeed: `${Date.now()}-${crypto.randomUUID?.() ?? Math.random()}` } });
       const next = result.concepts.map(c => ({ id: c.id, theme: c.theme }));
-      setConcepts(next); setActive(0);
-      if (next[0]) { const raw = JSON.parse(next[0].theme); setTheme(parseMenuTheme(raw)); setComposition(raw.composition); }
+      setConcepts(next);
+      setActive(0);
+      if (next[0]) {
+        const raw = JSON.parse(next[0].theme);
+        setTheme(parseMenuTheme(raw));
+        setComposition(raw.composition);
+      }
+      setSelectedNode(undefined);
       setMobileTab("canvas");
       toast.success(references.length ? "Reference rebuilt into 3 directions" : "3 creative directions generated");
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not create the menu"); }
-    finally { setBusy(false); }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not create the menu");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function selectConcept(index: number) {
-    setActive(index);
     const concept = concepts[index];
     if (!concept) return;
-    const raw = JSON.parse(concept.theme);
-    setTheme(parseMenuTheme(raw)); setComposition(raw.composition); setSelectedNode(undefined);
+    try {
+      const raw = JSON.parse(concept.theme);
+      setActive(index);
+      setTheme(parseMenuTheme(raw));
+      setComposition(raw.composition);
+      setSelectedNode(undefined);
+      setMobileTab("canvas");
+    } catch {
+      toast.error("This concept could not be loaded.");
+    }
   }
 
   async function refineElement() {
-    if (!instruction.trim()) return;
+    const clean = instruction.trim();
+    if (!clean) return;
     setRefining(true);
     try {
-      const result = await refine({ data: { restaurantId, element: selected, instruction, currentTheme: JSON.stringify({ ...theme, composition }) } });
+      const result = await refine({ data: { restaurantId, element: selected, instruction: clean, currentTheme: JSON.stringify({ ...theme, composition }) } });
       const raw = JSON.parse(result.theme);
-      setTheme(parseMenuTheme(raw)); setComposition(raw.composition);
+      setTheme(parseMenuTheme(raw));
+      setComposition(raw.composition);
       setConcepts(old => old.map((c, i) => i === active ? { ...c, theme: JSON.stringify(raw) } : c));
-      setInstruction(""); toast.success(`${elementLabels[selected]} refined`);
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not refine element"); }
-    finally { setRefining(false); }
+      setInstruction("");
+      setMobileTab("canvas");
+      toast.success(`${elementLabels[selected]} refined and preview updated`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not refine element");
+    } finally {
+      setRefining(false);
+    }
   }
 
   async function save() {
@@ -102,8 +139,11 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["unified-menu-studio", restaurantId] });
       toast.success("Menu design saved");
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not save"); }
-    finally { setSaving(false); }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleCanvasSelect(id: string) {
@@ -119,76 +159,66 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
     setMobileTab("edit");
   }
 
-  const Controls = () => <>
-    <section className="rounded-2xl border bg-white p-4 shadow-sm">
-      <div className="mb-3 text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Create your menu</div>
-      <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => setMode("new")} className={cn("min-h-24 rounded-2xl border p-3 text-left", mode === "new" ? "border-black bg-black text-white" : "hover:border-black/30")}><Wand2 className="mb-4 size-5"/><div className="text-sm font-bold">Start fresh</div><p className="mt-1 text-[11px] opacity-55">Create a new visual direction.</p></button>
-        <button type="button" onClick={() => setMode("reference")} className={cn("min-h-24 rounded-2xl border p-3 text-left", mode === "reference" ? "border-black bg-black text-white" : "hover:border-black/30")}><FileImage className="mb-4 size-5"/><div className="text-sm font-bold">Match reference</div><p className="mt-1 text-[11px] opacity-55">Rebuild visual DNA.</p></button>
-      </div>
-    </section>
+  const CreatePanel = () => (
+    <div className="studio-mobile-panel space-y-3">
+      <section className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="mb-3 text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Create your menu</div>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setMode("new")} className={cn("min-h-24 rounded-2xl border p-3 text-left", mode === "new" ? "border-black bg-black text-white" : "hover:border-black/30")}><Wand2 className="mb-4 size-5"/><div className="text-sm font-bold">Start fresh</div><p className="mt-1 text-[11px] opacity-55">Create a new visual direction.</p></button>
+          <button type="button" onClick={() => setMode("reference")} className={cn("min-h-24 rounded-2xl border p-3 text-left", mode === "reference" ? "border-black bg-black text-white" : "hover:border-black/30")}><FileImage className="mb-4 size-5"/><div className="text-sm font-bold">Match reference</div><p className="mt-1 text-[11px] opacity-55">Rebuild the visual DNA.</p></button>
+        </div>
+      </section>
+      {mode === "reference" && <section className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between"><div className="text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Reference images</div><span className="text-xs text-black/40">{references.length}/5</span></div>
+        <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => void addFiles(e.target.files)} />
+        <button type="button" onClick={() => inputRef.current?.click()} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-black/20 text-sm font-semibold"><FileImage className="size-4"/>Upload screenshots</button>
+        {references.length > 0 && <div className="mt-3 grid grid-cols-3 gap-2">{references.map((src, i) => <div key={`${src.slice(-24)}-${i}`} className="relative aspect-[3/4] overflow-hidden rounded-xl"><img src={src} alt="Reference" className="h-full w-full object-cover"/><button type="button" aria-label="Remove reference" onClick={() => setReferences(old => old.filter((_, n) => n !== i))} className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white"><X className="size-3"/></button></div>)}</div>}
+      </section>}
+      <section className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="mb-2 text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Creative brief</div>
+        <Textarea value={brief} onFocus={() => setMobileTab("brief")} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} onChange={e => setBrief(e.target.value)} placeholder="Describe typography, layout, colors, imagery, animation, spacing and the overall visual style…" className="min-h-32 resize-none rounded-xl text-base" autoComplete="off" spellCheck />
+        <div className="mt-4 mb-2 text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Style direction</div>
+        <div className="grid grid-cols-2 gap-2">{moods.map(name => <button type="button" key={name} onClick={() => setMood(name)} className={cn("min-h-11 rounded-xl border px-3 text-left text-xs font-semibold", mood === name ? "border-black bg-black text-white" : "hover:bg-black/[.025]")}>{name}</button>)}</div>
+        <Button className="mt-4 h-12 w-full rounded-xl" onClick={() => void design()} disabled={busy}>{busy ? <><Sparkles className="mr-2 size-4 animate-pulse"/>Designing…</> : <><Sparkles className="mr-2 size-4"/>{references.length ? "Recreate design" : "Generate menu"}</>}</Button>
+      </section>
+    </div>
+  );
 
-    {mode === "reference" && <section className="rounded-2xl border bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between"><div className="text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Reference images</div><span className="text-xs text-black/40">{references.length}/5</span></div>
-      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => void addFiles(e.target.files)} />
-      <button type="button" onClick={() => inputRef.current?.click()} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-black/20 text-sm font-semibold"><FileImage className="size-4"/>Upload screenshots</button>
-      {references.length > 0 && <div className="mt-3 grid grid-cols-3 gap-2">{references.map((src, i) => <div key={src.slice(-24) + i} className="relative aspect-[3/4] overflow-hidden rounded-xl"><img src={src} alt="Reference" className="h-full w-full object-cover"/><button type="button" onClick={() => setReferences(old => old.filter((_, n) => n !== i))} className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white"><X className="size-3"/></button></div>)}</div>}
-    </section>}
-
-    <section className="rounded-2xl border bg-white p-4 shadow-sm">
-      <div className="mb-2 text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Creative brief</div>
-      <Textarea value={brief} onChange={e => setBrief(e.target.value)} placeholder="Describe the menu: typography, colors, layout, imagery, mood and spacing…" className="min-h-28 resize-none rounded-xl text-base" />
-      <div className="mt-4 mb-2 text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Style direction</div>
-      <div className="grid grid-cols-2 gap-2">{moods.map(name => <button type="button" key={name} onClick={() => setMood(name)} className={cn("min-h-11 rounded-xl border px-3 text-left text-xs font-semibold", mood === name ? "border-black bg-black text-white" : "hover:bg-black/[.025]")}>{name}</button>)}</div>
-      <Button className="mt-4 h-12 w-full rounded-xl" onClick={() => void design()} disabled={busy}>{busy ? <><Sparkles className="mr-2 size-4 animate-pulse"/>Designing…</> : <><Sparkles className="mr-2 size-4"/>{references.length ? "Recreate design" : "Generate menu"}</>}</Button>
-    </section>
-  </>;
-
-  const EditPanel = () => <section className="rounded-2xl border bg-white p-4 shadow-sm">
-    <div className="mb-3 flex items-center gap-2"><Layers3 className="size-4"/><div className="text-[11px] font-bold uppercase tracking-[.16em] text-black/40">AI editing</div></div>
+  const EditPanel = () => <section className="studio-mobile-panel rounded-2xl border bg-white p-4 shadow-sm">
+    <div className="mb-3 flex items-center gap-2"><Sparkles className="size-4"/><div className="text-[11px] font-bold uppercase tracking-[.16em] text-black/40">AI editing</div></div>
+    <p className="mb-3 text-xs leading-5 text-black/50">Select what you want to change. The AI keeps the rest of the composition intact unless the requested change requires a dependent adjustment.</p>
     <div className="grid grid-cols-2 gap-2">{(Object.keys(elementLabels) as ElementId[]).map(id => <button type="button" key={id} onClick={() => setSelected(id)} className={cn("min-h-10 rounded-xl border px-3 text-left text-xs font-semibold", selected === id ? "border-black bg-black text-white" : "hover:bg-black/[.025]")}>{elementLabels[id]}</button>)}</div>
-    <Textarea value={instruction} onChange={e => setInstruction(e.target.value)} placeholder={`Change ${elementLabels[selected].toLowerCase()}…`} className="mt-3 min-h-24 resize-none rounded-xl text-base" />
-    <Button className="mt-3 h-11 w-full" onClick={() => void refineElement()} disabled={refining || !instruction.trim()}>{refining ? "Refining…" : "Apply with AI"}</Button>
+    <Textarea value={instruction} onChange={e => setInstruction(e.target.value)} onKeyDown={e => e.stopPropagation()} placeholder={`Change ${elementLabels[selected].toLowerCase()}…`} className="mt-3 min-h-28 resize-none rounded-xl text-base" />
+    <Button className="mt-3 h-11 w-full" onClick={() => void refineElement()} disabled={refining || !instruction.trim()}>{refining ? "Applying changes…" : "Apply with AI"}</Button>
+    {selectedNode && <div className="mt-3 rounded-xl bg-black/[.04] p-3 text-xs text-black/55">Selected layer: <strong className="text-black">{composition?.elements?.find(e => e.id === selectedNode)?.text || selectedNode}</strong></div>}
   </section>;
 
-  return <div className="menu-design-studio min-h-[100dvh]">
-    <div className="studio-shell mx-auto max-w-[1680px] px-3 py-3 sm:px-5 lg:px-8 lg:py-5">
-      <header className="studio-header mb-3 rounded-2xl border bg-white p-4 shadow-sm lg:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0"><h1 className="text-2xl font-black tracking-[-.035em] sm:text-3xl">Menu Design Studio</h1><p className="mt-1 text-sm text-black/50">Create, refine and publish a professional restaurant menu.</p></div>
-          <div className="studio-header-actions flex shrink-0 gap-2"><Button variant="outline" className="hidden sm:flex" onClick={() => setShowMobileControls(v => !v)}><Menu className="mr-2 size-4"/>Controls</Button><Button className="h-11 rounded-xl px-4" onClick={() => void save()} disabled={saving}><Save className="mr-2 size-4"/>{saving ? "Saving…" : "Save"}</Button></div>
-        </div>
-        <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold"><span className="flex h-8 shrink-0 items-center gap-2 rounded-full bg-black px-3 text-white"><span className="grid size-5 place-items-center rounded-full bg-white/20">1</span>Describe</span><span className="h-px w-8 shrink-0 bg-black/10"/><span className={cn("flex h-8 shrink-0 items-center gap-2 rounded-full px-3", concepts.length ? "bg-black/10" : "bg-black/[.04]")}><span className="grid size-5 place-items-center rounded-full bg-black/10">2</span>Create</span><span className="h-px w-8 shrink-0 bg-black/10"/><span className="flex h-8 shrink-0 items-center gap-2 rounded-full bg-black/[.04] px-3"><span className="grid size-5 place-items-center rounded-full bg-black/10">3</span>Customize</span></div>
-      </header>
+  const LayersPanel = () => <section className="studio-mobile-panel rounded-2xl border bg-white p-4 shadow-sm">
+    <div className="mb-3 flex items-center gap-2"><Layers3 className="size-4"/><div className="text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Editable layers</div></div>
+    {!composition?.elements?.length && <div className="rounded-xl bg-black/[.04] p-4 text-sm text-black/50">Generate a design first. Every AI-generated element will appear here as an editable layer.</div>}
+    <div className="space-y-1">{(composition?.elements ?? []).map((el, i) => <button type="button" key={el.id} onClick={() => handleCanvasSelect(el.id)} className={cn("flex min-h-12 w-full items-center justify-between rounded-xl px-3 text-left text-sm", selectedNode === el.id ? "bg-black text-white" : "hover:bg-black/[.05]")}><span className="min-w-0 truncate font-semibold">{el.text || el.type || `Layer ${i + 1}`}</span><span className="ml-2 shrink-0 text-xs opacity-50">{i + 1}</span></button>)}</div>
+  </section>;
 
-      <div className="studio-content studio-main-grid grid gap-3 lg:grid-cols-[330px_minmax(0,1fr)_300px] xl:gap-4">
-        <aside className={cn("space-y-3", mobileTab === "brief" ? "block" : "hidden lg:block")}><Controls/></aside>
-
-        <main className={cn("studio-preview-panel rounded-2xl border bg-[#dededb] p-2 shadow-sm sm:p-3 lg:p-4", mobileTab === "canvas" ? "block" : "hidden lg:block")}>
-          <div className="studio-toolbar mb-2 flex items-center justify-between rounded-xl bg-white/90 p-2 backdrop-blur">
-            <div className="flex items-center gap-1"><Button size="sm" variant="ghost" className="hidden sm:flex"><Monitor className="size-4"/></Button><Button size="sm" variant="ghost" className="sm:hidden"><Smartphone className="size-4"/></Button><Button size="sm" variant="ghost" className="hidden sm:flex"><Tablet className="size-4"/></Button></div>
-            <div className="text-xs font-semibold text-black/50">{restaurant.data?.name ?? "Restaurant"} · {selectedNode ? "Layer selected" : "Preview"}</div>
-            <Button size="sm" variant="outline" className="sm:hidden" onClick={() => setShowMobileControls(v => !v)}><ChevronDown className="size-4"/></Button>
-          </div>
-          {concepts.length > 0 && <div className="mb-2 grid grid-cols-3 gap-2">{concepts.map((c, i) => <button type="button" key={c.id} onClick={() => selectConcept(i)} className={cn("min-h-12 rounded-xl border bg-white px-2 text-left text-[11px] font-bold", active === i ? "border-black ring-1 ring-black/10" : "text-black/60")}>Concept {i + 1}<span className="ml-1 text-black/30">{i === 0 ? "Best match" : i === 1 ? "Alternative" : "Bold"}</span></button>)}</div>}
-          <div className="studio-preview-stage flex min-h-[620px] items-start justify-center overflow-auto rounded-xl bg-[#c9c9c6] p-4 sm:p-6"><div className="studio-preview-frame w-full max-w-[760px]"><SmartCompositionCanvas theme={theme} composition={composition} selectedId={selectedNode} onSelect={handleCanvasSelect}/></div></div>
-          <div className="mt-2 hidden grid-cols-3 gap-2 sm:grid">{[[BrainCircuit, "AI direction"], [Layers3, "Editable layers"], [Check, "Quality ready"]].map(([Icon, text]) => <div key={text as string} className="rounded-xl bg-white/75 p-3"><Icon className="size-4"/><div className="mt-2 text-xs font-bold">{text as string}</div></div>)}</div>
-        </main>
-
-        <aside className={cn("studio-side-panel space-y-3", mobileTab === "edit" || mobileTab === "layers" ? "block" : "hidden lg:block")}>
-          {mobileTab === "layers" ? <section className="rounded-2xl border bg-white p-4 shadow-sm"><div className="mb-3 flex items-center gap-2"><Layers3 className="size-4"/><div className="text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Layers</div></div>{(composition?.elements ?? []).map((el, i) => <button type="button" key={el.id} onClick={() => handleCanvasSelect(el.id)} className={cn("flex min-h-11 w-full items-center justify-between border-b text-left text-xs", selectedNode === el.id ? "font-bold" : "text-black/60")}><span>{el.text || el.type || `Layer ${i + 1}`}</span><span className="text-black/30">{i + 1}</span></button>)}</section> : <EditPanel/>}
-          <section className="rounded-2xl border bg-white p-4 shadow-sm"><div className="text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Design status</div><div className="mt-3 flex items-center gap-2 text-sm font-semibold"><span className="grid size-6 place-items-center rounded-full bg-black text-white"><Check className="size-3"/></span>{concepts.length ? "Design generated" : "Ready to create"}</div><p className="mt-2 text-xs leading-5 text-black/45">Select any visible layer to refine it without changing the rest of the composition.</p></section>
-        </aside>
-      </div>
+  const PreviewPanel = () => <main className="studio-preview-panel rounded-2xl border bg-[#dededb] p-2 shadow-sm sm:p-3 lg:p-4">
+    <div className="studio-toolbar mb-2 flex items-center justify-between rounded-xl bg-white/90 p-2 backdrop-blur">
+      <div className="flex items-center gap-1"><Button size="sm" variant="ghost" className="hidden sm:flex"><Monitor className="size-4"/></Button><Button size="sm" variant="ghost" className="sm:hidden"><Smartphone className="size-4"/></Button><Button size="sm" variant="ghost" className="hidden sm:flex"><Tablet className="size-4"/></Button></div>
+      <div className="min-w-0 truncate px-2 text-center text-xs font-semibold text-black/50">{restaurant.data?.name ?? "Restaurant"} · {selectedNode ? "Layer selected" : "Live preview"}</div>
+      <div className="text-xs font-semibold text-black/45"><span className="hidden sm:inline">{composition?.elements?.length ?? 0} layers</span><span className="sm:hidden">Live</span></div>
     </div>
+    {concepts.length > 0 && <div className="mb-2 grid grid-cols-3 gap-2">{concepts.map((c, i) => <button type="button" key={c.id} onClick={() => selectConcept(i)} className={cn("min-h-12 rounded-xl border bg-white px-2 text-left text-[11px] font-bold", active === i ? "border-black ring-1 ring-black/10" : "text-black/60")}>Concept {i + 1}<span className="ml-1 text-black/30">{i === 0 ? "Best match" : i === 1 ? "Alternative" : "Bold"}</span></button>)}</div>}
+    <div className="studio-preview-stage flex items-start justify-center rounded-xl bg-[#c9c9c6] p-2 sm:p-4"><div className="studio-preview-frame"><SmartCompositionCanvas theme={theme} composition={composition} selectedId={selectedNode} onSelect={handleCanvasSelect}/></div></div>
+    <div className="mt-2 hidden grid-cols-3 gap-2 sm:grid"><div className="rounded-xl bg-white/75 p-3"><BrainCircuit className="size-4"/><div className="mt-2 text-xs font-bold">AI direction</div></div><div className="rounded-xl bg-white/75 p-3"><Layers3 className="size-4"/><div className="mt-2 text-xs font-bold">Editable layers</div></div><div className="rounded-xl bg-white/75 p-3"><Check className="size-4"/><div className="mt-2 text-xs font-bold">Quality ready</div></div></div>
+  </main>;
 
-    <nav className="studio-bottom-nav">
-      <button type="button" onClick={() => setMobileTab("brief")} className={cn(mobileTab === "brief" && "bg-black text-white")}><Wand2 className="mx-auto mb-1 size-4"/>Create</button>
-      <button type="button" onClick={() => setMobileTab("canvas")} className={cn(mobileTab === "canvas" && "bg-black text-white")}><Smartphone className="mx-auto mb-1 size-4"/>Preview</button>
-      <button type="button" onClick={() => setMobileTab("edit")} className={cn(mobileTab === "edit" && "bg-black text-white")}><Sparkles className="mx-auto mb-1 size-4"/>Edit</button>
-      <button type="button" onClick={() => setMobileTab("layers")} className={cn(mobileTab === "layers" && "bg-black text-white")}><Layers3 className="mx-auto mb-1 size-4"/>Layers</button>
-    </nav>
-
-    {showMobileControls && <div className="fixed inset-0 z-[80] bg-black/30 p-3 backdrop-blur-sm sm:hidden" onClick={() => setShowMobileControls(false)}><div className="absolute bottom-3 left-3 right-3 max-h-[82dvh] overflow-auto rounded-3xl bg-[#f6f7fb] p-3 shadow-2xl" onClick={e => e.stopPropagation()}><div className="mb-2 flex items-center justify-between px-1"><span className="font-bold">Menu controls</span><button type="button" onClick={() => setShowMobileControls(false)} className="rounded-full bg-black/5 p-2"><X className="size-4"/></button></div><Controls/></div></div>}
+  return <div className="menu-design-studio min-h-[100dvh]">
+    <div className="studio-shell mx-auto w-full max-w-[1680px] px-3 py-3 sm:px-5 lg:px-8 lg:py-5">
+      <header className="studio-header mb-3 rounded-2xl border bg-white p-4 shadow-sm lg:p-5">
+        <div className="flex items-start justify-between gap-3"><div className="min-w-0 flex-1"><h1 className="text-2xl font-black tracking-[-.035em] sm:text-3xl">Menu Design Studio</h1><p className="mt-1 max-w-xl text-sm text-black/50">Create, refine and publish a professional restaurant menu.</p></div><Button className="h-11 shrink-0 rounded-xl px-4" onClick={() => void save()} disabled={saving}><Save className="mr-2 size-4"/>{saving ? "Saving…" : "Save"}</Button></div>
+        <div className="studio-stepper mt-4 text-xs font-semibold"><span className="flex h-8 items-center gap-2 rounded-full bg-black px-3 text-white"><span className="grid size-5 place-items-center rounded-full bg-white/20">1</span>Describe</span><span className="h-px w-6 shrink-0 bg-black/10"/><span className={cn("flex h-8 items-center gap-2 rounded-full px-3", concepts.length ? "bg-black/10" : "bg-black/[.04]")}><span className="grid size-5 place-items-center rounded-full bg-black/10">2</span>Create</span><span className="h-px w-6 shrink-0 bg-black/10"/><span className="flex h-8 items-center gap-2 rounded-full bg-black/[.04] px-3"><span className="grid size-5 place-items-center rounded-full bg-black/10">3</span>Customize</span></div>
+      </header>
+      <div className="hidden gap-3 lg:grid lg:grid-cols-[330px_minmax(0,1fr)_300px] xl:gap-4"><aside className="space-y-3"><CreatePanel/></aside><PreviewPanel/><aside className="space-y-3"><EditPanel/><LayersPanel/></aside></div>
+      <div className="lg:hidden">{mobileTab === "brief" && <CreatePanel/>}{mobileTab === "canvas" && <PreviewPanel/>}{mobileTab === "edit" && <EditPanel/>}{mobileTab === "layers" && <LayersPanel/>}</div>
+    </div>
+    <nav className="studio-bottom-nav"><button type="button" onClick={() => setMobileTab("brief")} className={cn(mobileTab === "brief" && "bg-black text-white")}><Wand2 className="mx-auto mb-1 size-4"/>Create</button><button type="button" onClick={() => setMobileTab("canvas")} className={cn(mobileTab === "canvas" && "bg-black text-white")}><Smartphone className="mx-auto mb-1 size-4"/>Preview</button><button type="button" onClick={() => setMobileTab("edit")} className={cn(mobileTab === "edit" && "bg-black text-white")}><Sparkles className="mx-auto mb-1 size-4"/>Edit</button><button type="button" onClick={() => setMobileTab("layers")} className={cn(mobileTab === "layers" && "bg-black text-white")}><Layers3 className="mx-auto mb-1 size-4"/>Layers</button></nav>
   </div>;
 }
