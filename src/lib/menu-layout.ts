@@ -36,6 +36,15 @@ export function itemsContainerClass(theme: MenuTheme): string {
       return two ? "grid grid-cols-2" : "grid grid-cols-1 sm:grid-cols-2";
     case "mosaic":
       return "grid grid-cols-2 sm:grid-cols-4";
+    case "duo":
+      // Facing-page bill of fare: two printed columns of dotted-leader rows.
+      return "grid grid-cols-1 sm:grid-cols-2 sm:gap-x-10";
+    case "triptych":
+      // Broadsheet: three narrow editorial columns on tablet and up.
+      return "grid grid-cols-1 sm:grid-cols-3 sm:gap-x-8";
+    case "panel":
+      // Main list plus a tinted feature panel for the last third of the items.
+      return "grid grid-cols-1 sm:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] sm:gap-x-8";
     case "spotlight":
       return "grid grid-cols-1";
     case "rail":
@@ -60,7 +69,12 @@ export function itemVariant(theme: MenuTheme, index: number): ItemVariant {
       return "overlay";
     case "columns":
     case "ticket":
+    case "duo":
+    case "triptych":
       return "printed";
+    case "panel":
+      // Every third dish becomes the panel's feature card.
+      return index % 3 === 2 ? "stacked" : "printed";
     case "spotlight":
       // First dish of every section is the editorial hero, the rest are rows.
       return index === 0 ? "stacked" : "row";
@@ -80,6 +94,8 @@ export function itemSpanClass(theme: MenuTheme, index: number): string {
     return "col-span-1";
   }
   if (theme.layout === "rail") return "w-[70%] shrink-0 snap-start sm:w-[45%]";
+  if (theme.layout === "panel" && index % 3 !== 2) return "sm:col-start-1";
+  if (theme.layout === "panel") return "sm:col-start-2";
   return "";
 }
 
