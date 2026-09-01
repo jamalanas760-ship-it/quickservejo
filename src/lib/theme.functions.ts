@@ -3,7 +3,6 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ART_DIRECTION, DESIGN_SCHEMA, callMenuDesigner, extractDesigns } from "@/lib/menu-designer.server";
-import { type MenuTheme } from "@/lib/menu-theme";
 
 const generateSchema = z.object({
   restaurantId: z.string().uuid(),
@@ -22,8 +21,6 @@ const PROVIDER_GUIDANCE: Record<string, string> = {
   figma: "Think in editable frames, layers, reusable components, auto-layout groups, constraints and responsive variants.",
   canva: "Think in editable pages and elements with clear page structure, safe margins, visual hierarchy and practical image placement.",
 };
-
-type FallbackTheme = MenuTheme & { composition: Record<string, unknown> };
 
 export const generateMenuTheme = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
