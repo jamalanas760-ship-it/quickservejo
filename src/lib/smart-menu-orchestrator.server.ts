@@ -55,8 +55,8 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
     if (restaurantError) throw restaurantError;
     if (itemsError) throw itemsError;
 
-    const apiKey = process.env["LOVABLE_API_KEY"];
-    if (!apiKey) throw new Error("AI menu designer is not configured.");
+    const apiKey = process.env["OPENAI_API_KEY"];
+    if (!apiKey) throw new Error("AI menu designer is not configured. Add OPENAI_API_KEY to the server environment.");
 
     const references = data.references ?? [];
     const seed = data.variationSeed ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
