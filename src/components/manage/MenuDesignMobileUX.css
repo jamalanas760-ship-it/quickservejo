@@ -1,0 +1,37 @@
+/* Mobile-first UX foundation for Menu Design Studio */
+.menu-design-studio {
+  --studio-bg: #f6f7fb;
+  --studio-surface: #fff;
+  --studio-text: #171717;
+  --studio-muted: #6b7280;
+  --studio-accent: #5b3df5;
+  background: var(--studio-bg);
+  color: var(--studio-text);
+}
+
+.menu-design-studio * { box-sizing: border-box; }
+
+@media (max-width: 1023px) {
+  .menu-design-studio .studio-desktop-only { display: none !important; }
+  .menu-design-studio .studio-main-grid { display: block !important; }
+  .menu-design-studio .studio-side-panel { display: none !important; }
+  .menu-design-studio .studio-preview-panel { min-height: auto !important; padding: 12px !important; border-radius: 20px !important; }
+  .menu-design-studio .studio-preview-stage { min-height: 560px !important; padding: 16px !important; }
+  .menu-design-studio .studio-toolbar { position: sticky; top: 0; z-index: 30; }
+}
+
+@media (max-width: 640px) {
+  .menu-design-studio { min-height: 100dvh !important; }
+  .menu-design-studio .studio-shell { padding: 10px !important; }
+  .menu-design-studio .studio-header { margin-bottom: 10px !important; padding: 14px !important; border-radius: 18px !important; }
+  .menu-design-studio .studio-header-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+  .menu-design-studio .studio-header-actions > * { min-height: 44px; }
+  .menu-design-studio .studio-preview-stage { min-height: 500px !important; padding: 12px !important; border-radius: 16px !important; }
+  .menu-design-studio .studio-preview-frame { width: min(100%, 360px) !important; transform: none !important; }
+  .menu-design-studio .studio-bottom-nav { display: grid !important; position: fixed; left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 60; grid-template-columns: repeat(4, 1fr); padding: 6px; border: 1px solid rgba(0,0,0,.08); border-radius: 18px; background: rgba(255,255,255,.94); backdrop-filter: blur(18px); box-shadow: 0 16px 40px rgba(0,0,0,.14); }
+  .menu-design-studio .studio-bottom-nav button { min-height: 48px; border-radius: 14px; font-size: 11px; }
+  .menu-design-studio .studio-content { padding-bottom: 86px; }
+  .menu-design-studio textarea, .menu-design-studio select, .menu-design-studio input, .menu-design-studio button { font-size: 16px; }
+}
+
+@media (min-width: 641px) { .menu-design-studio .studio-bottom-nav { display: none !important; } }
