@@ -3,7 +3,8 @@ import type { MenuTheme } from "@/lib/menu-theme";
 
 export type CompositionElement = { id:string; type:string; x:number; y:number; w:number; h:number; rotation?:number; opacity?:number; text?:string; image?:string; color?:string; fontSize?:number; fontFamily?:string; fontWeight?:number; letterSpacing?:number; lineHeight?:number; align?:"left"|"center"|"right"; shape?:"square"|"rounded"|"circle"|"organic"; z?:number; animation?:string };
 
-type Props={theme:MenuTheme;composition?:{concept?:string;artDirection?:string;background?:{color?:string;texture?:string};elements?:CompositionElement[]};selectedId?:string;onSelect:(id:string)=>void};
+type CompositionShape={concept?:string;artDirection?:string;background?:{color?:string;texture?:string};elements?:CompositionElement[];responsive?:{mobile?:string;tablet?:string;desktop?:string};motion?:{entrance?:string;hover?:string;scroll?:string}};
+type Props={theme:MenuTheme;composition?:CompositionShape|undefined;selectedId?:string|undefined;onSelect:(id:string)=>void};
 
 const textTypes = new Set(["title", "eyebrow", "copy", "category", "price"]);
 const clamp = (value:number,min:number,max:number) => Number.isFinite(value) ? Math.max(min,Math.min(max,value)) : min;
