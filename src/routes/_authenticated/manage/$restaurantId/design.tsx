@@ -1,18 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { MenuDesigner } from "@/components/manage/MenuDesigner";
+import { UnifiedMenuStudio } from "@/components/manage/UnifiedMenuStudio";
 
 export const Route = createFileRoute("/_authenticated/manage/$restaurantId/design")({
   head: () => ({
     meta: [
-      { title: "Menu design studio — QuickServe" },
+      { title: "AI Menu Studio — QuickServe" },
       {
         name: "description",
-        content:
-          "Choose a menu template, colours, fonts, layout and icons for your QR menu with a live phone preview.",
+        content: "A unified AI creative studio that combines editable design systems, art direction and humanized restaurant menu design.",
       },
-      { property: "og:title", content: "Menu design studio — QuickServe" },
-      { property: "og:description", content: "Templates, colours and layout for your QR menu." },
+      { property: "og:title", content: "AI Menu Studio — QuickServe" },
+      { property: "og:description", content: "Create original or reference-driven restaurant menus with one intelligent creative workflow." },
     ],
   }),
   component: DesignPage,
@@ -20,5 +19,5 @@ export const Route = createFileRoute("/_authenticated/manage/$restaurantId/desig
 
 function DesignPage() {
   const { restaurantId } = Route.useParams();
-  return <MenuDesigner restaurantId={restaurantId} />;
+  return <UnifiedMenuStudio restaurantId={restaurantId} />;
 }
