@@ -1,4 +1,4 @@
-figma.showUI(__html__, { width: 320, height: 180 });
+figma.showUI(`<!doctype html><html><body style="font:12px Inter,sans-serif;padding:16px"><strong>QuickServe Smart Menu Bridge</strong><p>Use the QuickServe app to send the selected DesignGraph into this open Figma file.</p></body></html>`, { width: 320, height: 180 });
 
 function hexToRgb(hex) {
   const clean = String(hex || "#FFFFFF").replace("#", "");
@@ -10,10 +10,8 @@ function hexToRgb(hex) {
 async function loadFont(node, family, style) {
   try {
     await figma.loadFontAsync({ family: family || "Inter", style: style || "Regular" });
-    return true;
   } catch {
     await figma.loadFontAsync({ family: "Inter", style: "Regular" });
-    return false;
   }
 }
 
@@ -29,10 +27,10 @@ async function renderGraph(graph) {
     const w = Math.max(1, (element.w / 100) * graph.canvas.width);
     const h = Math.max(1, (element.h / 100) * graph.canvas.height);
 
-    if (element.type === "title" || element.type === "copy" || element.type === "category" || element.type === "price" || element.type === "eyebrow") {
+    if (["title", "copy", "category", "price", "eyebrow"].includes(element.type)) {
       const node = figma.createText();
-      const fontFamily = element.fontFamily || "Inter";
-      await loadFont(node, fontFamily, element.fontWeight && element.fontWeight >= 600 ? "Bold" : "Regular");
+      await loadFont(node, element.fontFamily, element.fontWeight && element.fontWeight >= 600 ? "Bold" : "Regular");
+      node.name = element.id;
       node.characters = element.text || "";
       node.x = x;
       node.y = y;
@@ -62,12 +60,11 @@ async function renderGraph(graph) {
 }
 
 figma.ui.onmessage = async (message) => {
-  if (message.type === "render-graph") {
-    try {
-      await renderGraph(message.graph);
-      figma.notify("QuickServe design imported successfully");
-    } catch (error) {
-      figma.notify(`QuickServe import failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-    }
+  if (message.type !== "render-graph") return;
+  try {
+    await renderGraph(message.graph);
+    figma.notify("QuickServe design imported successfully");
+  } catch (error) {
+    figma.notify(`QuickServe import failed: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 };
