@@ -1,16 +1,7 @@
 /** Server-only AI menu designer helpers. */
 
-const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/responses";
-export const MENU_MODEL = "openai/gpt-5.6-luna";
-
-export class MenuDesignerCreditsError extends Error {
-  readonly code = "AI_CREDITS_EXHAUSTED" as const;
-
-  constructor() {
-    super("AI credits are exhausted.");
-    this.name = "MenuDesignerCreditsError";
-  }
-}
+const OPENAI_URL = "https://api.openai.com/v1/responses";
+export const MENU_MODEL = "gpt-5.6-luna";
 
 export const DESIGN_SCHEMA = `Return {"designs":[d1,d2,d3]} and nothing else.
 Each design must contain the existing MenuTheme keys plus a composition object.
@@ -61,38 +52,62 @@ QUALITY CHECK BEFORE RETURNING:
 Return JSON only.`;
 
 export async function callMenuDesigner(input: unknown[], apiKey: string): Promise<string> {
-  const response = await fetch(GATEWAY_URL, {
+  if (!apiKey) throw new Error("AI menu designer is not configured. Add OPENAI_API_KEY to the server environment.");
+
+  const response = await fetch(OPENAI_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "fetch" },
-    body: JSON.stringify({ model: MENU_MODEL, input, stream: true, store: false, max_output_tokens: 8000 }),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: MENU_MODEL,
+      input,
+      store: false,
+      max_output_tokens: 8000,
+    }),
   });
-  if (!response.ok || !response.body) {
-    const details = await response.text().catch(() => "");
-    console.error("AI menu designer gateway error", response.status, details.slice(0, 500));
-    if (response.status === 429) throw new Error("The AI designer is busy right now. Please try again in a moment.");
-    if (response.status === 402) throw new MenuDesignerCreditsError();
-    if (response.status === 403) throw new Error("AI access is blocked for this workspace.");
-    if (response.status === 401) throw new Error("AI menu designer is not configured correctly.");
-    throw new Error("AI menu generation is temporarily unavailable.");
+
+  const raw = await response.text();
+  let payload: { output_text?: string; error?: { message?: string; code?: string } } = {};
+  try {
+    payload = JSON.parse(raw) as typeof payload;
+  } catch {
+    payload = {};
   }
-  const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = ""; let text = "";
-  for (;;) {
-    const { done, value } = await reader.read(); if (done) break;
-    buffer += decoder.decode(value, { stream: true }); const lines = buffer.split("\n"); buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.startsWith("data:")) continue; const payload = line.slice(5).trim(); if (!payload || payload === "[DONE]") continue;
-      try {
-        const event = JSON.parse(payload) as { type?: string; delta?: string; response?: { output_text?: string } };
-        if (event.type === "response.output_text.delta" && typeof event.delta === "string") text += event.delta;
-        else if (event.type === "response.completed" && !text && event.response?.output_text) text = event.response.output_text;
-      } catch { /* ignore non-json frames */ }
-    }
+
+  if (!response.ok) {
+    console.error("OpenAI menu designer error", response.status, payload.error?.message ?? raw.slice(0, 500));
+    if (response.status === 401) throw new Error("OpenAI API key is invalid or not configured on the server.");
+    if (response.status === 403) throw new Error("OpenAI API access is not permitted for this project.");
+    if (response.status === 429) throw new Error("OpenAI is rate-limited or the project has reached its usage limit. Please check the OpenAI project billing/limits.");
+    throw new Error(payload.error?.message || "OpenAI menu generation is temporarily unavailable.");
   }
+
+  if (typeof payload.output_text === "string" && payload.output_text.trim()) return payload.output_text;
+
+  const output = (payload as unknown as { output?: Array<{ content?: Array<{ type?: string; text?: string }> }> }).output ?? [];
+  const text = output
+    .flatMap((item) => item.content ?? [])
+    .filter((part) => part.type === "output_text" && typeof part.text === "string")
+    .map((part) => part.text as string)
+    .join("");
+
+  if (!text.trim()) throw new Error("OpenAI returned no menu design output.");
   return text;
 }
 
 export function extractDesigns(text: string): Record<string, unknown>[] {
-  const cleaned = text.replace(/^```json\s*/i, "").replace(/```$/i, "").trim(); const start = cleaned.indexOf("{"); const end = cleaned.lastIndexOf("}");
+  const cleaned = text.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
   if (start < 0 || end <= start) return [];
-  try { const parsed = JSON.parse(cleaned.slice(start, end + 1)) as { designs?: unknown }; return Array.isArray(parsed.designs) ? parsed.designs.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object") : []; } catch { return []; }
+  try {
+    const parsed = JSON.parse(cleaned.slice(start, end + 1)) as { designs?: unknown };
+    return Array.isArray(parsed.designs)
+      ? parsed.designs.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+      : [];
+  } catch {
+    return [];
+  }
 }
