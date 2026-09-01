@@ -1,1 +1,1 @@
-export { MenuDesigner } from "./MasterMenuDesigner";
+export { AIStudioMenuDesigner as MenuDesigner } from "./AIStudioMenuDesigner";
