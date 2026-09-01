@@ -72,13 +72,13 @@ function localDesignFallback(input: unknown[]): string {
   const arabic = /arabic|rtl|عربي|مطعم|قائمة/.test(lower);
   const hasReference = /input_image|data:image|reference image|reference_image/.test(lower);
 
-  const palettes: [string, string, string][][] = dark
+  const palettes = (dark
     ? [["#101010", "#F7F2E8", "#D9A441"], ["#191614", "#FFF8EE", "#C56A3A"], ["#0D1720", "#F4F0E8", "#7FA99B"]]
     : warm
       ? [["#F3E8D5", "#241B16", "#9A5A32"], ["#FFF8EC", "#2A211C", "#C27A43"], ["#E9DED0", "#2B2420", "#6B584A"]]
       : light
         ? [["#FFFFFF", "#171717", "#B63A2B"], ["#F5F7F9", "#111827", "#2563EB"], ["#FAF8F3", "#27211D", "#6D4C41"]]
-        : [["#F7F7F4", "#171717", "#C4472D"], ["#EEF2F5", "#111827", "#2563EB"], ["#FFFDF8", "#27211D", "#6D4C41"]];
+        : [["#F7F7F4", "#171717", "#C4472D"], ["#EEF2F5", "#111827", "#2563EB"], ["#FFFDF8", "#27211D", "#6D4C41"]]) as Array<[string, string, string]>;
 
   const layoutPool = editorial
     ? ["magazine", "columns", "duo"]
