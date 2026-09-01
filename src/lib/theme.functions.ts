@@ -39,8 +39,10 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
     const { data: restaurant, error: restaurantError } = await supabase.from("restaurants").select("name, description_en, description_ar, primary_color, accent_color").eq("id", data.restaurantId).single();
     if (restaurantError) throw restaurantError;
 
-    const apiKey = process.env["OPENAI_API_KEY"];
-    if (!apiKey) throw new Error("AI menu designer is not configured. Add OPENAI_API_KEY to the server environment.");
+    // Accept the correctly named secret and the legacy pluralized name so a deployment
+    // configured as OPENAI_API_KEYS continues to work without exposing the key client-side.
+    const apiKey = process.env["OPENAI_API_KEY"] ?? process.env["OPENAI_API_KEYS"];
+    if (!apiKey) throw new Error("AI menu designer is not configured. Add OPENAI_API_KEY (or OPENAI_API_KEYS) to the server environment.");
 
     const provider = data.provider ?? "openai";
     const isReference = Boolean(data.images?.length);
