@@ -29,7 +29,7 @@ export type UnifiedDesignGraph = {
   source: {
     prompt: string;
     references: string[];
-    analysis?: unknown;
+    analysis?: string;
     fidelity: "exact" | "refined" | "creative";
   };
   canvas: {
@@ -64,7 +64,7 @@ function numberOr(value: unknown, fallback: number) {
 
 export function toUnifiedDesignGraph(
   design: any,
-  source: { prompt: string; references?: string[]; analysis?: unknown },
+  source: { prompt: string; references?: string[]; analysis?: string },
   fidelity: "exact" | "refined" | "creative",
   id: string,
 ): UnifiedDesignGraph {
