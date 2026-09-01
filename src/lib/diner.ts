@@ -157,12 +157,27 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
       })),
   }));
 
+  // The design studio writes the current unsaved draft to localStorage before
+  // refreshing the embedded public renderer. When this page is opened with the
+  // designer-preview marker, prefer that draft over the saved database theme.
+  // This keeps the live preview faithful to every editor change without saving
+  // anything to production until the user explicitly clicks Save.
+  let menuTheme = parseMenuTheme(restaurant.menu_theme);
+  if (typeof window !== "undefined" && window.location.hash.startsWith("#designer-preview:")) {
+    try {
+      const draft = window.localStorage.getItem(`quickserve:menu-preview:${restaurant.id}`);
+      if (draft) menuTheme = parseMenuTheme(JSON.parse(draft));
+    } catch {
+      // Fall back to the persisted restaurant theme if preview storage is unavailable.
+    }
+  }
+
   return {
     restaurant: {
       ...restaurant,
       tax_rate: Number(restaurant.tax_rate),
       service_charge: Number(restaurant.service_charge),
-      menu_theme: parseMenuTheme(restaurant.menu_theme),
+      menu_theme: menuTheme,
     },
     settings: settingsRes.data
       ? { ...settingsRes.data, minimum_order: Number(settingsRes.data.minimum_order) }
