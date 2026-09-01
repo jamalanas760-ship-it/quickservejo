@@ -51,46 +51,102 @@ QUALITY CHECK BEFORE RETURNING:
 
 Return JSON only.`;
 
+function stableHash(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
 function localDesignFallback(input: unknown[]): string {
-  const raw = JSON.stringify(input).toLowerCase();
-  const dark = /dark|black|midnight|luxury|premium|dramatic/.test(raw);
-  const warm = /coffee|cafe|bakery|warm|terracotta|brown|cream/.test(raw);
-  const arabic = /arabic|rtl|عربي|مطعم/.test(raw);
-  const seed = Math.floor(Math.random() * 1000000);
+  const raw = JSON.stringify(input);
+  const lower = raw.toLowerCase();
+  const hash = stableHash(raw);
+  const dark = /dark|black|midnight|luxury|premium|dramatic|black background/.test(lower);
+  const warm = /coffee|cafe|bakery|warm|terracotta|brown|cream|beige|earth/.test(lower);
+  const light = /white|bright|clean|minimal|airy|light/.test(lower);
+  const editorial = /editorial|magazine|newspaper|serif|fashion|luxury/.test(lower);
+  const bold = /bold|poster|street|graffiti|experimental|playful|modern/.test(lower);
+  const arabic = /arabic|rtl|عربي|مطعم|قائمة/.test(lower);
+  const hasReference = /input_image|data:image|reference image|reference_image/.test(lower);
+
   const palettes = dark
-    ? [{ bg: "#101010", text: "#F7F2E8", accent: "#D9A441" }, { bg: "#191614", text: "#FFF8EE", accent: "#C56A3A" }, { bg: "#0D1720", text: "#F4F0E8", accent: "#7FA99B" }]
+    ? [["#101010", "#F7F2E8", "#D9A441"], ["#191614", "#FFF8EE", "#C56A3A"], ["#0D1720", "#F4F0E8", "#7FA99B"]]
     : warm
-      ? [{ bg: "#F3E8D5", text: "#241B16", accent: "#9A5A32" }, { bg: "#FFF8EC", text: "#2A211C", accent: "#C27A43" }, { bg: "#E9DED0", text: "#2B2420", accent: "#6B584A" }]
-      : [{ bg: "#F7F7F4", text: "#171717", accent: "#C4472D" }, { bg: "#EEF2F5", text: "#111827", accent: "#2563EB" }, { bg: "#FFFDF8", text: "#27211D", accent: "#6D4C41" }];
-  const layouts = ["editorial", "magazine", "spotlight"];
-  const families = ["Georgia, serif", "Inter, sans-serif", "Arial, sans-serif"];
-  const designs = palettes.map((p, i) => ({
-    template: dark ? "midnight" : warm ? "cafe" : ["editorial", "bold", "poster"][i],
-    layout: layouts[i],
-    hero: ["cover", "minimal", "banner"][i],
-    composition: {
-      version: 2,
-      concept: `Local no-credit concept ${i + 1}`,
-      artDirection: `Generated locally from the user's brief${arabic ? " with RTL-ready hierarchy" : ""}; variation ${seed + i}.`,
-      background: { color: p.bg, texture: i === 0 ? "subtle paper grain" : i === 1 ? "soft studio texture" : "clean matte" },
-      elements: [
-        { id: "eyebrow", type: "eyebrow", x: 7, y: 7, w: 45, h: 4, text: "MENU", color: p.accent, fontSize: 2.2, fontFamily: families[i], fontWeight: 700, letterSpacing: 0.2, lineHeight: 1.1, align: "left", z: 3 },
-        { id: "title", type: "title", x: 7, y: 13, w: 70, h: 12, text: arabic ? "قائمة الطعام" : "Our Menu", color: p.text, fontSize: 6.5, fontFamily: families[i], fontWeight: 800, letterSpacing: -0.1, lineHeight: 1, align: "left", z: 3 },
-        { id: "hero", type: "image", x: i === 1 ? 55 : 7, y: i === 1 ? 9 : 29, w: i === 1 ? 38 : 86, h: i === 1 ? 30 : 23, color: p.accent, shape: i === 2 ? "organic" : "rounded", z: 1, animation: "fade-up" },
-        { id: "category", type: "category", x: 7, y: i === 1 ? 44 : 56, w: 50, h: 6, text: arabic ? "الأطباق الرئيسية" : "SIGNATURE DISHES", color: p.accent, fontSize: 3, fontFamily: families[i], fontWeight: 700, letterSpacing: 0.12, lineHeight: 1.1, align: "left", z: 3 },
-        { id: "copy", type: "copy", x: 7, y: i === 1 ? 51 : 64, w: 78, h: 12, text: arabic ? "وصف مختصر للأطباق المميزة" : "Freshly prepared dishes with a carefully art-directed presentation.", color: p.text, fontSize: 2.5, fontFamily: families[i], fontWeight: 400, letterSpacing: 0, lineHeight: 1.4, align: "left", z: 3 },
-        { id: "price", type: "price", x: 75, y: i === 1 ? 51 : 64, w: 18, h: 7, text: "5.90 JOD", color: p.accent, fontSize: 3.2, fontFamily: families[i], fontWeight: 800, letterSpacing: 0, lineHeight: 1, align: "right", z: 3 },
-      ],
-      responsive: { mobile: "Stack imagery above content; preserve 7% safe margins; never overflow horizontally.", tablet: "Use two-column editorial balance where space permits.", desktop: "Preserve art-directed negative space and hierarchy." },
-      motion: { entrance: "fade-up", hover: "subtle-lift", scroll: "gentle-reveal" },
-    },
-  }));
+      ? [["#F3E8D5", "#241B16", "#9A5A32"], ["#FFF8EC", "#2A211C", "#C27A43"], ["#E9DED0", "#2B2420", "#6B584A"]]
+      : light
+        ? [["#FFFFFF", "#171717", "#B63A2B"], ["#F5F7F9", "#111827", "#2563EB"], ["#FAF8F3", "#27211D", "#6D4C41"]]
+        : [["#F7F7F4", "#171717", "#C4472D"], ["#EEF2F5", "#111827", "#2563EB"], ["#FFFDF8", "#27211D", "#6D4C41"]];
+
+  const layoutPool = editorial
+    ? ["magazine", "columns", "duo"]
+    : bold
+      ? ["poster", "spotlight", "mosaic"]
+      : ["editorial", "panel", "triptych"];
+  const fontPool = editorial
+    ? ["Georgia, serif", "Times New Roman, serif", "Garamond, serif"]
+    : bold
+      ? ["Arial Black, Arial, sans-serif", "Inter, sans-serif", "Impact, Arial, sans-serif"]
+      : ["Inter, sans-serif", "Arial, sans-serif", "Georgia, serif"];
+  const heroPool = ["cover", "sidebar", "banner", "minimal", "medallion", "blob"];
+  const texturePool = ["subtle paper grain", "soft studio texture", "clean matte", "fine print grain", "warm tactile paper", "minimal noise"];
+  const motions = ["fade-up", "gentle-reveal", "subtle-scale", "slide-in", "soft-fade", "none"];
+  const offset = hash % 6;
+
+  const designs = [0, 1, 2].map((index) => {
+    const palette = palettes[(index + offset) % palettes.length];
+    const layout = layoutPool[(index + Math.floor(hash / 7)) % layoutPool.length];
+    const font = fontPool[(index + Math.floor(hash / 13)) % fontPool.length];
+    const hero = heroPool[(index + Math.floor(hash / 17)) % heroPool.length];
+    const motion = motions[(index + Math.floor(hash / 23)) % motions.length];
+    const sideImage = (index + offset) % 2 === 1;
+    const titleX = sideImage ? 7 : 8;
+    const titleW = sideImage ? 45 : 82;
+    const heroX = sideImage ? 57 : 8;
+    const heroY = sideImage ? 10 : 29 + ((hash + index * 11) % 8);
+    const heroW = sideImage ? 36 : 84;
+    const heroH = sideImage ? 34 : 22;
+    const concept = hasReference
+      ? `Reference-aware local direction ${index + 1} — visual fingerprint ${hash % 10000}`
+      : `Prompt-driven local direction ${index + 1} — visual fingerprint ${hash % 10000}`;
+
+    return {
+      template: dark ? "midnight" : warm ? "cafe" : bold ? ["poster", "bold", "street"][index] : ["editorial", "classic", "duotone"][index],
+      layout,
+      hero,
+      composition: {
+        version: 2,
+        concept,
+        artDirection: `Locally generated from the exact current prompt/reference fingerprint ${hash}. Layout=${layout}; typography=${font}; hero=${hero}.`,
+        referenceAnalysis: hasReference ? {
+          matchLevel: "reference-aware fallback; exact visual reconstruction requires an image-capable AI provider",
+          layout: `${layout} direction selected from the reference input fingerprint`,
+          typography: `${font} class selected from the request context`,
+          color: `${palette[0]} / ${palette[1]} / ${palette[2]}`,
+          imagery: "Reference input detected; editable image treatment varies per concept",
+          details: "Every concept receives a distinct composition seed rather than a fixed template",
+        } : undefined,
+        background: { color: palette[0], texture: texturePool[(index + offset) % texturePool.length] },
+        elements: [
+          { id: "eyebrow", type: "eyebrow", x: titleX, y: 7, w: 42, h: 4, text: arabic ? "القائمة" : "MENU", color: palette[2], fontSize: 2.2 + (index % 2) * 0.3, fontFamily: font, fontWeight: 700, letterSpacing: 0.2, lineHeight: 1.1, align: "left", z: 3 },
+          { id: "title", type: "title", x: titleX, y: 13, w: titleW, h: 12 + (index % 2) * 2, text: arabic ? "قائمة الطعام" : ["Our Menu", "Signature Menu", "The Table"][index], color: palette[1], fontSize: 5.6 + index * 0.8, fontFamily: font, fontWeight: 800, letterSpacing: -0.1, lineHeight: 1, align: "left", z: 3 },
+          { id: "hero", type: "image", x: heroX, y: heroY, w: heroW, h: heroH, color: palette[2], shape: ["rounded", "square", "organic"][index], z: 1, animation: motion },
+          { id: "category", type: "category", x: titleX, y: sideImage ? 50 : 56 + index * 2, w: 52, h: 6, text: arabic ? "الأطباق الرئيسية" : ["SIGNATURE DISHES", "FROM THE KITCHEN", "CHEF'S SELECTION"][index], color: palette[2], fontSize: 2.7 + index * 0.2, fontFamily: font, fontWeight: 700, letterSpacing: 0.12, lineHeight: 1.1, align: "left", z: 3 },
+          { id: "copy", type: "copy", x: titleX, y: sideImage ? 57 : 64 + index * 2, w: sideImage ? 78 : 72 + index * 5, h: 12, text: arabic ? "وصف مختصر للأطباق المميزة" : ["Freshly prepared dishes with a carefully art-directed presentation.", "Seasonal ingredients, crafted with restraint and character.", "A considered menu built around flavor, texture and atmosphere."][index], color: palette[1], fontSize: 2.4 + (index % 2) * 0.3, fontFamily: font, fontWeight: 400, letterSpacing: 0, lineHeight: 1.4, align: "left", z: 3 },
+          { id: "price", type: "price", x: sideImage ? 72 : 75 - index * 3, y: sideImage ? 57 : 64 + index * 2, w: 20, h: 7, text: `${5 + index}.90 JOD`, color: palette[2], fontSize: 3.1 + index * 0.2, fontFamily: font, fontWeight: 800, letterSpacing: 0, lineHeight: 1, align: "right", z: 3 },
+        ],
+        responsive: { mobile: "Stack imagery above content; preserve 7% safe margins; never overflow horizontally.", tablet: "Use the generated composition's chosen hierarchy with two-column balance where space permits.", desktop: "Preserve art-directed negative space and the selected layout family." },
+        motion: { entrance: motion, hover: index === 1 ? "subtle-scale" : "subtle-lift", scroll: index === 2 ? "gentle-reveal" : "soft-fade" },
+      },
+    };
+  });
+
   return JSON.stringify({ designs });
 }
 
 export async function callMenuDesigner(input: unknown[], apiKey?: string): Promise<string> {
-  // No Lovable AI credits are required. When no OpenAI server secret is available,
-  // return a fully editable local composition instead of throwing a configuration error.
   if (!apiKey) return localDesignFallback(input);
 
   const response = await fetch(OPENAI_URL, {
@@ -105,7 +161,6 @@ export async function callMenuDesigner(input: unknown[], apiKey?: string): Promi
 
   if (!response.ok) {
     console.error("OpenAI menu designer error", response.status, payload.error?.message ?? raw.slice(0, 500));
-    // Keep the designer usable even when OpenAI is unavailable/rate-limited.
     if (response.status === 401 || response.status === 403 || response.status === 429) return localDesignFallback(input);
     throw new Error(payload.error?.message || "OpenAI menu generation is temporarily unavailable.");
   }
