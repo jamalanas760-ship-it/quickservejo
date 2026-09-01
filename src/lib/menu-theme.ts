@@ -28,7 +28,13 @@ export type TemplateId =
   | "nautical"
   | "ornate"
   | "tiles"
-  | "wellness";
+  | "wellness"
+  | "duotone"
+  | "gastro"
+  | "terracotta"
+  | "maroon"
+  | "cocoa"
+  | "playful";
 export type FontId = "sans" | "serif" | "rounded" | "mono" | "display" | "condensed" | "script";
 export type LayoutId =
   | "list"
@@ -39,7 +45,10 @@ export type LayoutId =
   | "mosaic"
   | "spotlight"
   | "rail"
-  | "ticket";
+  | "ticket"
+  | "duo"
+  | "triptych"
+  | "panel";
 export type HeroId =
   | "cover"
   | "gradient"
@@ -48,7 +57,11 @@ export type HeroId =
   | "stamp"
   | "ribbon"
   | "blob"
-  | "sidebar";
+  | "sidebar"
+  | "medallion"
+  | "spine"
+  | "banner";
+
 export type ImageShape = "rounded" | "circle" | "square";
 export type ButtonStyleId = "solid" | "pill" | "soft" | "outline";
 export type CardStyleId = "flat" | "elevated" | "outline" | "glass";
