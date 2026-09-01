@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8"><style>body{font:13px Inter,Arial,sans-serif;padding:16px;color:#222}textarea{width:100%;height:390px;box-sizing:border-box;border:1px solid #ddd;border-radius:10px;padding:10px}button{margin-top:12px;width:100%;height:40px;border:0;border-radius:10px;background:#111;color:#fff;font-weight:600}p{color:#666;line-height:1.45}</style></head>
+<body>
+<h2>QuickServe AI Menu</h2>
+<p>Paste the editable menu JSON exported by QuickServe AI Menu Studio. The plugin converts the structure into native editable Figma layers.</p>
+<textarea id="json" placeholder='{"name":"Restaurant Menu","width":1080,"height":1440,"background":"#F7F3EA","title":"MENU","items":[{"name":"Chicken Shawarma","price":"5.50 JOD"}]}'></textarea>
+<button id="import">Import as editable layers</button>
+<script>
+document.getElementById('import').onclick=()=>{const value=document.getElementById('json').value.trim();if(!value)return;parent.postMessage({pluginMessage:{type:'import',payload:value}},'*')};
+</script>
+</body></html>
