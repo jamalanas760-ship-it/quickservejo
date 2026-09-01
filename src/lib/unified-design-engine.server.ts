@@ -13,6 +13,8 @@ const inputSchema = z.object({
   syncCanva: z.boolean().default(false),
 });
 
+type CanvaResult = Awaited<ReturnType<typeof createCanvaDesignShell>>;
+
 /**
  * One unified provider boundary for the selected QuickServe concept.
  * The UI never chooses Figma/Canva/Adobe individually; this engine decides
@@ -35,12 +37,13 @@ export const prepareUnifiedDesign = createServerFn({ method: "POST" })
       providers: typeof providers;
       figma: ReturnType<typeof buildFigmaPluginPayload>;
       adobe: ReturnType<typeof buildAdobeProductionPlan>;
-      canva?: unknown;
+      canva: CanvaResult | null;
     } = {
       graph,
       providers,
       figma: buildFigmaPluginPayload(graph),
       adobe: buildAdobeProductionPlan(graph),
+      canva: null,
     };
 
     if (data.syncCanva) {
