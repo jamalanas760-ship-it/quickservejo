@@ -72,7 +72,7 @@ function localDesignFallback(input: unknown[]): string {
   const arabic = /arabic|rtl|عربي|مطعم|قائمة/.test(lower);
   const hasReference = /input_image|data:image|reference image|reference_image/.test(lower);
 
-  const palettes = dark
+  const palettes: [string, string, string][][] = dark
     ? [["#101010", "#F7F2E8", "#D9A441"], ["#191614", "#FFF8EE", "#C56A3A"], ["#0D1720", "#F4F0E8", "#7FA99B"]]
     : warm
       ? [["#F3E8D5", "#241B16", "#9A5A32"], ["#FFF8EC", "#2A211C", "#C27A43"], ["#E9DED0", "#2B2420", "#6B584A"]]
@@ -96,7 +96,7 @@ function localDesignFallback(input: unknown[]): string {
   const offset = hash % 6;
 
   const designs = [0, 1, 2].map((index) => {
-    const palette = palettes[(index + offset) % palettes.length];
+    const palette: [string, string, string] = palettes[(index + offset) % palettes.length] ?? ["#FFFFFF", "#171717", "#C4472D"];
     const layout = layoutPool[(index + Math.floor(hash / 7)) % layoutPool.length];
     const font = fontPool[(index + Math.floor(hash / 13)) % fontPool.length];
     const hero = heroPool[(index + Math.floor(hash / 17)) % heroPool.length];
