@@ -38,7 +38,7 @@ export type UnifiedDesignGraph = {
     ratio: number;
     background: string;
   };
-  theme: Record<string, unknown>;
+  theme: string;
   elements: DesignElement[];
   responsive: {
     mobile: string;
@@ -73,22 +73,24 @@ export function toUnifiedDesignGraph(
   const canvasWidth = numberOr(composition.width, 1200);
   const canvasHeight = numberOr(composition.height, 1600);
 
+  const sourceData: UnifiedDesignGraph["source"] = {
+    prompt: source.prompt,
+    references: source.references ?? [],
+    fidelity,
+  };
+  if (source.analysis) sourceData.analysis = source.analysis;
+
   return {
     version: 1,
     id,
-    source: {
-      prompt: source.prompt,
-      references: source.references ?? [],
-      analysis: source.analysis,
-      fidelity,
-    },
+    source: sourceData,
     canvas: {
       width: canvasWidth,
       height: canvasHeight,
       ratio: canvasWidth / Math.max(canvasHeight, 1),
       background: composition.background?.color ?? design?.background ?? "#FFFFFF",
     },
-    theme: design ?? {},
+    theme: JSON.stringify(design ?? {}),
     elements: elements.map((element: any, index: number) => ({
       id: String(element.id ?? `element-${index + 1}`),
       type: String(element.type ?? "shape"),
