@@ -8,26 +8,18 @@ const generateSchema = z.object({
   restaurantId: z.string().uuid(),
   brief: z.string().max(6000).optional(),
   base: z.string().max(120).optional(),
-  tweak: z.string().max(800).optional(),
+  tweak: z.string().max(1200).optional(),
   provider: z.enum(["openai", "gemini", "claude", "adobe", "figma", "canva"]).optional(),
-  images: z
-    .array(
-      z
-        .string()
-        .max(6_000_000)
-        .refine((v) => v.startsWith("data:image/") || v.startsWith("https://"), "Unsupported image"),
-    )
-    .max(5)
-    .optional(),
+  images: z.array(z.string().max(6_000_000).refine((v) => v.startsWith("data:image/") || v.startsWith("https://"), "Unsupported image")).max(5).optional(),
 });
 
 const PROVIDER_GUIDANCE: Record<string, string> = {
-  openai: "Use a structured, decisive art-direction workflow: hierarchy first, composition second, styling third, responsive behavior last.",
-  gemini: "Treat attached images as visual evidence. Compare their composition, typography, material, crop logic and spacing before synthesizing the original direction.",
-  claude: "Prioritize editorial reasoning, accessibility, hierarchy and human-made visual character. Resolve ambiguity instead of producing generic UI.",
-  adobe: "Prepare an Adobe-friendly art direction with explicit photography, texture, palette, type, crop and print/digital handoff instructions.",
+  openai: "Use a structured hospitality art-direction workflow: hierarchy first, composition second, styling third, responsive behavior last. Produce meaningfully different concepts, not recolours.",
+  gemini: "Treat attached images as visual evidence. Infer composition, typography relationships, material, crop logic, spacing and visual rhythm before synthesizing.",
+  claude: "Prioritize editorial reasoning, accessibility, hierarchy and human-made character. Resolve ambiguity instead of producing generic UI.",
+  adobe: "Prepare explicit photography, texture, palette, type, crop and print/digital art direction that can continue in Adobe tools.",
   figma: "Think in editable frames, layers, reusable components, auto-layout groups, constraints and responsive variants.",
-  canva: "Think in editable Canva pages and elements with clear page structure, visual hierarchy, safe margins and practical image placement.",
+  canva: "Think in editable pages and elements with clear page structure, safe margins, visual hierarchy and practical image placement.",
 };
 
 export const generateMenuTheme = createServerFn({ method: "POST" })
@@ -38,54 +30,42 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
     const owner = await supabase.rpc("is_platform_owner");
     if (owner.error) throw owner.error;
     if (!owner.data) {
-      const { data: rows, error } = await supabase
-        .from("staff")
-        .select("role")
-        .eq("restaurant_id", data.restaurantId)
-        .eq("auth_user_id", userId)
-        .eq("is_active", true);
+      const { data: rows, error } = await supabase.from("staff").select("role").eq("restaurant_id", data.restaurantId).eq("auth_user_id", userId).eq("is_active", true);
       if (error) throw error;
       const allowed = (rows ?? []).some((row) => row.role === "restaurant_admin" || row.role === "manager");
       if (!allowed) throw new Error("Forbidden");
     }
 
-    const { data: restaurant, error: restaurantError } = await supabase
-      .from("restaurants")
-      .select("name, description_en, description_ar, primary_color, accent_color")
-      .eq("id", data.restaurantId)
-      .single();
+    const { data: restaurant, error: restaurantError } = await supabase.from("restaurants").select("name, description_en, description_ar, primary_color, accent_color").eq("id", data.restaurantId).single();
     if (restaurantError) throw restaurantError;
 
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) throw new Error("AI menu designer is not configured.");
 
     const provider = data.provider ?? "openai";
+    const isReference = Boolean(data.images?.length);
     const prompt = [
       ART_DIRECTION,
       DESIGN_SCHEMA,
-      `Target AI/design workflow: ${provider}`,
+      `Target workflow: ${provider}`,
       PROVIDER_GUIDANCE[provider],
       `Restaurant: ${restaurant.name}`,
       restaurant.description_en ? `English description: ${restaurant.description_en}` : "",
       restaurant.description_ar ? `Arabic description: ${restaurant.description_ar}` : "",
       `Existing brand colours: primary ${restaurant.primary_color}, accent ${restaurant.accent_color}`,
-      data.base ? `Selected visual direction: ${data.base}` : "",
-      data.brief ? `Owner creative brief: ${data.brief}` : "",
+      data.base ? `Selected direction: ${data.base}` : "",
+      data.brief ? `Creative brief: ${data.brief}` : "",
+      isReference ? "REFERENCE RECONSTRUCTION MODE: analyze every attached image as visual DNA. Reconstruct hierarchy, grid, alignment, typography relationships, image crops, negative space, decorative language and surface treatment. Match the composition closely while returning an editable design system. Do not flatten the screenshot into one image." : "CREATIVE MODE: invent a fresh composition with a distinct information architecture. Do not simply recolour or lightly modify a standard template.",
       data.tweak ? `Refinement: ${data.tweak}` : "",
-      data.images?.length
-        ? "Reference images are attached directly to this request. Analyze them as visual DNA and use them to improve composition, palette, typography, texture, image cropping and hierarchy. Do not reproduce protected logos or text."
-        : "",
-      "Return a design that is immediately usable by the live composition preview. Never return only a palette or a list of cards.",
-    ]
-      .filter(Boolean)
-      .join("\n\n");
+      "Return 3 materially different, immediately usable menu design variants. Each variant must be a complete theme object compatible with the live composition preview.",
+    ].filter(Boolean).join("\n\n");
 
     const userContent: unknown[] = [{ type: "input_text", text: prompt }];
     for (const image of data.images ?? []) userContent.push({ type: "input_image", image_url: image, detail: "high" });
 
     const text = await callMenuDesigner(
       [
-        { role: "system", content: [{ type: "input_text", text: "You are a world-class hospitality art director and visual systems designer. Output valid JSON only." }] },
+        { role: "system", content: [{ type: "input_text", text: "You are a world-class hospitality art director with 25+ years of experience in restaurant branding, menu design, typography, editorial composition and digital product systems. Output valid JSON only. Be inventive, but practical and editable." }] },
         { role: "user", content: userContent },
       ],
       apiKey,
