@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ART_DIRECTION, DESIGN_SCHEMA, callMenuDesigner, extractDesigns } from "@/lib/menu-designer.server";
 
@@ -10,30 +9,29 @@ const inputSchema = z.object({
   references: z.array(z.string().max(6_000_000)).max(5).optional(),
   language: z.enum(["en", "ar"]).default("en"),
   direction: z.string().max(500).optional(),
+  variationSeed: z.string().max(100).optional(),
 });
 
 const CREATIVE_SYSTEM = `You are QuickServe Creative Director, a world-class hospitality designer with 25+ years of experience across restaurant branding, editorial design, food photography, typography, packaging, digital products and premium menu systems.
 
-You are not a template recoloring engine. Your job is to create a believable, human-designed menu with a strong point of view.
+ONE UNIFIED DESIGNER: Figma, Canva and Adobe are internal creative disciplines. Never expose provider choices and never let a provider become a visual template.
+- Figma discipline: editable layers, grids, constraints, component logic and responsive structure.
+- Canva discipline: practical editable content, page systems, safe margins and easy restaurant-team changes.
+- Adobe discipline: art-directed photography, retouching, lighting, texture, compositing and polished finishing.
+- Creative Director discipline: decide which combination is right for THIS prompt/reference and synthesize it into one coherent visual system.
 
-Use a coordinated creative stack internally:
-1. FIGMA MINDSET — think in real editable frames, grids, auto-layout, constraints, components and responsive rules.
-2. CANVA MINDSET — think in practical editable pages, safe margins, reusable content fields and fast restaurant-team editing.
-3. ADOBE MINDSET — art-direct photography, texture, retouching, image treatment, visual depth and polished finishing.
-4. AI CREATIVE DIRECTOR — synthesize the three disciplines into one coherent design. Never expose them as separate choices to the user.
+INPUT PRIORITY:
+1. Explicit user instructions.
+2. Attached reference image(s), if present.
+3. Restaurant brand/content data.
+4. Creative variation seed.
+Never replace explicit instructions with a default QuickServe style.
 
-Humanization rules:
-- Avoid generic SaaS/template aesthetics.
-- Avoid predictable centered cards and repeated rounded rectangles unless the concept genuinely needs them.
-- Use asymmetry, intentional negative space, editorial rhythm, imperfect-but-controlled details and varied scale when appropriate.
-- Make typography feel selected by a designer, not randomly assigned.
-- Treat food photography as art direction: crop, light, angle, background, depth and negative space must serve the composition.
-- Preserve brand authenticity and cuisine context.
-- For Arabic, use proper RTL hierarchy and typography; for bilingual menus, create a deliberate bilingual composition instead of simply duplicating text.
-- Design for real restaurants: prices and item names must remain readable, scannable and operationally editable.
-- Every generated direction must have a different composition strategy, not merely a different color palette.
+If references exist, perform a visual reverse-engineering pass before designing. If the user asks for exact/same/recreate, optimize for high visual fidelity. If the user asks for a new variation, deliberately change the composition strategy while preserving the requested attributes.
 
-When a reference image is provided, analyze its visual DNA first: composition, grid, hierarchy, proportions, typography relationships, crop logic, spacing, materials, decorative language, contrast and rhythm. Reconstruct the underlying editable system, not a flattened screenshot. Then create an original result that is faithful to the requested reference mode while remaining editable.
+The generated JSON must explicitly encode the requested font family/class, typography hierarchy, layout family, exact/derived colors, spacing, imagery treatment, style details and motion whenever those are inferable from the prompt/reference. Do not hide these decisions only in prose.
+
+Never return the same result because the prompt is similar. Use the variation seed as a creative seed. A new seed should be able to change composition, hierarchy, typography pairing, color relationship, hero treatment, image crop, decorative language and motion without breaking restaurant usability.
 
 Return JSON only.`;
 
@@ -61,20 +59,23 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
     if (!apiKey) throw new Error("AI menu designer is not configured.");
 
     const references = data.references ?? [];
+    const seed = data.variationSeed ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const prompt = [
       ART_DIRECTION,
       DESIGN_SCHEMA,
-      "UNIFIED CREATIVE STACK: Figma + Canva + Adobe are internal creative disciplines, not user-selectable providers. Synthesize their strongest capabilities into one design system.",
+      `CREATIVE VARIATION SEED: ${seed}. Treat this as a genuine creative seed. Do not produce a memorized/default composition.`,
       `Restaurant: ${restaurant.name}`,
+      `Language: ${data.language}`,
       `Currency: ${restaurant.currency ?? "JOD"}`,
       `Brand colours: primary ${restaurant.primary_color ?? "unknown"}; accent ${restaurant.accent_color ?? "unknown"}`,
       restaurant.description_en ? `English identity: ${restaurant.description_en}` : "",
       restaurant.description_ar ? `Arabic identity: ${restaurant.description_ar}` : "",
       `Menu content sample: ${JSON.stringify(items ?? []).slice(0, 16000)}`,
-      data.brief ? `Creative brief: ${data.brief}` : "No explicit brief: make a strong contemporary restaurant-art-direction decision.",
-      data.direction ? `Preferred creative direction: ${data.direction}` : "",
-      references.length ? "REFERENCE MODE: use the attached images as visual DNA. First infer their design system, then reconstruct it as editable layers and improve it without losing the defining character." : "ORIGINAL MODE: invent a fresh visual language and information architecture.",
-      "Generate exactly 3 radically different concepts. Each must be practical for a live QR menu and must include editable structure, image-art-direction guidance, typography system, responsive behavior and a humanization rationale.",
+      data.brief ? `USER CREATIVE PROMPT (FOLLOW THIS): ${data.brief}` : "USER CREATIVE PROMPT: none — make a fresh art-directed decision from the restaurant identity.",
+      data.direction ? `USER PREFERRED PERSONALITY: ${data.direction}` : "",
+      references.length ? "REFERENCE IMAGE MODE: inspect every attached image. Extract and encode layout, typography, font personality, colors, spacing, imagery, crops, shapes, texture, decorative details, animation cues and visual rhythm. Reconstruct the visual system as editable elements. If the user asked for exact recreation, prioritize fidelity over stylistic invention." : "ORIGINAL MODE: invent a new visual language from the user prompt and restaurant identity.",
+      references.length ? "REFERENCE FIDELITY TEST: the returned composition must visibly resemble the reference's structure and styling, not just its colors. Do not use the reference as a background image." : "",
+      "OUTPUT TEST: concept 1, 2 and 3 must differ in structure when variation is requested. Do not merely recolor, swap one font, or change a border radius. Include meaningful differences in layout, typography, image treatment, hierarchy and motion.",
     ].filter(Boolean).join("\n\n");
 
     const content: unknown[] = [{ type: "input_text", text: prompt }];
@@ -92,19 +93,15 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
       concepts: designs.map((design, index) => ({
         id: `concept-${index + 1}`,
         theme: JSON.stringify(design),
-        creativeStack: {
-          figma: "Editable layer + responsive system",
-          canva: "Editable content/page schema",
-          adobe: "Photography + texture + finishing direction",
-        },
+        creativeStack: { figma: "Editable layer + responsive system", canva: "Editable content/page schema", adobe: "Photography + texture + finishing direction" },
       })),
       pipeline: [
-        "Understand restaurant identity",
-        references.length ? "Analyze visual DNA" : "Establish original visual language",
-        "Art-direct food imagery",
-        "Compose editorial hierarchy",
-        "Build editable responsive system",
-        "Humanize and quality-check",
+        "Understand the user's prompt/reference",
+        references.length ? "Reverse-engineer visual DNA" : "Invent visual language",
+        "Choose typography, layout, color and imagery from the brief",
+        "Art-direct composition and motion",
+        "Build editable responsive layers",
+        "Humanize and run visual fidelity checks",
       ],
     };
   });
