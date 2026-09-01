@@ -34,13 +34,24 @@ function result(provider: ProviderName, data: Omit<ProviderCheck, "provider" | "
 
 async function verifyOpenAI(): Promise<ProviderCheck> {
   const apiKey = secret("OPENAI_API_KEY") ?? secret("OPENAI_API_KEYS");
-  if (!apiKey) return result("openai", { connected: false, verified: false, status: "needs_configuration", latencyMs: null, capability: "Responses API + vision", message: "OPENAI_API_KEY or OPENAI_API_KEYS is not configured." });
-  const { response, latencyMs } = await timedFetch("https://api.openai.com/v1/models", { headers: { Authorization: `Bearer ${apiKey}` } });
-  if (!response.ok) return result("openai", { connected: false, verified: false, status: response.status === 401 ? "unauthorized" : response.status === 403 ? "forbidden" : "error", latencyMs, capability: "Responses API + vision", message: `OpenAI authentication check failed (${response.status}).` });
-  const body = await response.json() as { data?: Array<{ id?: string }> };
-  const modelIds = (body.data ?? []).map((model) => model.id).filter(Boolean) as string[];
-  const supportsTargetModel = modelIds.includes("gpt-5.6-luna");
-  return result("openai", { connected: true, verified: true, status: "healthy", latencyMs, capability: "Responses API + vision", message: supportsTargetModel ? "OpenAI API authenticated; GPT-5.6 Luna is available." : "OpenAI API authenticated; target model availability should be checked in the design request.", details: { modelAvailable: supportsTargetModel } });
+  const model = secret("OPENAI_MENU_MODEL") ?? "gpt-5.6-luna";
+  if (!apiKey) return result("openai", { connected: false, verified: false, status: "needs_configuration", latencyMs: null, capability: "Responses API + vision", message: "OPENAI_API_KEY or OPENAI_API_KEYS is not configured in the QuickServe server runtime.", details: { model } });
+
+  const started = Date.now();
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model, input: "Reply with exactly QUICKSERVE_OPENAI_RUNTIME_OK", max_output_tokens: 16 }),
+    });
+    const latencyMs = Date.now() - started;
+    if (!response.ok) return result("openai", { connected: false, verified: false, status: response.status === 401 ? "unauthorized" : response.status === 403 ? "forbidden" : "error", latencyMs, capability: "Responses API + vision", message: `OpenAI Responses API runtime verification failed (${response.status}).`, details: { model } });
+    const body = await response.json() as { output_text?: string };
+    const verified = body.output_text?.trim() === "QUICKSERVE_OPENAI_RUNTIME_OK";
+    return result("openai", { connected: true, verified, status: verified ? "healthy" : "error", latencyMs, capability: "Responses API + vision", message: verified ? "OpenAI Responses API is authenticated and responding from the QuickServe server runtime." : "OpenAI responded, but the runtime smoke-test response did not match the expected value.", details: { model } });
+  } catch (error) {
+    return result("openai", { connected: false, verified: false, status: "error", latencyMs: Date.now() - started, capability: "Responses API + vision", message: error instanceof Error ? `OpenAI runtime request failed: ${error.message}` : "OpenAI runtime request failed.", details: { model } });
+  }
 }
 
 async function verifyFigma(): Promise<ProviderCheck> {
