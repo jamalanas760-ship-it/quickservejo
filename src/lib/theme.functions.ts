@@ -2,8 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { ART_DIRECTION, DESIGN_SCHEMA, MenuDesignerCreditsError, callMenuDesigner, extractDesigns } from "@/lib/menu-designer.server";
-import { TEMPLATES, type MenuTheme } from "@/lib/menu-theme";
+import { ART_DIRECTION, DESIGN_SCHEMA, callMenuDesigner, extractDesigns } from "@/lib/menu-designer.server";
+import { type MenuTheme } from "@/lib/menu-theme";
 
 const generateSchema = z.object({
   restaurantId: z.string().uuid(),
@@ -25,39 +25,6 @@ const PROVIDER_GUIDANCE: Record<string, string> = {
 
 type FallbackTheme = MenuTheme & { composition: Record<string, unknown> };
 
-function createFallbackVariants(restaurant: { name: string; primary_color: string | null; accent_color: string | null }): FallbackTheme[] {
-  const palettes = [
-    { key: "editorial" as const, concept: "Editorial restaurant menu", primary: restaurant.primary_color ?? TEMPLATES.editorial.theme.primary, accent: restaurant.accent_color ?? TEMPLATES.editorial.theme.accent },
-    { key: "cafe" as const, concept: "Warm contemporary menu", primary: restaurant.primary_color ?? TEMPLATES.cafe.theme.primary, accent: restaurant.accent_color ?? TEMPLATES.cafe.theme.accent },
-    { key: "street" as const, concept: "Bold modern food menu", primary: restaurant.primary_color ?? TEMPLATES.street.theme.primary, accent: restaurant.accent_color ?? TEMPLATES.street.theme.accent },
-  ];
-
-  return palettes.map(({ key, concept, primary, accent }, index) => {
-    const base = TEMPLATES[key].theme;
-    return {
-      ...base,
-      primary,
-      accent,
-      composition: {
-        version: 2,
-        concept: `${restaurant.name} — ${concept}`,
-        artDirection: "Local editable fallback used because the AI gateway has no remaining credits. Replace with an AI-generated direction when credits are restored.",
-        background: { color: base.bg, texture: base.texture },
-        elements: [
-          { id: `fallback-title-${index}`, type: "title", x: 8, y: 8, w: 84, h: 12, text: restaurant.name, fontSize: 36, fontFamily: base.headingFont, fontWeight: 700, color: base.text, z: 3 },
-          { id: `fallback-category-${index}`, type: "category", x: 8, y: 25, w: 38, h: 7, text: "SIGNATURE", fontSize: 12, fontWeight: 700, color: primary, z: 3 },
-          { id: `fallback-image-${index}`, type: "image", x: 52, y: 23, w: 40, h: 30, color: accent, shape: base.imageShape, z: 2 },
-          { id: `fallback-copy-${index}`, type: "copy", x: 8, y: 36, w: 40, h: 16, text: "Fresh ingredients · Crafted with care", fontSize: 14, color: base.muted, z: 3 },
-          { id: `fallback-price-${index}`, type: "price", x: 8, y: 57, w: 84, h: 8, text: "8.50 JOD", fontSize: 18, fontWeight: 700, color: primary, align: "right", z: 3 },
-          { id: `fallback-rule-${index}`, type: "shape", x: 8, y: 68, w: 84, h: 1, color: primary, z: 1 },
-        ],
-        responsive: { mobile: "Single-column stack with preserved hierarchy", tablet: "Balanced two-zone composition", desktop: "Editorial asymmetric composition" },
-        motion: { entrance: base.animation, hover: "none", scroll: "none" },
-      },
-    };
-  });
-}
-
 export const generateMenuTheme = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => generateSchema.parse(input))
@@ -75,8 +42,8 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
     const { data: restaurant, error: restaurantError } = await supabase.from("restaurants").select("name, description_en, description_ar, primary_color, accent_color").eq("id", data.restaurantId).single();
     if (restaurantError) throw restaurantError;
 
-    const apiKey = process.env["LOVABLE_API_KEY"];
-    if (!apiKey) throw new Error("AI menu designer is not configured.");
+    const apiKey = process.env["OPENAI_API_KEY"];
+    if (!apiKey) throw new Error("AI menu designer is not configured. Add OPENAI_API_KEY to the server environment.");
 
     const provider = data.provider ?? "openai";
     const isReference = Boolean(data.images?.length);
@@ -99,25 +66,15 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
     const userContent: unknown[] = [{ type: "input_text", text: prompt }];
     for (const image of data.images ?? []) userContent.push({ type: "input_image", image_url: image, detail: "high" });
 
-    try {
-      const text = await callMenuDesigner(
-        [
-          { role: "system", content: [{ type: "input_text", text: "You are a world-class hospitality art director with 25+ years of experience in restaurant branding, menu design, typography, editorial composition and digital product systems. Output valid JSON only. Be inventive, but practical and editable." }] },
-          { role: "user", content: userContent },
-        ],
-        apiKey,
-      );
+    const text = await callMenuDesigner(
+      [
+        { role: "system", content: [{ type: "input_text", text: "You are a world-class hospitality art director with 25+ years of experience in restaurant branding, menu design, typography, editorial composition and digital product systems. Output valid JSON only. Be inventive, but practical and editable." }] },
+        { role: "user", content: userContent },
+      ],
+      apiKey,
+    );
 
-      const designs = extractDesigns(text);
-      if (designs.length === 0) throw new Error("The AI returned an invalid menu design. Please try again.");
-      return { variants: designs.slice(0, 3).map((design) => JSON.stringify(design)), fallback: false };
-    } catch (error) {
-      if (!(error instanceof MenuDesignerCreditsError)) throw error;
-      console.warn("AI menu designer credits exhausted; serving local editable fallback designs.");
-      return {
-        variants: createFallbackVariants(restaurant).map((theme) => JSON.stringify(theme)),
-        fallback: true,
-        message: "AI credits are exhausted. Editable local menu directions were loaded instead.",
-      };
-    }
+    const designs = extractDesigns(text);
+    if (designs.length === 0) throw new Error("The AI returned an invalid menu design. Please try again.");
+    return { variants: designs.slice(0, 3).map((design) => JSON.stringify(design)), fallback: false };
   });
