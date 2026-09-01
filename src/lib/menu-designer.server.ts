@@ -3,7 +3,9 @@
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/responses";
 export const MENU_MODEL = "openai/gpt-5.6-luna";
 
-export const DESIGN_SCHEMA = `Return {"designs":[d1,d2,d3]} and nothing else. Each design must contain the existing MenuTheme keys plus a composition object. composition = {version:1,concept:string,artDirection:string,background:{color:string,texture:string},elements:[...]} where each element is {id:string,type:title|eyebrow|image|copy|category|product|price|shape,x:number,y:number,w:number,h:number,rotation?:number,opacity?:number,text?:string,image?:string,color?:string,fontSize?:number,align?:left|center|right,shape?:square|rounded|circle|organic}. Coordinates are percentages of the artboard. The composition must be a real visual composition, not a card list. The three designs must be structurally different.`;
+export const DESIGN_SCHEMA = `Return {"designs":[d1,d2,d3]} and nothing else. Each design must contain the existing MenuTheme keys plus a composition object. composition = {version:1,concept:string,artDirection:string,background:{color:string,texture:string},elements:[...]} where each element is {id:string,type:title|eyebrow|image|copy|category|product|price|shape,x:number,y:number,w:number,h:number,rotation?:number,opacity?:number,text?:string,image?:string,color?:string,fontSize?:number,align?:left|center|right,shape?:square|rounded|circle|organic}. Coordinates are percentages of the artboard. The composition must be a real visual composition, not a card list. The three designs must be structurally different.
+
+Also set the theme keys with these exact allowed values: template = classic|midnight|street|cafe|bold|chalkboard|sketch|bifold|editorial|breakfast|bakery|poster|coffeehouse|emerald|script|retro|brush|nautical|ornate|tiles|wellness|duotone|gastro|terracotta|maroon|cocoa|playful; layout = list|grid|magazine|columns|gallery|mosaic|spotlight|rail|ticket|duo|triptych|panel; hero = cover|gradient|minimal|chalk|stamp|ribbon|blob|sidebar|medallion|spine|banner.`;
 
 export const ART_DIRECTION = `You are the creative director of an elite restaurant menu studio with decades of print and digital hospitality design experience. Output must feel REALISTIC, HUMAN-MADE, MODERN and ART-DIRECTED — never basic, standard, templated or SaaS-looking.
 
@@ -19,6 +21,14 @@ NON-NEGOTIABLES:
 - Reference images are visual DNA: analyze composition, hierarchy, typography, texture, crops, spacing and contrast, then create an original design. Never clone protected logos/text.
 - Motion should be subtle and purposeful.
 - The composition object must contain positioned elements that the visual editor can select, move and refine. It should look like a professional art-directed canvas, not a schema dump.
+
+REFERENCE ARCHETYPES — proven print structures from the studio's archive. Pick THREE different families per response and push each further:
+1. Duotone bill of fare — template duotone, layout duo, hero medallion: black band, circular crest, FOOD / DRINK facing columns, dotted leader prices, photo strip.
+2. Gastronomy broadsheet — template gastro, layout triptych, hero banner: cream stock, three narrow editorial columns, centred plated crops, filigree dividers.
+3. Terracotta spine — template terracotta, layout columns, hero spine: sand + burnt orange colour spine with an oversized vertical MENU wordmark and floating round plates.
+4. Maroon print sidebar — template maroon, layout panel, hero spine: deep maroon information column (hours, address) beside classic serif columns with leader dots.
+5. Cocoa poster — template cocoa, layout panel, hero banner: enormous condensed headline, hairline rules, wine-red feature panel for specials.
+6. Ink blob playful — template playful, layout duo, hero blob: organic black/amber blobs, script section pills, circular food crops, warm paper.
 
 QUALITY BAR:
 Would a premium restaurant realistically publish this? If not, improve it before returning it.
