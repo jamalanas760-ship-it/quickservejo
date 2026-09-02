@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ART_DIRECTION, DESIGN_SCHEMA, callMenuDesigner, extractDesigns } from "@/lib/menu-designer.server";
+import { runMenuQualityGate } from "@/lib/menu-quality-gate.server";
 
 const inputSchema = z.object({
   restaurantId: z.string().uuid(),
@@ -88,7 +89,6 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
       `CREATIVE VARIATION SEED: ${seed}`,
     ].filter(Boolean).join("\n\n");
 
-    // Stage 1: forensic analysis. The model sees the actual reference images and prompt before any design is generated.
     let visualAnalysis = "No reference image was supplied. Build the visual specification from the user's prompt and restaurant identity.";
     if (references.length && apiKey) {
       const analysisContent: unknown[] = [{ type: "input_text", text: `${ANALYSIS_SCHEMA}\n\n${baseContext}\n\nAnalyze every attached reference image. Do not design yet.` }];
@@ -100,7 +100,6 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
       visualAnalysis = analysisText;
     }
 
-    // Stage 2: design generation. The original images are intentionally sent again so the designer can verify the analysis against pixels.
     const designPrompt = [
       DESIGN_SYSTEM,
       ART_DIRECTION,
@@ -122,22 +121,36 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
       { role: "user", content },
     ], apiKey);
 
-    const designs = extractDesigns(text).slice(0, 3);
-    if (!designs.length) throw new Error("The creative director returned no valid designs.");
+    const initialDesigns = extractDesigns(text).slice(0, 3);
+    if (!initialDesigns.length) throw new Error("The creative director returned no valid designs.");
+
+    const exactReference = /\b(exact|same|recreate|copy|identical|match reference)\b/i.test(data.brief ?? "") && references.length > 0;
+    const quality = await runMenuQualityGate({
+      designs: initialDesigns,
+      brief: data.brief ?? "",
+      visualAnalysis,
+      exactReference,
+      apiKey,
+    });
+    const designs = quality.designs.slice(0, 3);
 
     return {
       concepts: designs.map((design, index) => ({
         id: `concept-${index + 1}`,
         theme: JSON.stringify(design),
+        selectedByQualityGate: index === quality.winner,
+        qualityScore: quality.scores.find((score) => score.concept === index + 1)?.score ?? null,
         creativeStack: { figma: "Editable layer + responsive system", canva: "Editable content/page schema", adobe: "Photography + texture + finishing direction" },
       })),
       analysis: visualAnalysis,
+      qualityGate: { winner: quality.winner + 1, scores: quality.scores, criticalFixes: quality.criticalFixes },
       pipeline: [
         "Analyze the user's prompt and reference image(s)",
         "Build a forensic visual specification",
         "Cross-check the specification against the original pixels",
         "Generate three differentiated art directions",
-        "Run field-by-field fidelity and editability QA",
+        "Score concepts with an independent senior design critic",
+        "Automatically refine the winning concept against concrete issues",
         "Let the user choose one concept before editing/saving",
       ],
     };
