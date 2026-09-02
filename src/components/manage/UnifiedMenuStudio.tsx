@@ -39,6 +39,7 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
   const [theme, setTheme] = useState<MenuTheme>(DEFAULT_THEME);
   const [composition, setComposition] = useState<Composition>();
   const [analysis, setAnalysis] = useState("");
+  const [analysis, setAnalysis] = useState("");
   const [selected, setSelected] = useState<ElementId>("hero");
   const [selectedNode, setSelectedNode] = useState<string>();
   const [instruction, setInstruction] = useState("");
@@ -99,6 +100,8 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
     setBusy(true);
     try {
       const result = await orchestrate({ data: { restaurantId, brief: brief.trim(), references, direction: references.length ? undefined : mood, language: "en", variationSeed: `${Date.now()}-${crypto.randomUUID?.() ?? Math.random()}` } });
+      if (generationId !== generationIdRef.current) return;
+      setAnalysis(result.analysis ?? "");
       if (generationId !== generationIdRef.current) return;
       setAnalysis(result.analysis ?? "");
       if (generationId !== generationIdRef.current) return;

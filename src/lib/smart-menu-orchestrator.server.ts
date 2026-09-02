@@ -138,7 +138,7 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
     const text = await callMenuDesigner([
       { role: "system", content: [{ type: "input_text", text: DESIGN_SYSTEM }] },
       { role: "user", content },
-    ], apiKey);
+    ], apiKey, false);
 
     const initialDesigns = extractDesigns(text).slice(0, 3);
     if (!initialDesigns.length) throw new Error("The creative director returned no valid designs.");

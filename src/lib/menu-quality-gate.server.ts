@@ -42,7 +42,7 @@ export async function runMenuQualityGate({
   const refinement = await callMenuDesigner([
     { role: "system", content: [{ type: "input_text", text: `You are the final QuickServe production designer. Refine ONE existing editable menu concept without replacing its identity with a generic template. Preserve the user's source-of-truth requirements and real content. Fix every issue in the quality gate. Improve composition, hierarchy, typography, spacing, image treatment, responsiveness and production polish where needed. If exact recreation was requested, do not creatively drift from the reference. Return ${DESIGN_SCHEMA}` }] },
     { role: "user", content: [{ type: "input_text", text: `QUALITY-GATE SCORECARD:\n${JSON.stringify(parsed)}\n\nCRITICAL FIXES:\n${fixes.join("\n- ")}\n\nWINNING CONCEPT:\n${JSON.stringify(winningDesign)}` }] },
-  ], apiKey);
+  ], apiKey, false);
 
   const refined = extractDesigns(refinement)[0];
   if (!refined) return { designs, winner, scores: parsed.scores ?? [], criticalFixes: fixes };

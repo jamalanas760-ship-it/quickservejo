@@ -197,6 +197,7 @@ export async function callMenuDesigner(input: unknown[], apiKey?: string, allowF
     if (!response.ok) {
       console.error("OpenAI menu designer error", response.status, payload.error?.message ?? raw.slice(0, 500));
       if (!allowFallback) throw new Error(`OpenAI Menu Studio request failed (${response.status}): ${payload.error?.message ?? "unknown API error"}`);
+      if (!allowFallback) throw new Error(`OpenAI Menu Studio request failed (${response.status}): ${payload.error?.message ?? "unknown API error"}`);
       return localDesignFallback(input);
     }
 
