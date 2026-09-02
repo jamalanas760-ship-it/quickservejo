@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Apply AI Menu Studio hardening
+        run: node scripts/ai-menu-studio-hardening.mjs
+
       - name: Apply deterministic self-repairs
         run: node scripts/self-repair.mjs
 
