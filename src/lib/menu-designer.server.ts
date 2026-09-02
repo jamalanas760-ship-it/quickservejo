@@ -199,6 +199,7 @@ export async function callMenuDesigner(input: unknown[], apiKey?: string, allowF
       if (!allowFallback) throw new Error(`OpenAI Menu Studio request failed (${response.status}): ${payload.error?.message ?? "unknown API error"}`);
       if (!allowFallback) throw new Error(`OpenAI Menu Studio request failed (${response.status}): ${payload.error?.message ?? "unknown API error"}`);
       if (!allowFallback) throw new Error(`OpenAI Menu Studio request failed (${response.status}): ${payload.error?.message ?? "unknown API error"}`);
+      if (!allowFallback) throw new Error(`OpenAI Menu Studio request failed (${response.status}): ${payload.error?.message ?? "unknown API error"}`);
       return localDesignFallback(input);
     }
 

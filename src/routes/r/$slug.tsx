@@ -27,6 +27,8 @@ import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { isMenuThemeBridgeMessage } from "@/lib/menu-theme-bridge";
 import type { MenuTheme } from "@/lib/menu-theme";
+import { isMenuThemeBridgeMessage } from "@/lib/menu-theme-bridge";
+import type { MenuTheme } from "@/lib/menu-theme";
 import {
   buttonStyle as buttonStyleFor,
   densityGap,
