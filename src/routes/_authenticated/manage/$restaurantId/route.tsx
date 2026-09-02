@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { BarChart3, ChevronDown, ClipboardList, Palette, QrCode, ShoppingBag, Store, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";

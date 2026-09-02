@@ -82,17 +82,17 @@ function localDesignFallback(input: unknown[]): string {
   const bilingual = /bilingual|arabic\s*\+\s*english|english\s*\+\s*arabic|ثنائي|عربي.*إنجليزي|إنجليزي.*عربي/.test(lower);
   const hasReference = /input_image|data:image|reference image|reference_image/.test(lower);
 
-  const restaurant = objects.find((item) => getString(item.name) && ("primary_color" in item || "currency" in item || "description_en" in item)) ?? {};
-  const restaurantName = getString(restaurant.name) || (arabicRequested ? "مطعمك" : "Your Restaurant");
-  const primary = getString(restaurant.primary_color) || getString(restaurant.primaryColor);
-  const secondary = getString(restaurant.secondary_color) || getString(restaurant.secondaryColor);
-  const accent = getString(restaurant.accent_color) || getString(restaurant.accentColor);
-  const logo = getString(restaurant.logo_url) || getString(restaurant.logo);
-  const currency = getString(restaurant.currency) || "JOD";
+  const restaurant = objects.find((item) => getString(item["name"]) && ("primary_color" in item || "currency" in item || "description_en" in item)) ?? {};
+  const restaurantName = getString(restaurant["name"]) || (arabicRequested ? "مطعمك" : "Your Restaurant");
+  const primary = getString(restaurant["primary_color"]) || getString(restaurant["primaryColor"]);
+  const secondary = getString(restaurant["secondary_color"]) || getString(restaurant["secondaryColor"]);
+  const accent = getString(restaurant["accent_color"]) || getString(restaurant["accentColor"]);
+  const logo = getString(restaurant["logo_url"]) || getString(restaurant["logo"]);
+  const currency = getString(restaurant["currency"]) || "JOD";
 
-  const menuArrays = objects.filter((item) => Array.isArray(item.items) || Array.isArray(item.menuItems) || Array.isArray(item.menu_items));
+  const menuArrays = objects.filter((item) => Array.isArray(item["items"]) || Array.isArray(item["menuItems"]) || Array.isArray(item["menu_items"]));
   const menuItems = menuArrays.flatMap((item) => {
-    const value = Array.isArray(item.items) ? item.items : Array.isArray(item.menuItems) ? item.menuItems : item.menu_items;
+    const value = Array.isArray(item["items"]) ? item["items"] : Array.isArray(item["menuItems"]) ? item["menuItems"] : item["menu_items"];
     return Array.isArray(value) ? value.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object") : [];
   }).slice(0, 12);
 
@@ -115,12 +115,12 @@ function localDesignFallback(input: unknown[]): string {
   const align = languageMode === "ar" ? "right" : "left";
 
   const makeItem = (item: Record<string, unknown>, index: number) => ({
-    ar: getString(item.name_ar) || getString(item.nameAr) || `طبق ${index + 1}`,
-    en: getString(item.name_en) || getString(item.nameEn) || `Dish ${index + 1}`,
-    descAr: getString(item.description_ar) || getString(item.descriptionAr),
-    descEn: getString(item.description_en) || getString(item.descriptionEn),
-    price: getString(item.price) || "",
-    image: getString(item.image_url) || getString(item.imageUrl) || undefined,
+    ar: getString(item["name_ar"]) || getString(item["nameAr"]) || `طبق ${index + 1}`,
+    en: getString(item["name_en"]) || getString(item["nameEn"]) || `Dish ${index + 1}`,
+    descAr: getString(item["description_ar"]) || getString(item["descriptionAr"]),
+    descEn: getString(item["description_en"]) || getString(item["descriptionEn"]),
+    price: getString(item["price"]) || "",
+    image: getString(item["image_url"]) || getString(item["imageUrl"]) || undefined,
     key: `menu_items[${index}]`,
   });
   const items = (menuItems.length ? menuItems : [{ name_ar: "طبق مميز", name_en: "Signature Dish", description_ar: "طبق محضر بعناية", description_en: "A carefully prepared signature dish.", price: `5.90 ${currency}` }]).map(makeItem);
@@ -139,16 +139,16 @@ function localDesignFallback(input: unknown[]): string {
     const heroW = sideImage ? 36 : 84;
     const heroH = sideImage ? 34 : 22;
     const productX = languageMode === "ar" ? 46 : 8;
-    const primaryItem = items[0];
+    const primaryItem = items[0] ?? { ar: "طبق مميز", en: "Signature Dish", descAr: "طبق محضر بعناية", descEn: "A carefully prepared signature dish.", price: `5.90 ${currency}`, image: undefined, key: "menu_items[0]" };
 
     const elements = [
       { id: "eyebrow", type: "eyebrow", x: titleX, y: 7, w: 42, h: 4, text: languageMode === "ar" ? "القائمة" : "MENU", color: palette[2], fontSize: 2.2 + (index % 2) * 0.3, fontFamily: font, fontWeight: 700, letterSpacing: 0.2, lineHeight: 1.1, align, direction, z: 3 },
-      { id: "title", type: "title", x: titleX, y: 13, w: titleW, h: 12 + (index % 2) * 2, text: restaurantName, textAr: restaurantName, textEn: restaurantName, color: palette[1], fontSize: 5.6 + index * 0.8, fontFamily: font, fontWeight: 800, letterSpacing: -0.1, lineHeight: 1, align, direction, z: 3, dataKey: "restaurant.name" },
+      { id: "title", type: "title", x: titleX, y: 13, w: titleW, h: 12 + (index % 2) * 2, text: restaurantName, textAr: restaurantName, textEn: restaurantName, color: palette[1], fontSize: 5.6 + index * 0.8, fontFamily: font, fontWeight: 800, letterSpacing: -0.1, lineHeight: 1, align, direction, z: 3, dataKey: "restaurant["name"]" },
       { id: "hero", type: "image", x: heroX, y: heroY, w: heroW, h: heroH, image: primaryItem.image, color: palette[2], shape: ["rounded", "square", "organic"][index], z: 1, animation: motion, dataKey: primaryItem.image ? `${primaryItem.key}.image_url` : undefined },
       { id: "category", type: "category", x: titleX, y: sideImage ? 50 : 56 + index * 2, w: 52, h: 6, text: languageMode === "ar" ? "الأطباق الرئيسية" : "SIGNATURE DISHES", textAr: "الأطباق الرئيسية", textEn: "SIGNATURE DISHES", color: palette[2], fontSize: 2.7 + index * 0.2, fontFamily: font, fontWeight: 700, letterSpacing: 0.12, lineHeight: 1.1, align, direction, z: 3 },
       { id: "product-name", type: "product", x: productX, y: sideImage ? 57 : 64 + index * 2, w: sideImage ? 58 : 62, h: 9, text: languageMode === "ar" ? primaryItem.ar : primaryItem.en, textAr: primaryItem.ar, textEn: primaryItem.en, color: palette[1], fontSize: 3.2 + index * 0.2, fontFamily: font, fontWeight: 700, lineHeight: 1.2, align, direction, z: 3, dataKey: `${primaryItem.key}.name` },
       { id: "copy", type: "copy", x: productX, y: sideImage ? 66 : 73 + index * 2, w: sideImage ? 70 : 72, h: 12, text: languageMode === "ar" ? primaryItem.descAr : primaryItem.descEn, textAr: primaryItem.descAr, textEn: primaryItem.descEn, color: palette[1], fontSize: 2.4 + (index % 2) * 0.3, fontFamily: font, fontWeight: 400, lineHeight: 1.4, align, direction, z: 3, dataKey: `${primaryItem.key}.description` },
-      { id: "price", type: "price", x: languageMode === "ar" ? 8 : 75 - index * 3, y: sideImage ? 57 : 64 + index * 2, w: 20, h: 7, text: primaryItem.price || `5.90 ${currency}`, color: palette[2], fontSize: 3.1 + index * 0.2, fontFamily: font, fontWeight: 800, lineHeight: 1, align: languageMode === "ar" ? "left" : "right", direction, z: 3, dataKey: `${primaryItem.key}.price` },
+      { id: "price", type: "price", x: languageMode === "ar" ? 8 : 75 - index * 3, y: sideImage ? 57 : 64 + index * 2, w: 20, h: 7, text: primaryItem["price"] || `5.90 ${currency}`, color: palette[2], fontSize: 3.1 + index * 0.2, fontFamily: font, fontWeight: 800, lineHeight: 1, align: languageMode === "ar" ? "left" : "right", direction, z: 3, dataKey: `${primaryItem.key}.price` },
     ];
 
     return {
@@ -166,7 +166,7 @@ function localDesignFallback(input: unknown[]): string {
         elements,
         responsive: { mobile: "Stack imagery above content; preserve safe margins; respect RTL/LTR; never overflow horizontally.", tablet: "Use generated hierarchy with balanced columns where space permits.", desktop: "Preserve art-directed negative space and selected layout family." },
         motion: { entrance: motion, hover: index === 1 ? "subtle-scale" : "subtle-lift", scroll: index === 2 ? "gentle-reveal" : "soft-fade" },
-        contentBinding: { restaurantName: "restaurants.name", menuItems: "menu_items", languageRules: "Arabic=RTL, English=LTR, bilingual=both real fields preserved" },
+        contentBinding: { restaurantName: "restaurants["name"]", menuItems: "menu_items", languageRules: "Arabic=RTL, English=LTR, bilingual=both real fields preserved" },
       },
     };
   });

@@ -21,7 +21,7 @@ export async function runMenuQualityGate({
   brief: string;
   visualAnalysis: string;
   exactReference: boolean;
-  apiKey?: string;
+  apiKey: string | undefined;
 }) {
   if (!apiKey || designs.length === 0) {
     return { designs, winner: 0, scores: [], criticalFixes: [] as string[] };
