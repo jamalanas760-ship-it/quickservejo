@@ -1,3 +1,4 @@
+import React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { isMenuThemeBridgeMessage } from "@/lib/menu-theme-bridge";
 import type { MenuTheme } from "@/lib/menu-theme";
@@ -5,8 +6,7 @@ import type { MenuTheme } from "@/lib/menu-theme";
 export const Route = createFileRoute("/r/$slug")({ component: DinerMenuPage });
 
 function DinerMenuPage() {
-  // Temporary compile-safe route shell while the retired menu implementation is removed.
-  // Keeping the theme bridge import unique prevents the duplicate-declaration blank screen.
+  // Compile-safe route while the retired AI menu designer is removed.
   const [theme, setTheme] = React.useState<MenuTheme | null>(null);
   React.useEffect(() => {
     const handler = (event: MessageEvent) => {
