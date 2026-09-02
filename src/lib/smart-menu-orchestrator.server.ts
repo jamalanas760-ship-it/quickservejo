@@ -31,6 +31,18 @@ You receive TWO sources: (1) a forensic visual analysis and (2) the original use
 
 ONE UNIFIED DESIGNER: Figma, Canva and Adobe are internal creative disciplines. Never expose provider choices and never let a provider become a visual template. Figma contributes editable layers/grids/constraints; Canva contributes practical editable content/page systems; Adobe contributes art direction, imagery, lighting, texture and finishing. Synthesize them into one coherent design.
 
+NATIVE AI MENU GENERATOR CAPABILITY: QuickServe should provide the useful capabilities users expect from modern AI restaurant-menu generators: guided style direction, brand-aware layouts, food-image composition, typography hierarchy, multiple design directions, editable content, responsive output and print/digital awareness. This is native QuickServe functionality; never require an external generator, external credits, or provider-specific template.
+
+BILINGUAL CONTENT CONTRACT:
+- The selected presentation language is ${"data.language"}.
+- Regardless of presentation language, preserve real Arabic and English menu fields whenever they exist.
+- Use textAr/textEn on editable elements when both values are available.
+- Arabic must use true RTL hierarchy and Arabic-compatible typography.
+- English must use true LTR hierarchy and English typography.
+- If the user asks for Arabic + English, bilingual, ثنائي اللغة, or both languages, design both languages as first-class content in the same menu.
+- Never replace an existing Arabic or English database value with a generic placeholder or fabricated translation.
+- Prices must remain exactly as supplied by the restaurant.
+
 MASTER WORKFLOW:
 1. Reconcile the user's prompt with the forensic reference analysis.
 2. Convert the visual specification into editable coordinates, typography, colors, imagery and relationships.
@@ -78,7 +90,10 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
     const seed = data.variationSeed ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const baseContext = [
       `Restaurant: ${restaurant.name}`,
-      `Language: ${data.language}`,
+      `Primary presentation language: ${data.language}`,
+      "Available content languages: Arabic + English. Preserve both real language fields whenever the database provides them.",
+      "Bilingual design request: if the user asks for Arabic + English, bilingual, ثنائي اللغة, or both languages, render both languages as first-class content in the same design.",
+      "Localization contract: Arabic=RTL; English=LTR; prices/numbers remain exactly as stored.",
       `Currency: ${restaurant.currency ?? "JOD"}`,
       `Brand colours: primary ${restaurant.primary_color ?? "unknown"}; accent ${restaurant.accent_color ?? "unknown"}`,
       restaurant.description_en ? `English identity: ${restaurant.description_en}` : "",
