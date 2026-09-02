@@ -143,7 +143,7 @@ function localDesignFallback(input: unknown[]): string {
 
     const elements = [
       { id: "eyebrow", type: "eyebrow", x: titleX, y: 7, w: 42, h: 4, text: languageMode === "ar" ? "القائمة" : "MENU", color: palette[2], fontSize: 2.2 + (index % 2) * 0.3, fontFamily: font, fontWeight: 700, letterSpacing: 0.2, lineHeight: 1.1, align, direction, z: 3 },
-      { id: "title", type: "title", x: titleX, y: 13, w: titleW, h: 12 + (index % 2) * 2, text: restaurantName, textAr: restaurantName, textEn: restaurantName, color: palette[1], fontSize: 5.6 + index * 0.8, fontFamily: font, fontWeight: 800, letterSpacing: -0.1, lineHeight: 1, align, direction, z: 3, dataKey: "restaurant["name"]" },
+      { id: "title", type: "title", x: titleX, y: 13, w: titleW, h: 12 + (index % 2) * 2, text: restaurantName, textAr: restaurantName, textEn: restaurantName, color: palette[1], fontSize: 5.6 + index * 0.8, fontFamily: font, fontWeight: 800, letterSpacing: -0.1, lineHeight: 1, align, direction, z: 3, dataKey: "restaurant.name" },
       { id: "hero", type: "image", x: heroX, y: heroY, w: heroW, h: heroH, image: primaryItem.image, color: palette[2], shape: ["rounded", "square", "organic"][index], z: 1, animation: motion, dataKey: primaryItem.image ? `${primaryItem.key}.image_url` : undefined },
       { id: "category", type: "category", x: titleX, y: sideImage ? 50 : 56 + index * 2, w: 52, h: 6, text: languageMode === "ar" ? "الأطباق الرئيسية" : "SIGNATURE DISHES", textAr: "الأطباق الرئيسية", textEn: "SIGNATURE DISHES", color: palette[2], fontSize: 2.7 + index * 0.2, fontFamily: font, fontWeight: 700, letterSpacing: 0.12, lineHeight: 1.1, align, direction, z: 3 },
       { id: "product-name", type: "product", x: productX, y: sideImage ? 57 : 64 + index * 2, w: sideImage ? 58 : 62, h: 9, text: languageMode === "ar" ? primaryItem.ar : primaryItem.en, textAr: primaryItem.ar, textEn: primaryItem.en, color: palette[1], fontSize: 3.2 + index * 0.2, fontFamily: font, fontWeight: 700, lineHeight: 1.2, align, direction, z: 3, dataKey: `${primaryItem.key}.name` },
@@ -166,7 +166,7 @@ function localDesignFallback(input: unknown[]): string {
         elements,
         responsive: { mobile: "Stack imagery above content; preserve safe margins; respect RTL/LTR; never overflow horizontally.", tablet: "Use generated hierarchy with balanced columns where space permits.", desktop: "Preserve art-directed negative space and selected layout family." },
         motion: { entrance: motion, hover: index === 1 ? "subtle-scale" : "subtle-lift", scroll: index === 2 ? "gentle-reveal" : "soft-fade" },
-        contentBinding: { restaurantName: "restaurants["name"]", menuItems: "menu_items", languageRules: "Arabic=RTL, English=LTR, bilingual=both real fields preserved" },
+        contentBinding: { restaurantName: "restaurants.name", menuItems: "menu_items", languageRules: "Arabic=RTL, English=LTR, bilingual=both real fields preserved" },
       },
     };
   });
