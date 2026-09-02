@@ -72,4 +72,24 @@ await edit('src/components/manage/UnifiedMenuStudio.tsx', (text) => {
   return text;
 });
 
+await edit('src/routes/r/$slug.tsx', (text) => {
+  text = text.replace(
+    'import { useMemo, useState } from "react";',
+    'import { useEffect, useMemo, useState } from "react";',
+  );
+  text = text.replace(
+    'import { cn } from "@/lib/utils";',
+    'import { cn } from "@/lib/utils";\nimport { isMenuThemeBridgeMessage } from "@/lib/menu-theme-bridge";\nimport type { MenuTheme } from "@/lib/menu-theme";',
+  );
+  text = text.replace(
+    '  const [busy, setBusy] = useState(false);\n\n  const restaurant = menu.data?.restaurant;',
+    '  const [busy, setBusy] = useState(false);\n  const [liveTheme, setLiveTheme] = useState<MenuTheme | null>(null);\n\n  const restaurant = menu.data?.restaurant;\n\n  useEffect(() => {\n    if (!restaurant?.id) return;\n    const accept = (value: unknown) => {\n      if (!isMenuThemeBridgeMessage(value)) return;\n      if (value.restaurantId !== restaurant.id) return;\n      setLiveTheme(value.theme);\n    };\n    const onMessage = (event: MessageEvent) => accept(event.data);\n    window.addEventListener("message", onMessage);\n    let channel: BroadcastChannel | null = null;\n    try {\n      channel = new BroadcastChannel("quickserve-menu-theme");\n      channel.addEventListener("message", (event) => accept(event.data));\n    } catch {\n      channel = null;\n    }\n    return () => {\n      window.removeEventListener("message", onMessage);\n      channel?.close();\n    };\n  }, [restaurant?.id]);',
+  );
+  text = text.replace(
+    '  const theme = restaurant.menu_theme;',
+    '  const theme = liveTheme ?? restaurant.menu_theme;',
+  );
+  return text;
+});
+
 console.log(`ai-menu-hardening: ${changed} file(s) changed`);
