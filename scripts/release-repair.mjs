@@ -16,30 +16,26 @@ async function edit(file, transform) {
 }
 
 await edit('src/components/manage/UnifiedMenuStudio.tsx', (text) => {
-  text = text.replace(/(?:  const generationLockRef = useRef\(false\);\n  const generationIdRef = useRef\(0\);\n)+/g,
-    '  const generationLockRef = useRef(false);\n  const generationIdRef = useRef(0);\n');
-  text = text.replace(/\["title", "eyebrow", "copy"\]\.includes\(node\.type\)/g,
-    '["title", "eyebrow", "copy"].includes(String(node.type ?? ""))');
+  text = text.replace(/(?:  const generationLockRef = useRef\(false\);\n  const generationIdRef = useRef\(0\);\n)+/g, '  const generationLockRef = useRef(false);\n  const generationIdRef = useRef(0);\n');
+  text = text.replace(/\["title", "eyebrow", "copy"\]\.includes\(node\.type\)/g, '["title", "eyebrow", "copy"].includes(String(node.type ?? ""))');
   text = text.replace(/elements\?: unknown\[\]/g, 'elements?: Record<string, any>[]');
   return text;
 });
 
 await edit('src/routes/_authenticated/manage/$restaurantId/route.tsx', (text) => {
-  text = text.replace(/^(?:import type \{ CSSProperties \} from "react";\n)+/m,
-    'import type { CSSProperties } from "react";\n');
-  text = text.replace(/^(?:import \{ CSSProperties \} from "react";\n)+/m,
-    'import type { CSSProperties } from "react";\n');
+  text = text.replace(/^(?:import type \{ CSSProperties \} from "react";\n)+/m, 'import type { CSSProperties } from "react";\n');
+  text = text.replace(/^(?:import \{ CSSProperties \} from "react";\n)+/m, 'import type { CSSProperties } from "react";\n');
   return text;
 });
 
 await edit('src/lib/smart-menu-orchestrator.server.ts', (text) => {
-  text = text.replace(/\n\s*\.\.\.\(apiKey !== undefined \? \{ apiKey \} : \{\}\),/g, '\n      apiKey,');
+  text = text.replace(/\.\.\.\(apiKey !== undefined \? \{ apiKey \} : \{\}\),/g, 'apiKey,');
+  text = text.replace(/\.\.\.\{\s*apiKey\s*\},/g, 'apiKey,');
   return text;
 });
 
 await edit('src/lib/provider-verification.server.ts', (text) => {
-  text = text.replace(/details\?:\s*Record<string, string \| number \| boolean \| null \| string\[\]>;/g,
-    'details?: Record<string, string | number | boolean | null | Array<string | boolean>>;');
+  text = text.replace(/details\?:\s*Record<string, string \| number \| boolean \| null \| string\[\]>;/g, 'details?: Record<string, string | number | boolean | null | Array<string | boolean>>;');
   return text;
 });
 
