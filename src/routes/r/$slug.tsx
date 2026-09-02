@@ -360,6 +360,8 @@ function DinerPage() {
           </div>
         </header>
 
+        <PublicPdfMenu slug={slug} />
+
         {/* Sticky filter rail: search, dietary chips and categories stay reachable while scrolling. */}
         <div
           className="sticky top-0 z-30 backdrop-blur-md"
