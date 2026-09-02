@@ -18,6 +18,7 @@ type Mode = "new" | "reference";
 type MobileTab = "brief" | "canvas" | "edit" | "layers";
 type ElementId = "hero" | "typography" | "category" | "item-card" | "price" | "imagery" | "background" | "spacing";
 type Composition = { concept?: string; artDirection?: string; background?: { color?: string; texture?: string }; elements?: CompositionElement[]; responsive?: { mobile?: string; tablet?: string; desktop?: string }; motion?: { entrance?: string; hover?: string; scroll?: string } };
+type MenuItem = { name_en?:string|null; name_ar?:string|null; description_en?:string|null; description_ar?:string|null; price?:number|string|null; image_url?:string|null };
 
 const moods = ["Editorial", "Modern Levantine", "Quiet Luxury", "Experimental", "Human Crafted", "Photography First"];
 const elementLabels: Record<ElementId, string> = { hero: "Hero", typography: "Typography", category: "Category", "item-card": "Item card", price: "Prices", imagery: "Imagery", background: "Background", spacing: "Spacing" };
@@ -46,9 +47,13 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
   const restaurant = useQuery({
     queryKey: ["unified-menu-studio", restaurantId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("restaurants").select("id,name,menu_theme,currency").eq("id", restaurantId).single();
-      if (error) throw error;
-      return data;
+      const [{ data: restaurantData, error: restaurantError }, { data: menuData, error: menuError }] = await Promise.all([
+        supabase.from("restaurants").select("id,name,menu_theme,currency").eq("id", restaurantId).single(),
+        supabase.from("menu_items").select("name_en,name_ar,description_en,description_ar,price,image_url").eq("restaurant_id", restaurantId).eq("is_available", true).order("display_order", { ascending: true }).limit(12),
+      ]);
+      if (restaurantError) throw restaurantError;
+      if (menuError) throw menuError;
+      return { ...restaurantData, menuItems: (menuData ?? []) as MenuItem[] };
     },
   });
 
@@ -206,7 +211,7 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
       <div className="text-xs font-semibold text-black/45"><span className="hidden sm:inline">{composition?.elements?.length ?? 0} layers</span><span className="sm:hidden">Live</span></div>
     </div>
     {concepts.length > 0 && <div className="mb-2 grid grid-cols-3 gap-2">{concepts.map((c, i) => <button type="button" key={c.id} onClick={() => selectConcept(i)} className={cn("min-h-12 rounded-xl border bg-white px-2 text-left text-[11px] font-bold", active === i ? "border-black ring-1 ring-black/10" : "text-black/60")}>Concept {i + 1}<span className="ml-1 text-black/30">{i === 0 ? "Best match" : i === 1 ? "Alternative" : "Bold"}</span></button>)}</div>}
-    <div className="studio-preview-stage flex items-start justify-center rounded-xl bg-[#c9c9c6] p-2 sm:p-4"><div className="studio-preview-frame"><SmartCompositionCanvas theme={theme} composition={composition} selectedId={selectedNode} onSelect={handleCanvasSelect}/></div></div>
+    <div className="studio-preview-stage flex items-start justify-center rounded-xl bg-[#c9c9c6] p-2 sm:p-4"><div className="studio-preview-frame"><SmartCompositionCanvas theme={theme} composition={composition} selectedId={selectedNode} onSelect={handleCanvasSelect} menuItems={restaurant.data?.menuItems ?? []} restaurantName={restaurant.data?.name ?? "Restaurant"}/></div></div>
     <div className="mt-2 hidden grid-cols-3 gap-2 sm:grid"><div className="rounded-xl bg-white/75 p-3"><BrainCircuit className="size-4"/><div className="mt-2 text-xs font-bold">AI direction</div></div><div className="rounded-xl bg-white/75 p-3"><Layers3 className="size-4"/><div className="mt-2 text-xs font-bold">Editable layers</div></div><div className="rounded-xl bg-white/75 p-3"><Check className="size-4"/><div className="mt-2 text-xs font-bold">Quality ready</div></div></div>
   </main>;
 
