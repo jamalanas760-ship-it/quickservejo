@@ -2,11 +2,13 @@
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-5.6-luna";
+const REQUIRED_SECRET_NAME = "QUICK_SERVE";
 
 export type OpenAIGatewayStatus = {
   configured: boolean;
   verified: boolean;
   model: string;
+  credential: typeof REQUIRED_SECRET_NAME;
   latencyMs?: number;
   errorCode?: string;
 };
@@ -17,11 +19,16 @@ function cleanKey(value: unknown): string | undefined {
   return valueTrimmed || undefined;
 }
 
-/** Resolve credentials at request time so deployment/runtime secrets are never captured at module load. */
+/** Resolve the single approved QUICK_SERVE credential at request time. */
 export function getOpenAIKey(): string {
-  const key = cleanKey(process.env["OPENAI_API_KEY"]) ?? cleanKey(process.env["OPENAI_API_KEYS"]);
+  // QUICK_SERVE is the OpenAI Platform key name. The hosting environment must expose
+  // its secret value to the server under OPENAI_API_KEY; never commit the value.
+  const key = cleanKey(process.env["OPENAI_API_KEY"]);
   if (!key) {
-    throw new Error("OpenAI is not configured on the server. Add OPENAI_API_KEY to the production server secrets, then run the AI preflight again.");
+    throw Object.assign(
+      new Error(`The ${REQUIRED_SECRET_NAME} OpenAI credential is not configured on the production server. Map the QUICK_SERVE key value to the server secret OPENAI_API_KEY, then run AI preflight again.`),
+      { code: "MISSING_QUICK_SERVE" },
+    );
   }
   return key;
 }
@@ -43,19 +50,19 @@ export async function verifyOpenAI(): Promise<OpenAIGatewayStatus> {
     const latencyMs = Date.now() - started;
     if (!response.ok) {
       const status = response.status;
-      if (status === 401) throw Object.assign(new Error("OpenAI rejected the server API key."), { code: "INVALID_KEY" });
-      if (status === 403) throw Object.assign(new Error("OpenAI denied access to the configured project/model."), { code: "ACCESS_DENIED" });
-      if (status === 429) throw Object.assign(new Error("OpenAI is reachable but the project is rate-limited or has reached its usage limit."), { code: "RATE_LIMITED" });
+      if (status === 401) throw Object.assign(new Error(`${REQUIRED_SECRET_NAME} was rejected by OpenAI.`), { code: "INVALID_QUICK_SERVE" });
+      if (status === 403) throw Object.assign(new Error(`${REQUIRED_SECRET_NAME} does not have access to the configured OpenAI project/model.`), { code: "ACCESS_DENIED" });
+      if (status === 429) throw Object.assign(new Error(`${REQUIRED_SECRET_NAME} is reachable but the OpenAI project is rate-limited or has reached its usage limit.`), { code: "RATE_LIMITED" });
       throw Object.assign(new Error(`OpenAI health check failed with HTTP ${status}.`), { code: "UPSTREAM_ERROR" });
     }
-    return { configured: true, verified: true, model: DEFAULT_MODEL, latencyMs };
+    return { configured: true, verified: true, model: DEFAULT_MODEL, credential: REQUIRED_SECRET_NAME, latencyMs };
   } catch (error) {
     if (error instanceof Error && "code" in error) throw error;
-    throw Object.assign(new Error("OpenAI could not be reached from the production server."), { code: "NETWORK_ERROR" });
+    throw Object.assign(new Error(`${REQUIRED_SECRET_NAME} could not reach OpenAI from the production server.`), { code: "NETWORK_ERROR" });
   }
 }
 
 export function normalizeOpenAIError(error: unknown): Error {
   if (error instanceof Error) return error;
-  return new Error("The OpenAI service failed unexpectedly. Your previous design was preserved.");
+  return new Error(`${REQUIRED_SECRET_NAME} failed unexpectedly. Your previous design was preserved.`);
 }
