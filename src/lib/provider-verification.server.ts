@@ -12,7 +12,7 @@ export type ProviderCheck = {
   capability: string;
   message: string;
   checkedAt: string;
-  details?: Record<string, string | number | boolean | null | string[]>;
+  details?: Record<string, string | number | boolean | null | Array<string | boolean>>;
 };
 
 const providerSchema = z.enum(["openai", "figma", "canva", "adobe"]);

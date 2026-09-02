@@ -50,6 +50,8 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
   const generationIdRef = useRef(0);
   const generationLockRef = useRef(false);
   const generationIdRef = useRef(0);
+  const generationLockRef = useRef(false);
+  const generationIdRef = useRef(0);
   const [refining, setRefining] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("canvas");
@@ -105,9 +107,6 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
     try {
       const result = await orchestrate({ data: { restaurantId, brief: brief.trim(), references, direction: references.length ? undefined : mood, language: "en", variationSeed: `${Date.now()}-${crypto.randomUUID?.() ?? Math.random()}` } });
       if (generationId !== generationIdRef.current) return;
-      if (generationId !== generationIdRef.current) return;
-      if (generationId !== generationIdRef.current) return;
-      if (generationId !== generationIdRef.current) return;
       const next = result.concepts.map(c => ({ id: c.id, theme: c.theme }));
       setConcepts(next); setActive(0);
       if (next[0]) { const raw = JSON.parse(next[0].theme); setTheme(parseMenuTheme(raw)); setComposition(raw.composition); }
@@ -159,7 +158,7 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
 
   function handleCanvasSelect(id: string) {
     setSelectedNode(id); const node = composition?.elements?.find((e) => Boolean(e && typeof e === "object" && (e as Record<string, unknown>).id === id)) as Record<string, unknown> | undefined; if (!node) return;
-    if (node.type === "image") setSelected("imagery"); else if (node.type === "price") setSelected("price"); else if (node.type === "category") setSelected("category"); else if (node.type === "product") setSelected("item-card"); else if (["title", "eyebrow", "copy"].includes(node.type)) setSelected("typography"); else setSelected("hero");
+    if (node.type === "image") setSelected("imagery"); else if (node.type === "price") setSelected("price"); else if (node.type === "category") setSelected("category"); else if (node.type === "product") setSelected("item-card"); else if (["title", "eyebrow", "copy"].includes(String(node.type ?? ""))) setSelected("typography"); else setSelected("hero");
     setMobileTab("edit");
   }
 
