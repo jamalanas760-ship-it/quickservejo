@@ -46,6 +46,8 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
   const generationIdRef = useRef(0);
   const generationLockRef = useRef(false);
   const generationIdRef = useRef(0);
+  const generationLockRef = useRef(false);
+  const generationIdRef = useRef(0);
   const [refining, setRefining] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("canvas");
@@ -100,6 +102,7 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
     setBusy(true);
     try {
       const result = await orchestrate({ data: { restaurantId, brief: brief.trim(), references, direction: references.length ? undefined : mood, language: "en", variationSeed: `${Date.now()}-${crypto.randomUUID?.() ?? Math.random()}` } });
+      if (generationId !== generationIdRef.current) return;
       if (generationId !== generationIdRef.current) return;
       if (generationId !== generationIdRef.current) return;
       const next = result.concepts.map(c => ({ id: c.id, theme: c.theme }));

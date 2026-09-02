@@ -145,7 +145,7 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
       brief: data.brief ?? "",
       visualAnalysis,
       exactReference,
-      apiKey,
+      ...(apiKey !== undefined ? { apiKey } : {}),
     });
     const designs = quality.designs.slice(0, 3);
 
