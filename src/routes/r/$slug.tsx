@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BellRing, Minus, Plus, Search, ShoppingBag, Trash2, X } from "lucide-react";
 import { z } from "zod";
@@ -25,6 +25,8 @@ import { useI18n } from "@/lib/i18n";
 import { humanError } from "@/lib/errors";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { isMenuThemeBridgeMessage } from "@/lib/menu-theme-bridge";
+import type { MenuTheme } from "@/lib/menu-theme";
 import {
   buttonStyle as buttonStyleFor,
   densityGap,
@@ -107,8 +109,31 @@ function DinerPage() {
   const [orderNotes, setOrderNotes] = useState("");
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
   const [busy, setBusy] = useState(false);
+  const [liveTheme, setLiveTheme] = useState<MenuTheme | null>(null);
 
   const restaurant = menu.data?.restaurant;
+
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const accept = (value: unknown) => {
+      if (!isMenuThemeBridgeMessage(value)) return;
+      if (value.restaurantId !== restaurant.id) return;
+      setLiveTheme(value.theme);
+    };
+    const onMessage = (event: MessageEvent) => accept(event.data);
+    window.addEventListener("message", onMessage);
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel("quickserve-menu-theme");
+      channel.addEventListener("message", (event) => accept(event.data));
+    } catch {
+      channel = null;
+    }
+    return () => {
+      window.removeEventListener("message", onMessage);
+      channel?.close();
+    };
+  }, [restaurant?.id]);
   const currency = restaurant?.currency ?? "JOD";
   const showPrices = menu.data?.settings?.show_prices ?? true;
   const ordersEnabled = (menu.data?.settings?.enable_orders ?? true) && Boolean(menu.data?.table);
@@ -245,7 +270,7 @@ function DinerPage() {
     );
   }
 
-  const theme = restaurant.menu_theme;
+  const theme = liveTheme ?? restaurant.menu_theme;
   const cardStyle = surfaceStyle(theme);
   const gap = densityGap(theme);
   const categories = menu.data?.categories ?? [];
