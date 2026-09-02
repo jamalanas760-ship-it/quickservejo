@@ -37,7 +37,7 @@ export function SmartCompositionCanvas({theme,composition,selectedId,onSelect,me
  const visibleElements=elements.slice(0,revealCount);
  const currentStage=stage>=buildStages.length?"Final design ready":buildStages[Math.max(0,stage-1)];
 
- return <div className="smart-menu-canvas mx-auto w-full max-w-[960px] overflow-hidden rounded-[24px] border border-black/10 shadow-[0_24px_70px_rgba(0,0,0,.18)]" style={{background:surfaceBg,color:theme.text}}>
+ return <div className="smart-menu-canvas mx-auto w-full max-w-[780px] overflow-hidden rounded-[24px] border border-black/10 shadow-[0_24px_70px_rgba(0,0,0,.18)]" style={{background:surfaceBg,color:theme.text}}>
   <div className="border-b border-black/10 bg-white/85 px-3 py-2.5 backdrop-blur-xl sm:px-4">
    <div className="flex items-center justify-between gap-3">
     <div className="min-w-0"><div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.18em] text-black/45"><Sparkles className="size-3"/>AI live renderer</div><div className="mt-0.5 truncate text-xs font-semibold text-black/75">{composition?.concept||"Live menu design"}</div></div>
@@ -47,7 +47,7 @@ export function SmartCompositionCanvas({theme,composition,selectedId,onSelect,me
     {buildStages.map((item,index)=><div key={item} className="min-w-0"><div className="h-1 overflow-hidden rounded-full bg-black/10"><div className="h-full rounded-full bg-black transition-[width] duration-500" style={{width:`${stage>index?100:stage===index?42:0}%`}}/></div><div className="mt-0.5 hidden truncate text-[7px] text-black/35 sm:block">{item}</div></div>)}
    </div>
   </div>
-  <div className="smart-menu-canvas-surface relative aspect-[4/3] w-full overflow-hidden" style={{fontFamily:fontMap[theme.bodyFont],background:surfaceBg}}>
+  <div className="smart-menu-canvas-surface relative mx-auto aspect-[210/297] w-full overflow-hidden" style={{fontFamily:fontMap[theme.bodyFont],background:surfaceBg}}>
    <div className="pointer-events-none absolute inset-0 opacity-[.06]" style={{backgroundImage:composition?.background?.texture?`url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E\")`:undefined}} />
    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_10%,rgba(255,255,255,.12),transparent_32%),linear-gradient(135deg,transparent_45%,rgba(0,0,0,.08))]" />
    {!elements.length&&<div className="absolute inset-0 grid place-items-center p-8 text-center"><div><Utensils className="mx-auto size-9 opacity-30"/><div className="mt-3 text-2xl font-black" style={{color:theme.primary}}>{restaurantName}</div><p className="mt-2 text-xs opacity-50">Generate a concept to activate the live menu.</p></div></div>}
@@ -68,7 +68,7 @@ export function SmartCompositionCanvas({theme,composition,selectedId,onSelect,me
       {selected&&<span className="absolute bottom-1 right-1 rounded-full bg-black/75 p-1 text-white"><Move className="size-3"/></span>}
     </button>;
    })}
-   {hasRealMenu&&stage>=3&&<div className="pointer-events-none absolute inset-x-[7%] bottom-[6%] z-[20] grid grid-cols-2 gap-2 sm:gap-3 transition-opacity duration-700" style={{opacity:stage>=3?1:0}}>
+   {hasRealMenu&&stage>=3&&<div className="pointer-events-none absolute inset-x-[7%] bottom-[5%] z-[20] grid grid-cols-2 gap-2 sm:gap-3 transition-opacity duration-700" style={{opacity:stage>=3?1:0}}>
     {displayItems.map((item,index)=><div key={`live-${index}`} className="overflow-hidden rounded-xl border border-black/10 bg-white/90 p-1.5 shadow-sm backdrop-blur-sm"><div className="flex items-center gap-2"><div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-black/10">{item.image_url?<img src={item.image_url} alt="Menu item" className="h-full w-full object-cover"/>:<div className="grid h-full w-full place-items-center"><Camera className="size-3 opacity-20"/></div>}</div><div className="min-w-0 flex-1"><div className="truncate text-[9px] font-bold" style={{color:theme.text}}>{item.name_en||item.name_ar||"Menu item"}</div><div className="mt-0.5 truncate text-[7px]" style={{color:theme.muted}}>{item.description_en||item.description_ar||"Freshly prepared"}</div></div><div className="shrink-0 text-[8px] font-bold" style={{color:theme.primary}}>{item.price!=null?`${item.price} JOD`:""}</div></div></div>)}
    </div>}
    {hasRealMenu&&stage>=2&&<div className="pointer-events-none absolute left-[7%] top-[6%] z-[21] max-w-[55%] transition-opacity duration-500" style={{opacity:stage>=2?1:0}}><div className="text-[8px] font-bold uppercase tracking-[.22em]" style={{color:theme.accent}}>{restaurantName}</div><div className="mt-1 truncate text-[clamp(18px,4vw,42px)] font-black leading-none" style={{fontFamily:fontMap[theme.headingFont],color:theme.text}}>{title}</div><div className="mt-1 text-[8px] font-bold uppercase tracking-[.18em]" style={{color:theme.muted}}>{category}</div></div>}
