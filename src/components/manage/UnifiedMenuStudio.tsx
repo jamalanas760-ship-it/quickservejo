@@ -100,6 +100,7 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
       const result = await orchestrate({ data: { restaurantId, brief: brief.trim(), references, direction: references.length ? undefined : mood, language: "en", variationSeed: `${Date.now()}-${crypto.randomUUID?.() ?? Math.random()}` } });
       if (generationId !== generationIdRef.current) return;
       if (generationId !== generationIdRef.current) return;
+      if (generationId !== generationIdRef.current) return;
       const next = result.concepts.map(c => ({ id: c.id, theme: c.theme }));
       setConcepts(next); setActive(0);
       if (next[0]) { const raw = JSON.parse(next[0].theme); setTheme(parseMenuTheme(raw)); setComposition(raw.composition); }
