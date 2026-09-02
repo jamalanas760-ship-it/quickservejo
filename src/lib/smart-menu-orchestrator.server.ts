@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ART_DIRECTION, DESIGN_SCHEMA, callMenuDesigner, extractDesigns } from "@/lib/menu-designer.server";
 import { runMenuQualityGate } from "@/lib/menu-quality-gate.server";
+import { getOpenAIKey, verifyOpenAI } from "@/lib/openai-gateway.server";
 
 const inputSchema = z.object({
   restaurantId: z.string().uuid(),
@@ -84,9 +85,8 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
     ]);
     if (restaurantError) throw restaurantError;
     if (itemsError) throw itemsError;
-
-    const apiKey = process.env["OPENAI_API_KEY"] ?? process.env["OPENAI_API_KEYS"];
-    if (!apiKey?.trim()) throw new Error("AI Menu Studio requires a real server-side OPENAI_API_KEY. Configure the key before generating; QuickServe will never present a fallback as real AI.");
+    const apiKey = getOpenAIKey();
+    await verifyOpenAI();
     const references = data.references ?? [];
     const seed = data.variationSeed ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const runId = `${seed}-${Math.random().toString(36).slice(2, 8)}`;
