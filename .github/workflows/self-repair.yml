@@ -35,6 +35,9 @@ jobs:
       - name: Apply AI Menu Studio hardening
         run: node scripts/ai-menu-studio-hardening.mjs
 
+      - name: Apply master AI gateway repair
+        run: node scripts/master-ai-gateway-repair.mjs
+
       - name: Apply deterministic self-repairs
         run: node scripts/self-repair.mjs
 
