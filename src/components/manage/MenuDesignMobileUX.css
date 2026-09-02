@@ -38,3 +38,6 @@
 }
 @media(min-width:641px){.menu-design-studio .studio-bottom-nav{display:none!important}}
 @media(prefers-reduced-motion:reduce){.menu-design-studio *,.menu-design-studio *::before,.menu-design-studio *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Self-repair guard: the studio must never create document-width overflow. */
+@media(max-width:640px){.menu-design-studio{overflow-x:clip!important;max-width:100vw!important}.menu-design-studio .studio-preview-stage{overflow-x:hidden!important}.menu-design-studio iframe{max-width:100%!important}}

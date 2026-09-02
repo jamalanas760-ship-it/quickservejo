@@ -71,7 +71,8 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
 
   useEffect(() => () => { if (liveWindowRef.current && !liveWindowRef.current.closed) liveWindowRef.current.close(); }, []);
 
-  const liveMenuUrl = restaurant.data?.slug ? `${window.location.origin}/r/${encodeURIComponent(restaurant.data.slug)}` : "";
+  const liveOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const liveMenuUrl = restaurant.data?.slug && liveOrigin ? `${liveOrigin}/r/${encodeURIComponent(restaurant.data.slug)}` : "";
 
   useEffect(() => {
     if (!liveWindowRef.current || liveWindowRef.current.closed) return;

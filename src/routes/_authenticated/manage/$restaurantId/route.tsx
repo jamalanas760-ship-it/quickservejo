@@ -1,4 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import type { CSSProperties } from "react";
 import { BarChart3, ChevronDown, ClipboardList, Palette, QrCode, ShoppingBag, Store, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,7 +35,7 @@ function ManageShell() {
   if (!allowed) return <div className="mx-auto mt-10 max-w-xl px-4"><div className="rounded-[30px] border bg-card p-10 text-center shadow-sm"><div className="mx-auto grid size-14 place-items-center rounded-2xl bg-destructive/10 text-destructive"><Store className="size-6" /></div><h1 className="mt-5 text-xl font-bold">{t("sa.unauthorized.title")}</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">{t("sa.unauthorized.body")}</p></div></div>;
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-[radial-gradient(circle_at_top_right,rgba(245,147,35,.08),transparent_30%)]" style={{ "--restaurant-accent": accent } as React.CSSProperties}>
+    <div className="min-h-[calc(100vh-64px)] bg-[radial-gradient(circle_at_top_right,rgba(245,147,35,.08),transparent_30%)]" style={{ "--restaurant-accent": accent } as CSSProperties}>
       <div className="mx-auto max-w-[1240px] px-3 pb-24 pt-4 sm:px-6 lg:px-8 lg:pt-6">
         <header className="rounded-[28px] border bg-card/90 p-3 shadow-[0_12px_40px_rgba(0,0,0,.06)] backdrop-blur-xl sm:p-4">
           <div className="flex items-center justify-between gap-3">

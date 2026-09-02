@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, Building2, Check, Coins, LogOut, Mail, Palette, Percent, Phone, ShieldCheck, User, Users } from "lucide-react";
+import { Bell, Building2, Check, Coins, LogOut, Mail, Palette, Percent, Phone, User, Users } from "lucide-react";
 import { toast } from "sonner";
 import { StaffHeader } from "@/components/staff/StaffHeader";
 import { Button } from "@/components/ui/button";

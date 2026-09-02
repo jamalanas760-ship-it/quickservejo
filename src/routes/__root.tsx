@@ -98,7 +98,10 @@ function MenuThemeBridgeSync() {
         return { ...data, restaurant: { ...data.restaurant, menu_theme: value.theme } };
       });
     };
-    const onMessage = (event: MessageEvent) => apply(event.data);
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      apply(event.data);
+    };
     window.addEventListener("message", onMessage);
     let channel: BroadcastChannel | null = null;
     try {
