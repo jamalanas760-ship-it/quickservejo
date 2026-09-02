@@ -30,7 +30,7 @@ export async function runMenuQualityGate({
   const critique = await callMenuDesigner([
     { role: "system", content: [{ type: "input_text", text: QUALITY_SYSTEM }] },
     { role: "user", content: [{ type: "input_text", text: `${QUALITY_SCHEMA}\n\nUSER BRIEF:\n${brief || "none"}\n\nREFERENCE ANALYSIS:\n${visualAnalysis}\n\nEXACT RECREATION REQUEST: ${exactReference}\n\nCONCEPTS:\n${JSON.stringify(designs)}` }] },
-  ], apiKey);
+  ], apiKey, false);
 
   let parsed: { scores?: Array<{ concept?: number; score?: number; issues?: string[]; strengths?: string[] }>; winner?: number; criticalFixes?: string[] } = {};
   try { parsed = JSON.parse(critique) as typeof parsed; } catch { parsed = {}; }

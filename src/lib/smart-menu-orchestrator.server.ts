@@ -86,8 +86,10 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
     if (itemsError) throw itemsError;
 
     const apiKey = process.env["OPENAI_API_KEY"] ?? process.env["OPENAI_API_KEYS"];
+    if (!apiKey?.trim()) throw new Error("AI Menu Studio requires a real server-side OPENAI_API_KEY. Configure the key before generating; QuickServe will never present a fallback as real AI.");
     const references = data.references ?? [];
     const seed = data.variationSeed ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const runId = `${seed}-${Math.random().toString(36).slice(2, 8)}`;
     const baseContext = [
       `Restaurant: ${restaurant.name}`,
       `Primary presentation language: ${data.language}`,
@@ -102,6 +104,8 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
       data.brief ? `USER CREATIVE PROMPT: ${data.brief}` : "USER CREATIVE PROMPT: none",
       data.direction ? `USER PREFERRED PERSONALITY: ${data.direction}` : "",
       `CREATIVE VARIATION SEED: ${seed}`,
+      `UNIQUE RUN ID: ${runId}`,
+      "Do not reuse a prior composition. The run must materially respond to the current prompt/reference. Compare the three concepts for duplicate structure before returning them.",
     ].filter(Boolean).join("\n\n");
 
     let visualAnalysis = "No reference image was supplied. Build the visual specification from the user's prompt and restaurant identity.";
@@ -111,7 +115,7 @@ export const orchestrateSmartMenuDesign = createServerFn({ method: "POST" })
       const analysisText = await callMenuDesigner([
         { role: "system", content: [{ type: "input_text", text: ANALYSIS_SYSTEM }] },
         { role: "user", content: analysisContent },
-      ], apiKey);
+      ], apiKey, false);
       visualAnalysis = analysisText;
     }
 

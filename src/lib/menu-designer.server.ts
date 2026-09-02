@@ -174,8 +174,11 @@ function localDesignFallback(input: unknown[]): string {
   return JSON.stringify({ designs });
 }
 
-export async function callMenuDesigner(input: unknown[], apiKey?: string): Promise<string> {
-  if (!apiKey?.trim()) return localDesignFallback(input);
+export async function callMenuDesigner(input: unknown[], apiKey?: string, allowFallback = true): Promise<string> {
+  if (!apiKey?.trim()) {
+    if (!allowFallback) throw new Error("Real AI Menu Studio is not configured. Add OPENAI_API_KEY on the server; the studio will not pretend a deterministic fallback is AI.");
+    return localDesignFallback(input);
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
@@ -183,7 +186,7 @@ export async function callMenuDesigner(input: unknown[], apiKey?: string): Promi
     const response = await fetch(OPENAI_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey.trim()}` },
-      body: JSON.stringify({ model: process.env["OPENAI_MENU_MODEL"] || MENU_MODEL, input, store: false, max_output_tokens: 8000 }),
+      body: JSON.stringify({ model: process.env["OPENAI_MENU_MODEL"] || MENU_MODEL, input, store: false, max_output_tokens: 12000, text: { format: { type: "json_object" } } }),
       signal: controller.signal,
     });
 
@@ -193,6 +196,7 @@ export async function callMenuDesigner(input: unknown[], apiKey?: string): Promi
 
     if (!response.ok) {
       console.error("OpenAI menu designer error", response.status, payload.error?.message ?? raw.slice(0, 500));
+      if (!allowFallback) throw new Error(`OpenAI Menu Studio request failed (${response.status}): ${payload.error?.message ?? "unknown API error"}`);
       return localDesignFallback(input);
     }
 
@@ -200,10 +204,14 @@ export async function callMenuDesigner(input: unknown[], apiKey?: string): Promi
       ? payload.output_text
       : (payload.output ?? []).flatMap((item) => item.content ?? []).filter((part) => part.type === "output_text" && typeof part.text === "string").map((part) => part.text as string).join("");
 
-    if (!text.trim() || extractDesigns(text).length === 0) return localDesignFallback(input);
+    if (!text.trim() || extractDesigns(text).length === 0) {
+      if (!allowFallback) throw new Error("OpenAI returned no valid menu design JSON. The AI result was rejected instead of showing a fake deterministic design.");
+      return localDesignFallback(input);
+    }
     return text;
   } catch (error) {
-    console.error("OpenAI menu designer request failed; using native fallback", error instanceof Error ? error.message : error);
+    console.error("OpenAI menu designer request failed", error instanceof Error ? error.message : error);
+    if (!allowFallback) throw error instanceof Error ? error : new Error("OpenAI Menu Studio request failed");
     return localDesignFallback(input);
   } finally {
     clearTimeout(timeout);

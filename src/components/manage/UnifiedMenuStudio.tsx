@@ -38,6 +38,7 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
   const [active, setActive] = useState(0);
   const [theme, setTheme] = useState<MenuTheme>(DEFAULT_THEME);
   const [composition, setComposition] = useState<Composition>();
+  const [analysis, setAnalysis] = useState("");
   const [selected, setSelected] = useState<ElementId>("hero");
   const [selectedNode, setSelectedNode] = useState<string>();
   const [instruction, setInstruction] = useState("");
@@ -99,8 +100,7 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
     try {
       const result = await orchestrate({ data: { restaurantId, brief: brief.trim(), references, direction: references.length ? undefined : mood, language: "en", variationSeed: `${Date.now()}-${crypto.randomUUID?.() ?? Math.random()}` } });
       if (generationId !== generationIdRef.current) return;
-      if (generationId !== generationIdRef.current) return;
-      if (generationId !== generationIdRef.current) return;
+      setAnalysis(result.analysis ?? "");
       if (generationId !== generationIdRef.current) return;
       const next = result.concepts.map(c => ({ id: c.id, theme: c.theme }));
       setConcepts(next); setActive(0);
@@ -166,6 +166,22 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
   const EditPanel = () => <section className="studio-mobile-panel rounded-2xl border bg-white p-4 shadow-sm"><div className="mb-3 flex items-center gap-2"><Sparkles className="size-4"/><div className="text-[11px] font-bold uppercase tracking-[.16em] text-black/40">AI editing</div></div><p className="mb-3 text-xs leading-5 text-black/50">Select an element, describe the change, and only the necessary parts are redesigned.</p><div className="grid grid-cols-2 gap-2">{(Object.keys(elementLabels) as ElementId[]).map(id=><button type="button" key={id} onClick={()=>setSelected(id)} className={cn("min-h-10 rounded-xl border px-3 text-left text-xs font-semibold",selected===id?"border-black bg-black text-white":"hover:bg-black/[.025]")}>{elementLabels[id]}</button>)}</div><Textarea value={instruction} onChange={e=>setInstruction(e.target.value)} onKeyDown={e=>e.stopPropagation()} placeholder={`Change ${elementLabels[selected].toLowerCase()}…`} className="mt-3 min-h-28 resize-none rounded-xl text-base"/><Button className="mt-3 h-11 w-full" onClick={()=>void refineElement()} disabled={refining||!instruction.trim()}>{refining?"Applying changes…":"Apply with AI"}</Button>{selectedNode&&<div className="mt-3 rounded-xl bg-black/[.04] p-3 text-xs text-black/55">Selected layer: <strong className="text-black">{(composition?.elements?.find((e:any)=>e.id===selectedNode) as any)?.text||selectedNode}</strong></div>}</section>;
   const LayersPanel = () => <section className="studio-mobile-panel rounded-2xl border bg-white p-4 shadow-sm"><div className="mb-3 flex items-center gap-2"><Layers3 className="size-4"/><div className="text-[11px] font-bold uppercase tracking-[.16em] text-black/40">Editable layers</div></div>{!composition?.elements?.length&&<div className="rounded-xl bg-black/[.04] p-4 text-sm text-black/50">Generate a design first. AI-generated elements will appear here as editable layers.</div>}<div className="space-y-1">{(composition?.elements??[]).map((el:any,i)=><button type="button" key={el.id} onClick={()=>handleCanvasSelect(el.id)} className={cn("flex min-h-12 w-full items-center justify-between rounded-xl px-3 text-left text-sm",selectedNode===el.id?"bg-black text-white":"hover:bg-black/[.05]")}><span className="min-w-0 truncate font-semibold">{el.text||el.type||`Layer ${i+1}`}</span><span className="ml-2 shrink-0 text-xs opacity-50">{i+1}</span></button>)}</div></section>;
 
+  const AnalysisPanel = () => {
+    let parsed: any = {};
+    try { parsed = analysis ? JSON.parse(analysis) : {}; } catch { parsed = {}; }
+    const dna = parsed?.referenceAnalysis?.visualDNA || parsed?.visualDNA || "Awaiting forensic visual analysis";
+    const priorities = Array.isArray(parsed?.referenceAnalysis?.fidelityPriorities) ? parsed.referenceAnalysis.fidelityPriorities.slice(0, 4) : [];
+    return <section className="mt-2 rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <div><div className="text-[10px] font-black uppercase tracking-[.18em] text-black/40">AI forensic analysis</div><div className="mt-1 text-sm font-bold">{references.length ? "Reference image analyzed" : "Prompt analyzed"}</div></div>
+        <div className="rounded-full bg-black px-2.5 py-1 text-[10px] font-bold text-white">Visual DNA</div>
+      </div>
+      <p className="mt-3 text-xs leading-5 text-black/60">{String(dna)}</p>
+      {priorities.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">{priorities.map((item: string, i: number) => <div key={i} className="rounded-xl bg-black/[.04] p-2.5 text-[11px] font-semibold text-black/65">{item}</div>)}</div>}
+      {!analysis && <div className="mt-3 rounded-xl bg-black/[.04] p-3 text-xs text-black/45">Generate a design to see the actual AI analysis here.</div>}
+    </section>;
+  };
+
   const PreviewPanel = () => <main className="studio-preview-panel rounded-2xl border bg-[#dededb] p-2 shadow-sm sm:p-3 lg:p-4">
     <div className="studio-toolbar mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/90 p-2 backdrop-blur">
       <div className="flex items-center gap-1 rounded-lg bg-black/[.05] p-1">{([["desktop",Monitor,"Desktop"],["tablet",Tablet,"Tablet"],["iphone",Smartphone,"iPhone"]] as const).map(([key,Icon,label])=><button key={key} type="button" onClick={()=>setDevice(key)} className={cn("flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-bold",device===key?"bg-black text-white shadow-sm":"text-black/55 hover:bg-white")}><Icon className="size-3.5"/><span className="hidden sm:inline">{label}</span></button>)}</div>
@@ -175,6 +191,7 @@ export function UnifiedMenuStudio({ restaurantId }: { restaurantId: string }) {
     <div className="studio-preview-stage flex min-h-[640px] items-start justify-center overflow-auto rounded-xl bg-[#c9c9c6] p-3 sm:p-6">
       {!liveMenuUrl ? <div className="grid min-h-[520px] place-items-center text-center text-sm text-black/45">Connect a restaurant to preview the live menu.</div> : device === "iphone" ? <div className="relative w-[390px] max-w-[92vw] shrink-0 rounded-[46px] border-[8px] border-black bg-black p-2 shadow-[0_30px_80px_rgba(0,0,0,.3)]" style={{transform:`scale(${zoom/72})`,transformOrigin:"top center"}}><div className="pointer-events-none absolute left-1/2 top-2 z-[50] h-6 w-28 -translate-x-1/2 rounded-full bg-black"/><div className="overflow-hidden rounded-[36px] bg-white"><iframe title="QuickServe live iPhone menu" src={liveMenuUrl} onLoad={e=>publishMenuThemeBridge(restaurantId,{...theme,composition},e.currentTarget.contentWindow)} className="block h-[780px] w-full border-0 bg-white"/></div></div> : device === "tablet" ? <div className="w-[820px] max-w-[94vw] shrink-0 rounded-[30px] border-[8px] border-black bg-black p-2 shadow-[0_30px_80px_rgba(0,0,0,.22)]" style={{transform:`scale(${zoom/72})`,transformOrigin:"top center"}}><div className="overflow-hidden rounded-[22px] bg-white"><iframe title="QuickServe live tablet menu" src={liveMenuUrl} onLoad={e=>publishMenuThemeBridge(restaurantId,{...theme,composition},e.currentTarget.contentWindow)} className="block h-[760px] w-full border-0 bg-white"/></div></div> : <div className="w-full min-w-[720px]" style={{transform:`scale(${zoom/72})`,transformOrigin:"top center"}}><iframe title="QuickServe live desktop menu" src={liveMenuUrl} onLoad={e=>publishMenuThemeBridge(restaurantId,{...theme,composition},e.currentTarget.contentWindow)} className="block h-[900px] w-full rounded-xl border-0 bg-white shadow-xl"/></div>}
     </div>
+    <AnalysisPanel />
     <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 p-3 text-[11px] text-black/50"><span>Real diner renderer · no placeholder canvas · {device} · {zoom}%</span><Button size="sm" className="h-8 rounded-lg" onClick={openLiveMenu}><ExternalLink className="mr-1.5 size-3.5"/>Open live menu</Button></div>
     <div className="mt-2 hidden grid-cols-3 gap-2 sm:grid"><div className="rounded-xl bg-white/75 p-3"><BrainCircuit className="size-4"/><div className="mt-2 text-xs font-bold">AI direction</div></div><div className="rounded-xl bg-white/75 p-3"><Layers3 className="size-4"/><div className="mt-2 text-xs font-bold">Editable layers</div></div><div className="rounded-xl bg-white/75 p-3"><Check className="size-4"/><div className="mt-2 text-xs font-bold">Live bridge active</div></div></div>
   </main>;
