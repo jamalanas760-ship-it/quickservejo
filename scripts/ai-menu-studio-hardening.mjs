@@ -36,32 +36,12 @@ await edit('src/lib/menu-designer.server.ts', (text) => {
 });
 
 await edit('src/lib/smart-menu-orchestrator.server.ts', (text) => {
-  text = text.replace(
-    '    const apiKey = process.env["OPENAI_API_KEY"] ?? process.env["OPENAI_API_KEYS"];\n    const references = data.references ?? [];',
-    '    const apiKey = process.env["OPENAI_API_KEY"] ?? process.env["OPENAI_API_KEYS"];\n    if (!apiKey?.trim()) throw new Error("AI Menu Studio requires a real server-side OPENAI_API_KEY. Configure the key before generating; QuickServe will never present a fallback as real AI.");\n    const references = data.references ?? [];',
-  );
-  text = text.replace(
-    '    const seed = data.variationSeed ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;',
-    '    const seed = data.variationSeed ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;\n    const runId = `${seed}-${Math.random().toString(36).slice(2, 8)}`;',
-  );
-  text = text.replace(
-    '      `CREATIVE VARIATION SEED: ${seed}`,',
-    '      `CREATIVE VARIATION SEED: ${seed}`,\n      `UNIQUE RUN ID: ${runId}`,\n      "Do not reuse a prior composition. The run must materially respond to the current prompt/reference. Compare the three concepts for duplicate structure before returning them.",',
-  );
-  text = text.replace(
-    '      ], apiKey);',
-    '      ], apiKey, false);',
-  );
-  text = text.replace(
-    '    const text = await callMenuDesigner([',
-    '    const text = await callMenuDesigner([',
-  );
+  text = text.replace(/\], apiKey\);/g, '], apiKey, false);');
   return text;
 });
 
 await edit('src/lib/menu-quality-gate.server.ts', (text) => {
-  text = text.replace('  if (!apiKey || designs.length === 0) {', '  if (!apiKey || designs.length === 0) {');
-  text = text.replace('  ], apiKey);', '  ], apiKey, false);');
+  text = text.replace(/\], apiKey\);/g, '], apiKey, false);');
   return text;
 });
 
@@ -71,8 +51,8 @@ await edit('src/components/manage/UnifiedMenuStudio.tsx', (text) => {
     '  const [composition, setComposition] = useState<Composition>();\n  const [analysis, setAnalysis] = useState("");\n',
   );
   text = text.replace(
-    '      if (generationId !== generationIdRef.current) return;\n      if (generationId !== generationIdRef.current) return;\n      if (generationId !== generationIdRef.current) return;\n      if (generationId !== generationIdRef.current) return;',
-    '      if (generationId !== generationIdRef.current) return;',
+    /(?:      if \(generationId !== generationIdRef\.current\) return;\n){2,}/g,
+    '      if (generationId !== generationIdRef.current) return;\n',
   );
   text = text.replace(
     '      const next = result.concepts.map(c => ({ id: c.id, theme: c.theme }));',
