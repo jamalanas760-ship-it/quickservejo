@@ -39,10 +39,11 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
     const { data: restaurant, error: restaurantError } = await supabase.from("restaurants").select("name, description_en, description_ar, primary_color, accent_color").eq("id", data.restaurantId).single();
     if (restaurantError) throw restaurantError;
 
-    // Accept the correctly named secret and the legacy pluralized name so a deployment
-    // configured as OPENAI_API_KEYS continues to work without exposing the key client-side.
+    // The OpenAI credential is server-only. Do not fail before calling the shared
+    // designer: it already has a deterministic native fallback for environments
+    // where the server secret has not been configured yet. This prevents the old
+    // hard-stop runtime error and keeps the designer usable in Lovable previews.
     const apiKey = process.env["OPENAI_API_KEY"] ?? process.env["OPENAI_API_KEYS"];
-    if (!apiKey) throw new Error("AI menu designer is not configured. Add OPENAI_API_KEY (or OPENAI_API_KEYS) to the server environment.");
 
     const provider = data.provider ?? "openai";
     const isReference = Boolean(data.images?.length);
@@ -60,6 +61,7 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
       isReference ? "REFERENCE RECONSTRUCTION MODE: analyze every attached image as visual DNA. Reconstruct hierarchy, grid, alignment, typography relationships, image crops, negative space, decorative language and surface treatment. Match the composition closely while returning an editable design system. Do not flatten the screenshot into one image." : "CREATIVE MODE: invent a fresh composition with a distinct information architecture. Do not simply recolour or lightly modify a standard template.",
       data.tweak ? `Refinement: ${data.tweak}` : "",
       "Return 3 materially different, immediately usable menu design variants. Each variant must be a complete theme object compatible with the live composition preview.",
+      "If Arabic is requested, use native RTL. If English is requested, use native LTR. If the brief asks for Arabic + English, preserve both languages as first-class content.",
     ].filter(Boolean).join("\n\n");
 
     const userContent: unknown[] = [{ type: "input_text", text: prompt }];
@@ -75,5 +77,5 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
 
     const designs = extractDesigns(text);
     if (designs.length === 0) throw new Error("The AI returned an invalid menu design. Please try again.");
-    return { variants: designs.slice(0, 3).map((design) => JSON.stringify(design)), fallback: false };
+    return { variants: designs.slice(0, 3).map((design) => JSON.stringify(design)), fallback: !apiKey };
   });
