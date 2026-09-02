@@ -34,7 +34,7 @@ ONE UNIFIED DESIGNER: Figma, Canva and Adobe are internal creative disciplines. 
 NATIVE AI MENU GENERATOR CAPABILITY: QuickServe should provide the useful capabilities users expect from modern AI restaurant-menu generators: guided style direction, brand-aware layouts, food-image composition, typography hierarchy, multiple design directions, editable content, responsive output and print/digital awareness. This is native QuickServe functionality; never require an external generator, external credits, or provider-specific template.
 
 BILINGUAL CONTENT CONTRACT:
-- The selected presentation language is ${"data.language"}.
+- The primary presentation language is supplied in the runtime context below.
 - Regardless of presentation language, preserve real Arabic and English menu fields whenever they exist.
 - Use textAr/textEn on editable elements when both values are available.
 - Arabic must use true RTL hierarchy and Arabic-compatible typography.
