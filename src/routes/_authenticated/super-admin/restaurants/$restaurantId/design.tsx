@@ -1,20 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { MenuDesigner } from "@/components/manage/MenuDesigner";
+import { PdfMenuManager } from "@/components/manage/PdfMenuManager";
 
 export const Route = createFileRoute(
   "/_authenticated/super-admin/restaurants/$restaurantId/design",
 )({
   head: () => ({
     meta: [
-      { title: "Menu design studio — QuickServe admin" },
+      { title: "PDF Menu & QR Ordering — QuickServe admin" },
       {
         name: "description",
-        content:
-          "Design a tenant's QR menu: template, palette, typography, layout and AI-generated themes with live preview.",
+        content: "Manage a restaurant's original PDF menu and QR ordering entry point.",
       },
-      { property: "og:title", content: "Menu design studio — QuickServe admin" },
-      { property: "og:description", content: "Per-tenant menu templates and themes." },
+      { property: "og:title", content: "PDF Menu & QR Ordering — QuickServe admin" },
+      { property: "og:description", content: "Publish a restaurant PDF menu and connect it to QuickServe ordering." },
     ],
   }),
   component: DesignTab,
@@ -22,5 +21,5 @@ export const Route = createFileRoute(
 
 function DesignTab() {
   const { restaurantId } = Route.useParams();
-  return <MenuDesigner restaurantId={restaurantId} />;
+  return <PdfMenuManager restaurantId={restaurantId} />;
 }
