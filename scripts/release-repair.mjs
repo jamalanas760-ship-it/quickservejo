@@ -8,9 +8,7 @@ async function replaceIn(file, replacements) {
   let text;
   try { text = await fs.readFile(path, 'utf8'); } catch { return; }
   const before = text;
-  for (const [find, replace] of replacements) {
-    text = text.replace(find, replace);
-  }
+  for (const [find, replace] of replacements) text = text.replace(find, replace);
   if (text !== before) {
     await fs.writeFile(path, text);
     changed += 1;
@@ -31,8 +29,15 @@ await replaceIn('src/lib/provider-verification.server.ts', [
   [/details\?:\s*Record<string, unknown>;/g, 'details?: Record<string, string | number | boolean | null | string[]>;'],
 ]);
 
+await replaceIn('src/lib/menu-designer.server.ts', [
+  [/'dataKey: "restaurant\["name"\]"'/g, 'dataKey: "restaurant.name"'],
+  [/'dataKey: "restaurant\["name"\]"'/g, 'dataKey: "restaurant.name"'],
+  [/'restaurantName: "restaurants\["name"\]"'/g, 'restaurantName: "restaurants.name"'],
+  [/dataKey: "restaurant\["name"\]"/g, 'dataKey: "restaurant.name"'],
+  [/restaurantName: "restaurants\["name"\]"/g, 'restaurantName: "restaurants.name"'],
+]);
+
 await replaceIn('tsconfig.json', [
-  [/'noPropertyAccessFromIndexSignature': true/g, '"noPropertyAccessFromIndexSignature": false'],
   [/"noPropertyAccessFromIndexSignature"\s*:\s*true/g, '"noPropertyAccessFromIndexSignature": false'],
   [/"noUncheckedIndexedAccess"\s*:\s*true/g, '"noUncheckedIndexedAccess": false'],
 ]);
