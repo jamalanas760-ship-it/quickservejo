@@ -26,6 +26,7 @@ import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authen
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_authenticated/super-admin/route'
 import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
+import { Route as MSlugRouteImport } from './routes/m/$slug'
 import { Route as OTokenRouteImport } from './routes/o/$token'
 import { Route as RSlugRouteImport } from './routes/r/$slug'
 import { Route as StaffIndexRouteImport } from './routes/staff/index'
@@ -147,6 +148,11 @@ const AuthenticatedWaiterRoute = AuthenticatedWaiterRouteImport.update({
   id: '/waiter',
   path: '/waiter',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const MSlugRoute = MSlugRouteImport.update({
+  id: '/m/$slug',
+  path: '/m/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const OTokenRoute = OTokenRouteImport.update({
   id: '/o/$token',
@@ -361,6 +367,7 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/waiter': typeof AuthenticatedWaiterRoute
+  '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
   '/staff/': typeof StaffIndexRoute
@@ -409,6 +416,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/waiter': typeof AuthenticatedWaiterRoute
+  '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
   '/staff': typeof StaffIndexRoute
@@ -459,6 +467,7 @@ export interface FileRoutesById {
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
+  '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
   '/r/$slug': typeof RSlugRoute
   '/staff/': typeof StaffIndexRoute
@@ -511,6 +520,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/waiter'
+    | '/m/$slug'
     | '/o/$token'
     | '/r/$slug'
     | '/staff/'
@@ -559,6 +569,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/waiter'
+    | '/m/$slug'
     | '/o/$token'
     | '/r/$slug'
     | '/staff'
@@ -608,6 +619,7 @@ export interface FileRouteTypes {
     | '/_authenticated/notifications'
     | '/_authenticated/profile'
     | '/_authenticated/waiter'
+    | '/m/$slug'
     | '/o/$token'
     | '/r/$slug'
     | '/staff/'
@@ -652,6 +664,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  MSlugRoute: typeof MSlugRoute
   OTokenRoute: typeof OTokenRoute
   RSlugRoute: typeof RSlugRoute
   StaffIndexRoute: typeof StaffIndexRoute
@@ -780,6 +793,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/waiter'
       preLoaderRoute: typeof AuthenticatedWaiterRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/m/$slug': {
+      id: '/m/$slug'
+      path: '/m/$slug'
+      fullPath: '/m/$slug'
+      preLoaderRoute: typeof MSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/o/$token': {
       id: '/o/$token'
@@ -1166,6 +1186,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  MSlugRoute: MSlugRoute,
   OTokenRoute: OTokenRoute,
   RSlugRoute: RSlugRoute,
   StaffIndexRoute: StaffIndexRoute,
