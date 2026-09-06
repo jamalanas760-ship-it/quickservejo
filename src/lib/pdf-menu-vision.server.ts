@@ -7,8 +7,9 @@ const inputSchema = z.object({
   pageNumber: z.number().int().positive(),
   pageWidth: z.number().positive(),
   pageHeight: z.number().positive(),
-  imageDataUrl: z.string().startsWith("data:image/").max(8_000_000),
+  imageDataUrl: z.string().startsWith("data:image/").max(12_000_000),
   selectionOnly: z.boolean().optional().default(false),
+  selectedText: z.string().max(6000).optional().default(""),
 });
 
 const productSchema = z.object({
@@ -50,9 +51,10 @@ export const extractPdfVisualProducts = createServerFn({ method: "POST" })
     const apiKey = process.env["OPENAI_API_KEY"] ?? process.env["OPENAI_API_KEYS"];
     if (!apiKey?.trim()) return { products: [], ai: false };
 
+    const sourceText = data.selectedText.trim();
     const prompt = data.selectionOnly
-      ? `Extract ONE purchasable restaurant menu product from this selected/cropped area. Read every visible title, description and explicit price. Fill BOTH English and Arabic fields: preserve the visible language and accurately translate into the missing language. Do not invent information. If description is absent, use null. If price is absent or unreadable, use null. The selected crop is already the exact clickable area, so bbox must be x=0,y=0,width=1,height=1. Return exactly one product if this is a genuine menu item. JSON only: {"products":[{"name_en":"","name_ar":"","description_en":null,"description_ar":null,"price":null,"currency":null,"category":null,"confidence":0,"bbox":{"x":0,"y":0,"width":1,"height":1}}]}`
-      : `Analyze this restaurant menu page image. Return ONLY genuine purchasable food or beverage products. Reject headings, ingredients, toppings, modifiers, standalone sizes, allergens, nutrition, contact details and decorative text. Group each product title, description and explicit price into one product. Fill BOTH English and Arabic fields: preserve visible text and accurately translate into the missing language. Never invent information. If price is absent or unreadable, use null. Return a complete clickable product bounding box normalized 0..1. JSON only: {"products":[{"name_en":"","name_ar":"","description_en":null,"description_ar":null,"price":null,"currency":null,"category":null,"confidence":0,"bbox":{"x":0,"y":0,"width":0,"height":0}}]}`;
+      ? `You are reading ONE manually selected restaurant menu product. The image is a high-resolution crop of the selected PDF area. Extract exactly one genuine purchasable product from it. Read the image carefully, including small prices and Arabic/English text. A PDF text extraction is also supplied below; use it as an OCR aid, but trust the image when the text extraction is incomplete or out of order.\n\nPDF TEXT FROM SELECTED AREA:\n${sourceText || "(none)"}\n\nRules:\n- Fill BOTH English and Arabic product title fields. Preserve the original language and accurately translate into the missing language.\n- Fill BOTH English and Arabic descriptions when a description is visible. If no description is visible, use null.\n- Extract the explicit price exactly; never guess. If unreadable or absent, use null.\n- Do not return a category heading, ingredient, topping, modifier, size, allergen, nutrition, restaurant information or decorative text.\n- Do not invent ingredients, prices, names or descriptions.\n- The selected crop is already the exact clickable area, so bbox must be x=0,y=0,width=1,height=1.\n- Return one product only when the selected area is a real menu item.\nJSON only: {\"products\":[{\"name_en\":\"\",\"name_ar\":\"\",\"description_en\":null,\"description_ar\":null,\"price\":null,\"currency\":null,\"category\":null,\"confidence\":0,\"bbox\":{\"x\":0,\"y\":0,\"width\":1,\"height\":1}}]}`
+      : `Analyze this restaurant menu page image. Return ONLY genuine purchasable food or beverage products. Reject headings, ingredients, toppings, modifiers, standalone sizes, allergens, nutrition, contact details and decorative text. Group each product title, description and explicit price into one product. Fill BOTH English and Arabic fields: preserve visible text and accurately translate into the missing language. Never invent information. If price is absent or unreadable, use null. Return a complete clickable product bounding box normalized 0..1. JSON only: {\"products\":[{\"name_en\":\"\",\"name_ar\":\"\",\"description_en\":null,\"description_ar\":null,\"price\":null,\"currency\":null,\"category\":null,\"confidence\":0,\"bbox\":{\"x\":0,\"y\":0,\"width\":0,\"height\":0}}]}`;
 
     try {
       const response = await fetch("https://api.openai.com/v1/responses", {
