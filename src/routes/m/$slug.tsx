@@ -342,23 +342,23 @@ function PdfOrderPage() {
 
             <div className="space-y-1 rounded-xl bg-muted p-3 text-sm">
               <div className="flex justify-between">
-                <span>Subtotal</span>
+                <span>{lang === "ar" ? "المجموع الفرعي" : "Subtotal"}</span>
                 <span>{formatMoney(subtotal, currency, lang)}</span>
               </div>
               {tax > 0 ? (
                 <div className="flex justify-between">
-                  <span>Tax</span>
+                  <span>{lang === "ar" ? "الضريبة" : "Tax"}</span>
                   <span>{formatMoney(tax, currency, lang)}</span>
                 </div>
               ) : null}
               {service > 0 ? (
                 <div className="flex justify-between">
-                  <span>Service</span>
+                  <span>{lang === "ar" ? "الخدمة" : "Service"}</span>
                   <span>{formatMoney(service, currency, lang)}</span>
                 </div>
               ) : null}
               <div className="flex justify-between border-t pt-1 font-bold">
-                <span>Total</span>
+                <span>{lang === "ar" ? "الإجمالي" : "Total"}</span>
                 <span>{formatMoney(total, currency, lang)}</span>
               </div>
             </div>

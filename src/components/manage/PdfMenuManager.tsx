@@ -224,9 +224,18 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
     setBusy(true);
     try {
       const productPayload = { restaurant_id: restaurantId, name_en: nameEn, name_ar: nameAr, description_en: product.description_en?.trim() || null, description_ar: product.description_ar?.trim() || null, price: product.price == null || !Number.isFinite(product.price) ? 0 : product.price, is_available: true };
-      const { data: item, error: itemError } = await supabase.from("menu_items").insert(productPayload).select("id").single();
-      if (itemError) throw itemError;
-      const { error: linkError } = await (supabase as any).from("menu_pdf_item_links").insert({ document_id: documentRow.id, restaurant_id: restaurantId, menu_item_id: item.id, candidate_id: activeCandidate.id, page_number: activeCandidate.page_number, x: activeCandidate.x, y: activeCandidate.y, width: activeCandidate.width, height: activeCandidate.height, label: nameEn, source: "manual-selection", is_active: true });
+      const { data: existingLink } = await (supabase as any).from("menu_pdf_item_links").select("id,menu_item_id").eq("document_id", documentRow.id).eq("candidate_id", activeCandidate.id).eq("restaurant_id", restaurantId).eq("is_active", true).maybeSingle();
+      let itemId: string;
+      if (existingLink?.menu_item_id) {
+        const { error: itemError } = await supabase.from("menu_items").update(productPayload).eq("id", existingLink.menu_item_id).eq("restaurant_id", restaurantId);
+        if (itemError) throw itemError;
+        itemId = existingLink.menu_item_id;
+      } else {
+        const { data: item, error: itemError } = await supabase.from("menu_items").insert(productPayload).select("id").single();
+        if (itemError) throw itemError;
+        itemId = item.id;
+      }
+      const { error: linkError } = existingLink ? await (supabase as any).from("menu_pdf_item_links").update({ menu_item_id: itemId, label: nameEn, is_active: true }).eq("id", existingLink.id) : await (supabase as any).from("menu_pdf_item_links").insert({ document_id: documentRow.id, restaurant_id: restaurantId, menu_item_id: itemId, candidate_id: activeCandidate.id, page_number: activeCandidate.page_number, x: activeCandidate.x, y: activeCandidate.y, width: activeCandidate.width, height: activeCandidate.height, label: nameEn, source: "manual-selection", is_active: true });
       if (linkError) throw linkError;
       const savedProduct = { ...product, name_en: nameEn, name_ar: nameAr };
       setDrafts((current) => ({ ...current, [activeCandidate.id]: savedProduct }));
