@@ -139,8 +139,8 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
 
   async function handleFile(nextFile?: File) {
     if (!nextFile) return;
-    if (nextFile.type !== "application/pdf" && !nextFile.name.toLowerCase().endsWith(".pdf")) toast.error("Please upload a PDF menu."); return;
-    if (nextFile.size > MAX_PDF_BYTES) toast.error("PDF is too large. Maximum allowed size is 100 MB."); return;
+    if (nextFile.type !== "application/pdf" && !nextFile.name.toLowerCase().endsWith(".pdf")) { toast.error("Please upload a PDF menu."); return; }
+    if (nextFile.size > MAX_PDF_BYTES) { toast.error("PDF is too large. Maximum allowed size is 100 MB."); return; }
     setBusy(true);
     try {
       const buffer = await nextFile.arrayBuffer();
@@ -220,7 +220,7 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
     const product = drafts[activeCandidate.id] ?? blankProduct(activeCandidate.id);
     const nameEn = product.name_en.trim() || product.name_ar.trim();
     const nameAr = product.name_ar.trim() || product.name_en.trim();
-    if (!nameEn) toast.error("Product title is required."); return;
+    if (!nameEn) { toast.error("Product title is required."); return; }
     setBusy(true);
     try {
       const productPayload = { restaurant_id: restaurantId, name_en: nameEn, name_ar: nameAr, description_en: product.description_en?.trim() || null, description_ar: product.description_ar?.trim() || null, price: product.price == null || !Number.isFinite(product.price) ? 0 : product.price, is_available: true };
@@ -341,6 +341,6 @@ function PdfOverlayPreview({ canvasRef, candidates, drafts, selecting, onManualS
   function point(event: React.PointerEvent<HTMLDivElement>) { const rect = event.currentTarget.getBoundingClientRect(); return { x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)), y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)) }; }
   function down(event: React.PointerEvent<HTMLDivElement>) { if (!selecting || event.button !== 0) return; const p = point(event); dragRef.current = { startX: p.x, startY: p.y, pointerId: event.pointerId }; event.currentTarget.setPointerCapture(event.pointerId); setSelection({ x: p.x, y: p.y, width: 0, height: 0 }); }
   function move(event: React.PointerEvent<HTMLDivElement>) { const drag = dragRef.current; if (!selecting || !drag || drag.pointerId !== event.pointerId) return; const p = point(event); setSelection({ x: Math.min(drag.startX, p.x), y: Math.min(drag.startY, p.y), width: Math.abs(p.x - drag.startX), height: Math.abs(p.y - drag.startY) }); }
-  function up(event: React.PointerEvent<HTMLDivElement>) { const drag = dragRef.current; if (!selecting || !drag || drag.pointerId !== event.pointerId) return; dragRef.current = null; const p = point(event); const rect = { x: Math.min(drag.startX, p.x), y: Math.min(drag.startY, p.y), width: Math.abs(p.x - drag.startX), height: Math.abs(p.y - drag.startY) }; setSelection(null); if (rect.width < 0.01 || rect.height < 0.01) toast.info("Drag around the full product area."); return; onManualSelect(rect); }
+  function up(event: React.PointerEvent<HTMLDivElement>) { const drag = dragRef.current; if (!selecting || !drag || drag.pointerId !== event.pointerId) return; dragRef.current = null; const p = point(event); const rect = { x: Math.min(drag.startX, p.x), y: Math.min(drag.startY, p.y), width: Math.abs(p.x - drag.startX), height: Math.abs(p.y - drag.startY) }; setSelection(null); if (rect.width < 0.01 || rect.height < 0.01) { toast.info("Drag around the full product area."); return; } onManualSelect(rect); }
   return <div className={`relative overflow-hidden rounded-2xl bg-white shadow-sm ${selecting ? "cursor-crosshair select-none touch-none" : ""}`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { dragRef.current = null; setSelection(null); }}><canvas ref={canvasRef} className="block h-auto w-full" /><div className="pointer-events-none absolute inset-0">{candidates.map((candidate) => <button key={candidate.id} type="button" disabled={selecting} onClick={() => onOpenCandidate(candidate)} className={`pointer-events-auto absolute rounded-lg border-2 ${drafts[candidate.id] ? "border-emerald-500 bg-emerald-500/10" : "border-primary/30 bg-primary/5"}`} style={{ left: `${candidate.x * 100}%`, top: `${candidate.y * 100}%`, width: `${candidate.width * 100}%`, height: `${candidate.height * 100}%` }} aria-label="Open saved product"><span className="sr-only">Saved product</span></button>)}</div>{selecting ? <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-background/95 px-3 py-1.5 text-xs font-bold shadow ring-1 ring-border">Drag to select one product</div> : null}{selection ? <div className="pointer-events-none absolute rounded-lg border-2 border-primary bg-primary/15" style={{ left: `${selection.x * 100}%`, top: `${selection.y * 100}%`, width: `${selection.width * 100}%`, height: `${selection.height * 100}%` }} /> : null}</div>;
 }
