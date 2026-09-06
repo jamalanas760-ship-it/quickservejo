@@ -71,6 +71,25 @@ export async function openPdf(source: ArrayBuffer | Uint8Array | string): Promis
   return pdfjs.getDocument({ data: source }).promise;
 }
 
+/** Fetches either a legacy single-object PDF or a byte-for-byte chunked PDF. */
+export async function fetchPdfBytes(url: string, parts: string[] = []): Promise<ArrayBuffer> {
+  const sources = parts.length ? parts : [url];
+  const buffers = await Promise.all(sources.map(async (source) => {
+    const response = await fetch(source);
+    if (!response.ok) throw new Error("PDF could not be loaded");
+    return response.arrayBuffer();
+  }));
+  if (buffers.length === 1) return buffers[0];
+  const total = buffers.reduce((sum, buffer) => sum + buffer.byteLength, 0);
+  const combined = new Uint8Array(total);
+  let offset = 0;
+  for (const buffer of buffers) {
+    combined.set(new Uint8Array(buffer), offset);
+    offset += buffer.byteLength;
+  }
+  return combined.buffer;
+}
+
 /**
  * Extracts text blocks with their real PDF coordinates. The original PDF is never
  * rewritten; these coordinates are only used for transparent click targets.
