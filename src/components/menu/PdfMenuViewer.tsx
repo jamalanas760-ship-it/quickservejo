@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Minus, Plus, ShoppingBag } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { openPdf, renderPdfPage } from "@/lib/pdf-menu";
+import { fetchPdfBytes, openPdf, renderPdfPage } from "@/lib/pdf-menu";
 import type { DinerItem } from "@/lib/diner";
 
 type PdfLink = { id: string; page_number: number; x: number; y: number; width: number; height: number; menu_item_id: string; label: string | null };
 
 export function PdfMenuViewer({
   url,
+  parts = [],
   pageCount,
   links,
   items,
@@ -18,6 +19,7 @@ export function PdfMenuViewer({
   showCart,
 }: {
   url: string;
+  parts?: string[];
   pageCount: number;
   links: PdfLink[];
   items: DinerItem[];
@@ -39,9 +41,8 @@ export function PdfMenuViewer({
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("The menu PDF could not be loaded.");
-        const pdf = await openPdf(await response.arrayBuffer());
+        const bytes = await fetchPdfBytes(url, parts);
+        const pdf = await openPdf(bytes);
         if (!disposed && canvasRef.current) await renderPdfPage(pdf, page, canvasRef.current, 1400);
       } catch (reason) {
         if (!disposed) setError(reason instanceof Error ? reason.message : "The menu could not be loaded.");
@@ -51,7 +52,7 @@ export function PdfMenuViewer({
     }
     void render();
     return () => { disposed = true; };
-  }, [url, page]);
+  }, [url, parts, page]);
 
   return <section className="mx-auto w-full max-w-4xl px-2 pb-24 sm:px-4">
     <div className="sticky top-0 z-20 mb-3 flex items-center justify-between gap-2 border-b bg-background/90 px-1 py-2 backdrop-blur-xl">
