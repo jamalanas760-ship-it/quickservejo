@@ -14,10 +14,11 @@ import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { humanError } from "@/lib/errors";
 import { logAudit } from "@/lib/audit";
 import { extractPdfProducts } from "@/lib/pdf-menu.functions";
+import { extractPdfVisualProducts } from "@/lib/pdf-menu-vision.functions";
 import { analyzePdfFile, fetchPdfBytes, openPdf, renderPdfPage, type PdfMenuAnalysis, type PdfMenuCandidate } from "@/lib/pdf-menu";
 import { MAX_PDF_BYTES, uploadRestaurantPdf } from "@/lib/storage";
 
-type Product = { candidate_id: string; name_en: string; name_ar: string; description_en: string | null; description_ar: string | null; price: number | null; currency: string | null; confidence: number };
+type Product = { candidate_id: string; name_en: string; name_ar: string; description_en: string | null; description_ar: string | null; price: number | null; currency: string | null; confidence: number; category?: string | null; variants?: Array<{ name: string; values: string[] }>; options?: Array<{ name: string; price: number | null }> };
 type Draft = { enabled: boolean; productId?: string; product: Product };
 type PdfDocument = { id: string; file_url: string; file_parts?: string[]; file_name: string; page_count: number; analysis: PdfMenuAnalysis; is_active: boolean };
 const EMPTY: PdfMenuAnalysis = { page_count: 0, pages: [], candidates: [] };
@@ -26,6 +27,7 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
   const { data: restaurant } = useRestaurant(restaurantId);
   const queryClient = useQueryClient();
   const runExtract = useServerFn(extractPdfProducts);
+  const runVision = useServerFn(extractPdfVisualProducts);
   const inputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [documentRow, setDocumentRow] = useState<PdfDocument | null>(null);
@@ -100,30 +102,29 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
   }, [analysis.candidates, products, search]);
   const pageCandidates = useMemo(() => analysis.candidates.filter((c) => c.page_number === page), [analysis.candidates, page]);
   const enabledCount = Object.values(drafts).filter((d) => d.enabled).length;
+  const reviewCount = Object.values(products).filter((p) => p.confidence < 0.9).length;
 
   async function analyze(candidates: PdfMenuCandidate[]) {
     if (!candidates.length) return;
     setAnalyzing(true);
     try {
       const result = await runExtract({ data: { restaurantId, candidates } });
-      const accepted = (result.products ?? []).filter((p) => p.confidence >= 0.5 && (p.name_en.trim() || p.name_ar.trim()));
+      const accepted = (result.products ?? []).filter((p) => p.confidence >= 0.7 && (p.name_en.trim() || p.name_ar.trim()));
       const byId: Record<string, Product> = {};
       for (const product of accepted) byId[product.candidate_id] = product;
       const ids = new Set(accepted.map((p) => p.candidate_id));
       const filtered = candidates.filter((c) => ids.has(c.id));
-      setProducts(byId);
-      setAnalysis((current) => ({ ...current, candidates: filtered }));
+      setProducts((current) => ({ ...current, ...byId }));
+      setAnalysis((current) => ({ ...current, candidates: [...current.candidates.filter((c) => !ids.has(c.id)), ...filtered].sort((a, b) => a.page_number - b.page_number || a.y - b.y || a.x - b.x) }));
       setDrafts((current) => {
-        const next: Record<string, Draft> = {};
+        const next = { ...current };
         for (const candidate of filtered) {
           const previous = current[candidate.id];
-          const draft: Draft = { enabled: previous?.enabled ?? false, product: byId[candidate.id] };
-          if (previous?.productId) draft.productId = previous.productId;
-          next[candidate.id] = draft;
+          next[candidate.id] = { enabled: previous?.enabled ?? false, product: byId[candidate.id], ...(previous?.productId ? { productId: previous.productId } : {}) };
         }
         return next;
       });
-      toast.success(`${accepted.length} real menu items detected. Review and enable only the items you want customers to order.`);
+      toast.success(`${accepted.length} verified text products detected${result.verified ? " with a second AI verification pass" : ""}.`);
     } catch (error) {
       toast.error(humanError(error));
     } finally {
@@ -131,19 +132,66 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
     }
   }
 
+  async function analyzeScannedPages(buffer: ArrayBuffer, baseAnalysis: PdfMenuAnalysis) {
+    const pdf = await openPdf(buffer);
+    const pagesWithText = new Set(baseAnalysis.candidates.map((candidate) => candidate.page_number));
+    const visualCandidates: PdfMenuCandidate[] = [];
+    const visualProducts: Record<string, Product> = {};
+
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      if (pagesWithText.has(pageNumber)) continue;
+      const pdfPage = await pdf.getPage(pageNumber);
+      const viewport = pdfPage.getViewport({ scale: 1 });
+      const canvas = document.createElement("canvas");
+      const maxWidth = 1500;
+      const scale = Math.min(1.7, Math.max(1, maxWidth / viewport.width));
+      const rendered = pdfPage.getViewport({ scale });
+      canvas.width = Math.ceil(rendered.width);
+      canvas.height = Math.ceil(rendered.height);
+      const context = canvas.getContext("2d");
+      if (!context) continue;
+      await pdfPage.render({ canvasContext: context, viewport: rendered }).promise;
+      const imageDataUrl = canvas.toDataURL("image/jpeg", 0.82);
+      canvas.width = 1;
+      canvas.height = 1;
+      const result = await runVision({ data: { restaurantId, pageNumber, pageWidth: viewport.width, pageHeight: viewport.height, imageDataUrl } });
+      for (const row of result.products ?? []) {
+        const candidate = { id: row.candidate_id, page_number: row.page_number, text: row.text, x: row.x, y: row.y, width: row.width, height: row.height, confidence: row.confidence } satisfies PdfMenuCandidate;
+        visualCandidates.push(candidate);
+        visualProducts[candidate.id] = row.product as Product;
+      }
+    }
+
+    if (visualCandidates.length) {
+      setProducts((current) => ({ ...current, ...visualProducts }));
+      setAnalysis((current) => ({ ...current, candidates: [...current.candidates, ...visualCandidates].sort((a, b) => a.page_number - b.page_number || a.y - b.y || a.x - b.x) }));
+      setDrafts((current) => {
+        const next = { ...current };
+        for (const candidate of visualCandidates) next[candidate.id] = { enabled: false, product: visualProducts[candidate.id] };
+        return next;
+      });
+    }
+    return visualCandidates.length;
+  }
+
   async function handleFile(nextFile?: File) {
     if (!nextFile) return;
     if (nextFile.type !== "application/pdf" && !nextFile.name.toLowerCase().endsWith(".pdf")) { toast.error("Please upload a PDF menu."); return; }
     if (nextFile.size > MAX_PDF_BYTES) { toast.error("PDF is too large. Maximum allowed size is 100 MB."); return; }
     setBusy(true);
+    setAnalyzing(true);
     try {
-      const { analysis: nextAnalysis } = await analyzePdfFile(nextFile);
+      const { buffer, analysis: nextAnalysis } = await analyzePdfFile(nextFile);
       const uploaded = await uploadRestaurantPdf(restaurantId, nextFile);
       setFile(nextFile); setFileUrl(uploaded.url); setFileParts(uploaded.parts); setDocumentRow(null); setAnalysis(nextAnalysis); setProducts({}); setDrafts({}); setPage(1);
-      await analyze(nextAnalysis.candidates);
+      if (nextAnalysis.candidates.length) await analyze(nextAnalysis.candidates);
+      const scannedCount = await analyzeScannedPages(buffer, nextAnalysis);
+      if (!nextAnalysis.candidates.length && !scannedCount) toast.warning("No confident products were detected. The PDF is preserved; review the source and try smart detection again.");
+      else toast.success(`${nextAnalysis.page_count} PDF page${nextAnalysis.page_count === 1 ? "" : "s"} processed. You can now choose exactly which detected products become clickable.`);
     } catch (error) {
       toast.error(humanError(error));
     } finally {
+      setAnalyzing(false);
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
     }
@@ -154,17 +202,17 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
       const previous = current[candidate.id];
       const product = previous?.product ?? products[candidate.id];
       if (!product) return current;
-      const nextDraft: Draft = { enabled: !(previous?.enabled ?? false), product };
-      if (previous?.productId) nextDraft.productId = previous.productId;
-      return { ...current, [candidate.id]: nextDraft };
+      return { ...current, [candidate.id]: { enabled: !(previous?.enabled ?? false), product, ...(previous?.productId ? { productId: previous.productId } : {}) } };
     });
   }
+
   function edit(id: string, patch: Partial<Product>) {
     setDrafts((current) => {
       const previous = current[id];
       if (!previous) return current;
       return { ...current, [id]: { ...previous, product: { ...previous.product, ...patch } } };
     });
+    setProducts((current) => current[id] ? { ...current, [id]: { ...current[id], ...patch } } : current);
   }
 
   async function save() {
@@ -203,7 +251,7 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
         rows.push({ document_id: documentId, restaurant_id: restaurantId, menu_item_id: productId, candidate_id: candidate.id, page_number: candidate.page_number, x: candidate.x, y: candidate.y, width: candidate.width, height: candidate.height, label: candidate.text, source: "pdf-extraction", is_active: true });
       }
       if (rows.length) { const { error } = await (supabase as any).from("menu_pdf_item_links").insert(rows); if (error) throw error; }
-      await logAudit("menu.pdf_published", { restaurantId, entity: "menu_pdf_documents", entityId: documentId, metadata: { links: rows.length, pages: analysis.page_count, extracted: true } });
+      await logAudit("menu.pdf_published", { restaurantId, entity: "menu_pdf_documents", entityId: documentId, metadata: { links: rows.length, pages: analysis.page_count, extracted: true, verified: true } });
       setDocumentRow({ id: documentId, ...payload } as PdfDocument);
       await queryClient.invalidateQueries({ queryKey: ["platform", "pdf-document", restaurantId] });
       toast.success(`${rows.length} clickable products saved. Items left OFF were ignored.`);
@@ -228,15 +276,16 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
 
   if (existing.isPending && !documentRow) return <div className="space-y-4"><Skeleton className="h-40 rounded-3xl"/><Skeleton className="h-96 rounded-3xl"/></div>;
   return <div className="space-y-5">
-    <header className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-[28px] font-bold tracking-[-0.04em]">{restaurant?.name ?? "Restaurant"} — PDF Menu</h1><p className="mt-1 max-w-2xl text-sm text-muted-foreground">Smart detection groups complete menu items instead of treating every word as a product. You decide what becomes clickable.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" disabled={busy || analyzing} onClick={() => inputRef.current?.click()}><Upload className="size-4"/>{documentRow ? "Replace PDF" : "Upload PDF"}</Button>{documentRow?.is_active ? <Button variant="outline" disabled={busy || analyzing} onClick={() => void disablePdf()}><X className="size-4"/>Disable</Button> : null}<Button disabled={busy || analyzing || !fileUrl || !enabledCount} onClick={() => void save()}><Save className="size-4"/>{busy ? "Saving…" : "Publish clickable menu"}</Button></div><input ref={inputRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => void handleFile(event.target.files?.[0])}/></header>
+    <header className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-[28px] font-bold tracking-[-0.04em]">{restaurant?.name ?? "Restaurant"} — PDF Menu</h1><p className="mt-1 max-w-2xl text-sm text-muted-foreground">AI reads the complete menu, verifies detections, and keeps the original PDF untouched. You decide exactly what becomes clickable.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" disabled={busy || analyzing} onClick={() => inputRef.current?.click()}><Upload className="size-4"/>{documentRow ? "Replace PDF" : "Upload PDF"}</Button>{documentRow?.is_active ? <Button variant="outline" disabled={busy || analyzing} onClick={() => void disablePdf()}><X className="size-4"/>Disable</Button> : null}<Button disabled={busy || analyzing || !fileUrl || !enabledCount} onClick={() => void save()}><Save className="size-4"/>{busy ? "Saving…" : "Publish clickable menu"}</Button></div><input ref={inputRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => void handleFile(event.target.files?.[0])}/></header>
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,.75fr)]">
       <section className="panel overflow-hidden rounded-3xl"><div className="flex flex-wrap items-center justify-between gap-3 border-b p-4"><div className="flex items-center gap-2"><FileText className="size-5 text-primary"/><div><p className="font-semibold">Original PDF preview</p><p className="text-xs text-muted-foreground">The artwork stays exactly as uploaded.</p></div></div><div className="flex items-center gap-2"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((v) => v - 1)}>Previous</Button><span className="text-xs font-semibold">Page {page} / {analysis.page_count || 0}</span><Button size="sm" variant="outline" disabled={page >= analysis.page_count} onClick={() => setPage((v) => v + 1)}>Next</Button></div></div><div className="bg-slate-100 p-3 sm:p-6">{!fileUrl ? <button type="button" onClick={() => inputRef.current?.click()} className="grid min-h-[520px] w-full place-items-center rounded-2xl border-2 border-dashed bg-white text-center"><span><Upload className="mx-auto size-9 text-muted-foreground"/><span className="mt-3 block font-semibold">Upload the restaurant PDF</span><span className="mt-1 block text-sm text-muted-foreground">PDF menus up to 100 MB are supported.</span></span></button> : <PdfOverlayPreview canvasRef={canvasRef} candidates={pageCandidates} drafts={drafts} onSelect={(candidate) => setPage(candidate.page_number)}/>}</div></section>
-      <aside className="panel rounded-3xl p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2"><MousePointer2 className="size-4 text-primary"/><h2 className="font-bold">Detected menu items</h2></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Only complete product blocks are shown. Existing catalog products are never suggested here.</p></div><Badge variant="secondary">{enabledCount} clickable</Badge></div>
+      <aside className="panel rounded-3xl p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2"><MousePointer2 className="size-4 text-primary"/><h2 className="font-bold">Detected menu items</h2></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Complete product blocks only. No catalog suggestions. Low-confidence results stay available for review.</p></div><Badge variant="secondary">{enabledCount} clickable</Badge></div>
+        <div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-xl border p-2.5"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Detected</p><p className="mt-1 font-bold">{analysis.candidates.length}</p></div><div className="rounded-xl border p-2.5"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Needs review</p><p className="mt-1 font-bold">{reviewCount}</p></div></div>
         <div className="mt-4 flex gap-2"><Input placeholder="Search detected items…" value={search} onChange={(e) => setSearch(e.target.value)}/><Button size="icon" variant="outline" disabled={analyzing || !analysis.candidates.length} title="Run smart detection" onClick={() => void analyze(analysis.candidates)}>{analyzing ? <Loader2 className="size-4 animate-spin"/> : <Sparkles className="size-4"/>}</Button></div>
-        <div className="mt-4 max-h-[650px] space-y-3 overflow-y-auto pr-1">{analyzing ? <div className="rounded-2xl border bg-muted/30 p-6 text-center text-sm text-muted-foreground">Smartly grouping product names, descriptions and prices…</div> : visible.length === 0 ? <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">No real menu products detected yet.</div> : visible.map((candidate) => { const draft = drafts[candidate.id]; const product = draft?.product ?? products[candidate.id]; const enabled = Boolean(draft?.enabled); return <div key={candidate.id} className={`rounded-2xl border p-3 transition ${enabled ? "border-primary bg-primary/5" : "bg-card"}`}><div className="flex items-start gap-3"><button type="button" className="min-w-0 flex-1 text-left" onClick={() => setPage(candidate.page_number)}><div className="flex items-center gap-2"><span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">P{candidate.page_number}</span>{enabled ? <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Clickable</Badge> : <Badge variant="outline">Not clickable</Badge>}</div><p className="mt-1 text-sm font-bold leading-5">{product?.name_en || product?.name_ar || "Detected item"}</p>{product?.description_en || product?.description_ar ? <p className="mt-1 text-xs leading-5 text-muted-foreground line-clamp-2">{product.description_en || product.description_ar}</p> : null}{product?.price != null ? <p className="mt-2 text-sm font-semibold">{product.price} {product.currency ?? ""}</p> : <p className="mt-2 text-xs text-muted-foreground">Price not detected</p>}</button><button type="button" role="switch" aria-checked={enabled} onClick={() => toggle(candidate)} className={`relative mt-1 h-6 w-11 shrink-0 rounded-full transition ${enabled ? "bg-primary" : "bg-muted"}`}><span className={`absolute top-1 size-4 rounded-full bg-white shadow transition ${enabled ? "left-6" : "left-1"}`}/></button></div>{enabled && product ? <div className="mt-3 space-y-3 rounded-2xl bg-background p-3 ring-1 ring-border"><div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Sparkles className="size-3.5"/>Review extracted product</div><Field label="Name (English)" value={product.name_en} onChange={(v) => edit(candidate.id, { name_en: v })}/><Field label="Name (Arabic)" value={product.name_ar} onChange={(v) => edit(candidate.id, { name_ar: v })}/><div className="grid grid-cols-[1fr_100px] gap-2"><Field label="Price" value={product.price == null ? "" : String(product.price)} type="number" onChange={(v) => edit(candidate.id, { price: v.trim() === "" ? null : Number(v) })}/><Field label="Currency" value={product.currency ?? ""} onChange={(v) => edit(candidate.id, { currency: v })}/></div><div><label className="text-xs font-medium text-muted-foreground">Description (English)</label><Textarea className="mt-1.5 min-h-16" value={product.description_en ?? ""} onChange={(e) => edit(candidate.id, { description_en: e.target.value || null })} placeholder="Not detected"/></div><div><label className="text-xs font-medium text-muted-foreground">Description (Arabic)</label><Textarea dir="rtl" className="mt-1.5 min-h-16" value={product.description_ar ?? ""} onChange={(e) => edit(candidate.id, { description_ar: e.target.value || null })} placeholder="لم يتم اكتشاف وصف"/></div></div> : null}</div>; })}</div>
+        <div className="mt-4 max-h-[650px] space-y-3 overflow-y-auto pr-1">{analyzing ? <div className="rounded-2xl border bg-muted/30 p-6 text-center text-sm text-muted-foreground">Analyzing all pages, grouping product blocks and verifying prices…</div> : visible.length === 0 ? <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">No real menu products detected yet.</div> : visible.map((candidate) => { const draft = drafts[candidate.id]; const product = draft?.product ?? products[candidate.id]; const enabled = Boolean(draft?.enabled); return <div key={candidate.id} className={`rounded-2xl border p-3 transition ${enabled ? "border-primary bg-primary/5" : "bg-card"}`}><div className="flex items-start gap-3"><button type="button" className="min-w-0 flex-1 text-left" onClick={() => setPage(candidate.page_number)}><div className="flex items-center gap-2"><span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">P{candidate.page_number}</span>{enabled ? <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Clickable</Badge> : <Badge variant="outline">Not clickable</Badge>}{product && product.confidence < 0.9 ? <Badge variant="outline">Review {Math.round(product.confidence * 100)}%</Badge> : null}</div><p className="mt-1 text-sm font-bold leading-5">{product?.name_en || product?.name_ar || "Detected item"}</p>{product?.description_en || product?.description_ar ? <p className="mt-1 text-xs leading-5 text-muted-foreground line-clamp-2">{product.description_en || product.description_ar}</p> : null}{product?.price != null ? <p className="mt-2 text-sm font-semibold">{product.price} {product.currency ?? ""}</p> : <p className="mt-2 text-xs text-muted-foreground">Price not detected</p>}</button><button type="button" role="switch" aria-checked={enabled} onClick={() => toggle(candidate)} className={`relative mt-1 h-6 w-11 shrink-0 rounded-full transition ${enabled ? "bg-primary" : "bg-muted"}`}><span className={`absolute top-1 size-4 rounded-full bg-white shadow transition ${enabled ? "left-6" : "left-1"}`}/></button></div>{enabled && product ? <div className="mt-3 space-y-3 rounded-2xl bg-background p-3 ring-1 ring-border"><div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Sparkles className="size-3.5"/>Review extracted product</div><Field label="Name (English)" value={product.name_en} onChange={(v) => edit(candidate.id, { name_en: v })}/><Field label="Name (Arabic)" value={product.name_ar} onChange={(v) => edit(candidate.id, { name_ar: v })}/><div className="grid grid-cols-[1fr_100px] gap-2"><Field label="Price" value={product.price == null ? "" : String(product.price)} type="number" onChange={(v) => edit(candidate.id, { price: v.trim() === "" ? null : Number(v) })}/><Field label="Currency" value={product.currency ?? ""} onChange={(v) => edit(candidate.id, { currency: v })}/></div><div><label className="text-xs font-medium text-muted-foreground">Description (English)</label><Textarea className="mt-1.5 min-h-16" value={product.description_en ?? ""} onChange={(e) => edit(candidate.id, { description_en: e.target.value || null })} placeholder="Not detected"/></div><div><label className="text-xs font-medium text-muted-foreground">Description (Arabic)</label><Textarea dir="rtl" className="mt-1.5 min-h-16" value={product.description_ar ?? ""} onChange={(e) => edit(candidate.id, { description_ar: e.target.value || null })} placeholder="لم يتم اكتشاف وصف"/></div></div> : null}</div>; })}</div>
       </aside>
     </div>
-    <div className="grid gap-3 sm:grid-cols-3"><StatusCard icon={<FileCheck2 className="size-4"/>} label="PDF" value={file?.name ?? documentRow?.file_name ?? "Not uploaded"}/><StatusCard icon={<Link2 className="size-4"/>} label="Clickable products" value={`${enabledCount} / ${analysis.candidates.length || 0}`}/><StatusCard icon={<Sparkles className="size-4"/>} label="Detection" value={analyzing ? "Analyzing…" : analysis.candidates.length ? "Smart blocks ready" : "Waiting for PDF"}/></div>
+    <div className="grid gap-3 sm:grid-cols-3"><StatusCard icon={<FileCheck2 className="size-4"/>} label="PDF" value={file?.name ?? documentRow?.file_name ?? "Not uploaded"}/><StatusCard icon={<Link2 className="size-4"/>} label="Clickable products" value={`${enabledCount} / ${analysis.candidates.length || 0}`}/><StatusCard icon={<Sparkles className="size-4"/>} label="Detection" value={analyzing ? "Analyzing…" : analysis.candidates.length ? "AI verified blocks" : "Waiting for PDF"}/></div>
   </div>;
 }
 
