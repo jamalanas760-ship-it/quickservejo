@@ -13,9 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { humanError } from "@/lib/errors";
-import { logAudit } from "@/lib/audit";
-import { extractPdfVisualProducts } from "@/lib/pdf-menu-vision.server";
 import { fetchPdfBytes, openPdf, renderPdfPage, type PdfMenuAnalysis, type PdfMenuCandidate } from "@/lib/pdf-menu";
+import { extractPdfVisualProducts } from "@/lib/pdf-menu-vision.server";
 import { MAX_PDF_BYTES, uploadRestaurantPdf } from "@/lib/storage";
 
 type Product = { candidate_id: string; name_en: string; name_ar: string; description_en: string | null; description_ar: string | null; price: number | null; currency: string | null; confidence: number };
@@ -23,9 +22,8 @@ type SelectionRect = { x: number; y: number; width: number; height: number };
 type PdfDocument = { id: string; file_url: string; file_parts?: string[]; file_name: string; page_count: number; analysis: PdfMenuAnalysis; is_active: boolean };
 const EMPTY: PdfMenuAnalysis = { page_count: 0, pages: [], candidates: [] };
 
-function manualCandidates(analysis: PdfMenuAnalysis | null | undefined): PdfMenuCandidate[] {
-  return (analysis?.candidates ?? []).filter((candidate) => candidate.id.startsWith("manual-"));
-}
+function manualCandidates(analysis: PdfMenuAnalysis | null | undefined) { return (analysis?.candidates ?? []).filter((candidate) => candidate.id.startsWith("manual-")); }
+function blankProduct(id: string): Product { return { candidate_id: id, name_en: "", name_ar: "", description_en: null, description_ar: null, price: null, currency: null, confidence: 1 }; }
 
 export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
   const { data: restaurant } = useRestaurant(restaurantId);
@@ -57,7 +55,7 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
     },
   });
 
-  const settings = useQuery({
+  const charges = useQuery({
     queryKey: ["platform", "restaurant-menu-charges", restaurantId],
     queryFn: async () => {
       const [restaurantRes, settingsRes] = await Promise.all([
@@ -66,47 +64,44 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
       ]);
       if (restaurantRes.error) throw restaurantRes.error;
       if (settingsRes.error) throw settingsRes.error;
-      return { tax_rate: Number(restaurantRes.data.tax_rate ?? 0), service_charge: Number(restaurantRes.data.service_charge ?? 0), enable_service_charge: Boolean(settingsRes.data?.enable_service_charge) };
+      return { tax: Number(restaurantRes.data.tax_rate ?? 0), service: Number(restaurantRes.data.service_charge ?? 0), enabled: Boolean(settingsRes.data?.enable_service_charge) };
     },
   });
 
   useEffect(() => {
     if (!existing.data || documentRow || file) return;
-    const stored = existing.data.analysis ?? EMPTY;
     setDocumentRow(existing.data);
-    setAnalysis({ ...stored, candidates: manualCandidates(stored) });
+    setAnalysis({ ...(existing.data.analysis ?? EMPTY), candidates: manualCandidates(existing.data.analysis) });
     setFileUrl(existing.data.file_url);
     setFileParts(existing.data.file_parts ?? []);
   }, [existing.data, documentRow, file]);
 
   useEffect(() => {
-    if (!settings.data) return;
-    setTaxRate(settings.data.tax_rate);
-    setServiceRate(settings.data.service_charge);
-    setServiceEnabled(settings.data.enable_service_charge);
-  }, [settings.data]);
+    if (!charges.data) return;
+    setTaxRate(charges.data.tax);
+    setServiceRate(charges.data.service);
+    setServiceEnabled(charges.data.enabled);
+  }, [charges.data]);
 
   useEffect(() => {
     let cancelled = false;
-    async function loadLinks() {
+    async function loadSaved() {
       if (!existing.data || file) return;
-      const { data, error } = await (supabase as any).from("menu_pdf_item_links").select("candidate_id,menu_item_id").eq("document_id", existing.data.id).eq("restaurant_id", restaurantId).eq("is_active", true);
+      const { data: links, error } = await (supabase as any).from("menu_pdf_item_links").select("candidate_id,menu_item_id").eq("document_id", existing.data.id).eq("restaurant_id", restaurantId).eq("is_active", true);
       if (error || cancelled) return;
-      const rows = (data ?? []) as Array<{ candidate_id?: string | null; menu_item_id: string }>;
-      const manualRows = rows.filter((row) => row.candidate_id?.startsWith("manual-"));
-      if (!manualRows.length) return setDrafts({});
-      const { data: items } = await supabase.from("menu_items").select("id,name_en,name_ar,description_en,description_ar,price").in("id", manualRows.map((row) => row.menu_item_id));
+      const rows = (links ?? []).filter((row: any) => typeof row.candidate_id === "string" && row.candidate_id.startsWith("manual-"));
+      if (!rows.length) { setDrafts({}); return; }
+      const { data: items } = await supabase.from("menu_items").select("id,name_en,name_ar,description_en,description_ar,price").in("id", rows.map((row: any) => row.menu_item_id));
       const byId = new Map((items ?? []).map((item: any) => [item.id, item]));
       const next: Record<string, Product> = {};
-      for (const row of manualRows) {
-        const candidate = manualCandidates(existing.data.analysis).find((item) => item.id === row.candidate_id);
+      for (const row of rows) {
         const item: any = byId.get(row.menu_item_id);
-        if (!candidate || !item) continue;
-        next[candidate.id] = { candidate_id: candidate.id, name_en: item.name_en ?? "", name_ar: item.name_ar ?? "", description_en: item.description_en ?? null, description_ar: item.description_ar ?? null, price: item.price == null ? null : Number(item.price), currency: null, confidence: 1 };
+        if (!item) continue;
+        next[row.candidate_id] = { candidate_id: row.candidate_id, name_en: item.name_en ?? "", name_ar: item.name_ar ?? "", description_en: item.description_en ?? null, description_ar: item.description_ar ?? null, price: item.price == null ? null : Number(item.price), currency: null, confidence: 1 };
       }
       if (!cancelled) setDrafts(next);
     }
-    void loadLinks();
+    void loadSaved();
     return () => { cancelled = true; };
   }, [existing.data, restaurantId, file]);
 
@@ -128,9 +123,9 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
   const pageCandidates = useMemo(() => analysis.candidates.filter((candidate) => candidate.page_number === page), [analysis.candidates, page]);
   const savedCount = Object.keys(drafts).length;
 
-  async function persistDocumentAnalysis(nextAnalysis: PdfMenuAnalysis) {
+  async function persistAnalysis(next: PdfMenuAnalysis) {
     if (!documentRow) return;
-    const clean = { ...nextAnalysis, candidates: manualCandidates(nextAnalysis) };
+    const clean = { ...next, candidates: manualCandidates(next) };
     const { error } = await (supabase as any).from("menu_pdf_documents").update({ analysis: clean }).eq("id", documentRow.id).eq("restaurant_id", restaurantId);
     if (error) throw error;
     setAnalysis(clean);
@@ -159,7 +154,7 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
       setPage(1);
       setSelecting(true);
       setActiveCandidate(null);
-      toast.success(`${pdf.numPages} page${pdf.numPages === 1 ? "" : "s"} ready. Select each product manually.`);
+      toast.success(`${pdf.numPages} page${pdf.numPages === 1 ? "" : "s"} ready. Select products manually.`);
     } catch (error) {
       toast.error(humanError(error));
     } finally {
@@ -168,33 +163,61 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
     }
   }
 
-  async function autofill(candidate: PdfMenuCandidate, rect: SelectionRect) {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  async function readSelection(candidate: PdfMenuCandidate, rect: SelectionRect) {
     setFilling(true);
     try {
+      const pdf = await openPdf(await fetchPdfBytes(fileUrl ?? "", fileParts));
+      const pdfPage = await pdf.getPage(page);
+      const baseViewport = pdfPage.getViewport({ scale: 1 });
+      const scale = Math.min(4, Math.max(2.5, 2200 / baseViewport.width));
+      const viewport = pdfPage.getViewport({ scale });
+      const full = document.createElement("canvas");
+      full.width = Math.ceil(viewport.width);
+      full.height = Math.ceil(viewport.height);
+      const fullContext = full.getContext("2d");
+      if (!fullContext) throw new Error("Could not render PDF page");
+      await pdfPage.render({ canvasContext: fullContext, viewport }).promise;
+
+      const padX = Math.max(12, Math.round(full.width * 0.012));
+      const padY = Math.max(12, Math.round(full.height * 0.012));
+      const sx = Math.max(0, Math.floor(rect.x * full.width) - padX);
+      const sy = Math.max(0, Math.floor(rect.y * full.height) - padY);
+      const ex = Math.min(full.width, Math.ceil((rect.x + rect.width) * full.width) + padX);
+      const ey = Math.min(full.height, Math.ceil((rect.y + rect.height) * full.height) + padY);
+      const sw = Math.max(1, ex - sx);
+      const sh = Math.max(1, ey - sy);
       const crop = document.createElement("canvas");
-      const sx = Math.max(0, Math.floor(rect.x * canvas.width));
-      const sy = Math.max(0, Math.floor(rect.y * canvas.height));
-      const sw = Math.max(1, Math.min(canvas.width - sx, Math.floor(rect.width * canvas.width)));
-      const sh = Math.max(1, Math.min(canvas.height - sy, Math.floor(rect.height * canvas.height)));
-      crop.width = Math.min(1800, sw);
-      crop.height = Math.min(1800, sh);
-      const context = crop.getContext("2d");
-      if (!context) throw new Error("Could not prepare the selected area");
-      context.drawImage(canvas, sx, sy, sw, sh, 0, 0, crop.width, crop.height);
-      const result = await runVision({ data: { restaurantId, pageNumber: page, pageWidth: crop.width, pageHeight: crop.height, imageDataUrl: crop.toDataURL("image/jpeg", 0.92), selectionOnly: true } });
+      const scaleDown = Math.min(1, 2200 / Math.max(sw, sh));
+      crop.width = Math.max(1, Math.round(sw * scaleDown));
+      crop.height = Math.max(1, Math.round(sh * scaleDown));
+      const cropContext = crop.getContext("2d");
+      if (!cropContext) throw new Error("Could not prepare selected area");
+      cropContext.imageSmoothingEnabled = true;
+      cropContext.imageSmoothingQuality = "high";
+      cropContext.drawImage(full, sx, sy, sw, sh, 0, 0, crop.width, crop.height);
+
+      const textItems = await pdfPage.getTextContent();
+      const selectedText = textItems.items.map((item: any) => {
+        if (!item?.str || !Array.isArray(item.transform)) return null;
+        const x = Number(item.transform[4]) || 0;
+        const baseline = Number(item.transform[5]) || 0;
+        const h = Math.max(5, Math.abs(Number(item.transform[3]) || Number(item.height) || 10));
+        const y = baseViewport.height - baseline - h;
+        const w = Math.max(3, Number(item.width) || item.str.length * h * 0.45);
+        const overlaps = x < (rect.x + rect.width) * baseViewport.width && x + w > rect.x * baseViewport.width && y < (rect.y + rect.height) * baseViewport.height && y + h > rect.y * baseViewport.height;
+        return overlaps ? String(item.str).trim() : null;
+      }).filter(Boolean).join(" ").replace(/\s+/g, " ").trim().slice(0, 5000);
+
+      const imageDataUrl = crop.toDataURL("image/jpeg", 0.95);
+      const result = await runVision({ data: { restaurantId, pageNumber: page, pageWidth: crop.width, pageHeight: crop.height, imageDataUrl, selectionOnly: true, selectedText } });
       const first = result.products?.[0];
-      if (first?.product) {
-        setDrafts((current) => ({ ...current, [candidate.id]: { ...first.product, candidate_id: candidate.id } as Product }));
-        toast.success("Title, description and price filled automatically.");
-      } else {
-        toast.info("I couldn't read this area automatically. You can enter the details manually.");
-        setDrafts((current) => ({ ...current, [candidate.id]: blankProduct(candidate.id) }));
-      }
-    } catch {
-      toast.info("Auto-fill was unavailable. You can enter the details manually.");
+      if (!first?.product) throw new Error("No product could be read from this selection");
+      setDrafts((current) => ({ ...current, [candidate.id]: { ...first.product, candidate_id: candidate.id } as Product }));
+      toast.success("Product title, description and price were read.");
+    } catch (error) {
       setDrafts((current) => ({ ...current, [candidate.id]: blankProduct(candidate.id) }));
+      toast.info("I couldn't reliably read this area. The editor is ready for manual correction.");
+      console.error("PDF selection read failed", error);
     } finally {
       setFilling(false);
     }
@@ -203,17 +226,15 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
   function addManualSelection(rect: SelectionRect) {
     const id = `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const candidate: PdfMenuCandidate = { id, page_number: page, text: "Manual selection", x: rect.x, y: rect.y, width: rect.width, height: rect.height, confidence: 1 };
-    const nextAnalysis = { ...analysis, candidates: [...analysis.candidates, candidate].sort((a, b) => a.page_number - b.page_number || a.y - b.y || a.x - b.x) };
-    setAnalysis(nextAnalysis);
+    const next = { ...analysis, candidates: [...analysis.candidates, candidate].sort((a, b) => a.page_number - b.page_number || a.y - b.y || a.x - b.x) };
+    setAnalysis(next);
     setDrafts((current) => ({ ...current, [id]: blankProduct(id) }));
     setSelecting(false);
     setActiveCandidate(candidate);
-    void autofill(candidate, rect);
+    void readSelection(candidate, rect);
   }
 
-  function updateDraft(id: string, patch: Partial<Product>) {
-    setDrafts((current) => ({ ...current, [id]: { ...(current[id] ?? blankProduct(id)), ...patch } }));
-  }
+  function updateDraft(id: string, patch: Partial<Product>) { setDrafts((current) => ({ ...current, [id]: { ...(current[id] ?? blankProduct(id)), ...patch } })); }
 
   async function saveSelectedProduct() {
     if (!activeCandidate || !documentRow) return;
@@ -223,32 +244,27 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
     if (!nameEn) { toast.error("Product title is required."); return; }
     setBusy(true);
     try {
-      const productPayload = { restaurant_id: restaurantId, name_en: nameEn, name_ar: nameAr, description_en: product.description_en?.trim() || null, description_ar: product.description_ar?.trim() || null, price: product.price == null || !Number.isFinite(product.price) ? 0 : product.price, is_available: true };
-      const { data: existingLink } = await (supabase as any).from("menu_pdf_item_links").select("id,menu_item_id").eq("document_id", documentRow.id).eq("candidate_id", activeCandidate.id).eq("restaurant_id", restaurantId).eq("is_active", true).maybeSingle();
-      let itemId: string;
-      if (existingLink?.menu_item_id) {
-        const { error: itemError } = await supabase.from("menu_items").update(productPayload).eq("id", existingLink.menu_item_id).eq("restaurant_id", restaurantId);
-        if (itemError) throw itemError;
-        itemId = existingLink.menu_item_id;
+      const payload = { restaurant_id: restaurantId, name_en: nameEn, name_ar: nameAr, description_en: product.description_en?.trim() || null, description_ar: product.description_ar?.trim() || null, price: product.price == null || !Number.isFinite(product.price) ? 0 : product.price, is_available: true };
+      const { data: link } = await (supabase as any).from("menu_pdf_item_links").select("id,menu_item_id").eq("document_id", documentRow.id).eq("candidate_id", activeCandidate.id).eq("restaurant_id", restaurantId).eq("is_active", true).maybeSingle();
+      let itemId = link?.menu_item_id as string | undefined;
+      if (itemId) {
+        const { error } = await supabase.from("menu_items").update(payload).eq("id", itemId).eq("restaurant_id", restaurantId);
+        if (error) throw error;
       } else {
-        const { data: item, error: itemError } = await supabase.from("menu_items").insert(productPayload).select("id").single();
-        if (itemError) throw itemError;
-        itemId = item.id;
+        const { data, error } = await supabase.from("menu_items").insert(payload).select("id").single();
+        if (error) throw error;
+        itemId = data.id;
       }
-      const { error: linkError } = existingLink ? await (supabase as any).from("menu_pdf_item_links").update({ menu_item_id: itemId, label: nameEn, is_active: true }).eq("id", existingLink.id) : await (supabase as any).from("menu_pdf_item_links").insert({ document_id: documentRow.id, restaurant_id: restaurantId, menu_item_id: itemId, candidate_id: activeCandidate.id, page_number: activeCandidate.page_number, x: activeCandidate.x, y: activeCandidate.y, width: activeCandidate.width, height: activeCandidate.height, label: nameEn, source: "manual-selection", is_active: true });
-      if (linkError) throw linkError;
-      const savedProduct = { ...product, name_en: nameEn, name_ar: nameAr };
-      setDrafts((current) => ({ ...current, [activeCandidate.id]: savedProduct }));
-      const nextAnalysis = { ...analysis, candidates: analysis.candidates.map((candidate) => candidate.id === activeCandidate.id ? { ...candidate, text: nameEn } : candidate) };
-      await persistDocumentAnalysis(nextAnalysis);
+      const linkPayload = { menu_item_id: itemId, label: nameEn, is_active: true };
+      const linkResult = link ? await (supabase as any).from("menu_pdf_item_links").update(linkPayload).eq("id", link.id) : await (supabase as any).from("menu_pdf_item_links").insert({ document_id: documentRow.id, restaurant_id: restaurantId, ...linkPayload, candidate_id: activeCandidate.id, page_number: activeCandidate.page_number, x: activeCandidate.x, y: activeCandidate.y, width: activeCandidate.width, height: activeCandidate.height, source: "manual-selection" });
+      if (linkResult.error) throw linkResult.error;
+      const saved = { ...product, name_en: nameEn, name_ar: nameAr, candidate_id: activeCandidate.id };
+      setDrafts((current) => ({ ...current, [activeCandidate.id]: saved }));
+      await persistAnalysis({ ...analysis, candidates: analysis.candidates.map((candidate) => candidate.id === activeCandidate.id ? { ...candidate, text: nameEn } : candidate) });
       setActiveCandidate(null);
       setSelecting(true);
       toast.success("Saved and made clickable. Select the next product.");
-    } catch (error) {
-      toast.error(humanError(error));
-    } finally {
-      setBusy(false);
-    }
+    } catch (error) { toast.error(humanError(error)); } finally { setBusy(false); }
   }
 
   async function deleteSelectedProduct() {
@@ -256,26 +272,22 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
     setBusy(true);
     try {
       const { data: links } = await (supabase as any).from("menu_pdf_item_links").select("menu_item_id").eq("document_id", documentRow.id).eq("candidate_id", activeCandidate.id).eq("restaurant_id", restaurantId);
-      await (supabase as any).from("menu_pdf_item_links").update({ is_active: false }).eq("document_id", documentRow.id).eq("candidate_id", activeCandidate.id).eq("restaurant_id", restaurantId);
-      for (const link of links ?? []) await supabase.from("menu_items").update({ is_available: false }).eq("id", link.menu_item_id).eq("restaurant_id", restaurantId);
-      const nextAnalysis = { ...analysis, candidates: analysis.candidates.filter((candidate) => candidate.id !== activeCandidate.id) };
-      await persistDocumentAnalysis(nextAnalysis);
+      const { error } = await (supabase as any).from("menu_pdf_item_links").update({ is_active: false }).eq("document_id", documentRow.id).eq("candidate_id", activeCandidate.id).eq("restaurant_id", restaurantId);
+      if (error) throw error;
+      for (const row of links ?? []) await supabase.from("menu_items").update({ is_available: false }).eq("id", row.menu_item_id).eq("restaurant_id", restaurantId);
+      await persistAnalysis({ ...analysis, candidates: analysis.candidates.filter((candidate) => candidate.id !== activeCandidate.id) });
       setDrafts((current) => { const next = { ...current }; delete next[activeCandidate.id]; return next; });
       setActiveCandidate(null);
       setSelecting(true);
       toast.success("Selection removed.");
-    } catch (error) {
-      toast.error(humanError(error));
-    } finally {
-      setBusy(false);
-    }
+    } catch (error) { toast.error(humanError(error)); } finally { setBusy(false); }
   }
 
   async function saveCharges() {
     setBusy(true);
     try {
-      const tax = Math.max(0, Number(taxRate) || 0);
-      const service = Math.max(0, Number(serviceRate) || 0);
+      const tax = Math.min(100, Math.max(0, Number(taxRate) || 0));
+      const service = Math.min(100, Math.max(0, Number(serviceRate) || 0));
       const { error: restaurantError } = await supabase.from("restaurants").update({ tax_rate: tax, service_charge: service }).eq("id", restaurantId);
       if (restaurantError) throw restaurantError;
       const { error: settingsError } = await supabase.from("restaurant_settings").update({ enable_service_charge: serviceEnabled }).eq("restaurant_id", restaurantId);
@@ -283,11 +295,7 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
       await queryClient.invalidateQueries({ queryKey: ["pdf-diner"] });
       await queryClient.invalidateQueries({ queryKey: ["platform", "restaurant-menu-charges", restaurantId] });
       toast.success("Tax and service charge saved for the whole menu.");
-    } catch (error) {
-      toast.error(humanError(error));
-    } finally {
-      setBusy(false);
-    }
+    } catch (error) { toast.error(humanError(error)); } finally { setBusy(false); }
   }
 
   async function disablePdf() {
@@ -298,47 +306,28 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
       if (error) throw error;
       setDocumentRow({ ...documentRow, is_active: false });
       toast.success("PDF ordering disabled.");
-    } catch (error) {
-      toast.error(humanError(error));
-    } finally {
-      setBusy(false);
-    }
+    } catch (error) { toast.error(humanError(error)); } finally { setBusy(false); }
   }
 
   if (existing.isPending && !documentRow) return <div className="space-y-4"><Skeleton className="h-36 rounded-3xl" /><Skeleton className="h-[70vh] rounded-3xl" /></div>;
 
   return <div className="space-y-5">
-    <header className="flex flex-wrap items-end justify-between gap-4">
-      <div className="max-w-2xl"><div className="flex items-center gap-2"><Badge variant="secondary">Manual menu builder</Badge><Badge variant="outline">PDF preserved</Badge></div><h1 className="mt-2 text-[30px] font-black tracking-[-0.045em]">{restaurant?.name ?? "Restaurant"} — Interactive Menu</h1><p className="mt-1 text-sm leading-6 text-muted-foreground">Select one product area at a time. AI reads the selected area and fills English/Arabic title, description and price. Save it, then the editor closes so you can continue.</p></div>
-      <div className="flex flex-wrap gap-2"><Button variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}><Upload className="size-4" />{documentRow ? "Replace PDF" : "Upload PDF"}</Button>{documentRow?.is_active ? <Button variant="outline" disabled={busy} onClick={() => void disablePdf()}><X className="size-4" />Disable</Button> : null}</div>
-      <input ref={inputRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => void handleFile(event.target.files?.[0])} />
-    </header>
+    <header className="flex flex-wrap items-end justify-between gap-4"><div className="max-w-2xl"><div className="flex items-center gap-2"><Badge variant="secondary">Manual menu builder</Badge><Badge variant="outline">PDF preserved</Badge></div><h1 className="mt-2 text-[30px] font-black tracking-[-0.045em]">{restaurant?.name ?? "Restaurant"} — Interactive Menu</h1><p className="mt-1 text-sm leading-6 text-muted-foreground">Select one product area at a time. Only your selections become clickable. The system reads the selected area and fills English/Arabic title, description and price.</p></div><div className="flex gap-2"><Button variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}><Upload className="size-4" />{documentRow ? "Replace PDF" : "Upload PDF"}</Button>{documentRow?.is_active ? <Button variant="outline" disabled={busy} onClick={() => void disablePdf()}><X className="size-4" />Disable</Button> : null}</div><input ref={inputRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => void handleFile(event.target.files?.[0])} /></header>
 
-    <section className="panel overflow-hidden rounded-[28px]">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4 sm:p-5"><div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-2xl bg-primary/10 text-primary"><MousePointer2 className="size-5" /></div><div><p className="font-bold">Select products directly on the PDF</p><p className="text-xs text-muted-foreground">Drag a rectangle around the whole item. Only your manual selections become clickable.</p></div></div><div className="flex items-center gap-2"><Badge>{savedCount} saved</Badge><Button size="sm" variant={selecting ? "default" : "outline"} disabled={!fileUrl || busy} onClick={() => setSelecting((value) => !value)}><MousePointer2 className="size-4" />{selecting ? "Cancel selection" : "Select product"}</Button></div></div>
-      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="bg-slate-100 p-3 sm:p-6">{!fileUrl ? <button type="button" onClick={() => inputRef.current?.click()} className="grid min-h-[620px] w-full place-items-center rounded-3xl border-2 border-dashed bg-white text-center shadow-sm"><span><Upload className="mx-auto size-10 text-muted-foreground" /><span className="mt-4 block text-lg font-bold">Upload your original PDF menu</span><span className="mt-1 block text-sm text-muted-foreground">Up to 100 MB · the design stays exactly the same</span></span></button> : <div className="mx-auto max-w-4xl"><PdfOverlayPreview canvasRef={canvasRef} candidates={pageCandidates} drafts={drafts} selecting={selecting} onManualSelect={addManualSelection} onOpenCandidate={setActiveCandidate} /></div>}</div>
-        <aside className="border-t bg-card p-4 sm:p-5 lg:border-l lg:border-t-0">
-          <div className="flex items-start gap-3"><div className="grid size-9 place-items-center rounded-xl bg-muted"><Settings2 className="size-4" /></div><div><p className="font-bold">Menu-wide tax & service</p><p className="text-xs leading-5 text-muted-foreground">These charges apply to the complete order.</p></div></div>
-          <div className="mt-4 space-y-3"><div className="rounded-2xl border p-3"><label className="text-xs font-semibold text-muted-foreground">Tax / VAT (%)</label><div className="mt-2 flex items-center gap-2"><Input type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(Number(event.target.value))} /><span className="text-sm font-semibold">%</span></div><p className="mt-1.5 text-[11px] text-muted-foreground">Use 0 when no tax applies.</p></div><div className="rounded-2xl border p-3"><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-semibold">Service charge</p><p className="text-[11px] text-muted-foreground">Percentage of the order subtotal.</p></div><button type="button" role="switch" aria-checked={serviceEnabled} onClick={() => setServiceEnabled((value) => !value)} className={`relative h-6 w-11 rounded-full transition ${serviceEnabled ? "bg-primary" : "bg-muted"}`}><span className={`absolute top-1 size-4 rounded-full bg-white shadow transition ${serviceEnabled ? "left-6" : "left-1"}`} /></button></div><div className="mt-3 flex items-center gap-2"><Input type="number" min="0" max="100" step="0.01" value={serviceRate} onChange={(event) => setServiceRate(Number(event.target.value))} disabled={!serviceEnabled} /><span className="text-sm font-semibold">%</span></div></div><Button className="w-full" disabled={busy} onClick={() => void saveCharges()}><Save className="size-4" />Save tax & service</Button></div>
-          <div className="mt-6 rounded-2xl bg-muted/60 p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-muted-foreground">Fast workflow</p><ol className="mt-3 space-y-3 text-sm"><li className="flex gap-2"><span className="grid size-5 shrink-0 place-items-center rounded-full bg-background text-xs font-bold">1</span>Click <b>Select product</b>.</li><li className="flex gap-2"><span className="grid size-5 shrink-0 place-items-center rounded-full bg-background text-xs font-bold">2</span>Drag around one complete item.</li><li className="flex gap-2"><span className="grid size-5 shrink-0 place-items-center rounded-full bg-background text-xs font-bold">3</span>AI fills EN + AR details.</li><li className="flex gap-2"><span className="grid size-5 shrink-0 place-items-center rounded-full bg-background text-xs font-bold">4</span>Review → <b>Save & continue</b>.</li></ol></div>
-          <div className="mt-4 flex items-center gap-2 rounded-2xl border p-3 text-xs text-muted-foreground"><FileCheck2 className="size-4 shrink-0" /><span>Every saved item is an invisible hotspot over the original PDF.</span></div>
-        </aside>
-      </div>
-      {fileUrl ? <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-xs text-muted-foreground"><span className="flex min-w-0 items-center gap-2"><FileText className="size-4 shrink-0" /><span className="truncate">{file?.name ?? documentRow?.file_name}</span></span><span>Page {page} / {analysis.page_count}</span><div className="flex gap-1"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button><Button size="sm" variant="outline" disabled={page >= analysis.page_count} onClick={() => setPage((value) => value + 1)}>Next</Button></div></div> : null}
-    </section>
+    <section className="panel overflow-hidden rounded-[28px]"><div className="flex flex-wrap items-center justify-between gap-3 border-b p-4 sm:p-5"><div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-2xl bg-primary/10 text-primary"><MousePointer2 className="size-5" /></div><div><p className="font-bold">Select products directly on the PDF</p><p className="text-xs text-muted-foreground">Drag around the complete product block. Saved products show as green hotspots.</p></div></div><div className="flex items-center gap-2"><Badge>{savedCount} saved</Badge><Button size="sm" variant={selecting ? "default" : "outline"} disabled={!fileUrl || busy} onClick={() => setSelecting((value) => !value)}><MousePointer2 className="size-4" />{selecting ? "Cancel selection" : "Select product"}</Button></div></div>
+      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_360px]"><div className="bg-slate-100 p-3 sm:p-6">{!fileUrl ? <button type="button" onClick={() => inputRef.current?.click()} className="grid min-h-[620px] w-full place-items-center rounded-3xl border-2 border-dashed bg-white text-center shadow-sm"><span><Upload className="mx-auto size-10 text-muted-foreground" /><span className="mt-4 block text-lg font-bold">Upload your original PDF menu</span><span className="mt-1 block text-sm text-muted-foreground">Up to 100 MB · the original design stays unchanged</span></span></button> : <div className="mx-auto max-w-4xl"><PdfOverlayPreview canvasRef={canvasRef} candidates={pageCandidates} drafts={drafts} selecting={selecting} onManualSelect={addManualSelection} onOpenCandidate={setActiveCandidate} /></div>}</div>
+        <aside className="border-t bg-card p-4 sm:p-5 lg:border-l lg:border-t-0"><div className="flex items-start gap-3"><div className="grid size-9 place-items-center rounded-xl bg-muted"><Settings2 className="size-4" /></div><div><p className="font-bold">Menu-wide tax & service</p><p className="text-xs leading-5 text-muted-foreground">Applied to the whole customer order.</p></div></div><div className="mt-4 space-y-3"><div className="rounded-2xl border p-3"><label className="text-xs font-semibold text-muted-foreground">Tax / VAT (%)</label><div className="mt-2 flex items-center gap-2"><Input type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(Number(event.target.value))} /><span className="text-sm font-semibold">%</span></div></div><div className="rounded-2xl border p-3"><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-semibold">Service charge</p><p className="text-[11px] text-muted-foreground">Percentage of subtotal.</p></div><button type="button" role="switch" aria-checked={serviceEnabled} onClick={() => setServiceEnabled((value) => !value)} className={`relative h-6 w-11 rounded-full transition ${serviceEnabled ? "bg-primary" : "bg-muted"}`}><span className={`absolute top-1 size-4 rounded-full bg-white shadow transition ${serviceEnabled ? "left-6" : "left-1"}`} /></button></div><div className="mt-3 flex items-center gap-2"><Input type="number" min="0" max="100" step="0.01" value={serviceRate} onChange={(event) => setServiceRate(Number(event.target.value))} disabled={!serviceEnabled} /><span className="text-sm font-semibold">%</span></div></div><Button className="w-full" disabled={busy} onClick={() => void saveCharges()}><Save className="size-4" />Save tax & service</Button></div><div className="mt-6 rounded-2xl bg-muted/60 p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-muted-foreground">Workflow</p><ol className="mt-3 space-y-3 text-sm"><li>1. Select product.</li><li>2. Drag around one complete item.</li><li>3. Wait for automatic EN + AR reading.</li><li>4. Review and Save & continue.</li></ol></div></aside>
+      </div><div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-xs text-muted-foreground"><span className="flex min-w-0 items-center gap-2"><FileText className="size-4 shrink-0" /><span className="truncate">{file?.name ?? documentRow?.file_name ?? "No PDF"}</span></span>{fileUrl ? <><span>Page {page} / {analysis.page_count}</span><div className="flex gap-1"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button><Button size="sm" variant="outline" disabled={page >= analysis.page_count} onClick={() => setPage((value) => value + 1)}>Next</Button></div></> : null}</div></section>
 
     <div className="grid gap-3 sm:grid-cols-3"><StatusCard icon={<Link2 className="size-4" />} label="Clickable products" value={String(savedCount)} /><StatusCard icon={<FileCheck2 className="size-4" />} label="Original PDF" value={file?.name ?? documentRow?.file_name ?? "Not uploaded"} /><StatusCard icon={<Settings2 className="size-4" />} label="Charges" value={`${taxRate}% tax · ${serviceEnabled ? `${serviceRate}% service` : "service off"}`} /></div>
 
-    <Dialog open={activeCandidate !== null} onOpenChange={(open) => { if (!open && !filling) setActiveCandidate(null); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Product details</DialogTitle><DialogDescription>AI fills both languages from the selected area. Review it, then save. The editor closes automatically so you can select the next product.</DialogDescription></DialogHeader>{activeCandidate ? <ProductEditor product={drafts[activeCandidate.id]} filling={filling} onChange={(patch) => updateDraft(activeCandidate.id, patch)} /> : null}<DialogFooter className="gap-2 sm:justify-between"><Button variant="ghost" disabled={busy || filling} onClick={() => setActiveCandidate(null)}>Cancel</Button><div className="flex gap-2"><Button variant="outline" disabled={busy || filling} onClick={() => void deleteSelectedProduct()}><Trash2 className="size-4" />Delete</Button><Button disabled={busy || filling} onClick={() => void saveSelectedProduct()}><Save className="size-4" />{busy ? "Saving…" : "Save & continue"}</Button></div></DialogFooter></DialogContent></Dialog>
+    <Dialog open={activeCandidate !== null} onOpenChange={(open) => { if (!open && !filling) setActiveCandidate(null); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Product details</DialogTitle><DialogDescription>We read the selected area. Review both languages, description and price, then save. The editor closes automatically.</DialogDescription></DialogHeader>{activeCandidate ? <ProductEditor product={drafts[activeCandidate.id]} filling={filling} onChange={(patch) => updateDraft(activeCandidate.id, patch)} /> : null}<DialogFooter className="gap-2 sm:justify-between"><Button variant="ghost" disabled={busy || filling} onClick={() => setActiveCandidate(null)}>Cancel</Button><div className="flex gap-2"><Button variant="outline" disabled={busy || filling} onClick={() => void deleteSelectedProduct()}><Trash2 className="size-4" />Delete</Button><Button disabled={busy || filling} onClick={() => void saveSelectedProduct()}><Save className="size-4" />{busy ? "Saving…" : "Save & continue"}</Button></div></DialogFooter></DialogContent></Dialog>
   </div>;
 }
 
-function blankProduct(id: string): Product { return { candidate_id: id, name_en: "", name_ar: "", description_en: null, description_ar: null, price: null, currency: null, confidence: 1 }; }
-
 function ProductEditor({ product, filling, onChange }: { product?: Product; filling: boolean; onChange: (patch: Partial<Product>) => void }) {
   const value = product ?? blankProduct("");
-  return <div className="space-y-4"><div className="rounded-2xl border bg-muted/40 p-3 text-xs text-muted-foreground">{filling ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />Reading the selected area…</span> : "Review the AI-filled details before saving."}</div><div className="grid gap-3 sm:grid-cols-2"><Field label="Product title · English" value={value.name_en} onChange={(v) => onChange({ name_en: v })} /><Field label="اسم المنتج · العربية" value={value.name_ar} dir="rtl" onChange={(v) => onChange({ name_ar: v })} /></div><div className="grid gap-3 sm:grid-cols-[1fr_120px]"><Field label="Price" value={value.price == null ? "" : String(value.price)} type="number" onChange={(v) => onChange({ price: v.trim() === "" ? null : Number(v) })} /><Field label="Currency" value={value.currency ?? ""} onChange={(v) => onChange({ currency: v })} /></div><div><label className="text-xs font-semibold text-muted-foreground">Description · English</label><Textarea className="mt-1.5 min-h-24" value={value.description_en ?? ""} onChange={(event) => onChange({ description_en: event.target.value || null })} placeholder="No description" /></div><div><label className="text-xs font-semibold text-muted-foreground">الوصف · العربية</label><Textarea dir="rtl" className="mt-1.5 min-h-24" value={value.description_ar ?? ""} onChange={(event) => onChange({ description_ar: event.target.value || null })} placeholder="لا يوجد وصف" /></div></div>;
+  return <div className="space-y-4"><div className="rounded-2xl border bg-muted/40 p-3 text-xs text-muted-foreground">{filling ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />Reading selected PDF area with high-resolution image + PDF text…</span> : "Review the automatically filled details before saving."}</div><div className="grid gap-3 sm:grid-cols-2"><Field label="Product title · English" value={value.name_en} onChange={(v) => onChange({ name_en: v })} /><Field label="اسم المنتج · العربية" value={value.name_ar} dir="rtl" onChange={(v) => onChange({ name_ar: v })} /></div><div className="grid gap-3 sm:grid-cols-[1fr_120px]"><Field label="Price" value={value.price == null ? "" : String(value.price)} type="number" onChange={(v) => onChange({ price: v.trim() === "" ? null : Number(v) })} /><Field label="Currency" value={value.currency ?? ""} onChange={(v) => onChange({ currency: v })} /></div><div><label className="text-xs font-semibold text-muted-foreground">Description · English</label><Textarea className="mt-1.5 min-h-24" value={value.description_en ?? ""} onChange={(event) => onChange({ description_en: event.target.value || null })} placeholder="No description" /></div><div><label className="text-xs font-semibold text-muted-foreground">الوصف · العربية</label><Textarea dir="rtl" className="mt-1.5 min-h-24" value={value.description_ar ?? ""} onChange={(event) => onChange({ description_ar: event.target.value || null })} placeholder="لا يوجد وصف" /></div></div>;
 }
 
 function Field({ label, value, onChange, type = "text", dir }: { label: string; value: string; onChange: (value: string) => void; type?: "text" | "number"; dir?: "rtl" }) { return <div><label className="text-xs font-semibold text-muted-foreground">{label}</label><Input dir={dir} type={type} className="mt-1.5" value={value} onChange={(event) => onChange(event.target.value)} /></div>; }
@@ -347,9 +336,35 @@ function StatusCard({ icon, label, value }: { icon: ReactNode; label: string; va
 function PdfOverlayPreview({ canvasRef, candidates, drafts, selecting, onManualSelect, onOpenCandidate }: { canvasRef: RefObject<HTMLCanvasElement | null>; candidates: PdfMenuCandidate[]; drafts: Record<string, Product>; selecting: boolean; onManualSelect: (rect: SelectionRect) => void; onOpenCandidate: (candidate: PdfMenuCandidate) => void }) {
   const [selection, setSelection] = useState<SelectionRect | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; pointerId: number } | null>(null);
-  function point(event: React.PointerEvent<HTMLDivElement>) { const rect = event.currentTarget.getBoundingClientRect(); return { x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)), y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)) }; }
-  function down(event: React.PointerEvent<HTMLDivElement>) { if (!selecting || event.button !== 0) return; const p = point(event); dragRef.current = { startX: p.x, startY: p.y, pointerId: event.pointerId }; event.currentTarget.setPointerCapture(event.pointerId); setSelection({ x: p.x, y: p.y, width: 0, height: 0 }); }
-  function move(event: React.PointerEvent<HTMLDivElement>) { const drag = dragRef.current; if (!selecting || !drag || drag.pointerId !== event.pointerId) return; const p = point(event); setSelection({ x: Math.min(drag.startX, p.x), y: Math.min(drag.startY, p.y), width: Math.abs(p.x - drag.startX), height: Math.abs(p.y - drag.startY) }); }
-  function up(event: React.PointerEvent<HTMLDivElement>) { const drag = dragRef.current; if (!selecting || !drag || drag.pointerId !== event.pointerId) return; dragRef.current = null; const p = point(event); const rect = { x: Math.min(drag.startX, p.x), y: Math.min(drag.startY, p.y), width: Math.abs(p.x - drag.startX), height: Math.abs(p.y - drag.startY) }; setSelection(null); if (rect.width < 0.01 || rect.height < 0.01) { toast.info("Drag around the full product area."); return; } onManualSelect(rect); }
-  return <div className={`relative overflow-hidden rounded-2xl bg-white shadow-sm ${selecting ? "cursor-crosshair select-none touch-none" : ""}`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { dragRef.current = null; setSelection(null); }}><canvas ref={canvasRef} className="block h-auto w-full" /><div className="pointer-events-none absolute inset-0">{candidates.map((candidate) => <button key={candidate.id} type="button" disabled={selecting} onClick={() => onOpenCandidate(candidate)} className={`pointer-events-auto absolute rounded-lg border-2 ${drafts[candidate.id] ? "border-emerald-500 bg-emerald-500/10" : "border-primary/30 bg-primary/5"}`} style={{ left: `${candidate.x * 100}%`, top: `${candidate.y * 100}%`, width: `${candidate.width * 100}%`, height: `${candidate.height * 100}%` }} aria-label="Open saved product"><span className="sr-only">Saved product</span></button>)}</div>{selecting ? <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-background/95 px-3 py-1.5 text-xs font-bold shadow ring-1 ring-border">Drag to select one product</div> : null}{selection ? <div className="pointer-events-none absolute rounded-lg border-2 border-primary bg-primary/15" style={{ left: `${selection.x * 100}%`, top: `${selection.y * 100}%`, width: `${selection.width * 100}%`, height: `${selection.height * 100}%` }} /> : null}</div>;
+  function point(event: React.PointerEvent<HTMLDivElement>) {
+    const canvas = canvasRef.current;
+    const rect = canvas?.getBoundingClientRect() ?? event.currentTarget.getBoundingClientRect();
+    return { x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)), y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)) };
+  }
+  function down(event: React.PointerEvent<HTMLDivElement>) {
+    if (!selecting || event.button !== 0) return;
+    event.preventDefault();
+    const p = point(event);
+    dragRef.current = { startX: p.x, startY: p.y, pointerId: event.pointerId };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setSelection({ x: p.x, y: p.y, width: 0, height: 0 });
+  }
+  function move(event: React.PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!selecting || !drag || drag.pointerId !== event.pointerId) return;
+    const p = point(event);
+    setSelection({ x: Math.min(drag.startX, p.x), y: Math.min(drag.startY, p.y), width: Math.abs(p.x - drag.startX), height: Math.abs(p.y - drag.startY) });
+  }
+  function up(event: React.PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!selecting || !drag || drag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    dragRef.current = null;
+    const p = point(event);
+    const rect = { x: Math.min(drag.startX, p.x), y: Math.min(drag.startY, p.y), width: Math.abs(p.x - drag.startX), height: Math.abs(p.y - drag.startY) };
+    setSelection(null);
+    if (rect.width < 0.006 || rect.height < 0.006) { toast.info("Drag around the complete product block."); return; }
+    onManualSelect(rect);
+  }
+  return <div className={`relative overflow-hidden rounded-2xl bg-white shadow-sm ${selecting ? "cursor-crosshair select-none touch-none" : ""}`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { dragRef.current = null; setSelection(null); }}><canvas ref={canvasRef} className="block h-auto w-full" />{!selecting ? <div className="pointer-events-none absolute inset-0">{candidates.map((candidate) => <button key={candidate.id} type="button" onClick={() => onOpenCandidate(candidate)} className={`pointer-events-auto absolute rounded-lg border-2 ${drafts[candidate.id]?.name_en || drafts[candidate.id]?.name_ar ? "border-emerald-500 bg-emerald-500/10" : "border-primary/40 bg-primary/5"}`} style={{ left: `${candidate.x * 100}%`, top: `${candidate.y * 100}%`, width: `${candidate.width * 100}%`, height: `${candidate.height * 100}%` }} aria-label="Open saved product"><span className="sr-only">Saved product</span></button>)}</div> : null}{selecting ? <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-background/95 px-3 py-1.5 text-xs font-bold shadow ring-1 ring-border">Drag to select one product</div> : null}{selection ? <div className="pointer-events-none absolute rounded-lg border-2 border-primary bg-primary/15" style={{ left: `${selection.x * 100}%`, top: `${selection.y * 100}%`, width: `${selection.width * 100}%`, height: `${selection.height * 100}%` }} /> : null}</div>;
 }
