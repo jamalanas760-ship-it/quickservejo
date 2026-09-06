@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Check, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
