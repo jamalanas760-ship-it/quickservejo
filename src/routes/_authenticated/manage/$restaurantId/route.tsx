@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
-import { BarChart3, ChefHat, ChevronDown, ClipboardList, QrCode, ShoppingBag, Store, Users } from "lucide-react";
+import { BarChart3, ChevronDown, ClipboardList, QrCode, ShoppingBag, Store, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAccess } from "@/hooks/useSession";
@@ -12,7 +12,6 @@ export const Route = createFileRoute("/_authenticated/manage/$restaurantId")({ c
 
 const TABS = [
   { to: "/manage/$restaurantId", labelKey: "sa.detail.menu", icon: ClipboardList, exact: true },
-  { to: "/manage/$restaurantId/kitchen", labelKey: "sa.detail.kitchen", fallbackLabel: "Kitchen", icon: ChefHat },
   { to: "/manage/$restaurantId/tables", labelKey: "sa.detail.tables", icon: QrCode },
   { to: "/manage/$restaurantId/staff", labelKey: "sa.detail.staff", icon: Users },
   { to: "/manage/$restaurantId/orders", labelKey: "sa.detail.orders", icon: ShoppingBag },
@@ -30,7 +29,7 @@ function ManageShell() {
   const base = `/manage/${restaurantId}`;
   const accent = restaurant?.primary_color ?? "#3b281b";
   const activeTab = TABS.find((tab) => ("exact" in tab && tab.exact ? pathname === base || pathname === `${base}/` : pathname === tab.to.replace("$restaurantId", restaurantId)));
-  const label = (tab: (typeof TABS)[number]) => { try { return t(tab.labelKey); } catch { return "fallbackLabel" in tab ? tab.fallbackLabel : tab.labelKey; } };
+  const label = (tab: (typeof TABS)[number]) => { try { return t(tab.labelKey); } catch { return tab.labelKey; } };
 
   if (access.isPending || isPending) return <Skeleton className="mx-auto mt-5 h-[70vh] max-w-6xl rounded-[30px]" />;
   if (!allowed) return <div className="mx-auto mt-10 max-w-xl px-4"><div className="rounded-[30px] border bg-card p-10 text-center shadow-sm"><div className="mx-auto grid size-14 place-items-center rounded-2xl bg-destructive/10 text-destructive"><Store className="size-6" /></div><h1 className="mt-5 text-xl font-bold">{t("sa.unauthorized.title")}</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">{t("sa.unauthorized.body")}</p></div></div>;
