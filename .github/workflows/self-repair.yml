@@ -33,6 +33,8 @@ jobs:
         run: node scripts/pdf-menu-migration.mjs
       - name: Apply deterministic self-repairs
         run: node scripts/self-repair.mjs
+      - name: Apply manual menu TypeScript repair
+        run: node scripts/manual-menu-repair.mjs
       - name: Apply release type repairs
         run: node scripts/release-repair.mjs
       - name: Generate route tree and validate build
