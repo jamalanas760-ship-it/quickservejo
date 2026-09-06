@@ -20,23 +20,20 @@ type PdfJs = {
   getDocument: (source: { data: ArrayBuffer | Uint8Array; useWorkerFetch?: boolean }) => { promise: Promise<any> };
 };
 
+type PdfTextLine = { text: string; x: number; y: number; width: number; height: number };
+
 declare global {
-  interface Window {
-    pdfjsLib?: PdfJs;
-    __quickservePdfJsPromise?: Promise<PdfJs>;
-  }
+  interface Window { pdfjsLib?: PdfJs; __quickservePdfJsPromise?: Promise<PdfJs>; }
 }
 
 const PDF_JS_VERSION = "3.11.174";
 const PDF_JS_URL = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDF_JS_VERSION}/pdf.min.js`;
 const PDF_WORKER_URL = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDF_JS_VERSION}/pdf.worker.min.js`;
 
-/** Loads PDF.js only when the PDF menu feature is actually used. */
 export function loadPdfJs(): Promise<PdfJs> {
   if (typeof window === "undefined") throw new Error("PDF rendering requires a browser");
   if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
   if (window.__quickservePdfJsPromise) return window.__quickservePdfJsPromise;
-
   window.__quickservePdfJsPromise = new Promise<PdfJs>((resolve, reject) => {
     const existing = document.querySelector<HTMLScriptElement>(`script[data-quickserve-pdfjs="${PDF_JS_VERSION}"]`);
     if (existing) {
@@ -48,30 +45,18 @@ export function loadPdfJs(): Promise<PdfJs> {
     script.src = PDF_JS_URL;
     script.async = true;
     script.dataset.quickservePdfjs = PDF_JS_VERSION;
-    script.onload = () => {
-      if (!window.pdfjsLib) {
-        reject(new Error("PDF.js loaded without an API"));
-        return;
-      }
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER_URL;
-      resolve(window.pdfjsLib);
-    };
+    script.onload = () => window.pdfjsLib ? (window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER_URL, resolve(window.pdfjsLib)) : reject(new Error("PDF.js loaded without an API"));
     script.onerror = () => reject(new Error("Could not load PDF.js"));
     document.head.appendChild(script);
   });
-
   return window.__quickservePdfJsPromise;
 }
 
 export async function openPdf(source: ArrayBuffer | Uint8Array | string): Promise<any> {
   const pdfjs = await loadPdfJs();
-  if (typeof source === "string") {
-    return pdfjs.getDocument({ data: new TextEncoder().encode(source) }).promise;
-  }
-  return pdfjs.getDocument({ data: source }).promise;
+  return typeof source === "string" ? pdfjs.getDocument({ data: new TextEncoder().encode(source) }).promise : pdfjs.getDocument({ data: source }).promise;
 }
 
-/** Fetches either a legacy single-object PDF or a byte-for-byte chunked PDF. */
 export async function fetchPdfBytes(url: string, parts: string[] = []): Promise<ArrayBuffer> {
   const sources = parts.length ? parts : [url];
   const buffers = await Promise.all(sources.map(async (source) => {
@@ -83,16 +68,13 @@ export async function fetchPdfBytes(url: string, parts: string[] = []): Promise<
   const total = buffers.reduce((sum, buffer) => sum + buffer.byteLength, 0);
   const combined = new Uint8Array(total);
   let offset = 0;
-  for (const buffer of buffers) {
-    combined.set(new Uint8Array(buffer), offset);
-    offset += buffer.byteLength;
-  }
+  for (const buffer of buffers) { combined.set(new Uint8Array(buffer), offset); offset += buffer.byteLength; }
   return combined.buffer;
 }
 
 /**
- * Extracts text blocks with their real PDF coordinates. The original PDF is never
- * rewritten; these coordinates are only used for transparent click targets.
+ * Extract complete menu-item blocks rather than individual PDF text fragments.
+ * The original PDF is never modified; these rectangles are only click targets.
  */
 export async function analyzePdfFile(file: File): Promise<{ buffer: ArrayBuffer; analysis: PdfMenuAnalysis }> {
   const buffer = await file.arrayBuffer();
@@ -106,73 +88,139 @@ export async function analyzePdfFile(file: File): Promise<{ buffer: ArrayBuffer;
     pages.push({ page_number: pageNumber, width: viewport.width, height: viewport.height });
     const content = await page.getTextContent();
     const raw = (content.items ?? []).filter((item: any) => typeof item?.str === "string" && item.str.trim());
+    const lines = mergePdfTextLines(raw, viewport.height);
+    const blocks = buildMenuBlocks(lines);
 
-    const lines: { text: string; x: number; y: number; width: number; height: number }[] = [];
-    for (const item of raw) {
-      const transform = Array.isArray(item.transform) ? item.transform : [1, 0, 0, 1, 0, 0];
-      const x = Number(transform[4]) || 0;
-      const baseline = Number(transform[5]) || 0;
-      const height = Math.max(5, Math.abs(Number(transform[3]) || Number(item.height) || 10));
-      const top = Math.max(0, viewport.height - baseline - height);
-      const width = Math.max(4, Number(item.width) || item.str.length * height * 0.45);
-      const existing = lines.find((line) => Math.abs(line.y - top) <= Math.max(3, height * 0.55));
-      if (existing) {
-        const before = x < existing.x;
-        existing.text = before ? `${item.str.trim()} ${existing.text}` : `${existing.text} ${item.str.trim()}`;
-        existing.x = Math.min(existing.x, x);
-        existing.width = Math.max(existing.x + existing.width, x + width) - existing.x;
-        existing.height = Math.max(existing.height, height);
-      } else {
-        lines.push({ text: item.str.trim(), x, y: top, width, height });
-      }
-    }
-
-    lines.sort((a, b) => a.y - b.y || a.x - b.x);
-    for (const [index, line] of lines.entries()) {
-      const text = line.text.replace(/\s+/g, " ").trim();
-      if (!looksLikeMenuCandidate(text, line.height)) continue;
-      const price = hasPrice(text);
-      const words = text.split(/\s+/).length;
-      const confidence = Math.min(0.99, 0.45 + (price ? 0.35 : 0) + (words >= 2 ? 0.12 : 0) + Math.min(0.07, line.height / 200));
-      candidates.push({
-        id: `p${pageNumber}-c${index}`,
-        page_number: pageNumber,
-        text,
-        x: clamp01(line.x / viewport.width),
-        y: clamp01(line.y / viewport.height),
-        width: clamp01(line.width / viewport.width),
-        height: clamp01(Math.max(line.height * 1.8, 20) / viewport.height),
-        confidence,
-      });
+    for (const [index, block] of blocks.entries()) {
+      const text = block.lines.map((line) => line.text).join(" ").replace(/\s+/g, " ").trim();
+      if (!isUsefulMenuBlock(block, text)) continue;
+      const titleLine = block.lines.find((line) => !hasPrice(line.text) && !isLikelyDescription(line.text)) ?? block.lines[0];
+      const hasAssociatedPrice = block.lines.some((line) => hasPrice(line.text));
+      const confidence = Math.min(0.98, 0.55 + (hasAssociatedPrice ? 0.22 : 0) + (block.lines.length > 1 ? 0.12 : 0) + (looksTitleLike(titleLine, block.lines) ? 0.08 : 0));
+      candidates.push({ id: `p${pageNumber}-item${index}`, page_number: pageNumber, text, x: clamp01(block.x / viewport.width), y: clamp01(block.y / viewport.height), width: clamp01(block.width / viewport.width), height: clamp01(block.height / viewport.height), confidence });
     }
   }
-
   return { buffer, analysis: { page_count: pdf.numPages, pages, candidates } };
 }
 
-function looksLikeMenuCandidate(text: string, height: number): boolean {
-  if (text.length < 2 || text.length > 180) return false;
-  if (/^(menu|القائمة|contents|page|tel|phone|www\.|https?:\/\/)/i.test(text)) return false;
-  if (/^\d+$/.test(text)) return false;
-  const price = hasPrice(text);
-  const words = text.split(/\s+/).length;
-  return price || words >= 2 || height >= 14;
+function mergePdfTextLines(raw: any[], pageHeight: number): PdfTextLine[] {
+  const lines: PdfTextLine[] = [];
+  for (const item of raw) {
+    const transform = Array.isArray(item.transform) ? item.transform : [1, 0, 0, 1, 0, 0];
+    const x = Number(transform[4]) || 0;
+    const baseline = Number(transform[5]) || 0;
+    const height = Math.max(5, Math.abs(Number(transform[3]) || Number(item.height) || 10));
+    const y = Math.max(0, pageHeight - baseline - height);
+    const width = Math.max(4, Number(item.width) || item.str.length * height * 0.45);
+    const existing = lines.find((line) => Math.abs(line.y - y) <= Math.max(3, height * 0.55) && horizontalDistance(line, x, width) <= Math.max(18, height * 2));
+    if (existing) {
+      const before = x < existing.x;
+      existing.text = before ? `${item.str.trim()} ${existing.text}` : `${existing.text} ${item.str.trim()}`;
+      existing.x = Math.min(existing.x, x);
+      existing.width = Math.max(existing.x + existing.width, x + width) - existing.x;
+      existing.height = Math.max(existing.height, height);
+    } else lines.push({ text: item.str.trim(), x, y, width, height });
+  }
+  return lines.sort((a, b) => a.y - b.y || a.x - b.x);
+}
+
+function buildMenuBlocks(lines: PdfTextLine[]): { lines: PdfTextLine[]; x: number; y: number; width: number; height: number }[] {
+  if (!lines.length) return [];
+  const medianHeight = median(lines.map((line) => line.height));
+  const blocks: { lines: PdfTextLine[]; x: number; y: number; width: number; height: number }[] = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (!isTitleLikeLine(line, medianHeight) || isNonProductText(line.text)) continue;
+    const blockLines = [line];
+    let last = line;
+    for (let j = i + 1; j < lines.length; j += 1) {
+      const next = lines[j];
+      const gap = next.y - (last.y + last.height);
+      const sameColumn = horizontalOverlap(last, next) >= 0.15 || Math.abs(next.x - line.x) <= Math.max(36, line.height * 4);
+      const compact = gap <= Math.max(18, medianHeight * 1.8);
+      if (!sameColumn || !compact || isSectionHeader(next.text) || isNonProductText(next.text)) break;
+      blockLines.push(next);
+      last = next;
+      if (hasPrice(next.text)) break;
+    }
+    blocks.push({ lines: blockLines, ...rectangleFor(blockLines) });
+    i += blockLines.length - 1;
+  }
+  return blocks;
+}
+
+function isTitleLikeLine(line: PdfTextLine, medianHeight: number): boolean {
+  const text = line.text.trim();
+  if (isNonProductText(text) || hasPrice(text)) return false;
+  const words = text.split(/\s+/).filter(Boolean);
+  return words.length >= 2 || line.height >= medianHeight * 1.08;
+}
+
+function isUsefulMenuBlock(block: { lines: PdfTextLine[] }, text: string): boolean {
+  if (!text || text.length < 2 || text.length > 500 || isNonProductText(text)) return false;
+  if (block.lines.length === 1 && !hasPrice(text) && text.split(/\s+/).length < 2) return false;
+  return block.lines.some((line) => !isNonProductText(line.text) && (line.text.split(/\s+/).length >= 2 || line.height >= 12 || hasPrice(line.text)));
+}
+
+function looksTitleLike(line: PdfTextLine, blockLines: PdfTextLine[]): boolean {
+  const maxHeight = Math.max(...blockLines.map((item) => item.height));
+  return line.height >= maxHeight * 0.92 || line.text.split(/\s+/).length <= 8;
+}
+
+function isLikelyDescription(text: string): boolean {
+  return text.split(/\s+/).filter(Boolean).length >= 8 || /[.!،؛]/.test(text);
+}
+
+function isSectionHeader(text: string): boolean {
+  const normalized = normalizeText(text);
+  return ["menu", "food menu", "drinks", "beverages", "appetizers", "starters", "main course", "mains", "desserts", "salads", "sandwiches", "burgers", "pizza", "pasta", "القائمة", "المقبلات", "السلطات", "السندويشات", "البرغر", "الحلويات", "المشروبات"].includes(normalized);
+}
+
+function isNonProductText(text: string): boolean {
+  const normalized = normalizeText(text);
+  if (!normalized || /^(menu|page|contents|tel|phone|fax|email|www|https?)/i.test(text.trim()) || /^\d+$/.test(normalized) || isSectionHeader(text)) return true;
+  const nonProduct = ["garlic", "onion", "lettuce", "tomato", "cheese", "sauce", "ketchup", "mayo", "mayonnaise", "pickles", "parsley", "pepper", "salt", "olive oil", "thyme", "basil", "زعتر", "ثوم", "بصل", "خس", "طماطم", "جبنة", "صوص", "مخلل", "بقدونس"];
+  return nonProduct.includes(normalized) || /^(ingredients?|المكونات?)\s*[:：]/i.test(text);
 }
 
 export function hasPrice(text: string): boolean {
-  return /(?:\d+(?:[.,]\d{1,2})?\s*(?:jd|jod|aed|sar|usd|€|\$|£)|(?:jd|jod|aed|sar|usd)\s*\d|\d+[.,]\d{2})/i.test(text);
+  return /(?:\d+(?:[.,]\d{1,2})?\s*(?:jd|jod|aed|sar|usd|eur|€|\$|£)|(?:jd|jod|aed|sar|usd|eur)\s*\d|\d+[.,]\d{2})/i.test(text);
 }
 
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value));
+function normalizeText(value: string): string {
+  return value.toLowerCase().normalize("NFKD").replace(/[\u064B-\u065F\u0670]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
-export async function renderPdfPage(
-  pdf: any,
-  pageNumber: number,
-  canvas: HTMLCanvasElement,
-  maxWidth = 1200,
-): Promise<{ width: number; height: number }> {
+function horizontalDistance(line: PdfTextLine, x: number, width: number): number {
+  const right = line.x + line.width;
+  if ((x >= line.x && x <= right) || (x + width >= line.x && x + width <= right)) return 0;
+  return Math.min(Math.abs(x - right), Math.abs(line.x - (x + width)));
+}
+
+function horizontalOverlap(a: PdfTextLine, b: PdfTextLine): number {
+  const left = Math.max(a.x, b.x);
+  const right = Math.min(a.x + a.width, b.x + b.width);
+  return Math.max(0, right - left) / Math.max(1, Math.min(a.width, b.width));
+}
+
+function rectangleFor(lines: PdfTextLine[]) {
+  const x = Math.min(...lines.map((line) => line.x));
+  const y = Math.min(...lines.map((line) => line.y));
+  const right = Math.max(...lines.map((line) => line.x + line.width));
+  const bottom = Math.max(...lines.map((line) => line.y + line.height));
+  return { x, y, width: right - x, height: bottom - y };
+}
+
+function median(values: number[]): number {
+  if (!values.length) return 10;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function clamp01(value: number): number { return Math.max(0, Math.min(1, value)); }
+
+export async function renderPdfPage(pdf: any, pageNumber: number, canvas: HTMLCanvasElement, maxWidth = 1200): Promise<{ width: number; height: number }> {
   const page = await pdf.getPage(pageNumber);
   const base = page.getViewport({ scale: 1 });
   const scale = Math.min(2, Math.max(1, maxWidth / base.width));
