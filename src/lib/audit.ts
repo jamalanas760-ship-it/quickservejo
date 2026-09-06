@@ -42,7 +42,7 @@ export type AuditAction =
   | "platform.settings_updated"
   | "plan.updated";
 
-export async function logAudit(action: AuditAction, opts: { restaurantId?: string | null; entity?: string; entityId?: string | null; metadata?: Record<string, unknown> } = {}): Promise<void> {
+export async function logAudit(action: AuditAction, opts: { restaurantId?: string | null; entity?: string; entityId?: string | null | undefined; metadata?: Record<string, unknown> } = {}): Promise<void> {
   try {
     const { data } = await supabase.auth.getUser();
     const user = data.user;
