@@ -2,8 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const candidateSchema = z.object({ id: z.string().max(80), page_number: z.number().int().positive(), text: z.string().max(800), x: z.number().min(0).max(1), y: z.number().min(0).max(1), width: z.number().min(0).max(1), height: z.number().min(0).max(1), confidence: z.number().min(0).max(1).optional() });
-const extractionSchema = z.object({ restaurantId: z.string().uuid(), candidates: z.array(candidateSchema).max(300) });
+const candidateSchema = z.object({ id: z.string().max(80), page_number: z.number().int().positive(), text: z.string().max(1200), x: z.number().min(0).max(1), y: z.number().min(0).max(1), width: z.number().min(0).max(1), height: z.number().min(0).max(1), confidence: z.number().min(0).max(1).optional() });
+const extractionSchema = z.object({ restaurantId: z.string().uuid(), candidates: z.array(candidateSchema).max(500) });
 const extractedSchema = z.object({ candidate_id: z.string(), name_en: z.string().max(180), name_ar: z.string().max(180), description_en: z.string().max(600).nullable(), description_ar: z.string().max(600).nullable(), price: z.number().nullable(), currency: z.string().max(8).nullable(), confidence: z.number().min(0).max(1) });
 
 async function authorizeRestaurant(context: { supabase: any; userId: string }, restaurantId: string) {
@@ -20,39 +20,56 @@ export const extractPdfProducts = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => extractionSchema.parse(input))
   .handler(async ({ data, context }) => {
     await authorizeRestaurant(context, data.restaurantId);
-    const fallback = data.candidates.map(extractLocally).filter((row) => row.confidence >= 0.5);
     const apiKey = process.env["OPENAI_API_KEY"] ?? process.env["OPENAI_API_KEYS"];
-    if (!apiKey?.trim()) return { products: fallback, ai: false };
+    if (!apiKey?.trim()) return { products: localFallback(data.candidates), ai: false };
 
     const prompt = [
-      "You are a high-accuracy restaurant menu document parser.",
-      "Each candidate is ONE spatially grouped menu-item block from the uploaded PDF. Identify only genuine purchasable menu items.",
-      "Do NOT turn individual words, ingredients, modifiers, category headings, section titles, decorative text, nutrition/allergen text, contact information, addresses, phone numbers, or labels into products.",
-      "If a candidate is not clearly a purchasable item, OMIT it completely from the response.",
-      "For a real item, return ONE record with the title/name, optional description, and optional price from that SAME candidate block.",
-      "The title is normally the first title-like line. Longer sentence-like text is the description. A visible numeric amount associated with the item is the price.",
-      "Preserve Arabic and English exactly as present. Never invent a translation. If only one language is present, leave the other name field empty.",
-      "Description must be null unless actually present. Price must be null unless explicitly visible. Never guess.",
-      "Return JSON only: {products:[{candidate_id,name_en,name_ar,description_en,description_ar,price,currency,confidence}]}.",
-      `Candidates: ${JSON.stringify(data.candidates)}`,
+      "You are a production-grade restaurant menu parser. Analyze the supplied spatial menu blocks in English, Arabic, or mixed English/Arabic.",
+      "A product is a purchasable food or beverage item. Return ONLY genuine purchasable items.",
+      "Never return category headings, section titles, ingredients, toppings, sauces, modifiers, sizes, allergens, nutrition facts, restaurant information, addresses, phone numbers, page numbers, decorative text, or isolated words that are clearly ingredients/labels.",
+      "Each candidate is a spatial block and may contain a title, description, and price. You may use the block's line order and text to understand which text is the title versus description.",
+      "Do not invent missing information. Extract the product title from the title-like text, the description only when a real description exists, and the price only when an explicit price is present in the block.",
+      "Support Arabic and English independently: preserve the original script in name_en/name_ar and description_en/description_ar. If only Arabic exists, name_en must be empty. If only English exists, name_ar must be empty. Do not translate.",
+      "A real product with no visible price is still valid. A one-word product name is valid when the surrounding block clearly identifies it as a purchasable item.",
+      "Return one record per real product. candidate_id MUST exactly match an input candidate id. Never invent candidate ids.",
+      "Confidence must reflect certainty: 0.90+ clear product, 0.70-0.89 likely product, below 0.70 ambiguous. Only return products with confidence >= 0.70.",
+      "Return JSON only with this shape: {\"products\":[{\"candidate_id\":\"...\",\"name_en\":\"\",\"name_ar\":\"\",\"description_en\":null,\"description_ar\":null,\"price\":null,\"currency\":null,\"confidence\":0.95}]}",
+      `INPUT BLOCKS:\n${JSON.stringify(data.candidates)}`,
     ].join("\n\n");
 
     try {
       const response = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey.trim()}` },
-        body: JSON.stringify({ model: process.env["OPENAI_MENU_MODEL"] || "gpt-5-mini", input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }], store: false, max_output_tokens: 12000, text: { format: { type: "json_object" } } }),
+        body: JSON.stringify({ model: process.env["OPENAI_MENU_MODEL"] || "gpt-5-mini", input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }], store: false, max_output_tokens: 16000, text: { format: { type: "json_object" } } }),
       });
-      if (!response.ok) return { products: fallback, ai: false };
+      if (!response.ok) return { products: localFallback(data.candidates), ai: false };
       const payload = (await response.json()) as { output_text?: string; output?: Array<{ content?: Array<{ type?: string; text?: string }> }> };
       const text = payload.output_text || (payload.output ?? []).flatMap((item) => item.content ?? []).filter((part) => part.type === "output_text").map((part) => part.text ?? "").join("");
       const parsed = JSON.parse(text) as { products?: unknown };
-      const products = Array.isArray(parsed.products) ? parsed.products.flatMap((row) => { const result = extractedSchema.safeParse(row); return result.success && result.data.confidence >= 0.5 ? [result.data] : []; }) : [];
-      return { products: products.length ? products : fallback, ai: true };
+      const inputIds = new Set(data.candidates.map((candidate) => candidate.id));
+      const products = Array.isArray(parsed.products)
+        ? parsed.products.flatMap((row) => {
+            const result = extractedSchema.safeParse(row);
+            if (!result.success) return [];
+            const product = result.data;
+            if (!inputIds.has(product.candidate_id) || product.confidence < 0.7) return [];
+            if (!product.name_en.trim() && !product.name_ar.trim()) return [];
+            if (isPlaceholder(product.name_en) || isPlaceholder(product.name_ar)) return [];
+            return [product];
+          })
+        : [];
+      // If AI succeeds but finds no products, do not silently turn arbitrary PDF
+      // lines into products. This is safer than the old fallback behavior.
+      return { products, ai: true };
     } catch {
-      return { products: fallback, ai: false };
+      return { products: localFallback(data.candidates), ai: false };
     }
   });
+
+function localFallback(candidates: z.infer<typeof candidateSchema>[]) {
+  return candidates.map(extractLocally).filter((row) => row.confidence >= 0.7);
+}
 
 function extractLocally(candidate: z.infer<typeof candidateSchema>) {
   const text = candidate.text.replace(/\s+/g, " ").trim();
@@ -66,8 +83,12 @@ function extractLocally(candidate: z.infer<typeof candidateSchema>) {
   const arabic = /[\u0600-\u06FF]/.test(name);
   const english = /[A-Za-z]/.test(name);
   const words = name.split(/\s+/).filter(Boolean).length;
-  const valid = !isClearlyNonProduct(name) && (words >= 2 || price !== null);
-  return { candidate_id: candidate.id, name_en: valid && english ? name : "", name_ar: valid && arabic ? name : "", description_en: valid && description && /[A-Za-z]/.test(description) ? description : null, description_ar: valid && description && /[\u0600-\u06FF]/.test(description) ? description : null, price: valid ? price : null, currency: valid ? currency : null, confidence: valid ? (price !== null ? 0.78 : 0.62) : 0.05 };
+  const valid = !isClearlyNonProduct(name) && (price !== null || parts.length > 1 || words >= 2);
+  return { candidate_id: candidate.id, name_en: valid && english ? name : "", name_ar: valid && arabic ? name : "", description_en: valid && description && /[A-Za-z]/.test(description) ? description : null, description_ar: valid && description && /[\u0600-\u06FF]/.test(description) ? description : null, price: valid ? price : null, currency: valid ? currency : null, confidence: valid ? (price !== null || parts.length > 1 ? 0.76 : 0.7) : 0.05 };
+}
+
+function isPlaceholder(value: string): boolean {
+  return /^(detected item|menu item|item|product|undefined|null)$/i.test(value.trim());
 }
 
 function isClearlyNonProduct(name: string): boolean {
