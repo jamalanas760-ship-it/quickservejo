@@ -81,6 +81,18 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
 
 export type CartLine = { key: string; itemId: string; name_en: string; name_ar: string; unitPrice: number; quantity: number; notes: string; modifiers: DinerModifier[] };
 export type PlacedOrder = { order_id: string; order_number: string; public_token: string; total: number; currency: string };
+export type PublicOrderReceipt = {
+  order_number: string;
+  status: string;
+  payment_status: string;
+  subtotal: number;
+  tax_amount: number;
+  service_amount: number;
+  discount_amount: number;
+  total: number;
+  currency: string;
+  created_at: string;
+};
 
 export async function placePublicOrder(input: { qrToken: string; lines: CartLine[]; notes: string }): Promise<PlacedOrder> {
   const { data, error } = await supabase.rpc("place_public_order", {
@@ -99,6 +111,21 @@ export async function fetchPublicOrderStatus(token: string) {
   if (error) throw error;
   const row = (data as { order_number: string; status: string; payment_status: string; total: number; currency: string; created_at: string }[] | null)?.[0];
   return row ?? null;
+}
+
+export async function fetchPublicOrderReceipt(token: string): Promise<PublicOrderReceipt | null> {
+  const { data, error } = await supabase.rpc("public_order_receipt", { _public_token: token });
+  if (error) throw error;
+  const row = (data as PublicOrderReceipt[] | null)?.[0];
+  if (!row) return null;
+  return {
+    ...row,
+    subtotal: Number(row.subtotal),
+    tax_amount: Number(row.tax_amount),
+    service_amount: Number(row.service_amount),
+    discount_amount: Number(row.discount_amount),
+    total: Number(row.total),
+  };
 }
 
 export async function callWaiter(qrToken: string, note: string) {
