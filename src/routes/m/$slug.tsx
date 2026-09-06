@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { PdfOrderTray } from "@/components/menu/PdfOrderTray";
 
 const searchSchema = z.object({ t: z.string().optional() });
 
@@ -66,7 +67,10 @@ function PublicPdfMenuPage() {
           <iframe title={`${restaurant.name} original PDF menu`} src={restaurant.menu_pdf_url ?? ""} className="h-[calc(100vh-170px)] min-h-[680px] w-full" />
         </div>
         {restaurant.menu_pdf_name ? <p className="px-2 pt-3 text-center text-xs text-muted-foreground">{restaurant.menu_pdf_name}</p> : null}
+        <div className="h-24" />
       </section>
+
+      <PdfOrderTray slug={slug} qrToken={tableToken ?? null} />
     </main>
   );
 }
