@@ -36,24 +36,13 @@ export type AuditAction =
   | "menu.theme_updated"
   | "menu.master_design_saved"
   | "menu.ultimate_design_saved"
+  | "menu.pdf_published"
   | "staff.deleted"
   | "order.cancelled"
   | "platform.settings_updated"
   | "plan.updated";
 
-/**
- * Append-only audit trail. Failures never block the user action — the audit
- * insert is best effort and logged to the console for diagnostics.
- */
-export async function logAudit(
-  action: AuditAction,
-  opts: {
-    restaurantId?: string | null;
-    entity?: string;
-    entityId?: string | null;
-    metadata?: Record<string, unknown>;
-  } = {},
-): Promise<void> {
+export async function logAudit(action: AuditAction, opts: { restaurantId?: string | null; entity?: string; entityId?: string | null; metadata?: Record<string, unknown> } = {}): Promise<void> {
   try {
     const { data } = await supabase.auth.getUser();
     const user = data.user;
@@ -61,8 +50,7 @@ export async function logAudit(
     await supabase.from("audit_logs").insert({
       restaurant_id: opts.restaurantId ?? null,
       actor_user_id: user.id,
-      actor_name:
-        (user.user_metadata as { full_name?: string } | null)?.full_name ?? user.email ?? null,
+      actor_name: (user.user_metadata as { full_name?: string } | null)?.full_name ?? user.email ?? null,
       action,
       entity: opts.entity ?? null,
       entity_id: opts.entityId ?? null,
