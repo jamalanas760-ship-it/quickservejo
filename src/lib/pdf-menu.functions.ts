@@ -3,201 +3,122 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const MODEL = "google/gemini-3.7-flash";
-const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-
-export type ExtractedItem = {
-  name_en: string;
-  name_ar: string;
-  description_en: string;
-  price: number;
-  category_en: string;
-  category_ar: string;
-};
-
-const extractedItemSchema = z.object({
-  name_en: z.string().min(1).max(160),
-  name_ar: z.string().max(160).optional().default(""),
-  description_en: z.string().max(400).optional().default(""),
-  price: z.coerce.number().min(0).max(100000),
-  category_en: z.string().max(120).optional().default("Menu"),
-  category_ar: z.string().max(120).optional().default(""),
+const candidateSchema = z.object({
+  id: z.string().max(80),
+  page_number: z.number().int().positive(),
+  text: z.string().max(240),
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+  width: z.number().min(0).max(1),
+  height: z.number().min(0).max(1),
 });
 
-const analyzeSchema = z.object({ restaurantId: z.string().uuid() });
+const productSchema = z.object({
+  id: z.string().uuid(),
+  name_en: z.string().max(180),
+  name_ar: z.string().max(180),
+  price: z.number(),
+});
 
-const importSchema = z.object({
+const schema = z.object({
   restaurantId: z.string().uuid(),
-  items: z.array(extractedItemSchema).min(1).max(300),
+  candidates: z.array(candidateSchema).max(600),
+  products: z.array(productSchema).max(500),
 });
 
-/** Streams the gateway response so long PDF reads are never severed mid-flight. */
-async function callGateway(body: unknown): Promise<string> {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key) throw new Error("AI is not configured for this workspace.");
-  const response = await fetch(GATEWAY_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ ...(body as object), stream: true }),
-  });
-  if (!response.ok || !response.body) {
-    const detail = await response.text().catch(() => "");
-    if (response.status === 429) throw new Error("The menu reader is busy right now. Please try again in a moment.");
-    if (response.status === 402) throw new Error("AI credits are exhausted. Add credits to keep reading menus.");
-    throw new Error(detail.slice(0, 300) || `Menu reading failed (${response.status}).`);
-  }
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let text = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("data:")) continue;
-      const payload = trimmed.slice(5).trim();
-      if (!payload || payload === "[DONE]") continue;
-      try {
-        const json = JSON.parse(payload) as { choices?: { delta?: { content?: string } }[] };
-        text += json.choices?.[0]?.delta?.content ?? "";
-      } catch {
-        // partial chunk; ignored
-      }
-    }
-  }
-  return text;
-}
-
-function parseItems(raw: string): ExtractedItem[] {
-  const start = raw.indexOf("[");
-  const end = raw.lastIndexOf("]");
-  const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(slice);
-  } catch {
-    throw new Error("The menu could not be read automatically. Try a clearer PDF.");
-  }
-  const rows = z.array(extractedItemSchema).safeParse(parsed);
-  if (!rows.success) throw new Error("The menu could not be read automatically. Try a clearer PDF.");
-  return rows.data.map((row) => ({
-    ...row,
-    name_ar: row.name_ar || row.name_en,
-    category_en: row.category_en || "Menu",
-    category_ar: row.category_ar || row.category_en || "Menu",
-  }));
-}
-
-/** Reads the uploaded PDF menu and returns every product it can detect. */
+/**
+ * Uses the configured server-side OpenAI key when available. Without AI, a
+ * deterministic name/price matcher is returned so the PDF workflow never
+ * pretends an AI result exists and never blocks manual selection.
+ */
 export const analyzePdfMenu = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => analyzeSchema.parse(input))
+  .inputValidator((input: unknown) => schema.parse(input))
   .handler(async ({ data, context }) => {
-    const { data: restaurant, error } = await context.supabase
-      .from("restaurants")
-      .select("id, name, currency, menu_pdf_url")
-      .eq("id", data.restaurantId)
-      .maybeSingle();
-    if (error) throw error;
-    const pdfUrl = (restaurant as { menu_pdf_url?: string | null } | null)?.menu_pdf_url;
-    if (!restaurant || !pdfUrl) throw new Error("Upload a PDF menu first.");
-
-    const file = await fetch(pdfUrl);
-    if (!file.ok) throw new Error("The stored PDF menu could not be downloaded.");
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    if (bytes.byteLength === 0) throw new Error("The stored PDF menu is empty.");
-    let binary = "";
-    for (let i = 0; i < bytes.length; i += 8192) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-    }
-    const base64 = btoa(binary);
-
-    const raw = await callGateway({
-      model: MODEL,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You extract restaurant menu products from PDF menus. Reply with ONLY a JSON array, no prose, no markdown fences. Each element: {\"name_en\",\"name_ar\",\"description_en\",\"price\",\"category_en\",\"category_ar\"}. price is a plain number in the menu's currency (no symbols). Keep the exact wording used in the menu. If Arabic is present use it for name_ar, otherwise repeat the English name. Never invent items or prices; skip anything without a readable price.",
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Extract every orderable product from this menu for ${(restaurant as { name: string }).name}. Currency: ${(restaurant as { currency?: string }).currency ?? "JOD"}.`,
-            },
-            {
-              type: "file",
-              file: { filename: "menu.pdf", file_data: `data:application/pdf;base64,${base64}` },
-            },
-          ],
-        },
-      ],
-    });
-
-    return { items: parseItems(raw) };
-  });
-
-/** Creates the selected products (and their categories) in the live menu. */
-export const importPdfMenuItems = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => importSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const supabase = context.supabase;
-    const { data: existing, error: catError } = await supabase
-      .from("menu_categories")
-      .select("id, name_en, display_order")
-      .eq("restaurant_id", data.restaurantId);
-    if (catError) throw catError;
-
-    const byName = new Map<string, string>();
-    for (const row of (existing ?? []) as { id: string; name_en: string }[]) {
-      byName.set(row.name_en.trim().toLowerCase(), row.id);
-    }
-    let order = ((existing ?? []) as { display_order: number }[]).reduce((max, r) => Math.max(max, r.display_order ?? 0), 0);
-
-    const wanted = new Map<string, { name_en: string; name_ar: string }>();
-    for (const item of data.items) {
-      const key = item.category_en.trim().toLowerCase();
-      if (!byName.has(key) && !wanted.has(key)) {
-        wanted.set(key, { name_en: item.category_en.trim(), name_ar: item.category_ar.trim() || item.category_en.trim() });
-      }
-    }
-
-    if (wanted.size > 0) {
-      const rows = [...wanted.entries()].map(([, value]) => ({
-        restaurant_id: data.restaurantId,
-        name_en: value.name_en,
-        name_ar: value.name_ar,
-        display_order: ++order,
-        is_active: true,
-      }));
-      const { data: created, error } = await supabase.from("menu_categories").insert(rows).select("id, name_en");
+    const { supabase, userId } = context;
+    const owner = await supabase.rpc("is_platform_owner");
+    if (owner.error) throw owner.error;
+    if (!owner.data) {
+      const { data: rows, error } = await supabase
+        .from("staff")
+        .select("role")
+        .eq("restaurant_id", data.restaurantId)
+        .eq("auth_user_id", userId)
+        .eq("is_active", true);
       if (error) throw error;
-      for (const row of (created ?? []) as { id: string; name_en: string }[]) {
-        byName.set(row.name_en.trim().toLowerCase(), row.id);
+      if (!(rows ?? []).some((row) => row.role === "restaurant_admin" || row.role === "manager")) {
+        throw new Error("Forbidden");
       }
     }
 
-    const itemRows = data.items.map((item, index) => ({
-      restaurant_id: data.restaurantId,
-      category_id: byName.get(item.category_en.trim().toLowerCase()) ?? null,
-      name_en: item.name_en.trim(),
-      name_ar: (item.name_ar || item.name_en).trim(),
-      description_en: item.description_en.trim() || null,
-      description_ar: null,
-      price: Number(item.price.toFixed(2)),
-      is_available: true,
-      display_order: index + 1,
-    }));
+    const fallback = localMatches(data.candidates, data.products);
+    const apiKey = process.env["OPENAI_API_KEY"] ?? process.env["OPENAI_API_KEYS"];
+    if (!apiKey?.trim()) return { matches: fallback, ai: false };
 
-    const { error: insertError } = await supabase.from("menu_items").insert(itemRows);
-    if (insertError) throw insertError;
+    const prompt = [
+      "You are a restaurant menu ingestion specialist.",
+      "The candidate lines come from a real uploaded restaurant PDF. Identify which candidate lines are actual purchasable menu products and match them to the existing QuickServe products.",
+      "Never invent products. Never match a category/header to a product. Prefer exact Arabic/English name matches, then close spelling/transliteration matches. Use price as supporting evidence when it appears in the candidate line.",
+      "Return JSON only: {matches:[{candidate_id:string,menu_item_id:string,confidence:number}]}. Only return confidence >= 0.75.",
+      `Existing products: ${JSON.stringify(data.products)}`,
+      `PDF candidates: ${JSON.stringify(data.candidates)}`,
+    ].join("\n\n");
 
-    return { imported: itemRows.length, categories: wanted.size };
+    try {
+      const response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey.trim()}` },
+        body: JSON.stringify({
+          model: process.env["OPENAI_MENU_MODEL"] || "gpt-5.6-luna",
+          input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }],
+          store: false,
+          max_output_tokens: 6000,
+          text: { format: { type: "json_object" } },
+        }),
+      });
+      if (!response.ok) return { matches: fallback, ai: false };
+      const payload = (await response.json()) as { output_text?: string; output?: Array<{ content?: Array<{ type?: string; text?: string }> }> };
+      const text = payload.output_text || (payload.output ?? []).flatMap((item) => item.content ?? []).filter((part) => part.type === "output_text").map((part) => part.text ?? "").join("");
+      const parsed = JSON.parse(text) as { matches?: unknown };
+      const matches = Array.isArray(parsed.matches)
+        ? parsed.matches.filter((match): match is { candidate_id: string; menu_item_id: string; confidence: number } => {
+            if (!match || typeof match !== "object") return false;
+            const row = match as Record<string, unknown>;
+            return typeof row.candidate_id === "string" && typeof row.menu_item_id === "string" && typeof row.confidence === "number" && row.confidence >= 0.75;
+          })
+        : [];
+      return { matches, ai: true };
+    } catch {
+      return { matches: fallback, ai: false };
+    }
   });
+
+function normalize(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u064B-\u065F\u0670]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+function localMatches(candidates: z.infer<typeof candidateSchema>[], products: z.infer<typeof productSchema>[]) {
+  return candidates.flatMap((candidate) => {
+    const candidateText = normalize(candidate.text);
+    let best: { id: string; score: number } | null = null;
+    for (const product of products) {
+      const names = [normalize(product.name_en), normalize(product.name_ar)].filter(Boolean);
+      const score = names.reduce((max, name) => {
+        if (name === candidateText) return Math.max(max, 0.98);
+        if (candidateText.includes(name) || name.includes(candidateText)) return Math.max(max, 0.86);
+        const tokens = name.split(" ").filter((token) => token.length > 2);
+        const overlap = tokens.filter((token) => candidateText.includes(token)).length / Math.max(tokens.length, 1);
+        return Math.max(max, overlap * 0.8);
+      }, 0);
+      if (!best || score > best.score) best = { id: product.id, score };
+    }
+    return best && best.score >= 0.72
+      ? [{ candidate_id: candidate.id, menu_item_id: best.id, confidence: best.score }]
+      : [];
+  });
+}
