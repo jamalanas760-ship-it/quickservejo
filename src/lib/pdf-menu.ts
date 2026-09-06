@@ -87,7 +87,7 @@ export function loadPdfJs(): Promise<PdfJs> {
 export async function openPdf(source: ArrayBuffer | Uint8Array | string): Promise<any> {
   const pdfjs = await loadPdfJs();
   if (typeof source === "string") return pdfjs.getDocument({ data: new TextEncoder().encode(source) }).promise;
-  const buffer = source instanceof Uint8Array ? source.buffer.slice(source.byteOffset, source.byteOffset + source.byteLength) : source;
+  const buffer: ArrayBuffer = source instanceof Uint8Array ? source.slice().buffer as ArrayBuffer : source;
   const cached = pdfDocumentCache.get(buffer);
   if (cached) return cached;
   const promise = pdfjs.getDocument({ data: buffer }).promise;
