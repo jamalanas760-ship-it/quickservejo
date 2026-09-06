@@ -1,17 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { PdfMenuManager } from "@/components/manage/PdfMenuManager";
+import { MasterMenuDesigner } from "@/components/manage/MasterMenuDesigner";
 
 export const Route = createFileRoute("/_authenticated/manage/$restaurantId/design")({
   head: () => ({
     meta: [
-      { title: "PDF Menu & QR Ordering — QuickServe" },
-      {
-        name: "description",
-        content: "Upload an existing restaurant PDF menu and connect it to QuickServe QR ordering and cart.",
-      },
-      { property: "og:title", content: "PDF Menu & QR Ordering — QuickServe" },
-      { property: "og:description", content: "Turn an existing restaurant PDF menu into a QR ordering experience." },
+      { title: "Master Menu Designer — QuickServe" },
+      { name: "description", content: "Create, refine and publish an art-directed restaurant menu with AI and a persistent live preview." },
+      { property: "og:title", content: "Master Menu Designer — QuickServe" },
+      { property: "og:description", content: "Design a premium restaurant menu with AI and preview every change instantly." },
     ],
   }),
   component: DesignPage,
@@ -19,5 +16,5 @@ export const Route = createFileRoute("/_authenticated/manage/$restaurantId/desig
 
 function DesignPage() {
   const { restaurantId } = Route.useParams();
-  return <PdfMenuManager restaurantId={restaurantId} />;
+  return <MasterMenuDesigner restaurantId={restaurantId} />;
 }
