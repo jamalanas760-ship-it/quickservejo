@@ -12,7 +12,7 @@ export type DinerMenu = {
   table: { id: string; table_number: string; table_name: string | null } | null;
   categories: { id: string; name_en: string; name_ar: string }[];
   items: DinerItem[];
-  pdfMenu: { url: string; fileName: string; pageCount: number; links: DinerPdfLink[] } | null;
+  pdfMenu: { url: string; parts: string[]; fileName: string; pageCount: number; links: DinerPdfLink[] } | null;
 };
 
 /** Loads the public menu for a restaurant slug, plus the scanned table. */
@@ -33,7 +33,7 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
     supabase.from("menu_items").select("id, category_id, name_en, name_ar, description_en, description_ar, price, compare_at_price, image_url, is_featured, preparation_time, is_available").eq("restaurant_id", restaurant.id).eq("is_available", true).order("display_order", { ascending: true }),
     supabase.from("modifier_groups").select("id, menu_item_id, name_en, name_ar, is_required, min_selection, max_selection").eq("restaurant_id", restaurant.id).eq("is_active", true).order("display_order", { ascending: true }),
     supabase.from("item_modifiers").select("id, group_id, name_en, name_ar, price_delta").eq("restaurant_id", restaurant.id).eq("is_active", true).order("display_order", { ascending: true }),
-    (supabase as any).from("menu_pdf_documents").select("id, file_url, file_name, page_count, is_active").eq("restaurant_id", restaurant.id).eq("is_active", true).maybeSingle(),
+    (supabase as any).from("menu_pdf_documents").select("id, file_url, file_parts, file_name, page_count, is_active").eq("restaurant_id", restaurant.id).eq("is_active", true).maybeSingle(),
   ]);
 
   const groups = groupsRes.data ?? [];
@@ -49,7 +49,7 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
     })),
   }));
 
-  const pdfDocument = pdfDocumentRes.data as { id: string; file_url: string; file_name: string; page_count: number; is_active: boolean } | null;
+  const pdfDocument = pdfDocumentRes.data as { id: string; file_url: string; file_parts?: unknown; file_name: string; page_count: number; is_active: boolean } | null;
   let pdfLinks: DinerPdfLink[] = [];
   if (pdfDocument) {
     const { data, error: linkError } = await (supabase as any).from("menu_pdf_item_links").select("id, page_number, x, y, width, height, menu_item_id, label").eq("document_id", pdfDocument.id).eq("restaurant_id", restaurant.id).eq("is_active", true);
@@ -68,13 +68,14 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
     }
   }
 
+  const parts = Array.isArray(pdfDocument?.file_parts) ? pdfDocument.file_parts.filter((part): part is string => typeof part === "string" && part.length > 0) : [];
   return {
     restaurant: { ...restaurant, tax_rate: Number(restaurant.tax_rate), service_charge: Number(restaurant.service_charge), menu_theme: menuTheme },
     settings: settingsRes.data ? { ...settingsRes.data, minimum_order: Number(settingsRes.data.minimum_order) } : null,
     table: tableRes.data ?? null,
     categories: categoriesRes.data ?? [],
     items,
-    pdfMenu: pdfDocument ? { url: pdfDocument.file_url, fileName: pdfDocument.file_name, pageCount: Number(pdfDocument.page_count), links: pdfLinks } : null,
+    pdfMenu: pdfDocument ? { url: pdfDocument.file_url, parts, fileName: pdfDocument.file_name, pageCount: Number(pdfDocument.page_count), links: pdfLinks } : null,
   };
 }
 
