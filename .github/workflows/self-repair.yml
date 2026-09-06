@@ -35,8 +35,8 @@ jobs:
         run: node scripts/self-repair.mjs
       - name: Apply release type repairs
         run: node scripts/release-repair.mjs
-      - name: Generate route tree
-        run: bunx tsr generate
+      - name: Generate route tree and validate build
+        run: bun run build
       - name: Commit safe repairs
         run: |
           if git diff --quiet; then
