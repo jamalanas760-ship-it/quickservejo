@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { fetchPublicOrderStatus } from "@/lib/diner";
+import { fetchPublicOrderReceipt } from "@/lib/diner";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 
@@ -36,8 +36,8 @@ function OrderStatusPage() {
   const { lang, t } = useI18n();
 
   const order = useQuery({
-    queryKey: ["public-order", token],
-    queryFn: () => fetchPublicOrderStatus(token),
+    queryKey: ["public-order-receipt", token],
+    queryFn: () => fetchPublicOrderReceipt(token),
     refetchInterval: 8000,
   });
 
@@ -45,16 +45,14 @@ function OrderStatusPage() {
     <div className="safe-top safe-bottom mx-auto w-full max-w-md space-y-4 px-4 py-6 sm:px-6">
       <h1 className="text-lg font-semibold sm:text-xl">{t("diner.trackOrder")}</h1>
       {order.isPending ? (
-        <Skeleton className="h-56 rounded-2xl" />
+        <Skeleton className="h-72 rounded-2xl" />
       ) : !order.data ? (
         <p className="text-sm text-muted-foreground">{t("diner.orderNotFound")}</p>
       ) : (
         <div className="panel space-y-5 p-5 sm:p-6">
           <div className="text-center">
             <p className="text-xs text-muted-foreground">{t("diner.orderNumber")}</p>
-            <p className="text-3xl font-bold tabular-nums sm:text-4xl">
-              {order.data.order_number}
-            </p>
+            <p className="text-3xl font-bold tabular-nums sm:text-4xl">{order.data.order_number}</p>
             <Badge variant="secondary" className="mt-2 text-sm">
               {STATUS_LABELS[order.data.status]?.[lang] ?? order.data.status}
             </Badge>
@@ -75,11 +73,7 @@ function OrderStatusPage() {
                   >
                     {index + 1}
                   </span>
-                  <span
-                    className={
-                      done ? "text-sm font-medium" : "text-sm text-muted-foreground"
-                    }
-                  >
+                  <span className={done ? "text-sm font-medium" : "text-sm text-muted-foreground"}>
                     {STATUS_LABELS[step]?.[lang] ?? step}
                   </span>
                 </li>
@@ -87,16 +81,36 @@ function OrderStatusPage() {
             })}
           </ol>
 
-          <div className="flex items-center justify-between gap-3 border-t pt-4 text-sm">
-            <span className="font-semibold">
-              {formatMoney(order.data.total, order.data.currency, lang)}
-            </span>
-            <span className="text-xs text-muted-foreground">
+          <div className="space-y-2 border-t pt-4 text-sm">
+            <ReceiptRow label={lang === "ar" ? "المجموع الفرعي" : "Subtotal"} value={formatMoney(order.data.subtotal, order.data.currency, lang)} />
+            {order.data.discount_amount > 0 ? (
+              <ReceiptRow label={lang === "ar" ? "الخصم" : "Discount"} value={`-${formatMoney(order.data.discount_amount, order.data.currency, lang)}`} />
+            ) : null}
+            {order.data.tax_amount > 0 ? (
+              <ReceiptRow label={lang === "ar" ? "الضريبة" : "Tax"} value={formatMoney(order.data.tax_amount, order.data.currency, lang)} />
+            ) : null}
+            {order.data.service_amount > 0 ? (
+              <ReceiptRow label={lang === "ar" ? "خدمة" : "Service"} value={formatMoney(order.data.service_amount, order.data.currency, lang)} />
+            ) : null}
+            <div className="flex items-center justify-between border-t pt-2 font-bold">
+              <span>{lang === "ar" ? "الإجمالي" : "Total"}</span>
+              <span>{formatMoney(order.data.total, order.data.currency, lang)}</span>
+            </div>
+            <p className="pt-1 text-right text-xs text-muted-foreground">
               {formatDateTime(order.data.created_at, lang)}
-            </span>
+            </p>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ReceiptRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium tabular-nums">{value}</span>
     </div>
   );
 }
