@@ -30,6 +30,38 @@ const PDF_JS_VERSION = "3.11.174";
 const PDF_JS_URL = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDF_JS_VERSION}/pdf.min.js`;
 const PDF_WORKER_URL = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDF_JS_VERSION}/pdf.worker.min.js`;
 
+// Keep a small browser-side PDF byte cache so returning to the Menu tab or
+// moving between pages does not download the same PDF again. Large PDFs are
+// deliberately not retained to avoid turning the app into a memory hog.
+const PDF_BYTE_CACHE_LIMIT = 32 * 1024 * 1024;
+const pdfByteCache = new Map<string, { buffer: ArrayBuffer; lastUsed: number }>();
+const pdfDocumentCache = new WeakMap<ArrayBuffer, Promise<any>>();
+
+function pdfCacheKey(url: string, parts: string[]): string {
+  return `${url}|${parts.join("|")}`;
+}
+
+function getCachedPdfBytes(key: string): ArrayBuffer | null {
+  const cached = pdfByteCache.get(key);
+  if (!cached) return null;
+  cached.lastUsed = Date.now();
+  return cached.buffer;
+}
+
+function cachePdfBytes(key: string, buffer: ArrayBuffer): void {
+  if (buffer.byteLength > PDF_BYTE_CACHE_LIMIT) return;
+  pdfByteCache.set(key, { buffer, lastUsed: Date.now() });
+  let total = 0;
+  for (const entry of pdfByteCache.values()) total += entry.buffer.byteLength;
+  if (total <= PDF_BYTE_CACHE_LIMIT) return;
+  const oldest = [...pdfByteCache.entries()].sort((a, b) => a[1].lastUsed - b[1].lastUsed);
+  for (const [oldKey, entry] of oldest) {
+    if (total <= PDF_BYTE_CACHE_LIMIT) break;
+    pdfByteCache.delete(oldKey);
+    total -= entry.buffer.byteLength;
+  }
+}
+
 export function loadPdfJs(): Promise<PdfJs> {
   if (typeof window === "undefined") throw new Error("PDF rendering requires a browser");
   if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
@@ -54,21 +86,35 @@ export function loadPdfJs(): Promise<PdfJs> {
 
 export async function openPdf(source: ArrayBuffer | Uint8Array | string): Promise<any> {
   const pdfjs = await loadPdfJs();
-  return typeof source === "string" ? pdfjs.getDocument({ data: new TextEncoder().encode(source) }).promise : pdfjs.getDocument({ data: source }).promise;
+  if (typeof source === "string") return pdfjs.getDocument({ data: new TextEncoder().encode(source) }).promise;
+  const buffer = source instanceof Uint8Array ? source.buffer.slice(source.byteOffset, source.byteOffset + source.byteLength) : source;
+  const cached = pdfDocumentCache.get(buffer);
+  if (cached) return cached;
+  const promise = pdfjs.getDocument({ data: buffer }).promise;
+  pdfDocumentCache.set(buffer, promise);
+  return promise;
 }
 
 export async function fetchPdfBytes(url: string, parts: string[] = []): Promise<ArrayBuffer> {
+  const key = pdfCacheKey(url, parts);
+  const cached = getCachedPdfBytes(key);
+  if (cached) return cached;
+
   const sources = parts.length ? parts : [url];
   const buffers = await Promise.all(sources.map(async (source) => {
-    const response = await fetch(source);
+    const response = await fetch(source, { cache: "force-cache" });
     if (!response.ok) throw new Error("PDF could not be loaded");
     return response.arrayBuffer();
   }));
-  if (buffers.length === 1) return buffers[0];
+  if (buffers.length === 1) {
+    cachePdfBytes(key, buffers[0]);
+    return buffers[0];
+  }
   const total = buffers.reduce((sum, buffer) => sum + buffer.byteLength, 0);
   const combined = new Uint8Array(total);
   let offset = 0;
   for (const buffer of buffers) { combined.set(new Uint8Array(buffer), offset); offset += buffer.byteLength; }
+  cachePdfBytes(key, combined.buffer);
   return combined.buffer;
 }
 
