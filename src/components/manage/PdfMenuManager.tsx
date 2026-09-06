@@ -1,378 +1,221 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode, RefObject } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, ExternalLink, Upload, Trash2, CheckCircle2, QrCode, Sparkles, Printer } from "lucide-react";
-import { useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { FileCheck2, FileText, Link2, Loader2, MousePointer2, Save, Sparkles, Upload, X } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
-import { useI18n } from "@/lib/i18n";
+import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { humanError } from "@/lib/errors";
-import { qrDataUrl, downloadDataUrl, printQrCards, tableMenuUrl } from "@/lib/qr";
-import { analyzePdfMenu, importPdfMenuItems, type ExtractedItem } from "@/lib/pdf-menu.functions";
+import { logAudit } from "@/lib/audit";
+import { analyzePdfMenu } from "@/lib/pdf-menu.functions";
+import { analyzePdfFile, openPdf, renderPdfPage, type PdfMenuAnalysis, type PdfMenuCandidate } from "@/lib/pdf-menu";
+import { uploadRestaurantPdf } from "@/lib/storage";
 
-const MAX_PDF_BYTES = 20 * 1024 * 1024;
-
-type RestaurantPdfState = {
-  id: string;
-  name: string;
-  slug: string;
-  menu_pdf_url?: string | null;
-  menu_pdf_name?: string | null;
-  menu_pdf_updated_at?: string | null;
-};
-
-type Detected = ExtractedItem & { selected: boolean };
+type Product = { id: string; name_en: string; name_ar: string; price: number };
+type LinkDraft = { menu_item_id: string; source: "auto" | "manual" };
+type PdfDocument = { id: string; file_url: string; file_name: string; page_count: number; analysis: PdfMenuAnalysis; is_active: boolean };
+const EMPTY_ANALYSIS: PdfMenuAnalysis = { page_count: 0, pages: [], candidates: [] };
 
 export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
-  const { lang } = useI18n();
-  const ar = lang === "ar";
-  const qc = useQueryClient();
+  const { data: restaurant } = useRestaurant(restaurantId);
+  const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [documentRow, setDocumentRow] = useState<PdfDocument | null>(null);
+  const [analysis, setAnalysis] = useState<PdfMenuAnalysis>(EMPTY_ANALYSIS);
+  const [file, setFile] = useState<File | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [links, setLinks] = useState<Record<string, LinkDraft>>({});
+  const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [qr, setQr] = useState<string | null>(null);
-  const [reading, setReading] = useState(false);
-  const [detected, setDetected] = useState<Detected[] | null>(null);
-  const [importing, setImporting] = useState(false);
+  const [matching, setMatching] = useState(false);
+  const [search, setSearch] = useState("");
+  const runAnalyze = useServerFn(analyzePdfMenu);
 
-  const restaurant = useQuery<RestaurantPdfState>({
-    queryKey: ["restaurant-pdf-menu", restaurantId],
-    enabled: Boolean(restaurantId),
+  const products = useQuery<Product[]>({
+    queryKey: ["platform", "pdf-products", restaurantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("restaurants")
-        .select("*")
-        .eq("id", restaurantId)
-        .maybeSingle();
+      const { data, error } = await supabase.from("menu_items").select("id, name_en, name_ar, price").eq("restaurant_id", restaurantId).order("display_order", { ascending: true });
       if (error) throw error;
-      if (!data) throw new Error("Restaurant not found.");
-      return data as unknown as RestaurantPdfState;
+      return (data ?? []).map((row) => ({ ...row, price: Number(row.price) }));
     },
   });
 
-  const tables = useQuery({
-    queryKey: ["platform", "tables", restaurantId],
-    enabled: Boolean(restaurantId),
+  const existing = useQuery<PdfDocument | null>({
+    queryKey: ["platform", "pdf-document", restaurantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("restaurant_tables")
-        .select("table_number, table_name, qr_token, is_active")
-        .eq("restaurant_id", restaurantId)
-        .order("table_number", { ascending: true });
+      const { data, error } = await (supabase as any).from("menu_pdf_documents").select("id, file_url, file_name, page_count, analysis, is_active").eq("restaurant_id", restaurantId).maybeSingle();
       if (error) throw error;
-      return data ?? [];
+      return data as PdfDocument | null;
     },
   });
 
-  async function uploadPdf(file: File) {
-    if (file.type !== "application/pdf") {
-      toast.error(ar ? "يرجى اختيار ملف PDF فقط." : "Please select a PDF file.");
-      return;
-    }
-    if (file.size > MAX_PDF_BYTES) {
-      toast.error(ar ? "الحد الأقصى لحجم الملف 20MB." : "Maximum PDF size is 20MB.");
-      return;
-    }
+  useEffect(() => {
+    if (!existing.data || documentRow || file) return;
+    setDocumentRow(existing.data);
+    setAnalysis(existing.data.analysis ?? EMPTY_ANALYSIS);
+    setFileUrl(existing.data.file_url);
+  }, [existing.data, documentRow, file]);
 
-    setBusy(true);
-    setProgress(10);
+  useEffect(() => {
+    let disposed = false;
+    async function draw() {
+      if (!canvasRef.current || !fileUrl || !analysis.page_count) return;
+      try {
+        const response = await fetch(fileUrl);
+        if (!response.ok) throw new Error("PDF could not be loaded");
+        const pdf = await openPdf(await response.arrayBuffer());
+        if (!disposed) await renderPdfPage(pdf, page, canvasRef.current, 1200);
+      } catch (error) {
+        if (!disposed) toast.error(humanError(error));
+      }
+    }
+    void draw();
+    return () => { disposed = true; };
+  }, [fileUrl, page, analysis.page_count]);
+
+  const pageCandidates = useMemo(() => analysis.candidates.filter((candidate) => candidate.page_number === page), [analysis.candidates, page]);
+  const visibleCandidates = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return needle ? analysis.candidates.filter((candidate) => candidate.text.toLowerCase().includes(needle)) : analysis.candidates;
+  }, [analysis.candidates, search]);
+  const linkedCount = Object.keys(links).length;
+
+  async function autoMatch(nextAnalysis = analysis, productRows = products.data ?? []) {
+    if (!nextAnalysis.candidates.length || !productRows.length) return;
+    setMatching(true);
     try {
-      const path = `${restaurantId}/${crypto.randomUUID()}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from("menu-pdfs")
-        .upload(path, file, { contentType: "application/pdf", upsert: false, cacheControl: "31536000" });
-      if (uploadError) throw uploadError;
-
-      setProgress(65);
-      const { data: publicData } = supabase.storage.from("menu-pdfs").getPublicUrl(path);
-      const { error: updateError } = await supabase
-        .from("restaurants")
-        .update({
-          menu_pdf_url: publicData.publicUrl,
-          menu_pdf_name: file.name,
-          menu_pdf_updated_at: new Date().toISOString(),
-        } as never)
-        .eq("id", restaurantId);
-      if (updateError) throw updateError;
-
-      setProgress(100);
-      await qc.invalidateQueries({ queryKey: ["restaurant-pdf-menu", restaurantId] });
-      toast.success(ar ? "تم رفع قائمة PDF بنجاح." : "PDF menu uploaded successfully.");
-      void readMenu();
+      const result = await runAnalyze({ data: { restaurantId, candidates: nextAnalysis.candidates, products: productRows } });
+      const next: Record<string, LinkDraft> = {};
+      for (const match of result.matches ?? []) {
+        if (nextAnalysis.candidates.some((row) => row.id === match.candidate_id) && productRows.some((row) => row.id === match.menu_item_id) && Number(match.confidence) >= 0.75) {
+          next[match.candidate_id] = { menu_item_id: match.menu_item_id, source: result.ai ? "auto" : "manual" };
+        }
+      }
+      setLinks(next);
+      toast.success(`${Object.keys(next).length} products matched automatically${result.ai ? " with AI" : ""}.`);
     } catch (error) {
-      toast.error(humanError(error, lang));
+      toast.error(humanError(error));
+    } finally {
+      setMatching(false);
+    }
+  }
+
+  async function handleFile(nextFile: File | undefined) {
+    if (!nextFile) return;
+    if (nextFile.type !== "application/pdf" && !nextFile.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Please upload a PDF menu.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { analysis: nextAnalysis } = await analyzePdfFile(nextFile);
+      const url = await uploadRestaurantPdf(restaurantId, nextFile);
+      setFile(nextFile);
+      setFileUrl(url);
+      setAnalysis(nextAnalysis);
+      setDocumentRow(null);
+      setLinks({});
+      setPage(1);
+      setSelectedCandidate(nextAnalysis.candidates[0]?.id ?? null);
+      toast.success(`Read ${nextAnalysis.candidates.length} likely menu lines across ${nextAnalysis.page_count} pages.`);
+      await autoMatch(nextAnalysis, products.data ?? []);
+    } catch (error) {
+      toast.error(humanError(error));
     } finally {
       setBusy(false);
-      window.setTimeout(() => setProgress(0), 700);
       if (inputRef.current) inputRef.current.value = "";
     }
   }
 
-  async function readMenu() {
-    setReading(true);
-    try {
-      const result = await analyzePdfMenu({ data: { restaurantId } });
-      if (!result.items.length) {
-        toast.error(ar ? "لم يتم العثور على أصناف في هذا الملف." : "No products were found in this PDF.");
-        return;
-      }
-      setDetected(result.items.map((item) => ({ ...item, selected: true })));
-    } catch (error) {
-      toast.error(humanError(error, lang));
-    } finally {
-      setReading(false);
-    }
+  function assign(candidateId: string, productId: string) {
+    setLinks((prev) => {
+      const next = { ...prev };
+      if (productId === "none") delete next[candidateId];
+      else next[candidateId] = { menu_item_id: productId, source: "manual" };
+      return next;
+    });
   }
 
-  async function importSelected() {
-    if (!detected) return;
-    const items = detected.filter((d) => d.selected).map(({ selected: _s, ...rest }) => rest);
-    if (!items.length) {
-      toast.error(ar ? "اختر صنفاً واحداً على الأقل." : "Select at least one item.");
-      return;
-    }
-    setImporting(true);
-    try {
-      const result = await importPdfMenuItems({ data: { restaurantId, items } });
-      toast.success(ar ? `تمت إضافة ${result.imported} صنفاً إلى القائمة.` : `${result.imported} items added to the orderable menu.`);
-      setDetected(null);
-    } catch (error) {
-      toast.error(humanError(error, lang));
-    } finally {
-      setImporting(false);
-    }
-  }
-
-  async function createQr() {
-    if (!restaurant.data) return;
-    setQr(await qrDataUrl(`${window.location.origin}/m/${restaurant.data.slug}`));
-  }
-
-  async function printTableQrs() {
-    const current = restaurant.data;
-    if (!current) return;
-    const rows = (tables.data ?? []).filter((t) => t.is_active);
-    if (!rows.length) {
-      toast.error(ar ? "أضف طاولات أولاً من صفحة الطاولات." : "Add tables first from the Tables page.");
-      return;
-    }
-    await printQrCards(
-      current.name,
-      ar ? "امسح للاطلاع على القائمة والطلب" : "Scan to view the menu and order",
-      rows.map((t) => ({ table_number: t.table_number, table_name: t.table_name, url: `${window.location.origin}/m/${current.slug}?t=${t.qr_token}` })),
-      { back: ar ? "← رجوع" : "← Back", print: ar ? "طباعة" : "Print" },
-    );
-  }
-
-  if (restaurant.isPending) return <div className="h-64 animate-pulse rounded-3xl bg-muted" />;
-  if (restaurant.isError || !restaurant.data) {
-    return (
-      <div className="rounded-3xl border border-destructive/20 bg-destructive/5 p-6">
-        <h2 className="font-semibold">{ar ? "تعذر تحميل المطعم" : "Unable to load restaurant"}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{humanError(restaurant.error, lang)}</p>
-      </div>
-    );
-  }
-
-  const current = restaurant.data;
-  const selectedCount = detected?.filter((d) => d.selected).length ?? 0;
-  const activeTables = (tables.data ?? []).filter((t) => t.is_active).length;
-
-  return (
-    <div className="space-y-6">
-      <header>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <Badge variant="secondary" className="mb-3 rounded-full">QuickServe PDF Ordering</Badge>
-            <h1 className="text-3xl font-bold tracking-tight">Digital Menu &amp; QR Ordering</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Upload the restaurant&apos;s existing PDF menu. QuickServe keeps the original design exactly as it is, reads the products from it, and adds a tap-to-add clicker so diners can order straight to the kitchen.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {current.menu_pdf_url ? (
-              <Button variant="outline" disabled={reading} onClick={() => void readMenu()}>
-                <Sparkles className="size-4" /> {reading ? (ar ? "جارٍ قراءة القائمة…" : "Reading menu…") : (ar ? "اقرأ الأصناف" : "Read items from PDF")}
-              </Button>
-            ) : null}
-            <Button onClick={() => inputRef.current?.click()} disabled={busy}>
-              <Upload className="size-4" /> {current.menu_pdf_url ? "Replace PDF" : "Upload PDF"}
-            </Button>
-          </div>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="application/pdf,.pdf"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void uploadPdf(file);
-            }}
-          />
-        </div>
-      </header>
-
-      {progress > 0 && <Progress value={progress} className="h-2" />}
-
-      <section className="grid gap-5 lg:grid-cols-[1.35fr_.65fr]">
-        <article className="overflow-hidden rounded-3xl border bg-card shadow-sm">
-          <div className="flex items-center justify-between border-b p-5">
-            <div className="flex items-center gap-3">
-              <FileText className="size-5" />
-              <div>
-                <h2 className="font-semibold">Original PDF Menu</h2>
-                <p className="text-xs text-muted-foreground">Exactly as uploaded by the restaurant</p>
-              </div>
-            </div>
-            {current.menu_pdf_url && <Badge className="gap-1 rounded-full"><CheckCircle2 className="size-3" /> Active</Badge>}
-          </div>
-          {current.menu_pdf_url ? (
-            <div className="bg-muted/30 p-3 sm:p-5">
-              <iframe
-                title={`${current.name} PDF menu`}
-                src={current.menu_pdf_url}
-                className="h-[680px] w-full rounded-2xl border bg-background"
-              />
-            </div>
-          ) : (
-            <div className="grid min-h-72 place-items-center p-8 text-center">
-              <div>
-                <FileText className="mx-auto size-10 text-muted-foreground" />
-                <h3 className="mt-4 font-semibold">No PDF uploaded yet</h3>
-                <p className="mt-2 max-w-md text-sm text-muted-foreground">Upload the exact menu your restaurant already uses. Customers will see it from the QR menu page, with an add-to-cart clicker on top.</p>
-                <Button className="mt-5" onClick={() => inputRef.current?.click()}>Upload menu PDF</Button>
-              </div>
-            </div>
-          )}
-        </article>
-
-        <aside className="space-y-5">
-          <article className="rounded-3xl border bg-card p-5 shadow-sm">
-            <h2 className="font-semibold">Customer experience</h2>
-            <div className="mt-4 space-y-4 text-sm">
-              {["Scan the table QR", "See the original PDF menu", "Tap + on any item to add it", "Review the cart", "Order lands in the kitchen display"].map((step, index) => (
-                <div key={step} className="flex gap-3">
-                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{index + 1}</span>
-                  <span className="pt-1">{step}</span>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className="rounded-3xl border bg-card p-5 shadow-sm">
-            <h2 className="font-semibold">Table QR codes</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {activeTables} active {activeTables === 1 ? "table" : "tables"}. Each QR opens this PDF menu for that exact table, so orders arrive tagged with the table number.
-            </p>
-            <Button variant="outline" className="mt-4 w-full" onClick={() => void printTableQrs()}>
-              <Printer className="size-4" /> Print all table QR codes
-            </Button>
-          </article>
-
-          <article className="rounded-3xl border bg-card p-5 shadow-sm">
-            <h2 className="font-semibold">Public menu QR</h2>
-            <p className="mt-2 text-sm text-muted-foreground">This QR opens the menu without a table (browse only).</p>
-            <Button variant="outline" className="mt-4 w-full" disabled={!current.menu_pdf_url} onClick={() => void createQr()}>
-              <QrCode className="size-4" /> Generate QR preview
-            </Button>
-            {qr && (
-              <div className="mt-4 rounded-2xl bg-muted p-4">
-                <img src={qr} alt="Restaurant menu QR code" className="mx-auto size-52" />
-                <Button variant="ghost" className="mt-2 w-full" onClick={() => downloadDataUrl(qr, `${current.slug}-menu-qr.png`)}>Download QR</Button>
-              </div>
-            )}
-          </article>
-
-          {current.menu_pdf_url && (
-            <article className="rounded-3xl border bg-card p-5 shadow-sm">
-              <div className="flex gap-2">
-                <Button asChild variant="outline" className="flex-1">
-                  <a href={current.menu_pdf_url} target="_blank" rel="noreferrer"><ExternalLink className="size-4" /> Open PDF</a>
-                </Button>
-                <Button variant="outline" size="icon" onClick={() => void removePdf()} disabled={busy} aria-label="Remove PDF"><Trash2 className="size-4" /></Button>
-              </div>
-              <p className="mt-3 truncate text-xs text-muted-foreground">{current.menu_pdf_name}</p>
-            </article>
-          )}
-        </aside>
-      </section>
-
-      <Dialog open={detected !== null} onOpenChange={(o) => !o && setDetected(null)}>
-        <DialogContent className="flex max-h-[88vh] max-w-2xl flex-col">
-          <DialogHeader>
-            <DialogTitle>{ar ? "الأصناف المقروءة من القائمة" : "Products found in the PDF"}</DialogTitle>
-            <DialogDescription>
-              {ar ? "اختر الأصناف التي تريد أن يستطيع العملاء طلبها، وعدّل الأسعار إذا لزم." : "Choose the products diners can order, and adjust any price before importing."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
-            <div className="mb-3 flex items-center justify-between text-sm">
-              <span className="font-medium">{selectedCount}/{detected?.length ?? 0} {ar ? "محدد" : "selected"}</span>
-              <div className="flex gap-2">
-                <Button size="sm" variant="ghost" onClick={() => setDetected((prev) => prev?.map((d) => ({ ...d, selected: true })) ?? prev)}>{ar ? "تحديد الكل" : "Select all"}</Button>
-                <Button size="sm" variant="ghost" onClick={() => setDetected((prev) => prev?.map((d) => ({ ...d, selected: false })) ?? prev)}>{ar ? "إلغاء الكل" : "Clear"}</Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {(detected ?? []).map((item, index) => (
-                <div key={`${item.name_en}-${index}`} className="flex items-center gap-3 rounded-2xl border p-3">
-                  <Checkbox
-                    checked={item.selected}
-                    onCheckedChange={(checked) =>
-                      setDetected((prev) => prev?.map((d, i) => (i === index ? { ...d, selected: checked === true } : d)) ?? prev)
-                    }
-                    aria-label={item.name_en}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{item.name_en}</p>
-                    <p className="truncate text-xs text-muted-foreground">{item.category_en}{item.description_en ? ` · ${item.description_en}` : ""}</p>
-                  </div>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={String(item.price)}
-                    onChange={(e) =>
-                      setDetected((prev) => prev?.map((d, i) => (i === index ? { ...d, price: Number(e.target.value) || 0 } : d)) ?? prev)
-                    }
-                    className="w-24 shrink-0"
-                    aria-label={`${item.name_en} price`}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDetected(null)}>{ar ? "إلغاء" : "Cancel"}</Button>
-            <Button disabled={importing || selectedCount === 0} onClick={() => void importSelected()}>
-              {ar ? "إضافة إلى القائمة القابلة للطلب" : `Add ${selectedCount} items to the menu`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-
-  async function removePdf() {
-    if (!restaurant.data?.menu_pdf_url) return;
+  async function save() {
+    if (!restaurant || !fileUrl || !analysis.page_count) return;
     setBusy(true);
     try {
-      const { error } = await supabase
-        .from("restaurants")
-        .update({ menu_pdf_url: null, menu_pdf_name: null, menu_pdf_updated_at: null } as never)
-        .eq("id", restaurantId);
-      if (error) throw error;
-      await qc.invalidateQueries({ queryKey: ["restaurant-pdf-menu", restaurantId] });
-      setQr(null);
-      toast.success(ar ? "تمت إزالة قائمة PDF." : "PDF menu removed.");
+      const payload = { restaurant_id: restaurantId, file_url: fileUrl, file_name: file?.name ?? documentRow?.file_name ?? "menu.pdf", page_count: analysis.page_count, analysis, is_active: true };
+      let documentId = documentRow?.id;
+      if (documentId) {
+        const { error } = await (supabase as any).from("menu_pdf_documents").update(payload).eq("id", documentId).eq("restaurant_id", restaurantId);
+        if (error) throw error;
+        const { error: deleteError } = await (supabase as any).from("menu_pdf_item_links").delete().eq("document_id", documentId).eq("restaurant_id", restaurantId);
+        if (deleteError) throw deleteError;
+      } else {
+        const { data, error } = await (supabase as any).from("menu_pdf_documents").upsert(payload, { onConflict: "restaurant_id" }).select("id").single();
+        if (error) throw error;
+        documentId = data.id;
+      }
+      const rows = Object.entries(links).map(([candidateId, link]) => {
+        const candidate = analysis.candidates.find((row) => row.id === candidateId);
+        return candidate ? { document_id: documentId, restaurant_id: restaurantId, menu_item_id: link.menu_item_id, page_number: candidate.page_number, x: candidate.x, y: candidate.y, width: candidate.width, height: candidate.height, label: candidate.text, source: link.source, is_active: true } : null;
+      }).filter(Boolean);
+      if (rows.length) {
+        const { error } = await (supabase as any).from("menu_pdf_item_links").insert(rows);
+        if (error) throw error;
+      }
+      await logAudit("pdf_menu.published", { restaurantId, entity: "menu_pdf_documents", entityId: documentId, metadata: { links: rows.length, pages: analysis.page_count } });
+      setDocumentRow({ id: documentId, ...payload } as PdfDocument);
+      await queryClient.invalidateQueries({ queryKey: ["platform", "pdf-document", restaurantId] });
+      toast.success("PDF menu is live. The artwork stays unchanged; selected products are now clickable.");
     } catch (error) {
-      toast.error(humanError(error, lang));
+      toast.error(humanError(error));
     } finally {
       setBusy(false);
     }
   }
+
+  async function disablePdf() {
+    if (!documentRow) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).from("menu_pdf_documents").update({ is_active: false }).eq("id", documentRow.id).eq("restaurant_id", restaurantId);
+      if (error) throw error;
+      setDocumentRow({ ...documentRow, is_active: false });
+      toast.success("PDF ordering disabled. Your products remain unchanged.");
+    } catch (error) {
+      toast.error(humanError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (existing.isPending && !documentRow) return <div className="space-y-4"><Skeleton className="h-40 rounded-3xl"/><Skeleton className="h-96 rounded-3xl"/></div>;
+
+  return <div className="space-y-5">
+    <header className="flex flex-wrap items-end justify-between gap-3">
+      <div><h1 className="text-[28px] font-bold tracking-[-0.04em]">{restaurant?.name ?? "Restaurant"} — PDF Menu</h1><p className="mt-1 max-w-2xl text-sm text-muted-foreground">Upload the exact menu artwork. QuickServe reads it, suggests products, and adds invisible click targets without redesigning the PDF.</p></div>
+      <div className="flex flex-wrap gap-2"><Button variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}><Upload className="size-4"/>{documentRow ? "Replace PDF" : "Upload PDF"}</Button>{documentRow?.is_active ? <Button variant="outline" disabled={busy} onClick={() => void disablePdf()}><X className="size-4"/>Disable</Button> : null}<Button disabled={busy || matching || !fileUrl || linkedCount === 0} onClick={() => void save()}><Save className="size-4"/>{busy ? "Saving…" : "Publish clickable menu"}</Button></div>
+      <input ref={inputRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => void handleFile(event.target.files?.[0])}/>
+    </header>
+
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,.75fr)]">
+      <section className="panel overflow-hidden rounded-3xl"><div className="flex flex-wrap items-center justify-between gap-3 border-b p-4"><div className="flex items-center gap-2"><FileText className="size-5 text-primary"/><div><p className="font-semibold">Original PDF preview</p><p className="text-xs text-muted-foreground">Nothing is redrawn or restyled.</p></div></div><div className="flex items-center gap-2"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button><span className="text-xs font-semibold tabular-nums">Page {page} / {analysis.page_count || 0}</span><Button size="sm" variant="outline" disabled={page >= analysis.page_count} onClick={() => setPage((value) => value + 1)}>Next</Button></div></div><div className="bg-slate-100 p-3 sm:p-6">{!fileUrl ? <button type="button" onClick={() => inputRef.current?.click()} className="grid min-h-[520px] w-full place-items-center rounded-2xl border-2 border-dashed bg-white text-center"><span><Upload className="mx-auto size-9 text-muted-foreground"/><span className="mt-3 block font-semibold">Upload the restaurant PDF</span><span className="mt-1 block text-sm text-muted-foreground">The original artwork will be preserved exactly.</span></span></button> : <PdfOverlayPreview canvasRef={canvasRef} candidates={pageCandidates} links={links} onSelect={(candidate) => { setSelectedCandidate(candidate.id); setPage(candidate.page_number); }} />}</div></section>
+
+      <aside className="panel rounded-3xl p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2"><MousePointer2 className="size-4 text-primary"/><h2 className="font-bold">Select products</h2></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Each selected line becomes an invisible clickable area on the original PDF. Customers see the same menu, only now they can tap items.</p></div><Badge variant="secondary">{linkedCount} linked</Badge></div><div className="mt-4 flex gap-2"><Input placeholder="Find a PDF line…" value={search} onChange={(event) => setSearch(event.target.value)}/><Button size="icon" variant="outline" disabled={matching || !analysis.candidates.length || !products.data?.length} title="Smart match" onClick={() => void autoMatch()}>{matching ? <Loader2 className="size-4 animate-spin"/> : <Sparkles className="size-4"/>}</Button></div><div className="mt-4 max-h-[560px] space-y-2 overflow-y-auto pr-1">{visibleCandidates.length === 0 ? <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">Read the PDF first, then choose the products customers should be able to order.</div> : visibleCandidates.map((candidate) => { const selected = links[candidate.id]; return <div key={candidate.id} className={`rounded-2xl border p-3 transition ${selectedCandidate === candidate.id ? "border-primary bg-primary/5" : "bg-card"}`} onClick={() => { setSelectedCandidate(candidate.id); setPage(candidate.page_number); }}><div className="flex items-start gap-3"><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">P{candidate.page_number}</span>{selected ? <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Linked</Badge> : null}</div><p className="mt-1 text-sm font-semibold leading-5">{candidate.text}</p></div><span className="text-[10px] tabular-nums text-muted-foreground">{Math.round(candidate.confidence * 100)}%</span></div><Select value={selected?.menu_item_id ?? "none"} onValueChange={(value) => assign(candidate.id, value)}><SelectTrigger className="mt-2 h-9"><SelectValue placeholder="Choose product"/></SelectTrigger><SelectContent><SelectItem value="none">Not clickable</SelectItem>{(products.data ?? []).map((product) => <SelectItem key={product.id} value={product.id}>{product.name_en} · {product.name_ar}</SelectItem>)}</SelectContent></Select></div>; })}</div></aside>
+    </div>
+
+    <div className="grid gap-3 sm:grid-cols-3"><StatusCard icon={<FileCheck2 className="size-4"/>} label="PDF" value={file?.name ?? documentRow?.file_name ?? "Not uploaded"}/><StatusCard icon={<Link2 className="size-4"/>} label="Clickable products" value={`${linkedCount} / ${analysis.candidates.length || 0}`}/><StatusCard icon={<Sparkles className="size-4"/>} label="Ordering" value={documentRow?.is_active ? "Live" : linkedCount ? "Ready to publish" : "Not configured"}/></div>
+  </div>;
+}
+
+function StatusCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) { return <div className="panel rounded-2xl p-4"><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{icon}{label}</div><p className="mt-2 truncate text-sm font-semibold">{value}</p></div>; }
+
+function PdfOverlayPreview({ canvasRef, candidates, links, onSelect }: { canvasRef: RefObject<HTMLCanvasElement | null>; candidates: PdfMenuCandidate[]; links: Record<string, LinkDraft>; onSelect: (candidate: PdfMenuCandidate) => void }) {
+  return <div className="relative mx-auto w-full max-w-3xl overflow-hidden rounded-xl bg-white shadow-sm"><canvas ref={canvasRef} className="block h-auto w-full"/><div className="absolute inset-0">{candidates.map((candidate) => <button key={candidate.id} type="button" aria-label={`Select ${candidate.text}`} onClick={() => onSelect(candidate)} className={`absolute rounded-md border-2 transition ${links[candidate.id] ? "border-emerald-500 bg-emerald-500/10" : "border-primary/70 bg-primary/5 hover:bg-primary/15"}`} style={{ left: `${candidate.x * 100}%`, top: `${candidate.y * 100}%`, width: `${candidate.width * 100}%`, height: `${candidate.height * 100}%` }}><span className="sr-only">{candidate.text}</span></button>)}</div></div>;
 }
