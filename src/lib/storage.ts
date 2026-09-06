@@ -1,30 +1,24 @@
 import { supabase } from "@/integrations/supabase/client";
 
 const BUCKET = "restaurant-media";
-/** Long-lived signed URL (1 year) so diner-facing images render without auth. */
+/** Long-lived signed URL (1 year) so diner-facing media renders without auth. */
 const SIGNED_TTL = 60 * 60 * 24 * 365;
 
-export type MediaKind = "logo" | "cover" | "category" | "product";
+export type MediaKind = "logo" | "cover" | "category" | "product" | "menu-pdf";
 
 function extensionOf(file: File): string {
   const fromName = file.name.split(".").pop();
   if (fromName && fromName.length <= 5) return fromName.toLowerCase();
-  return file.type.includes("png") ? "png" : "jpg";
+  return file.type.includes("png") ? "png" : file.type.includes("pdf") ? "pdf" : "jpg";
 }
 
-/**
- * Uploads an image for a restaurant and returns a URL safe to store in the
- * database and render in <img>. Storage paths are always prefixed with the
- * restaurant id, which is what the storage policies authorize against.
- */
-export async function uploadRestaurantImage(
+async function uploadRestaurantMedia(
   restaurantId: string,
   kind: MediaKind,
   file: File,
+  maxBytes: number,
 ): Promise<string> {
-  if (file.size > 5 * 1024 * 1024) {
-    throw new Error("payload too large");
-  }
+  if (file.size > maxBytes) throw new Error("payload too large");
   const path = `${restaurantId}/${kind}/${crypto.randomUUID()}.${extensionOf(file)}`;
   const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
     cacheControl: "31536000",
@@ -36,11 +30,27 @@ export async function uploadRestaurantImage(
   const { data, error: signError } = await supabase.storage
     .from(BUCKET)
     .createSignedUrl(path, SIGNED_TTL);
-  if (signError || !data) throw signError ?? new Error("Could not prepare the image URL");
+  if (signError || !data) throw signError ?? new Error("Could not prepare the media URL");
   return data.signedUrl;
 }
 
-/** Best-effort removal of a previously uploaded image, given its stored URL. */
+export async function uploadRestaurantImage(
+  restaurantId: string,
+  kind: Exclude<MediaKind, "menu-pdf">,
+  file: File,
+): Promise<string> {
+  return uploadRestaurantMedia(restaurantId, kind, file, 5 * 1024 * 1024);
+}
+
+/** Uploads the original PDF without rewriting its artwork. */
+export async function uploadRestaurantPdf(restaurantId: string, file: File): Promise<string> {
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    throw new Error("Please upload a PDF menu");
+  }
+  return uploadRestaurantMedia(restaurantId, "menu-pdf", file, 25 * 1024 * 1024);
+}
+
+/** Best-effort removal of a previously uploaded restaurant media URL. */
 export async function removeRestaurantImage(url: string | null | undefined): Promise<void> {
   if (!url) return;
   const marker = `/${BUCKET}/`;
