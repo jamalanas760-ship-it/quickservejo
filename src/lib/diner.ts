@@ -114,7 +114,7 @@ export async function fetchPublicOrderStatus(token: string) {
 }
 
 export async function fetchPublicOrderReceipt(token: string): Promise<PublicOrderReceipt | null> {
-  const { data, error } = await supabase.rpc("public_order_receipt", { _public_token: token });
+  const { data, error } = await (supabase as any).rpc("public_order_receipt", { _public_token: token });
   if (error) throw error;
   const row = (data as PublicOrderReceipt[] | null)?.[0];
   if (!row) return null;
