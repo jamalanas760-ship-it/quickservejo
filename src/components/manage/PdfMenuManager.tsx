@@ -23,39 +23,208 @@ type PdfDocument = { id: string; file_url: string; file_parts?: string[]; file_n
 const EMPTY: PdfMenuAnalysis = { page_count: 0, pages: [], candidates: [] };
 
 export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
-  const { data: restaurant } = useRestaurant(restaurantId); const queryClient = useQueryClient(); const runExtract = useServerFn(extractPdfProducts);
-  const inputRef = useRef<HTMLInputElement>(null); const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [documentRow, setDocumentRow] = useState<PdfDocument | null>(null); const [analysis, setAnalysis] = useState<PdfMenuAnalysis>(EMPTY); const [products, setProducts] = useState<Record<string, Product>>({}); const [drafts, setDrafts] = useState<Record<string, Draft>>({}); const [file, setFile] = useState<File | null>(null); const [fileUrl, setFileUrl] = useState<string | null>(null); const [fileParts, setFileParts] = useState<string[]>([]); const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [busy, setBusy] = useState(false); const [analyzing, setAnalyzing] = useState(false);
+  const { data: restaurant } = useRestaurant(restaurantId);
+  const queryClient = useQueryClient();
+  const runExtract = useServerFn(extractPdfProducts);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [documentRow, setDocumentRow] = useState<PdfDocument | null>(null);
+  const [analysis, setAnalysis] = useState<PdfMenuAnalysis>(EMPTY);
+  const [products, setProducts] = useState<Record<string, Product>>({});
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [file, setFile] = useState<File | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [fileParts, setFileParts] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
 
-  const existing = useQuery<PdfDocument | null>({ queryKey: ["platform", "pdf-document", restaurantId], queryFn: async () => { const { data, error } = await (supabase as any).from("menu_pdf_documents").select("id, file_url, file_parts, file_name, page_count, analysis, is_active").eq("restaurant_id", restaurantId).maybeSingle(); if (error) throw error; return data as PdfDocument | null; } });
-  useEffect(() => { if (!existing.data || documentRow || file) return; setDocumentRow(existing.data); setAnalysis(existing.data.analysis ?? EMPTY); setFileUrl(existing.data.file_url); setFileParts(existing.data.file_parts ?? []); }, [existing.data, documentRow, file]);
-  useEffect(() => { let cancelled = false; async function load() { if (!existing.data || file) return; const { data } = await (supabase as any).from("menu_pdf_item_links").select("candidate_id,label,menu_item_id").eq("document_id", existing.data.id).eq("restaurant_id", restaurantId).eq("is_active", true); const rows = (data ?? []) as Array<{ candidate_id?: string | null; label: string | null; menu_item_id: string }>; if (!rows.length) return; const { data: items } = await supabase.from("menu_items").select("id,name_en,name_ar,description_en,description_ar,price").in("id", rows.map((r) => r.menu_item_id)); const byId = new Map((items ?? []).map((item: any) => [item.id, item])); const next: Record<string, Draft> = {}; for (const row of rows) { const candidate = row.candidate_id ? (existing.data.analysis?.candidates ?? []).find((c) => c.id === row.candidate_id) : (existing.data.analysis?.candidates ?? []).find((c) => c.text === row.label); const item: any = byId.get(row.menu_item_id); if (!candidate || !item) continue; const product: Product = { candidate_id: candidate.id, name_en: item.name_en ?? "", name_ar: item.name_ar ?? "", description_en: item.description_en ?? null, description_ar: item.description_ar ?? null, price: item.price == null ? null : Number(item.price), currency: null, confidence: 1 }; next[candidate.id] = { enabled: true, productId: item.id, product }; } if (!cancelled) setDrafts(next); } void load(); return () => { cancelled = true; }; }, [existing.data, restaurantId, file]);
-  useEffect(() => { let cancelled = false; async function draw() { if (!canvasRef.current || !fileUrl || !analysis.page_count) return; try { const pdf = await openPdf(await fetchPdfBytes(fileUrl, fileParts)); if (!cancelled) await renderPdfPage(pdf, page, canvasRef.current, 1200); } catch (error) { if (!cancelled) toast.error(humanError(error)); } } void draw(); return () => { cancelled = true; }; }, [fileUrl, fileParts, page, analysis.page_count]);
+  const existing = useQuery<PdfDocument | null>({
+    queryKey: ["platform", "pdf-document", restaurantId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("menu_pdf_documents").select("id,file_url,file_parts,file_name,page_count,analysis,is_active").eq("restaurant_id", restaurantId).maybeSingle();
+      if (error) throw error;
+      return data as PdfDocument | null;
+    },
+  });
 
-  const visible = useMemo(() => { const q = search.trim().toLowerCase(); return q ? analysis.candidates.filter((c) => (products[c.id]?.name_en || products[c.id]?.name_ar || "").toLowerCase().includes(q)) : analysis.candidates; }, [analysis.candidates, products, search]);
+  useEffect(() => {
+    if (!existing.data || documentRow || file) return;
+    setDocumentRow(existing.data);
+    setAnalysis(existing.data.analysis ?? EMPTY);
+    setFileUrl(existing.data.file_url);
+    setFileParts(existing.data.file_parts ?? []);
+  }, [existing.data, documentRow, file]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLinks() {
+      if (!existing.data || file) return;
+      const { data } = await (supabase as any).from("menu_pdf_item_links").select("candidate_id,label,menu_item_id").eq("document_id", existing.data.id).eq("restaurant_id", restaurantId).eq("is_active", true);
+      const rows = (data ?? []) as Array<{ candidate_id?: string | null; label: string | null; menu_item_id: string }>;
+      if (!rows.length) return;
+      const { data: items } = await supabase.from("menu_items").select("id,name_en,name_ar,description_en,description_ar,price").in("id", rows.map((r) => r.menu_item_id));
+      const byId = new Map((items ?? []).map((item: any) => [item.id, item]));
+      const next: Record<string, Draft> = {};
+      for (const row of rows) {
+        const candidate = row.candidate_id ? (existing.data.analysis?.candidates ?? []).find((c) => c.id === row.candidate_id) : (existing.data.analysis?.candidates ?? []).find((c) => c.text === row.label);
+        const item: any = byId.get(row.menu_item_id);
+        if (!candidate || !item) continue;
+        next[candidate.id] = { enabled: true, productId: item.id, product: { candidate_id: candidate.id, name_en: item.name_en ?? "", name_ar: item.name_ar ?? "", description_en: item.description_en ?? null, description_ar: item.description_ar ?? null, price: item.price == null ? null : Number(item.price), currency: null, confidence: 1 } };
+      }
+      if (!cancelled) setDrafts(next);
+    }
+    void loadLinks();
+    return () => { cancelled = true; };
+  }, [existing.data, restaurantId, file]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function draw() {
+      if (!canvasRef.current || !fileUrl || !analysis.page_count) return;
+      try {
+        const pdf = await openPdf(await fetchPdfBytes(fileUrl, fileParts));
+        if (!cancelled) await renderPdfPage(pdf, page, canvasRef.current, 1200);
+      } catch (error) {
+        if (!cancelled) toast.error(humanError(error));
+      }
+    }
+    void draw();
+    return () => { cancelled = true; };
+  }, [fileUrl, fileParts, page, analysis.page_count]);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q ? analysis.candidates.filter((c) => (products[c.id]?.name_en || products[c.id]?.name_ar || "").toLowerCase().includes(q)) : analysis.candidates;
+  }, [analysis.candidates, products, search]);
   const pageCandidates = useMemo(() => analysis.candidates.filter((c) => c.page_number === page), [analysis.candidates, page]);
   const enabledCount = Object.values(drafts).filter((d) => d.enabled).length;
 
-  async function analyze(candidates: PdfMenuCandidate[]) { if (!candidates.length) return; setAnalyzing(true); try { const result = await runExtract({ data: { restaurantId, candidates } }); const accepted = (result.products ?? []).filter((p) => p.confidence >= 0.5 && (p.name_en.trim() || p.name_ar.trim())); const byId: Record<string, Product> = {}; for (const product of accepted) byId[product.candidate_id] = product; const ids = new Set(accepted.map((p) => p.candidate_id)); const filtered = candidates.filter((c) => ids.has(c.id)); setProducts(byId); setAnalysis((current) => ({ ...current, candidates: filtered })); setDrafts((current) => { const next: Record<string, Draft> = {}; for (const candidate of filtered) { const previous = current[candidate.id]; const draft: Draft = { enabled: previous?.enabled ?? false, product: byId[candidate.id] }; if (previous?.productId) draft.productId = previous.productId; next[candidate.id] = draft; } return next; }); toast.success(`${accepted.length} real menu items detected. Review and enable only the items you want customers to order.`); } catch (error) { toast.error(humanError(error)); } finally { setAnalyzing(false); } }
-  async function handleFile(nextFile?: File) { if (!nextFile) return; if (nextFile.type !== "application/pdf" && !nextFile.name.toLowerCase().endsWith(".pdf")) return toast.error("Please upload a PDF menu."); if (nextFile.size > MAX_PDF_BYTES) return toast.error("PDF is too large. Maximum allowed size is 100 MB."); setBusy(true); try { const { analysis: nextAnalysis } = await analyzePdfFile(nextFile); const uploaded = await uploadRestaurantPdf(restaurantId, nextFile); setFile(nextFile); setFileUrl(uploaded.url); setFileParts(uploaded.parts); setDocumentRow(null); setAnalysis(nextAnalysis); setProducts({}); setDrafts({}); setPage(1); await analyze(nextAnalysis.candidates); } catch (error) { toast.error(humanError(error)); } finally { setBusy(false); if (inputRef.current) inputRef.current.value = ""; } }
-  function toggle(candidate: PdfMenuCandidate) { setDrafts((current) => { const previous = current[candidate.id]; const product = previous?.product ?? products[candidate.id]; if (!product) return current; const nextDraft: Draft = { enabled: !(previous?.enabled ?? false), product }; if (previous?.productId) nextDraft.productId = previous.productId; return { ...current, [candidate.id]: nextDraft }; }); }
-  function edit(id: string, patch: Partial<Product>) { setDrafts((current) => { const previous = current[id]; if (!previous) return current; return { ...current, [id]: { ...previous, product: { ...previous.product, ...patch } } }; }); }
+  async function analyze(candidates: PdfMenuCandidate[]) {
+    if (!candidates.length) return;
+    setAnalyzing(true);
+    try {
+      const result = await runExtract({ data: { restaurantId, candidates } });
+      const accepted = (result.products ?? []).filter((p) => p.confidence >= 0.5 && (p.name_en.trim() || p.name_ar.trim()));
+      const byId: Record<string, Product> = {};
+      for (const product of accepted) byId[product.candidate_id] = product;
+      const ids = new Set(accepted.map((p) => p.candidate_id));
+      const filtered = candidates.filter((c) => ids.has(c.id));
+      setProducts(byId);
+      setAnalysis((current) => ({ ...current, candidates: filtered }));
+      setDrafts((current) => {
+        const next: Record<string, Draft> = {};
+        for (const candidate of filtered) {
+          const previous = current[candidate.id];
+          const draft: Draft = { enabled: previous?.enabled ?? false, product: byId[candidate.id] };
+          if (previous?.productId) draft.productId = previous.productId;
+          next[candidate.id] = draft;
+        }
+        return next;
+      });
+      toast.success(`${accepted.length} real menu items detected. Review and enable only the items you want customers to order.`);
+    } catch (error) {
+      toast.error(humanError(error));
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  async function handleFile(nextFile?: File) {
+    if (!nextFile) return;
+    if (nextFile.type !== "application/pdf" && !nextFile.name.toLowerCase().endsWith(".pdf")) { toast.error("Please upload a PDF menu."); return; }
+    if (nextFile.size > MAX_PDF_BYTES) { toast.error("PDF is too large. Maximum allowed size is 100 MB."); return; }
+    setBusy(true);
+    try {
+      const { analysis: nextAnalysis } = await analyzePdfFile(nextFile);
+      const uploaded = await uploadRestaurantPdf(restaurantId, nextFile);
+      setFile(nextFile); setFileUrl(uploaded.url); setFileParts(uploaded.parts); setDocumentRow(null); setAnalysis(nextAnalysis); setProducts({}); setDrafts({}); setPage(1);
+      await analyze(nextAnalysis.candidates);
+    } catch (error) {
+      toast.error(humanError(error));
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  function toggle(candidate: PdfMenuCandidate) {
+    setDrafts((current) => {
+      const previous = current[candidate.id];
+      const product = previous?.product ?? products[candidate.id];
+      if (!product) return current;
+      const nextDraft: Draft = { enabled: !(previous?.enabled ?? false), product };
+      if (previous?.productId) nextDraft.productId = previous.productId;
+      return { ...current, [candidate.id]: nextDraft };
+    });
+  }
+  function edit(id: string, patch: Partial<Product>) {
+    setDrafts((current) => {
+      const previous = current[id];
+      if (!previous) return current;
+      return { ...current, [id]: { ...previous, product: { ...previous.product, ...patch } } };
+    });
+  }
 
   async function save() {
-    if (!restaurant || !fileUrl || !analysis.page_count || !enabledCount) return; setBusy(true);
+    if (!restaurant || !fileUrl || !analysis.page_count || !enabledCount) return;
+    setBusy(true);
     try {
       const payload = { restaurant_id: restaurantId, file_url: fileUrl, file_parts: fileParts, file_name: file?.name ?? documentRow?.file_name ?? "menu.pdf", page_count: analysis.page_count, analysis, is_active: true };
       let documentId = documentRow?.id;
-      if (documentId) { const { error } = await (supabase as any).from("menu_pdf_documents").update(payload).eq("id", documentId).eq("restaurant_id", restaurantId); if (error) throw error; } else { const { data, error } = await (supabase as any).from("menu_pdf_documents").upsert(payload, { onConflict: "restaurant_id" }).select("id").single(); if (error) throw error; documentId = data.id; }
+      if (documentId) {
+        const { error } = await (supabase as any).from("menu_pdf_documents").update(payload).eq("id", documentId).eq("restaurant_id", restaurantId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await (supabase as any).from("menu_pdf_documents").upsert(payload, { onConflict: "restaurant_id" }).select("id").single();
+        if (error) throw error;
+        documentId = data.id;
+      }
       await (supabase as any).from("menu_pdf_item_links").update({ is_active: false }).eq("document_id", documentId).eq("restaurant_id", restaurantId).eq("is_active", true);
       const rows: any[] = [];
-      for (const candidate of analysis.candidates) { const draft = drafts[candidate.id]; if (!draft?.enabled) continue; const p = draft.product; const nameEn = p.name_en.trim() || p.name_ar.trim(); const nameAr = p.name_ar.trim() || p.name_en.trim(); if (!nameEn) continue; const productPayload = { restaurant_id: restaurantId, name_en: nameEn, name_ar: nameAr, description_en: p.description_en?.trim() || null, description_ar: p.description_ar?.trim() || null, price: p.price == null || !Number.isFinite(p.price) ? 0 : p.price, is_available: true }; let productId = draft.productId; if (productId) { const { error } = await supabase.from("menu_items").update(productPayload).eq("id", productId).eq("restaurant_id", restaurantId); if (error) throw error; } else { const { data, error } = await supabase.from("menu_items").insert(productPayload).select("id").single(); if (error) throw error; productId = data.id; } rows.push({ document_id: documentId, restaurant_id: restaurantId, menu_item_id: productId, candidate_id: candidate.id, page_number: candidate.page_number, x: candidate.x, y: candidate.y, width: candidate.width, height: candidate.height, label: candidate.text, source: "pdf-extraction", is_active: true }); }
+      for (const candidate of analysis.candidates) {
+        const draft = drafts[candidate.id];
+        if (!draft?.enabled) continue;
+        const p = draft.product;
+        const nameEn = p.name_en.trim() || p.name_ar.trim();
+        const nameAr = p.name_ar.trim() || p.name_en.trim();
+        if (!nameEn) continue;
+        const productPayload = { restaurant_id: restaurantId, name_en: nameEn, name_ar: nameAr, description_en: p.description_en?.trim() || null, description_ar: p.description_ar?.trim() || null, price: p.price == null || !Number.isFinite(p.price) ? 0 : p.price, is_available: true };
+        let productId = draft.productId;
+        if (productId) {
+          const { error } = await supabase.from("menu_items").update(productPayload).eq("id", productId).eq("restaurant_id", restaurantId);
+          if (error) throw error;
+        } else {
+          const { data, error } = await supabase.from("menu_items").insert(productPayload).select("id").single();
+          if (error) throw error;
+          productId = data.id;
+        }
+        rows.push({ document_id: documentId, restaurant_id: restaurantId, menu_item_id: productId, candidate_id: candidate.id, page_number: candidate.page_number, x: candidate.x, y: candidate.y, width: candidate.width, height: candidate.height, label: candidate.text, source: "pdf-extraction", is_active: true });
+      }
       if (rows.length) { const { error } = await (supabase as any).from("menu_pdf_item_links").insert(rows); if (error) throw error; }
       await logAudit("menu.pdf_published", { restaurantId, entity: "menu_pdf_documents", entityId: documentId, metadata: { links: rows.length, pages: analysis.page_count, extracted: true } });
-      setDocumentRow({ id: documentId, ...payload } as PdfDocument); await queryClient.invalidateQueries({ queryKey: ["platform", "pdf-document", restaurantId] }); toast.success(`${rows.length} clickable products saved. Items left OFF were ignored.`);
-    } catch (error) { toast.error(humanError(error)); } finally { setBusy(false); }
+      setDocumentRow({ id: documentId, ...payload } as PdfDocument);
+      await queryClient.invalidateQueries({ queryKey: ["platform", "pdf-document", restaurantId] });
+      toast.success(`${rows.length} clickable products saved. Items left OFF were ignored.`);
+    } catch (error) {
+      toast.error(humanError(error));
+    } finally {
+      setBusy(false);
+    }
   }
-  async function disablePdf() { if (!documentRow) return; setBusy(true); try { const { error } = await (supabase as any).from("menu_pdf_documents").update({ is_active: false }).eq("id", documentRow.id).eq("restaurant_id", restaurantId); if (error) throw error; setDocumentRow({ ...documentRow, is_active: false }); toast.success("PDF ordering disabled."); } catch (error) { toast.error(humanError(error)); } finally { setBusy(false); } }
+
+  async function disablePdf() {
+    if (!documentRow) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).from("menu_pdf_documents").update({ is_active: false }).eq("id", documentRow.id).eq("restaurant_id", restaurantId);
+      if (error) throw error;
+      setDocumentRow({ ...documentRow, is_active: false });
+      toast.success("PDF ordering disabled.");
+    } catch (error) { toast.error(humanError(error)); }
+    finally { setBusy(false); }
+  }
 
   if (existing.isPending && !documentRow) return <div className="space-y-4"><Skeleton className="h-40 rounded-3xl"/><Skeleton className="h-96 rounded-3xl"/></div>;
   return <div className="space-y-5">
