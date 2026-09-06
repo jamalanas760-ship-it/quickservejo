@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode, RefObject } from "react";
+import type { PointerEvent, ReactNode, RefObject } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { FileCheck2, FileText, Link2, Loader2, MousePointer2, Save, Sparkles, Upload, X } from "lucide-react";
+import { FileCheck2, FileText, Link2, MousePointer2, Save, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,9 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { humanError } from "@/lib/errors";
 import { logAudit } from "@/lib/audit";
-import { extractPdfProducts } from "@/lib/pdf-menu.functions";
-import { extractPdfVisualProducts } from "@/lib/pdf-menu-vision.server";
-import { analyzePdfFile, fetchPdfBytes, openPdf, renderPdfPage, type PdfMenuAnalysis, type PdfMenuCandidate } from "@/lib/pdf-menu";
+import { fetchPdfBytes, openPdf, renderPdfPage, type PdfMenuAnalysis, type PdfMenuCandidate } from "@/lib/pdf-menu";
 import { MAX_PDF_BYTES, uploadRestaurantPdf } from "@/lib/storage";
 
 type Product = {
@@ -27,9 +24,6 @@ type Product = {
   price: number | null;
   currency: string | null;
   confidence: number;
-  category?: string | null;
-  variants?: Array<{ name: string; values: string[] }>;
-  options?: Array<{ name: string; price: number | null }>;
 };
 type Draft = { enabled: boolean; productId?: string; product: Product };
 type PdfDocument = {
@@ -44,11 +38,13 @@ type PdfDocument = {
 type SelectionRect = { x: number; y: number; width: number; height: number };
 const EMPTY: PdfMenuAnalysis = { page_count: 0, pages: [], candidates: [] };
 
+function manualCandidates(analysis: PdfMenuAnalysis | null | undefined): PdfMenuCandidate[] {
+  return (analysis?.candidates ?? []).filter((candidate) => candidate.id.startsWith("manual-"));
+}
+
 export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
   const { data: restaurant } = useRestaurant(restaurantId);
   const queryClient = useQueryClient();
-  const runExtract = useServerFn(extractPdfProducts);
-  const runVision = useServerFn(extractPdfVisualProducts);
   const inputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [documentRow, setDocumentRow] = useState<PdfDocument | null>(null);
@@ -61,7 +57,6 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
   const [manualMode, setManualMode] = useState(false);
 
   const existing = useQuery<PdfDocument | null>({
@@ -79,8 +74,13 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
 
   useEffect(() => {
     if (!existing.data || documentRow || file) return;
+    const storedAnalysis = existing.data.analysis ?? EMPTY;
+    const manualOnly: PdfMenuAnalysis = {
+      ...storedAnalysis,
+      candidates: manualCandidates(storedAnalysis),
+    };
     setDocumentRow(existing.data);
-    setAnalysis(existing.data.analysis ?? EMPTY);
+    setAnalysis(manualOnly);
     setFileUrl(existing.data.file_url);
     setFileParts(existing.data.file_parts ?? []);
   }, [existing.data, documentRow, file]);
@@ -89,24 +89,49 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
     let cancelled = false;
     async function loadLinks() {
       if (!existing.data || file) return;
-      const { data } = await (supabase as any)
+
+      // Keep the old catalog records, but immediately remove every automatic PDF hotspot.
+      await (supabase as any)
+        .from("menu_pdf_item_links")
+        .update({ is_active: false })
+        .eq("document_id", existing.data.id)
+        .eq("restaurant_id", restaurantId)
+        .eq("is_active", true)
+        .not("candidate_id", "like", "manual-%");
+
+      const { data, error } = await (supabase as any)
         .from("menu_pdf_item_links")
         .select("candidate_id,label,menu_item_id")
         .eq("document_id", existing.data.id)
         .eq("restaurant_id", restaurantId)
         .eq("is_active", true);
+      if (error) {
+        if (!cancelled) toast.error(humanError(error));
+        return;
+      }
+
       const rows = (data ?? []) as Array<{ candidate_id?: string | null; label: string | null; menu_item_id: string }>;
-      if (!rows.length) return;
-      const { data: items } = await supabase
+      const manualRows = rows.filter((row) => row.candidate_id?.startsWith("manual-"));
+      if (!manualRows.length) {
+        if (!cancelled) setDrafts({});
+        return;
+      }
+
+      const { data: items, error: itemsError } = await supabase
         .from("menu_items")
         .select("id,name_en,name_ar,description_en,description_ar,price")
-        .in("id", rows.map((r) => r.menu_item_id));
+        .in("id", manualRows.map((row) => row.menu_item_id));
+      if (itemsError) {
+        if (!cancelled) toast.error(humanError(itemsError));
+        return;
+      }
+
       const byId = new Map((items ?? []).map((item: any) => [item.id, item]));
       const next: Record<string, Draft> = {};
-      for (const row of rows) {
+      for (const row of manualRows) {
         const candidate = row.candidate_id
-          ? (existing.data.analysis?.candidates ?? []).find((c) => c.id === row.candidate_id)
-          : (existing.data.analysis?.candidates ?? []).find((c) => c.text === row.label);
+          ? manualCandidates(existing.data.analysis).find((candidate) => candidate.id === row.candidate_id)
+          : null;
         const item: any = byId.get(row.menu_item_id);
         if (!candidate || !item) continue;
         next[candidate.id] = {
@@ -152,115 +177,16 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return q
-      ? analysis.candidates.filter((c) =>
-          (products[c.id]?.name_en || products[c.id]?.name_ar || "").toLowerCase().includes(q),
+      ? analysis.candidates.filter((candidate) =>
+          (products[candidate.id]?.name_en || products[candidate.id]?.name_ar || "").toLowerCase().includes(q),
         )
       : analysis.candidates;
   }, [analysis.candidates, products, search]);
   const pageCandidates = useMemo(
-    () => analysis.candidates.filter((c) => c.page_number === page),
+    () => analysis.candidates.filter((candidate) => candidate.page_number === page),
     [analysis.candidates, page],
   );
-  const enabledCount = Object.values(drafts).filter((d) => d.enabled).length;
-  const reviewCount = Object.values(products).filter((p) => p.confidence < 0.9).length;
-
-  async function analyze(candidates: PdfMenuCandidate[]) {
-    if (!candidates.length) return;
-    setAnalyzing(true);
-    try {
-      const result = await runExtract({ data: { restaurantId, candidates } });
-      const accepted = ((result.products ?? []) as Product[]).filter(
-        (p: Product) => p.confidence >= 0.7 && (p.name_en.trim() || p.name_ar.trim()),
-      );
-      const byId: Record<string, Product> = {};
-      for (const product of accepted) byId[product.candidate_id] = product;
-      const ids = new Set(accepted.map((p: Product) => p.candidate_id));
-      const filtered = candidates.filter((c) => ids.has(c.id));
-      setProducts((current) => ({ ...current, ...byId }));
-      setAnalysis((current) => ({
-        ...current,
-        candidates: [...current.candidates.filter((c) => !ids.has(c.id)), ...filtered].sort(
-          (a, b) => a.page_number - b.page_number || a.y - b.y || a.x - b.x,
-        ),
-      }));
-      setDrafts((current) => {
-        const next = { ...current };
-        for (const candidate of filtered) {
-          const previous = current[candidate.id];
-          next[candidate.id] = {
-            enabled: previous?.enabled ?? false,
-            product: byId[candidate.id],
-            ...(previous?.productId ? { productId: previous.productId } : {}),
-          };
-        }
-        return next;
-      });
-      toast.success(
-        `${accepted.length} verified text products detected${result.verified ? " with a second AI verification pass" : ""}.`,
-      );
-    } catch (error) {
-      toast.error(humanError(error));
-    } finally {
-      setAnalyzing(false);
-    }
-  }
-
-  async function analyzeScannedPages(buffer: ArrayBuffer, baseAnalysis: PdfMenuAnalysis) {
-    const pdf = await openPdf(buffer);
-    const pagesWithText = new Set(baseAnalysis.candidates.map((candidate) => candidate.page_number));
-    const visualCandidates: PdfMenuCandidate[] = [];
-    const visualProducts: Record<string, Product> = {};
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-      if (pagesWithText.has(pageNumber)) continue;
-      const pdfPage = await pdf.getPage(pageNumber);
-      const viewport = pdfPage.getViewport({ scale: 1 });
-      const canvas = document.createElement("canvas");
-      const scale = Math.min(1.7, Math.max(1, 1500 / viewport.width));
-      const rendered = pdfPage.getViewport({ scale });
-      canvas.width = Math.ceil(rendered.width);
-      canvas.height = Math.ceil(rendered.height);
-      const context = canvas.getContext("2d");
-      if (!context) continue;
-      await pdfPage.render({ canvasContext: context, viewport: rendered }).promise;
-      const imageDataUrl = canvas.toDataURL("image/jpeg", 0.82);
-      canvas.width = 1;
-      canvas.height = 1;
-      const result = await runVision({
-        data: { restaurantId, pageNumber, pageWidth: viewport.width, pageHeight: viewport.height, imageDataUrl },
-      });
-      for (const row of result.products ?? []) {
-        const candidate = {
-          id: row.candidate_id,
-          page_number: row.page_number,
-          text: row.text,
-          x: row.x,
-          y: row.y,
-          width: row.width,
-          height: row.height,
-          confidence: row.confidence,
-        } satisfies PdfMenuCandidate;
-        visualCandidates.push(candidate);
-        visualProducts[candidate.id] = { ...row.product, candidate_id: row.candidate_id } as Product;
-      }
-    }
-    if (visualCandidates.length) {
-      setProducts((current) => ({ ...current, ...visualProducts }));
-      setAnalysis((current) => ({
-        ...current,
-        candidates: [...current.candidates, ...visualCandidates].sort(
-          (a, b) => a.page_number - b.page_number || a.y - b.y || a.x - b.x,
-        ),
-      }));
-      setDrafts((current) => {
-        const next = { ...current };
-        for (const candidate of visualCandidates) {
-          next[candidate.id] = { enabled: false, product: visualProducts[candidate.id] };
-        }
-        return next;
-      });
-    }
-    return visualCandidates.length;
-  }
+  const enabledCount = Object.values(drafts).filter((draft) => draft.enabled).length;
 
   async function handleFile(nextFile?: File) {
     if (!nextFile) return;
@@ -272,11 +198,18 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
       toast.error("PDF is too large. Maximum allowed size is 100 MB.");
       return;
     }
+
     setBusy(true);
-    setAnalyzing(true);
     try {
-      const { buffer, analysis: nextAnalysis } = await analyzePdfFile(nextFile);
+      const buffer = await nextFile.arrayBuffer();
+      const pdf = await openPdf(buffer);
       const uploaded = await uploadRestaurantPdf(restaurantId, nextFile);
+      const nextAnalysis: PdfMenuAnalysis = {
+        page_count: pdf.numPages,
+        pages: [],
+        candidates: [],
+      };
+
       setFile(nextFile);
       setFileUrl(uploaded.url);
       setFileParts(uploaded.parts);
@@ -285,39 +218,16 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
       setProducts({});
       setDrafts({});
       setPage(1);
-      setManualMode(false);
-      if (nextAnalysis.candidates.length) await analyze(nextAnalysis.candidates);
-      const scannedCount = await analyzeScannedPages(buffer, nextAnalysis);
-      if (!nextAnalysis.candidates.length && !scannedCount) {
-        toast.warning("No confident products were detected. The PDF is preserved; you can select items manually.");
-      } else {
-        toast.success(
-          `${nextAnalysis.page_count} PDF page${nextAnalysis.page_count === 1 ? "" : "s"} processed. You can now choose detected products or select any area manually.`,
-        );
-      }
+      setManualMode(true);
+      toast.success(
+        `${pdf.numPages} PDF page${pdf.numPages === 1 ? "" : "s"} ready. Select each item area manually to make it clickable.`,
+      );
     } catch (error) {
       toast.error(humanError(error));
     } finally {
-      setAnalyzing(false);
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
     }
-  }
-
-  function toggle(candidate: PdfMenuCandidate) {
-    setDrafts((current) => {
-      const previous = current[candidate.id];
-      const product = previous?.product ?? products[candidate.id];
-      if (!product) return current;
-      return {
-        ...current,
-        [candidate.id]: {
-          enabled: !(previous?.enabled ?? false),
-          product,
-          ...(previous?.productId ? { productId: previous.productId } : {}),
-        },
-      };
-    });
   }
 
   function edit(id: string, patch: Partial<Product>) {
@@ -327,6 +237,21 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
       return { ...current, [id]: { ...previous, product: { ...previous.product, ...patch } } };
     });
     setProducts((current) => (current[id] ? { ...current, [id]: { ...current[id], ...patch } } : current));
+  }
+
+  function removeManualSelection(id: string) {
+    setAnalysis((current) => ({ ...current, candidates: current.candidates.filter((candidate) => candidate.id !== id) }));
+    setProducts((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+    setDrafts((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+    toast.success("Clickable area removed. Publish to apply the change.");
   }
 
   function addManualSelection(rect: SelectionRect) {
@@ -360,7 +285,7 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
     setProducts((current) => ({ ...current, [id]: product }));
     setDrafts((current) => ({ ...current, [id]: { enabled: true, product } }));
     setManualMode(false);
-    toast.success("Area selected. Enter the item name and price on the right.");
+    toast.success("Area selected. Enter the item name and price.");
   }
 
   async function save() {
@@ -373,7 +298,7 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
         file_parts: fileParts,
         file_name: file?.name ?? documentRow?.file_name ?? "menu.pdf",
         page_count: analysis.page_count,
-        analysis,
+        analysis: { ...analysis, candidates: manualCandidates(analysis) },
         is_active: true,
       };
       let documentId = documentRow?.id;
@@ -393,21 +318,24 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
         if (error) throw error;
         documentId = data.id;
       }
-      await (supabase as any)
+
+      const { error: deactivateError } = await (supabase as any)
         .from("menu_pdf_item_links")
         .update({ is_active: false })
         .eq("document_id", documentId)
         .eq("restaurant_id", restaurantId)
         .eq("is_active", true);
+      if (deactivateError) throw deactivateError;
 
       const rows: any[] = [];
-      for (const candidate of analysis.candidates) {
+      for (const candidate of manualCandidates(analysis)) {
         const draft = drafts[candidate.id];
         if (!draft?.enabled) continue;
         const p = draft.product;
         const nameEn = p.name_en.trim() || p.name_ar.trim();
         const nameAr = p.name_ar.trim() || p.name_en.trim();
         if (!nameEn) continue;
+
         const productPayload = {
           restaurant_id: restaurantId,
           name_en: nameEn,
@@ -417,6 +345,7 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
           price: p.price == null || !Number.isFinite(p.price) ? 0 : p.price,
           is_available: true,
         };
+
         let productId = draft.productId;
         if (productId) {
           const { error } = await supabase
@@ -430,6 +359,7 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
           if (error) throw error;
           productId = data.id;
         }
+
         rows.push({
           document_id: documentId,
           restaurant_id: restaurantId,
@@ -441,23 +371,27 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
           width: candidate.width,
           height: candidate.height,
           label: candidate.text,
-          source: candidate.id.startsWith("manual-") ? "manual-selection" : "pdf-extraction",
+          source: "manual-selection",
           is_active: true,
         });
       }
+
       if (rows.length) {
         const { error } = await (supabase as any).from("menu_pdf_item_links").insert(rows);
         if (error) throw error;
       }
+
       await logAudit("menu.pdf_published", {
         restaurantId,
         entity: "menu_pdf_documents",
         entityId: documentId,
-        metadata: { links: rows.length, pages: analysis.page_count, extracted: true, verified: true },
+        metadata: { links: rows.length, pages: analysis.page_count, extracted: false, verified: false, source: "manual-selection" },
       });
+
       setDocumentRow({ id: documentId, ...payload } as PdfDocument);
+      setAnalysis(payload.analysis);
       await queryClient.invalidateQueries({ queryKey: ["platform", "pdf-document", restaurantId] });
-      toast.success(`${rows.length} clickable products saved. Items left OFF were ignored.`);
+      toast.success(`${rows.length} manual clickable product${rows.length === 1 ? "" : "s"} saved.`);
     } catch (error) {
       toast.error(humanError(error));
     } finally {
@@ -499,21 +433,21 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
         <div>
           <h1 className="text-[28px] font-bold tracking-[-0.04em]">{restaurant?.name ?? "Restaurant"} — PDF Menu</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            AI detects product blocks when it can. If detection misses anything, select the exact area on the original PDF and make it clickable yourself.
+            Manual selection only. The original PDF stays unchanged. Drag over each product area, enter its details, then publish.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" disabled={busy || analyzing} onClick={() => inputRef.current?.click()}>
+          <Button variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}>
             <Upload className="size-4" />
             {documentRow ? "Replace PDF" : "Upload PDF"}
           </Button>
           {documentRow?.is_active ? (
-            <Button variant="outline" disabled={busy || analyzing} onClick={() => void disablePdf()}>
+            <Button variant="outline" disabled={busy} onClick={() => void disablePdf()}>
               <X className="size-4" />
               Disable
             </Button>
           ) : null}
-          <Button disabled={busy || analyzing || !fileUrl || !enabledCount} onClick={() => void save()}>
+          <Button disabled={busy || !fileUrl || !enabledCount} onClick={() => void save()}>
             <Save className="size-4" />
             {busy ? "Saving…" : "Publish clickable menu"}
           </Button>
@@ -534,33 +468,31 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
               <FileText className="size-5 text-primary" />
               <div>
                 <p className="font-semibold">Original PDF preview</p>
-                <p className="text-xs text-muted-foreground">
-                  Artwork stays exactly as uploaded. Use manual selection when AI misses an item.
-                </p>
+                <p className="text-xs text-muted-foreground">No automatic product detection or hotspots.</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 size="sm"
                 variant={manualMode ? "default" : "outline"}
-                disabled={!fileUrl || busy || analyzing}
+                disabled={!fileUrl || busy}
                 onClick={() => setManualMode((value) => !value)}
               >
                 <MousePointer2 className="size-4" />
                 {manualMode ? "Cancel selection" : "Select area"}
               </Button>
-              <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((v) => v - 1)}>
+              <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>
                 Previous
               </Button>
               <span className="text-xs font-semibold">Page {page} / {analysis.page_count || 0}</span>
-              <Button size="sm" variant="outline" disabled={page >= analysis.page_count} onClick={() => setPage((v) => v + 1)}>
+              <Button size="sm" variant="outline" disabled={page >= analysis.page_count} onClick={() => setPage((value) => value + 1)}>
                 Next
               </Button>
             </div>
           </div>
           {manualMode ? (
             <div className="border-b bg-primary/5 px-4 py-2 text-xs font-medium text-primary">
-              Drag a rectangle around any menu item on the PDF. Release to create a clickable product area.
+              Drag a rectangle around the full menu item. Release to create its clickable area.
             </div>
           ) : null}
           <div className="bg-slate-100 p-3 sm:p-6">
@@ -594,119 +526,71 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
             <div>
               <div className="flex items-center gap-2">
                 <MousePointer2 className="size-4 text-primary" />
-                <h2 className="font-bold">Detected menu items</h2>
+                <h2 className="font-bold">Manual clickable items</h2>
               </div>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                AI detections are optional. You can manually select any missed item directly on the PDF.
+                Select exactly the areas you want customers to tap. Nothing is auto-selected.
               </p>
             </div>
             <Badge variant="secondary">{enabledCount} clickable</Badge>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-xl border p-2.5">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Detected</p>
-              <p className="mt-1 font-bold">{analysis.candidates.length}</p>
-            </div>
-            <div className="rounded-xl border p-2.5">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Needs review</p>
-              <p className="mt-1 font-bold">{reviewCount}</p>
-            </div>
-          </div>
+
           <div className="mt-4 flex gap-2">
-            <Input placeholder="Search detected items…" value={search} onChange={(e) => setSearch(e.target.value)} />
-            <Button
-              size="icon"
-              variant="outline"
-              disabled={analyzing || !analysis.candidates.length}
-              title="Run smart detection"
-              onClick={() => void analyze(analysis.candidates)}
-            >
-              {analyzing ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-            </Button>
+            <Input placeholder="Search selected items…" value={search} onChange={(event) => setSearch(event.target.value)} />
           </div>
+
           <div className="mt-4 max-h-[650px] space-y-3 overflow-y-auto pr-1">
-            {analyzing ? (
-              <div className="rounded-2xl border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
-                Analyzing all pages, grouping product blocks and verifying prices…
-              </div>
-            ) : visible.length === 0 ? (
+            {visible.length === 0 ? (
               <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-                No real menu products detected yet. Use Select area to add one manually.
+                No clickable items yet. Use Select area on the PDF.
               </div>
             ) : (
               visible.map((candidate) => {
                 const draft = drafts[candidate.id];
                 const product = draft?.product ?? products[candidate.id];
-                const enabled = Boolean(draft?.enabled);
                 return (
-                  <div
-                    key={candidate.id}
-                    className={`rounded-2xl border p-3 transition ${enabled ? "border-primary bg-primary/5" : "bg-card"}`}
-                  >
+                  <div key={candidate.id} className="rounded-2xl border border-primary bg-primary/5 p-3">
                     <div className="flex items-start gap-3">
                       <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setPage(candidate.page_number)}>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">P{candidate.page_number}</span>
-                          {candidate.id.startsWith("manual-") ? <Badge variant="outline">Manual</Badge> : null}
-                          {enabled ? (
-                            <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Clickable</Badge>
-                          ) : (
-                            <Badge variant="outline">Not clickable</Badge>
-                          )}
-                          {product && product.confidence < 0.9 ? (
-                            <Badge variant="outline">Review {Math.round(product.confidence * 100)}%</Badge>
-                          ) : null}
+                          <Badge variant="outline">Manual</Badge>
+                          <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Clickable</Badge>
                         </div>
                         <p className="mt-1 text-sm font-bold leading-5">
-                          {product?.name_en || product?.name_ar || "Manual selection — enter product name"}
+                          {product?.name_en || product?.name_ar || "Enter product name"}
                         </p>
-                        {product?.description_en || product?.description_ar ? (
-                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                            {product.description_en || product.description_ar}
-                          </p>
-                        ) : null}
                         {product?.price != null ? (
-                          <p className="mt-2 text-sm font-semibold">
-                            {product.price} {product.currency ?? ""}
-                          </p>
+                          <p className="mt-2 text-sm font-semibold">{product.price} {product.currency ?? ""}</p>
                         ) : (
-                          <p className="mt-2 text-xs text-muted-foreground">Price not detected</p>
+                          <p className="mt-2 text-xs text-muted-foreground">Price not set</p>
                         )}
                       </button>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={enabled}
-                        onClick={() => toggle(candidate)}
-                        className={`relative mt-1 h-6 w-11 shrink-0 rounded-full transition ${enabled ? "bg-primary" : "bg-muted"}`}
-                      >
-                        <span className={`absolute top-1 size-4 rounded-full bg-white shadow transition ${enabled ? "left-6" : "left-1"}`} />
-                      </button>
+                      <Button size="icon" variant="ghost" onClick={() => removeManualSelection(candidate.id)} aria-label="Remove clickable area">
+                        <X className="size-4" />
+                      </Button>
                     </div>
-                    {enabled && product ? (
+
+                    {product ? (
                       <div className="mt-3 space-y-3 rounded-2xl bg-background p-3 ring-1 ring-border">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                          <Sparkles className="size-3.5" />
-                          {candidate.id.startsWith("manual-") ? "Set product details" : "Review extracted product"}
-                        </div>
-                        <Field label="Name (English)" value={product.name_en} onChange={(v) => edit(candidate.id, { name_en: v })} />
-                        <Field label="Name (Arabic)" value={product.name_ar} onChange={(v) => edit(candidate.id, { name_ar: v })} />
+                        <Field label="Name (English)" value={product.name_en} onChange={(value) => edit(candidate.id, { name_en: value })} />
+                        <Field label="Name (Arabic)" value={product.name_ar} onChange={(value) => edit(candidate.id, { name_ar: value })} />
                         <div className="grid grid-cols-[1fr_100px] gap-2">
                           <Field
                             label="Price"
                             value={product.price == null ? "" : String(product.price)}
                             type="number"
-                            onChange={(v) => edit(candidate.id, { price: v.trim() === "" ? null : Number(v) })}
+                            onChange={(value) => edit(candidate.id, { price: value.trim() === "" ? null : Number(value) })}
                           />
-                          <Field label="Currency" value={product.currency ?? ""} onChange={(v) => edit(candidate.id, { currency: v })} />
+                          <Field label="Currency" value={product.currency ?? ""} onChange={(value) => edit(candidate.id, { currency: value })} />
                         </div>
                         <div>
                           <label className="text-xs font-medium text-muted-foreground">Description (English)</label>
                           <Textarea
                             className="mt-1.5 min-h-16"
                             value={product.description_en ?? ""}
-                            onChange={(e) => edit(candidate.id, { description_en: e.target.value || null })}
-                            placeholder="Not detected"
+                            onChange={(event) => edit(candidate.id, { description_en: event.target.value || null })}
+                            placeholder="Optional"
                           />
                         </div>
                         <div>
@@ -715,8 +599,8 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
                             dir="rtl"
                             className="mt-1.5 min-h-16"
                             value={product.description_ar ?? ""}
-                            onChange={(e) => edit(candidate.id, { description_ar: e.target.value || null })}
-                            placeholder="لم يتم اكتشاف وصف"
+                            onChange={(event) => edit(candidate.id, { description_ar: event.target.value || null })}
+                            placeholder="اختياري"
                           />
                         </div>
                       </div>
@@ -732,7 +616,7 @@ export function PdfMenuManager({ restaurantId }: { restaurantId: string }) {
       <div className="grid gap-3 sm:grid-cols-3">
         <StatusCard icon={<FileCheck2 className="size-4" />} label="PDF" value={file?.name ?? documentRow?.file_name ?? "Not uploaded"} />
         <StatusCard icon={<Link2 className="size-4" />} label="Clickable products" value={`${enabledCount} / ${analysis.candidates.length || 0}`} />
-        <StatusCard icon={<Sparkles className="size-4" />} label="Detection" value={analyzing ? "Analyzing…" : analysis.candidates.length ? "AI + manual selection" : "Waiting for PDF"} />
+        <StatusCard icon={<MousePointer2 className="size-4" />} label="Selection" value={analysis.candidates.length ? "Manual only" : "Select areas on PDF"} />
       </div>
     </div>
   );
@@ -742,7 +626,7 @@ function Field({ label, value, onChange, type = "text" }: { label: string; value
   return (
     <div>
       <label className="text-xs font-medium text-muted-foreground">{label}</label>
-      <Input type={type} className="mt-1.5" value={value} onChange={(e) => onChange(e.target.value)} />
+      <Input type={type} className="mt-1.5" value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }
@@ -774,7 +658,7 @@ function PdfOverlayPreview({
   const [selection, setSelection] = useState<SelectionRect | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; pointerId: number } | null>(null);
 
-  function getPoint(event: React.PointerEvent<HTMLDivElement>) {
+  function getPoint(event: PointerEvent<HTMLDivElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
     return {
       x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
@@ -782,7 +666,7 @@ function PdfOverlayPreview({
     };
   }
 
-  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
     if (!manualMode || event.button !== 0) return;
     const point = getPoint(event);
     dragRef.current = { startX: point.x, startY: point.y, pointerId: event.pointerId };
@@ -790,7 +674,7 @@ function PdfOverlayPreview({
     setSelection({ x: point.x, y: point.y, width: 0, height: 0 });
   }
 
-  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
     if (!manualMode || !drag || drag.pointerId !== event.pointerId) return;
     const point = getPoint(event);
@@ -799,7 +683,7 @@ function PdfOverlayPreview({
     setSelection({ x, y, width: Math.abs(point.x - drag.startX), height: Math.abs(point.y - drag.startY) });
   }
 
-  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+  function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
     if (!manualMode || !drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
@@ -830,18 +714,18 @@ function PdfOverlayPreview({
       onPointerCancel={handlePointerCancel}
     >
       <canvas ref={canvasRef} className="block h-auto w-full" />
-      <div className={`absolute inset-0 ${manualMode ? "pointer-events-none" : ""}`}>
+      <div className="absolute inset-0 pointer-events-none">
         {candidates.map((candidate) => {
           const enabled = drafts[candidate.id]?.enabled;
           return (
             <button
               key={candidate.id}
               type="button"
-              aria-label={`${enabled ? "Clickable" : "Not clickable"} ${candidate.id}`}
+              aria-label={`Clickable manual area ${candidate.id}`}
               onClick={() => onSelect(candidate)}
               disabled={manualMode}
-              className={`absolute rounded-md border-2 transition ${
-                enabled ? "border-emerald-500 bg-emerald-500/10" : "border-transparent bg-transparent hover:border-primary/50 hover:bg-primary/5"
+              className={`pointer-events-auto absolute rounded-md border-2 transition ${
+                enabled ? "border-emerald-500 bg-emerald-500/10" : "border-primary/50 bg-primary/5"
               } ${manualMode ? "pointer-events-none" : ""}`}
               style={{
                 left: `${candidate.x * 100}%`,
@@ -850,7 +734,7 @@ function PdfOverlayPreview({
                 height: `${candidate.height * 100}%`,
               }}
             >
-              <span className="sr-only">{candidate.id}</span>
+              <span className="sr-only">Manual clickable area</span>
             </button>
           );
         })}
