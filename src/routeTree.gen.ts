@@ -28,6 +28,7 @@ import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_auth
 import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
 import { Route as MSlugRouteImport } from './routes/m/$slug'
 import { Route as OTokenRouteImport } from './routes/o/$token'
+import { Route as PreviewSlugRouteImport } from './routes/preview/$slug'
 import { Route as RSlugRouteImport } from './routes/r/$slug'
 import { Route as StaffIndexRouteImport } from './routes/staff/index'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
@@ -44,7 +45,7 @@ import { Route as AuthenticatedSuperAdminSubscriptionsRouteImport } from './rout
 import { Route as StaffBadgeCodeRouteImport } from './routes/staff/badge.$code'
 import { Route as AuthenticatedManageRestaurantIdIndexRouteImport } from './routes/_authenticated/manage/$restaurantId/index'
 import { Route as AuthenticatedManageRestaurantIdAnalyticsRouteImport } from './routes/_authenticated/manage/$restaurantId/analytics'
-import { Route as AuthenticatedManageRestaurantIdDesignRouteImport } from './routes/_authenticated/manage/$restaurantId/design'
+import { Route as AuthenticatedManageRestaurantIdKitchenRouteImport } from './routes/_authenticated/manage/$restaurantId/kitchen'
 import { Route as AuthenticatedManageRestaurantIdOrdersRouteImport } from './routes/_authenticated/manage/$restaurantId/orders'
 import { Route as AuthenticatedManageRestaurantIdStaffRouteImport } from './routes/_authenticated/manage/$restaurantId/staff'
 import { Route as AuthenticatedManageRestaurantIdTablesRouteImport } from './routes/_authenticated/manage/$restaurantId/tables'
@@ -159,6 +160,11 @@ const OTokenRoute = OTokenRouteImport.update({
   path: '/o/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PreviewSlugRoute = PreviewSlugRouteImport.update({
+  id: '/preview/$slug',
+  path: '/preview/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RSlugRoute = RSlugRouteImport.update({
   id: '/r/$slug',
   path: '/r/$slug',
@@ -251,10 +257,10 @@ const AuthenticatedManageRestaurantIdAnalyticsRoute =
     path: '/analytics',
     getParentRoute: () => AuthenticatedManageRestaurantIdRouteRoute,
   } as any)
-const AuthenticatedManageRestaurantIdDesignRoute =
-  AuthenticatedManageRestaurantIdDesignRouteImport.update({
-    id: '/design',
-    path: '/design',
+const AuthenticatedManageRestaurantIdKitchenRoute =
+  AuthenticatedManageRestaurantIdKitchenRouteImport.update({
+    id: '/kitchen',
+    path: '/kitchen',
     getParentRoute: () => AuthenticatedManageRestaurantIdRouteRoute,
   } as any)
 const AuthenticatedManageRestaurantIdOrdersRoute =
@@ -369,6 +375,7 @@ export interface FileRoutesByFullPath {
   '/waiter': typeof AuthenticatedWaiterRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
+  '/preview/$slug': typeof PreviewSlugRoute
   '/r/$slug': typeof RSlugRoute
   '/staff/': typeof StaffIndexRoute
   '/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
@@ -385,7 +392,7 @@ export interface FileRoutesByFullPath {
   '/super-admin/': typeof AuthenticatedSuperAdminIndexRoute
   '/super-admin/restaurants/$restaurantId': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdRouteRouteWithChildren
   '/manage/$restaurantId/analytics': typeof AuthenticatedManageRestaurantIdAnalyticsRoute
-  '/manage/$restaurantId/design': typeof AuthenticatedManageRestaurantIdDesignRoute
+  '/manage/$restaurantId/kitchen': typeof AuthenticatedManageRestaurantIdKitchenRoute
   '/manage/$restaurantId/orders': typeof AuthenticatedManageRestaurantIdOrdersRoute
   '/manage/$restaurantId/staff': typeof AuthenticatedManageRestaurantIdStaffRoute
   '/manage/$restaurantId/tables': typeof AuthenticatedManageRestaurantIdTablesRoute
@@ -418,6 +425,7 @@ export interface FileRoutesByTo {
   '/waiter': typeof AuthenticatedWaiterRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
+  '/preview/$slug': typeof PreviewSlugRoute
   '/r/$slug': typeof RSlugRoute
   '/staff': typeof StaffIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -432,7 +440,7 @@ export interface FileRoutesByTo {
   '/manage': typeof AuthenticatedManageIndexRoute
   '/super-admin': typeof AuthenticatedSuperAdminIndexRoute
   '/manage/$restaurantId/analytics': typeof AuthenticatedManageRestaurantIdAnalyticsRoute
-  '/manage/$restaurantId/design': typeof AuthenticatedManageRestaurantIdDesignRoute
+  '/manage/$restaurantId/kitchen': typeof AuthenticatedManageRestaurantIdKitchenRoute
   '/manage/$restaurantId/orders': typeof AuthenticatedManageRestaurantIdOrdersRoute
   '/manage/$restaurantId/staff': typeof AuthenticatedManageRestaurantIdStaffRoute
   '/manage/$restaurantId/tables': typeof AuthenticatedManageRestaurantIdTablesRoute
@@ -469,6 +477,7 @@ export interface FileRoutesById {
   '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
+  '/preview/$slug': typeof PreviewSlugRoute
   '/r/$slug': typeof RSlugRoute
   '/staff/': typeof StaffIndexRoute
   '/_authenticated/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
@@ -485,7 +494,7 @@ export interface FileRoutesById {
   '/_authenticated/super-admin/': typeof AuthenticatedSuperAdminIndexRoute
   '/_authenticated/super-admin/restaurants/$restaurantId': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdRouteRouteWithChildren
   '/_authenticated/manage/$restaurantId/analytics': typeof AuthenticatedManageRestaurantIdAnalyticsRoute
-  '/_authenticated/manage/$restaurantId/design': typeof AuthenticatedManageRestaurantIdDesignRoute
+  '/_authenticated/manage/$restaurantId/kitchen': typeof AuthenticatedManageRestaurantIdKitchenRoute
   '/_authenticated/manage/$restaurantId/orders': typeof AuthenticatedManageRestaurantIdOrdersRoute
   '/_authenticated/manage/$restaurantId/staff': typeof AuthenticatedManageRestaurantIdStaffRoute
   '/_authenticated/manage/$restaurantId/tables': typeof AuthenticatedManageRestaurantIdTablesRoute
@@ -522,6 +531,7 @@ export interface FileRouteTypes {
     | '/waiter'
     | '/m/$slug'
     | '/o/$token'
+    | '/preview/$slug'
     | '/r/$slug'
     | '/staff/'
     | '/manage/$restaurantId'
@@ -538,7 +548,7 @@ export interface FileRouteTypes {
     | '/super-admin/'
     | '/super-admin/restaurants/$restaurantId'
     | '/manage/$restaurantId/analytics'
-    | '/manage/$restaurantId/design'
+    | '/manage/$restaurantId/kitchen'
     | '/manage/$restaurantId/orders'
     | '/manage/$restaurantId/staff'
     | '/manage/$restaurantId/tables'
@@ -571,6 +581,7 @@ export interface FileRouteTypes {
     | '/waiter'
     | '/m/$slug'
     | '/o/$token'
+    | '/preview/$slug'
     | '/r/$slug'
     | '/staff'
     | '/.lovable/oauth/consent'
@@ -585,7 +596,7 @@ export interface FileRouteTypes {
     | '/manage'
     | '/super-admin'
     | '/manage/$restaurantId/analytics'
-    | '/manage/$restaurantId/design'
+    | '/manage/$restaurantId/kitchen'
     | '/manage/$restaurantId/orders'
     | '/manage/$restaurantId/staff'
     | '/manage/$restaurantId/tables'
@@ -621,6 +632,7 @@ export interface FileRouteTypes {
     | '/_authenticated/waiter'
     | '/m/$slug'
     | '/o/$token'
+    | '/preview/$slug'
     | '/r/$slug'
     | '/staff/'
     | '/_authenticated/manage/$restaurantId'
@@ -637,7 +649,7 @@ export interface FileRouteTypes {
     | '/_authenticated/super-admin/'
     | '/_authenticated/super-admin/restaurants/$restaurantId'
     | '/_authenticated/manage/$restaurantId/analytics'
-    | '/_authenticated/manage/$restaurantId/design'
+    | '/_authenticated/manage/$restaurantId/kitchen'
     | '/_authenticated/manage/$restaurantId/orders'
     | '/_authenticated/manage/$restaurantId/staff'
     | '/_authenticated/manage/$restaurantId/tables'
@@ -666,6 +678,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   MSlugRoute: typeof MSlugRoute
   OTokenRoute: typeof OTokenRoute
+  PreviewSlugRoute: typeof PreviewSlugRoute
   RSlugRoute: typeof RSlugRoute
   StaffIndexRoute: typeof StaffIndexRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
@@ -808,6 +821,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/preview/$slug': {
+      id: '/preview/$slug'
+      path: '/preview/$slug'
+      fullPath: '/preview/$slug'
+      preLoaderRoute: typeof PreviewSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/r/$slug': {
       id: '/r/$slug'
       path: '/r/$slug'
@@ -920,11 +940,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManageRestaurantIdAnalyticsRouteImport
       parentRoute: typeof AuthenticatedManageRestaurantIdRouteRoute
     }
-    '/_authenticated/manage/$restaurantId/design': {
-      id: '/_authenticated/manage/$restaurantId/design'
-      path: '/design'
-      fullPath: '/manage/$restaurantId/design'
-      preLoaderRoute: typeof AuthenticatedManageRestaurantIdDesignRouteImport
+    '/_authenticated/manage/$restaurantId/kitchen': {
+      id: '/_authenticated/manage/$restaurantId/kitchen'
+      path: '/kitchen'
+      fullPath: '/manage/$restaurantId/kitchen'
+      preLoaderRoute: typeof AuthenticatedManageRestaurantIdKitchenRouteImport
       parentRoute: typeof AuthenticatedManageRestaurantIdRouteRoute
     }
     '/_authenticated/manage/$restaurantId/orders': {
@@ -1030,7 +1050,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedManageRestaurantIdRouteRouteChildren {
   AuthenticatedManageRestaurantIdAnalyticsRoute: typeof AuthenticatedManageRestaurantIdAnalyticsRoute
-  AuthenticatedManageRestaurantIdDesignRoute: typeof AuthenticatedManageRestaurantIdDesignRoute
+  AuthenticatedManageRestaurantIdKitchenRoute: typeof AuthenticatedManageRestaurantIdKitchenRoute
   AuthenticatedManageRestaurantIdOrdersRoute: typeof AuthenticatedManageRestaurantIdOrdersRoute
   AuthenticatedManageRestaurantIdStaffRoute: typeof AuthenticatedManageRestaurantIdStaffRoute
   AuthenticatedManageRestaurantIdTablesRoute: typeof AuthenticatedManageRestaurantIdTablesRoute
@@ -1041,8 +1061,8 @@ const AuthenticatedManageRestaurantIdRouteRouteChildren: AuthenticatedManageRest
   {
     AuthenticatedManageRestaurantIdAnalyticsRoute:
       AuthenticatedManageRestaurantIdAnalyticsRoute,
-    AuthenticatedManageRestaurantIdDesignRoute:
-      AuthenticatedManageRestaurantIdDesignRoute,
+    AuthenticatedManageRestaurantIdKitchenRoute:
+      AuthenticatedManageRestaurantIdKitchenRoute,
     AuthenticatedManageRestaurantIdOrdersRoute:
       AuthenticatedManageRestaurantIdOrdersRoute,
     AuthenticatedManageRestaurantIdStaffRoute:
@@ -1188,6 +1208,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   MSlugRoute: MSlugRoute,
   OTokenRoute: OTokenRoute,
+  PreviewSlugRoute: PreviewSlugRoute,
   RSlugRoute: RSlugRoute,
   StaffIndexRoute: StaffIndexRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
