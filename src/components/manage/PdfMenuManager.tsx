@@ -18,7 +18,7 @@ import { MAX_PDF_BYTES, uploadRestaurantPdf } from "@/lib/storage";
 type Product = { candidate_id: string; name_en: string; name_ar: string; description_en: string | null; description_ar: string | null; price: number | null; currency: string | null; confidence: number };
 type Rect = { x: number; y: number; width: number; height: number };
 type PdfDocument = { id: string; file_url: string; file_parts?: string[]; file_name: string; page_count: number; analysis: { page_count: number; pages: { page_number: number; width: number; height: number }[]; candidates: PdfMenuCandidate[] }; is_active: boolean };
-const EMPTY = { page_count: 0, pages: [], candidates: [] as PdfMenuCandidate[] };
+const EMPTY: { page_count: number; pages: { page_number: number; width: number; height: number }[]; candidates: PdfMenuCandidate[] } = { page_count: 0, pages: [], candidates: [] };
 const clamp = (n: number, min = 0, max = 1) => Math.max(min, Math.min(max, n));
 const normalizeRect = (x: number, y: number, w: number, h: number): Rect => { const left = clamp(Math.min(x, x + w)); const top = clamp(Math.min(y, y + h)); const right = clamp(Math.max(x, x + w)); const bottom = clamp(Math.max(y, y + h)); return { x: left, y: top, width: Math.max(.006, right - left), height: Math.max(.006, bottom - top) }; };
 const blankProduct = (id: string): Product => ({ candidate_id: id, name_en: "", name_ar: "", description_en: null, description_ar: null, price: null, currency: "JOD", confidence: 1 });
