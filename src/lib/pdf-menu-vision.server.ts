@@ -75,6 +75,12 @@ export const extractPdfVisualProducts = createServerFn({ method: "POST" }).middl
 
 Return exactly ONE product for the selected area when it contains a purchasable menu item. Do not return a category heading, ingredient, allergen, restaurant information, page number, or modifier by itself.
 
+TYPOGRAPHY AND SEMANTIC HIERARCHY:
+- Treat the visually dominant product line as the title: the largest, boldest, or most prominent text associated with the item is the title, in either English or Arabic.
+- Treat smaller body text directly associated with that dominant line as the description. Never promote small descriptive text, ingredients, preparation notes, or labels to the title.
+- Use font size, font weight, line position, spacing, punctuation, and visual grouping together. A price is never a title.
+- If English and Arabic are both present, identify the title in each language from the corresponding visually dominant line. Do not merge title and description.
+
 TITLE RULES:
 - name_en must contain the product title in English. If the PDF shows English, transcribe it accurately. If it shows only Arabic, translate the title faithfully into natural English without adding information.
 - name_ar must contain the product title in Arabic. If the PDF shows Arabic, transcribe it accurately. If it shows only English, translate the title faithfully into natural Arabic without adding information.
@@ -82,8 +88,8 @@ TITLE RULES:
 - Never put the description into either title field.
 
 DESCRIPTION RULES:
-- description_en is ONLY the English descriptive text that belongs to this product, excluding title and price. If the PDF has no English description, return null.
-- description_ar is ONLY the Arabic descriptive text that belongs to this product, excluding title and price. If the PDF has no Arabic description, return null.
+- description_en is ONLY the smaller English descriptive text that belongs to this product, excluding title and price. If the PDF has no English description, return null.
+- description_ar is ONLY the smaller Arabic descriptive text that belongs to this product, excluding title and price. If the PDF has no Arabic description, return null.
 - If a description exists in only one language, translate it faithfully into the other language so both fields are useful. Do not invent ingredients or claims.
 
 PRICE/CURRENCY:
