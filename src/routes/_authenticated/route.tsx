@@ -22,10 +22,14 @@ const MANAGEMENT_ONLY_PREFIXES = ["/kitchen"];
 function AuthenticatedShell() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { roles, isPending } = useAccess();
-  const staff = !isPending && isFrontlineOnly(roles);
+  const { roles, isPending, isError } = useAccess();
+
+  // Never infer permissions from an empty role set caused by a temporary
+  // database/network failure. Only redirect once access data resolved cleanly.
+  const accessResolved = !isPending && !isError;
+  const staff = accessResolved && isFrontlineOnly(roles);
   const staffBlocked = staff && STAFF_BLOCKED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  const kitchenBlocked = !isPending && !staff && MANAGEMENT_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const kitchenBlocked = accessResolved && !staff && MANAGEMENT_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const blocked = staffBlocked || kitchenBlocked;
 
   useEffect(() => {
