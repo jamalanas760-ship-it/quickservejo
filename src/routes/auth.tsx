@@ -29,11 +29,13 @@ function safeRedirect(value?: string): string {
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
 }
 
-/** Resolve the landing screen from the authenticated role, never from a user-controlled redirect. */
-async function roleDestination(): Promise<string> {
-  const { data: userData } = await supabase.auth.getUser();
+/** Resolve the landing screen from the authenticated role. If the staff profile query is temporarily unavailable,
+ * keep the valid Supabase session and fall back to the requested authenticated destination instead of reporting a
+ * successful login as a failed login. */
+async function roleDestination(fallback = "/dashboard"): Promise<string> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
   const uid = userData.user?.id;
-  if (!uid) return "/auth";
+  if (userError || !uid) return "/auth";
 
   const { data, error } = await supabase
     .from("staff")
@@ -41,7 +43,11 @@ async function roleDestination(): Promise<string> {
     .eq("auth_user_id", uid)
     .eq("is_active", true);
 
-  if (error) throw error;
+  if (error) {
+    console.warn("Staff role lookup failed after authentication; preserving the session.", error);
+    return fallback;
+  }
+
   const rows = data ?? [];
 
   if (rows.some((row) => row.role === "super_admin")) return "/super-admin";
@@ -51,9 +57,7 @@ async function roleDestination(): Promise<string> {
 
   if (rows.some((row) => ["kitchen", "waiter", "cashier"].includes(row.role))) return "/kitchen";
 
-  // A valid session without a staff membership can still enter the existing dashboard
-  // flow so the application can display the appropriate access state.
-  return "/dashboard";
+  return fallback;
 }
 
 function AuthPage() {
@@ -70,34 +74,47 @@ function AuthPage() {
   useEffect(() => {
     let cancelled = false;
     void supabase.auth.getSession().then(({ data }) => {
-      if (!cancelled && data.session) void roleDestination().then((destination) => navigate({ to: destination as never, replace: true }));
+      if (!cancelled && data.session) {
+        void roleDestination(target)
+          .then((destination) => navigate({ to: destination as never, replace: true }))
+          .catch((error) => toast.error(humanError(error, lang)));
+      }
     });
     return () => { cancelled = true; };
-  }, [navigate]);
+  }, [navigate, target, lang]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password) return;
+
     setBusy(true);
     try {
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
+          email: normalizedEmail,
           password,
           options: { data: { full_name: name.trim() }, emailRedirectTo: `${window.location.origin}${target}` },
         });
         if (error) throw error;
         if (data.session) {
-          const destination = await roleDestination();
+          const destination = await roleDestination(target);
           navigate({ to: destination as never, replace: true });
         } else {
           toast.success(t("auth.checkEmail"));
           setMode("signin");
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
         if (error) throw error;
-        const destination = await roleDestination();
+        if (!data.session) throw new Error("Authentication succeeded but no session was created. Please try again.");
+
+        const destination = await roleDestination(target);
         navigate({ to: destination as never, replace: true });
       }
     } catch (error) {
@@ -113,7 +130,7 @@ function AuthPage() {
       const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: `${window.location.origin}/` });
       if (result.error) { toast.error(humanError(result.error, lang)); return; }
       if (result.redirected) return;
-      const destination = await roleDestination();
+      const destination = await roleDestination(target);
       navigate({ to: destination as never, replace: true });
     } catch (error) {
       toast.error(humanError(error, lang));
