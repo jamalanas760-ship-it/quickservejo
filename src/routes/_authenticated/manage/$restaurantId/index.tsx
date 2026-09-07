@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { PdfMenuManager } from "@/components/manage/PdfMenuManager";
+import { PdfMenuManagerV2 } from "@/components/manage/PdfMenuManagerV2";
 
 export const Route = createFileRoute("/_authenticated/manage/$restaurantId/")({
   head: () => ({
     meta: [
       { title: "PDF Menu — QuickServe" },
-      { name: "description", content: "Upload the restaurant's original PDF menu, select products, and publish QR ordering." },
+      { name: "description", content: "Upload the restaurant's original PDF menu, select products manually, and publish QR ordering." },
       { property: "og:title", content: "PDF Menu — QuickServe" },
-      { property: "og:description", content: "Preserve the original PDF design and add clickable ordering hotspots." },
+      { property: "og:description", content: "Preserve the original PDF design and add clickable ordering hotspots manually." },
     ],
   }),
   component: MenuPage,
@@ -16,5 +16,5 @@ export const Route = createFileRoute("/_authenticated/manage/$restaurantId/")({
 
 function MenuPage() {
   const { restaurantId } = Route.useParams();
-  return <PdfMenuManager restaurantId={restaurantId} />;
+  return <PdfMenuManagerV2 restaurantId={restaurantId} />;
 }
