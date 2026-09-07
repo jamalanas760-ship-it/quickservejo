@@ -1,17 +1,17 @@
 import { createFileRoute, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 
-import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/nav/BottomNav";
 import { useAccess } from "@/hooks/useSession";
+import { getResilientAuthenticatedUser } from "@/lib/auth-resilience";
 import { frontlineHome, isFrontlineOnly } from "@/lib/permissions";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }) => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth", search: { redirect: location.href } });
-    return { user: data.user };
+    const user = await getResilientAuthenticatedUser();
+    if (!user) throw redirect({ to: "/auth", search: { redirect: location.href } });
+    return { user };
   },
   component: AuthenticatedShell,
 });
