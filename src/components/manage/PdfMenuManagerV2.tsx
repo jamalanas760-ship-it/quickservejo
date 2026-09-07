@@ -37,6 +37,51 @@ function onlyManual(analysis: PdfMenuAnalysis | null | undefined): PdfMenuAnalys
   return { ...(analysis ?? EMPTY), candidates: (analysis?.candidates ?? []).filter((c) => c.id.startsWith("manual-")) };
 }
 
+
+function EditablePdfHotspot({ candidate, active, disabled, draftName, onSelect, onChange, stageRef }: { candidate: PdfMenuCandidate; active: boolean; disabled: boolean; draftName: string; onSelect: () => void; onChange: (rect: Rect) => void; stageRef: React.RefObject<HTMLDivElement | null> }) {
+  const drag = useRef<{ pointerX: number; pointerY: number; rect: Rect; mode: string } | null>(null);
+  const rect = { x: candidate.x, y: candidate.y, width: candidate.width, height: candidate.height };
+  const begin = (event: React.PointerEvent<HTMLButtonElement>, mode: string) => {
+    if (disabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!active) { onSelect(); return; }
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    drag.current = { pointerX: event.clientX, pointerY: event.clientY, rect, mode };
+  };
+  const move = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const state = drag.current;
+    const stage = stageRef.current;
+    if (!state || !stage) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const box = stage.getBoundingClientRect();
+    const dx = (event.clientX - state.pointerX) / Math.max(1, box.width);
+    const dy = (event.clientY - state.pointerY) / Math.max(1, box.height);
+    let { x, y, width, height } = state.rect;
+    if (state.mode === "move") { x += dx; y += dy; }
+    else {
+      if (state.mode.includes("w")) { x += dx; width -= dx; }
+      if (state.mode.includes("e")) width += dx;
+      if (state.mode.includes("n")) { y += dy; height -= dy; }
+      if (state.mode.includes("s")) height += dy;
+    }
+    const left = Math.max(0, Math.min(1, Math.min(x, x + width)));
+    const top = Math.max(0, Math.min(1, Math.min(y, y + height)));
+    const right = Math.max(0, Math.min(1, Math.max(x, x + width)));
+    const bottom = Math.max(0, Math.min(1, Math.max(y, y + height)));
+    onChange({ x: left, y: top, width: Math.max(0.008, right - left), height: Math.max(0.008, bottom - top) });
+  };
+  const end = (event: React.PointerEvent<HTMLButtonElement>) => { event.stopPropagation(); drag.current = null; };
+  const handles = [["nw", "-left-1 -top-1 cursor-nwse-resize"], ["n", "left-1/2 -top-1 -translate-x-1/2 cursor-ns-resize"], ["ne", "-right-1 -top-1 cursor-nesw-resize"], ["w", "-left-1 top-1/2 -translate-y-1/2 cursor-ew-resize"], ["e", "-right-1 top-1/2 -translate-y-1/2 cursor-ew-resize"], ["sw", "-left-1 -bottom-1 cursor-nesw-resize"], ["s", "left-1/2 -bottom-1 -translate-x-1/2 cursor-ns-resize"], ["se", "-right-1 -bottom-1 cursor-nwse-resize"]] as const;
+  return <div className={"absolute z-30 " + (disabled ? "pointer-events-none" : "")} style={{ left: (rect.x * 100) + "%", top: (rect.y * 100) + "%", width: (rect.width * 100) + "%", height: (rect.height * 100) + "%" }}>
+    <button type="button" aria-label={active ? "Move selected product area" : "Open selected product"} onClick={(event) => { event.stopPropagation(); if (!disabled) onSelect(); }} onPointerDown={(event) => begin(event, "move")} onPointerMove={move} onPointerUp={end} onPointerCancel={end} className={"absolute inset-0 rounded-md border-2 transition " + (active ? "border-primary bg-primary/15 shadow-[0_0_0_3px_hsl(var(--primary)/.12)]" : "border-primary/50 bg-primary/5 hover:border-primary")}>
+      <span className="absolute -top-5 left-1 max-w-[180px] truncate rounded bg-primary px-1.5 py-0.5 text-[9px] font-black text-primary-foreground">{draftName || "Product"}</span>
+    </button>
+    {active ? handles.map(([mode, position]) => <button key={mode} type="button" aria-label={"Resize selected area " + mode} onPointerDown={(event) => begin(event, mode)} onPointerMove={move} onPointerUp={end} onPointerCancel={end} className={"absolute z-50 size-3 rounded-full border-2 border-background bg-primary shadow " + position} />) : null}
+  </div>;
+}
+
 export function PdfMenuManagerV2({ restaurantId }: { restaurantId: string }) {
   const { data: restaurant } = useRestaurant(restaurantId);
   const queryClient = useQueryClient();
@@ -51,7 +96,7 @@ export function PdfMenuManagerV2({ restaurantId }: { restaurantId: string }) {
   const [fileParts, setFileParts] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [page, setPage] = useState(1);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(0.85);
   const [selecting, setSelecting] = useState(false);
   const [editingArea, setEditingArea] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
@@ -156,7 +201,7 @@ export function PdfMenuManagerV2({ restaurantId }: { restaurantId: string }) {
       const payload = { restaurant_id: restaurantId, file_url: uploaded.url, file_parts: uploaded.parts, file_name: nextFile.name, page_count: pdf.numPages, analysis: nextAnalysis, is_active: true };
       const { data, error } = await (supabase as any).from("menu_pdf_documents").upsert(payload, { onConflict: "restaurant_id" }).select("id,file_url,file_parts,file_name,page_count,analysis,is_active").single();
       if (error) throw error;
-      setDocumentRow(data as DocumentRow); setFile(nextFile); setFileUrl(uploaded.url); setFileParts(uploaded.parts); setAnalysis(nextAnalysis); setDrafts({}); setPage(1); setZoom(1); setSelecting(true); setActiveId(null);
+      setDocumentRow(data as DocumentRow); setFile(nextFile); setFileUrl(uploaded.url); setFileParts(uploaded.parts); setAnalysis(nextAnalysis); setDrafts({}); setPage(1); setZoom(0.85); setSelecting(true); setActiveId(null);
       toast.success(`${pdf.numPages} page${pdf.numPages === 1 ? "" : "s"} ready. Select your first product.`);
     } catch (error) { toast.error(humanError(error)); }
     finally { setSaving(false); if (inputRef.current) inputRef.current.value = ""; }
@@ -194,7 +239,7 @@ export function PdfMenuManagerV2({ restaurantId }: { restaurantId: string }) {
     if (editingArea && activeCandidate) {
       const updated: PdfMenuCandidate = { ...activeCandidate, x: rect.x, y: rect.y, width: rect.width, height: rect.height };
       setAnalysis((current) => ({ ...current, candidates: current.candidates.map((c) => c.id === updated.id ? updated : c) }));
-      setEditingArea(false); setSelecting(false); setZoom(1);
+      setEditingArea(false); setSelecting(false); setZoom(0.85);
       void readSelection(updated, rect);
       return;
     }
@@ -202,7 +247,7 @@ export function PdfMenuManagerV2({ restaurantId }: { restaurantId: string }) {
     const candidate: PdfMenuCandidate = { id, page_number: page, text: "Manual selection", x: rect.x, y: rect.y, width: rect.width, height: rect.height, confidence: 1 };
     setAnalysis((current) => ({ ...current, candidates: [...current.candidates, candidate].sort((a, b) => a.page_number - b.page_number || a.y - b.y || a.x - b.x) }));
     setDrafts((current) => ({ ...current, [id]: emptyProduct(id) }));
-    setActiveId(id); setSelecting(false); setZoom(1);
+    setActiveId(id); setSelecting(false); setZoom(0.85);
     void readSelection(candidate, rect);
   }
 
@@ -266,7 +311,7 @@ export function PdfMenuManagerV2({ restaurantId }: { restaurantId: string }) {
       const { error: linkError } = await (supabase as any).from("menu_pdf_item_links").upsert(linkPayload, { onConflict: "document_id,candidate_id" });
       if (linkError) throw linkError;
       const clean = onlyManual(analysis); const { error: analysisError } = await (supabase as any).from("menu_pdf_documents").update({ analysis: clean }).eq("id", documentRow.id).eq("restaurant_id", restaurantId); if (analysisError) throw analysisError;
-      setAnalysis(clean); setDocumentRow((current) => current ? { ...current, analysis: clean } : current); setActiveId(null); setSelecting(true); setEditingArea(false); setZoom(1);
+      setAnalysis(clean); setDocumentRow((current) => current ? { ...current, analysis: clean } : current); setActiveId(null); setSelecting(true); setEditingArea(false); setZoom(0.85);
       await queryClient.invalidateQueries({ queryKey: ["platform", "pdf-document", restaurantId] });
       toast.success("Product saved. Select the next area.");
     } catch (error) { toast.error(humanError(error)); }
@@ -313,9 +358,9 @@ export function PdfMenuManagerV2({ restaurantId }: { restaurantId: string }) {
 
     {documentRow ? <>
       <div className="rounded-[30px] border bg-card shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3 sm:p-4"><div className="flex items-center gap-2"><Button size="icon" variant="outline" disabled={page <= 1} onClick={() => { setPage((p) => p - 1); setActiveId(null); setSelecting(false); }}><ChevronLeft className="size-4"/></Button><span className="min-w-24 text-center text-sm font-bold">Page {page} / {documentRow.page_count}</span><Button size="icon" variant="outline" disabled={page >= documentRow.page_count} onClick={() => { setPage((p) => p + 1); setActiveId(null); setSelecting(false); }}><ChevronRight className="size-4"/></Button></div><div className="flex items-center gap-2"><Button size="icon" variant="outline" onClick={() => setZoom((z) => Math.max(0.75, z - 0.1))}><ZoomOut className="size-4"/></Button><span className="w-12 text-center text-xs font-bold">{Math.round(zoom * 100)}%</span><Button size="icon" variant="outline" onClick={() => setZoom((z) => Math.min(2, z + 0.1))}><ZoomIn className="size-4"/></Button><Button variant={selecting ? "default" : "outline"} onClick={() => { setActiveId(null); setEditingArea(false); setSelecting(true); setZoom(1); }}><MousePointer2 className="mr-2 size-4"/>Select area</Button></div></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3 sm:p-4"><div className="flex items-center gap-2"><Button size="icon" variant="outline" disabled={page <= 1} onClick={() => { setPage((p) => p - 1); setActiveId(null); setSelecting(false); }}><ChevronLeft className="size-4"/></Button><span className="min-w-24 text-center text-sm font-bold">Page {page} / {documentRow.page_count}</span><Button size="icon" variant="outline" disabled={page >= documentRow.page_count} onClick={() => { setPage((p) => p + 1); setActiveId(null); setSelecting(false); }}><ChevronRight className="size-4"/></Button></div><div className="flex items-center gap-2"><Button size="icon" variant="outline" onClick={() => setZoom((z) => Math.max(0.75, z - 0.1))}><ZoomOut className="size-4"/></Button><span className="w-12 text-center text-xs font-bold">{Math.round(zoom * 100)}%</span><Button size="icon" variant="outline" onClick={() => setZoom((z) => Math.min(2, z + 0.1))}><ZoomIn className="size-4"/></Button><Button variant={selecting ? "default" : "outline"} onClick={() => { setActiveId(null); setEditingArea(false); setSelecting(true); setZoom(0.85); }}><MousePointer2 className="mr-2 size-4"/>Select area</Button></div></div>
         <div className="grid gap-4 p-3 lg:grid-cols-[minmax(0,1fr)_380px] lg:p-5">
-          <div className="overflow-auto rounded-2xl bg-muted/40 p-2 sm:p-4"><div ref={stageRef} className="relative mx-auto w-fit touch-none select-none" style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={finishDrag}><canvas ref={canvasRef} className="block h-auto max-w-none rounded-lg bg-white shadow-md"/><div className="pointer-events-none absolute inset-0">{pageCandidates.map((candidate) => <button key={candidate.id} type="button" aria-label="Selected product area" className={`pointer-events-auto absolute rounded-md border-2 ${candidate.id === activeId ? "border-primary bg-primary/15" : "border-primary/60 bg-primary/5"} ${selecting || editingArea ? "pointer-events-none" : "cursor-pointer"}`} style={{ left: `${candidate.x * 100}%`, top: `${candidate.y * 100}%`, width: `${candidate.width * 100}%`, height: `${candidate.height * 100}%` }} onClick={(event) => { event.stopPropagation(); setActiveId(candidate.id); setSelecting(false); setEditingArea(false); setZoom(1); }}><span className="absolute -top-5 left-1 rounded bg-primary px-1.5 py-0.5 text-[9px] font-black text-primary-foreground">{drafts[candidate.id]?.name_en || drafts[candidate.id]?.name_ar || "Product"}</span></button>)}</div>{dragRect && <div className="pointer-events-none absolute border-2 border-dashed border-primary bg-primary/10" style={{ left: `${dragRect.x * 100}%`, top: `${dragRect.y * 100}%`, width: `${dragRect.width * 100}%`, height: `${dragRect.height * 100}%` }}/>}</div></div>
+          <div className="overflow-auto rounded-2xl bg-muted/40 p-2 sm:p-4"><div ref={stageRef} className="relative mx-auto w-fit touch-none select-none" style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={finishDrag}><canvas ref={canvasRef} className="block h-auto max-w-none rounded-lg bg-white shadow-md"/><div className="pointer-events-none absolute inset-0">{pageCandidates.map((candidate) => <EditablePdfHotspot key={candidate.id} candidate={candidate} active={candidate.id === activeId} disabled={selecting || editingArea} draftName={drafts[candidate.id]?.name_en || drafts[candidate.id]?.name_ar || ""} onSelect={() => { setActiveId(candidate.id); setSelecting(false); setEditingArea(false); setZoom(0.85); }} onChange={(rect) => setAnalysis((current) => ({ ...current, candidates: current.candidates.map((c) => c.id === candidate.id ? { ...c, ...rect } : c) }))} stageRef={stageRef} />)}</div>{dragRect && <div className="pointer-events-none absolute border-2 border-dashed border-primary bg-primary/10" style={{ left: `${dragRect.x * 100}%`, top: `${dragRect.y * 100}%`, width: `${dragRect.width * 100}%`, height: `${dragRect.height * 100}%` }}/>}</div></div>
           <aside className="rounded-2xl border bg-background p-4 sm:p-5">
             {selecting ? <div className="flex min-h-[360px] flex-col justify-center text-center"><div className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary"><MousePointer2 className="size-6"/></div><h2 className="mt-4 text-lg font-black">Select one product</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Drag a rectangle tightly around the product name, description and price. When you release, QuickServe reads the selected area automatically.</p><div className="mt-5 rounded-xl bg-muted p-3 text-left text-xs leading-5"><b>Tip:</b> include the complete item block, but avoid nearby items.</div></div> : active ? <div><div className="flex items-center justify-between"><div><Badge variant="outline" className="rounded-full">Selected product</Badge><p className="mt-1 text-xs text-muted-foreground">Review before publishing</p></div><Button size="icon" variant="ghost" onClick={() => { setActiveId(null); setSelecting(true); }}><X className="size-4"/></Button></div>{reading ? <div className="my-8 flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground"><Loader2 className="size-4 animate-spin"/>Reading selected area…</div> : null}<div className="mt-5 space-y-4"><div><label className="text-xs font-bold">Product title — English</label><Input className="mt-1.5" value={active.name_en} onChange={(e) => updateDraft({ name_en: e.target.value })} placeholder="e.g. Chicken Shawarma" /></div><div><label className="text-xs font-bold">Product title — Arabic</label><Input dir="rtl" className="mt-1.5" value={active.name_ar} onChange={(e) => updateDraft({ name_ar: e.target.value })} placeholder="مثال: شاورما دجاج" /></div><div><label className="text-xs font-bold">Description — English <span className="font-normal text-muted-foreground">(optional)</span></label><Textarea className="mt-1.5 min-h-20" value={active.description_en ?? ""} onChange={(e) => updateDraft({ description_en: e.target.value || null })} placeholder="What comes with the item? Ingredients or details from the PDF." /></div><div><label className="text-xs font-bold">Description — Arabic <span className="font-normal text-muted-foreground">(optional)</span></label><Textarea dir="rtl" className="mt-1.5 min-h-20" value={active.description_ar ?? ""} onChange={(e) => updateDraft({ description_ar: e.target.value || null })} placeholder="وصف المنتج بالعربي، إذا كان موجوداً في القائمة." /></div><div className="grid grid-cols-[1fr_100px] gap-2"><div><label className="text-xs font-bold">Price</label><Input className="mt-1.5" type="number" min="0" step="0.01" value={active.price ?? ""} onChange={(e) => updateDraft({ price: e.target.value === "" ? null : Number(e.target.value) })} placeholder="0.00" /></div><div><label className="text-xs font-bold">Currency</label><div className="mt-1.5 flex h-10 items-center justify-center rounded-md border bg-muted font-bold">JOD</div></div></div><div className="rounded-xl bg-muted/60 p-3 text-xs leading-5 text-muted-foreground"><b>How this works:</b> English and Arabic fields are separate so you can correct either language without changing the original PDF. Currency is fixed to JOD for this restaurant.</div><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => { if (!activeCandidate) return; setEditingArea(true); setSelecting(false); }}><Edit3 className="mr-2 size-4"/>Edit area</Button><Button variant="outline" onClick={() => activeId && void deleteProduct(activeId)} disabled={saving}><Trash2 className="mr-2 size-4"/>Delete</Button></div><Button className="w-full" onClick={() => void saveProduct()} disabled={saving || reading}><Save className="mr-2 size-4"/>{saving ? "Saving…" : "Save & continue"}</Button></div></div> : <div className="flex min-h-[360px] flex-col justify-center text-center text-muted-foreground"><Settings2 className="mx-auto size-7"/><h2 className="mt-3 font-bold text-foreground">Ready for the next product</h2><p className="mt-1 text-sm">Use Select area, drag around the next item, then review and save.</p></div>}
           </aside>
