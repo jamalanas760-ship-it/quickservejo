@@ -35,19 +35,22 @@ function localTextRecovery(text: string): Product | null {
   const lines = text.split(/\n/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean);
   if (!lines.length) return null;
   let price: number | null = null;
-  let currency: string | null = null;
   for (const line of lines) {
     const match = line.match(/(?:([A-Za-z$€£]+)\s*)?(\d+(?:[.,]\d{1,2})?)(?:\s*([A-Za-z$€£]+))?/);
     if (!match) continue;
     const value = Number(match[2].replace(",", "."));
-    if (Number.isFinite(value)) { price = value; currency = (match[1] || match[3] || "").toUpperCase() || null; break; }
+    if (Number.isFinite(value)) { price = value; break; }
   }
   const clean = lines.map((line) => line.replace(/(?:\d+(?:[.,]\d{1,2})?\s*(?:jd|jod|aed|sar|usd|eur|€|\$|£)|(?:jd|jod|aed|sar|usd|eur)\s*\d|\d+[.,]\d{2})/gi, "").trim()).filter(Boolean);
   if (!clean.length) return null;
   const isArabic = (value: string) => /[\u0600-\u06FF]/.test(value);
-  const title = clean[0];
-  const description = clean.slice(1).join(" ") || null;
-  return { name_en: isArabic(title) ? "" : title, name_ar: isArabic(title) ? title : "", description_en: description && !isArabic(description) ? description : null, description_ar: description && isArabic(description) ? description : null, price, currency, category: null, confidence: .78, bbox: { x: 0, y: 0, width: 1, height: 1 } };
+  const englishLines = clean.filter((line) => !isArabic(line));
+  const arabicLines = clean.filter((line) => isArabic(line));
+  const titleEn = englishLines[0] ?? "";
+  const titleAr = arabicLines[0] ?? "";
+  const descriptionEn = englishLines.slice(1).join(" ") || null;
+  const descriptionAr = arabicLines.slice(1).join(" ") || null;
+  return { name_en: titleEn, name_ar: titleAr, description_en: descriptionEn, description_ar: descriptionAr, price, currency: "JOD", category: null, confidence: .78, bbox: { x: 0, y: 0, width: 1, height: 1 } };
 }
 
 async function callVision(apiKey: string, model: string, prompt: string, imageDataUrl: string, structured: boolean) {
@@ -68,7 +71,30 @@ export const extractPdfVisualProducts = createServerFn({ method: "POST" }).middl
   }
 
   const model = process.env["OPENAI_MENU_VISION_MODEL"] || process.env["OPENAI_MENU_MODEL"] || "gpt-5.6-luna";
-  const prompt = `You are a high-accuracy restaurant menu product reader. The manager selected exactly ONE product area from a PDF menu. Read the IMAGE first and use the PDF text hint only as a second signal. Never reject the selection because it is stylized, bilingual, cropped, or difficult. Return exactly one product when a product is visible. Read the title, description and price. Fill BOTH English and Arabic title fields; translate faithfully when only one language is visible. Fill both descriptions when a description is visible; otherwise null. Never invent a price: use null when genuinely absent or unreadable. Preserve numbers and currency exactly. Ignore unrelated restaurant/contact/page/category text. bbox must be {x:0,y:0,width:1,height:1}. Return JSON only: {"products":[{"name_en":"","name_ar":"","description_en":null,"description_ar":null,"price":null,"currency":null,"category":null,"confidence":0.0,"bbox":{"x":0,"y":0,"width":1,"height":1}}]}\nPDF text hint: ${source || "(none)"}`;
+  const prompt = `You are a professional restaurant-menu OCR and bilingual data-entry assistant. The manager selected exactly ONE product area from the original PDF. The image is authoritative. Read every visible character carefully, including small Arabic and English text, decorative fonts, punctuation, decimal prices, and text with unusual spacing. Use the PDF text hint only to resolve characters; never let it override the image.
+
+Return exactly ONE product for the selected area when it contains a purchasable menu item. Do not return a category heading, ingredient, allergen, restaurant information, page number, or modifier by itself.
+
+TITLE RULES:
+- name_en must contain the product title in English. If the PDF shows English, transcribe it accurately. If it shows only Arabic, translate the title faithfully into natural English without adding information.
+- name_ar must contain the product title in Arabic. If the PDF shows Arabic, transcribe it accurately. If it shows only English, translate the title faithfully into natural Arabic without adding information.
+- If both languages are printed, preserve each printed language instead of translating it.
+- Never put the description into either title field.
+
+DESCRIPTION RULES:
+- description_en is ONLY the English descriptive text that belongs to this product, excluding title and price. If the PDF has no English description, return null.
+- description_ar is ONLY the Arabic descriptive text that belongs to this product, excluding title and price. If the PDF has no Arabic description, return null.
+- If a description exists in only one language, translate it faithfully into the other language so both fields are useful. Do not invent ingredients or claims.
+
+PRICE/CURRENCY:
+- Read the exact numeric price belonging to this selected product. Never guess.
+- This restaurant uses Jordanian Dinar only. Always return currency as "JOD" regardless of whether the PDF prints JD, JOD, د.أ, or no currency symbol.
+- Return price as a number, e.g. 3.5, not a string. If truly unreadable or absent, use null.
+
+The selected area may contain a bilingual layout where Arabic is right-to-left and English is left-to-right. Do not mix the two languages into one field. Preserve the meaning and wording as closely as possible. bbox must always be the full selected area: {x:0,y:0,width:1,height:1}. Return JSON only in this exact shape:
+{"products":[{"name_en":"","name_ar":"","description_en":null,"description_ar":null,"price":null,"currency":"JOD","category":null,"confidence":0.0,"bbox":{"x":0,"y":0,"width":1,"height":1}}]}
+
+PDF text hint (secondary only): ${source || "(none)"}`;
 
   let products: Product[] = [];
   let reason = "no_product_found";
@@ -81,6 +107,6 @@ export const extractPdfVisualProducts = createServerFn({ method: "POST" }).middl
   }
   if (!products.length && source) { const recovered = localTextRecovery(source); if (recovered) products = [recovered]; }
 
-  const result = products.filter((product) => product.name_en.trim() || product.name_ar.trim()).map((product, index) => ({ candidate_id: `p${data.pageNumber}-vision-${Date.now()}-${index}`, page_number: data.pageNumber, text: [product.name_en, product.name_ar, product.description_en, product.description_ar, product.price == null ? "" : `${product.price} ${product.currency ?? ""}`].filter(Boolean).join(" | "), x: product.bbox.x, y: product.bbox.y, width: product.bbox.width, height: product.bbox.height, confidence: product.confidence, product }));
+  const result = products.filter((product) => product.name_en.trim() || product.name_ar.trim()).map((product, index) => ({ candidate_id: `p${data.pageNumber}-vision-${Date.now()}-${index}`, page_number: data.pageNumber, text: [product.name_en, product.name_ar, product.description_en, product.description_ar, product.price == null ? "" : `${product.price} JOD`].filter(Boolean).join(" | "), x: 0, y: 0, width: 1, height: 1, confidence: product.confidence, product: { ...product, currency: "JOD" } }));
   return { products: result, ai: result.length > 0, reason: result.length ? "read" : reason };
 });
