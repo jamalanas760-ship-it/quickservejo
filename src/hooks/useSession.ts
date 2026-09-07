@@ -25,7 +25,8 @@ export function useSupabaseSession() {
   return useQuery<Session | null>({
     queryKey: ["auth", "session"],
     queryFn: async () => {
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
       return data.session ?? null;
     },
     staleTime: 30_000,
@@ -33,15 +34,18 @@ export function useSupabaseSession() {
 }
 
 /**
- * Staff memberships for the signed-in user. RLS only ever returns rows the
- * user is genuinely a member of, so this is safe as the tenant context source.
+ * Staff memberships for the signed-in user. Use the already-issued session
+ * user id instead of making a second getUser() network request before every
+ * membership lookup. RLS remains the authority for what rows are visible.
  */
 export function useMemberships() {
+  const session = useSupabaseSession();
+  const uid = session.data?.user.id ?? null;
+
   return useQuery<StaffMembership[]>({
-    queryKey: ["staff", "memberships"],
+    queryKey: ["staff", "memberships", uid],
+    enabled: session.isSuccess && Boolean(uid),
     queryFn: async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id;
       if (!uid) return [];
       const { data, error } = await supabase
         .from("staff")
