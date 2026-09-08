@@ -1,9 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
+import { removePdfObjects, uploadPdfObject } from "@/lib/pdf-storage.functions";
 
 const MEDIA_BUCKET = "restaurant-media";
-const PDF_BUCKET = "menu-pdfs";
 const SIGNED_TTL = 60 * 60 * 24 * 365;
-const PDF_CHUNK_BYTES = 4 * 1024 * 1024;
+const PDF_CHUNK_BYTES = 2 * 1024 * 1024;
 export const MAX_PDF_BYTES = 100 * 1024 * 1024;
 export type MediaKind = "logo" | "cover" | "category" | "product";
 type UploadKind = MediaKind | "menu-pdf";
@@ -52,34 +52,63 @@ export async function uploadRestaurantImage(restaurantId: string, kind: MediaKin
   return uploadRestaurantMedia(restaurantId, kind, file, 5 * 1024 * 1024);
 }
 
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read PDF upload chunk"));
+    reader.onload = () => {
+      const result = String(reader.result ?? "");
+      const comma = result.indexOf(",");
+      if (comma === -1) {
+        reject(new Error("Could not encode PDF upload chunk"));
+        return;
+      }
+      resolve(result.slice(comma + 1));
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function uploadPdfChunk(
+  restaurantId: string,
+  path: string,
+  chunk: Blob,
+  contentType: "application/pdf" | "application/octet-stream",
+): Promise<string> {
+  const base64 = await blobToBase64(chunk);
+  const result = await uploadPdfObject({ data: { restaurantId, path, base64, contentType } });
+  return result.url;
+}
+
 /**
- * Uploads a PDF to the dedicated menu-pdfs bucket. For larger PDFs, stores
- * independent 4 MiB parts so a legacy 5 MiB Storage object limit cannot reject
- * the menu. The original bytes are reassembled in the browser; the PDF artwork
- * is never recompressed or rewritten.
+ * Upload PDFs through a trusted server function instead of relying on a
+ * pre-created client-side Storage bucket/policy. The server creates the fixed
+ * menu-pdfs bucket if it is missing and uploads with the server Supabase key.
+ * Files are split into 2 MiB objects to stay comfortably below request/object
+ * limits while preserving the original PDF bytes exactly.
  */
-export async function uploadRestaurantPdf(restaurantId: string, file: File, onProgress?: (uploadedBytes: number) => void): Promise<UploadedPdf> {
+export async function uploadRestaurantPdf(
+  restaurantId: string,
+  file: File,
+  onProgress?: (uploadedBytes: number) => void,
+): Promise<UploadedPdf> {
   if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
     throw new Error("Please upload a PDF menu");
   }
   if (file.size > MAX_PDF_BYTES) {
     throw new Error("File is too large. Maximum allowed size is 100 MB.");
   }
+  if (!file.size) throw new Error("The PDF file is empty");
 
   if (file.size <= PDF_CHUNK_BYTES) {
     const path = `${restaurantId}/menu-pdf/${crypto.randomUUID()}.pdf`;
-    const { error } = await supabase.storage.from(PDF_BUCKET).upload(path, file, {
-      cacheControl: "31536000",
-      upsert: false,
-      contentType: "application/pdf",
-    });
-    if (error) throw error;
+    const url = await uploadPdfChunk(restaurantId, path, file, "application/pdf");
     onProgress?.(file.size);
-    return { url: await signedUrlFor(PDF_BUCKET, path), parts: [] };
+    return { url, parts: [] };
   }
 
   const uploadId = crypto.randomUUID();
-  const partPaths: string[] = [];
+  const paths: string[] = [];
   const parts: string[] = [];
   let uploadedBytes = 0;
 
@@ -88,27 +117,20 @@ export async function uploadRestaurantPdf(restaurantId: string, file: File, onPr
       const end = Math.min(offset + PDF_CHUNK_BYTES, file.size);
       const chunk = file.slice(offset, end);
       const path = `${restaurantId}/menu-pdf-parts/${uploadId}/${String(index).padStart(4, "0")}.part`;
-      const { error } = await supabase.storage.from(PDF_BUCKET).upload(path, chunk, {
-        cacheControl: "31536000",
-        upsert: false,
-        contentType: "application/octet-stream",
-      });
-      if (error) {
-        const message = error.message ?? "";
-        if (/maximum size|file size|too large|entitytoolarge|413/i.test(message)) {
-          throw new Error("PDF part upload was rejected by storage. QuickServe uses 4 MB parts so a 5 MB object limit is not required.");
-        }
-        throw error;
-      }
-      partPaths.push(path);
-      parts.push(await signedUrlFor(PDF_BUCKET, path));
+      const url = await uploadPdfChunk(restaurantId, path, chunk, "application/octet-stream");
+      paths.push(path);
+      parts.push(url);
       uploadedBytes += chunk.size;
       onProgress?.(uploadedBytes);
       offset = end;
     }
   } catch (error) {
-    if (partPaths.length) {
-      await supabase.storage.from(PDF_BUCKET).remove(partPaths);
+    if (paths.length) {
+      try {
+        await removePdfObjects({ data: { restaurantId, paths } });
+      } catch {
+        // Cleanup failure must not hide the original upload failure.
+      }
     }
     throw error;
   }
