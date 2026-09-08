@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
-import { removePdfObjects, uploadPdfObject } from "@/lib/pdf-storage.functions";
 
 const MEDIA_BUCKET = "restaurant-media";
+const PDF_BUCKET = "menu-pdfs";
 const SIGNED_TTL = 60 * 60 * 24 * 365;
 const PDF_CHUNK_BYTES = 2 * 1024 * 1024;
 export const MAX_PDF_BYTES = 100 * 1024 * 1024;
@@ -52,40 +52,39 @@ export async function uploadRestaurantImage(restaurantId: string, kind: MediaKin
   return uploadRestaurantMedia(restaurantId, kind, file, 5 * 1024 * 1024);
 }
 
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read PDF upload chunk"));
-    reader.onload = () => {
-      const result = String(reader.result ?? "");
-      const comma = result.indexOf(",");
-      if (comma === -1) {
-        reject(new Error("Could not encode PDF upload chunk"));
-        return;
-      }
-      resolve(result.slice(comma + 1));
-    };
-    reader.readAsDataURL(blob);
-  });
+function publicPdfUrl(path: string): string {
+  return supabase.storage.from(PDF_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
-async function uploadPdfChunk(
-  restaurantId: string,
-  path: string,
-  chunk: Blob,
-  contentType: "application/pdf" | "application/octet-stream",
-): Promise<string> {
-  const base64 = await blobToBase64(chunk);
-  const result = await uploadPdfObject({ data: { restaurantId, path, base64, contentType } });
-  return result.url;
+async function uploadPdfObject(path: string, blob: Blob, contentType: "application/pdf" | "application/octet-stream"): Promise<string> {
+  const { error } = await supabase.storage.from(PDF_BUCKET).upload(path, blob, {
+    cacheControl: "31536000",
+    upsert: false,
+    contentType,
+  });
+
+  if (error) {
+    const message = error.message ?? "";
+    if (/bucket not found|nosuchbucket|404/i.test(message)) {
+      throw new Error("PDF storage is not available. The menu-pdfs bucket is missing from the connected Supabase project.");
+    }
+    if (/row-level security|rls|unauthorized|403/i.test(message)) {
+      throw new Error("Your session is not allowed to upload this PDF. Please sign in again and retry.");
+    }
+    if (/maximum size|file size|too large|entitytoolarge|413/i.test(message)) {
+      throw new Error("PDF upload was rejected because the storage file-size limit is too low.");
+    }
+    throw error;
+  }
+
+  return publicPdfUrl(path);
 }
 
 /**
- * Upload PDFs through a trusted server function instead of relying on a
- * pre-created client-side Storage bucket/policy. The server creates the fixed
- * menu-pdfs bucket if it is missing and uploads with the server Supabase key.
- * Files are split into 2 MiB objects to stay comfortably below request/object
- * limits while preserving the original PDF bytes exactly.
+ * Uploads PDF menus directly to the provisioned menu-pdfs bucket using the
+ * signed-in user's Supabase session. No server secret/service-role key is
+ * required. Larger files are split into 2 MiB objects while preserving the
+ * original PDF bytes exactly.
  */
 export async function uploadRestaurantPdf(
   restaurantId: string,
@@ -102,7 +101,7 @@ export async function uploadRestaurantPdf(
 
   if (file.size <= PDF_CHUNK_BYTES) {
     const path = `${restaurantId}/menu-pdf/${crypto.randomUUID()}.pdf`;
-    const url = await uploadPdfChunk(restaurantId, path, file, "application/pdf");
+    const url = await uploadPdfObject(path, file, "application/pdf");
     onProgress?.(file.size);
     return { url, parts: [] };
   }
@@ -117,7 +116,7 @@ export async function uploadRestaurantPdf(
       const end = Math.min(offset + PDF_CHUNK_BYTES, file.size);
       const chunk = file.slice(offset, end);
       const path = `${restaurantId}/menu-pdf-parts/${uploadId}/${String(index).padStart(4, "0")}.part`;
-      const url = await uploadPdfChunk(restaurantId, path, chunk, "application/octet-stream");
+      const url = await uploadPdfObject(path, chunk, "application/octet-stream");
       paths.push(path);
       parts.push(url);
       uploadedBytes += chunk.size;
@@ -127,7 +126,7 @@ export async function uploadRestaurantPdf(
   } catch (error) {
     if (paths.length) {
       try {
-        await removePdfObjects({ data: { restaurantId, paths } });
+        await supabase.storage.from(PDF_BUCKET).remove(paths);
       } catch {
         // Cleanup failure must not hide the original upload failure.
       }
