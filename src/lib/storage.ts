@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const BUCKET = "restaurant-media";
+const MEDIA_BUCKET = "restaurant-media";
+const PDF_BUCKET = "menu-pdfs";
 const SIGNED_TTL = 60 * 60 * 24 * 365;
 const PDF_CHUNK_BYTES = 4 * 1024 * 1024;
 export const MAX_PDF_BYTES = 100 * 1024 * 1024;
@@ -18,8 +19,8 @@ function extensionOf(file: File): string {
   return file.type.includes("png") ? "png" : file.type.includes("pdf") ? "pdf" : "jpg";
 }
 
-async function signedUrlFor(path: string): Promise<string> {
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_TTL);
+async function signedUrlFor(bucket: string, path: string): Promise<string> {
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, SIGNED_TTL);
   if (error || !data) throw error ?? new Error("Could not prepare the media URL");
   return data.signedUrl;
 }
@@ -31,7 +32,7 @@ async function uploadRestaurantMedia(restaurantId: string, kind: UploadKind, fil
   }
 
   const path = `${restaurantId}/${kind}/${crypto.randomUUID()}.${extensionOf(file)}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
+  const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, {
     cacheControl: "31536000",
     upsert: false,
     ...(file.type ? { contentType: file.type } : {}),
@@ -39,12 +40,12 @@ async function uploadRestaurantMedia(restaurantId: string, kind: UploadKind, fil
   if (error) {
     const message = error.message ?? "";
     if (/maximum size|file size|too large|entitytoolarge|413/i.test(message)) {
-      throw new Error("PDF upload was rejected by storage. The restaurant-media bucket limit is below the requested file size.");
+      throw new Error("Upload was rejected by storage because the configured file-size limit is too low.");
     }
     throw error;
   }
 
-  return signedUrlFor(path);
+  return signedUrlFor(MEDIA_BUCKET, path);
 }
 
 export async function uploadRestaurantImage(restaurantId: string, kind: MediaKind, file: File): Promise<string> {
@@ -52,10 +53,10 @@ export async function uploadRestaurantImage(restaurantId: string, kind: MediaKin
 }
 
 /**
- * Uploads a PDF directly when it fits in one Storage object. For larger PDFs,
- * stores independent 4 MiB parts so a legacy 5 MiB Storage object limit cannot
- * reject the menu. The original bytes are reassembled in the browser; the PDF
- * artwork is never recompressed or rewritten.
+ * Uploads a PDF to the dedicated menu-pdfs bucket. For larger PDFs, stores
+ * independent 4 MiB parts so a legacy 5 MiB Storage object limit cannot reject
+ * the menu. The original bytes are reassembled in the browser; the PDF artwork
+ * is never recompressed or rewritten.
  */
 export async function uploadRestaurantPdf(restaurantId: string, file: File, onProgress?: (uploadedBytes: number) => void): Promise<UploadedPdf> {
   if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
@@ -66,12 +67,19 @@ export async function uploadRestaurantPdf(restaurantId: string, file: File, onPr
   }
 
   if (file.size <= PDF_CHUNK_BYTES) {
-    const url = await uploadRestaurantMedia(restaurantId, "menu-pdf", file, PDF_CHUNK_BYTES);
+    const path = `${restaurantId}/menu-pdf/${crypto.randomUUID()}.pdf`;
+    const { error } = await supabase.storage.from(PDF_BUCKET).upload(path, file, {
+      cacheControl: "31536000",
+      upsert: false,
+      contentType: "application/pdf",
+    });
+    if (error) throw error;
     onProgress?.(file.size);
-    return { url, parts: [] };
+    return { url: await signedUrlFor(PDF_BUCKET, path), parts: [] };
   }
 
   const uploadId = crypto.randomUUID();
+  const partPaths: string[] = [];
   const parts: string[] = [];
   let uploadedBytes = 0;
 
@@ -80,7 +88,7 @@ export async function uploadRestaurantPdf(restaurantId: string, file: File, onPr
       const end = Math.min(offset + PDF_CHUNK_BYTES, file.size);
       const chunk = file.slice(offset, end);
       const path = `${restaurantId}/menu-pdf-parts/${uploadId}/${String(index).padStart(4, "0")}.part`;
-      const { error } = await supabase.storage.from(BUCKET).upload(path, chunk, {
+      const { error } = await supabase.storage.from(PDF_BUCKET).upload(path, chunk, {
         cacheControl: "31536000",
         upsert: false,
         contentType: "application/octet-stream",
@@ -92,21 +100,24 @@ export async function uploadRestaurantPdf(restaurantId: string, file: File, onPr
         }
         throw error;
       }
-      parts.push(await signedUrlFor(path));
+      partPaths.push(path);
+      parts.push(await signedUrlFor(PDF_BUCKET, path));
       uploadedBytes += chunk.size;
       onProgress?.(uploadedBytes);
       offset = end;
     }
   } catch (error) {
-    await supabase.storage.from(BUCKET).remove(parts.map((url) => decodeStoragePath(url)).filter(Boolean));
+    if (partPaths.length) {
+      await supabase.storage.from(PDF_BUCKET).remove(partPaths);
+    }
     throw error;
   }
 
   return { url: parts[0], parts };
 }
 
-function decodeStoragePath(url: string): string {
-  const marker = `/${BUCKET}/`;
+function decodeStoragePath(url: string, bucket: string): string {
+  const marker = `/${bucket}/`;
   const index = url.indexOf(marker);
   if (index === -1) return "";
   return decodeURIComponent(url.slice(index + marker.length).split("?")[0]);
@@ -114,7 +125,7 @@ function decodeStoragePath(url: string): string {
 
 export async function removeRestaurantImage(url: string | null | undefined): Promise<void> {
   if (!url) return;
-  const path = decodeStoragePath(url);
+  const path = decodeStoragePath(url, MEDIA_BUCKET);
   if (!path) return;
-  await supabase.storage.from(BUCKET).remove([path]);
+  await supabase.storage.from(MEDIA_BUCKET).remove([path]);
 }
