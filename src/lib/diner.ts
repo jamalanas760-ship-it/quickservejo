@@ -36,6 +36,9 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
     (supabase as any).from("menu_pdf_documents").select("id, file_url, file_parts, file_name, page_count, is_active").eq("restaurant_id", restaurant.id).eq("is_active", true).maybeSingle(),
   ]);
 
+  for (const result of [settingsRes, tableRes, categoriesRes, itemsRes, groupsRes, modifiersRes, pdfDocumentRes]) {
+    if (result.error) throw result.error;
+  }
   const groups = groupsRes.data ?? [];
   const modifiers = modifiersRes.data ?? [];
   const items: DinerItem[] = (itemsRes.data ?? []).map((item) => ({
