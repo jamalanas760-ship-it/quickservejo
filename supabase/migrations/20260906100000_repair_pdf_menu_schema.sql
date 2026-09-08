@@ -39,7 +39,10 @@ ALTER TABLE public.menu_pdf_item_links ADD COLUMN IF NOT EXISTS candidate_id tex
 CREATE INDEX IF NOT EXISTS idx_pdf_documents_restaurant ON public.menu_pdf_documents(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_pdf_links_document ON public.menu_pdf_item_links(document_id, page_number);
 CREATE INDEX IF NOT EXISTS idx_pdf_links_item ON public.menu_pdf_item_links(menu_item_id);
-CREATE INDEX IF NOT EXISTS idx_pdf_links_candidate ON public.menu_pdf_item_links(document_id, candidate_id);
+-- PdfMenuManagerV2 upserts with onConflict: "document_id,candidate_id".
+-- A non-unique index cannot satisfy that conflict target.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pdf_links_document_candidate_unique
+  ON public.menu_pdf_item_links(document_id, candidate_id);
 
 DO $$
 BEGIN
@@ -53,15 +56,18 @@ BEGIN
   END IF;
 END $$;
 
+ALTER TABLE public.menu_pdf_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.menu_pdf_item_links ENABLE ROW LEVEL SECURITY;
+
+-- Replace inherited default grants, which may include TRUNCATE (bypasses RLS).
+REVOKE ALL ON public.menu_pdf_documents, public.menu_pdf_item_links FROM PUBLIC, anon, authenticated;
+
 GRANT SELECT ON public.menu_pdf_documents TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.menu_pdf_documents TO authenticated;
 GRANT ALL ON public.menu_pdf_documents TO service_role;
 GRANT SELECT ON public.menu_pdf_item_links TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.menu_pdf_item_links TO authenticated;
 GRANT ALL ON public.menu_pdf_item_links TO service_role;
-
-ALTER TABLE public.menu_pdf_documents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.menu_pdf_item_links ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
@@ -81,7 +87,22 @@ BEGIN
     CREATE POLICY staff_read_pdf_links ON public.menu_pdf_item_links FOR SELECT TO authenticated USING (app.has_restaurant_access(restaurant_id) OR (is_active AND app.is_restaurant_public(restaurant_id)));
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='menu_pdf_item_links' AND policyname='admins_write_pdf_links') THEN
-    CREATE POLICY admins_write_pdf_links ON public.menu_pdf_item_links FOR ALL TO authenticated USING (app.can_manage_restaurant(restaurant_id)) WITH CHECK (app.can_manage_restaurant(restaurant_id));
+    CREATE POLICY admins_write_pdf_links ON public.menu_pdf_item_links
+      FOR ALL TO authenticated
+      USING (app.can_manage_restaurant(restaurant_id))
+      WITH CHECK (
+        app.can_manage_restaurant(restaurant_id)
+        AND EXISTS (
+          SELECT 1 FROM public.menu_pdf_documents document
+          WHERE document.id = menu_pdf_item_links.document_id
+            AND document.restaurant_id = menu_pdf_item_links.restaurant_id
+        )
+        AND EXISTS (
+          SELECT 1 FROM public.menu_items item
+          WHERE item.id = menu_pdf_item_links.menu_item_id
+            AND item.restaurant_id = menu_pdf_item_links.restaurant_id
+        )
+      );
   END IF;
 END $$;
 
