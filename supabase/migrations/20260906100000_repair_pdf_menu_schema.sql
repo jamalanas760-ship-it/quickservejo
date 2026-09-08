@@ -1,6 +1,11 @@
 -- Production-safe, idempotent PDF menu schema repair.
 -- QuickServe authorization helpers live in the app schema, not public.
 
+-- The shared guest loader selects menu_theme even for the PDF QR route.
+-- Restore its original default when the connected project's base schema is older.
+ALTER TABLE public.restaurants
+  ADD COLUMN IF NOT EXISTS menu_theme jsonb NOT NULL DEFAULT '{}'::jsonb;
+
 CREATE TABLE IF NOT EXISTS public.menu_pdf_documents (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   restaurant_id uuid NOT NULL UNIQUE REFERENCES public.restaurants(id) ON DELETE CASCADE,
