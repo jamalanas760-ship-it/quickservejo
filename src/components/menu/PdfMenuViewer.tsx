@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Minus, Plus, ShoppingBag, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { fetchPdfBytes, openPdf, renderPdfPage } from "@/lib/pdf-menu";
 import type { DinerItem } from "@/lib/diner";
 
@@ -17,20 +24,18 @@ type PdfLink = {
 };
 
 type PinchState = { distance: number; zoom: number };
-const MIN_ZOOM = 0.6;
-const DEFAULT_ZOOM = 0.85;
+const MIN_ZOOM = 1;
+const DEFAULT_ZOOM = 1;
 const MAX_ZOOM = 3;
+const EMPTY_PARTS: string[] = [];
 
 export function PdfMenuViewer({
   url,
-  parts = [],
+  parts = EMPTY_PARTS,
   pageCount,
   links,
   items,
   onSelect,
-  cartCount,
-  onCart,
-  showCart,
 }: {
   url: string;
   parts?: string[];
@@ -38,9 +43,6 @@ export function PdfMenuViewer({
   links: PdfLink[];
   items: DinerItem[];
   onSelect: (item: DinerItem) => void;
-  cartCount: number;
-  onCart: () => void;
-  showCart: boolean;
 }) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -50,7 +52,10 @@ export function PdfMenuViewer({
   const pdfRef = useRef<any>(null);
   const pinchRef = useRef<PinchState | null>(null);
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
-  const pageLinks = useMemo(() => links.filter((link) => link.page_number === page && itemById.has(link.menu_item_id)), [links, page, itemById]);
+  const pageLinks = useMemo(
+    () => links.filter((link) => link.page_number === page && itemById.has(link.menu_item_id)),
+    [links, page, itemById],
+  );
   const safePageCount = Math.max(1, pageCount || 1);
 
   useEffect(() => {
@@ -79,13 +84,16 @@ export function PdfMenuViewer({
         if (canvasRef.current) await renderPdfPage(pdf, actualPage, canvasRef.current, 1600);
         if (actualPage < pdf.numPages) void pdf.getPage(actualPage + 1);
       } catch (reason) {
-        if (!disposed) setError(reason instanceof Error ? reason.message : "The menu could not be loaded.");
+        if (!disposed)
+          setError(reason instanceof Error ? reason.message : "The menu could not be loaded.");
       } finally {
         if (!disposed) setLoading(false);
       }
     }
     void loadDocument();
-    return () => { disposed = true; };
+    return () => {
+      disposed = true;
+    };
   }, [url, parts, page]);
 
   function go(delta: number) {
@@ -105,24 +113,85 @@ export function PdfMenuViewer({
   }
 
   return (
-    <section className="mx-auto w-full max-w-4xl px-0 pb-24 sm:px-4">
-      <div className="sticky top-0 z-20 mb-2 flex items-center justify-between gap-2 border-b bg-background/95 px-2 py-2 backdrop-blur-xl">
+    <section dir="ltr" lang="en" className="mx-auto w-full max-w-4xl">
+      <div className="sticky top-16 z-30 flex items-center justify-between gap-1 border-b bg-background/95 px-2 py-2 backdrop-blur-xl sm:px-4">
         <div className="flex items-center gap-1">
-          <Button size="icon" variant="outline" disabled={page <= 1 || loading} onClick={() => go(-1)} aria-label="Previous page"><Minus className="size-4" /></Button>
-          <span className="min-w-16 text-center text-xs font-semibold tabular-nums">{page} / {safePageCount}</span>
-          <Button size="icon" variant="outline" disabled={page >= safePageCount || loading} onClick={() => go(1)} aria-label="Next page"><Plus className="size-4" /></Button>
+          <Button
+            size="icon"
+            className="size-10"
+            variant="ghost"
+            disabled={page <= 1 || loading}
+            onClick={() => go(-1)}
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="size-5" />
+          </Button>
+          <Select
+            value={String(page)}
+            onValueChange={(value) => setPage(Number(value))}
+            disabled={loading}
+          >
+            <SelectTrigger
+              aria-label="Menu page"
+              className="h-10 w-20 border-0 bg-muted text-sm font-semibold tabular-nums shadow-none"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: safePageCount }, (_, index) => (
+                <SelectItem key={index + 1} value={String(index + 1)}>
+                  {index + 1} / {safePageCount}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            size="icon"
+            className="size-10"
+            variant="ghost"
+            disabled={page >= safePageCount || loading}
+            onClick={() => go(1)}
+            aria-label="Next page"
+          >
+            <ChevronRight className="size-5" />
+          </Button>
         </div>
 
         <div className="flex items-center gap-1">
-          <Button size="icon" variant="ghost" disabled={zoom <= MIN_ZOOM} onClick={() => changeZoom(-0.25)} aria-label="Zoom out"><ZoomOut className="size-4" /></Button>
-          <span className="w-10 text-center text-[11px] font-semibold tabular-nums">{Math.round(zoom * 100)}%</span>
-          <Button size="icon" variant="ghost" disabled={zoom >= MAX_ZOOM} onClick={() => changeZoom(0.25)} aria-label="Zoom in"><ZoomIn className="size-4" /></Button>
-          {showCart && cartCount > 0 ? <Button size="sm" onClick={onCart}><ShoppingBag className="size-4" /> {cartCount}</Button> : null}
+          <Button
+            size="icon"
+            className="size-10"
+            variant="ghost"
+            disabled={zoom <= MIN_ZOOM}
+            onClick={() => changeZoom(-0.25)}
+            aria-label="Zoom out"
+          >
+            <ZoomOut className="size-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="w-10 px-0 text-xs tabular-nums"
+            onClick={() => setZoom(DEFAULT_ZOOM)}
+            aria-label="Fit menu to screen"
+          >
+            {zoom === DEFAULT_ZOOM ? "Fit" : `${Math.round(zoom * 100)}%`}
+          </Button>
+          <Button
+            size="icon"
+            className="size-10"
+            variant="ghost"
+            disabled={zoom >= MAX_ZOOM}
+            onClick={() => changeZoom(0.25)}
+            aria-label="Zoom in"
+          >
+            <ZoomIn className="size-4" />
+          </Button>
         </div>
       </div>
 
       <div
-        className="relative max-h-[calc(100vh-100px)] w-full overflow-auto bg-white touch-pan-x touch-pan-y overscroll-contain"
+        className="relative w-full overflow-auto bg-white touch-pan-x touch-pan-y"
         onTouchStart={(event) => {
           const distance = pinchDistance(event.touches);
           if (distance > 0) pinchRef.current = { distance, zoom };
@@ -139,23 +208,51 @@ export function PdfMenuViewer({
         }}
       >
         <div
-          className="relative mx-auto w-full origin-top"
+          className="relative min-w-full"
           style={{
-            transform: `scale(${zoom})`,
-            transformOrigin: "top center",
-            marginBottom: `${Math.max(0, (zoom - 1) * 100)}%`,
+            width: `${zoom * 100}%`,
           }}
         >
-          <canvas ref={canvasRef} className="relative z-0 block h-auto w-full select-none" draggable={false} />
-          {!error && loading ? <div className="absolute inset-0 grid place-items-center bg-white/20"><Loader2 className="size-6 animate-spin opacity-40" /></div> : null}
-          {error ? <div className="absolute inset-0 z-20 grid place-items-center bg-background p-8 text-center text-sm text-muted-foreground">{error}</div> : null}
-          {!error ? <div className="pointer-events-none absolute inset-0 z-10">
-            {pageLinks.map((link) => {
-              const item = itemById.get(link.menu_item_id);
-              if (!item) return null;
-              return <button key={link.id} type="button" aria-label={`Add ${item.name_en || item.name_ar}`} onClick={() => onSelect(item)} className="pointer-events-auto absolute cursor-pointer touch-manipulation rounded-sm border border-transparent bg-transparent p-0 outline-none focus-visible:border-primary focus-visible:bg-primary/10 active:bg-primary/10" style={{ left: `${link.x * 100}%`, top: `${link.y * 100}%`, width: `${link.width * 100}%`, height: `${link.height * 100}%` }}><span className="sr-only">{item.name_en || item.name_ar}</span></button>;
-            })}
-          </div> : null}
+          <canvas
+            ref={canvasRef}
+            className="relative z-0 block h-auto w-full select-none"
+            draggable={false}
+          />
+          {!error && loading ? (
+            <div className="absolute inset-0 grid place-items-center bg-white/20">
+              <Loader2 className="size-6 animate-spin opacity-40" />
+            </div>
+          ) : null}
+          {error ? (
+            <div className="absolute inset-0 z-20 grid place-items-center bg-background p-8 text-center text-sm text-muted-foreground">
+              {error}
+            </div>
+          ) : null}
+          {!error && !loading ? (
+            <div className="pointer-events-none absolute inset-0 z-10">
+              {pageLinks.map((link) => {
+                const item = itemById.get(link.menu_item_id);
+                if (!item) return null;
+                return (
+                  <button
+                    key={link.id}
+                    type="button"
+                    aria-label={`Add ${item.name_en || item.name_ar}`}
+                    onClick={() => onSelect(item)}
+                    className="pointer-events-auto absolute cursor-pointer touch-manipulation rounded-sm border border-transparent bg-transparent p-0 outline-none focus-visible:border-primary focus-visible:bg-primary/10 active:bg-primary/10"
+                    style={{
+                      left: `${link.x * 100}%`,
+                      top: `${link.y * 100}%`,
+                      width: `${link.width * 100}%`,
+                      height: `${link.height * 100}%`,
+                    }}
+                  >
+                    <span className="sr-only">{item.name_en || item.name_ar}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

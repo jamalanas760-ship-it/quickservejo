@@ -4,6 +4,48 @@ type Msg = { en: string; ar: string };
 
 const FRIENDLY: Array<{ match: RegExp; msg: Msg }> = [
   {
+    match: /invalid table|table not found/i,
+    msg: {
+      en: "Scan the QR code on your table again to place an order.",
+      ar: "امسح رمز QR الموجود على طاولتك مجدداً لإرسال الطلب.",
+    },
+  },
+  {
+    match: /ordering disabled|restaurant unavailable|PGRST202/i,
+    msg: {
+      en: "Ordering is currently unavailable. Please ask a member of staff.",
+      ar: "الطلب غير متاح حالياً. يرجى التواصل مع أحد الموظفين.",
+    },
+  },
+  {
+    match: /item unavailable/i,
+    msg: {
+      en: "An item is no longer available. Refresh the menu and update your cart.",
+      ar: "أحد الأصناف لم يعد متاحاً. حدّث القائمة وعدّل السلة.",
+    },
+  },
+  {
+    match: /invalid modifier/i,
+    msg: {
+      en: "Please review the required options for your items.",
+      ar: "يرجى مراجعة الخيارات المطلوبة للأصناف.",
+    },
+  },
+  {
+    match: /invalid quantity|too many items/i,
+    msg: {
+      en: "Please check your quantities. Each item can have up to 50 portions.",
+      ar: "يرجى مراجعة الكميات. الحد الأقصى لكل صنف هو 50.",
+    },
+  },
+  {
+    match: /below minimum order|empty cart/i,
+    msg: {
+      en: "Add items to reach the restaurant's minimum order.",
+      ar: "أضف أصنافاً للوصول إلى الحد الأدنى للطلب.",
+    },
+  },
+  {
     match: /duplicate key.*restaurants_slug|restaurants_slug_key/i,
     msg: {
       en: "This restaurant link (slug) is already in use. Try another one.",

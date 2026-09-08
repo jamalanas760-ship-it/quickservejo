@@ -304,3 +304,18 @@
   0% { transform: translateX(-120%); }
   100% { transform: translateX(320%); }
 }
+
+/* Keep the source PDF and its controls stable; only the cart is localized. */
+.pdf-menu-page,
+.pdf-order-surface[lang="en"] {
+  font-family: var(--font-sans);
+}
+.pdf-order-surface[lang="ar"],
+.pdf-order-surface[lang="ar"] :is(h1, h2, h3, p, span, button, input, textarea, label) {
+  font-family: "IBM Plex Sans Arabic", Tahoma, Arial, sans-serif;
+  letter-spacing: normal;
+  word-spacing: normal;
+}
+.pdf-order-surface[lang="ar"] :is(h1, h2, h3, p) {
+  text-align: start;
+}
