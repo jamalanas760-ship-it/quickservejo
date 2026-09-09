@@ -17,14 +17,25 @@ export function isAuthNetworkError(error: unknown): boolean {
  * null and force the normal sign-in flow.
  */
 export async function getResilientAuthenticatedUser(): Promise<User | null> {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  let sessionResult;
+  try {
+    sessionResult = await supabase.auth.getSession();
+  } catch {
+    return null;
+  }
+
+  const { data: sessionData, error: sessionError } = sessionResult;
   if (sessionError || !sessionData.session?.user) return null;
 
   const sessionUser = sessionData.session.user;
-  const { data: userData, error: userError } = await supabase.auth.getUser();
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
 
-  if (!userError && userData.user) return userData.user;
-  if (userError && isAuthNetworkError(userError)) return sessionUser;
+    if (!userError && userData.user) return userData.user;
+    if (userError && isAuthNetworkError(userError)) return sessionUser;
 
-  return null;
+    return null;
+  } catch (error) {
+    return isAuthNetworkError(error) ? sessionUser : null;
+  }
 }
