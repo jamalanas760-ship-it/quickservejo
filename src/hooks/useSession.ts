@@ -16,6 +16,11 @@ export type StaffMembership = {
     slug: string;
     logo_url: string | null;
     cover_image_url: string | null;
+    primary_color: string;
+    secondary_color: string;
+    accent_color: string;
+    background_color: string;
+    text_color: string;
     is_active: boolean;
     subscription_plan: string;
   } | null;
@@ -50,7 +55,7 @@ export function useMemberships() {
       const { data, error } = await supabase
         .from("staff")
         .select(
-          "id, restaurant_id, role, name, is_active, restaurant:restaurants(id, name, slug, logo_url, cover_image_url, is_active, subscription_plan)",
+          "id, restaurant_id, role, name, is_active, restaurant:restaurants(id, name, slug, logo_url, cover_image_url, primary_color, secondary_color, accent_color, background_color, text_color, is_active, subscription_plan)",
         )
         .eq("auth_user_id", uid)
         .eq("is_active", true);

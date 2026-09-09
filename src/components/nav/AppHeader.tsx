@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Bell, Globe, Menu as MenuIcon } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
-import { supabase } from "@/integrations/supabase/client";
+import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useWorkspaceReport, useWorkspaceScope } from "@/hooks/useWorkspace";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -15,16 +15,20 @@ import { cn } from "@/lib/utils";
 export function AppHeader({ onMenu, className }: { onMenu?: () => void; className?: string }) {
   const { lang, toggleLang } = useI18n();
   const scope = useWorkspaceScope();
+  const access = useAccess();
+  const session = useSupabaseSession();
   const report = useWorkspaceReport(scope.restaurantId);
   const [initial, setInitial] = useState("A");
 
   useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => {
-      const meta = data.user?.user_metadata as { full_name?: string; name?: string } | undefined;
-      const source = meta?.full_name || meta?.name || data.user?.email || "";
-      if (source) setInitial(source.slice(0, 1).toUpperCase());
-    });
-  }, []);
+    const user = session.data?.user;
+    const meta = user?.user_metadata as { full_name?: string; name?: string } | undefined;
+    const source = meta?.full_name || meta?.name || user?.email || "";
+    if (source) setInitial(source.slice(0, 1).toUpperCase());
+  }, [session.data?.user]);
+
+  const membership = (access.data ?? []).find((row) => row.restaurant_id && row.restaurant);
+  const restaurant = access.isSuperAdmin ? null : membership?.restaurant;
 
   const openOrders = report.data?.openOrders ?? 0;
 
@@ -47,8 +51,17 @@ export function AppHeader({ onMenu, className }: { onMenu?: () => void; classNam
               <MenuIcon className="size-5" />
             </button>
           ) : null}
-          <Link to="/" className="flex min-w-0 items-center">
-            <BrandLogo className="size-9 shrink-0" textClassName="truncate text-xl" />
+          <Link to={access.isSuperAdmin ? "/super-admin" : "/"} className="flex min-w-0 items-center gap-2.5">
+            {restaurant ? (
+              <>
+                <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-primary text-primary-foreground shadow-sm">
+                  {restaurant.logo_url ? <img src={restaurant.logo_url} alt="" className="size-full object-cover" /> : <span className="font-display font-bold">{restaurant.name.slice(0, 1)}</span>}
+                </span>
+                <span className="truncate font-display text-lg font-semibold tracking-tight">{restaurant.name}</span>
+              </>
+            ) : (
+              <BrandLogo className="size-9 shrink-0" textClassName="truncate text-xl" />
+            )}
           </Link>
         </div>
 

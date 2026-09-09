@@ -26,10 +26,10 @@ async function assertCanManage(
   supabase: { rpc: (fn: "is_platform_owner") => Promise<{ data: unknown; error: unknown }>; from: Function },
   userId: string,
   restaurantId: string,
-) {
+): Promise<boolean> {
   const owner = await supabase.rpc("is_platform_owner");
   if (owner.error) throw owner.error;
-  if (owner.data) return;
+  if (owner.data) return true;
 
   const { data: rows, error } = await supabase
     .from("staff")
@@ -38,10 +38,9 @@ async function assertCanManage(
     .eq("auth_user_id", userId)
     .eq("is_active", true);
   if (error) throw error;
-  const allowed = ((rows ?? []) as { role: string }[]).some(
-    (r) => r.role === "restaurant_admin" || r.role === "manager",
-  );
+  const allowed = ((rows ?? []) as { role: string }[]).some((r) => r.role === "restaurant_admin");
   if (!allowed) throw new Error("Forbidden");
+  return false;
 }
 
 /**
@@ -53,7 +52,10 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => inviteSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await assertCanManage(supabase as never, userId, data.restaurantId);
+    const isPlatformOwner = await assertCanManage(supabase as never, userId, data.restaurantId);
+    if (data.role === "restaurant_admin" && !isPlatformOwner) {
+      throw new Error("Only the Super Admin can grant Admin access");
+    }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const email = data.email.trim().toLowerCase();
@@ -131,7 +133,10 @@ export const resetStaffPassword = createServerFn({ method: "POST" })
       .single();
     if (error) throw error;
     if (!row.restaurant_id) throw new Error("Forbidden");
-    await assertCanManage(supabase as never, userId, row.restaurant_id);
+    const isPlatformOwner = await assertCanManage(supabase as never, userId, row.restaurant_id);
+    if (row.role === "restaurant_admin" && !isPlatformOwner) {
+      throw new Error("Only the Super Admin can manage another Admin");
+    }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const password = generatePassword();
@@ -170,7 +175,10 @@ export const removeStaffMember = createServerFn({ method: "POST" })
       .single();
     if (error) throw error;
     if (!row.restaurant_id || row.role === "super_admin") throw new Error("Forbidden");
-    await assertCanManage(supabase as never, userId, row.restaurant_id);
+    const isPlatformOwner = await assertCanManage(supabase as never, userId, row.restaurant_id);
+    if (row.role === "restaurant_admin" && !isPlatformOwner) {
+      throw new Error("Only the Super Admin can remove an Admin");
+    }
     if (row.auth_user_id === userId) throw new Error("You cannot remove your own access");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -254,7 +262,10 @@ export const updateStaffMember = createServerFn({ method: "POST" })
       .single();
     if (error) throw error;
     if (!row.restaurant_id || row.role === "super_admin") throw new Error("Forbidden");
-    await assertCanManage(supabase as never, userId, row.restaurant_id);
+    const isPlatformOwner = await assertCanManage(supabase as never, userId, row.restaurant_id);
+    if ((row.role === "restaurant_admin" || data.role === "restaurant_admin") && !isPlatformOwner) {
+      throw new Error("Only the Super Admin can grant or change Admin access");
+    }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const email = data.email ? data.email.toLowerCase() : undefined;

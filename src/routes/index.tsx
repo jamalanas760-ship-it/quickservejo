@@ -1,11 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 import { useI18n } from "@/lib/i18n";
-import { useSupabaseSession } from "@/hooks/useSession";
+import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { BottomNav } from "@/components/nav/BottomNav";
 import { WorkspaceHome } from "@/components/home/WorkspaceHome";
+import { TenantBrandShell } from "@/components/tenant/TenantBrandShell";
+import { frontlineHome, isFrontlineOnly } from "@/lib/permissions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -99,15 +102,28 @@ const plans = [
 function Landing() {
   const { lang, t, toggleLang } = useI18n();
   const session = useSupabaseSession();
+  const access = useAccess();
+  const navigate = useNavigate();
   const signedIn = Boolean(session.data);
+
+  useEffect(() => {
+    if (!signedIn || access.isPending || access.isError) return;
+    if (access.isSuperAdmin) {
+      void navigate({ to: "/super-admin", replace: true });
+    } else if (isFrontlineOnly(access.roles)) {
+      void navigate({ to: frontlineHome(access.roles) as never, replace: true });
+    }
+  }, [access.isError, access.isPending, access.isSuperAdmin, access.roles, navigate, signedIn]);
 
   // Signed-in users land in their workspace home instead of the marketing page.
   if (signedIn) {
     return (
+      <TenantBrandShell>
       <div className="min-h-screen bg-background pb-24">
         <WorkspaceHome />
         <BottomNav />
       </div>
+      </TenantBrandShell>
     );
   }
 
