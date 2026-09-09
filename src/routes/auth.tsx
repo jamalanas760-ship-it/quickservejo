@@ -9,6 +9,7 @@ import { lovable } from "@/integrations/lovable/index";
 import { useI18n } from "@/lib/i18n";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { humanError } from "@/lib/errors";
+import { roleDestination } from "@/lib/post-signin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -50,44 +51,6 @@ function authFailureMessage(error: unknown, lang: "en" | "ar"): string {
   return humanError(error, lang);
 }
 
-/**
- * Resolve the landing screen without turning a valid Supabase session into a
- * failed login when the secondary staff/profile lookup is unavailable.
- */
-async function roleDestination(fallback = "/dashboard"): Promise<string> {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  const uid = userData.user?.id;
-
-  // A valid session may already have been returned by signInWithPassword while
-  // getUser is temporarily unavailable. Preserve that session and continue.
-  if (userError || !uid) {
-    if (userError) console.warn("Unable to resolve authenticated user role; preserving session.", userError);
-    return fallback;
-  }
-
-  const { data, error } = await supabase
-    .from("staff")
-    .select("role, restaurant_id")
-    .eq("auth_user_id", uid)
-    .eq("is_active", true);
-
-  if (error) {
-    console.warn("Staff role lookup failed after authentication; preserving the session.", error);
-    return fallback;
-  }
-
-  const rows = data ?? [];
-
-  if (rows.some((row) => row.role === "super_admin")) return "/super-admin";
-
-  const admin = rows.find((row) => row.role === "restaurant_admin" || row.role === "manager");
-  if (admin) return "/";
-
-  if (rows.some((row) => ["kitchen", "waiter", "cashier"].includes(row.role))) return "/kitchen";
-
-  return fallback;
-}
-
 function AuthPage() {
   const { t, lang, toggleLang } = useI18n();
   const navigate = useNavigate();
@@ -104,22 +67,24 @@ function AuthPage() {
   useEffect(() => {
     let cancelled = false;
 
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!cancelled && data.session) {
-        void roleDestination(target)
-          .then((destination) => navigate({ to: destination as never, replace: true }))
-          .catch((error) => {
-            const message = authFailureMessage(error, lang);
-            setErrorMessage(message);
-            toast.error(message);
-          });
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!cancelled && data.session) {
+          const destination = await roleDestination(target, data.session.user.id);
+          if (!cancelled) await navigate({ to: destination as never, replace: true });
+        }
+      } catch (error) {
+        // Session restoration must not replace a usable sign-in screen with a
+        // global availability error. The user can still sign in normally.
+        console.warn("Unable to restore the existing session.", error);
       }
-    });
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [navigate, target, lang]);
+  }, [navigate, target]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -145,7 +110,7 @@ function AuthPage() {
         if (error) throw error;
 
         if (data.session) {
-          const destination = await roleDestination(target);
+          const destination = await roleDestination(target, data.user?.id ?? data.session.user.id);
           navigate({ to: destination as never, replace: true });
         } else {
           toast.success(t("auth.checkEmail"));
@@ -164,7 +129,7 @@ function AuthPage() {
 
         // signInWithPassword has already authenticated the user. A role lookup
         // must never convert that success into a false login/network failure.
-        const destination = await roleDestination(target);
+        const destination = await roleDestination(target, data.user?.id ?? data.session.user.id);
         navigate({ to: destination as never, replace: true });
       }
     } catch (error) {
