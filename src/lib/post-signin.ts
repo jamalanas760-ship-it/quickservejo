@@ -28,10 +28,12 @@ export async function roleDestination(fallback = "/dashboard", authenticatedUser
     if (rows.some((r) => r.role === "super_admin")) return "/super-admin";
     if (rows.length === 1) {
       const row = rows[0]!;
-      if ((row.role === "restaurant_admin" || row.role === "manager") && row.restaurant_id) {
+      if (row.role === "restaurant_admin" && row.restaurant_id) {
         return `/manage/${row.restaurant_id}`;
       }
-      if (row.role === "kitchen" || row.role === "waiter" || row.role === "cashier") return "/kitchen";
+      if (row.role === "waiter") return "/waiter";
+      if (row.role === "cashier") return "/cashier";
+      if (row.role === "manager" || row.role === "kitchen") return "/kitchen";
     }
   } catch (error) {
     console.warn("Unable to resolve the post-sign-in role; using the safe destination.", error);

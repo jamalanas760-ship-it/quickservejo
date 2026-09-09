@@ -34,10 +34,10 @@ async function assertCanManage(
   supabase: { rpc: (fn: "is_platform_owner") => Promise<{ data: unknown; error: unknown }>; from: Function },
   userId: string,
   restaurantId: string,
-) {
+): Promise<boolean> {
   const owner = await supabase.rpc("is_platform_owner");
   if (owner.error) throw owner.error;
-  if (owner.data) return;
+  if (owner.data) return true;
   const { data: rows, error } = await supabase
     .from("staff")
     .select("role")
@@ -45,10 +45,9 @@ async function assertCanManage(
     .eq("auth_user_id", userId)
     .eq("is_active", true);
   if (error) throw error;
-  const allowed = ((rows ?? []) as { role: string }[]).some(
-    (r) => r.role === "restaurant_admin" || r.role === "manager",
-  );
+  const allowed = ((rows ?? []) as { role: string }[]).some((r) => r.role === "restaurant_admin");
   if (!allowed) throw new Error("Forbidden");
+  return false;
 }
 
 /**
@@ -63,12 +62,15 @@ export const issueStaffAccess = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: row, error } = await supabase
       .from("staff")
-      .select("id, restaurant_id, name")
+      .select("id, restaurant_id, name, role")
       .eq("id", data.staffId)
       .single();
     if (error) throw error;
     if (!row.restaurant_id) throw new Error("Forbidden");
-    await assertCanManage(supabase as never, userId, row.restaurant_id);
+    const isPlatformOwner = await assertCanManage(supabase as never, userId, row.restaurant_id);
+    if (row.role === "restaurant_admin" && !isPlatformOwner) {
+      throw new Error("Only the Super Admin can manage another Admin");
+    }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const restaurant = await supabaseAdmin
@@ -107,12 +109,15 @@ export const getStaffAccess = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: row, error } = await supabase
       .from("staff")
-      .select("id, restaurant_id, name")
+      .select("id, restaurant_id, name, role")
       .eq("id", data.staffId)
       .single();
     if (error) throw error;
     if (!row.restaurant_id) throw new Error("Forbidden");
-    await assertCanManage(supabase as never, userId, row.restaurant_id);
+    const isPlatformOwner = await assertCanManage(supabase as never, userId, row.restaurant_id);
+    if (row.role === "restaurant_admin" && !isPlatformOwner) {
+      throw new Error("Only the Super Admin can view another Admin's access");
+    }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [creds, restaurant] = await Promise.all([

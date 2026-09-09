@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect, useNavigate, useRouterState } from "
 import { useEffect } from "react";
 
 import { BottomNav } from "@/components/nav/BottomNav";
+import { TenantBrandShell } from "@/components/tenant/TenantBrandShell";
 import { useAccess } from "@/hooks/useSession";
 import { getResilientAuthenticatedUser } from "@/lib/auth-resilience";
 import { frontlineHome, isFrontlineOnly } from "@/lib/permissions";
@@ -16,8 +17,7 @@ export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedShell,
 });
 
-const STAFF_BLOCKED_PREFIXES = ["/dashboard", "/manage", "/super-admin", "/profile"];
-const MANAGEMENT_ONLY_PREFIXES = ["/kitchen"];
+const STAFF_BLOCKED_PREFIXES = ["/dashboard", "/manage", "/super-admin"];
 
 function AuthenticatedShell() {
   const navigate = useNavigate();
@@ -29,23 +29,24 @@ function AuthenticatedShell() {
   const accessResolved = !isPending && !isError;
   const staff = accessResolved && isFrontlineOnly(roles);
   const staffBlocked = staff && STAFF_BLOCKED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  const kitchenBlocked = accessResolved && !staff && MANAGEMENT_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  const blocked = staffBlocked || kitchenBlocked;
+  const roleRouteBlocked = staff && (
+    (pathname.startsWith("/kitchen") && !roles.some((role) => role === "kitchen" || role === "manager")) ||
+    (pathname.startsWith("/waiter") && !roles.includes("waiter")) ||
+    (pathname.startsWith("/cashier") && !roles.includes("cashier"))
+  );
+  const blocked = staffBlocked || roleRouteBlocked;
 
   useEffect(() => {
     if (staffBlocked) {
       void navigate({ to: frontlineHome(roles), replace: true });
       return;
     }
-    if (kitchenBlocked) {
-      void navigate({ to: "/", replace: true });
-    }
-  }, [kitchenBlocked, navigate, roles, staffBlocked]);
+  }, [navigate, roles, roleRouteBlocked, staffBlocked]);
 
   return (
-    <>
+    <TenantBrandShell>
       <div className="pb-20">{blocked ? null : <Outlet />}</div>
       <BottomNav />
-    </>
+    </TenantBrandShell>
   );
 }
