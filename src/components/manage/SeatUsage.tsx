@@ -1,9 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
 import { Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/integrations/supabase/client";
+import { useRestaurantSeatUsage } from "@/hooks/useRestaurantSeatUsage";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -13,27 +12,7 @@ import { cn } from "@/lib/utils";
  */
 export function SeatUsage({ restaurantId }: { restaurantId: string }) {
   const { t } = useI18n();
-
-  const seats = useQuery({
-    queryKey: ["seats", restaurantId],
-    staleTime: 30_000,
-    queryFn: async () => {
-      const [limitRes, usedRes] = await Promise.all([
-        supabase.from("restaurants").select("seat_limit").eq("id", restaurantId).maybeSingle(),
-        supabase
-          .from("staff")
-          .select("id", { count: "exact", head: true })
-          .eq("restaurant_id", restaurantId)
-          .eq("is_active", true),
-      ]);
-      if (limitRes.error) throw limitRes.error;
-      if (usedRes.error) throw usedRes.error;
-      return {
-        limit: (limitRes.data?.seat_limit ?? null) as number | null,
-        used: usedRes.count ?? 0,
-      };
-    },
-  });
+  const seats = useRestaurantSeatUsage(restaurantId);
 
   if (seats.isPending) return <Skeleton className="h-20 rounded-xl" />;
 

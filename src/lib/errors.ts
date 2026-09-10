@@ -4,6 +4,13 @@ type Msg = { en: string; ar: string };
 
 const FRIENDLY: Array<{ match: RegExp; msg: Msg }> = [
   {
+    match: /user limit reached|seat limit|54000/i,
+    msg: {
+      en: "This restaurant has reached its user limit. Ask the Super Admin to increase it.",
+      ar: "وصل هذا المطعم إلى حد المستخدمين. اطلب من المدير العام رفع الحد.",
+    },
+  },
+  {
     match: /invalid table|table not found/i,
     msg: {
       en: "Scan the QR code on your table again to place an order.",
