@@ -58,11 +58,24 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Give immediate, readable feedback before creating or changing an Auth
+    // account. The database trigger repeats this check under a lock.
+    const [restaurant, usage] = await Promise.all([
+      supabaseAdmin.from("restaurants").select("seat_limit").eq("id", data.restaurantId).single(),
+      supabaseAdmin.from("staff").select("id", { count: "exact", head: true }).eq("restaurant_id", data.restaurantId).eq("is_active", true),
+    ]);
+    if (restaurant.error) throw restaurant.error;
+    if (usage.error) throw usage.error;
+    if ((usage.count ?? 0) >= restaurant.data.seat_limit) {
+      throw new Error(`Restaurant user limit reached (${restaurant.data.seat_limit} active users)`);
+    }
+
     const email = data.email.trim().toLowerCase();
     const password = generatePassword();
 
     // Reuse an existing auth account when the person already signed up.
-    const existing = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+    const existing = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     if (existing.error) throw existing.error;
     let authUserId = existing.data.users.find((u) => u.email?.toLowerCase() === email)?.id;
     let passwordIsNew = true;
@@ -128,7 +141,7 @@ export const resetStaffPassword = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: row, error } = await supabase
       .from("staff")
-      .select("id, restaurant_id, email, auth_user_id")
+      .select("id, restaurant_id, email, auth_user_id, role")
       .eq("id", data.staffId)
       .single();
     if (error) throw error;
