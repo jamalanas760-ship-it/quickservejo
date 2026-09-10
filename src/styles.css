@@ -219,9 +219,53 @@
 @utility panel {
   background-color: var(--color-card);
   color: var(--color-card-foreground);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
+  border: 1px solid color-mix(in oklab, var(--color-border) 82%, transparent);
+  border-radius: calc(var(--radius) + 0.65rem);
   box-shadow: var(--shadow-panel);
+}
+
+@layer components {
+  .tenant-app {
+    background-image:
+      radial-gradient(circle at 92% 4%, color-mix(in oklab, var(--restaurant-accent) 9%, transparent), transparent 22rem),
+      linear-gradient(180deg, color-mix(in oklab, var(--color-background) 88%, white) 0%, var(--color-background) 28rem);
+    background-attachment: fixed;
+  }
+
+  .tenant-app main,
+  .tenant-app > div > div > div > div:not([role="dialog"]) {
+    min-width: 0;
+  }
+
+  .tenant-app .panel {
+    backdrop-filter: blur(16px);
+  }
+
+  .tenant-app .panel:has(> a),
+  .tenant-app a.panel {
+    transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  }
+
+  .tenant-app a.panel:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in oklab, var(--color-primary) 24%, var(--color-border));
+    box-shadow: var(--shadow-lift);
+  }
+
+  :is(main, [role="main"]) > :first-child:is(h1, header) h1,
+  :is(main, [role="main"]) > h1:first-child {
+    text-wrap: balance;
+  }
+
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (max-width: 640px) {
+    .panel {
+      border-radius: 1.15rem;
+    }
+  }
 }
 
 /* iOS/Android safe-area helpers for sticky bars and full-height screens. */
