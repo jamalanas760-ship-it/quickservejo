@@ -45,7 +45,7 @@ function AuthenticatedShell() {
 
   return (
     <TenantBrandShell>
-      <div className="pb-20">{blocked ? null : <Outlet />}</div>
+      <div className="pb-24 lg:pb-0">{blocked ? null : <Outlet />}</div>
       <BottomNav />
     </TenantBrandShell>
   );

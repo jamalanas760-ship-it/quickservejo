@@ -33,10 +33,22 @@ export function TenantBrandShell({ children }: { children: ReactNode }) {
     "--sidebar-primary-foreground": accentForeground,
     "--restaurant-primary": primary,
     "--restaurant-accent": accent,
+    "--card": `color-mix(in oklab, ${background} 18%, white)`,
+    "--card-foreground": foreground,
+    "--popover": `color-mix(in oklab, ${background} 12%, white)`,
+    "--popover-foreground": foreground,
+    "--secondary": `color-mix(in oklab, ${primary} 7%, ${background})`,
+    "--secondary-foreground": foreground,
+    "--muted": `color-mix(in oklab, ${primary} 5%, ${background})`,
+    "--muted-foreground": ensureContrast("#667169", background),
+    "--border": `color-mix(in oklab, ${primary} 15%, ${background})`,
+    "--input": `color-mix(in oklab, ${primary} 18%, ${background})`,
+    "--surface": `color-mix(in oklab, ${primary} 4%, ${background})`,
+    "--surface-foreground": foreground,
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground" style={style} data-tenant={restaurant.id}>
+    <div className="tenant-app min-h-screen bg-background text-foreground" style={style} data-tenant={restaurant.id}>
       <div className="lg:ps-64">{children}</div>
     </div>
   );

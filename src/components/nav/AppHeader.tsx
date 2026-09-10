@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
  * The app chrome used on every signed-in screen: brand lockup, language
  * switch, notification bell with an open-order count and the account avatar.
  */
-export function AppHeader({ onMenu, className }: { onMenu?: () => void; className?: string }) {
+export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; className?: string; title?: string }) {
   const { lang, toggleLang } = useI18n();
   const scope = useWorkspaceScope();
   const access = useAccess();
@@ -33,7 +33,7 @@ export function AppHeader({ onMenu, className }: { onMenu?: () => void; classNam
   const openOrders = report.data?.openOrders ?? 0;
 
   return (
-    <header className={cn("safe-top sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl", className)}>
+    <header className={cn("safe-top sticky top-0 z-40 border-b border-border/60 bg-background/86 shadow-[0_1px_0_color-mix(in_oklab,var(--color-border)_55%,transparent)] backdrop-blur-2xl", className)}>
       <div
         className={cn(
           "mx-auto grid h-16 max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4",
@@ -63,6 +63,7 @@ export function AppHeader({ onMenu, className }: { onMenu?: () => void; classNam
               <BrandLogo className="size-9 shrink-0" textClassName="truncate text-xl" />
             )}
           </Link>
+          {title ? <span className="hidden min-w-0 truncate border-s border-border/80 ps-3 text-xs font-semibold text-muted-foreground md:block">{title}</span> : null}
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
