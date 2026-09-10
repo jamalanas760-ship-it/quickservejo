@@ -85,7 +85,11 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     // decoding claims locally. This is authoritative for revoked/expired users.
     const { data, error } = await supabase.auth.getUser(token);
     if (error || !data.user) {
-      throw new Error('Unauthorized: Your session expired. Please sign in again.');
+      // Preserve a safe support code; configuration and transport failures are
+      // not necessarily expired sessions. Never log credentials or JWTs.
+      const code = (error?.code ?? 'no_user').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 60);
+      const status = error?.status ?? 0;
+      throw new Error(`Authentication could not be verified (AUTH-${status}-${code}-${dedicatedToken ? 'D' : 'B'}).`);
     }
 
     return next({
