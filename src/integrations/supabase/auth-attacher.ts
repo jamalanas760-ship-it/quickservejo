@@ -6,10 +6,23 @@ import { supabase } from './client'
 // the browser never attaches the bearer token to serverFn RPCs.
 export const attachSupabaseAuth = createMiddleware({ type: 'function' }).client(
   async ({ next }) => {
-    const { data } = await supabase.auth.getSession()
-    const token = data.session?.access_token
+    let { data } = await supabase.auth.getSession()
+    let token = data.session?.access_token
+
+    // Refresh once when the locally cached session is close to expiry. This
+    // avoids forwarding a stale JWT after the admin dashboard has stayed open.
+    const expiresSoon = data.session?.expires_at
+      ? data.session.expires_at * 1000 <= Date.now() + 30_000
+      : false
+    if (token && expiresSoon) {
+      const refreshed = await supabase.auth.refreshSession()
+      token = refreshed.data.session?.access_token
+    }
+
     return next({
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      // Authorization may be owned/replaced by the hosting proxy. A dedicated
+      // header keeps the Supabase user token unambiguous end to end.
+      headers: token ? { 'x-supabase-access-token': token } : {},
     })
   },
 )
