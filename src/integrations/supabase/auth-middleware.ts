@@ -52,23 +52,15 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       throw new Error('Unauthorized: No request headers available');
     }
 
+    const dedicatedToken = request.headers.get('x-supabase-access-token')?.trim();
     const authHeader = request.headers.get('authorization');
+    const bearerToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length).trim()
+      : undefined;
+    const token = dedicatedToken || bearerToken;
 
-    if (!authHeader) {
-      throw new Error('Unauthorized: No authorization header provided');
-    }
-
-    if (!authHeader.startsWith('Bearer ')) {
-      throw new Error('Unauthorized: Only Bearer tokens are supported');
-    }
-
-    const token = authHeader.replace('Bearer ', '');
     if (!token) {
-      throw new Error('Unauthorized: No token provided');
-    }
-
-    if (token.split('.').length !== 3) {
-      throw new Error('Unauthorized: Invalid token');
+      throw new Error('Unauthorized: Your session is missing. Please sign in again.');
     }
 
     const supabase = createClient<Database>(
@@ -89,20 +81,18 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       }
     );
 
-    const { data, error } = await supabase.auth.getClaims(token);
-    if (error || !data?.claims) {
-      throw new Error('Unauthorized: Invalid token');
-    }
-
-    if (!data.claims.sub) {
-      throw new Error('Unauthorized: No user ID found in token');
+    // Ask Supabase Auth to validate the token instead of trusting its shape or
+    // decoding claims locally. This is authoritative for revoked/expired users.
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) {
+      throw new Error('Unauthorized: Your session expired. Please sign in again.');
     }
 
     return next({
       context: {
         supabase,
-        userId: data.claims.sub,
-        claims: data.claims,
+        userId: data.user.id,
+        user: data.user,
       },
     });
   },

@@ -4,6 +4,13 @@ type Msg = { en: string; ar: string };
 
 const FRIENDLY: Array<{ match: RegExp; msg: Msg }> = [
   {
+    match: /session (is missing|expired)|no authorization header|invalid token/i,
+    msg: {
+      en: "Your session expired. Sign in again, then retry.",
+      ar: "انتهت صلاحية جلستك. سجّل الدخول مجدداً ثم أعد المحاولة.",
+    },
+  },
+  {
     match: /user limit reached|seat limit|54000/i,
     msg: {
       en: "This restaurant has reached its user limit. Ask the Super Admin to increase it.",
