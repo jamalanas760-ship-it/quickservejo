@@ -60,7 +60,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     const token = dedicatedToken || bearerToken;
 
     if (!token) {
-      throw new Error('Unauthorized: Your session is missing. Please sign in again.');
+      throw new Error('Authentication could not be verified (AUTH-MISSING).');
     }
 
     const supabase = createClient<Database>(
@@ -89,7 +89,8 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       // not necessarily expired sessions. Never log credentials or JWTs.
       const code = (error?.code ?? 'no_user').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 60);
       const status = error?.status ?? 0;
-      throw new Error(`Authentication could not be verified (AUTH-${status}-${code}-${dedicatedToken ? 'D' : 'B'}).`);
+      const originCode = error?.message.match(/error code:?\s*(\d{4})/i)?.[1] ?? 'unknown';
+      throw new Error(`Auth connection failed: ${new URL(SUPABASE_URL).hostname} (AUTH-${status}-${code}-${originCode}).`);
     }
 
     return next({
