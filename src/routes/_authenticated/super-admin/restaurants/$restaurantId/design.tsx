@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { PdfMenuManager } from "@/components/manage/PdfMenuManager";
+import { MasterMenuDesigner } from "@/components/manage/MasterMenuDesigner";
 
 export const Route = createFileRoute(
   "/_authenticated/super-admin/restaurants/$restaurantId/design",
@@ -21,5 +21,5 @@ export const Route = createFileRoute(
 
 function DesignTab() {
   const { restaurantId } = Route.useParams();
-  return <PdfMenuManager restaurantId={restaurantId} />;
+  return <MasterMenuDesigner restaurantId={restaurantId} />;
 }

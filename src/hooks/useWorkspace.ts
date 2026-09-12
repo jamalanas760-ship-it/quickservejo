@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useRouterState } from "@tanstack/react-router";
 
 import { supabase } from "@/integrations/supabase/client";
 import { daysAgoIso, startOfTodayIso } from "@/lib/format";
@@ -18,7 +19,9 @@ export type WorkspaceScope = {
  */
 export function useWorkspaceScope(): WorkspaceScope {
   const access = useAccess();
-  const membership = (access.data ?? []).find((m) => m.restaurant_id) ?? null;
+  const pathname = useRouterState({ select: state => state.location.pathname });
+  const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
+  const membership = (access.data ?? []).find((m) => m.restaurant_id && (!selectedId || m.restaurant_id === selectedId)) ?? null;
 
   const fallback = useQuery({
     queryKey: ["workspace", "fallback-restaurant"],

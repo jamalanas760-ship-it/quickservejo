@@ -37,7 +37,7 @@ function AuthenticatedShell() {
   const blocked = staffBlocked || roleRouteBlocked;
 
   useEffect(() => {
-    if (staffBlocked) {
+    if (staffBlocked || roleRouteBlocked) {
       void navigate({ to: frontlineHome(roles), replace: true });
       return;
     }

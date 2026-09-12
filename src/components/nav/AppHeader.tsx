@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Bell, Globe, Menu as MenuIcon } from "lucide-react";
 
@@ -12,10 +12,12 @@ import { cn } from "@/lib/utils";
  * The app chrome used on every signed-in screen: brand lockup, language
  * switch, notification bell with an open-order count and the account avatar.
  */
-export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; className?: string; title?: string }) {
+export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; className?: string; title?: string | undefined }) {
   const { lang, toggleLang } = useI18n();
   const scope = useWorkspaceScope();
   const access = useAccess();
+  const pathname = useRouterState({ select: state => state.location.pathname });
+  const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
   const session = useSupabaseSession();
   const report = useWorkspaceReport(scope.restaurantId);
   const [initial, setInitial] = useState("A");
@@ -27,7 +29,7 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
     if (source) setInitial(source.slice(0, 1).toUpperCase());
   }, [session.data?.user]);
 
-  const membership = (access.data ?? []).find((row) => row.restaurant_id && row.restaurant);
+  const membership = (access.data ?? []).find((row) => row.restaurant_id && row.restaurant && (!selectedId || row.restaurant_id === selectedId));
   const restaurant = access.isSuperAdmin ? null : membership?.restaurant;
 
   const openOrders = report.data?.openOrders ?? 0;

@@ -174,37 +174,22 @@ function AuthPage() {
   const isArabic = lang === "ar";
 
   return (
-    <main className="min-h-screen bg-background lg:grid lg:grid-cols-[minmax(0,1.03fr)_minmax(520px,0.97fr)]">
-      <section className="relative hidden min-h-screen overflow-hidden bg-[#21160f] text-white lg:flex lg:flex-col lg:justify-between lg:px-[5.25vw] lg:py-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(245,158,11,0.08),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.015),transparent_55%)]" />
-
-        <Link to="/" className="relative z-10 inline-flex w-fit items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
-          <BrandLogo className="size-10" accentClassName="text-orange-400" textClassName="text-[23px]" />
-        </Link>
-
-        <div className="relative z-10 max-w-[610px] pb-10">
-          <h1 className="font-display text-[clamp(42px,4.2vw,68px)] font-bold leading-[1.05] tracking-[-0.04em] text-white">
-            {isArabic ? "منصة واحدة، لكل مطعم تديره" : "One platform, every restaurant you run"}
-          </h1>
-          <p className="mt-7 text-[18px] text-white/60">{isArabic ? "منصة طلبات QR للمطاعم" : "QR ordering platform for restaurants"}</p>
-        </div>
-
-        <p className="relative z-10 text-[13px] text-white/45">
-          {isArabic ? "عزل بيانات المستأجرين مفروض على مستوى قاعدة البيانات." : "Tenant isolation enforced at the database level."}
-        </p>
+    <main dir="ltr" className="min-h-dvh bg-white lg:grid lg:grid-cols-2">
+      <section aria-label={isArabic ? "مرحباً بك في مطعمك" : "Welcome to your restaurant"} className="relative h-44 overflow-hidden bg-[#ddd6c9] sm:h-60 lg:sticky lg:top-0 lg:h-dvh">
+        <img src="/signin-restaurant.webp" alt="" className="h-full w-full object-cover object-center" fetchPriority="high" />
       </section>
 
-      <section className="flex min-h-screen items-center justify-center bg-white px-6 py-8 sm:px-10 lg:px-[6.3vw]">
+      <section dir={isArabic ? "rtl" : "ltr"} className="flex min-h-[calc(100dvh-11rem)] items-center justify-center bg-white px-6 py-8 sm:px-10 lg:min-h-dvh lg:px-[6.3vw]">
         <div className="w-full max-w-[480px]">
           <div className="mb-16 flex items-center justify-between">
-            <Link to="/" className="lg:hidden" aria-label="QuickServe home">
-              <BrandLogo className="size-9" accentClassName="text-orange-500" textClassName="text-xl" />
+            <Link to="/" aria-label="QuickServe home" className="text-[#254b3d]">
+              <BrandLogo className="size-9" accentClassName="text-[#254b3d]" textClassName="text-xl" />
             </Link>
 
             <button
               type="button"
               onClick={toggleLang}
-              className="ml-auto inline-flex h-9 items-center gap-2 rounded-md px-1 text-sm font-medium text-foreground transition-colors hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+              className="ms-auto inline-flex h-11 items-center gap-2 rounded-md px-2 text-sm font-medium text-[#254b3d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#254b3d]"
               aria-label={isArabic ? "Switch to English" : "التبديل إلى العربية"}
             >
               <Globe2 className="size-4" />
@@ -286,7 +271,7 @@ function AuthPage() {
             <Button
               type="submit"
               disabled={busy}
-              className="h-12 w-full rounded-xl bg-[#3d3027] text-[15px] font-semibold text-white shadow-sm transition-all hover:bg-[#2f241e] hover:shadow-md disabled:opacity-70"
+              className="h-12 w-full rounded-xl bg-[#254b3d] text-[15px] font-semibold text-white shadow-sm transition-colors hover:bg-[#18382c] disabled:opacity-70"
             >
               {busy ? <Loader2 className="size-4 animate-spin" /> : mode === "signup" ? t("auth.signUp") : t("auth.signIn")}
             </Button>

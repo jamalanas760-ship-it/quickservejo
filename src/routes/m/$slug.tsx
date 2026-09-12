@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { Languages, Loader2, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
@@ -100,6 +100,10 @@ function PdfOrderPage() {
 
   const { restaurant, pdfMenu } = menu.data;
 
+  if (menu.data.menuMode === "products" || (!pdfMenu && menu.data.items.length > 0)) {
+    return <Navigate to="/r/$slug" params={{ slug }} search={{ t: qrToken }} replace />;
+  }
+
   if (!pdfMenu) {
     return (
       <div className="grid min-h-screen place-items-center p-6 text-center">
@@ -194,6 +198,7 @@ function PdfOrderPage() {
     <div dir="ltr" lang="en" className="pdf-menu-page min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-40 h-16 border-b bg-background/95 px-4 backdrop-blur-xl">
         <div className="mx-auto flex h-full max-w-4xl items-center gap-3">
+          {restaurant.logo_url ? <img src={restaurant.logo_url} alt="" className="size-10 shrink-0 rounded-xl object-contain" /> : null}
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-base font-bold">{restaurant.name}</h1>
             <p className="mt-0.5 text-xs text-muted-foreground">

@@ -51,6 +51,8 @@ export function PdfMenuViewer({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfRef = useRef<any>(null);
   const pinchRef = useRef<PinchState | null>(null);
+  const swipeRef = useRef<{ x: number; y: number } | null>(null);
+  const suppressClickUntil = useRef(0);
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const pageLinks = useMemo(
     () => links.filter((link) => link.page_number === page && itemById.has(link.menu_item_id)),
@@ -191,8 +193,12 @@ export function PdfMenuViewer({
       </div>
 
       <div
-        className="relative w-full overflow-auto bg-white touch-pan-x touch-pan-y"
+        className="relative w-full overflow-auto bg-white"
+        style={{ touchAction: zoom === MIN_ZOOM ? "pan-y" : "pan-x pan-y" }}
         onTouchStart={(event) => {
+          swipeRef.current = event.touches.length === 1 && zoom === MIN_ZOOM && !loading
+            ? { x: event.touches[0].clientX, y: event.touches[0].clientY }
+            : null;
           const distance = pinchDistance(event.touches);
           if (distance > 0) pinchRef.current = { distance, zoom };
         }}
@@ -204,7 +210,24 @@ export function PdfMenuViewer({
           setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, start.zoom * (distance / start.distance))));
         }}
         onTouchEnd={(event) => {
+          const start = swipeRef.current;
+          swipeRef.current = null;
+          if (start && event.touches.length === 0 && event.changedTouches.length === 1 && !loading && zoom === MIN_ZOOM) {
+            const dx = event.changedTouches[0].clientX - start.x;
+            const dy = event.changedTouches[0].clientY - start.y;
+            if (Math.abs(dx) >= 65 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+              suppressClickUntil.current = Date.now() + 400;
+              go(dx < 0 ? 1 : -1);
+            }
+          }
           if (event.touches.length < 2) pinchRef.current = null;
+        }}
+        onTouchCancel={() => { swipeRef.current = null; pinchRef.current = null; }}
+        onClickCapture={(event) => {
+          if (Date.now() < suppressClickUntil.current) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
         }}
       >
         <div

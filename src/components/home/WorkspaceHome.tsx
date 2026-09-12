@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 
 import heroDish from "@/assets/hero-dish.jpg";
+import { useRestaurant } from "@/hooks/useSuperAdmin";
+import { readAppearance } from "@/lib/restaurant-appearance";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Sparkline } from "@/components/common/Sparkline";
 import { Badge } from "@/components/ui/badge";
@@ -67,9 +69,9 @@ const STORAGE_KEY = "quickserve.home.widgets";
 type Prefs = { order: WidgetId[]; off: WidgetId[] };
 const DEFAULT_PREFS: Prefs = { order: ALL_WIDGETS, off: [] };
 
-function loadPrefs(): Prefs {
+function loadPrefs(key: string): Prefs {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(key);
     if (!raw) return DEFAULT_PREFS;
     const parsed = JSON.parse(raw) as Partial<Prefs>;
     const order = (parsed.order ?? []).filter((id): id is WidgetId => ALL_WIDGETS.includes(id));
@@ -87,6 +89,9 @@ function loadPrefs(): Prefs {
 export function WorkspaceHome() {
   const { lang } = useI18n();
   const scope = useWorkspaceScope();
+  const restaurant = useRestaurant(scope.restaurantId ?? "");
+  const appearance = readAppearance(restaurant.data?.menu_theme);
+  const prefsKey = `${STORAGE_KEY}:${scope.restaurantId ?? "none"}`;
   const report = useWorkspaceReport(scope.restaurantId);
   const members = useWorkspaceMembers(scope.restaurantId);
   const [name, setName] = useState<string | null>(null);
@@ -95,16 +100,16 @@ export function WorkspaceHome() {
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
 
   useEffect(() => {
-    setPrefs(loadPrefs());
+    setPrefs(loadPrefs(prefsKey));
     void supabase.auth.getUser().then(({ data }) => {
       const meta = data.user?.user_metadata as { full_name?: string; name?: string } | undefined;
       setName(meta?.full_name || meta?.name || data.user?.email?.split("@")[0] || null);
     });
-  }, []);
+  }, [prefsKey]);
 
   function savePrefs(next: Prefs) {
     setPrefs(next);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    window.localStorage.setItem(prefsKey, JSON.stringify(next));
   }
 
   function toggle(id: WidgetId) {
@@ -200,8 +205,7 @@ export function WorkspaceHome() {
                 {lang === "ar" ? "مساحة العمل" : "Workspace"}
               </p>
               <h1 className="mt-2 text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
-                {greeting}
-                {name ? `, ${name}` : ""}
+                {appearance.homeTitle || `${greeting}${name ? `, ${name}` : ""}`}
               </h1>
               <p className="mt-1.5 text-sm text-muted-foreground">
                 {scope.restaurantName
@@ -233,7 +237,7 @@ export function WorkspaceHome() {
             </div>
             <div className="relative h-32 sm:h-auto">
               <img
-                src={heroDish}
+                src={restaurant.data?.cover_image_url || heroDish}
                 alt=""
                 loading="lazy"
                 className="size-full object-cover"

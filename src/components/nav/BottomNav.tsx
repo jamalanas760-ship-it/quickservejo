@@ -32,7 +32,8 @@ export function BottomNav() {
   const items = frontline
     ? [task, { to: "/profile", icon: User, en: "Profile", ar: "الملف الشخصي" }].filter(Boolean) as Item[]
     : ADMIN_ITEMS;
-  const restaurant = (data ?? []).find((membership) => membership.restaurant)?.restaurant;
+  const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
+  const restaurant = (data ?? []).find((membership) => membership.restaurant && (!selectedId || membership.restaurant_id === selectedId))?.restaurant;
 
   return (
     <nav aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"} className="safe-bottom fixed inset-x-0 bottom-0 z-40 px-2 pb-1 sm:px-3 sm:pb-2 lg:inset-y-0 lg:start-0 lg:end-auto lg:w-64 lg:p-4">

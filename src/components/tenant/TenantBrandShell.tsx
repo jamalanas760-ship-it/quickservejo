@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { useRouterState } from "@tanstack/react-router";
 
 import { useAccess } from "@/hooks/useSession";
 import { ensureContrast } from "@/lib/contrast";
@@ -7,7 +8,9 @@ type TenantStyle = CSSProperties & Record<`--${string}`, string>;
 
 export function TenantBrandShell({ children }: { children: ReactNode }) {
   const access = useAccess();
-  const membership = (access.data ?? []).find((row) => row.restaurant_id && row.restaurant);
+  const pathname = useRouterState({ select: state => state.location.pathname });
+  const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
+  const membership = (access.data ?? []).find((row) => row.restaurant_id && row.restaurant && (!selectedId || row.restaurant_id === selectedId));
   const restaurant = access.isSuperAdmin ? null : membership?.restaurant;
 
   if (!restaurant) return <>{children}</>;

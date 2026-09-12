@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { readAppearance } from "@/lib/restaurant-appearance";
 import { parseMenuTheme, type MenuTheme } from "@/lib/menu-theme";
 
 export type DinerModifier = { id: string; name_en: string; name_ar: string; price_delta: number };
@@ -7,6 +8,7 @@ export type DinerItem = { id: string; category_id: string | null; name_en: strin
 export type DinerPdfLink = { id: string; page_number: number; x: number; y: number; width: number; height: number; menu_item_id: string; label: string | null };
 
 export type DinerMenu = {
+  menuMode: "pdf" | "products";
   restaurant: { id: string; name: string; slug: string; logo_url: string | null; cover_image_url: string | null; description_en: string | null; description_ar: string | null; currency: string; tax_rate: number; service_charge: number; primary_color: string; accent_color: string; menu_theme: MenuTheme };
   settings: { enable_orders: boolean; enable_waiter_calls: boolean; show_prices: boolean; allow_special_notes: boolean; minimum_order: number; enable_service_charge: boolean; estimated_preparation_time: number } | null;
   table: { id: string; table_number: string; table_name: string | null } | null;
@@ -72,8 +74,10 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
   }
 
   const parts = Array.isArray(pdfDocument?.file_parts) ? pdfDocument.file_parts.filter((part): part is string => typeof part === "string" && part.length > 0) : [];
+  const appearance = readAppearance(restaurant.menu_theme);
   return {
-    restaurant: { ...restaurant, tax_rate: Number(restaurant.tax_rate), service_charge: Number(restaurant.service_charge), menu_theme: menuTheme },
+    menuMode: appearance.menuMode,
+    restaurant: { ...restaurant, logo_url: appearance.menuLogo || restaurant.logo_url, tax_rate: Number(restaurant.tax_rate), service_charge: Number(restaurant.service_charge), menu_theme: menuTheme },
     settings: settingsRes.data ? { ...settingsRes.data, minimum_order: Number(settingsRes.data.minimum_order) } : null,
     table: tableRes.data ?? null,
     categories: categoriesRes.data ?? [],

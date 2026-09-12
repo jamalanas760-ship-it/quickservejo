@@ -67,7 +67,7 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
     ]);
     if (restaurant.error) throw restaurant.error;
     if (usage.error) throw usage.error;
-    if ((usage.count ?? 0) >= restaurant.data.seat_limit) {
+    if (restaurant.data.seat_limit !== null && (usage.count ?? 0) >= restaurant.data.seat_limit) {
       throw new Error(`Restaurant user limit reached (${restaurant.data.seat_limit} active users)`);
     }
 
@@ -81,13 +81,8 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
     let passwordIsNew = true;
 
     if (authUserId) {
-      // Existing account keeps its own password; set the fresh one so the
-      // manager can always hand over working credentials.
-      const updated = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
-        password,
-        email_confirm: true,
-      });
-      if (updated.error) passwordIsNew = false;
+      // Linking a membership must not reset an existing person's credentials.
+      passwordIsNew = false;
     } else {
       const created = await supabaseAdmin.auth.admin.createUser({
         email,
@@ -131,6 +126,18 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
       email,
       password: passwordIsNew ? password : null,
     };
+  });
+
+/** Read-only check of the same session, tenant permission, and Admin API used by user creation. */
+export const checkStaffManagementAccess = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ restaurantId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertCanManage(context.supabase as never, context.userId, data.restaurantId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const result = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1 });
+    if (result.error) throw new Error("The user-management service is not connected to this restaurant's sign-in project. Please contact the platform administrator.");
+    return { ready: true };
   });
 
 /** Issues a fresh password for an existing staff member. */

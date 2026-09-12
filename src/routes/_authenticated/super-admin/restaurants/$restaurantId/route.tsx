@@ -23,11 +23,12 @@ const TABS: Tab[] = [
   { to: "/super-admin/restaurants/$restaurantId/staff", labelKey: "sa.detail.staff" },
   { to: "/super-admin/restaurants/$restaurantId/orders", labelKey: "sa.detail.orders" },
   { to: "/super-admin/restaurants/$restaurantId/analytics", labelKey: "sa.detail.analytics" },
+  { to: "/super-admin/restaurants/$restaurantId/operations", labelKey: "Operations" },
 ];
 
 function RestaurantShell() {
   const { restaurantId } = Route.useParams();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: restaurant, isPending } = useRestaurant(restaurantId);
 
@@ -85,7 +86,9 @@ function RestaurantShell() {
       <nav className="flex flex-wrap gap-1 border-b pb-2">
         {TABS.map((tab) => {
           const href = tab.to.replace("$restaurantId", restaurantId);
-          const active = tab.exact ? pathname === base || pathname === `${base}/` : pathname === href;
+          const active = tab.exact
+            ? pathname === base || pathname === `${base}/`
+            : pathname === href;
           return (
             <Link
               key={tab.to}
@@ -93,10 +96,12 @@ function RestaurantShell() {
               params={{ restaurantId }}
               className={cn(
                 "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                active ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-muted",
+                active
+                  ? "bg-secondary text-secondary-foreground"
+                  : "text-muted-foreground hover:bg-muted",
               )}
             >
-              {t(tab.labelKey)}
+              {tab.labelKey === "Operations" ? (lang === "ar" ? "العمليات" : "Operations") : t(tab.labelKey)}
             </Link>
           );
         })}

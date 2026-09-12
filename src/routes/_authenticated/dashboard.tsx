@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 
 import { AppHeader } from "@/components/nav/AppHeader";
+import { useRestaurant } from "@/hooks/useSuperAdmin";
+import { readAppearance } from "@/lib/restaurant-appearance";
 import { Sparkline } from "@/components/common/Sparkline";
 import { useAccess } from "@/hooks/useSession";
 import { useWorkspaceReport, useWorkspaceScope } from "@/hooks/useWorkspace";
@@ -49,6 +51,8 @@ function DashboardPage() {
   const { t, lang } = useI18n();
   const { data, isPending, isError, error, refetch, isSuperAdmin } = useAccess();
   const scope = useWorkspaceScope();
+  const restaurant = useRestaurant(scope.restaurantId ?? "");
+  const appearance = readAppearance(restaurant.data?.menu_theme);
   const report = useWorkspaceReport(scope.restaurantId);
   const currency = scope.currency;
   const r = report.data;
@@ -124,7 +128,7 @@ function DashboardPage() {
               {t("nav.dashboard")}
             </p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-              {scope.restaurantName ??
+              {appearance.dashboardTitle || scope.restaurantName ||
                 (lang === "ar" ? "نظرة عامة على مساحة عملك" : "Your workspace overview")}
             </h1>
             <p className="mt-1.5 text-sm text-sidebar-foreground/80">
