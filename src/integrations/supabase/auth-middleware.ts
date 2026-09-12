@@ -33,8 +33,10 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
     
-    const SUPABASE_URL = process.env['SUPABASE_URL'];
-    const SUPABASE_PUBLISHABLE_KEY = process.env['SUPABASE_PUBLISHABLE_KEY'];
+    // Match the project that issued the browser session. Hosting defaults can
+    // still reference the original project after reconnecting Supabase.
+    const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || process.env['SUPABASE_URL'];
+    const SUPABASE_PUBLISHABLE_KEY = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_PUBLISHABLE_KEY'];
 
     if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
       const missing = [
@@ -89,8 +91,10 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       // not necessarily expired sessions. Never log credentials or JWTs.
       const code = (error?.code ?? 'no_user').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 60);
       const status = error?.status ?? 0;
-      const originCode = error?.message.match(/error code:?\s*(\d{4})/i)?.[1] ?? 'unknown';
-      throw new Error(`Auth connection failed: ${new URL(SUPABASE_URL).hostname} (AUTH-${status}-${code}-${originCode}).`);
+      if (status === 401 || status === 403) {
+        throw new Error('Unauthorized: Your session expired. Please sign in again.');
+      }
+      throw new Error(`Authentication service is unavailable (AUTH-${status}-${code}). Please retry shortly.`);
     }
 
     return next({

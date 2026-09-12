@@ -51,7 +51,7 @@ function resolveSecretKey(): string | undefined {
 }
 
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env['SUPABASE_URL'];
+  const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || process.env['SUPABASE_URL'];
   const SUPABASE_ADMIN_KEY = resolveSecretKey();
 
   if (!SUPABASE_URL || !SUPABASE_ADMIN_KEY) {
