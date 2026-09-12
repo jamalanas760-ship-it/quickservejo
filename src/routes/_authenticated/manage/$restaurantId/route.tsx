@@ -1,4 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import type { CSSProperties } from "react";
 import { BarChart3, ClipboardList, QrCode, ShoppingBag, Store, Users, Package, ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppHeader } from "@/components/nav/AppHeader";
