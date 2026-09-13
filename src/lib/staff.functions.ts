@@ -140,7 +140,16 @@ export const checkStaffManagementAccess = createServerFn({ method: "POST" })
     await assertCanManage(context.supabase as never, context.userId, data.restaurantId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const result = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1 });
-    if (result.error) throw new Error("The user-management service is not connected to this restaurant's sign-in project. Please contact the platform administrator.");
+    if (result.error) {
+      const status = result.error.status;
+      const detail = status === 401
+        ? "Supabase rejected the server credential. Check that SUPAB_SECRET_KEY is an active secret key for the sign-in project."
+        : status === 403
+          ? "Supabase denied Admin API access. Check that SUPAB_SECRET_KEY is a secret key, not a publishable or anon key."
+          : "The Supabase Admin API request failed. Check service availability and server configuration.";
+      // Do not expose upstream error text, request headers, or credential values.
+      throw new Error(`QS-ADMIN-${typeof status === "number" ? status : "NETWORK"}: ${detail}`);
+    }
     return { ready: true };
   });
 
