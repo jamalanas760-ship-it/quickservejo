@@ -30,6 +30,11 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function resolveSecretKey(): string | undefined {
+  // Lovable reserves SUPABASE_ for managed secrets. Use the custom server-only
+  // key for the external sign-in project before considering managed defaults.
+  const customSecret = process.env['SUPAB_SECRET_KEY']?.trim();
+  if (customSecret) return customSecret;
+
   // Prefer the new Supabase secret key. Keep the legacy service-role key as a
   // backwards-compatible fallback for existing projects.
   const directSecret = process.env['SUPABASE_SECRET_KEY'];
@@ -57,7 +62,7 @@ function createSupabaseAdminClient() {
   if (!SUPABASE_URL || !SUPABASE_ADMIN_KEY) {
     const missing = [
       ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-      ...(!SUPABASE_ADMIN_KEY ? ['SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY)'] : []),
+      ...(!SUPABASE_ADMIN_KEY ? ['SUPAB_SECRET_KEY'] : []),
     ];
     const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Connect Supabase in Lovable Cloud.`;
     console.error(`[Supabase] ${message}`);
