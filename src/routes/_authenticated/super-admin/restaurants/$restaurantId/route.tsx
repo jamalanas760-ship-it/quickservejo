@@ -28,7 +28,7 @@ const TABS: Tab[] = [
 
 function RestaurantShell() {
   const { restaurantId } = Route.useParams();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: restaurant, isPending } = useRestaurant(restaurantId);
 
@@ -101,7 +101,7 @@ function RestaurantShell() {
                   : "text-muted-foreground hover:bg-muted",
               )}
             >
-              {tab.labelKey === "Operations" ? (lang === "ar" ? "العمليات" : "Operations") : t(tab.labelKey)}
+              {t(tab.labelKey)}
             </Link>
           );
         })}
