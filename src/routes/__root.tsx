@@ -127,7 +127,13 @@ function RootComponent() {
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
-    const onFocus = () => { if (document.visibilityState === "visible") void supabase.auth.getSession(); };
+    const onFocus = () => {
+      if (document.visibilityState !== "visible") return;
+      // Background session freshness must not turn a temporary auth/network
+      // outage into an unhandled rejection and blank the whole application.
+      // Protected routes and foreground auth flows remain authoritative.
+      void supabase.auth.getSession().catch(() => undefined);
+    };
     document.addEventListener("visibilitychange", onFocus);
     window.addEventListener("focus", onFocus);
     return () => {
