@@ -165,7 +165,7 @@ export function InventoryPanel({
                   <TableHead className="text-end">{t("bo.inv.quantity")}</TableHead>
                   <TableHead className="text-end">{t("bo.inv.reorder")}</TableHead>
                   <TableHead>{t("bo.inv.status")}</TableHead>
-                  <TableHead className="text-end">{t("sa.rest.col.orders")}</TableHead>
+                  <TableHead className="text-end">{t("bo.inv.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
