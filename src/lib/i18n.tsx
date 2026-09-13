@@ -62,6 +62,7 @@ const dict: Dict = {
   "common.language": { en: "العربية", ar: "English" },
   ...superAdminDict,
   ...upgradeDict,
+  ...erpDict,
 };
 
 
