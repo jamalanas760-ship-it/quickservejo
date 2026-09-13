@@ -3,9 +3,10 @@ import { Download, Receipt } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangePicker } from "@/components/common/DateRangePicker";
 import type { BackOfficeData } from "@/hooks/useBackOffice";
-import { downloadCsv, expenseCategoryLabel, sumBy } from "@/lib/erp";
+import { downloadCsv, expenseCategoryLabel, EXPENSE_CATEGORIES, sumBy } from "@/lib/erp";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { dayKey, rangeFromPreset, type DateRange } from "@/lib/range";
@@ -25,6 +26,7 @@ export function FinancePanel({
   const { t, lang } = useI18n();
   const [range, setRange] = useState<DateRange>(() => rangeFromPreset("30d"));
   const [term, setTerm] = useState("");
+  const [category, setCategory] = useState("all");
 
   const rows = useMemo(() => {
     const from = dayKey(range.from);
@@ -32,11 +34,12 @@ export function FinancePanel({
     const needle = term.trim().toLowerCase();
     return data.expenses.filter((expense) => {
       if (expense.expense_date < from || expense.expense_date >= toExclusive) return false;
+      if (category !== "all" && expense.category !== category) return false;
       if (needle && !`${expense.description} ${expense.reference} ${expense.category}`.toLowerCase().includes(needle))
         return false;
       return true;
     });
-  }, [data.expenses, range, term]);
+  }, [category, data.expenses, range, term]);
 
   const total = sumBy(rows, (row) => Number(row.amount));
   const byCategory = useMemo(() => {
@@ -64,6 +67,19 @@ export function FinancePanel({
     <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <DateRangePicker value={range} onChange={setRange} />
+        <Select value={category} onValueChange={setCategory}>
+          <SelectTrigger className="min-h-11 min-w-40" aria-label={t("bo.fin.categoryFilter")}>
+            <SelectValue placeholder={t("bo.fin.categoryFilter")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("bo.fin.allCategories")}</SelectItem>
+            {EXPENSE_CATEGORIES.map((entry) => (
+              <SelectItem key={entry.value} value={entry.value}>
+                {expenseCategoryLabel(entry.value, lang)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Input
           value={term}
           onChange={(e) => setTerm(e.target.value)}
@@ -102,9 +118,9 @@ export function FinancePanel({
         <section className="panel p-5">
           <h3 className="font-semibold">{t("bo.fin.byCategory")}</h3>
           <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-            {byCategory.map(([category, amount]) => (
-              <li key={category} className="flex items-center justify-between gap-3 text-sm">
-                <span>{expenseCategoryLabel(category, lang)}</span>
+            {byCategory.map(([expenseCategory, amount]) => (
+              <li key={expenseCategory} className="flex items-center justify-between gap-3 text-sm">
+                <span>{expenseCategoryLabel(expenseCategory, lang)}</span>
                 <span className="font-medium tabular-nums">{formatMoney(amount, currency, lang)}</span>
               </li>
             ))}
