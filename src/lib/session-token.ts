@@ -2,8 +2,21 @@ type TokenSession = { access_token: string; expires_at?: number };
 type SessionResult = { data: { session: TokenSession | null }; error: unknown };
 type AuthSource = { getSession(): Promise<SessionResult>; refreshSession(): Promise<SessionResult> };
 
+function hasUnsafeRedirectCharacter(value: string): boolean {
+  for (const character of value) {
+    if (character === "\\" || character.charCodeAt(0) <= 0x20) return true;
+  }
+  return false;
+}
+
 export function safeSessionRedirect(value?: string): string {
-  return value && value.startsWith("/") && !/^\/[/\\]|[\u0000-\u0020\\]/.test(value) && !/^\/auth(?:[/?#]|$)/.test(value) ? value : "/dashboard";
+  return value &&
+    value.startsWith("/") &&
+    !value.startsWith("//") &&
+    !hasUnsafeRedirectCharacter(value) &&
+    !/^\/auth(?:[/?#]|$)/.test(value)
+    ? value
+    : "/dashboard";
 }
 
 export async function resolveSessionUser<User>(auth: {
