@@ -23,7 +23,7 @@ const TABS: Tab[] = [
   { to: "/super-admin/restaurants/$restaurantId/staff", labelKey: "sa.detail.staff" },
   { to: "/super-admin/restaurants/$restaurantId/orders", labelKey: "sa.detail.orders" },
   { to: "/super-admin/restaurants/$restaurantId/analytics", labelKey: "sa.detail.analytics" },
-  { to: "/super-admin/restaurants/$restaurantId/operations", labelKey: "Operations" },
+  { to: "/super-admin/restaurants/$restaurantId/operations", labelKey: "BackOffice" },
 ];
 
 function RestaurantShell() {
@@ -101,7 +101,7 @@ function RestaurantShell() {
                   : "text-muted-foreground hover:bg-muted",
               )}
             >
-              {tab.labelKey === "Operations" ? (lang === "ar" ? "العمليات" : "Operations") : t(tab.labelKey)}
+              {tab.labelKey === "BackOffice" ? (lang === "ar" ? "المكتب الخلفي" : "Back Office") : t(tab.labelKey)}
             </Link>
           );
         })}

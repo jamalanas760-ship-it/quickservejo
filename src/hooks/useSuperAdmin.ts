@@ -10,6 +10,12 @@ export type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
 export type AuditRow = Database["public"]["Tables"]["audit_logs"]["Row"];
 export type LicensedRestaurantRow = RestaurantRow & { user_limit: number };
 
+type ErpInventoryBalanceSignal = {
+  restaurant_id: string;
+  quantity: number | string;
+  reorder_level: number | string;
+};
+
 /** Authoritative platform-owner check — the database decides, not the client. */
 export function usePlatformOwner() {
   return useQuery({
@@ -57,19 +63,28 @@ export function usePlatformStats() {
   });
 }
 
-export type RestaurantWithStats = LicensedRestaurantRow & { orderCount: number; revenue: number; tableCount: number; staffCount: number; productCount: number };
+export type RestaurantWithStats = LicensedRestaurantRow & {
+  orderCount: number;
+  revenue: number;
+  tableCount: number;
+  staffCount: number;
+  productCount: number;
+  lowStockCount: number;
+};
 
-/** Platform-owner restaurant list including the assigned per-environment user license. */
+/** Platform-owner restaurant list including the assigned per-environment user license and batched ERP attention signals. */
 export function useRestaurantsWithStats() {
   return useQuery<RestaurantWithStats[]>({
     queryKey: ["platform", "restaurants"],
     queryFn: async () => {
-      const [restaurants, tables, staff, products, orders] = await Promise.all([
+      const [restaurants, tables, staff, products, orders, erpBalances] = await Promise.all([
         supabase.from("restaurants").select("*").order("created_at", { ascending: false }),
         supabase.from("restaurant_tables").select("id, restaurant_id, is_active"),
         supabase.from("staff").select("id, restaurant_id, is_active"),
         supabase.from("menu_items").select("id, restaurant_id"),
         supabase.from("orders").select("id, restaurant_id, total, status"),
+        // Generated types pre-date the additive ERP migration. Keep the escape hatch narrow to this one relation.
+        supabase.from("erp_inventory_balances" as "orders").select("*"),
       ]);
       if (restaurants.error) throw restaurants.error;
       const bucket = <T extends { restaurant_id: string | null }>(rows: T[] | null) => {
@@ -78,12 +93,20 @@ export function useRestaurantsWithStats() {
         return map;
       };
       const tableMap = bucket(tables.data), staffMap = bucket(staff.data), productMap = bucket(products.data), orderMap = bucket(orders.data);
+      const lowStockMap = new Map<string, number>();
+      if (!erpBalances.error) {
+        for (const row of (erpBalances.data ?? []) as unknown as ErpInventoryBalanceSignal[]) {
+          if (Number(row.quantity) <= Number(row.reorder_level)) {
+            lowStockMap.set(row.restaurant_id, (lowStockMap.get(row.restaurant_id) ?? 0) + 1);
+          }
+        }
+      }
       const licensed = (restaurants.data ?? []) as unknown as LicensedRestaurantRow[];
       return licensed.map((r) => {
         const rOrders = (orderMap.get(r.id) ?? []).filter((o) => o.status !== "cancelled");
         return { ...r, user_limit: Math.max(1, Number(r.user_limit ?? 5)), tableCount: (tableMap.get(r.id) ?? []).filter((x) => x.is_active).length,
           staffCount: (staffMap.get(r.id) ?? []).filter((x) => x.is_active).length, productCount: (productMap.get(r.id) ?? []).length,
-          orderCount: rOrders.length, revenue: rOrders.reduce((a, o) => a + Number(o.total ?? 0), 0) };
+          orderCount: rOrders.length, revenue: rOrders.reduce((a, o) => a + Number(o.total ?? 0), 0), lowStockCount: lowStockMap.get(r.id) ?? 0 };
       });
     }, staleTime: 20_000,
   });

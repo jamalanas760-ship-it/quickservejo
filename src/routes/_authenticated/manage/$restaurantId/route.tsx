@@ -1,5 +1,4 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import type { CSSProperties } from "react";
 import { BarChart3, ClipboardList, QrCode, ShoppingBag, Store, Users, Package, ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppHeader } from "@/components/nav/AppHeader";
@@ -15,7 +14,7 @@ const TABS = [
   { suffix: "/staff", en: "Team", ar: "الفريق", icon: Users },
   { suffix: "/orders", en: "Orders", ar: "الطلبات", icon: ShoppingBag },
   { suffix: "/analytics", en: "Analytics", ar: "التحليلات", icon: BarChart3 },
-  { suffix: "/operations", en: "Operations", ar: "العمليات", icon: Package },
+  { suffix: "/operations", en: "Back Office", ar: "المكتب الخلفي", icon: Package },
 ] as const;
 function ManageShell() {
   const { restaurantId } = Route.useParams();
