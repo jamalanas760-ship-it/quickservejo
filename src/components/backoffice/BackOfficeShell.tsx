@@ -30,8 +30,7 @@ const UPCOMING: { labelKey: string; icon: typeof Package }[] = [
 
 /** Back Office workspace: overview, inventory, suppliers and finance for one tenant. */
 export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
-  const { t } = useI18n();
-  const { lang } = useI18n();
+  const { t, lang } = useI18n();
   const access = useAccess();
   const allowed = access.isSuperAdmin || access.membershipFor(restaurantId)?.role === "restaurant_admin";
   const restaurant = useRestaurant(restaurantId);

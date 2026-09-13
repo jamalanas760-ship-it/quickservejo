@@ -23,7 +23,7 @@ const TABS: Tab[] = [
   { to: "/super-admin/restaurants/$restaurantId/staff", labelKey: "sa.detail.staff" },
   { to: "/super-admin/restaurants/$restaurantId/orders", labelKey: "sa.detail.orders" },
   { to: "/super-admin/restaurants/$restaurantId/analytics", labelKey: "sa.detail.analytics" },
-  { to: "/super-admin/restaurants/$restaurantId/operations", labelKey: "Operations" },
+  { to: "/super-admin/restaurants/$restaurantId/operations", labelKey: "bo.title" },
 ];
 
 function RestaurantShell() {
