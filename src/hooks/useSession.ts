@@ -30,10 +30,19 @@ export function useSupabaseSession() {
   return useQuery<Session | null>({
     queryKey: ["auth", "session"],
     queryFn: async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      return data.session ?? null;
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        return data.session ?? null;
+      } catch (err) {
+        // A token refresh that cannot reach the auth service (offline, or the
+        // backend unavailable) must not blank the app. Report "no session" so
+        // the sign-in screen renders its own connection message instead.
+        if (err instanceof Error && /fetch|network/i.test(err.message)) return null;
+        throw err;
+      }
     },
+    retry: false,
     staleTime: 30_000,
   });
 }
