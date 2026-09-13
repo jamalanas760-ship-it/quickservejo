@@ -1,10 +1,11 @@
 import type { User } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
+import { isTransientAuthError, resolveSessionUser } from "@/lib/session-token";
 
 export function isAuthNetworkError(error: unknown): boolean {
   const raw = error instanceof Error ? error.message : String(error ?? "");
-  return /failed to fetch|network|load failed|fetch failed|econn|enotfound|timeout|dns|temporarily unavailable/i.test(raw);
+  return isTransientAuthError(error) || /failed to fetch|network|load failed|fetch failed|econn|enotfound|timeout|dns|temporarily unavailable/i.test(raw);
 }
 
 /**
@@ -17,25 +18,5 @@ export function isAuthNetworkError(error: unknown): boolean {
  * null and force the normal sign-in flow.
  */
 export async function getResilientAuthenticatedUser(): Promise<User | null> {
-  let sessionResult;
-  try {
-    sessionResult = await supabase.auth.getSession();
-  } catch {
-    return null;
-  }
-
-  const { data: sessionData, error: sessionError } = sessionResult;
-  if (sessionError || !sessionData.session?.user) return null;
-
-  const sessionUser = sessionData.session.user;
-  try {
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-
-    if (!userError && userData.user) return userData.user;
-    if (userError && isAuthNetworkError(userError)) return sessionUser;
-
-    return null;
-  } catch (error) {
-    return isAuthNetworkError(error) ? sessionUser : null;
-  }
+  return resolveSessionUser(supabase.auth);
 }

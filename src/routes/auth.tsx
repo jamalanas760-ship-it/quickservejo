@@ -26,9 +26,7 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-function safeRedirect(value?: string): string {
-  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
-}
+import { safeSessionRedirect } from "@/lib/session-token";
 
 function isNetworkError(error: unknown): boolean {
   const raw = error instanceof Error ? error.message : String(error ?? "");
@@ -55,7 +53,7 @@ function AuthPage() {
   const { t, lang, toggleLang } = useI18n();
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const target = safeRedirect(search.redirect);
+  const target = safeSessionRedirect(search.redirect);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -69,9 +67,12 @@ function AuthPage() {
 
     void (async () => {
       try {
-        const { data } = await supabase.auth.getSession();
-        if (!cancelled && data.session) {
-          const destination = await roleDestination(target, data.session.user.id);
+        // A cached session alone may be revoked. Reusing it here would bounce
+        // endlessly between this screen and the protected-route guard.
+        const { getResilientAuthenticatedUser } = await import("@/lib/auth-resilience");
+        const user = await getResilientAuthenticatedUser();
+        if (!cancelled && user) {
+          const destination = await roleDestination(target, user.id);
           if (!cancelled) await navigate({ to: destination as never, replace: true });
         }
       } catch (error) {

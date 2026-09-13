@@ -2,22 +2,10 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
+import { fetchWithSafeRetry } from '@/lib/safe-fetch';
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function shouldRetryStatus(status: number): boolean {
-  return status === 408 || status === 425 || status === 429 || status === 502 || status === 503 || status === 504;
-}
-
-function isRetryableFetchError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error ?? '');
-  return /failed to fetch|network|load failed|fetch failed|econn|enotfound|timeout|dns|temporarily unavailable/i.test(message);
 }
 
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
@@ -37,29 +25,7 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
     headers.set('apikey', supabaseKey);
 
-    const requestInit: RequestInit = { ...init, headers };
-    const maxAttempts = 3;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      try {
-        const response = await fetch(input, requestInit);
-
-        if (!shouldRetryStatus(response.status) || attempt === maxAttempts) {
-          return response;
-        }
-      } catch (error) {
-        if (!isRetryableFetchError(error) || attempt === maxAttempts) {
-          throw error;
-        }
-      }
-
-      // Small bounded backoff. This improves resilience to brief gateway/auth
-      // restarts without hiding persistent configuration or credential errors.
-      await sleep(250 * 2 ** (attempt - 1));
-    }
-
-    // Unreachable, but keeps TypeScript's control-flow analysis satisfied.
-    throw new Error('Supabase request failed after retry attempts.');
+    return fetchWithSafeRetry(input, { ...init, headers });
   };
 }
 
