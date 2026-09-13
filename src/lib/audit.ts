@@ -39,6 +39,11 @@ export type AuditAction =
   | "menu.pdf_published"
   | "staff.deleted"
   | "order.cancelled"
+  | "erp.item_created"
+  | "erp.stock_received"
+  | "erp.stock_issued"
+  | "erp.supplier_created"
+  | "erp.expense_recorded"
   | "platform.settings_updated"
   | "plan.updated";
 
