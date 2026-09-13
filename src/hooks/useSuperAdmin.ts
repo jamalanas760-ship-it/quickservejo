@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
+import { erpSelect } from "@/lib/erp";
 import { daysAgoIso, startOfTodayIso } from "@/lib/format";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -90,6 +91,31 @@ export function useRestaurantsWithStats() {
 }
 
 export function useRestaurant(restaurantId: string) { return useQuery({ queryKey: ["platform", "restaurant", restaurantId], queryFn: async () => { const { data, error } = await supabase.from("restaurants").select("*").eq("id", restaurantId).maybeSingle(); if (error) throw error; return data; }, enabled: Boolean(restaurantId) }); }
+
+export type ErpSignal = { lowStock: number; items: number; lastActivity: string | null };
+
+/**
+ * Real Back Office signals for the restaurant list: three aggregate reads for the
+ * whole platform, bucketed client-side — never one query per restaurant.
+ */
+export function useErpSignals() {
+  return useQuery<Record<string, ErpSignal>>({
+    queryKey: ["platform", "erp-signals"],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const [balances, movements, expenses] = await Promise.all([
+        erpSelect<{ restaurant_id: string; quantity: number; reorder_level: number }>("erp_inventory_balances", (q) => q.select("restaurant_id,quantity,reorder_level").limit(5000)),
+        erpSelect<{ restaurant_id: string; created_at: string }>("erp_stock_movements", (q) => q.select("restaurant_id,created_at").order("created_at", { ascending: false }).limit(3000)),
+        erpSelect<{ restaurant_id: string; created_at: string }>("erp_expenses", (q) => q.select("restaurant_id,created_at").order("created_at", { ascending: false }).limit(3000)),
+      ]);
+      const signals: Record<string, ErpSignal> = {};
+      const entry = (id: string) => (signals[id] ??= { lowStock: 0, items: 0, lastActivity: null });
+      for (const row of balances) { const s = entry(row.restaurant_id); s.items += 1; if (Number(row.quantity) <= Number(row.reorder_level)) s.lowStock += 1; }
+      for (const row of [...movements, ...expenses]) { const s = entry(row.restaurant_id); if (!s.lastActivity || row.created_at > s.lastActivity) s.lastActivity = row.created_at; }
+      return signals;
+    },
+  });
+}
 export function useSubscriptionPlans() { return useQuery<PlanRow[]>({ queryKey: ["platform", "plans"], queryFn: async () => { const { data, error } = await supabase.from("subscription_plans").select("*").order("price_monthly", { ascending: true }); if (error) throw error; return data ?? []; }, staleTime: 5 * 60_000 }); }
 export function usePlatformSettings() { return useQuery({ queryKey: ["platform", "settings"], queryFn: async () => { const { data, error } = await supabase.from("platform_settings").select("*").maybeSingle(); if (error) throw error; return data; } }); }
 export type PlatformOrder = OrderRow & { restaurant: { id: string; name: string; currency: string } | null; table: { id: string; table_number: string } | null };

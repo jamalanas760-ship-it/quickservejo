@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { erpDict } from "./i18n.erp";
 import { superAdminDict } from "./i18n.superadmin";
 import { upgradeDict } from "./i18n.upgrade";
 
@@ -61,6 +62,7 @@ const dict: Dict = {
   "common.language": { en: "العربية", ar: "English" },
   ...superAdminDict,
   ...upgradeDict,
+  ...erpDict,
 };
 
 

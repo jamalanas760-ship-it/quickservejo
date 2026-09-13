@@ -40,7 +40,12 @@ export type AuditAction =
   | "staff.deleted"
   | "order.cancelled"
   | "platform.settings_updated"
-  | "plan.updated";
+  | "plan.updated"
+  | "erp.item_created"
+  | "erp.supplier_created"
+  | "erp.stock_received"
+  | "erp.stock_issued"
+  | "erp.expense_recorded";
 
 export async function logAudit(action: AuditAction, opts: { restaurantId?: string | null; entity?: string; entityId?: string | null | undefined; metadata?: Record<string, unknown> } = {}): Promise<void> {
   try {

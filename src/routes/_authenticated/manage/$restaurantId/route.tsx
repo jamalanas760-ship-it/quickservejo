@@ -15,7 +15,7 @@ const TABS = [
   { suffix: "/staff", en: "Team", ar: "الفريق", icon: Users },
   { suffix: "/orders", en: "Orders", ar: "الطلبات", icon: ShoppingBag },
   { suffix: "/analytics", en: "Analytics", ar: "التحليلات", icon: BarChart3 },
-  { suffix: "/operations", en: "Operations", ar: "العمليات", icon: Package },
+  { suffix: "/operations", en: "Back Office", ar: "المكتب الخلفي", icon: Package },
 ] as const;
 function ManageShell() {
   const { restaurantId } = Route.useParams();
