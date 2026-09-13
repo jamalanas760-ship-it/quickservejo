@@ -52,6 +52,12 @@ import {
 } from "@/components/ui/select";
 
 const ROLES: AppRole[] = ["restaurant_admin", "manager", "kitchen", "waiter", "cashier"];
+const STAFF_LABELS = {
+  ...ROLE_LABELS,
+  kitchen: { en: "Staff · Kitchen", ar: "موظف · المطبخ" },
+  waiter: { en: "Staff · Floor", ar: "موظف · الصالة" },
+  cashier: { en: "Staff · Cashier", ar: "موظف · الكاشير" },
+};
 export function StaffManager({ restaurantId }: { restaurantId: string }) {
   const { t, lang } = useI18n();
   const { isSuperAdmin } = useAccess();
@@ -241,7 +247,7 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                   </div>
                   <p className="mt-1 truncate text-sm text-muted-foreground">{m.email ?? "—"}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {ROLE_LABELS[m.role][lang]} · {formatDate(m.created_at, lang)}
+                    {STAFF_LABELS[m.role][lang]} · {formatDate(m.created_at, lang)}
                   </p>
                 </div>
                 <button
@@ -332,7 +338,7 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                 <SelectContent>
                   {assignableRoles.map((r) => (
                     <SelectItem key={r} value={r}>
-                      {ROLE_LABELS[r][lang]}
+                      {STAFF_LABELS[r][lang]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -393,7 +399,7 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                   <SelectContent>
                     {assignableRoles.map((r) => (
                       <SelectItem key={r} value={r}>
-                        {ROLE_LABELS[r][lang]}
+                        {STAFF_LABELS[r][lang]}
                       </SelectItem>
                     ))}
                   </SelectContent>

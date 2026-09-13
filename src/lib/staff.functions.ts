@@ -2,11 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertStaffCredentialScope, findStaffAuthUser } from "@/lib/staff-security";
 
 const inviteSchema = z.object({
   restaurantId: z.string().uuid(),
-  email: z.string().email(),
-  name: z.string().min(1).max(120),
+  email: z.string().trim().email(),
+  name: z.string().trim().min(1).max(120),
   role: z.enum(["restaurant_admin", "manager", "kitchen", "waiter", "cashier"]),
 });
 
@@ -67,7 +68,9 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
     ]);
     if (restaurant.error) throw restaurant.error;
     if (usage.error) throw usage.error;
-    if (restaurant.data.seat_limit !== null && (usage.count ?? 0) >= restaurant.data.seat_limit) {
+    if (restaurant.data.seat_limit === null) throw new Error("The Super Admin must configure this restaurant's user limit before adding users.");
+    if (usage.count === null) throw new Error("Restaurant user usage could not be verified");
+    if (usage.count >= restaurant.data.seat_limit) {
       throw new Error(`Restaurant user limit reached (${restaurant.data.seat_limit} active users)`);
     }
 
@@ -75,12 +78,13 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
     const password = generatePassword();
 
     // Reuse an existing auth account when the person already signed up.
-    const existing = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    if (existing.error) throw existing.error;
-    let authUserId = existing.data.users.find((u) => u.email?.toLowerCase() === email)?.id;
+    let authUserId = await findStaffAuthUser(supabaseAdmin.auth.admin, email);
     let passwordIsNew = true;
 
     if (authUserId) {
+      const membership = await supabaseAdmin.from("staff").select("id").eq("restaurant_id", data.restaurantId).eq("auth_user_id", authUserId).maybeSingle();
+      if (membership.error) throw membership.error;
+      if (membership.data) throw new Error("This user already belongs to the restaurant. Edit their existing membership instead.");
       // Linking a membership must not reset an existing person's credentials.
       passwordIsNew = false;
     } else {
@@ -159,6 +163,7 @@ export const resetStaffPassword = createServerFn({ method: "POST" })
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertStaffCredentialScope(supabaseAdmin, row.auth_user_id, row.restaurant_id, isPlatformOwner);
     const password = generatePassword();
     const updated = await supabaseAdmin.auth.admin.updateUserById(row.auth_user_id, {
       password,
@@ -228,7 +233,8 @@ export const listStaffLogins = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ restaurantId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await assertCanManage(supabase as never, userId, data.restaurantId);
+    const isPlatformOwner = await assertCanManage(supabase as never, userId, data.restaurantId);
+    if (!isPlatformOwner) throw new Error("Only the Super Admin can view the staff login directory");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [staff, secrets] = await Promise.all([
@@ -290,7 +296,8 @@ export const updateStaffMember = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const email = data.email ? data.email.toLowerCase() : undefined;
 
-    if (email || data.password) {
+    if ((email && email !== row.email?.toLowerCase()) || data.password) {
+      await assertStaffCredentialScope(supabaseAdmin, row.auth_user_id, row.restaurant_id, isPlatformOwner);
       const authUpdate: { email?: string; password?: string; email_confirm?: boolean } = {
         email_confirm: true,
       };

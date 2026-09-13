@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertStaffCredentialScope } from "@/lib/staff-security";
 
 const staffRef = z.object({ staffId: z.string().uuid() });
 const pinSignIn = z.object({
@@ -62,7 +63,7 @@ export const issueStaffAccess = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: row, error } = await supabase
       .from("staff")
-      .select("id, restaurant_id, name, role")
+      .select("id, restaurant_id, name, role, auth_user_id")
       .eq("id", data.staffId)
       .single();
     if (error) throw error;
@@ -73,6 +74,7 @@ export const issueStaffAccess = createServerFn({ method: "POST" })
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertStaffCredentialScope(supabaseAdmin, row.auth_user_id, row.restaurant_id, isPlatformOwner, true);
     const restaurant = await supabaseAdmin
       .from("restaurants")
       .select("staff_code")
@@ -109,7 +111,7 @@ export const getStaffAccess = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: row, error } = await supabase
       .from("staff")
-      .select("id, restaurant_id, name, role")
+      .select("id, restaurant_id, name, role, auth_user_id")
       .eq("id", data.staffId)
       .single();
     if (error) throw error;
@@ -120,6 +122,7 @@ export const getStaffAccess = createServerFn({ method: "POST" })
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertStaffCredentialScope(supabaseAdmin, row.auth_user_id, row.restaurant_id, isPlatformOwner, true);
     const [creds, restaurant] = await Promise.all([
       supabaseAdmin
         .from("staff_credentials")
@@ -139,8 +142,13 @@ export const getStaffAccess = createServerFn({ method: "POST" })
   });
 
 /** Builds a one-time magic token the browser exchanges for a real session. */
-async function magicTokenFor(email: string) {
+async function magicTokenFor(authUserId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // staff.email is editable profile data, not proof of an Auth identity.
+  const account = await supabaseAdmin.auth.admin.getUserById(authUserId);
+  if (account.error) throw account.error;
+  const email = account.data.user?.email;
+  if (!email) throw new Error("Sign-in could not be completed");
   const link = await supabaseAdmin.auth.admin.generateLink({ type: "magiclink", email });
   if (link.error) throw link.error;
   const hashed = link.data.properties?.hashed_token;
@@ -183,13 +191,13 @@ export const staffPinSignIn = createServerFn({ method: "POST" })
 
     const staff = await supabaseAdmin
       .from("staff")
-      .select("email, is_active")
+      .select("auth_user_id, restaurant_id, is_active")
       .eq("id", staffId)
       .single();
     if (staff.error) throw staff.error;
-    if (!staff.data.is_active || !staff.data.email) throw new Error("Wrong restaurant code or PIN");
-
-    return magicTokenFor(staff.data.email);
+    if (!staff.data.is_active || staff.data.restaurant_id !== restaurant.data.id) throw new Error("Wrong restaurant code or PIN");
+    await assertStaffCredentialScope(supabaseAdmin, staff.data.auth_user_id, restaurant.data.id, true, true);
+    return magicTokenFor(staff.data.auth_user_id);
   });
 
 /** Badge QR sign-in: the token in the QR identifies the staff member. */
@@ -207,11 +215,14 @@ export const staffBadgeSignIn = createServerFn({ method: "POST" })
 
     const staff = await supabaseAdmin
       .from("staff")
-      .select("email, is_active")
+      .select("auth_user_id, restaurant_id, is_active")
       .eq("id", creds.data.staff_id)
       .single();
     if (staff.error) throw staff.error;
-    if (!staff.data.is_active || !staff.data.email) throw new Error("This badge is no longer valid");
-
-    return magicTokenFor(staff.data.email);
+    if (!staff.data.is_active || !staff.data.restaurant_id) throw new Error("This badge is no longer valid");
+    const restaurant = await supabaseAdmin.from("restaurants").select("is_active,archived_at").eq("id", staff.data.restaurant_id).single();
+    if (restaurant.error) throw restaurant.error;
+    if (!restaurant.data.is_active || restaurant.data.archived_at) throw new Error("This badge is no longer valid");
+    await assertStaffCredentialScope(supabaseAdmin, staff.data.auth_user_id, staff.data.restaurant_id, true, true);
+    return magicTokenFor(staff.data.auth_user_id);
   });
