@@ -144,6 +144,7 @@ export function OverviewPanel({
                       size="sm"
                       variant="outline"
                       className="min-h-10"
+                      disabled={Number(item.quantity) <= 0}
                       onClick={() => onAction({ kind: "issue", itemId: item.id })}
                     >
                       {t("bo.inv.issue")}

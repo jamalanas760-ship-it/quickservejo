@@ -56,6 +56,7 @@ export const erpDict: Record<string, { en: string; ar: string }> = {
   "bo.inv.sort.name": { en: "Name", ar: "الاسم" },
   "bo.inv.sort.quantity": { en: "Quantity", ar: "الكمية" },
   "bo.inv.sort.status": { en: "Lowest stock first", ar: "الأقل مخزوناً أولاً" },
+  "bo.inv.actions": { en: "Actions", ar: "إجراءات" },
   "bo.inv.empty": {
     en: "Add your first item to start tracking stock.",
     ar: "أضف أول صنف لبدء تتبع المخزون.",
