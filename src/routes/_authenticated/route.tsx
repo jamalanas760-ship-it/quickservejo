@@ -4,13 +4,24 @@ import { useEffect } from "react";
 import { BottomNav } from "@/components/nav/BottomNav";
 import { TenantBrandShell } from "@/components/tenant/TenantBrandShell";
 import { useAccess } from "@/hooks/useSession";
-import { getResilientAuthenticatedUser } from "@/lib/auth-resilience";
+import { getResilientAuthenticatedUser, isAuthNetworkError } from "@/lib/auth-resilience";
 import { frontlineHome, isFrontlineOnly } from "@/lib/permissions";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }) => {
-    const user = await getResilientAuthenticatedUser();
+    let user;
+    try {
+      user = await getResilientAuthenticatedUser();
+    } catch (error) {
+      // A temporary Auth/transport outage must not escape the route guard as a
+      // runtime error. Keep authentication authoritative and send the user to
+      // the usable sign-in/recovery screen while preserving the return target.
+      if (isAuthNetworkError(error)) {
+        throw redirect({ to: "/auth", search: { redirect: location.href } });
+      }
+      throw error;
+    }
     if (!user) throw redirect({ to: "/auth", search: { redirect: location.href } });
     return { user };
   },
