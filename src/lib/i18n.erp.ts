@@ -81,6 +81,8 @@ export const erpDict: Record<string, { en: string; ar: string }> = {
 
   "bo.fin.record": { en: "Record expense", ar: "تسجيل مصروف" },
   "bo.fin.search": { en: "Search expenses…", ar: "البحث في المصروفات…" },
+  "bo.fin.categoryFilter": { en: "Expense category", ar: "تصنيف المصروف" },
+  "bo.fin.allCategories": { en: "All categories", ar: "كل التصنيفات" },
   "bo.fin.total": { en: "Total for the selected period", ar: "إجمالي الفترة المحددة" },
   "bo.fin.count": { en: "Records", ar: "عدد السجلات" },
   "bo.fin.average": { en: "Average per record", ar: "المتوسط لكل سجل" },
