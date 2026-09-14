@@ -1,17 +1,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import {
-  IdCard,
-  MoreVertical,
-  Pencil,
-  Plus,
-  Search,
-  Trash2,
-  UserRound,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { IdCard, MoreVertical, Pencil, Plus, Search, Trash2, UserRound, UsersRound } from "lucide-react";
 import { toast } from "sonner";
-import { SeatUsage } from "@/components/manage/SeatUsage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,55 +12,40 @@ import { useI18n } from "@/lib/i18n";
 import { useAccess } from "@/hooks/useSession";
 import { useRestaurantSeatUsage } from "@/hooks/useRestaurantSeatUsage";
 import { humanError } from "@/lib/errors";
-import { logAudit } from "@/lib/audit";
 import { ACCESS_LEVEL_LABELS, accessLevelFor, ROLE_LABELS, type AppRole } from "@/lib/permissions";
-import {
-  inviteStaffMember,
-  checkStaffManagementAccess,
-  removeStaffMember,
-  updateStaffMember,
-} from "@/lib/staff.functions";
+import { inviteStaffMember, removeStaffMember, updateStaffMember } from "@/lib/staff.functions";
 import { formatDate } from "@/lib/format";
-import { getStaffAccess, issueStaffAccess } from "@/lib/staff-auth.functions";
+import { getStaffAccess } from "@/lib/staff-auth.functions";
 import { qrDataUrl } from "@/lib/qr";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const ROLES: AppRole[] = ["restaurant_admin", "manager", "kitchen", "waiter", "cashier"];
 const STAFF_LABELS = {
   ...ROLE_LABELS,
-  kitchen: { en: "Staff · Kitchen", ar: "موظف · المطبخ" },
-  waiter: { en: "Staff · Floor", ar: "موظف · الصالة" },
-  cashier: { en: "Staff · Cashier", ar: "موظف · الكاشير" },
+  kitchen: { en: "Kitchen", ar: "المطبخ" },
+  waiter: { en: "Server", ar: "الصالة" },
+  cashier: { en: "Cashier", ar: "الكاشير" },
 };
+const ROLE_TONE: Record<string, string> = {
+  restaurant_admin: "bg-orange-500/12 text-orange-600 dark:text-orange-400",
+  manager: "bg-orange-500/12 text-orange-600 dark:text-orange-400",
+  kitchen: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
+  waiter: "bg-violet-500/12 text-violet-600 dark:text-violet-400",
+  cashier: "bg-blue-500/12 text-blue-600 dark:text-blue-400",
+};
+
 export function StaffManager({ restaurantId }: { restaurantId: string }) {
   const { t, lang } = useI18n();
   const { isSuperAdmin } = useAccess();
-  const assignableRoles = isSuperAdmin
-    ? ROLES
-    : ROLES.filter((role) => role !== "restaurant_admin");
+  const assignableRoles = isSuperAdmin ? ROLES : ROLES.filter((role) => role !== "restaurant_admin");
   const qc = useQueryClient();
   const seats = useRestaurantSeatUsage(restaurantId);
   const seatLimit = seats.data?.limit ?? null;
   const seatsUsed = seats.data?.used ?? 0;
   const seatsFull = seatLimit !== null && seatsUsed >= seatLimit;
   const invite = useServerFn(inviteStaffMember);
-  const checkAccess = useServerFn(checkStaffManagementAccess);
-  const [checking, setChecking] = useState(false);
   const update = useServerFn(updateStaffMember);
   const remove = useServerFn(removeStaffMember);
   const readAccess = useServerFn(getStaffAccess);
@@ -81,22 +57,24 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
   const [pending, setPending] = useState<any>(null);
   const [access, setAccess] = useState<any>(null);
   const [badge, setBadge] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: "", email: "", role: "waiter" as AppRole });
+
   const staff = useQuery({
     queryKey: ["platform", "staff", restaurantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("staff")
-        .select("*")
-        .eq("restaurant_id", restaurantId)
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("staff").select("*").eq("restaurant_id", restaurantId).order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
   });
-  const rows = (staff.data ?? []).filter((x) => {
-    const q = search.toLowerCase();
-    return !q || `${x.name} ${x.email ?? ""}`.toLowerCase().includes(q);
-  });
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (staff.data ?? []).filter((row) => !q || `${row.name} ${row.email ?? ""} ${row.role}`.toLowerCase().includes(q));
+  }, [search, staff.data]);
+  const activeCount = (staff.data ?? []).filter((row) => row.is_active).length;
+  const inactiveCount = (staff.data ?? []).length - activeCount;
+
   async function refresh() {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["platform"] }),
@@ -104,410 +82,152 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
       qc.invalidateQueries({ queryKey: ["seats", restaurantId] }),
     ]);
   }
+
   async function create() {
     if (seatsFull) {
-      toast.error(
-        lang === "ar"
-          ? "تم الوصول إلى حد المستخدمين لهذا المطعم."
-          : "This restaurant has reached its user limit.",
-      );
+      toast.error(lang === "ar" ? "تم الوصول إلى حد المستخدمين لهذا المطعم." : "This restaurant has reached its user limit.");
       return;
     }
     setBusy(true);
     try {
-      const r = await invite({
-        data: { restaurantId, email: form.email.trim(), name: form.name.trim(), role: form.role },
-      });
-      setCredentials(r);
+      const result = await invite({ data: { restaurantId, email: form.email.trim(), name: form.name.trim(), role: form.role } });
+      setCredentials(result);
       setOpen(false);
       setForm({ name: "", email: "", role: "waiter" });
       await refresh();
       toast.success(t("sa.staff.invited"));
-    } catch (e) {
-      toast.error(humanError(e, lang));
+    } catch (error) {
+      toast.error(humanError(error, lang));
     } finally {
       setBusy(false);
     }
   }
+
   async function saveEdit() {
     if (!editing) return;
     const newPassword = String(editing.password ?? "");
     const confirmPassword = String(editing.confirmPassword ?? "");
-
     if (newPassword && newPassword.length < 8) {
-      toast.error(
-        lang === "ar"
-          ? "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل."
-          : "Password must be at least 8 characters.",
-      );
+      toast.error(lang === "ar" ? "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل." : "Password must be at least 8 characters.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error(
-        lang === "ar" ? "كلمتا المرور غير متطابقتين." : "Passwords do not match.",
-      );
+      toast.error(lang === "ar" ? "كلمتا المرور غير متطابقتين." : "Passwords do not match.");
       return;
     }
-
     setBusy(true);
     try {
-      await update({
-        data: {
-          staffId: editing.id,
-          name: editing.name,
-          email: editing.email,
-          role: editing.role,
-          isActive: editing.is_active,
-          ...(newPassword ? { password: newPassword } : {}),
-        },
-      });
+      await update({ data: { staffId: editing.id, name: editing.name, email: editing.email, role: editing.role, isActive: editing.is_active, ...(newPassword ? { password: newPassword } : {}) } });
       setEditing(null);
       await refresh();
-      toast.success(
-        lang === "ar"
-          ? newPassword
-            ? "تم تحديث الموظف وكلمة المرور"
-            : "تم تحديث صلاحيات الموظف"
-          : newPassword
-            ? "Staff details and password updated"
-            : "Staff access updated",
-      );
-    } catch (e) {
-      toast.error(humanError(e, lang));
+      toast.success(lang === "ar" ? "تم حفظ التغييرات" : "Staff changes saved");
+    } catch (error) {
+      toast.error(humanError(error, lang));
     } finally {
       setBusy(false);
     }
   }
-  async function del(id: string, name: string) {
+
+  async function del(id: string) {
     try {
       await remove({ data: { staffId: id } });
       await refresh();
       setPending(null);
       toast.success(t("sa.staff.deleted"));
-    } catch (e) {
-      toast.error(humanError(e, lang));
+    } catch (error) {
+      toast.error(humanError(error, lang));
     }
   }
+
   async function openAccess(id: string) {
     try {
-      const r = await readAccess({ data: { staffId: id } });
-      setAccess(r);
-      setBadge(
-        r.badgeCode ? await qrDataUrl(`${location.origin}/staff/badge/${r.badgeCode}`, 420) : null,
-      );
-    } catch (e) {
-      toast.error(humanError(e, lang));
+      const result = await readAccess({ data: { staffId: id } });
+      setAccess(result);
+      setBadge(result.badgeCode ? await qrDataUrl(`${location.origin}/staff/badge/${result.badgeCode}`, 420) : null);
+    } catch (error) {
+      toast.error(humanError(error, lang));
     }
   }
-  const [form, setForm] = useState({ name: "", email: "", role: "waiter" as AppRole });
+
   return (
     <div className="space-y-5">
-      <header>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-[28px] font-bold tracking-[-0.04em]">{t("sa.staff.title")}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {lang === "ar" ? "إدارة فريقك وصلاحيات الوصول" : "Manage your team and access"}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2"><Button variant="outline" disabled={checking} onClick={async () => {
-            setChecking(true);
-            try { await checkAccess({ data: { restaurantId } }); toast.success(lang === "ar" ? "حسابك جاهز لإدارة الفريق." : "Your account is ready to manage this team."); }
-            catch (error) { toast.error(humanError(error, lang), { duration: 12000 }); }
-            finally { setChecking(false); }
-          }}>{checking ? (lang === "ar" ? "جارٍ التحقق…" : "Checking…") : (lang === "ar" ? "التحقق من الوصول" : "Check access")}</Button><Button
-            disabled={seats.isPending || seatsFull}
-            title={
-              seatsFull
-                ? lang === "ar"
-                  ? "ارفع حد المستخدمين من صفحة التراخيص"
-                  : "Increase the user limit from Licenses"
-                : undefined
-            }
-            onClick={() => setOpen(true)}
-          >
-            <Plus className="size-4" />
-            {seatsFull ? (lang === "ar" ? "اكتمل الحد" : "Limit reached") : t("sa.staff.new")}
-          </Button></div>
-        </div>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div><h1 className="qs-page-title">{lang === "ar" ? "إدارة الفريق" : "Staff Management"}</h1><p className="qs-page-subtitle">{lang === "ar" ? "إدارة فريقك والصلاحيات وتشغيل المطعم بسلاسة." : "Manage your team, set permissions, and keep your restaurant running smoothly."}</p></div>
+        <div className="flex items-center gap-3"><div className="hidden rounded-xl border border-border bg-card px-4 py-2.5 text-xs italic text-muted-foreground xl:block">“Great teams serve more than food.”</div><button type="button" className="qs-button-primary" disabled={seats.isPending || seatsFull} onClick={() => setOpen(true)}><Plus className="size-4" />{seatsFull ? (lang === "ar" ? "اكتمل الحد" : "Limit reached") : (lang === "ar" ? "دعوة موظف" : "Invite Staff")}</button></div>
       </header>
-      <SeatUsage restaurantId={restaurantId} />
-      <div className="relative">
-        <Search className="absolute start-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={lang === "ar" ? "ابحث عن موظف…" : "Search staff…"}
-          className="h-12 rounded-2xl bg-card ps-10"
-        />
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard icon={<UsersRound className="size-5" />} value={String((staff.data ?? []).length)} label={lang === "ar" ? "إجمالي الفريق" : "Total Staff"} detail={seatLimit == null ? (lang === "ar" ? "غير محدود" : "Unlimited seats") : `${seatsUsed} / ${seatLimit} seats`} tone="orange" />
+        <StatCard icon={<span className="size-2.5 rounded-full bg-emerald-500" />} value={String(activeCount)} label={lang === "ar" ? "نشط" : "Active Staff"} detail={`${Math.round(((staff.data ?? []).length ? activeCount / (staff.data ?? []).length : 0) * 100)}% of total`} tone="green" />
+        <StatCard icon={<span className="size-2.5 rounded-full bg-slate-400" />} value={String(inactiveCount)} label={lang === "ar" ? "غير نشط" : "Inactive Staff"} detail={`${Math.round(((staff.data ?? []).length ? inactiveCount / (staff.data ?? []).length : 0) * 100)}% of total`} tone="gray" />
       </div>
-      {staff.isPending ? (
-        <Skeleton className="h-64 rounded-3xl" />
-      ) : (
-        <div className="space-y-3">
-          {rows.map((m) => (
-            <article key={m.id} className="panel rounded-3xl p-4 sm:p-5">
-              <div className="flex items-center gap-3">
-                <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-amber-50 text-amber-900">
-                  <UserRound className="size-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-bold">{m.name}</h2>
-                    <Badge variant="outline">
-                      {ACCESS_LEVEL_LABELS[accessLevelFor(m.role)][lang]}
-                    </Badge>
-                    <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
-                      {m.is_active ? t("common.active") : t("common.inactive")}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 truncate text-sm text-muted-foreground">{m.email ?? "—"}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {STAFF_LABELS[m.role][lang]} · {formatDate(m.created_at, lang)}
-                  </p>
-                </div>
-                <button
-                  className="grid size-9 place-items-center rounded-xl hover:bg-muted"
-                  aria-label="More"
-                >
-                  <MoreVertical className="size-5" />
-                </button>
-              </div>
-              <div className="mt-4 grid grid-cols-1 gap-2 border-t pt-4 sm:grid-cols-3">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={m.role === "restaurant_admin" && !isSuperAdmin}
-                  onClick={() => setEditing({ ...m, password: "", confirmPassword: "" })}
-                >
-                  <Pencil className="size-4" />
-                  {lang === "ar" ? "تعديل" : "Edit"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={m.role === "restaurant_admin" && !isSuperAdmin}
-                  onClick={() => void openAccess(m.id)}
-                >
-                  <IdCard className="size-4" />
-                  {lang === "ar" ? "الوصول" : "Access"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={m.role === "restaurant_admin" && !isSuperAdmin}
-                  className="text-destructive"
-                  onClick={() => setPending(m)}
-                >
-                  <Trash2 className="size-4" />
-                  {lang === "ar" ? "حذف" : "Delete"}
-                </Button>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("sa.staff.new")}</DialogTitle>
-            <DialogDescription>
-              {lang === "ar"
-                ? `المستخدمون النشطون: ${seatsUsed} من ${seatLimit ?? "∞"}. المدير يستطيع إضافة الأعضاء فقط.`
-                : `Active users: ${seatsUsed} of ${seatLimit ?? "unlimited"}. Restaurant Admins can add members only.`}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Name</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Role</Label>
-              <Select
-                value={form.role}
-                onValueChange={(v) => setForm({ ...form, role: v as AppRole })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {assignableRoles.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {STAFF_LABELS[r][lang]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+
+      <div className={editing ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_410px]" : "grid gap-4"}>
+        <section className="qs-card min-w-0 overflow-hidden">
+          <div className="grid gap-3 border-b border-border p-4 sm:grid-cols-[minmax(0,1fr)_160px_150px_auto]">
+            <div className="relative"><Search className="pointer-events-none absolute start-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={lang === "ar" ? "ابحث بالاسم أو البريد أو الدور..." : "Search staff by name, email, or role..."} className="qs-control h-11 ps-11" /></div>
+            <button type="button" className="qs-control hidden items-center justify-between px-3 text-xs font-semibold sm:flex">{lang === "ar" ? "كل الأدوار" : "All Roles"}<span>⌄</span></button>
+            <button type="button" className="qs-control hidden items-center justify-between px-3 text-xs font-semibold sm:flex">{lang === "ar" ? "كل الحالات" : "All Status"}<span>⌄</span></button>
+            <button type="button" className="grid size-11 place-items-center rounded-xl border border-border bg-card"><MoreVertical className="size-4" /></button>
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              disabled={busy || !form.name.trim() || !form.email.trim() || seatsFull}
-              onClick={() => void create()}
-            >
-              {busy ? (lang === "ar" ? "جارٍ الإنشاء…" : "Creating…") : t("common.create")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {lang === "ar" ? "تعديل الموظف والصلاحيات" : "Edit staff and access"}
-            </DialogTitle>
-            <DialogDescription>
-              {lang === "ar"
-                ? "عدّل بيانات الموظف وصلاحياته، ويمكنك تعيين كلمة مرور جديدة عند الحاجة."
-                : "Edit this person's details and access, and set a new password when needed."}
-            </DialogDescription>
-          </DialogHeader>
-          {editing && (
-            <div className="space-y-3">
-              <div>
-                <Label>{lang === "ar" ? "الاسم" : "Name"}</Label>
-                <Input
-                  value={editing.name ?? ""}
-                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>{lang === "ar" ? "البريد الإلكتروني" : "Email"}</Label>
-                <Input
-                  type="email"
-                  value={editing.email ?? ""}
-                  onChange={(e) => setEditing({ ...editing, email: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>{lang === "ar" ? "الدور" : "Role"}</Label>
-                <Select
-                  value={editing.role}
-                  onValueChange={(v) => setEditing({ ...editing, role: v as AppRole })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {assignableRoles.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {STAFF_LABELS[r][lang]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <Label>{lang === "ar" ? "كلمة المرور الجديدة" : "New password"}</Label>
-                  <Input
-                    type="password"
-                    autoComplete="new-password"
-                    value={editing.password ?? ""}
-                    onChange={(e) => setEditing({ ...editing, password: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>{lang === "ar" ? "تأكيد كلمة المرور" : "Confirm password"}</Label>
-                  <Input
-                    type="password"
-                    autoComplete="new-password"
-                    value={editing.confirmPassword ?? ""}
-                    onChange={(e) => setEditing({ ...editing, confirmPassword: e.target.value })}
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {lang === "ar"
-                  ? "اترك الحقلين فارغين للإبقاء على كلمة المرور الحالية. الحد الأدنى 8 أحرف."
-                  : "Leave both fields blank to keep the current password. Minimum 8 characters."}
-              </p>
-              <label className="flex items-center justify-between rounded-2xl border p-3">
-                <span className="text-sm font-medium">
-                  {lang === "ar" ? "وصول نشط" : "Active access"}
-                </span>
-                <input
-                  type="checkbox"
-                  checked={editing.is_active}
-                  onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })}
-                  className="size-5 accent-primary"
-                />
-              </label>
+
+          {staff.isPending ? <Skeleton className="m-4 h-[420px] rounded-xl" /> : (
+            <div className="qs-scroll overflow-x-auto">
+              <table className="qs-table min-w-[760px]">
+                <thead><tr><th>{lang === "ar" ? "الموظف" : "Staff Member"}</th><th>{lang === "ar" ? "الدور" : "Role"}</th><th>{lang === "ar" ? "الحالة" : "Status"}</th><th>{lang === "ar" ? "تاريخ الإضافة" : "Added"}</th><th>{lang === "ar" ? "إجراءات" : "Actions"}</th></tr></thead>
+                <tbody>
+                  {rows.map((member) => {
+                    const locked = member.role === "restaurant_admin" && !isSuperAdmin;
+                    return <tr key={member.id}>
+                      <td><div className="flex items-center gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-full bg-orange-50 font-display text-xs font-bold text-[#ff5a0a]">{String(member.name ?? "S").slice(0,1).toUpperCase()}</span><div className="min-w-0"><p className="truncate font-bold">{member.name}</p><p className="truncate text-[10px] text-muted-foreground">{member.email ?? "—"}</p></div></div></td>
+                      <td><span className={`qs-status ${ROLE_TONE[member.role] ?? "bg-muted text-muted-foreground"}`}>{STAFF_LABELS[member.role]?.[lang] ?? member.role}</span></td>
+                      <td><span className={`qs-status ${member.is_active ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400" : "bg-slate-500/12 text-slate-500"}`}><span className={`size-1.5 rounded-full ${member.is_active ? "bg-emerald-500" : "bg-slate-400"}`} />{member.is_active ? t("common.active") : t("common.inactive")}</span></td>
+                      <td className="text-muted-foreground">{formatDate(member.created_at, lang)}</td>
+                      <td><div className="flex items-center gap-1.5"><button type="button" disabled={locked} onClick={() => setEditing({ ...member, password: "", confirmPassword: "" })} className="grid size-8 place-items-center rounded-lg border border-border hover:bg-muted disabled:opacity-40" aria-label="Edit"><Pencil className="size-4" /></button><button type="button" disabled={locked} onClick={() => void openAccess(member.id)} className="grid size-8 place-items-center rounded-lg border border-border hover:bg-muted disabled:opacity-40" aria-label="Access"><IdCard className="size-4" /></button><button type="button" disabled={locked} onClick={() => setPending(member)} className="grid size-8 place-items-center rounded-lg text-destructive hover:bg-destructive/10 disabled:opacity-40" aria-label="Delete"><Trash2 className="size-4" /></button></div></td>
+                    </tr>;
+                  })}
+                </tbody>
+              </table>
+              {rows.length === 0 ? <p className="p-10 text-center text-sm text-muted-foreground">{lang === "ar" ? "لا يوجد موظفون مطابقون." : "No matching staff members."}</p> : null}
             </div>
           )}
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditing(null)}>
-              {t("common.cancel")}
-            </Button>
-            <Button disabled={busy} onClick={() => void saveEdit()}>
-              {busy
-                ? lang === "ar"
-                  ? "جارٍ الحفظ…"
-                  : "Saving…"
-                : lang === "ar"
-                  ? "حفظ التغييرات"
-                  : "Save changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={!!credentials} onOpenChange={(o) => !o && setCredentials(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{lang === "ar" ? "بيانات الدخول" : "Login credentials"}</DialogTitle>
-            <DialogDescription>{credentials?.email}</DialogDescription>
-          </DialogHeader>
-          <div className="rounded-2xl bg-muted p-4 font-mono text-sm">
-            {credentials?.password ?? "Password unchanged"}
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setCredentials(null)}>{t("common.close")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={!!pending} onOpenChange={(o) => !o && setPending(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{lang === "ar" ? "حذف الموظف؟" : "Delete staff member?"}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">{pending?.name}</p>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setPending(null)}>
-              {t("common.cancel")}
-            </Button>
-            <Button variant="destructive" onClick={() => void del(pending.id, pending.name)}>
-              {t("common.delete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={!!access} onOpenChange={(o) => !o && setAccess(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Staff access</DialogTitle>
-          </DialogHeader>
-          {badge && <img src={badge} alt="Staff badge" className="mx-auto size-56" />}
-          <p className="text-center text-sm text-muted-foreground">{access?.name}</p>
-          <DialogFooter>
-            <Button onClick={() => setAccess(null)}>{t("common.close")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-muted-foreground"><span>{lang === "ar" ? `عرض ${rows.length} موظف` : `Showing ${rows.length} staff members`}</span><span className="font-semibold">{ACCESS_LEVEL_LABELS[accessLevelFor("manager")][lang]}</span></div>
+        </section>
+
+        {editing ? (
+          <aside className="qs-drawer qs-card self-start overflow-hidden xl:sticky xl:top-24">
+            <div className="flex items-start justify-between border-b border-border p-5"><div><p className="text-xs text-muted-foreground">‹ {lang === "ar" ? "الفريق" : "Staff"}</p><h2 className="mt-1 font-display text-xl font-bold">{lang === "ar" ? "تعديل الموظف" : "Edit Staff Member"}</h2></div><button type="button" onClick={() => setEditing(null)} className="grid size-9 place-items-center rounded-lg hover:bg-muted">×</button></div>
+            <div className="space-y-4 p-5">
+              <div className="flex items-center gap-3"><span className="grid size-16 place-items-center rounded-full bg-orange-50 font-display text-xl font-bold text-[#ff5a0a]">{String(editing.name ?? "S").slice(0,1).toUpperCase()}</span><div><p className="font-bold">{editing.name}</p><p className="text-xs text-muted-foreground">{editing.email}</p></div></div>
+              <Field label={lang === "ar" ? "الاسم الكامل" : "Full Name"}><Input value={editing.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} className="h-11" /></Field>
+              <Field label={lang === "ar" ? "البريد الإلكتروني" : "Email Address"}><Input type="email" value={editing.email ?? ""} onChange={(e) => setEditing({ ...editing, email: e.target.value })} className="h-11" /></Field>
+              <Field label={lang === "ar" ? "الدور" : "Role"}><Select value={editing.role} onValueChange={(value) => setEditing({ ...editing, role: value as AppRole })}><SelectTrigger className="h-11"><SelectValue /></SelectTrigger><SelectContent>{assignableRoles.map((role) => <SelectItem key={role} value={role}>{STAFF_LABELS[role][lang]}</SelectItem>)}</SelectContent></Select></Field>
+              <label className="flex items-center justify-between rounded-xl border border-border p-3"><span><span className="block text-sm font-bold">{lang === "ar" ? "وصول نشط" : "Active Access"}</span><span className="mt-0.5 block text-[10px] text-muted-foreground">{lang === "ar" ? "السماح لهذا الموظف باستخدام النظام" : "Allow this staff member to access the system"}</span></span><input type="checkbox" checked={editing.is_active} onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })} className="size-5 accent-[#ff5a0a]" /></label>
+              <Field label={lang === "ar" ? "كلمة المرور الجديدة" : "New Password"}><Input type="password" autoComplete="new-password" value={editing.password ?? ""} onChange={(e) => setEditing({ ...editing, password: e.target.value })} placeholder={lang === "ar" ? "أدخل كلمة مرور جديدة" : "Enter new password"} className="h-11" /></Field>
+              <Field label={lang === "ar" ? "تأكيد كلمة المرور" : "Confirm Password"}><Input type="password" autoComplete="new-password" value={editing.confirmPassword ?? ""} onChange={(e) => setEditing({ ...editing, confirmPassword: e.target.value })} placeholder={lang === "ar" ? "أكد كلمة المرور" : "Confirm new password"} className="h-11" /></Field>
+              <div className="rounded-xl bg-orange-50 px-3 py-3 text-[11px] leading-5 text-orange-800 dark:bg-orange-950/30 dark:text-orange-300">{lang === "ar" ? "اترك حقلي كلمة المرور فارغين للإبقاء على كلمة المرور الحالية. الحد الأدنى 8 أحرف." : "Leave password fields blank to keep the current password. New passwords require at least 8 characters."}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 border-t border-border p-5"><button type="button" onClick={() => setEditing(null)} className="qs-button-secondary">{t("common.cancel")}</button><button type="button" onClick={() => void saveEdit()} disabled={busy} className="qs-button-primary">{busy ? (lang === "ar" ? "جارٍ الحفظ…" : "Saving…") : (lang === "ar" ? "حفظ التغييرات" : "Save Changes")}</button></div>
+          </aside>
+        ) : null}
+      </div>
+
+      <Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogHeader><DialogTitle>{lang === "ar" ? "دعوة موظف" : "Invite Staff"}</DialogTitle><DialogDescription>{seatLimit == null ? (lang === "ar" ? "يمكنك إضافة أعضاء جدد." : "Add a new team member.") : `${seatsUsed} / ${seatLimit} seats used.`}</DialogDescription></DialogHeader><div className="space-y-4"><Field label={lang === "ar" ? "الاسم" : "Name"}><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field><Field label={lang === "ar" ? "البريد الإلكتروني" : "Email"}><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field><Field label={lang === "ar" ? "الدور" : "Role"}><Select value={form.role} onValueChange={(value) => setForm({ ...form, role: value as AppRole })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{assignableRoles.map((role) => <SelectItem key={role} value={role}>{STAFF_LABELS[role][lang]}</SelectItem>)}</SelectContent></Select></Field></div><DialogFooter><Button variant="ghost" onClick={() => setOpen(false)}>{t("common.cancel")}</Button><Button disabled={busy || !form.name.trim() || !form.email.trim() || seatsFull} onClick={() => void create()}>{busy ? (lang === "ar" ? "جارٍ الإنشاء…" : "Creating…") : t("common.create")}</Button></DialogFooter></DialogContent></Dialog>
+
+      <Dialog open={!!credentials} onOpenChange={(value) => !value && setCredentials(null)}><DialogContent><DialogHeader><DialogTitle>{lang === "ar" ? "بيانات الدخول" : "Login credentials"}</DialogTitle><DialogDescription>{credentials?.email}</DialogDescription></DialogHeader><div className="rounded-xl bg-muted p-4 font-mono text-sm">{credentials?.password ?? "Password unchanged"}</div><DialogFooter><Button onClick={() => setCredentials(null)}>{t("common.close")}</Button></DialogFooter></DialogContent></Dialog>
+
+      <Dialog open={!!pending} onOpenChange={(value) => !value && setPending(null)}><DialogContent><DialogHeader><DialogTitle>{lang === "ar" ? "حذف الموظف؟" : "Delete staff member?"}</DialogTitle><DialogDescription>{pending?.name}</DialogDescription></DialogHeader><DialogFooter><Button variant="ghost" onClick={() => setPending(null)}>{t("common.cancel")}</Button><Button variant="destructive" onClick={() => pending && void del(pending.id)}>{t("common.delete")}</Button></DialogFooter></DialogContent></Dialog>
+
+      <Dialog open={!!access} onOpenChange={(value) => !value && setAccess(null)}><DialogContent className="max-w-sm"><DialogHeader><DialogTitle>{lang === "ar" ? "وصول الموظف" : "Staff access"}</DialogTitle><DialogDescription>{access?.name}</DialogDescription></DialogHeader>{badge ? <img src={badge} alt="Staff badge" className="mx-auto size-56 rounded-xl" /> : <div className="rounded-xl bg-muted p-5 text-center text-sm text-muted-foreground">{lang === "ar" ? "لا توجد بطاقة مفعّلة." : "No active badge available."}</div>}<DialogFooter><Button onClick={() => setAccess(null)}>{t("common.close")}</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div className="space-y-1.5"><Label className="text-xs font-bold">{label}</Label>{children}</div>;
+}
+
+function StatCard({ icon, value, label, detail, tone }: { icon: React.ReactNode; value: string; label: string; detail: string; tone: "orange" | "green" | "gray" }) {
+  const bg = tone === "orange" ? "bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30" : tone === "green" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30" : "bg-slate-100 text-slate-500 dark:bg-slate-800";
+  return <div className="qs-stat flex items-center gap-4"><span className={`grid size-12 place-items-center rounded-full ${bg}`}>{icon}</span><div><p className="font-display text-2xl font-bold">{value}</p><p className="text-xs font-semibold text-muted-foreground">{label}</p><p className="mt-1 text-[10px] text-muted-foreground">{detail}</p></div></div>;
 }
