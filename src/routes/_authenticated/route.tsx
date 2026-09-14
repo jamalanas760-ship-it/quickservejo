@@ -6,6 +6,7 @@ import { TenantBrandShell } from "@/components/tenant/TenantBrandShell";
 import { useAccess } from "@/hooks/useSession";
 import { getResilientAuthenticatedUser, isAuthNetworkError } from "@/lib/auth-resilience";
 import { frontlineHome, isFrontlineOnly } from "@/lib/permissions";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -30,7 +31,8 @@ const STAFF_BLOCKED_PREFIXES = ["/dashboard", "/manage", "/super-admin"];
 function AuthenticatedShell() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { roles, isPending, isError } = useAccess();
+  const access = useAccess();
+  const { roles, isPending, isError } = access;
   const accessResolved = !isPending && !isError;
   const staff = accessResolved && isFrontlineOnly(roles);
   const staffBlocked = staff && STAFF_BLOCKED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -49,7 +51,9 @@ function AuthenticatedShell() {
 
   return (
     <TenantBrandShell>
-      <div className="pb-24 lg:min-h-dvh lg:ps-[236px] lg:pb-0">{blocked ? null : <Outlet />}</div>
+      <div className={cn("pb-24 lg:min-h-dvh lg:pb-0", !access.isSuperAdmin && "lg:ps-[236px]")}>
+        {blocked ? null : <Outlet />}
+      </div>
       <BottomNav />
     </TenantBrandShell>
   );
