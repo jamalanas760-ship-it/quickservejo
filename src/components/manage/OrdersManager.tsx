@@ -1,8 +1,10 @@
+import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
-  Check,
-  CircleDot,
+  ChefHat,
+  ChevronRight,
   Clock3,
+  FileText,
   Search,
   ShoppingBag,
   UserRound,
@@ -16,20 +18,10 @@ import { formatDateTime, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { id: "all", en: "All", ar: "الكل" },
-  { id: "new", en: "New", ar: "جديد" },
-  { id: "preparing", en: "Preparing", ar: "تحضير" },
-  { id: "ready", en: "Ready", ar: "جاهز" },
-  { id: "served", en: "Served", ar: "مُقدَّم" },
-  { id: "paid", en: "Paid", ar: "مدفوع" },
-] as const;
-
-const TRACKING = [
-  { id: "new", en: "New", ar: "جديد" },
-  { id: "preparing", en: "Preparing", ar: "تحضير" },
-  { id: "ready", en: "Ready", ar: "جاهز" },
-  { id: "served", en: "Served", ar: "مُقدَّم" },
-  { id: "paid", en: "Paid", ar: "مدفوع" },
+  { id: "all", en: "All", ar: "الكل", dot: "bg-slate-400" },
+  { id: "new", en: "New", ar: "جديد", dot: "bg-blue-500" },
+  { id: "preparing", en: "Preparing", ar: "تحضير", dot: "bg-[#ff5a0a]" },
+  { id: "ready", en: "Ready", ar: "جاهز", dot: "bg-emerald-500" },
 ] as const;
 
 const statusClass: Record<string, string> = {
@@ -42,9 +34,9 @@ const statusClass: Record<string, string> = {
   cancelled: "bg-rose-500/12 text-rose-600 dark:text-rose-400",
 };
 
-function trackingIndex(status: string) {
-  if (status === "accepted") return 0;
-  return TRACKING.findIndex((step) => step.id === status);
+function elapsed(createdAt: string) {
+  const minutes = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60_000));
+  return `${minutes} min`;
 }
 
 export function OrdersManager({ restaurantId }: { restaurantId: string }) {
@@ -61,8 +53,7 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
     const term = search.trim().toLowerCase();
     return (orders.data ?? []).filter((order) => {
       const normalized = order.status === "accepted" ? "new" : order.status;
-      const statusOk = tab === "all" || normalized === tab;
-      if (!statusOk) return false;
+      if (tab !== "all" && normalized !== tab) return false;
       if (!term) return true;
       return order.order_number.toLowerCase().includes(term)
         || (order.table?.table_number ?? "").toLowerCase().includes(term)
@@ -78,102 +69,62 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
   const selected = rows.find((order) => order.id === selectedId) ?? rows[0] ?? null;
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="qs-page-title">{ar ? "تتبع الطلبات" : "Order Tracking"}</h1>
-        <p className="qs-page-subtitle">{ar ? "عرض مباشر لحالة الطلبات فقط." : "A clear, read-only view of every order and its current stage."}</p>
+    <div className="space-y-5">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div><h1 className="qs-page-title">{ar ? "الطلبات المباشرة" : "Live Orders"}</h1><p className="qs-page-subtitle">{ar ? "تابع وراقب جميع الطلبات في الوقت الفعلي." : "Track and monitor all orders in real-time."}</p></div>
+        <div className="flex items-center gap-3">
+          <span className="hidden text-end text-[11px] text-muted-foreground md:block"><span className="flex items-center justify-end gap-2 font-semibold text-foreground"><i className="size-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,.10)]" />{ar ? "تحديث مباشر" : "Live updates"}</span><span>{ar ? "تتحدث تلقائياً" : "Updates automatically"}</span></span>
+          <Link to="/kitchen" className="qs-button-primary"><ChefHat className="size-4" />{ar ? "عرض شاشة المطبخ" : "View Kitchen Display"}</Link>
+        </div>
       </header>
 
-      <div className="qs-card p-3 sm:p-4">
-        <div className="relative">
-          <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={ar ? "رقم الطلب أو الطاولة" : "Search order or table"}
-            className="qs-control h-11 ps-10"
-          />
+      <section className="qs-card p-3 sm:p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="no-scrollbar flex gap-2 overflow-x-auto pb-0.5 lg:pb-0">
+            {TABS.map((item) => (
+              <button key={item.id} type="button" onClick={() => setTab(item.id)} className="qs-chip shrink-0" data-active={tab === item.id}>
+                <i className={cn("size-2 rounded-full", item.dot)} />{ar ? item.ar : item.en}
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{counts[item.id] ?? 0}</span>
+              </button>
+            ))}
+          </div>
+          <div className="relative w-full lg:max-w-[340px]">
+            <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ar ? "رقم الطلب أو العميل أو الطاولة..." : "Search by order #, customer name or table..."} className="qs-control h-11 ps-10" />
+          </div>
         </div>
-        <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-0.5">
-          {TABS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setTab(item.id)}
-              className="qs-chip shrink-0"
-              data-active={tab === item.id}
-            >
-              {ar ? item.ar : item.en}
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{counts[item.id] ?? 0}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      </section>
 
-      {orders.isPending ? (
-        <Skeleton className="h-[560px] rounded-2xl" />
-      ) : rows.length === 0 ? (
-        <div className="qs-card p-12 text-center">
-          <ShoppingBag className="mx-auto size-8 text-muted-foreground/60" />
-          <p className="mt-3 text-sm font-semibold">{ar ? "لا توجد طلبات" : "No orders found"}</p>
-        </div>
+      {orders.isPending ? <Skeleton className="h-[620px] rounded-2xl" /> : rows.length === 0 ? (
+        <div className="qs-card p-12 text-center"><ShoppingBag className="mx-auto size-8 text-muted-foreground/60" /><p className="mt-3 text-sm font-semibold">{ar ? "لا توجد طلبات" : "No orders found"}</p></div>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(330px,.7fr)]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.42fr)_minmax(330px,.72fr)]">
           <section className="qs-card overflow-hidden">
             <div className="hidden overflow-x-auto md:block">
               <table className="qs-table min-w-[760px]">
-                <thead>
-                  <tr>
-                    <th>{ar ? "الطلب" : "Order"}</th>
-                    <th>{ar ? "الطاولة" : "Table"}</th>
-                    <th>{ar ? "الحالة" : "Status"}</th>
-                    <th>{ar ? "الوقت" : "Time"}</th>
-                    <th>{ar ? "المجموع" : "Total"}</th>
+                <thead><tr><th>{ar ? "رقم الطلب" : "Order #"}</th><th>{ar ? "الوقت" : "Time"}</th><th>{ar ? "العميل / الطاولة" : "Customer / Table"}</th><th>{ar ? "العناصر" : "Items"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "المدة" : "Elapsed"}</th><th /></tr></thead>
+                <tbody>{rows.map((order) => { const active = selected?.id === order.id; return (
+                  <tr key={order.id} onClick={() => setSelectedId(order.id)} className={cn("cursor-pointer", active && "outline outline-1 -outline-offset-1 outline-[#ff5a0a] bg-orange-500/[.045]")}>
+                    <td><strong className="tabular-nums">{order.order_number}</strong></td>
+                    <td>{new Date(order.created_at).toLocaleTimeString(ar ? "ar-JO" : "en-US", { hour: "2-digit", minute: "2-digit" })}</td>
+                    <td><strong className="block text-xs">{order.table?.table_number ? (ar ? "داخل المطعم" : "Dine In") : (ar ? "خارجي" : "Takeaway")}</strong><span className="text-[10px] text-muted-foreground">{order.table?.table_number ? `${ar ? "طاولة" : "Table"} ${order.table.table_number}` : "—"}</span></td>
+                    <td className="text-muted-foreground">—</td>
+                    <td><span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted text-muted-foreground")}>{order.status}</span></td>
+                    <td className="text-muted-foreground">{elapsed(order.created_at)}</td>
+                    <td><ChevronRight className="size-4 text-muted-foreground" /></td>
                   </tr>
-                </thead>
-                <tbody>
-                  {rows.map((order) => {
-                    const active = selected?.id === order.id;
-                    return (
-                      <tr
-                        key={order.id}
-                        onClick={() => setSelectedId(order.id)}
-                        className={cn("cursor-pointer", active && "bg-orange-500/[.06]")}
-                      >
-                        <td><strong className="tabular-nums">{order.order_number}</strong></td>
-                        <td>{order.table?.table_number ? `${ar ? "طاولة" : "Table"} ${order.table.table_number}` : (ar ? "خارجي" : "Takeaway")}</td>
-                        <td><span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted text-muted-foreground")}>{order.status}</span></td>
-                        <td><span className="inline-flex items-center gap-1.5"><Clock3 className="size-3.5 text-[#ff5a0a]" />{new Date(order.created_at).toLocaleTimeString(ar ? "ar-JO" : "en-US", { hour: "2-digit", minute: "2-digit" })}</span></td>
-                        <td className="font-bold tabular-nums">{formatMoney(order.total, currency, lang)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
+                ); })}</tbody>
               </table>
             </div>
 
             <div className="divide-y divide-border md:hidden">
-              {rows.map((order) => {
-                const active = selected?.id === order.id;
-                return (
-                  <button
-                    key={order.id}
-                    type="button"
-                    onClick={() => setSelectedId(order.id)}
-                    className={cn("flex w-full items-center gap-3 p-4 text-start", active && "bg-orange-500/[.06]")}
-                  >
-                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted"><ShoppingBag className="size-4" /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2"><strong className="truncate">{order.order_number}</strong><span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted")}>{order.status}</span></span>
-                      <span className="mt-1 block truncate text-xs text-muted-foreground">{order.table?.table_number ? `${ar ? "طاولة" : "Table"} ${order.table.table_number}` : (ar ? "طلب خارجي" : "Takeaway")} · {new Date(order.created_at).toLocaleTimeString(ar ? "ar-JO" : "en-US", { hour: "2-digit", minute: "2-digit" })}</span>
-                    </span>
-                    <strong className="shrink-0 text-sm tabular-nums">{formatMoney(order.total, currency, lang)}</strong>
-                  </button>
-                );
-              })}
+              {rows.map((order) => { const active = selected?.id === order.id; return (
+                <button key={order.id} type="button" onClick={() => setSelectedId(order.id)} className={cn("grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 p-4 text-start", active && "bg-orange-500/[.055]")}>
+                  <span className="min-w-0"><span className="flex items-center gap-2"><strong className="truncate">{order.order_number}</strong><span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted")}>{order.status}</span></span><span className="mt-1 block truncate text-xs text-muted-foreground">{order.table?.table_number ? `${ar ? "طاولة" : "Table"} ${order.table.table_number}` : (ar ? "طلب خارجي" : "Takeaway")} · {elapsed(order.created_at)}</span></span><ChevronRight className="mt-2 size-4 text-muted-foreground" />
+                </button>
+              ); })}
             </div>
           </section>
-
           {selected ? <OrderDetail order={selected} currency={currency} /> : null}
         </div>
       )}
@@ -185,80 +136,34 @@ function OrderDetail({ order, currency }: { order: any; currency: string }) {
   const { lang } = useI18n();
   const ar = lang === "ar";
   const items = useOrderItems(order.id);
-  const current = trackingIndex(order.status);
-  const cancelled = order.status === "cancelled";
+  const subtotal = (items.data ?? []).reduce((sum, item) => sum + Number(item.total_price ?? 0), 0);
+  const total = Number(order.total ?? subtotal);
+  const tax = Math.max(0, total - subtotal);
 
   return (
-    <aside className="qs-card self-start overflow-hidden xl:sticky xl:top-24">
-      <div className="border-b border-border p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-display text-xl font-bold">{order.order_number}</h2>
-              <span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted")}>{order.status}</span>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(order.created_at, lang)}</p>
-          </div>
-          <span className="inline-flex items-center gap-1 text-sm font-bold text-[#ff5a0a]"><Clock3 className="size-4" />{new Date(order.created_at).toLocaleTimeString(ar ? "ar-JO" : "en-US", { hour: "2-digit", minute: "2-digit" })}</span>
-        </div>
+    <aside className="qs-right-panel self-start xl:sticky xl:top-24">
+      <div className="qs-panel-header">
+        <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="font-display text-xl font-bold">{order.order_number}</h2><span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted")}>{order.status}</span></div><p className="mt-1 text-xs text-muted-foreground">{formatDateTime(order.created_at, lang)}</p></div>
+        <span className="text-end"><strong className="block text-sm">{elapsed(order.created_at)}</strong><span className="text-[10px] text-muted-foreground">{ar ? "المدة" : "Elapsed"}</span></span>
       </div>
 
-      <div className="p-4 sm:p-5">
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-full bg-muted"><UserRound className="size-4" /></span>
-          <div className="min-w-0 flex-1">
-            <p className="font-bold">{order.table?.table_number ? `${ar ? "طاولة" : "Table"} ${order.table.table_number}` : (ar ? "عميل" : "Guest")}</p>
-            <p className="text-xs text-muted-foreground">{order.table?.table_number ? (ar ? "داخل المطعم" : "Dine-in") : (ar ? "طلب خارجي" : "Takeaway")} · {order.payment_status}</p>
-          </div>
-          <UtensilsCrossed className="size-4 text-[#ff5a0a]" />
+      <div className="space-y-4 p-4 sm:p-5">
+        <Meta icon={<UtensilsCrossed className="size-4" />} label={ar ? "نوع الطلب" : "Dine In"} value={order.table?.table_number ? `${ar ? "طاولة" : "Table"} ${order.table.table_number}` : (ar ? "طلب خارجي" : "Takeaway")} />
+        <Meta icon={<UserRound className="size-4" />} label={ar ? "العميل" : "Customer"} value={ar ? "ضيف" : "Walk-in Guest"} />
+        <Meta icon={<FileText className="size-4" />} label={ar ? "العناصر" : "Items"} value={`${items.data?.length ?? 0} ${ar ? "عنصر" : "items"}`} />
+
+        <div className="border-t border-border pt-4"><h3 className="text-sm font-bold">{ar ? "عناصر الطلب" : "Order Items"}</h3>
+          {items.isPending ? <Skeleton className="mt-3 h-28 rounded-xl" /> : <div className="mt-2 divide-y divide-border">{(items.data ?? []).map((item) => (
+            <div key={item.id} className="flex items-center gap-3 py-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><UtensilsCrossed className="size-4" /></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{ar ? item.product_name_snapshot_ar || item.product_name_snapshot_en : item.product_name_snapshot_en || item.product_name_snapshot_ar}</p><p className="text-[10px] text-muted-foreground">{item.quantity} × {formatMoney(Number(item.unit_price ?? 0), currency, lang)}</p></div><strong className="text-sm">{formatMoney(item.total_price, currency, lang)}</strong></div>
+          ))}</div>}
         </div>
 
-        <div className="mt-5 rounded-2xl border border-border bg-muted/25 p-3">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{ar ? "تتبع الحالة" : "Tracking"}</p>
-          {cancelled ? (
-            <div className="rounded-xl bg-rose-500/10 p-3 text-sm font-semibold text-rose-600 dark:text-rose-400">{ar ? "تم إلغاء الطلب" : "Order cancelled"}</div>
-          ) : (
-            <div className="grid grid-cols-5 gap-1">
-              {TRACKING.map((step, index) => {
-                const complete = current >= index;
-                const active = current === index;
-                return (
-                  <div key={step.id} className="qs-tracking-step text-center" data-complete={complete}>
-                    <span className={cn(
-                      "qs-tracking-node mx-auto grid size-8 place-items-center rounded-full border text-xs transition",
-                      complete ? "border-[#ff5a0a] bg-[#ff5a0a] text-white" : "border-border bg-background text-muted-foreground",
-                      active && "ring-4 ring-orange-500/10",
-                    )}>
-                      {complete && !active ? <Check className="size-3.5" /> : <CircleDot className="size-3.5" />}
-                    </span>
-                    <span className={cn("mt-2 block truncate text-[9px] font-semibold sm:text-[10px]", active ? "text-foreground" : "text-muted-foreground")}>{ar ? step.ar : step.en}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <h3 className="mt-5 text-sm font-bold">{ar ? "العناصر" : "Items"} ({items.data?.length ?? 0})</h3>
-        {items.isPending ? (
-          <Skeleton className="mt-3 h-28 rounded-xl" />
-        ) : (
-          <div className="mt-2 divide-y divide-border">
-            {(items.data ?? []).map((item) => (
-              <div key={item.id} className="flex items-center gap-3 py-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-orange-500/10 text-xs font-bold text-[#ff5a0a]">×{item.quantity}</span>
-                <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{ar ? item.product_name_snapshot_ar || item.product_name_snapshot_en : item.product_name_snapshot_en || item.product_name_snapshot_ar}</p></div>
-                <span className="text-sm font-bold">{formatMoney(item.total_price, currency, lang)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-          <span className="text-sm text-muted-foreground">{ar ? "الإجمالي" : "Total"}</span>
-          <strong className="text-lg tabular-nums">{formatMoney(order.total, currency, lang)}</strong>
-        </div>
+        <div className="space-y-2 border-t border-border pt-4 text-sm"><div className="flex justify-between text-muted-foreground"><span>{ar ? "المجموع الفرعي" : "Subtotal"}</span><span>{formatMoney(subtotal, currency, lang)}</span></div><div className="flex justify-between text-muted-foreground"><span>{ar ? "الضريبة" : "Tax"}</span><span>{formatMoney(tax, currency, lang)}</span></div><div className="flex justify-between pt-2 text-lg font-bold"><span>{ar ? "الإجمالي" : "Total"}</span><span>{formatMoney(total, currency, lang)}</span></div></div>
       </div>
     </aside>
   );
+}
+
+function Meta({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return <div className="flex items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">{icon}</span><div><p className="text-sm font-bold">{label}</p><p className="text-xs text-muted-foreground">{value}</p></div></div>;
 }
