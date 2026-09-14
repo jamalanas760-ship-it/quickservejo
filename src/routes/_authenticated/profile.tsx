@@ -39,7 +39,7 @@ function ProfilePage() {
   const meta = user?.user_metadata as { full_name?: string; name?: string } | undefined;
   const membership = restaurantId ? access.membershipFor(restaurantId) : (access.data ?? []).find((row) => row.restaurant_id) ?? null;
   const displayName = meta?.full_name || meta?.name || membership?.name || user?.email || (ar ? "المستخدم" : "User");
-  const email = user?.email ?? membership?.email ?? "—";
+  const email = user?.email ?? "—";
   const role = access.isSuperAdmin ? "super_admin" : membership?.role;
   const roleLabel = role && role in ROLE_LABELS ? ROLE_LABELS[role as keyof typeof ROLE_LABELS][lang] : (ar ? "عضو" : "Member");
   const notifKey = `quickserve.notifications:${user?.id ?? "guest"}`;
@@ -105,7 +105,7 @@ function ProfilePage() {
           <section className="min-w-0">
             <div className="mb-3 flex items-center gap-2"><Bell className="size-[18px] text-[#ff5a0a]" /><h2 className="text-base font-bold">{ar ? "التنبيهات" : "Alerts"}</h2></div>
             <div className="overflow-hidden rounded-2xl border border-border bg-card">
-              {alertRows.map((row, index) => (
+              {alertRows.map((row) => (
                 <div key={row.key} className="flex min-h-[76px] items-center justify-between gap-4 border-b border-border px-4 py-3 last:border-0 sm:px-5">
                   <div className="min-w-0"><p className="text-sm font-semibold">{ar ? row.ar : row.en}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar ? row.arHint : row.enHint}</p></div>
                   <div className="flex shrink-0 items-center gap-2"><span className="hidden text-[10px] font-bold uppercase tracking-wide text-muted-foreground sm:inline">{notif[row.key] ? "ON" : "OFF"}</span><Switch checked={notif[row.key]} onCheckedChange={(value) => setNotification(row.key, value)} aria-label={ar ? row.ar : row.en} /></div>
