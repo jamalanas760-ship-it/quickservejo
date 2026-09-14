@@ -1,26 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { MenuManager } from "@/components/manage/MenuManager";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute(
   "/_authenticated/super-admin/restaurants/$restaurantId/menu",
 )({
-  head: () => ({
-    meta: [
-      { title: "Menu builder — QuickServe admin" },
-      {
-        name: "description",
-        content:
-          "Build bilingual menu categories, products, prices, images and modifier groups for a tenant.",
-      },
-      { property: "og:title", content: "Menu builder — QuickServe admin" },
-      { property: "og:description", content: "Categories, products and modifiers for a tenant." },
-    ],
-  }),
-  component: MenuTab,
+  component: LegacyMenuRedirect,
 });
 
-function MenuTab() {
+function LegacyMenuRedirect() {
   const { restaurantId } = Route.useParams();
-  return <MenuManager restaurantId={restaurantId} />;
+  return <Navigate to="/super-admin/restaurants/$restaurantId/design" params={{ restaurantId }} replace />;
 }
