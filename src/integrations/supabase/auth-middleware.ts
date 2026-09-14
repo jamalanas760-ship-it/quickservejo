@@ -2,6 +2,7 @@
 import { createMiddleware } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { createClient } from '@supabase/supabase-js'
+import { quickServeSupabase } from './public-config';
 import type { Database } from './types'
 
 
@@ -35,8 +36,8 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     
     // Match the project that issued the browser session. Hosting defaults can
     // still reference the original project after reconnecting Supabase.
-    const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || process.env['SUPABASE_URL'];
-    const SUPABASE_PUBLISHABLE_KEY = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_PUBLISHABLE_KEY'];
+    const SUPABASE_URL = quickServeSupabase.url;
+    const SUPABASE_PUBLISHABLE_KEY = quickServeSupabase.publishableKey;
 
     if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
       const missing = [

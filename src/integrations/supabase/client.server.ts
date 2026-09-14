@@ -3,6 +3,7 @@
 // Use this for admin operations in server functions and server routes only.
 // For user-authenticated queries (with RLS), use the auth middleware instead.
 import { createClient } from '@supabase/supabase-js';
+import { quickServeSupabase } from './public-config';
 import type { Database } from './types';
 
 function resolveSecretKey(): string | undefined {
@@ -32,7 +33,7 @@ function resolveSecretKey(): string | undefined {
 }
 
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || process.env['SUPABASE_URL'];
+  const SUPABASE_URL = quickServeSupabase.url;
   const SUPABASE_ADMIN_KEY = resolveSecretKey();
 
   if (!SUPABASE_URL || !SUPABASE_ADMIN_KEY) {
