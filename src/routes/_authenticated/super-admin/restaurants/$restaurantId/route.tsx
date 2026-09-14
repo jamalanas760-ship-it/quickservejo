@@ -12,12 +12,17 @@ export const Route = createFileRoute("/_authenticated/super-admin/restaurants/$r
   component: RestaurantShell,
 });
 
-type Tab = { to: string; labelKey: string; exact?: boolean };
+type Tab = {
+  to: string;
+  labelKey?: string;
+  label?: { en: string; ar: string };
+  exact?: boolean;
+};
 
 const TABS: Tab[] = [
   { to: "/super-admin/restaurants/$restaurantId", labelKey: "sa.detail.overview", exact: true },
   { to: "/super-admin/restaurants/$restaurantId/edit", labelKey: "sa.detail.edit" },
-  { to: "/super-admin/restaurants/$restaurantId/menu", labelKey: "sa.detail.menu" },
+  { to: "/super-admin/restaurants/$restaurantId/design", label: { en: "Menu Design", ar: "تصميم القائمة" } },
   { to: "/super-admin/restaurants/$restaurantId/tables", labelKey: "sa.detail.tables" },
   { to: "/super-admin/restaurants/$restaurantId/staff", labelKey: "sa.detail.staff" },
   { to: "/super-admin/restaurants/$restaurantId/orders", labelKey: "sa.detail.orders" },
@@ -27,7 +32,7 @@ const TABS: Tab[] = [
 
 function RestaurantShell() {
   const { restaurantId } = Route.useParams();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: restaurant, isPending } = useRestaurant(restaurantId);
   const base = `/super-admin/restaurants/${restaurantId}`;
@@ -59,9 +64,10 @@ function RestaurantShell() {
         {TABS.map((tab) => {
           const href = tab.to.replace("$restaurantId", restaurantId);
           const active = tab.exact ? pathname === base || pathname === `${base}/` : pathname === href;
+          const label = tab.label ? (lang === "ar" ? tab.label.ar : tab.label.en) : t(tab.labelKey ?? "");
           return (
             <Link key={tab.to} to={tab.to} params={{ restaurantId }} className={cn("rounded-md px-3 py-1.5 text-sm font-medium transition-colors", active ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-muted")}>
-              {t(tab.labelKey)}
+              {label}
             </Link>
           );
         })}
