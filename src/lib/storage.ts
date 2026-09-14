@@ -5,7 +5,7 @@ const PDF_BUCKET = "menu-pdfs";
 const SIGNED_TTL = 60 * 60 * 24 * 365;
 const PDF_CHUNK_BYTES = 2 * 1024 * 1024;
 export const MAX_PDF_BYTES = 100 * 1024 * 1024;
-export type MediaKind = "logo" | "cover" | "category" | "product";
+export type MediaKind = "logo" | "cover" | "category" | "product" | "avatar";
 type UploadKind = MediaKind | "menu-pdf";
 
 export type UploadedPdf = {
@@ -80,12 +80,6 @@ async function uploadPdfObject(path: string, blob: Blob, contentType: "applicati
   return publicPdfUrl(path);
 }
 
-/**
- * Uploads PDF menus directly to the provisioned menu-pdfs bucket using the
- * signed-in user's Supabase session. No server secret/service-role key is
- * required. Larger files are split into 2 MiB objects while preserving the
- * original PDF bytes exactly.
- */
 export async function uploadRestaurantPdf(
   restaurantId: string,
   file: File,
