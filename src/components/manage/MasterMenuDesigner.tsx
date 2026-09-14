@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
 
-const PdfEditor = lazy(() => import("./PdfMenuManagerV3").then((module) => ({ default: module.PdfMenuManagerV3 })));
+const PdfEditor = lazy(() => import("./PdfMenuManagerModern").then((module) => ({ default: module.PdfMenuManagerModern })));
 const Products = lazy(() => import("./MenuCatalogMaster").then((module) => ({ default: module.MenuCatalogMaster })));
 const Appearance = lazy(() => import("./RestaurantAppearance").then((module) => ({ default: module.RestaurantAppearance })));
 
