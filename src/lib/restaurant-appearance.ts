@@ -3,7 +3,12 @@ export type RestaurantAppearance = {
   menuLogo: string | null;
   homeTitle: string;
   dashboardTitle: string;
+  lightBackground: string;
+  darkBackground: string;
 };
+
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
 export function readAppearance(theme: unknown): RestaurantAppearance {
   const raw = theme && typeof theme === "object" ? (theme as Record<string, unknown>).workspace : null;
   const value = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
@@ -12,5 +17,7 @@ export function readAppearance(theme: unknown): RestaurantAppearance {
     menuLogo: typeof value.menuLogo === "string" && /^https:\/\//.test(value.menuLogo) ? value.menuLogo : null,
     homeTitle: typeof value.homeTitle === "string" ? value.homeTitle.slice(0, 100) : "",
     dashboardTitle: typeof value.dashboardTitle === "string" ? value.dashboardTitle.slice(0, 100) : "",
+    lightBackground: typeof value.lightBackground === "string" && HEX.test(value.lightBackground) ? value.lightBackground : "#ffffff",
+    darkBackground: typeof value.darkBackground === "string" && HEX.test(value.darkBackground) ? value.darkBackground : "#11171b",
   };
 }
