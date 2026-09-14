@@ -103,6 +103,10 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
         supabase,
         userId: data.user.id,
         user: data.user,
+        // The token has already been validated above. Passing it server-side lets
+        // privileged operations call Supabase Edge Functions without storing a
+        // service-role credential in Lovable.
+        accessToken: token,
       },
     });
   },
