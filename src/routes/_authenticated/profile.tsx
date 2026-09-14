@@ -1,69 +1,130 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState, type ReactNode } from "react";
-import { Bell, Building2, Check, Coins, LogOut, Mail, Palette, Percent, Phone, User, Users } from "lucide-react";
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
+import { Bell, Building2, LogOut, Mail, ShieldCheck, User } from "lucide-react";
+
 import { ProfileAvatarEditor } from "@/components/profile/ProfileAvatarEditor";
 import { StaffHeader } from "@/components/staff/StaffHeader";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
-import { useAccess } from "@/hooks/useSession";
-import { useWorkspaceMembers, useWorkspaceScope } from "@/hooks/useWorkspace";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
+import { useWorkspaceScope } from "@/hooks/useWorkspace";
+import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { humanError } from "@/lib/errors";
-import { ROLE_LABELS, type AppRole } from "@/lib/permissions";
-import type { Database } from "@/integrations/supabase/types";
-import { updateStaffMember } from "@/lib/staff.functions";
+import { ROLE_LABELS } from "@/lib/permissions";
 
-type RestaurantUpdate = Database["public"]["Tables"]["restaurants"]["Update"];
 type Notifications = { newOrders: boolean; waiterCalls: boolean; sound: boolean; daily: boolean };
-const NOTIF_KEY = "quickserve.notifications";
-const ROLES: AppRole[] = ["restaurant_admin", "manager", "kitchen", "waiter", "cashier"];
 const DEFAULT_NOTIF: Notifications = { newOrders: true, waiterCalls: true, sound: true, daily: false };
 
-export const Route = createFileRoute("/_authenticated/profile")({ head: () => ({ meta: [{ title: "Profile & settings — QuickServe" }] }), component: ProfilePage });
-
-function IconField({ icon: Icon, children }: { icon: typeof Building2; children: ReactNode }) {
-  return <div className="relative"><Icon className="pointer-events-none absolute start-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />{children}</div>;
-}
-
-function SectionCard({ icon: Icon, title, description, children }: { icon: typeof Building2; title: string; description?: string; children: ReactNode }) {
-  return <section className="overflow-hidden rounded-[26px] border bg-card shadow-[0_12px_40px_rgba(0,0,0,.05)]"><div className="border-b bg-muted/25 px-4 py-4 sm:px-6"><div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary"><Icon className="size-5"/></span><div><h2 className="font-bold tracking-tight">{title}</h2>{description?<p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>:null}</div></div></div><div className="p-4 sm:p-6">{children}</div></section>;
-}
+export const Route = createFileRoute("/_authenticated/profile")({
+  head: () => ({ meta: [{ title: "Profile & alerts — QuickServe" }] }),
+  component: ProfilePage,
+});
 
 function ProfilePage() {
-  const { lang } = useI18n(); const navigate = useNavigate(); const queryClient = useQueryClient(); const access = useAccess(); const updateStaff = useServerFn(updateStaffMember); const scope = useWorkspaceScope(); const restaurantId = scope.restaurantId; const { data: restaurant } = useRestaurant(restaurantId ?? ""); const members = useWorkspaceMembers(restaurantId);
-  const [email,setEmail]=useState<string|null>(null); const [displayName,setDisplayName]=useState<string|null>(null); const [notif,setNotif]=useState<Notifications>(DEFAULT_NOTIF); const [org,setOrg]=useState({name:"",phone:"",currency:"JOD",tax:"0"}); const [colors,setColors]=useState({primary:"#f59323",accent:"#111111",background:"#ffffff"}); const [saving,setSaving]=useState(false);
-  const canManage=access.isSuperAdmin||(access.data??[]).some(m=>m.restaurant_id===restaurantId&&m.role==="restaurant_admin");
-  useEffect(()=>{void supabase.auth.getUser().then(({data:u})=>{setEmail(u.user?.email??null);const meta=u.user?.user_metadata as {full_name?:string;name?:string}|undefined;setDisplayName(meta?.full_name||meta?.name||null)});try{const raw=window.localStorage.getItem(NOTIF_KEY);if(raw)setNotif({...DEFAULT_NOTIF,...(JSON.parse(raw) as Partial<Notifications>)})}catch{}},[]);
-  useEffect(()=>{if(!restaurant)return;setOrg({name:restaurant.name,phone:restaurant.phone??"",currency:restaurant.currency,tax:String(restaurant.tax_rate??0)});setColors({primary:restaurant.primary_color,accent:restaurant.accent_color,background:restaurant.background_color})},[restaurant]);
-  function setNotification(key:keyof Notifications,value:boolean){const next={...notif,[key]:value};setNotif(next);window.localStorage.setItem(NOTIF_KEY,JSON.stringify(next));}
-  async function saveRestaurant(patch:RestaurantUpdate){if(!restaurantId)return;setSaving(true);try{const{error}=await supabase.from("restaurants").update(patch).eq("id",restaurantId);if(error)throw error;await queryClient.invalidateQueries({queryKey:["platform","restaurant",restaurantId]});toast.success(lang==="ar"?"تم الحفظ":"Saved successfully")}catch(error){toast.error(humanError(error,lang))}finally{setSaving(false)}}
-  async function changeRole(staffId:string,role:AppRole){try{await updateStaff({data:{staffId,role}});await members.refetch();toast.success(lang==="ar"?"تم تحديث الصلاحية":"Role updated")}catch(error){toast.error(humanError(error,lang))}}
-  async function signOut(){await queryClient.cancelQueries();queryClient.clear();await supabase.auth.signOut();navigate({to:"/auth",replace:true});}
-  const memberships=(access.data??[]).filter(m=>m.restaurant_id); const nameSource=displayName||email||"?"; const initial=nameSource.slice(0,1).toUpperCase(); const roleBadge=access.isSuperAdmin?ROLE_LABELS.super_admin[lang]:memberships[0]?ROLE_LABELS[memberships[0].role][lang]:null;
+  const { lang } = useI18n();
+  const ar = lang === "ar";
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const access = useAccess();
+  const session = useSupabaseSession();
+  const scope = useWorkspaceScope();
+  const restaurantId = scope.restaurantId;
+  const { data: restaurant } = useRestaurant(restaurantId ?? "");
+  const [notif, setNotif] = useState<Notifications>(DEFAULT_NOTIF);
 
-  return <div className="min-h-screen pb-24 lg:pb-10"><StaffHeader title={lang==="ar"?"الملف والإعدادات":"Profile & settings"}/><main className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-6 sm:py-7 lg:px-8">
-    <section className="relative overflow-hidden rounded-[30px] border bg-card p-4 shadow-[0_20px_70px_rgba(0,0,0,.08)] sm:p-6"><div className="absolute -right-16 -top-20 size-48 rounded-full bg-primary/10 blur-2xl"/><div className="relative flex flex-col gap-5 sm:flex-row sm:items-center"><span className="grid size-20 shrink-0 place-items-center rounded-[26px] bg-foreground text-2xl font-black text-background shadow-lg">{initial}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h1 className="truncate text-2xl font-black tracking-[-.04em] sm:text-3xl">{displayName||(email??"Profile")}</h1>{roleBadge?<Badge variant="secondary" className="rounded-full px-3">{roleBadge}</Badge>:null}</div><p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground"><Mail className="size-4"/>{email??"—"}</p><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full border bg-background/80 px-3 py-1.5 text-[11px] font-semibold">{restaurant?.name??(lang==="ar"?"لا يوجد مطعم":"No restaurant")}</span><span className="rounded-full border bg-background/80 px-3 py-1.5 text-[11px] font-semibold">{canManage?(lang==="ar"?"صلاحيات الإدارة":"Management access"):(lang==="ar"?"وصول الفريق":"Team access")}</span></div></div><Button variant="outline" className="rounded-full" onClick={()=>void signOut()}><LogOut className="mr-2 size-4"/>{lang==="ar"?"تسجيل الخروج":"Sign out"}</Button></div></section>
+  const user = session.data?.user;
+  const meta = user?.user_metadata as { full_name?: string; name?: string } | undefined;
+  const membership = restaurantId ? access.membershipFor(restaurantId) : (access.data ?? []).find((row) => row.restaurant_id) ?? null;
+  const displayName = meta?.full_name || meta?.name || membership?.name || user?.email || (ar ? "المستخدم" : "User");
+  const email = user?.email ?? membership?.email ?? "—";
+  const role = access.isSuperAdmin ? "super_admin" : membership?.role;
+  const roleLabel = role && role in ROLE_LABELS ? ROLE_LABELS[role as keyof typeof ROLE_LABELS][lang] : (ar ? "عضو" : "Member");
+  const notifKey = `quickserve.notifications:${user?.id ?? "guest"}`;
 
-    <Tabs defaultValue="organisation" className="mt-5 w-full"><TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border bg-card/80 p-1 sm:grid-cols-5">{([["organisation",Building2,lang==="ar"?"المطعم":"Restaurant"],["account",User,lang==="ar"?"الحساب":"Account"],["permissions",Users,lang==="ar"?"الفريق":"Team"],["notifications",Bell,lang==="ar"?"التنبيهات":"Alerts"],["branding",Palette,lang==="ar"?"الهوية":"Branding"]] as const).map(([value,Icon,label])=><TabsTrigger key={value} value={value} className="min-h-12 rounded-xl gap-1.5 text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm"><Icon className="size-4"/>{label}</TabsTrigger>)}</TabsList>
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(notifKey);
+      if (raw) setNotif({ ...DEFAULT_NOTIF, ...(JSON.parse(raw) as Partial<Notifications>) });
+    } catch {
+      setNotif(DEFAULT_NOTIF);
+    }
+  }, [notifKey]);
 
-      <TabsContent value="organisation" className="mt-4"><SectionCard icon={Building2} title={lang==="ar"?"هوية المطعم":"Restaurant identity"} description={lang==="ar"?"بيانات المطعم التي تظهر في تجربة الإدارة والقائمة.":"Core restaurant details used across the admin and diner experience."}>{restaurantId?<><div className="grid gap-4 md:grid-cols-2"><div className="space-y-1.5"><Label>{lang==="ar"?"اسم المطعم":"Restaurant name"}</Label><IconField icon={Building2}><Input className="h-12 rounded-xl ps-9" value={org.name} disabled={!canManage} onChange={e=>setOrg({...org,name:e.target.value})}/></IconField></div><div className="space-y-1.5"><Label>{lang==="ar"?"الهاتف":"Phone"}</Label><IconField icon={Phone}><Input className="h-12 rounded-xl ps-9" value={org.phone} disabled={!canManage} onChange={e=>setOrg({...org,phone:e.target.value})}/></IconField></div><div className="space-y-1.5"><Label>{lang==="ar"?"العملة":"Currency"}</Label><Select value={org.currency} onValueChange={v=>setOrg({...org,currency:v})} disabled={!canManage}><SelectTrigger className="h-12 rounded-xl"><span className="flex items-center gap-2"><Coins className="size-4 text-muted-foreground"/><SelectValue/></span></SelectTrigger><SelectContent>{["JOD","SAR","AED","USD","EUR"].map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><Label>{lang==="ar"?"الضريبة %":"Tax rate %"}</Label><IconField icon={Percent}><Input className="h-12 rounded-xl ps-9" type="number" inputMode="decimal" value={org.tax} disabled={!canManage} onChange={e=>setOrg({...org,tax:e.target.value})}/></IconField></div></div><div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border bg-muted/30 p-3"><div><p className="text-sm font-semibold">{lang==="ar"?"الحالة":"Restaurant status"}</p><p className="text-xs text-muted-foreground">{restaurant?.is_active?(lang==="ar"?"المطعم نشط":"Restaurant is active"):(lang==="ar"?"المطعم غير نشط":"Restaurant is inactive")}</p></div><Badge variant="outline" className="rounded-full">{restaurant?.is_active?(lang==="ar"?"نشط":"Active"):(lang==="ar"?"غير نشط":"Inactive")}</Badge></div>{canManage?<Button className="mt-5 h-11 rounded-xl" disabled={saving} onClick={()=>void saveRestaurant({name:org.name.trim(),phone:org.phone.trim()||null,currency:org.currency,tax_rate:Number(org.tax)||0})}><Check className="mr-2 size-4"/>{saving?(lang==="ar"?"جارٍ الحفظ…":"Saving…"):(lang==="ar"?"حفظ التغييرات":"Save changes")}</Button>:<p className="mt-4 text-xs text-muted-foreground">{lang==="ar"?"هذه الإعدادات للعرض فقط حسب صلاحيتك.":"These settings are read-only for your role."}</p>}</>:<p className="text-sm text-muted-foreground">{lang==="ar"?"اربط حسابك بمطعم لعرض الإعدادات.":"Link your account to a restaurant to manage these settings."}</p>}</SectionCard></TabsContent>
+  function setNotification(key: keyof Notifications, value: boolean) {
+    const next = { ...notif, [key]: value };
+    setNotif(next);
+    try { window.localStorage.setItem(notifKey, JSON.stringify(next)); } catch { /* no-op */ }
+  }
 
-      <TabsContent value="account" className="mt-4"><div className="space-y-4"><SectionCard icon={User} title={lang==="ar"?"حسابك":"Your account"} description={lang==="ar"?"معلومات الدخول والهوية الشخصية.":"Your sign-in identity and account details."}><ProfileAvatarEditor restaurantId={restaurantId}/><div className="mt-5 grid gap-4 md:grid-cols-2"><div className="space-y-1.5"><Label>{lang==="ar"?"الاسم":"Name"}</Label><IconField icon={User}><Input className="h-12 rounded-xl ps-9" value={displayName??""} readOnly/></IconField></div><div className="space-y-1.5"><Label>Email</Label><IconField icon={Mail}><Input className="h-12 rounded-xl ps-9" value={email??""} readOnly/></IconField></div></div><div className="mt-5 rounded-2xl border bg-muted/25 p-4 text-sm"><p className="font-semibold">{lang==="ar"?"تسجيل الدخول آمن":"Secure sign-in"}</p><p className="mt-1 text-xs text-muted-foreground">{lang==="ar"?"جلسة الحساب تدار بواسطة QuickServe authentication.":"Your session is managed by QuickServe authentication."}</p></div></SectionCard></div></TabsContent>
+  async function signOut() {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  }
 
-      <TabsContent value="permissions" className="mt-4"><SectionCard icon={Users} title={lang==="ar"?"فريق المطعم":"Restaurant team"} description={lang==="ar"?"إدارة الأدوار والصلاحيات من مكان واحد.":"Manage restaurant roles and permissions in one place."}>{members.isPending?<div className="space-y-2"><div className="h-16 animate-pulse rounded-2xl bg-muted"/><div className="h-16 animate-pulse rounded-2xl bg-muted"/></div>:<div className="space-y-2">{(members.data??[]).map(member=><div key={member.id} className="flex flex-col gap-3 rounded-2xl border bg-background p-3 sm:flex-row sm:items-center"><div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><User className="size-4"/></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{member.name||member.email||"—"}</p><p className="truncate text-xs text-muted-foreground">{member.email||"—"}</p></div><Select value={member.role} onValueChange={v=>void changeRole(member.id,v as AppRole)} disabled={!canManage||member.role==="restaurant_admin"}><SelectTrigger className="h-10 w-full rounded-xl sm:w-48"><SelectValue/></SelectTrigger><SelectContent>{ROLES.filter(r=>r!=="restaurant_admin").map(r=><SelectItem key={r} value={r}>{ROLE_LABELS[r][lang]}</SelectItem>)}</SelectContent></Select></div>)}</div>}</SectionCard></TabsContent>
+  const alertRows: Array<{ key: keyof Notifications; en: string; ar: string; enHint: string; arHint: string }> = [
+    { key: "newOrders", en: "New orders", ar: "طلبات جديدة", enHint: "Alert me when a new order arrives.", arHint: "نبهني عند وصول طلب جديد." },
+    { key: "waiterCalls", en: "Waiter calls", ar: "طلبات النادل", enHint: "Alert me when a table asks for service.", arHint: "نبهني عندما تطلب طاولة الخدمة." },
+    { key: "sound", en: "Notification sound", ar: "صوت التنبيه", enHint: "Play a sound for enabled alerts.", arHint: "تشغيل صوت للتنبيهات المفعلة." },
+    { key: "daily", en: "Daily summary", ar: "الملخص اليومي", enHint: "Show a compact daily operations summary.", arHint: "عرض ملخص يومي مختصر للتشغيل." },
+  ];
 
-      <TabsContent value="notifications" className="mt-4"><SectionCard icon={Bell} title={lang==="ar"?"تنبيهات العمل":"Work alerts"} description={lang==="ar"?"تحكم بما تسمعه وتراه أثناء العمل.":"Control what you hear and see during service."}><div className="space-y-2">{([["newOrders","New orders","طلبات جديدة"],["waiterCalls","Waiter calls","طلبات النادل"],["sound","Notification sound","صوت التنبيه"],["daily","Daily summary","الملخص اليومي"]] as const).map(([key,en,ar])=><label key={key} className="flex min-h-16 cursor-pointer items-center justify-between gap-4 rounded-2xl border bg-background px-4 py-3 transition hover:bg-muted/40"><div><p className="text-sm font-semibold">{lang==="ar"?ar:en}</p><p className="text-xs text-muted-foreground">{key==="sound"?(lang==="ar"?"تشغيل صوت التنبيهات":"Play alert sounds"):(lang==="ar"?"تفعيل هذا النوع من التنبيه":"Enable this alert")}</p></div><input type="checkbox" checked={notif[key]} onChange={e=>setNotification(key,e.target.checked)} className="size-5 accent-[var(--color-primary)]"/></label>)}</div></SectionCard></TabsContent>
+  return (
+    <div className="min-h-screen bg-background pb-24 lg:pb-10">
+      <StaffHeader title={ar ? "الملف الشخصي" : "My profile"} />
+      <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-9 lg:px-8">
+        <header className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-[-.035em] sm:text-3xl">{displayName}</h1>
+              <Badge variant="secondary" className="rounded-full px-3">{roleLabel}</Badge>
+            </div>
+            <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"><Mail className="size-4" />{email}</p>
+          </div>
+          <Button variant="outline" className="self-start rounded-xl sm:self-auto" onClick={() => void signOut()}><LogOut className="size-4" />{ar ? "تسجيل الخروج" : "Sign out"}</Button>
+        </header>
 
-      <TabsContent value="branding" className="mt-4"><SectionCard icon={Palette} title={lang==="ar"?"الهوية البصرية":"Brand system"} description={lang==="ar"?"ألوان العلامة التي يستخدمها المطعم.":"The brand colors used throughout the restaurant experience."}><div className="grid gap-3 sm:grid-cols-3">{([["primary","Primary"],["accent","Accent"],["background","Background"]] as const).map(([key,label])=><label key={key} className="flex items-center gap-3 rounded-2xl border bg-background p-3"><input type="color" value={colors[key]} disabled={!canManage} onChange={e=>setColors({...colors,[key]:e.target.value})} className="size-11 cursor-pointer rounded-xl border-0 bg-transparent p-0"/><span><span className="block text-sm font-semibold">{label}</span><span className="text-xs text-muted-foreground">{colors[key]}</span></span></label>)}</div>{canManage?<Button className="mt-5 h-11 rounded-xl" disabled={saving} onClick={()=>void saveRestaurant({primary_color:colors.primary,accent_color:colors.accent,background_color:colors.background})}><Check className="mr-2 size-4"/>{lang==="ar"?"حفظ الهوية":"Save brand"}</Button>:null}</SectionCard></TabsContent>
-    </Tabs>
-  </main></div>;
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,.85fr)]">
+          <section className="min-w-0">
+            <div className="mb-3 flex items-center gap-2"><User className="size-[18px] text-[#ff5a0a]" /><h2 className="text-base font-bold">{ar ? "الصورة والهوية" : "Photo & identity"}</h2></div>
+            <ProfileAvatarEditor restaurantId={restaurantId} />
+
+            <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-card">
+              <ReadOnlyRow icon={<User className="size-4" />} label={ar ? "الاسم" : "Name"} value={displayName} />
+              <ReadOnlyRow icon={<Mail className="size-4" />} label={ar ? "البريد الإلكتروني" : "Email"} value={email} />
+              <ReadOnlyRow icon={<ShieldCheck className="size-4" />} label={ar ? "الدور" : "Role"} value={roleLabel} />
+              <ReadOnlyRow icon={<Building2 className="size-4" />} label={ar ? "المطعم" : "Restaurant"} value={restaurant?.name ?? scope.restaurantName ?? "—"} last />
+            </div>
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">{ar ? "بيانات الحساب والمطعم للعرض فقط. يمكنك تغيير الصورة الشخصية فقط من هذه الصفحة." : "Account and restaurant details are read-only here. Only your profile picture can be changed from this page."}</p>
+          </section>
+
+          <section className="min-w-0">
+            <div className="mb-3 flex items-center gap-2"><Bell className="size-[18px] text-[#ff5a0a]" /><h2 className="text-base font-bold">{ar ? "التنبيهات" : "Alerts"}</h2></div>
+            <div className="overflow-hidden rounded-2xl border border-border bg-card">
+              {alertRows.map((row, index) => (
+                <div key={row.key} className="flex min-h-[76px] items-center justify-between gap-4 border-b border-border px-4 py-3 last:border-0 sm:px-5">
+                  <div className="min-w-0"><p className="text-sm font-semibold">{ar ? row.ar : row.en}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar ? row.arHint : row.enHint}</p></div>
+                  <div className="flex shrink-0 items-center gap-2"><span className="hidden text-[10px] font-bold uppercase tracking-wide text-muted-foreground sm:inline">{notif[row.key] ? "ON" : "OFF"}</span><Switch checked={notif[row.key]} onCheckedChange={(value) => setNotification(row.key, value)} aria-label={ar ? row.ar : row.en} /></div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function ReadOnlyRow({ icon, label, value, last }: { icon: React.ReactNode; label: string; value: string; last?: boolean }) {
+  return (
+    <div className={`grid grid-cols-[34px_minmax(90px,.65fr)_minmax(0,1.35fr)] items-center gap-2 px-4 py-3.5 sm:px-5 ${last ? "" : "border-b border-border"}`}>
+      <span className="grid size-8 place-items-center rounded-lg bg-muted/60 text-muted-foreground">{icon}</span>
+      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
+      <span className="truncate text-end text-sm font-semibold">{value}</span>
+    </div>
+  );
 }
