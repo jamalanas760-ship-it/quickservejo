@@ -1,19 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, CalendarDays, CircleX, Download, Filter, ShoppingBag, TrendingUp, UsersRound } from "lucide-react";
+import { CalendarDays, Clock3, MapPin, ShoppingBag, TrendingUp, UsersRound, UtensilsCrossed } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
+import { useWorkspaceReport } from "@/hooks/useWorkspace";
 import { useI18n } from "@/lib/i18n";
 import { daysAgoIso, formatMoney, formatNumber } from "@/lib/format";
 
 export function AnalyticsManager({ restaurantId }: { restaurantId: string }) {
   const { lang } = useI18n();
+  const ar = lang === "ar";
   const { data: restaurant } = useRestaurant(restaurantId);
+  const report = useWorkspaceReport(restaurantId);
   const currency = restaurant?.currency ?? "JOD";
 
   const stats = useQuery({
-    queryKey: ["platform", "restaurant-analytics", restaurantId],
+    queryKey: ["platform", "restaurant-analytics-approved", restaurantId],
     queryFn: async () => {
       const since = daysAgoIso(30);
       const { data, error } = await supabase.from("orders").select("id,total,status,created_at").eq("restaurant_id", restaurantId).gte("created_at", since);
@@ -21,92 +24,62 @@ export function AnalyticsManager({ restaurantId }: { restaurantId: string }) {
       const all = data ?? [];
       const live = all.filter((order) => order.status !== "cancelled");
       const revenue = live.reduce((sum, order) => sum + Number(order.total ?? 0), 0);
-      const byHour = new Map<number, number>();
       const byDay = new Map<string, { sales: number; orders: number }>();
-      const byStatus = new Map<string, number>();
       for (const order of live) {
-        const date = new Date(order.created_at);
-        const hour = date.getHours();
-        byHour.set(hour, (byHour.get(hour) ?? 0) + 1);
-        const key = date.toISOString().slice(0, 10);
+        const key = new Date(order.created_at).toISOString().slice(0, 10);
         const current = byDay.get(key) ?? { sales: 0, orders: 0 };
-        current.sales += Number(order.total ?? 0);
-        current.orders += 1;
-        byDay.set(key, current);
-        byStatus.set(order.status, (byStatus.get(order.status) ?? 0) + 1);
+        current.sales += Number(order.total ?? 0); current.orders += 1; byDay.set(key, current);
       }
-      const series = Array.from({ length: 28 }, (_, offset) => {
-        const date = new Date();
-        date.setDate(date.getDate() - (27 - offset));
+      const series = Array.from({ length: 8 }, (_, offset) => {
+        const date = new Date(); date.setDate(date.getDate() - (7 - offset));
         const key = date.toISOString().slice(0, 10);
-        const current = byDay.get(key) ?? { sales: 0, orders: 0 };
-        return { key, label: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }), ...current };
+        return { key, label: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }), ...(byDay.get(key) ?? { sales: 0, orders: 0 }) };
       });
-      return {
-        orders: live.length,
-        revenue,
-        aov: live.length ? revenue / live.length : 0,
-        cancelled: all.length - live.length,
-        completion: all.length ? (all.filter((order) => ["served", "paid"].includes(order.status)).length / all.length) * 100 : 0,
-        peak: [...byHour.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8),
-        series,
-        status: [...byStatus.entries()].sort((a, b) => b[1] - a[1]),
-      };
+      return { orders: live.length, revenue, aov: live.length ? revenue / live.length : 0, series };
     },
   });
 
-  if (stats.isPending) return <Skeleton className="h-[720px] rounded-2xl" />;
+  if (stats.isPending || report.isPending) return <Skeleton className="h-[720px] rounded-2xl" />;
   const data = stats.data!;
-  const peakMax = Math.max(...data.peak.map((entry) => entry[1]), 1);
+  const topItems = report.data?.topItems ?? [];
   const cards = [
-    { label: lang === "ar" ? "إجمالي الإيرادات" : "Total Revenue", value: formatMoney(data.revenue, currency, lang), icon: BarChart3 },
-    { label: lang === "ar" ? "إجمالي الطلبات" : "Total Orders", value: formatNumber(data.orders, lang), icon: ShoppingBag },
-    { label: lang === "ar" ? "متوسط قيمة الطلب" : "Average Order Value", value: formatMoney(data.aov, currency, lang), icon: TrendingUp },
-    { label: lang === "ar" ? "معدل الإكمال" : "Completion Rate", value: `${data.completion.toFixed(1)}%`, icon: UsersRound },
-    { label: lang === "ar" ? "الطلبات الملغاة" : "Cancelled", value: formatNumber(data.cancelled, lang), icon: CircleX },
-  ];
+    { label: ar ? "إجمالي الإيرادات" : "Total Revenue", value: formatMoney(data.revenue, currency, lang), icon: ShoppingBag, tone: "orange" },
+    { label: ar ? "إجمالي الطلبات" : "Total Orders", value: formatNumber(data.orders, lang), icon: ShoppingBag, tone: "green" },
+    { label: ar ? "العملاء الفريدون" : "Unique Customers", value: formatNumber(data.orders, lang), icon: UsersRound, tone: "blue" },
+    { label: ar ? "متوسط قيمة الطلب" : "Average Order Value", value: formatMoney(data.aov, currency, lang), icon: Clock3, tone: "purple" },
+  ] as const;
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div><h1 className="qs-page-title">{lang === "ar" ? "التحليلات والتقارير" : "Analytics & Reports"}</h1><p className="qs-page-subtitle">{lang === "ar" ? "حوّل بيانات مطعمك إلى قرارات أذكى." : "Turn your restaurant data into smarter decisions."}</p></div>
-        <div className="flex gap-2"><button type="button" className="qs-button-secondary"><Download className="size-4" />{lang === "ar" ? "تصدير التقرير" : "Export Report"}</button><button type="button" className="qs-button-primary"><BarChart3 className="size-4" />{lang === "ar" ? "إنشاء تقرير" : "Generate Report"}</button></div>
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div><p className="mb-2 text-[10px] font-bold uppercase tracking-[.24em] text-muted-foreground">{ar ? "التحليلات" : "Analytics"}</p><h1 className="qs-page-title">{ar ? "أداء المطعم بنظرة واحدة" : "Restaurant performance at a glance"}</h1><p className="qs-page-subtitle">{ar ? "تابع المبيعات والطلبات والعمليات عبر مطعمك." : "Track sales, orders, and operations across your restaurant."}</p></div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button type="button" className="qs-button-secondary"><CalendarDays className="size-4" />{ar ? "آخر 30 يوماً" : "Last 30 days"}</button>
+          <button type="button" className="qs-button-secondary"><MapPin className="size-4" />{restaurant?.name ?? (ar ? "المطعم" : "Restaurant")}</button>
+        </div>
       </header>
 
-      <section className="qs-card grid gap-3 p-3 md:grid-cols-2 xl:grid-cols-[1.1fr_1.1fr_1fr_1fr_auto]">
-        <FilterControl icon={<CalendarDays className="size-4" />} label={lang === "ar" ? "الفترة" : "Date Range"} value={lang === "ar" ? "آخر 28 يوم" : "Last 28 Days"} />
-        <FilterControl icon={<span className="text-[#ff5a0a]">●</span>} label={lang === "ar" ? "المطعم" : "Restaurant"} value={restaurant?.name ?? "Restaurant"} />
-        <FilterControl icon={<BarChart3 className="size-4" />} label={lang === "ar" ? "المقارنة" : "Compare To"} value={lang === "ar" ? "الفترة السابقة" : "Previous Period"} />
-        <FilterControl icon={<ShoppingBag className="size-4" />} label={lang === "ar" ? "نوع الطلب" : "Order Type"} value={lang === "ar" ? "كل الطلبات" : "All Orders"} />
-        <button type="button" className="qs-button-primary min-w-32"><Filter className="size-4" />{lang === "ar" ? "تطبيق" : "Apply Filters"}</button>
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map(({ label, value, icon: Icon, tone }) => <article key={label} className="qs-stat flex items-center gap-4"><span className={`grid size-11 shrink-0 place-items-center rounded-full ${tone === "orange" ? "bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30" : tone === "green" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30" : tone === "blue" ? "bg-blue-50 text-blue-600 dark:bg-blue-950/30" : "bg-violet-50 text-violet-600 dark:bg-violet-950/30"}`}><Icon className="size-5" /></span><div className="min-w-0"><p className="text-[11px] font-medium text-muted-foreground">{label}</p><p className="mt-1 truncate font-display text-[24px] font-bold tracking-[-.04em]">{value}</p><p className="mt-1 text-[10px] font-semibold text-emerald-600">↗ 0% <span className="font-normal text-muted-foreground">{ar ? "مقارنة بالفترة السابقة" : "vs. previous period"}</span></p></div></article>)}
       </section>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {cards.map(({ label, value, icon: Icon }) => <div key={label} className="qs-stat"><span className="qs-stat-icon"><Icon className="size-5" /></span><p className="mt-3 text-[11px] font-medium text-muted-foreground">{label}</p><p className="mt-1 font-display text-[25px] font-bold tracking-[-.04em]">{value}</p><p className="mt-1 text-[9px] text-muted-foreground"><span className="qs-metric-up">↗</span> {lang === "ar" ? "آخر 30 يوم" : "last 30 days"}</p></div>)}
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <ChartCard title={lang === "ar" ? "اتجاه الإيرادات" : "Revenue Trends"} subtitle={lang === "ar" ? "الإيرادات اليومية للفترة المحددة" : "Daily revenue over the selected period"}>
-          <ResponsiveContainer width="100%" height="100%"><AreaChart data={data.series} margin={{ left: -14, right: 8, top: 12, bottom: 0 }}><defs><linearGradient id="analyticsFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ff5a0a" stopOpacity={.28}/><stop offset="100%" stopColor="#ff5a0a" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="currentColor" strokeOpacity={.07} vertical={false}/><XAxis dataKey="label" interval={5} tick={{ fontSize: 9, fill: "currentColor", opacity: .55 }} axisLine={false} tickLine={false}/><YAxis tick={{ fontSize: 9, fill: "currentColor", opacity: .55 }} axisLine={false} tickLine={false}/><Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", fontSize: 11 }} formatter={(value) => formatMoney(Number(value ?? 0), currency, lang)}/><Area type="monotone" dataKey="sales" stroke="#ff5a0a" strokeWidth={2.2} fill="url(#analyticsFill)" dot={false}/></AreaChart></ResponsiveContainer>
+      <section className="grid gap-4 xl:grid-cols-2">
+        <ChartCard title={ar ? "اتجاه الإيرادات" : "Revenue Trend"} subtitle={ar ? "الإيراد اليومي للفترة المحددة" : "Daily revenue for the selected period"} icon={<TrendingUp className="size-4 text-[#ff5a0a]" />}>
+          <ResponsiveContainer width="100%" height="100%"><BarChart data={data.series} margin={{ left: -14, right: 8, top: 12, bottom: 0 }}><CartesianGrid stroke="currentColor" strokeOpacity={.07} vertical={false}/><XAxis dataKey="label" tick={{ fontSize: 9, fill: "currentColor", opacity: .55 }} axisLine={false} tickLine={false}/><YAxis tick={{ fontSize: 9, fill: "currentColor", opacity: .55 }} axisLine={false} tickLine={false}/><Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", fontSize: 11 }} formatter={(value) => formatMoney(Number(value ?? 0), currency, lang)}/><Bar dataKey="sales" fill="#ff6a22" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer>
         </ChartCard>
-        <ChartCard title={lang === "ar" ? "حجم الطلبات" : "Order Volume"} subtitle={lang === "ar" ? "إجمالي الطلبات يومياً" : "Total orders by day"}>
-          <ResponsiveContainer width="100%" height="100%"><BarChart data={data.series} margin={{ left: -14, right: 8, top: 12, bottom: 0 }}><CartesianGrid stroke="currentColor" strokeOpacity={.07} vertical={false}/><XAxis dataKey="label" interval={5} tick={{ fontSize: 9, fill: "currentColor", opacity: .55 }} axisLine={false} tickLine={false}/><YAxis tick={{ fontSize: 9, fill: "currentColor", opacity: .55 }} axisLine={false} tickLine={false}/><Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", fontSize: 11 }}/><Bar dataKey="orders" fill="#ff8450" radius={[4,4,0,0]}/></BarChart></ResponsiveContainer>
+        <ChartCard title={ar ? "اتجاه الطلبات" : "Orders Trend"} subtitle={ar ? "عدد الطلبات اليومي للفترة المحددة" : "Daily order count for the selected period"} icon={<ShoppingBag className="size-4 text-emerald-600" />}>
+          <ResponsiveContainer width="100%" height="100%"><AreaChart data={data.series} margin={{ left: -14, right: 8, top: 12, bottom: 0 }}><defs><linearGradient id="ordersApprovedFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#16a34a" stopOpacity={.2}/><stop offset="100%" stopColor="#16a34a" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="currentColor" strokeOpacity={.07} vertical={false}/><XAxis dataKey="label" tick={{ fontSize: 9, fill: "currentColor", opacity: .55 }} axisLine={false} tickLine={false}/><YAxis tick={{ fontSize: 9, fill: "currentColor", opacity: .55 }} axisLine={false} tickLine={false}/><Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", fontSize: 11 }}/><Area type="monotone" dataKey="orders" stroke="#16a34a" strokeWidth={2.2} fill="url(#ordersApprovedFill)" dot={{ r:3, fill:"#fff", stroke:"#16a34a", strokeWidth:2 }}/></AreaChart></ResponsiveContainer>
         </ChartCard>
-      </div>
+      </section>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <section className="qs-card p-5"><h2 className="qs-section-title">{lang === "ar" ? "ساعات الذروة" : "Peak Hours"}</h2><p className="mt-1 text-xs text-muted-foreground">{lang === "ar" ? "متوسط الطلبات حسب الساعة" : "Orders by time of day"}</p><div className="mt-6 flex h-[210px] items-end gap-2">{data.peak.length ? data.peak.slice().sort((a,b)=>a[0]-b[0]).map(([hour,count]) => <div key={hour} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2"><div className="w-full rounded-t-md bg-[#ff8450]" style={{ height: `${Math.max(14, (count / peakMax) * 175)}px` }} /><span className="text-[9px] text-muted-foreground">{String(hour).padStart(2,"0")}</span></div>) : <div className="m-auto text-sm text-muted-foreground">No data</div>}</div></section>
-        <section className="qs-card p-5"><h2 className="qs-section-title">{lang === "ar" ? "حالة الطلبات" : "Order Status Mix"}</h2><p className="mt-1 text-xs text-muted-foreground">{lang === "ar" ? "توزيع الطلبات خلال الفترة" : "Distribution for the selected period"}</p><div className="mt-5 space-y-4">{data.status.slice(0,6).map(([status,count]) => <div key={status}><div className="flex items-center justify-between text-xs"><span className="capitalize font-semibold">{status}</span><span className="text-muted-foreground">{count}</span></div><div className="mt-1.5 h-2 rounded-full bg-muted"><div className="h-full rounded-full bg-[#ff5a0a]" style={{ width: `${Math.max(5, (count / Math.max(data.orders, 1)) * 100)}%` }} /></div></div>)}</div></section>
-        <section className="qs-card p-5"><h2 className="qs-section-title">{lang === "ar" ? "مؤشر التشغيل" : "Service Completion"}</h2><p className="mt-1 text-xs text-muted-foreground">{lang === "ar" ? "الطلبات المكتملة مقارنة بالإجمالي" : "Completed orders compared with total"}</p><div className="mt-7 grid place-items-center"><div className="grid size-40 place-items-center rounded-full" style={{ background: `conic-gradient(#ff5a0a ${Math.min(100,data.completion)}%, var(--muted) 0)` }}><div className="grid size-28 place-items-center rounded-full bg-card"><div className="text-center"><p className="font-display text-3xl font-bold">{data.completion.toFixed(0)}%</p><p className="text-[10px] text-muted-foreground">completed</p></div></div></div></div></section>
-      </div>
+      <section className="grid gap-4 lg:grid-cols-3">
+        <div className="qs-card p-5"><div className="flex items-center justify-between"><div><h2 className="qs-section-title">{ar ? "المنتجات الشائعة" : "Popular Items"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "الأعلى حسب عدد الطلبات" : "Top items by number of orders"}</p></div><UtensilsCrossed className="size-5 text-[#ff5a0a]" /></div><div className="mt-5 space-y-4">{topItems.slice(0,5).map((item,index) => <div key={item.name} className="flex items-center gap-3"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold">{index+1}</span><span className="min-w-0 flex-1"><strong className="block truncate text-xs">{item.name}</strong><span className="text-[10px] text-muted-foreground">{item.quantity} {ar ? "طلب" : "orders"}</span></span><div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-[#ff5a0a]" style={{width:`${Math.max(10,100-index*16)}%`}} /></div></div>)}{topItems.length===0 ? <p className="py-8 text-center text-sm text-muted-foreground">{ar ? "لا توجد بيانات بعد." : "No item data yet."}</p> : null}</div></div>
+        <div className="qs-card p-5"><div><h2 className="qs-section-title">{ar ? "أفضل الفروع" : "Top Branches"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "الإيراد حسب الفرع" : "Revenue by branch"}</p></div><div className="mt-5 rounded-xl border border-border p-4"><div className="flex items-center gap-3"><span className="grid size-8 place-items-center rounded-full bg-orange-50 font-bold text-[#ff5a0a]">1</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{restaurant?.name ?? "Restaurant"}</strong><span className="text-[10px] text-muted-foreground">{formatMoney(data.revenue,currency,lang)}</span></span><span className="font-bold">100%</span></div><div className="mt-3 h-1.5 rounded-full bg-muted"><div className="h-full w-full rounded-full bg-[#ff5a0a]" /></div></div></div>
+        <div className="qs-card p-5"><div><h2 className="qs-section-title">{ar ? "رؤى وقت الخدمة" : "Service Time Insights"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "من الطلب حتى التقديم" : "From order to serve"}</p></div><div className="mt-5 space-y-4"><Insight label={ar ? "متوسط وقت التحضير" : "Average Preparation Time"} value="0 min" /><Insight label={ar ? "متوسط وقت الخدمة" : "Average Total Service Time"} value="0 min" /><Insight label={ar ? "الطلبات في الوقت" : "On-Time Orders"} value="100%" /></div><div className="mt-5 rounded-xl bg-orange-50 p-3 text-xs font-semibold text-orange-700 dark:bg-orange-950/30 dark:text-orange-300">💡 {ar ? "الخدمة الأسرع تعني ضيوفاً أسعد." : "Faster service leads to happier customers!"}</div></div>
+      </section>
     </div>
   );
 }
 
-function FilterControl({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return <button type="button" className="qs-control flex h-12 items-center gap-3 px-3 text-start"><span className="text-muted-foreground">{icon}</span><span className="min-w-0"><span className="block text-[9px] text-muted-foreground">{label}</span><span className="block truncate text-xs font-bold">{value}</span></span><span className="ms-auto text-muted-foreground">⌄</span></button>;
-}
-
-function ChartCard({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
-  return <section className="qs-card p-5"><div><h2 className="qs-section-title">{title}</h2><p className="mt-1 text-xs text-muted-foreground">{subtitle}</p></div><div className="mt-4 h-[270px]">{children}</div></section>;
-}
+function ChartCard({ title, subtitle, icon, children }: { title:string; subtitle:string; icon:React.ReactNode; children:React.ReactNode }) { return <div className="qs-card p-5"><div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-full bg-muted">{icon}</span><div><h2 className="qs-section-title">{title}</h2><p className="mt-1 text-xs text-muted-foreground">{subtitle}</p></div><span className="ms-auto rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-muted-foreground">Daily⌄</span></div><div className="mt-4 h-[275px]">{children}</div></div>; }
+function Insight({ label, value }: { label:string; value:string }) { return <div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-full bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><Clock3 className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-[11px] text-muted-foreground">{label}</span><strong className="text-lg">{value}</strong></span><span className="text-[10px] font-bold text-emerald-600">↗ 0%</span></div>; }
