@@ -24,6 +24,7 @@ export type AuditAction =
   | "table.created"
   | "table.updated"
   | "table.deactivated"
+  | "table.deleted"
   | "table.qr_regenerated"
   | "staff.created"
   | "staff.role_changed"
