@@ -1,25 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { MasterMenuDesigner } from "@/components/manage/MasterMenuDesigner";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute(
   "/_authenticated/super-admin/restaurants/$restaurantId/design",
 )({
-  head: () => ({
-    meta: [
-      { title: "PDF Menu & QR Ordering — QuickServe admin" },
-      {
-        name: "description",
-        content: "Manage a restaurant's original PDF menu and QR ordering entry point.",
-      },
-      { property: "og:title", content: "PDF Menu & QR Ordering — QuickServe admin" },
-      { property: "og:description", content: "Publish a restaurant PDF menu and connect it to QuickServe ordering." },
-    ],
-  }),
-  component: DesignTab,
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: "/super-admin/restaurants/$restaurantId/menu",
+      params: { restaurantId: params.restaurantId },
+      replace: true,
+    });
+  },
+  component: () => null,
 });
-
-function DesignTab() {
-  const { restaurantId } = Route.useParams();
-  return <MasterMenuDesigner restaurantId={restaurantId} />;
-}
