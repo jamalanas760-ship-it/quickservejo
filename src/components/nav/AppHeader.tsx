@@ -1,13 +1,23 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bell, Globe, Menu as MenuIcon } from "lucide-react";
+import { BadgeDollarSign, Bell, ChefHat, Globe, HandPlatter, Menu as MenuIcon, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { ThemeToggle } from "@/components/nav/ThemeToggle";
 import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useWorkspaceReport, useWorkspaceScope } from "@/hooks/useWorkspace";
-import { useI18n } from "@/lib/i18n";
 import { avatarPresetUrl } from "@/lib/avatar-presets";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+
+function RoleAvatarFallback({ role, superAdmin }: { role?: string | null; superAdmin: boolean }) {
+  const iconClass = "size-[18px]";
+  if (superAdmin || role === "restaurant_admin") return <ShieldCheck className={iconClass} />;
+  if (role === "manager") return <UserRoundCog className={iconClass} />;
+  if (role === "kitchen") return <ChefHat className={iconClass} />;
+  if (role === "waiter") return <HandPlatter className={iconClass} />;
+  if (role === "cashier") return <BadgeDollarSign className={iconClass} />;
+  return <UserRound className={iconClass} />;
+}
 
 export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; className?: string; title?: string | undefined }) {
   const { lang, toggleLang } = useI18n();
@@ -24,8 +34,6 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
   const restaurant = membership?.restaurant;
   const user = session.data?.user;
   const meta = user?.user_metadata as { full_name?: string; name?: string; avatar_url?: string } | undefined;
-  const source = meta?.full_name || meta?.name || membership?.name || user?.email || "QuickServe";
-  const initial = source.slice(0, 1).toUpperCase();
   const avatarUrl = membership?.avatar_url || avatarPresetUrl(membership?.avatar_preset) || meta?.avatar_url || null;
   const openOrders = report.data?.openOrders ?? 0;
 
@@ -47,7 +55,7 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
           <ThemeToggle compact />
           <button type="button" onClick={toggleLang} className="grid size-10 place-items-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={lang === "ar" ? "Switch to English" : "التبديل إلى العربية"}><Globe className="size-[18px]" /></button>
           <Link to="/notifications" className="relative grid size-10 place-items-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={lang === "ar" ? "الإشعارات" : "Notifications"}><Bell className="size-[19px]" />{openOrders > 0 ? <span className="absolute end-1.5 top-1.5 size-2 rounded-full bg-red-500 ring-2 ring-background" /> : null}</Link>
-          <Link to="/profile" aria-label={lang === "ar" ? "الملف الشخصي" : "Profile"} className="grid size-10 place-items-center overflow-hidden rounded-full bg-muted font-display text-sm font-bold text-foreground ring-1 ring-border">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : initial}</Link>
+          <Link to="/profile" aria-label={lang === "ar" ? "الملف الشخصي" : "Profile"} className="grid size-10 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border transition hover:ring-primary/30 hover:text-foreground">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : <RoleAvatarFallback role={membership?.role} superAdmin={access.isSuperAdmin} />}</Link>
         </div>
       </div>
     </header>
