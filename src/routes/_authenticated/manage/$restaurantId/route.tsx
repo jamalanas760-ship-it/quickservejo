@@ -1,10 +1,12 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
+import type { CSSProperties } from "react";
 
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAccess } from "@/hooks/useSession";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
+import { readAppearance } from "@/lib/restaurant-appearance";
 
 export const Route = createFileRoute("/_authenticated/manage/$restaurantId")({ component: ManageShell });
 
@@ -14,6 +16,11 @@ function ManageShell() {
   const restaurant = useRestaurant(restaurantId);
   const access = useAccess();
   const allowed = access.isSuperAdmin || access.membershipFor(restaurantId)?.role === "restaurant_admin";
+  const appearance = readAppearance(restaurant.data?.menu_theme);
+  const restaurantTheme = {
+    "--restaurant-light-bg": appearance.lightBackground,
+    "--restaurant-dark-bg": appearance.darkBackground,
+  } as CSSProperties;
 
   if (access.isPending || restaurant.isPending) {
     return <div className="min-h-dvh bg-background"><AppHeader /><div className="qs-page"><Skeleton className="h-[72vh] rounded-2xl" /></div></div>;
@@ -32,7 +39,7 @@ function ManageShell() {
   }
 
   return (
-    <div className="min-h-dvh bg-background">
+    <div className="restaurant-theme-scope min-h-dvh" style={restaurantTheme}>
       <AppHeader title={restaurant.data?.name ?? (lang === "ar" ? "إدارة المطعم" : "Restaurant workspace")} />
       <main className="qs-page min-w-0"><Outlet /></main>
     </div>
