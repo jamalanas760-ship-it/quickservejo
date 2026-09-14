@@ -1,447 +1,95 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { AlertTriangle, Download, LayoutGrid, Rows3 } from "lucide-react";
+import { Building2, Download, Ellipsis, Filter, MapPin, Plus, Search, Store, UsersRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useErpSignals, useRestaurantsWithStats, type ErpSignal } from "@/hooks/useSuperAdmin";
+import { useRestaurantsWithStats } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
-import { formatDate, formatDateTime, formatMoney, formatNumber } from "@/lib/format";
+import { formatMoney, formatNumber } from "@/lib/format";
 import { healthOf } from "@/lib/health";
-import { humanError } from "@/lib/errors";
 import { downloadCsv } from "@/lib/erp";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/super-admin/restaurants/")({
-  head: () => ({
-    meta: [
-      { title: "Restaurants — QuickServe admin" },
-      {
-        name: "description",
-        content:
-          "Search, filter and manage every restaurant tenant on the QuickServe platform, with setup health and Back Office signals at a glance.",
-      },
-      { property: "og:title", content: "Restaurants — QuickServe admin" },
-      {
-        property: "og:description",
-        content: "All QuickServe restaurant tenants, subscriptions, onboarding status and Back Office signals.",
-      },
-    ],
-  }),
+  head: () => ({ meta: [{ title: "Restaurants / Branches — QuickServe" }] }),
   component: RestaurantsPage,
 });
 
-const PAGE_SIZE = 12;
-const EMPTY_SIGNAL: ErpSignal = { lowStock: 0, items: 0, lastActivity: null };
-
 function RestaurantsPage() {
-  const { t, lang } = useI18n();
-  const { data, isPending, isError, error, refetch } = useRestaurantsWithStats();
-  const signals = useErpSignals();
-
+  const { lang } = useI18n();
+  const ar = lang === "ar";
+  const restaurants = useRestaurantsWithStats();
   const [term, setTerm] = useState("");
-  const [status, setStatus] = useState("all");
-  const [plan, setPlan] = useState("all");
-  const [subStatus, setSubStatus] = useState("all");
-  const [view, setView] = useState<"grid" | "table">("grid");
-  const [page, setPage] = useState(0);
+  const [status, setStatus] = useState<"all" | "active" | "setup" | "inactive">("all");
+
+  const data = restaurants.data ?? [];
+  const activeCount = data.filter((r) => r.is_active && !r.archived_at).length;
+  const inactiveCount = data.filter((r) => !r.is_active || Boolean(r.archived_at)).length;
+  const setupCount = data.filter((r) => healthOf(r).percent < 100 && r.is_active && !r.archived_at).length;
 
   const filtered = useMemo(() => {
     const needle = term.trim().toLowerCase();
-    return (data ?? []).filter((r) => {
-      if (needle) {
-        const haystack = [r.name, r.slug, r.email, r.phone, r.address_en, r.address_ar]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        if (!haystack.includes(needle)) return false;
-      }
-      if (status === "active" && (!r.is_active || r.archived_at)) return false;
-      if (status === "inactive" && (r.is_active || r.archived_at)) return false;
-      if (status === "archived" && !r.archived_at) return false;
-      if (plan !== "all" && r.subscription_plan !== plan) return false;
-      if (subStatus !== "all" && r.subscription_status !== subStatus) return false;
-      return true;
+    return data.filter((restaurant) => {
+      const active = restaurant.is_active && !restaurant.archived_at;
+      const setup = healthOf(restaurant).percent < 100 && active;
+      if (status === "active" && !active) return false;
+      if (status === "inactive" && active) return false;
+      if (status === "setup" && !setup) return false;
+      if (!needle) return true;
+      return [restaurant.name, restaurant.slug, restaurant.address_en, restaurant.address_ar, restaurant.email, restaurant.phone].filter(Boolean).join(" ").toLowerCase().includes(needle);
     });
-  }, [data, term, status, plan, subStatus]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const current = Math.min(page, pageCount - 1);
-  const rows = filtered.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);
-  const signalFor = (id: string) => signals.data?.[id] ?? EMPTY_SIGNAL;
-
-  const statusLabel = (r: (typeof filtered)[number]) =>
-    r.archived_at ? t("sa.status.archived") : r.is_active ? t("sa.status.active") : t("sa.status.inactive");
+  }, [data, status, term]);
 
   function exportCsv() {
-    downloadCsv(
-      "quickserve-restaurants.csv",
-      [
-        "Name",
-        "Slug",
-        "Status",
-        "Plan",
-        "Subscription",
-        "Orders",
-        "Revenue",
-        "Currency",
-        "Setup %",
-        "Low stock items",
-        "Last back office activity",
-        "Created",
-      ],
-      filtered.map((r) => {
-        const signal = signalFor(r.id);
-        return [
-          r.name,
-          r.slug,
-          r.archived_at ? "archived" : r.is_active ? "active" : "inactive",
-          r.subscription_plan,
-          r.subscription_status,
-          r.orderCount,
-          r.revenue.toFixed(3),
-          r.currency,
-          healthOf(r).percent,
-          signal.lowStock,
-          signal.lastActivity ?? "",
-          r.created_at,
-        ];
-      }),
-    );
-  }
-
-  function ErpCell({ id }: { id: string }) {
-    const signal = signalFor(id);
-    if (signals.isPending) return <span className="text-xs text-muted-foreground">…</span>;
-    if (signal.items === 0)
-      return <span className="text-xs text-muted-foreground">{t("sa.rest.erpNone")}</span>;
-    return (
-      <span className="inline-flex flex-wrap items-center gap-2 text-xs">
-        {signal.lowStock > 0 ? (
-          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 font-medium text-amber-900">
-            <AlertTriangle className="size-3" aria-hidden />
-            {formatNumber(signal.lowStock, lang)} {t("sa.rest.col.lowStock")}
-          </span>
-        ) : null}
-        {signal.lastActivity ? (
-          <span className="text-muted-foreground">{formatDateTime(signal.lastActivity, lang)}</span>
-        ) : null}
-      </span>
-    );
+    downloadCsv("quickserve-restaurants.csv", ["Name", "Slug", "Status", "Plan", "Orders", "Revenue", "Currency", "Health"], filtered.map((restaurant) => [restaurant.name, restaurant.slug, restaurant.is_active && !restaurant.archived_at ? "active" : "inactive", restaurant.subscription_plan, restaurant.orderCount, restaurant.revenue, restaurant.currency, `${healthOf(restaurant).percent}%`]));
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("sa.rest.title")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("sa.rest.subtitle")}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-xl border p-0.5" role="group" aria-label={t("sa.rest.view.grid")}>
-            <Button
-              size="sm"
-              variant={view === "grid" ? "secondary" : "ghost"}
-              className="min-h-10 gap-1.5"
-              aria-pressed={view === "grid"}
-              onClick={() => setView("grid")}
-            >
-              <LayoutGrid className="size-4" />
-              <span className="hidden sm:inline">{t("sa.rest.view.grid")}</span>
-            </Button>
-            <Button
-              size="sm"
-              variant={view === "table" ? "secondary" : "ghost"}
-              className="min-h-10 gap-1.5"
-              aria-pressed={view === "table"}
-              onClick={() => setView("table")}
-            >
-              <Rows3 className="size-4" />
-              <span className="hidden sm:inline">{t("sa.rest.view.table")}</span>
-            </Button>
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div><h1 className="qs-page-title">{ar ? "المطاعم / الفروع" : "Restaurants / Branches"}</h1><p className="qs-page-subtitle">{ar ? "إدارة مواقع المطاعم والإعدادات والأداء." : "Manage restaurant locations, settings, and performance."}</p></div>
+        <div className="flex items-center gap-3"><div className="hidden rounded-xl border border-border bg-card px-4 py-2.5 text-xs italic text-muted-foreground xl:block">“More locations. More happy guests.”</div><Link to="/super-admin/restaurants/new" className="qs-button-primary"><Plus className="size-4" />{ar ? "إضافة مطعم" : "Add Branch"}</Link></div>
+      </header>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric icon={<Store className="size-5" />} value={String(data.length)} label={ar ? "إجمالي الفروع" : "Total Branches"} detail={ar ? "على المنصة" : "on platform"} tone="orange" />
+        <Metric icon={<span className="size-3 rounded-full bg-emerald-500" />} value={String(activeCount)} label={ar ? "فروع نشطة" : "Active Branches"} detail={`${data.length ? Math.round((activeCount / data.length) * 100) : 0}%`} tone="green" />
+        <Metric icon={<span className="size-3 rounded-full bg-amber-400" />} value={String(setupCount)} label={ar ? "قيد الإعداد" : "Under Setup"} detail={ar ? "تحتاج إكمال" : "needs setup"} tone="amber" />
+        <Metric icon={<span className="size-3 rounded-full bg-red-500" />} value={String(inactiveCount)} label={ar ? "غير نشطة" : "Inactive"} detail={ar ? "موقوفة أو مؤرشفة" : "inactive or archived"} tone="red" />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_330px]">
+        <section className="qs-card overflow-hidden">
+          <div className="flex flex-wrap items-center gap-2 border-b border-border p-4">
+            <div className="flex rounded-lg bg-muted p-1 text-xs font-semibold">
+              {(["all", "active", "setup", "inactive"] as const).map((key) => <button key={key} type="button" onClick={() => setStatus(key)} className={cn("rounded-md px-3 py-2 capitalize", status === key ? "bg-card text-[#ff5a0a] shadow-sm" : "text-muted-foreground")}>{key === "all" ? (ar ? "الكل" : "All Branches") : key === "active" ? (ar ? "نشطة" : "Active") : key === "setup" ? (ar ? "إعداد" : "Setup") : (ar ? "غير نشطة" : "Inactive")}</button>)}
+            </div>
+            <div className="relative ms-auto min-w-[220px] flex-1 sm:max-w-[340px]"><Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={term} onChange={(event) => setTerm(event.target.value)} placeholder={ar ? "ابحث في الفروع..." : "Search branches..."} className="h-10 ps-9" /></div>
+            <button type="button" className="qs-button-secondary min-h-10"><Filter className="size-4" />{ar ? "تصفية" : "Filter"}</button>
+            <button type="button" onClick={exportCsv} className="qs-button-secondary min-h-10"><Download className="size-4" /></button>
           </div>
-          <Button variant="outline" className="min-h-10" onClick={exportCsv} disabled={filtered.length === 0}>
-            <Download className="size-4" />
-            <span className="hidden sm:inline">{t("sa.rest.export")}</span>
-          </Button>
-          <Button asChild className="min-h-10">
-            <Link to="/super-admin/restaurants/new">{t("sa.rest.new")}</Link>
-          </Button>
-        </div>
+
+          {restaurants.isPending ? <Skeleton className="m-4 h-[520px] rounded-xl" /> : (
+            <div className="qs-scroll overflow-x-auto">
+              <table className="qs-table min-w-[900px]"><thead><tr><th>{ar ? "الفرع / الموقع" : "Branch / Location"}</th><th>{ar ? "الكود" : "Code"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "الخطة" : "Plan"}</th><th>{ar ? "الطلبات" : "Orders"}</th><th>{ar ? "المبيعات" : "Revenue"}</th><th>{ar ? "الإعداد" : "Health"}</th><th>{ar ? "إجراءات" : "Actions"}</th></tr></thead><tbody>{filtered.map((restaurant) => { const active = restaurant.is_active && !restaurant.archived_at; const health = healthOf(restaurant); return <tr key={restaurant.id}><td><div className="flex items-center gap-3"><span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-muted">{restaurant.logo_url ? <img src={restaurant.logo_url} alt="" className="size-full object-cover" loading="lazy" /> : <Store className="size-5 text-[#ff5a0a]" />}</span><div className="min-w-0"><Link to="/super-admin/restaurants/$restaurantId" params={{ restaurantId: restaurant.id }} className="truncate font-bold hover:underline">{restaurant.name}</Link><p className="max-w-[220px] truncate text-[10px] text-muted-foreground">{lang === "ar" ? restaurant.address_ar || restaurant.address_en || `/${restaurant.slug}` : restaurant.address_en || restaurant.address_ar || `/${restaurant.slug}`}</p></div></div></td><td className="font-mono text-xs text-muted-foreground">{restaurant.slug.toUpperCase().slice(0,8)}</td><td><span className={cn("qs-status", active ? "bg-emerald-500/12 text-emerald-600" : "bg-red-500/12 text-red-600")}><span className={cn("size-1.5 rounded-full", active ? "bg-emerald-500" : "bg-red-500")} />{active ? (ar ? "نشط" : "Active") : (ar ? "غير نشط" : "Inactive")}</span></td><td className="capitalize">{restaurant.subscription_plan}</td><td className="font-bold tabular-nums">{formatNumber(restaurant.orderCount, lang)}</td><td className="font-bold tabular-nums">{formatMoney(restaurant.revenue, restaurant.currency, lang)}</td><td><span className="text-xs font-semibold">{health.percent}%</span><div className="mt-1 h-1.5 w-20 rounded-full bg-muted"><div className="h-full rounded-full bg-[#ff5a0a]" style={{ width: `${health.percent}%` }} /></div></td><td><Link to="/super-admin/restaurants/$restaurantId" params={{ restaurantId: restaurant.id }} className="grid size-8 place-items-center rounded-lg border border-border hover:bg-muted"><Ellipsis className="size-4" /></Link></td></tr>; })}</tbody></table>
+              {filtered.length === 0 ? <p className="p-12 text-center text-sm text-muted-foreground">{ar ? "لا توجد فروع مطابقة." : "No matching branches."}</p> : null}
+            </div>
+          )}
+        </section>
+
+        <aside className="space-y-4">
+          <section className="qs-card overflow-hidden"><div className="flex items-center justify-between border-b border-border px-4 py-3"><h2 className="qs-section-title flex items-center gap-2"><MapPin className="size-4" />{ar ? "مواقع الفروع" : "Branch Locations"}</h2><span className="text-xs text-blue-600">{ar ? "عرض الكل" : "View all"} →</span></div><div className="relative min-h-[265px] overflow-hidden bg-[#17232d] p-5 text-white"><div className="absolute inset-0 opacity-20 [background-image:linear-gradient(35deg,transparent_45%,#7c8a95_46%,#7c8a95_48%,transparent_49%),linear-gradient(145deg,transparent_45%,#7c8a95_46%,#7c8a95_48%,transparent_49%)] [background-size:70px_70px]" /><div className="relative space-y-3">{data.slice(0,7).map((restaurant, index) => <Link key={restaurant.id} to="/super-admin/restaurants/$restaurantId" params={{ restaurantId: restaurant.id }} className="flex items-center gap-2 rounded-lg bg-white/[.06] px-3 py-2 text-xs hover:bg-white/[.1]"><MapPin className="size-4 shrink-0 text-[#ff5a0a]" /><span className="min-w-0 flex-1 truncate">{restaurant.name}</span><span className="text-white/45">{index + 1}</span></Link>)}</div></div></section>
+          <section className="qs-card p-5"><div className="flex items-center gap-4"><div className="grid size-20 place-items-center rounded-full" style={{ background: `conic-gradient(#22c55e ${data.length ? (activeCount/data.length)*100 : 0}%, var(--muted) 0)` }}><div className="grid size-14 place-items-center rounded-full bg-card text-center"><span className="font-display text-lg font-bold">{data.length ? Math.round((activeCount/data.length)*100) : 0}%</span></div></div><div><p className="font-bold">{ar ? "الفروع النشطة" : "Active Branches"}</p><p className="mt-1 text-xs text-muted-foreground">{activeCount} {ar ? "من" : "of"} {data.length}</p><div className="mt-3 space-y-1 text-[10px] text-muted-foreground"><p><i className="me-1 inline-block size-2 rounded-full bg-emerald-500" />{ar ? "نشطة" : "Active"}: {activeCount}</p><p><i className="me-1 inline-block size-2 rounded-full bg-amber-400" />{ar ? "إعداد" : "Setup"}: {setupCount}</p><p><i className="me-1 inline-block size-2 rounded-full bg-red-500" />{ar ? "غير نشطة" : "Inactive"}: {inactiveCount}</p></div></div></div></section>
+          <section className="qs-card p-5"><div className="flex gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-full bg-orange-50 text-[#ff5a0a]"><Building2 className="size-5" /></span><div><p className="font-bold">{ar ? "هل تريد التوسع؟" : "Looking to expand?"}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar ? "أنشئ فرعاً جديداً وابدأ إدارته خلال دقائق." : "Set up a new branch in minutes and start managing it immediately."}</p><Link to="/super-admin/restaurants/new" className="qs-button-secondary mt-4 min-h-9">{ar ? "إضافة فرع" : "Add New Branch"} →</Link></div></div></section>
+        </aside>
       </div>
-
-      <div className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_1fr]">
-        <Input
-          value={term}
-          onChange={(e) => {
-            setTerm(e.target.value);
-            setPage(0);
-          }}
-          placeholder={t("sa.rest.searchPlaceholder")}
-          aria-label={t("common.search")}
-          className="min-h-11"
-        />
-        <Select
-          value={status}
-          onValueChange={(v) => {
-            setStatus(v);
-            setPage(0);
-          }}
-        >
-          <SelectTrigger className="min-h-11" aria-label={t("sa.filter.status")}>
-            <SelectValue placeholder={t("sa.filter.status")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("sa.filter.all")}</SelectItem>
-            <SelectItem value="active">{t("sa.status.active")}</SelectItem>
-            <SelectItem value="inactive">{t("sa.status.inactive")}</SelectItem>
-            <SelectItem value="archived">{t("sa.status.archived")}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          value={plan}
-          onValueChange={(v) => {
-            setPlan(v);
-            setPage(0);
-          }}
-        >
-          <SelectTrigger className="min-h-11" aria-label={t("sa.filter.plan")}>
-            <SelectValue placeholder={t("sa.filter.plan")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("sa.filter.all")}</SelectItem>
-            {["free", "basic", "professional", "enterprise"].map((p) => (
-              <SelectItem key={p} value={p}>
-                {p}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={subStatus}
-          onValueChange={(v) => {
-            setSubStatus(v);
-            setPage(0);
-          }}
-        >
-          <SelectTrigger className="min-h-11" aria-label={t("sa.filter.subStatus")}>
-            <SelectValue placeholder={t("sa.filter.subStatus")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("sa.filter.all")}</SelectItem>
-            {["trialing", "active", "past_due", "cancelled", "suspended"].map((p) => (
-              <SelectItem key={p} value={p}>
-                {p}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {isError && (
-        <div className="panel p-6">
-          <p className="font-medium">{t("common.error")}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{humanError(error, lang)}</p>
-          <Button size="sm" className="mt-4" onClick={() => void refetch()}>
-            {t("common.retry")}
-          </Button>
-        </div>
-      )}
-
-      {!isPending && !isError ? (
-        <p className="text-sm text-muted-foreground">
-          {formatNumber(filtered.length, lang)} {t("sa.rest.summary")}
-        </p>
-      ) : null}
-
-      {isPending ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-44 rounded-xl" />
-          ))}
-        </div>
-      ) : rows.length === 0 ? (
-        <div className="panel p-8 text-center text-sm text-muted-foreground">
-          {t("sa.rest.empty")}
-        </div>
-      ) : view === "table" ? (
-        <div className="panel overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("sa.rest.col.name")}</TableHead>
-                <TableHead>{t("sa.rest.col.status")}</TableHead>
-                <TableHead>{t("sa.subs.plan")}</TableHead>
-                <TableHead className="text-end">{t("sa.rest.col.orders")}</TableHead>
-                <TableHead className="text-end">{t("sa.rest.col.revenue")}</TableHead>
-                <TableHead className="text-end">{t("sa.rest.col.health")}</TableHead>
-                <TableHead>{t("sa.rest.col.erpActivity")}</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>
-                    <Link
-                      to="/super-admin/restaurants/$restaurantId"
-                      params={{ restaurantId: r.id }}
-                      className="font-medium underline-offset-4 hover:underline"
-                    >
-                      {r.name}
-                    </Link>
-                    <p className="text-xs text-muted-foreground">/{r.slug}</p>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={r.archived_at ? "outline" : r.is_active ? "secondary" : "destructive"}>
-                      {statusLabel(r)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="capitalize">{r.subscription_plan}</TableCell>
-                  <TableCell className="text-end tabular-nums">{formatNumber(r.orderCount, lang)}</TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {formatMoney(r.revenue, r.currency, lang)}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">{healthOf(r).percent}%</TableCell>
-                  <TableCell>
-                    <ErpCell id={r.id} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-2">
-                      <Button asChild size="sm" variant="outline" className="min-h-10">
-                        <Link to="/super-admin/restaurants/$restaurantId" params={{ restaurantId: r.id }}>
-                          {t("sa.detail.overview")}
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" className="min-h-10">
-                        <Link
-                          to="/super-admin/restaurants/$restaurantId/operations"
-                          params={{ restaurantId: r.id }}
-                        >
-                          {t("sa.rest.openBackOffice")}
-                        </Link>
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {rows.map((r) => {
-            const health = healthOf(r);
-            return (
-              <article key={r.id} className="panel flex flex-col gap-3 p-5">
-                <div className="flex items-start gap-3">
-                  <div className="size-11 shrink-0 overflow-hidden rounded-lg border bg-muted">
-                    {r.logo_url ? (
-                      <img
-                        src={r.logo_url}
-                        alt={r.name}
-                        className="size-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : null}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <Link
-                      to="/super-admin/restaurants/$restaurantId"
-                      params={{ restaurantId: r.id }}
-                      className="block truncate font-semibold underline-offset-4 hover:underline"
-                    >
-                      {r.name}
-                    </Link>
-                    <p className="truncate text-xs text-muted-foreground">/{r.slug}</p>
-                  </div>
-                  <Badge variant={r.archived_at ? "outline" : r.is_active ? "secondary" : "destructive"}>
-                    {statusLabel(r)}
-                  </Badge>
-                </div>
-
-                <dl className="grid grid-cols-3 gap-2 text-xs">
-                  <div>
-                    <dt className="text-muted-foreground">{t("sa.rest.col.orders")}</dt>
-                    <dd className="font-medium tabular-nums">{formatNumber(r.orderCount, lang)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">{t("sa.subs.plan")}</dt>
-                    <dd className="font-medium capitalize">{r.subscription_plan}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">{t("sa.rest.col.created")}</dt>
-                    <dd className="font-medium">{formatDate(r.created_at, lang)}</dd>
-                  </div>
-                </dl>
-
-                <p className="text-xs text-muted-foreground">
-                  {formatMoney(r.revenue, r.currency, lang)} ·{" "}
-                  {health.level === "healthy"
-                    ? t("sa.health.healthy")
-                    : `${t("sa.health.needsSetup")} (${health.percent}%)`}
-                </p>
-
-                <ErpCell id={r.id} />
-
-                <div className="mt-auto flex flex-wrap gap-2">
-                  <Button asChild size="sm" className="min-h-10 flex-1">
-                    <Link to="/super-admin/restaurants/$restaurantId" params={{ restaurantId: r.id }}>
-                      {t("sa.detail.overview")}
-                    </Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline" className="min-h-10">
-                    <Link
-                      to="/super-admin/restaurants/$restaurantId/operations"
-                      params={{ restaurantId: r.id }}
-                    >
-                      {t("sa.rest.openBackOffice")}
-                    </Link>
-                  </Button>
-                  <Button asChild size="sm" variant="ghost" className="min-h-10">
-                    <Link to="/super-admin/restaurants/$restaurantId/menu" params={{ restaurantId: r.id }}>
-                      {t("sa.detail.menu")}
-                    </Link>
-                  </Button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
-
-      {pageCount > 1 && (
-        <div className="flex items-center justify-center gap-3">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={current === 0}
-            onClick={() => setPage(current - 1)}
-          >
-            {t("common.prev")}
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            {t("common.page")} {current + 1} / {pageCount}
-          </span>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={current >= pageCount - 1}
-            onClick={() => setPage(current + 1)}
-          >
-            {t("common.next")}
-          </Button>
-        </div>
-      )}
     </div>
   );
+}
+
+function Metric({ icon, value, label, detail, tone }: { icon: React.ReactNode; value: string; label: string; detail: string; tone: "orange" | "green" | "amber" | "red" }) {
+  const toneClass = tone === "orange" ? "bg-orange-500/12 text-orange-600" : tone === "green" ? "bg-emerald-500/12 text-emerald-600" : tone === "amber" ? "bg-amber-500/12 text-amber-600" : "bg-red-500/12 text-red-600";
+  return <div className="qs-stat flex items-center gap-4"><span className={`grid size-12 place-items-center rounded-full ${toneClass}`}>{icon}</span><div><p className="font-display text-2xl font-bold">{value}</p><p className="text-xs font-semibold text-muted-foreground">{label}</p><p className="mt-1 text-[10px] text-muted-foreground">{detail}</p></div></div>;
 }
