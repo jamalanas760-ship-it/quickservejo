@@ -3,36 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { quickServeSupabase } from './public-config';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
-import { fetchWithSafeRetry } from '@/lib/safe-fetch';
-
-function isNewSupabaseApiKey(value: string): boolean {
-  return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
-}
-
-function createSupabaseFetch(supabaseKey: string): typeof fetch {
-  return async (input, init) => {
-    const headers = new Headers(
-      typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
-    );
-
-    if (init?.headers) {
-      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
-    }
-
-    // New Supabase API keys are opaque strings, not bearer JWTs.
-    if (isNewSupabaseApiKey(supabaseKey) && headers.get('Authorization') === `Bearer ${supabaseKey}`) {
-      headers.delete('Authorization');
-    }
-
-    headers.set('apikey', supabaseKey);
-
-    return fetchWithSafeRetry(input, { ...init, headers });
-  };
-}
 
 function createSupabaseClient() {
-  // Use import.meta.env for client-side (Vite build-time replacement)
-  // Fall back to process.env for SSR (server-side rendering)
   const SUPABASE_URL = quickServeSupabase.url;
   const SUPABASE_PUBLISHABLE_KEY = quickServeSupabase.publishableKey;
 
@@ -46,15 +18,16 @@ function createSupabaseClient() {
     throw new Error(message);
   }
 
+  // Keep Auth on the official supabase-js transport path. In particular, do
+  // not rewrite Authorization/apikey headers or wrap Auth POSTs in a custom
+  // fetch implementation; supabase-js handles publishable keys and user JWTs.
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-    global: {
-      fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
-    },
     auth: {
       storage: brokeredPreviewStorage(),
       persistSession: true,
       autoRefreshToken: true,
-    }
+      detectSessionInUrl: true,
+    },
   });
 }
 
