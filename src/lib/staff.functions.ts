@@ -80,17 +80,6 @@ export const checkStaffManagementAccess = createServerFn({ method: "POST" })
     }),
   );
 
-/** Issues a fresh temporary password for an existing staff member. */
-export const resetStaffPassword = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => staffRefSchema.parse(input))
-  .handler(async ({ data, context }) =>
-    callStaffAdmin<{ email: string; password: string }>(context.accessToken, {
-      action: "reset",
-      staffId: data.staffId,
-    }),
-  );
-
 /** Removes a restaurant membership and deletes the Auth user only if unused elsewhere. */
 export const removeStaffMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -102,7 +91,7 @@ export const removeStaffMember = createServerFn({ method: "POST" })
     }),
   );
 
-/** Updates profile/role/status and mirrors credential changes to Supabase Auth. */
+/** Updates profile/role/status and mirrors optional password changes to Supabase Auth. */
 export const updateStaffMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => updateSchema.parse(input))
@@ -114,8 +103,8 @@ export const updateStaffMember = createServerFn({ method: "POST" })
   );
 
 /**
- * Backward-compatible staff directory. Passwords are deliberately no longer
- * persisted or returned: a fresh password can be issued through Reset instead.
+ * Backward-compatible staff directory. Passwords are deliberately never
+ * persisted or returned; administrators can set a new password through Edit.
  */
 export const listStaffLogins = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
