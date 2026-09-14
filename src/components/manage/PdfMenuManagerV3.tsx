@@ -57,6 +57,7 @@ type HotspotDrag = {
   pointerX: number;
   pointerY: number;
   rect: Rect;
+  latest: Rect;
 };
 
 const EMPTY: PdfMenuAnalysis = { page_count: 0, pages: [], candidates: [] };
@@ -64,6 +65,7 @@ const JOD = "JOD";
 const MIN_ZOOM = 0.35;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.05;
+const MIN_AREA_SIZE = 0.008;
 
 function emptyProduct(id: string): Product {
   return { candidate_id: id, name_en: "", name_ar: "", description_en: null, description_ar: null, price: null, currency: JOD, confidence: 1 };
@@ -73,20 +75,26 @@ function onlyManual(analysis: PdfMenuAnalysis | null | undefined): PdfMenuAnalys
   return { ...(analysis ?? EMPTY), candidates: (analysis?.candidates ?? []).filter((candidate) => candidate.id.startsWith("manual-")) };
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
 function clampZoom(value: number) {
-  return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(value.toFixed(2))));
+  return clamp(Number(value.toFixed(2)), MIN_ZOOM, MAX_ZOOM);
 }
 
 function normalizeRect(rect: Rect): Rect {
-  const left = Math.max(0, Math.min(1, Math.min(rect.x, rect.x + rect.width)));
-  const top = Math.max(0, Math.min(1, Math.min(rect.y, rect.y + rect.height)));
-  const right = Math.max(0, Math.min(1, Math.max(rect.x, rect.x + rect.width)));
-  const bottom = Math.max(0, Math.min(1, Math.max(rect.y, rect.y + rect.height)));
+  const left = clamp(Math.min(rect.x, rect.x + rect.width), 0, 1);
+  const top = clamp(Math.min(rect.y, rect.y + rect.height), 0, 1);
+  const right = clamp(Math.max(rect.x, rect.x + rect.width), 0, 1);
+  const bottom = clamp(Math.max(rect.y, rect.y + rect.height), 0, 1);
+  const width = Math.max(MIN_AREA_SIZE, right - left);
+  const height = Math.max(MIN_AREA_SIZE, bottom - top);
   return {
-    x: left,
-    y: top,
-    width: Math.max(0.008, right - left),
-    height: Math.max(0.008, bottom - top),
+    x: clamp(left, 0, 1 - width),
+    y: clamp(top, 0, 1 - height),
+    width,
+    height,
   };
 }
 
@@ -95,6 +103,7 @@ function EditableHotspot({
   active,
   enabled,
   label,
+  zoom,
   onSelect,
   onChange,
   stageRef,
@@ -103,29 +112,30 @@ function EditableHotspot({
   active: boolean;
   enabled: boolean;
   label: string;
+  zoom: number;
   onSelect: () => void;
   onChange: (rect: Rect) => void;
   stageRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const drag = useRef<HotspotDrag | null>(null);
   const rect = { x: candidate.x, y: candidate.y, width: candidate.width, height: candidate.height };
+  const handleSize = clamp(18 / Math.max(zoom, MIN_ZOOM), 10, 48);
 
   function beginMove(event: React.PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0 && event.pointerType === "mouse") return;
     event.preventDefault();
     event.stopPropagation();
-    if (!active) {
-      onSelect();
-      return;
-    }
+    if (!active) onSelect();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    drag.current = { kind: "move", pointerX: event.clientX, pointerY: event.clientY, rect };
+    drag.current = { kind: "move", pointerX: event.clientX, pointerY: event.clientY, rect, latest: rect };
   }
 
   function beginResize(event: React.PointerEvent<HTMLButtonElement>, handle: string) {
+    if (event.button !== 0 && event.pointerType === "mouse") return;
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    drag.current = { kind: "resize", handle, pointerX: event.clientX, pointerY: event.clientY, rect };
+    drag.current = { kind: "resize", handle, pointerX: event.clientX, pointerY: event.clientY, rect, latest: rect };
   }
 
   function move(event: React.PointerEvent<HTMLButtonElement>) {
@@ -140,8 +150,8 @@ function EditableHotspot({
     let next = { ...state.rect };
 
     if (state.kind === "move") {
-      next.x = Math.max(0, Math.min(1 - next.width, next.x + dx));
-      next.y = Math.max(0, Math.min(1 - next.height, next.y + dy));
+      next.x = clamp(next.x + dx, 0, 1 - next.width);
+      next.y = clamp(next.y + dy, 0, 1 - next.height);
     } else {
       const handle = state.handle ?? "se";
       if (handle.includes("w")) { next.x += dx; next.width -= dx; }
@@ -150,23 +160,41 @@ function EditableHotspot({
       if (handle.includes("s")) next.height += dy;
       next = normalizeRect(next);
     }
+
+    state.latest = next;
     onChange(next);
   }
 
   function end(event: React.PointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
     event.stopPropagation();
     drag.current = null;
   }
 
+  function nudge(event: React.KeyboardEvent<HTMLButtonElement>) {
+    if (!active || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const step = event.shiftKey ? 0.01 : 0.002;
+    const next = { ...rect };
+    if (event.key === "ArrowLeft") next.x -= step;
+    if (event.key === "ArrowRight") next.x += step;
+    if (event.key === "ArrowUp") next.y -= step;
+    if (event.key === "ArrowDown") next.y += step;
+    next.x = clamp(next.x, 0, 1 - next.width);
+    next.y = clamp(next.y, 0, 1 - next.height);
+    onChange(next);
+  }
+
   const handles = [
-    ["nw", "-left-1.5 -top-1.5 cursor-nwse-resize"],
-    ["n", "left-1/2 -top-1.5 -translate-x-1/2 cursor-ns-resize"],
-    ["ne", "-right-1.5 -top-1.5 cursor-nesw-resize"],
-    ["w", "-left-1.5 top-1/2 -translate-y-1/2 cursor-ew-resize"],
-    ["e", "-right-1.5 top-1/2 -translate-y-1/2 cursor-ew-resize"],
-    ["sw", "-left-1.5 -bottom-1.5 cursor-nesw-resize"],
-    ["s", "left-1/2 -bottom-1.5 -translate-x-1/2 cursor-ns-resize"],
-    ["se", "-right-1.5 -bottom-1.5 cursor-nwse-resize"],
+    ["nw", 0, 0, "nwse-resize"],
+    ["n", 50, 0, "ns-resize"],
+    ["ne", 100, 0, "nesw-resize"],
+    ["w", 0, 50, "ew-resize"],
+    ["e", 100, 50, "ew-resize"],
+    ["sw", 0, 100, "nesw-resize"],
+    ["s", 50, 100, "ns-resize"],
+    ["se", 100, 100, "nwse-resize"],
   ] as const;
 
   return (
@@ -177,22 +205,30 @@ function EditableHotspot({
     >
       <button
         type="button"
-        aria-label={active ? "Move selected menu area" : "Select menu area"}
+        aria-label={active ? "Move selected menu area" : "Select and move menu area"}
         onPointerDown={beginMove}
         onPointerMove={move}
         onPointerUp={end}
         onPointerCancel={end}
+        onLostPointerCapture={end}
+        onKeyDown={nudge}
         onClick={(event) => { event.stopPropagation(); onSelect(); }}
         className={cn(
-          "absolute inset-0 rounded-md border-2 transition",
-          active ? "cursor-move border-[#ff5a0a] bg-orange-500/12 shadow-[0_0_0_3px_rgba(255,90,10,.12)]" : "border-[#ff5a0a]/55 bg-orange-500/[.05] hover:bg-orange-500/[.1]",
-          !enabled && "border-dashed opacity-50",
+          "absolute inset-0 touch-none rounded-[5px] border-2 transition-[border-color,background-color,box-shadow] focus-visible:outline-none",
+          active
+            ? "cursor-move border-[#ff5a0a] bg-orange-500/[.12] shadow-[0_0_0_2px_white,0_0_0_5px_rgba(255,90,10,.28),0_8px_28px_rgba(0,0,0,.18)]"
+            : "cursor-pointer border-[#ff5a0a]/60 bg-orange-500/[.045] hover:border-[#ff5a0a] hover:bg-orange-500/[.09]",
+          !enabled && "border-dashed opacity-60",
         )}
       >
-        {active ? <span className="absolute -top-7 start-0 max-w-[220px] truncate rounded-md bg-slate-950 px-2 py-1 text-[10px] font-bold text-white shadow-lg">{label || "Selected area"}</span> : null}
+        {active ? (
+          <span className="pointer-events-none absolute start-0 top-0 -translate-y-[calc(100%+8px)] whitespace-nowrap rounded-lg bg-slate-950/95 px-2.5 py-1 text-[10px] font-bold text-white shadow-lg ring-1 ring-white/10">
+            {label || "Selected area"} · drag to move
+          </span>
+        ) : null}
       </button>
 
-      {active ? handles.map(([handle, position]) => (
+      {active ? handles.map(([handle, left, top, cursor]) => (
         <button
           key={handle}
           type="button"
@@ -201,10 +237,39 @@ function EditableHotspot({
           onPointerMove={move}
           onPointerUp={end}
           onPointerCancel={end}
-          className={cn("qs-pdf-handle absolute z-50 size-3.5 rounded-full border-2 border-white bg-[#ff5a0a] shadow-md", position)}
+          onLostPointerCapture={end}
+          className="qs-pdf-handle absolute z-50 touch-none rounded-[4px] border-2 border-[#ff5a0a] bg-white shadow-[0_2px_8px_rgba(0,0,0,.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a0a]/40"
+          style={{
+            left: `${left}%`,
+            top: `${top}%`,
+            width: `${handleSize}px`,
+            height: `${handleSize}px`,
+            cursor,
+            transform: "translate(-50%, -50%)",
+          }}
         />
       )) : null}
     </div>
+  );
+}
+
+function AreaNumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  return (
+    <label className="space-y-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+      <span>{label}</span>
+      <div className="relative">
+        <Input
+          type="number"
+          min="0"
+          max="100"
+          step="0.1"
+          value={Number((value * 100).toFixed(1))}
+          onChange={(event) => onChange(Number(event.target.value))}
+          className="h-10 pe-7 text-xs font-semibold tabular-nums"
+        />
+        <span className="pointer-events-none absolute end-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground">%</span>
+      </div>
+    </label>
   );
 }
 
@@ -347,15 +412,16 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
     const box = stageRef.current?.getBoundingClientRect();
     if (!box) return null;
     return {
-      x: Math.max(0, Math.min(1, (event.clientX - box.left) / box.width)),
-      y: Math.max(0, Math.min(1, (event.clientY - box.top) / box.height)),
+      x: clamp((event.clientX - box.left) / box.width, 0, 1),
+      y: clamp((event.clientY - box.top) / box.height, 0, 1),
     };
   }
 
   function startSelection(event: React.PointerEvent<HTMLDivElement>) {
-    if (!selecting || activeId || event.button !== 0) return;
+    if (!selecting || activeId || (event.button !== 0 && event.pointerType === "mouse")) return;
     const point = pointFromEvent(event);
     if (!point) return;
+    event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragStart(point);
     setDragRect({ x: point.x, y: point.y, width: 0, height: 0 });
@@ -363,6 +429,7 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
 
   function moveSelection(event: React.PointerEvent<HTMLDivElement>) {
     if (!dragStart) return;
+    event.preventDefault();
     const point = pointFromEvent(event);
     if (!point) return;
     setDragRect({
@@ -375,11 +442,12 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
 
   function finishSelection(event: React.PointerEvent<HTMLDivElement>) {
     if (!dragStart || !dragRect) return;
+    event.preventDefault();
     try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* no-op */ }
     const rect = dragRect;
     setDragStart(null);
     setDragRect(null);
-    if (rect.width < 0.008 || rect.height < 0.008) return;
+    if (rect.width < MIN_AREA_SIZE || rect.height < MIN_AREA_SIZE) return;
     const id = `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const candidate: PdfMenuCandidate = {
       id,
@@ -525,7 +593,25 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
   }
 
   function updateCandidate(id: string, rect: Rect) {
-    setAnalysis((current) => ({ ...current, candidates: current.candidates.map((candidate) => candidate.id === id ? { ...candidate, ...rect } : candidate) }));
+    const safe = normalizeRect(rect);
+    setAnalysis((current) => ({ ...current, candidates: current.candidates.map((candidate) => candidate.id === id ? { ...candidate, ...safe } : candidate) }));
+  }
+
+  function updateActiveGeometry(field: keyof Rect, percentValue: number) {
+    if (!activeId || !activeCandidate || !Number.isFinite(percentValue)) return;
+    const value = percentValue / 100;
+    const rect: Rect = {
+      x: activeCandidate.x,
+      y: activeCandidate.y,
+      width: activeCandidate.width,
+      height: activeCandidate.height,
+    };
+
+    if (field === "x") rect.x = clamp(value, 0, 1 - rect.width);
+    if (field === "y") rect.y = clamp(value, 0, 1 - rect.height);
+    if (field === "width") rect.width = clamp(value, MIN_AREA_SIZE, 1 - rect.x);
+    if (field === "height") rect.height = clamp(value, MIN_AREA_SIZE, 1 - rect.y);
+    updateCandidate(activeId, rect);
   }
 
   async function saveProduct() {
@@ -590,7 +676,7 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
       setActiveId(null);
       setSelecting(true);
       await queryClient.invalidateQueries({ queryKey: ["platform", "pdf-document", restaurantId] });
-      toast.success("Product saved.");
+      toast.success("Area and product saved.");
     } catch (error) {
       toast.error(humanError(error));
     } finally {
@@ -626,8 +712,8 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
   }
 
   async function saveCharges() {
-    const tax = Math.max(0, Math.min(100, Number(taxRate) || 0));
-    const service = Math.max(0, Math.min(100, Number(serviceRate) || 0));
+    const tax = clamp(Number(taxRate) || 0, 0, 100);
+    const service = clamp(Number(serviceRate) || 0, 0, 100);
     setChargesSaving(true);
     try {
       const { error: restaurantError } = await supabase.from("restaurants").update({ tax_rate: tax, service_charge: service }).eq("id", restaurantId);
@@ -687,8 +773,8 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
               <Button className="ms-auto" size="sm" variant={selecting ? "default" : "outline"} onClick={() => { setActiveId(null); setSelecting(true); }}><MousePointer2 className="size-4" />{selecting ? "Draw area" : "New area"}</Button>
             </div>
 
-            <div className="grid min-w-0 gap-3 p-2 sm:p-3 xl:grid-cols-[minmax(0,2.4fr)_minmax(300px,.75fr)]">
-              <div className="qs-pdf-stage min-w-0 overflow-auto rounded-xl bg-muted/40 p-2 sm:p-4 xl:max-h-[calc(100dvh-190px)] xl:min-h-[700px]">
+            <div className="grid min-w-0 gap-3 p-2 sm:p-3 md:grid-cols-[minmax(0,2.2fr)_minmax(260px,320px)]">
+              <div className="qs-pdf-stage min-w-0 overflow-auto rounded-xl bg-muted/40 p-2 sm:p-4 md:max-h-[calc(100dvh-190px)] md:min-h-[700px]">
                 <div className="flex min-h-[65vh] min-w-0 items-start justify-center py-2 sm:py-4">
                   <div
                     ref={stageRef}
@@ -706,7 +792,8 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
                         candidate={candidate}
                         active={activeId === candidate.id}
                         enabled={enabledMap[candidate.id] ?? true}
-                        label={drafts[candidate.id]?.name_en || drafts[candidate.id]?.name_ar || "Product"}
+                        label={drafts[candidate.id]?.name_en || drafts[candidate.id]?.name_ar || "Selected area"}
+                        zoom={zoom}
                         onSelect={() => { setActiveId(candidate.id); setSelecting(false); }}
                         onChange={(rect) => updateCandidate(candidate.id, rect)}
                         stageRef={stageRef}
@@ -718,50 +805,58 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
               </div>
 
               {activeId && activeCandidate && active ? (
-                <>
-                  <button type="button" aria-label="Close editor" onClick={() => setActiveId(null)} className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px] xl:hidden" />
-                  <aside className={cn(
-                    "space-y-3",
-                    "fixed inset-x-2 bottom-[calc(78px+env(safe-area-inset-bottom))] z-50 max-h-[76dvh] overflow-y-auto rounded-2xl border border-border bg-background p-3 shadow-2xl",
-                    "xl:sticky xl:top-24 xl:z-auto xl:max-h-[calc(100dvh-120px)] xl:self-start xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none",
-                  )}>
-                    <div className="qs-card p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Selected area</p><h3 className="mt-1 truncate font-bold">{active.name_en || active.name_ar || "New product"}</h3></div>
-                        <button type="button" className="grid size-9 place-items-center rounded-lg text-muted-foreground hover:bg-muted" onClick={() => setActiveId(null)}><X className="size-4" /></button>
+                <aside className={cn(
+                  "space-y-3",
+                  "fixed inset-x-2 bottom-[calc(78px+env(safe-area-inset-bottom))] z-50 max-h-[58dvh] overflow-y-auto rounded-2xl border border-border bg-background p-3 shadow-2xl",
+                  "md:sticky md:inset-x-auto md:bottom-auto md:top-24 md:z-auto md:max-h-[calc(100dvh-120px)] md:self-start md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none",
+                )}>
+                  <div className="qs-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Selected area</p><h3 className="mt-1 truncate font-bold">{active.name_en || active.name_ar || "New product"}</h3></div>
+                      <button type="button" className="grid size-9 place-items-center rounded-lg text-muted-foreground hover:bg-muted" onClick={() => setActiveId(null)}><X className="size-4" /></button>
+                    </div>
+                    <p className="mt-3 rounded-xl bg-muted/50 p-3 text-xs leading-5 text-muted-foreground">Drag inside the orange box to move it. Drag any white handle to resize it.</p>
+
+                    <div className="mt-4">
+                      <p className="mb-2 text-xs font-bold">Position &amp; size</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <AreaNumberField label="X" value={activeCandidate.x} onChange={(value) => updateActiveGeometry("x", value)} />
+                        <AreaNumberField label="Y" value={activeCandidate.y} onChange={(value) => updateActiveGeometry("y", value)} />
+                        <AreaNumberField label="Width" value={activeCandidate.width} onChange={(value) => updateActiveGeometry("width", value)} />
+                        <AreaNumberField label="Height" value={activeCandidate.height} onChange={(value) => updateActiveGeometry("height", value)} />
                       </div>
-                      <p className="mt-3 rounded-xl bg-muted/50 p-3 text-xs leading-5 text-muted-foreground">Drag the box to move it. Drag any orange handle to resize it.</p>
-                      <button
-                        type="button"
-                        className={cn("mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold", (enabledMap[activeId] ?? true) ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-border text-muted-foreground")}
-                        onClick={() => setEnabledMap((current) => ({ ...current, [activeId]: !(current[activeId] ?? true) }))}
-                      >
-                        <Check className="size-3.5" />{(enabledMap[activeId] ?? true) ? "Clickable" : "Disabled"}
-                      </button>
                     </div>
 
-                    <div className="qs-card p-4">
-                      <div className="mb-3 flex items-center justify-between"><h3 className="font-bold">Product</h3>{reading ? <Loader2 className="size-4 animate-spin text-[#ff5a0a]" /> : null}</div>
-                      <div className="space-y-3">
-                        <Input placeholder="Name (English)" value={active.name_en} onChange={(event) => updateDraft({ name_en: event.target.value })} />
-                        <Input placeholder="Name (Arabic)" value={active.name_ar} onChange={(event) => updateDraft({ name_ar: event.target.value })} />
-                        <Textarea rows={2} placeholder="Description (English)" value={active.description_en ?? ""} onChange={(event) => updateDraft({ description_en: event.target.value })} />
-                        <Textarea rows={2} placeholder="Description (Arabic)" value={active.description_ar ?? ""} onChange={(event) => updateDraft({ description_ar: event.target.value })} />
-                        <Input type="number" min="0" step="0.01" placeholder="Price" value={active.price ?? ""} onChange={(event) => updateDraft({ price: event.target.value === "" ? null : Number(event.target.value) })} />
-                      </div>
-                      <div className="safe-bottom sticky bottom-0 mt-4 flex gap-2 border-t border-border bg-background/96 pt-3 backdrop-blur">
-                        <Button className="flex-1" onClick={() => void saveProduct()} disabled={saving || reading}><Save className="size-4" />Save</Button>
-                        <Button size="icon" variant="outline" onClick={() => void deleteProduct(activeId)} disabled={saving} aria-label="Delete area"><Trash2 className="size-4" /></Button>
-                      </div>
+                    <button
+                      type="button"
+                      className={cn("mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold", (enabledMap[activeId] ?? true) ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-border text-muted-foreground")}
+                      onClick={() => setEnabledMap((current) => ({ ...current, [activeId]: !(current[activeId] ?? true) }))}
+                    >
+                      <Check className="size-3.5" />{(enabledMap[activeId] ?? true) ? "Clickable" : "Disabled"}
+                    </button>
+                  </div>
+
+                  <div className="qs-card p-4">
+                    <div className="mb-3 flex items-center justify-between"><h3 className="font-bold">Product</h3>{reading ? <Loader2 className="size-4 animate-spin text-[#ff5a0a]" /> : null}</div>
+                    <div className="space-y-3">
+                      <Input placeholder="Name (English)" value={active.name_en} onChange={(event) => updateDraft({ name_en: event.target.value })} />
+                      <Input placeholder="Name (Arabic)" value={active.name_ar} onChange={(event) => updateDraft({ name_ar: event.target.value })} />
+                      <Textarea rows={2} placeholder="Description (English)" value={active.description_en ?? ""} onChange={(event) => updateDraft({ description_en: event.target.value })} />
+                      <Textarea rows={2} placeholder="Description (Arabic)" value={active.description_ar ?? ""} onChange={(event) => updateDraft({ description_ar: event.target.value })} />
+                      <Input type="number" min="0" step="0.01" placeholder="Price" value={active.price ?? ""} onChange={(event) => updateDraft({ price: event.target.value === "" ? null : Number(event.target.value) })} />
                     </div>
-                  </aside>
-                </>
+                    <div className="safe-bottom sticky bottom-0 mt-4 flex gap-2 border-t border-border bg-background/96 pt-3 backdrop-blur">
+                      <Button className="flex-1" onClick={() => void saveProduct()} disabled={saving || reading}><Save className="size-4" />Save changes</Button>
+                      <Button size="icon" variant="outline" onClick={() => void deleteProduct(activeId)} disabled={saving} aria-label="Delete area"><Trash2 className="size-4" /></Button>
+                    </div>
+                  </div>
+                </aside>
               ) : (
-                <aside className="xl:sticky xl:top-24 xl:self-start">
+                <aside className="md:sticky md:top-24 md:self-start">
                   <div className="qs-card p-4">
                     <MousePointer2 className="size-5 text-[#ff5a0a]" />
                     <p className="mt-2 text-sm font-bold">{selecting ? "Draw a product area" : "Select an area"}</p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">Existing areas can be dragged and resized directly.</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">Select any orange area, then drag it to move or resize it directly.</p>
                   </div>
                 </aside>
               )}
