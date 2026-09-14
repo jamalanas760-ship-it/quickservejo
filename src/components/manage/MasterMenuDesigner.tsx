@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { ExternalLink, FileText, Palette, Upload, UtensilsCrossed } from "lucide-react";
+import { ExternalLink, FileText, Palette, Settings2, Upload, UtensilsCrossed } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,7 +7,8 @@ import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
 
 const PdfEditor = lazy(() => import("./PdfMenuManagerV2").then((module) => ({ default: module.PdfMenuManagerV2 })));
-const Products = lazy(() => import("./MenuManager").then((module) => ({ default: module.MenuManager })));
+const Products = lazy(() => import("./MenuCatalogMaster").then((module) => ({ default: module.MenuCatalogMaster })));
+const Advanced = lazy(() => import("./MenuManager").then((module) => ({ default: module.MenuManager })));
 const Appearance = lazy(() => import("./RestaurantAppearance").then((module) => ({ default: module.RestaurantAppearance })));
 
 export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
@@ -26,15 +27,17 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
       </header>
 
       <Tabs defaultValue="products" dir={ar ? "rtl" : "ltr"}>
-        <TabsList className="grid h-auto w-full max-w-[720px] grid-cols-3 rounded-xl border border-border bg-card p-1 shadow-sm">
+        <TabsList className="grid h-auto w-full max-w-[920px] grid-cols-2 gap-1 rounded-xl border border-border bg-card p-1 shadow-sm sm:grid-cols-4">
           <TabsTrigger value="products" className="min-h-11 gap-2 rounded-lg data-[state=active]:bg-[#ff5a0a] data-[state=active]:text-white"><UtensilsCrossed className="size-4" />{ar ? "عناصر القائمة" : "Menu Items"}</TabsTrigger>
           <TabsTrigger value="pdf" className="min-h-11 gap-2 rounded-lg data-[state=active]:bg-[#ff5a0a] data-[state=active]:text-white"><FileText className="size-4" />{ar ? "القائمة الأصلية PDF" : "Original PDF"}</TabsTrigger>
           <TabsTrigger value="appearance" className="min-h-11 gap-2 rounded-lg data-[state=active]:bg-[#ff5a0a] data-[state=active]:text-white"><Palette className="size-4" />{ar ? "الهوية والأسعار" : "Brand & Pricing"}</TabsTrigger>
+          <TabsTrigger value="advanced" className="min-h-11 gap-2 rounded-lg data-[state=active]:bg-[#ff5a0a] data-[state=active]:text-white"><Settings2 className="size-4" />{ar ? "متقدم" : "Advanced"}</TabsTrigger>
         </TabsList>
         <Suspense fallback={<Skeleton className="mt-5 h-[620px] rounded-2xl" />}>
           <TabsContent value="products" className="mt-5"><Products restaurantId={restaurantId} /></TabsContent>
           <TabsContent value="pdf" className="mt-5"><PdfEditor restaurantId={restaurantId} /></TabsContent>
           <TabsContent value="appearance" className="mt-5"><Appearance restaurantId={restaurantId} /></TabsContent>
+          <TabsContent value="advanced" className="mt-5"><Advanced restaurantId={restaurantId} /></TabsContent>
         </Suspense>
       </Tabs>
     </section>
