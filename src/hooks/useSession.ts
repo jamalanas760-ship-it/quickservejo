@@ -10,6 +10,8 @@ export type StaffMembership = {
   role: AppRole;
   name: string;
   is_active: boolean;
+  avatar_url: string | null;
+  avatar_preset: string | null;
   restaurant: {
     id: string;
     name: string;
@@ -21,6 +23,7 @@ export type StaffMembership = {
     accent_color: string;
     background_color: string;
     text_color: string;
+    menu_theme: unknown;
     is_active: boolean;
     subscription_plan: string;
   } | null;
@@ -35,9 +38,6 @@ export function useSupabaseSession() {
         if (error) throw error;
         return data.session ?? null;
       } catch (err) {
-        // A token refresh that cannot reach the auth service (offline, or the
-        // backend unavailable) must not blank the app. Report "no session" so
-        // the sign-in screen renders its own connection message instead.
         if (err instanceof Error && /fetch|network/i.test(err.message)) return null;
         throw err;
       }
@@ -47,11 +47,6 @@ export function useSupabaseSession() {
   });
 }
 
-/**
- * Staff memberships for the signed-in user. Use the already-issued session
- * user id instead of making a second getUser() network request before every
- * membership lookup. RLS remains the authority for what rows are visible.
- */
 export function useMemberships() {
   const session = useSupabaseSession();
   const uid = session.data?.user.id ?? null;
@@ -61,15 +56,14 @@ export function useMemberships() {
     enabled: session.isSuccess && Boolean(uid),
     queryFn: async () => {
       if (!uid) return [];
-      const { data, error } = await supabase
-        .from("staff")
+      const { data, error } = await (supabase.from("staff") as any)
         .select(
-          "id, restaurant_id, role, name, is_active, restaurant:restaurants(id, name, slug, logo_url, cover_image_url, primary_color, secondary_color, accent_color, background_color, text_color, is_active, subscription_plan)",
+          "id, restaurant_id, role, name, is_active, avatar_url, avatar_preset, restaurant:restaurants(id, name, slug, logo_url, cover_image_url, primary_color, secondary_color, accent_color, background_color, text_color, menu_theme, is_active, subscription_plan)",
         )
         .eq("auth_user_id", uid)
         .eq("is_active", true);
       if (error) throw error;
-      return (data ?? []) as unknown as StaffMembership[];
+      return (data ?? []) as StaffMembership[];
     },
   });
 }
