@@ -46,7 +46,7 @@ export function BottomNav() {
   const adminMembership = (access.data ?? []).find((row) => row.role === "restaurant_admin" && row.restaurant_id && row.restaurant);
   const current = membership ?? adminMembership ?? (access.data ?? []).find((row) => row.restaurant_id && row.restaurant);
   const restaurant = current?.restaurant;
-  const restaurantId = current?.restaurant_id ?? undefined;
+  const restaurantId = current?.restaurant_id ?? null;
   const report = useWorkspaceReport(restaurantId);
   const openOrders = report.data?.openOrders ?? 0;
 
