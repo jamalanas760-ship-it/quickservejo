@@ -1,44 +1,45 @@
-/* QuickServe UX refinement layer — intentionally lightweight, responsive and motion-safe. */
+/* QuickServe UX refinement layer — lightweight, responsive and motion-safe. */
 :root {
-  --qs-fast: 140ms;
-  --qs-smooth: 220ms;
+  --qs-fast: 130ms;
+  --qs-smooth: 200ms;
   --qs-ease: cubic-bezier(.2,.8,.2,1);
   --qs-touch: 44px;
-  --qs-focus: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+  --qs-focus: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
 }
 
 html { scroll-behavior: smooth; }
-body { -webkit-tap-highlight-color: transparent; }
+body { -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
 button, a, input, select, textarea { touch-action: manipulation; }
 button, a { -webkit-user-select: none; user-select: none; }
 input, textarea { -webkit-user-select: text; user-select: text; }
 
-/* A calm route transition. It remounts per authenticated pathname. */
+/* Calm page motion only: opacity + transform for GPU-friendly navigation. */
 .qs-route-frame {
   min-width: 0;
   animation: qs-route-in var(--qs-smooth) var(--qs-ease) both;
 }
 @keyframes qs-route-in {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translate3d(0,4px,0); }
+  to { opacity: 1; transform: translate3d(0,0,0); }
 }
 
-/* Reduce visual noise: secondary actions recede, primary actions stay obvious. */
+/* One consistent control language. */
 .qs-button-primary,
 .qs-button-secondary,
 .qs-control,
 .qs-chip,
 button[class*="rounded-xl"],
 a[class*="rounded-xl"] {
+  transition-property: background-color, border-color, color, box-shadow, opacity, transform;
   transition-duration: var(--qs-fast) !important;
   transition-timing-function: var(--qs-ease) !important;
 }
 .qs-button-primary {
   min-height: 42px;
   border-radius: 11px;
-  box-shadow: 0 5px 14px rgba(255,90,10,.14);
+  box-shadow: 0 3px 10px rgba(255,90,10,.12);
 }
-.qs-button-primary:hover { box-shadow: 0 7px 18px rgba(255,90,10,.18); }
+.qs-button-primary:hover { box-shadow: 0 5px 14px rgba(255,90,10,.16); }
 .qs-button-secondary {
   min-height: 40px;
   border-radius: 11px;
@@ -46,23 +47,33 @@ a[class*="rounded-xl"] {
   color: var(--muted-foreground);
 }
 .qs-button-secondary:hover { color: var(--foreground); transform: none; }
-.qs-control { min-height: 40px; }
-.qs-chip { min-height: 38px !important; border-radius: 999px; padding-inline: .75rem; }
+.qs-control { min-height: 40px; border-radius: 11px; }
+.qs-chip { min-height: 36px !important; border-radius: 999px; padding-inline: .72rem; }
 
-button:active:not(:disabled),
-a:active { transform: scale(.985); }
+button:active:not(:disabled), a:active { transform: scale(.985); }
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible { outline: none; box-shadow: var(--qs-focus); }
 
-/* Cleaner page rhythm across dashboard/admin pages. */
-.qs-page-title { text-wrap: balance; }
+/* Cleaner page rhythm and quieter surfaces across the whole app. */
+.qs-page-title { text-wrap: balance; letter-spacing: -.025em; }
 .qs-page-subtitle { max-width: 58rem; text-wrap: pretty; }
 .qs-card, .panel { overflow-wrap: anywhere; }
-.qs-card { box-shadow: 0 1px 2px rgba(16,24,32,.025), 0 5px 18px rgba(16,24,32,.035); }
-.dark .qs-card { box-shadow: 0 1px 2px rgba(0,0,0,.22), 0 7px 22px rgba(0,0,0,.15); }
+.qs-card {
+  border-color: color-mix(in srgb, var(--border) 88%, transparent);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(16,24,32,.025), 0 3px 12px rgba(16,24,32,.025);
+}
+.dark .qs-card { box-shadow: 0 1px 2px rgba(0,0,0,.22), 0 4px 14px rgba(0,0,0,.12); }
+.qs-stat { border-radius: 14px; box-shadow: none !important; }
+.qs-topbar { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+
+/* Tables feel like readable lists, not boxed spreadsheets. */
+.qs-table tbody tr { transition: background-color var(--qs-fast) var(--qs-ease); }
+.qs-table th { white-space: nowrap; }
+.qs-table td { vertical-align: middle; }
 
 /* Read-only order tracking. */
 .qs-tracking-step { position: relative; min-width: 0; }
@@ -79,29 +90,29 @@ textarea:focus-visible { outline: none; box-shadow: var(--qs-focus); }
 .qs-tracking-step[data-complete="true"]:not(:last-child)::after { background: color-mix(in srgb, var(--primary) 62%, var(--border)); }
 .qs-tracking-node { position: relative; z-index: 1; }
 
-/* PDF editor: active hotspot feels like a direct-manipulation design tool. */
+/* PDF editor. */
 .qs-pdf-hotspot { touch-action: none; }
 .qs-pdf-hotspot[data-active="true"] { cursor: move; }
 .qs-pdf-handle { touch-action: none; }
 .qs-pdf-stage { overscroll-behavior: contain; }
 
-/* Existing table designer: make it feel closer to a lightweight 3D modelling canvas. */
+/* Table designer keeps depth while controls stay restrained. */
 .qs-table-piece {
   transform-style: preserve-3d;
   will-change: left, top, transform;
-  filter: drop-shadow(0 14px 12px rgba(0,0,0,.24));
+  filter: drop-shadow(0 12px 10px rgba(0,0,0,.22));
 }
-.qs-table-piece:hover { filter: drop-shadow(0 18px 16px rgba(0,0,0,.34)); z-index: 18 !important; }
+.qs-table-piece:hover { filter: drop-shadow(0 16px 14px rgba(0,0,0,.30)); z-index: 18 !important; }
 .qs-table-piece > span:last-child { transform: translateZ(8px); }
-.qs-table-piece:focus-visible { outline: none !important; filter: drop-shadow(0 0 12px rgba(49,140,255,.85)); }
+.qs-table-piece:focus-visible { outline: none !important; filter: drop-shadow(0 0 12px rgba(49,140,255,.78)); }
 .qs-floor-control { min-height: 40px !important; padding: .5rem .72rem !important; border-radius: 10px !important; box-shadow: none !important; }
 .qs-floor-icon-control { min-height: 40px !important; min-width: 40px !important; border-radius: 10px !important; }
 
-/* Device-specific density: mobile stays touch-friendly, tablet/desktop stays compact. */
+/* Responsive density: touch-first mobile, compact desktop. */
 @media (max-width: 1023px) {
   .qs-page { padding-inline: 14px; }
   .qs-card { border-radius: 14px; }
-  .qs-table { min-width: 0; }
+  .qs-scroll { -webkit-overflow-scrolling: touch; }
 }
 
 @media (max-width: 767px) {
@@ -109,12 +120,12 @@ textarea:focus-visible { outline: none; box-shadow: var(--qs-focus); }
   .qs-page-title { font-size: clamp(1.5rem, 8vw, 1.85rem); }
   .qs-page-subtitle { margin-top: .3rem; font-size: .82rem; line-height: 1.45; }
   .qs-button-primary, .qs-button-secondary { min-height: var(--qs-touch); }
-  .qs-chip { min-height: 42px !important; }
+  .qs-chip { min-height: 40px !important; }
   .qs-card, .panel { border-radius: 14px !important; }
-  .qs-route-frame { animation-duration: 170ms; }
+  .qs-route-frame { animation-duration: 165ms; }
+  .qs-topbar button, .qs-topbar a { min-width: 40px; min-height: 40px; }
 }
 
-/* Override the old blanket full-width mobile button rule. Only explicit w-full stays full width. */
 @media (max-width: 480px) {
   .qs-button-primary:not(.w-full),
   .qs-button-secondary:not(.w-full) { width: auto !important; }
@@ -130,5 +141,9 @@ textarea:focus-visible { outline: none; box-shadow: var(--qs-focus); }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .qs-route-frame { animation: none !important; }
-  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+  *, *::before, *::after {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
