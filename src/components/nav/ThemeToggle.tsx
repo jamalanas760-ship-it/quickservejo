@@ -38,8 +38,8 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
   return (
     <div
       className={cn(
-        "inline-grid h-10 grid-cols-2 items-center rounded-xl border border-border bg-muted/60 p-1 shadow-inner",
-        compact ? "w-[78px]" : "w-[148px]",
+        "inline-grid shrink-0 grid-cols-2 items-center overflow-hidden rounded-full border border-border/90 bg-muted/70 p-[3px] shadow-inner",
+        compact ? "h-9 w-[78px]" : "h-10 w-[146px]",
         !ready && "opacity-80",
         className,
       )}
@@ -52,13 +52,14 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
         aria-label="Use light mode"
         aria-pressed={theme === "light"}
         className={cn(
-          "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold transition-all duration-200",
+          "inline-flex min-w-0 items-center justify-center gap-1.5 rounded-full font-bold leading-none transition-[background-color,color,box-shadow,transform] duration-200",
+          compact ? "h-[30px] px-0" : "h-8 px-2 text-xs",
           theme === "light"
-            ? "bg-white text-slate-950 shadow-sm ring-1 ring-black/5"
+            ? "bg-background text-foreground shadow-sm ring-1 ring-black/5"
             : "text-muted-foreground hover:text-foreground",
         )}
       >
-        <Sun className="size-4" />
+        <Sun className={cn("shrink-0", compact ? "size-[17px]" : "size-4")} />
         {!compact ? <span>Light</span> : null}
       </button>
       <button
@@ -67,13 +68,14 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
         aria-label="Use dark mode"
         aria-pressed={theme === "dark"}
         className={cn(
-          "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold transition-all duration-200",
+          "inline-flex min-w-0 items-center justify-center gap-1.5 rounded-full font-bold leading-none transition-[background-color,color,box-shadow,transform] duration-200",
+          compact ? "h-[30px] px-0" : "h-8 px-2 text-xs",
           theme === "dark"
             ? "bg-slate-950 text-white shadow-sm ring-1 ring-white/10"
             : "text-muted-foreground hover:text-foreground",
         )}
       >
-        <Moon className="size-4" />
+        <Moon className={cn("shrink-0", compact ? "size-[16px]" : "size-4")} />
         {!compact ? <span>Dark</span> : null}
       </button>
     </div>
