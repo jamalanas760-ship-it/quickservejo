@@ -7,7 +7,6 @@ import {
   ClipboardList,
   Home,
   LayoutDashboard,
-  Settings,
   Store,
   Table2,
   User,
@@ -54,20 +53,18 @@ export function BottomNav() {
 
   const desktopItems: Item[] = restaurantId
     ? [
-        { to: "/dashboard", icon: Home, en: "Overview", ar: "نظرة عامة" },
+        { to: "/dashboard", icon: Home, en: "Overview", ar: "الرئيسية" },
         { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات" },
         { to: `/manage/${restaurantId}`, icon: UtensilsCrossed, en: "Menu", ar: "القائمة", exact: true },
         { to: `/manage/${restaurantId}/tables`, icon: Table2, en: "Tables", ar: "الطاولات" },
         { to: `/manage/${restaurantId}/staff`, icon: Users, en: "Staff", ar: "الفريق" },
-        { to: "/kitchen", icon: ChefHat, en: "Kitchen Display", ar: "شاشة المطبخ" },
+        { to: "/kitchen", icon: ChefHat, en: "Kitchen", ar: "المطبخ" },
         { to: `/manage/${restaurantId}/analytics`, icon: BarChart3, en: "Analytics", ar: "التحليلات" },
         { to: "/manage", icon: Store, en: "Restaurants", ar: "المطاعم", exact: true },
-        { to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات" },
       ]
     : [
-        { to: "/dashboard", icon: Home, en: "Overview", ar: "نظرة عامة" },
+        { to: "/dashboard", icon: Home, en: "Overview", ar: "الرئيسية" },
         { to: "/manage", icon: Store, en: "Restaurants", ar: "المطاعم" },
-        { to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات" },
       ];
 
   const task = access.roles.map((role) => TASK_ITEMS[role]).find(Boolean);
@@ -87,13 +84,13 @@ export function BottomNav() {
   return (
     <>
       <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden w-[236px] flex-col lg:flex">
-        <div className="flex h-[70px] items-center border-b border-white/5 px-5">
-          <Link to="/dashboard" className="text-white">
+        <div className="flex h-[64px] items-center border-b border-white/5 px-5">
+          <Link to="/dashboard" className="text-white" aria-label="QuickServe dashboard">
             <BrandLogo className="size-9" accentClassName="text-white" textClassName="text-[20px] text-white" />
           </Link>
         </div>
 
-        <nav className="qs-scroll flex-1 overflow-y-auto px-3 py-5" aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"}>
+        <nav className="qs-scroll flex-1 overflow-y-auto px-3 py-4" aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"}>
           <ul className="space-y-1">
             {desktopItems.map((item) => {
               const active = activeFor(item);
@@ -102,11 +99,9 @@ export function BottomNav() {
               return (
                 <li key={`${item.to}-${item.en}`}>
                   <Link to={item.to as never} data-active={active} className="qs-sidebar-item" aria-current={active ? "page" : undefined}>
-                    <Icon className="size-[19px] shrink-0" />
+                    <Icon className="size-[18px] shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{lang === "ar" ? item.ar : item.en}</span>
-                    {isOrders && openOrders > 0 ? (
-                      <span className="min-w-6 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{openOrders > 99 ? "99+" : openOrders}</span>
-                    ) : null}
+                    {isOrders && openOrders > 0 ? <span className="min-w-6 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{openOrders > 99 ? "99+" : openOrders}</span> : null}
                   </Link>
                 </li>
               );
@@ -114,25 +109,14 @@ export function BottomNav() {
           </ul>
         </nav>
 
-        <div className="mx-3 mb-4 overflow-hidden rounded-[14px] border border-white/8 bg-white/[.04]">
-          <div className="relative h-[178px] overflow-hidden p-4">
-            <img src="/signin-restaurant.webp" alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" loading="lazy" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#101519] via-[#101519]/75 to-transparent" />
-            <div className="relative flex h-full flex-col justify-end">
-              <p className="font-display text-[15px] font-bold leading-5 text-white">Faster Operations<br />Happier Guests</p>
-              <p className="mt-2 text-[11px] leading-4 text-white/60">Powering great food experiences every day.</p>
-            </div>
-          </div>
-        </div>
-
-        <Link to="/profile" className="flex items-center gap-3 border-t border-white/6 px-4 py-4 text-white hover:bg-white/[.04]">
+        <Link to="/profile" className="flex items-center gap-3 border-t border-white/6 px-4 py-4 text-white transition hover:bg-white/[.04]">
           <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#ff5a0a] font-display text-sm font-bold text-white">{displayName.slice(0, 1).toUpperCase()}</span>
-          <span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-bold">{displayName}</span><span className="block text-[10px] text-white/55">{frontline ? "Staff" : "Manager"}</span></span>
+          <span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-bold">{displayName}</span><span className="block text-[10px] text-white/55">{frontline ? "Staff" : "Account"}</span></span>
         </Link>
       </aside>
 
       <nav aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"} className="safe-bottom fixed inset-x-2 bottom-1 z-50 lg:hidden">
-        <div className="grid overflow-hidden rounded-2xl border border-border bg-card/95 shadow-[0_14px_42px_rgba(0,0,0,.16)] backdrop-blur-xl" style={{ gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0,1fr))` }}>
+        <div className="grid overflow-hidden rounded-2xl border border-border bg-card/95 shadow-[0_14px_42px_rgba(0,0,0,.14)] backdrop-blur-xl" style={{ gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0,1fr))` }}>
           {mobileItems.map((item) => {
             const active = activeFor(item);
             const Icon = item.icon;
