@@ -1,61 +1,149 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Banknote, ChefHat, Home, LayoutDashboard, Store, User, Utensils } from "lucide-react";
+import {
+  BarChart3,
+  Banknote,
+  BellRing,
+  ChefHat,
+  ClipboardList,
+  Home,
+  LayoutDashboard,
+  Settings,
+  Store,
+  Table2,
+  User,
+  Users,
+  UtensilsCrossed,
+} from "lucide-react";
 
-import { useAccess } from "@/hooks/useSession";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { useAccess, useSupabaseSession } from "@/hooks/useSession";
+import { useWorkspaceReport } from "@/hooks/useWorkspace";
 import { useI18n } from "@/lib/i18n";
 import { isFrontlineOnly } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 type Item = { to: string; icon: typeof Home; en: string; ar: string; exact?: boolean };
 
-const ADMIN_ITEMS: Item[] = [
-  { to: "/", icon: Home, en: "Home", ar: "الرئيسية", exact: true },
-  { to: "/dashboard", icon: LayoutDashboard, en: "Dashboard", ar: "لوحة التحكم" },
-  { to: "/manage", icon: Store, en: "Restaurant", ar: "المطعم" },
-  { to: "/profile", icon: User, en: "Profile", ar: "الملف الشخصي" },
-];
-
 const TASK_ITEMS: Partial<Record<string, Item>> = {
   manager: { to: "/kitchen", icon: LayoutDashboard, en: "Operations", ar: "العمليات" },
   kitchen: { to: "/kitchen", icon: ChefHat, en: "Kitchen", ar: "المطبخ" },
-  waiter: { to: "/waiter", icon: Utensils, en: "Floor", ar: "الصالة" },
+  waiter: { to: "/waiter", icon: UtensilsCrossed, en: "Floor", ar: "الصالة" },
   cashier: { to: "/cashier", icon: Banknote, en: "Cashier", ar: "الكاشير" },
 };
 
 export function BottomNav() {
   const { lang } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { roles, data, isPending, isSuperAdmin } = useAccess();
-  if (isPending || isSuperAdmin) return null;
-  const frontline = isFrontlineOnly(roles);
-  const task = roles.map((role) => TASK_ITEMS[role]).find(Boolean);
-  const items = frontline
-    ? [task, { to: "/profile", icon: User, en: "Profile", ar: "الملف الشخصي" }].filter(Boolean) as Item[]
-    : ADMIN_ITEMS;
+  const access = useAccess();
+  const session = useSupabaseSession();
+  if (access.isPending || access.isSuperAdmin) return null;
+
+  const frontline = isFrontlineOnly(access.roles);
   const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
-  const restaurant = (data ?? []).find((membership) => membership.restaurant && (!selectedId || membership.restaurant_id === selectedId))?.restaurant;
+  const membership = (access.data ?? []).find(
+    (row) => row.restaurant_id && row.restaurant && (!selectedId || row.restaurant_id === selectedId),
+  );
+  const adminMembership = (access.data ?? []).find((row) => row.role === "restaurant_admin" && row.restaurant_id && row.restaurant);
+  const current = membership ?? adminMembership ?? (access.data ?? []).find((row) => row.restaurant_id && row.restaurant);
+  const restaurant = current?.restaurant;
+  const restaurantId = current?.restaurant_id ?? undefined;
+  const report = useWorkspaceReport(restaurantId);
+  const openOrders = report.data?.openOrders ?? 0;
+
+  const desktopItems: Item[] = restaurantId
+    ? [
+        { to: "/dashboard", icon: Home, en: "Overview", ar: "نظرة عامة" },
+        { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات" },
+        { to: `/manage/${restaurantId}`, icon: UtensilsCrossed, en: "Menu", ar: "القائمة", exact: true },
+        { to: `/manage/${restaurantId}/tables`, icon: Table2, en: "Tables", ar: "الطاولات" },
+        { to: `/manage/${restaurantId}/staff`, icon: Users, en: "Staff", ar: "الفريق" },
+        { to: "/kitchen", icon: ChefHat, en: "Kitchen Display", ar: "شاشة المطبخ" },
+        { to: `/manage/${restaurantId}/analytics`, icon: BarChart3, en: "Analytics", ar: "التحليلات" },
+        { to: "/manage", icon: Store, en: "Restaurants", ar: "المطاعم", exact: true },
+        { to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات" },
+      ]
+    : [
+        { to: "/dashboard", icon: Home, en: "Overview", ar: "نظرة عامة" },
+        { to: "/manage", icon: Store, en: "Restaurants", ar: "المطاعم" },
+        { to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات" },
+      ];
+
+  const task = access.roles.map((role) => TASK_ITEMS[role]).find(Boolean);
+  const mobileItems = frontline
+    ? ([task, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }].filter(Boolean) as Item[])
+    : desktopItems.slice(0, 4);
+
+  const user = session.data?.user;
+  const meta = user?.user_metadata as { full_name?: string; name?: string } | undefined;
+  const displayName = meta?.full_name || meta?.name || user?.email?.split("@")[0] || "QuickServe User";
+
+  function activeFor(item: Item) {
+    if (item.exact) return pathname.replace(/\/$/, "") === item.to.replace(/\/$/, "");
+    return pathname === item.to || pathname.startsWith(`${item.to}/`);
+  }
 
   return (
-    <nav aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"} className="safe-bottom fixed inset-x-0 bottom-0 z-40 px-2 pb-1 sm:px-3 sm:pb-2 lg:inset-y-0 lg:start-0 lg:end-auto lg:w-64 lg:p-4">
-      <div className="mx-auto overflow-hidden rounded-2xl border border-border/80 bg-background/96 shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur-xl lg:flex lg:h-full lg:flex-col lg:rounded-[28px] lg:border-white/10 lg:bg-sidebar lg:text-sidebar-foreground lg:shadow-2xl">
-        <div className="hidden items-center gap-3 border-b border-white/10 px-5 py-6 lg:flex">
-          {restaurant?.logo_url ? <img src={restaurant.logo_url} alt="" className="size-11 rounded-2xl bg-white object-contain p-1" /> : <span className="grid size-11 place-items-center rounded-2xl bg-sidebar-primary text-lg font-black text-sidebar-primary-foreground">{restaurant?.name?.charAt(0) ?? "Q"}</span>}
-          <div className="min-w-0"><p className="truncate text-sm font-bold">{restaurant?.name ?? "QuickServe"}</p><p className="text-[11px] text-sidebar-foreground/65">{frontline ? (lang === "ar" ? "مساحة الموظف" : "Staff workspace") : (lang === "ar" ? "إدارة المطعم" : "Restaurant admin")}</p></div>
+    <>
+      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden w-[236px] flex-col lg:flex">
+        <div className="flex h-[70px] items-center border-b border-white/5 px-5">
+          <Link to="/dashboard" className="text-white">
+            <BrandLogo className="size-9" accentClassName="text-white" textClassName="text-[20px] text-white" />
+          </Link>
         </div>
-        <ul className={cn("mx-auto grid w-full", items.length === 2 ? "grid-cols-2" : "grid-cols-4", "lg:flex lg:flex-1 lg:flex-col lg:gap-1 lg:p-3")}>
-          {items.map((item) => {
-            const active = item.exact ? pathname === "/" : pathname === item.to || pathname.startsWith(`${item.to}/`);
+
+        <nav className="qs-scroll flex-1 overflow-y-auto px-3 py-5" aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"}>
+          <ul className="space-y-1">
+            {desktopItems.map((item) => {
+              const active = activeFor(item);
+              const Icon = item.icon;
+              const isOrders = item.en === "Orders";
+              return (
+                <li key={`${item.to}-${item.en}`}>
+                  <Link to={item.to as never} data-active={active} className="qs-sidebar-item" aria-current={active ? "page" : undefined}>
+                    <Icon className="size-[19px] shrink-0" />
+                    <span className="min-w-0 flex-1 truncate">{lang === "ar" ? item.ar : item.en}</span>
+                    {isOrders && openOrders > 0 ? (
+                      <span className="min-w-6 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{openOrders > 99 ? "99+" : openOrders}</span>
+                    ) : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div className="mx-3 mb-4 overflow-hidden rounded-[14px] border border-white/8 bg-white/[.04]">
+          <div className="relative h-[178px] overflow-hidden p-4">
+            <img src="/signin-restaurant.webp" alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" loading="lazy" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#101519] via-[#101519]/75 to-transparent" />
+            <div className="relative flex h-full flex-col justify-end">
+              <p className="font-display text-[15px] font-bold leading-5 text-white">Faster Operations<br />Happier Guests</p>
+              <p className="mt-2 text-[11px] leading-4 text-white/60">Powering great food experiences every day.</p>
+            </div>
+          </div>
+        </div>
+
+        <Link to="/profile" className="flex items-center gap-3 border-t border-white/6 px-4 py-4 text-white hover:bg-white/[.04]">
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#ff5a0a] font-display text-sm font-bold text-white">{displayName.slice(0, 1).toUpperCase()}</span>
+          <span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-bold">{displayName}</span><span className="block text-[10px] text-white/55">{frontline ? "Staff" : "Manager"}</span></span>
+        </Link>
+      </aside>
+
+      <nav aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"} className="safe-bottom fixed inset-x-2 bottom-1 z-50 lg:hidden">
+        <div className="grid overflow-hidden rounded-2xl border border-border bg-card/95 shadow-[0_14px_42px_rgba(0,0,0,.16)] backdrop-blur-xl" style={{ gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0,1fr))` }}>
+          {mobileItems.map((item) => {
+            const active = activeFor(item);
             const Icon = item.icon;
-            return <li key={item.to} className="relative">
-              <Link to={item.to as never} aria-current={active ? "page" : undefined} className={cn("relative flex min-h-14 min-w-[72px] flex-col items-center justify-center gap-0.5 px-3 py-1.5 text-[10px] font-semibold transition-all duration-200 active:scale-[0.96] sm:min-h-15 sm:text-[11px] lg:min-h-12 lg:flex-row lg:justify-start lg:gap-3 lg:rounded-2xl lg:px-3 lg:text-sm", active ? "text-primary lg:bg-white/12 lg:text-sidebar-foreground" : "text-muted-foreground hover:text-foreground lg:text-sidebar-foreground/68 lg:hover:bg-white/8 lg:hover:text-sidebar-foreground")}>
-                <span className={cn("grid size-8 place-items-center rounded-xl transition-all duration-200 lg:size-9", active && "bg-primary/10 shadow-sm lg:bg-sidebar-primary lg:text-sidebar-primary-foreground")}><Icon className={cn("size-5", active && "stroke-[2.4]")} aria-hidden /></span>
-                <span className="max-w-24 truncate">{lang === "ar" ? item.ar : item.en}</span>
-                {active ? <span className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-primary lg:hidden" aria-hidden /> : null}
+            return (
+              <Link key={`${item.to}-${item.en}`} to={item.to as never} className={cn("relative flex min-h-16 flex-col items-center justify-center gap-1 text-[10px] font-semibold", active ? "text-[#ff5a0a]" : "text-muted-foreground")}>
+                <Icon className="size-5" />
+                <span className="max-w-20 truncate">{lang === "ar" ? item.ar : item.en}</span>
+                {active ? <span className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-[#ff5a0a]" /> : null}
               </Link>
-            </li>;
+            );
           })}
-        </ul>
-      </div>
-    </nav>
+        </div>
+      </nav>
+    </>
   );
 }
