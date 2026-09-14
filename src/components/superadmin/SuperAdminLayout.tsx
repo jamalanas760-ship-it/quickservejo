@@ -42,7 +42,7 @@ const NAV: NavItem[] = [
   { to: "/super-admin/settings", en: "Settings", ar: "الإعدادات", icon: Settings },
 ];
 
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+function NavLinks({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   const { lang } = useI18n();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   return (
@@ -61,7 +61,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   const { lang } = useI18n();
   return (
     <div className="flex h-full flex-col">
