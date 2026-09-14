@@ -1,12 +1,12 @@
 import { lazy, Suspense } from "react";
-import { ExternalLink, FileText, Layers3, Palette, UtensilsCrossed } from "lucide-react";
+import { ExternalLink, FileText, Layers3, Palette } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
 
-const PdfEditor = lazy(() => import("./PdfMenuManagerV2").then((module) => ({ default: module.PdfMenuManagerV2 })));
+const PdfEditor = lazy(() => import("./PdfMenuManagerV3").then((module) => ({ default: module.PdfMenuManagerV3 })));
 const Products = lazy(() => import("./MenuCatalogMaster").then((module) => ({ default: module.MenuCatalogMaster })));
 const Appearance = lazy(() => import("./RestaurantAppearance").then((module) => ({ default: module.RestaurantAppearance })));
 
@@ -16,51 +16,38 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
   const restaurant = useRestaurant(restaurantId);
 
   return (
-    <section className="space-y-5">
+    <section className="space-y-4">
       <header className="sticky top-[70px] z-30 -mx-3 border-b border-border/70 bg-background/95 px-3 py-3 backdrop-blur-xl sm:-mx-5 sm:px-5 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="qs-page-title">{ar ? "إدارة القائمة" : "Menu Management"}</h1>
-            <p className="qs-page-subtitle">{ar ? "مساران واضحان: القائمة العادية وقائمة PDF التفاعلية، بدون خلط بين المنتجات." : "Two clear workflows: Standard Menu and Clickable PDF Menu, with no product mixing."}</p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="qs-page-title">{ar ? "القائمة" : "Menu"}</h1>
+            <p className="qs-page-subtitle">{ar ? "المنتجات، PDF، والمظهر في مكان واحد." : "Products, clickable PDF, and appearance in one workspace."}</p>
           </div>
           {restaurant.data ? (
-            <Link to="/m/$slug" params={{ slug: restaurant.data.slug }} target="_blank" className="qs-button-primary w-full justify-center sm:w-auto">
-              <ExternalLink className="size-4" />{ar ? "معاينة قائمة الضيف" : "Preview Guest Menu"}
+            <Link
+              to="/m/$slug"
+              params={{ slug: restaurant.data.slug }}
+              target="_blank"
+              className="qs-button-secondary shrink-0"
+              aria-label={ar ? "معاينة قائمة الضيف" : "Preview guest menu"}
+            >
+              <ExternalLink className="size-4" /><span className="hidden sm:inline">{ar ? "معاينة" : "Preview"}</span>
             </Link>
           ) : null}
         </div>
       </header>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="qs-card p-4 sm:p-5">
-          <div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-orange-500/12 text-[#ff5a0a]"><UtensilsCrossed className="size-5" /></span><div><h2 className="font-bold">{ar ? "القائمة العادية" : "Standard Menu"}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar ? "الفئات، المنتجات، الأسعار والخيارات في تجربة منظمة واحدة." : "Categories, products, pricing, and options in one organized workspace."}</p></div></div>
-        </div>
-        <div className="qs-card p-4 sm:p-5">
-          <div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-500/12 text-blue-600"><FileText className="size-5" /></span><div><h2 className="font-bold">{ar ? "قائمة PDF التفاعلية" : "Clickable PDF Menu"}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar ? "ملف PDF الأصلي، الصفحات، تحديد المناطق والروابط التفاعلية." : "Original PDF, pages, Select Area, and hotspot-linked products."}</p></div></div>
-        </div>
-      </div>
-
       <Tabs defaultValue="standard" dir={ar ? "rtl" : "ltr"}>
-        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-xl border border-border bg-card p-1 shadow-sm sm:grid-cols-3">
-          <TabsTrigger value="standard" className="min-h-12 gap-2 rounded-lg px-3 data-[state=active]:bg-[#ff5a0a] data-[state=active]:text-white"><Layers3 className="size-4" />{ar ? "القائمة العادية" : "Standard Menu"}</TabsTrigger>
-          <TabsTrigger value="pdf" className="min-h-12 gap-2 rounded-lg px-3 data-[state=active]:bg-[#ff5a0a] data-[state=active]:text-white"><FileText className="size-4" />{ar ? "قائمة PDF" : "PDF Menu"}</TabsTrigger>
-          <TabsTrigger value="appearance" className="min-h-12 gap-2 rounded-lg px-3 data-[state=active]:bg-[#ff5a0a] data-[state=active]:text-white"><Palette className="size-4" />{ar ? "إعدادات المؤسسة" : "Organization Settings"}</TabsTrigger>
+        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-xl border border-border bg-card p-1 shadow-sm">
+          <TabsTrigger value="standard" className="min-h-11 gap-2 rounded-lg px-2 text-xs sm:px-3 sm:text-sm data-[state=active]:bg-[#ff5a0a] data-[state=active]:text-white"><Layers3 className="size-4" /><span className="truncate">{ar ? "العادية" : "Products"}</span></TabsTrigger>
+          <TabsTrigger value="pdf" className="min-h-11 gap-2 rounded-lg px-2 text-xs sm:px-3 sm:text-sm data-[state=active]:bg-[#ff5a0a] data-[state=active]:text-white"><FileText className="size-4" /><span className="truncate">PDF</span></TabsTrigger>
+          <TabsTrigger value="appearance" className="min-h-11 gap-2 rounded-lg px-2 text-xs sm:px-3 sm:text-sm data-[state=active]:bg-[#ff5a0a] data-[state=active]:text-white"><Palette className="size-4" /><span className="truncate">{ar ? "المظهر" : "Appearance"}</span></TabsTrigger>
         </TabsList>
 
-        <div className="mt-3 rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          {ar ? "منتجات القائمة العادية ومنتجات PDF منفصلة فعلياً. لإضافة منتج PDF استخدم PDF Menu ثم Select Area." : "Standard Menu products and PDF-linked products are truly separate. To add a PDF product, use PDF Menu → Select Area."}
-        </div>
-
-        <Suspense fallback={<Skeleton className="mt-5 h-[620px] rounded-2xl" />}>
-          <TabsContent value="standard" className="mt-5">
-            <div className="mb-4 flex flex-wrap gap-2 text-xs font-semibold"><span className="rounded-full border border-orange-500/25 bg-orange-500/10 px-3 py-1.5 text-orange-600">{ar ? "الفئات" : "Categories"}</span><span className="rounded-full border px-3 py-1.5">{ar ? "المنتجات" : "Products"}</span><span className="rounded-full border px-3 py-1.5">{ar ? "الأسعار والخيارات" : "Pricing & Options"}</span></div>
-            <Products restaurantId={restaurantId} />
-          </TabsContent>
-          <TabsContent value="pdf" className="mt-5">
-            <div className="mb-4 flex flex-wrap gap-2 text-xs font-semibold"><span className="rounded-full border border-blue-500/25 bg-blue-500/10 px-3 py-1.5 text-blue-600">PDF</span><span className="rounded-full border px-3 py-1.5">{ar ? "الصفحات" : "Pages"}</span><span className="rounded-full border px-3 py-1.5">{ar ? "تحديد منطقة" : "Select Area"}</span><span className="rounded-full border px-3 py-1.5">Hotspots</span></div>
-            <PdfEditor restaurantId={restaurantId} />
-          </TabsContent>
-          <TabsContent value="appearance" className="mt-5"><Appearance restaurantId={restaurantId} /></TabsContent>
+        <Suspense fallback={<Skeleton className="mt-4 h-[620px] rounded-2xl" />}>
+          <TabsContent value="standard" className="mt-4"><Products restaurantId={restaurantId} /></TabsContent>
+          <TabsContent value="pdf" className="mt-4"><PdfEditor restaurantId={restaurantId} /></TabsContent>
+          <TabsContent value="appearance" className="mt-4"><Appearance restaurantId={restaurantId} /></TabsContent>
         </Suspense>
       </Tabs>
     </section>
