@@ -25,11 +25,16 @@ export function TenantBrandShell({ children }: { children: ReactNode }) {
     "--restaurant-light-bg": appearance.lightBackground || restaurant.background_color || "#fafbfc",
     "--restaurant-dark-bg": appearance.darkBackground || "#11171b",
     "--restaurant-text": restaurant.text_color || "#171a18",
+    "--primary": restaurant.primary_color || "#ff5a0a",
+    "--accent": restaurant.accent_color || "#ff5a0a",
   };
 
   return (
-    <div className="qs-app tenant-app tenant-theme-scope" style={style} data-tenant={restaurant.id}>
-      {children}
-    </div>
+    <>
+      <style>{`.tenant-theme-scope{--background:var(--restaurant-light-bg)!important;background:var(--restaurant-light-bg);transition:background-color .18s ease}.dark .tenant-theme-scope{--background:var(--restaurant-dark-bg)!important;background:var(--restaurant-dark-bg)}.tenant-theme-scope .bg-background{background-color:var(--background)!important}`}</style>
+      <div className="qs-app tenant-app tenant-theme-scope" style={style} data-tenant={restaurant.id}>
+        {children}
+      </div>
+    </>
   );
 }
