@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, ChevronLeft, ChevronRight, Edit3, FileText, Loader2, MousePointer2, Move, Save, Settings2, Trash2, Upload, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Edit3, FileText, Loader2, Maximize2, MousePointer2, Move, Save, Settings2, Trash2, Upload, X, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { humanError } from "@/lib/errors";
 import { fetchPdfBytes, openPdf, renderPdfPage, type PdfMenuAnalysis, type PdfMenuCandidate } from "@/lib/pdf-menu";
 import { extractPdfVisualProducts } from "@/lib/pdf-menu-vision.server";
 import { MAX_PDF_BYTES, uploadRestaurantPdf } from "@/lib/storage";
+import { cn } from "@/lib/utils";
 
 type Product = {
   candidate_id: string;
@@ -29,7 +30,7 @@ type InteractionMode = "select" | "move" | "edit";
 type DocumentRow = { id: string; file_url: string; file_parts?: string[]; file_name: string; page_count: number; analysis: PdfMenuAnalysis; is_active: boolean };
 const EMPTY: PdfMenuAnalysis = { page_count: 0, pages: [], candidates: [] };
 const JOD = "JOD";
-const MIN_ZOOM = 0.4;
+const MIN_ZOOM = 0.35;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.05;
 
@@ -47,8 +48,7 @@ function EditablePdfHotspot({ candidate, active, enabled, mode, draftName, onSel
   const canInteract = enabled && active;
   const begin = (event: React.PointerEvent<HTMLButtonElement>, action: "move" | "edit") => {
     event.preventDefault(); event.stopPropagation();
-    if (!enabled) { onSelect(); return; }
-    if (!active) { onSelect(); return; }
+    if (!enabled || !active) { onSelect(); return; }
     if (mode !== action) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     drag.current = { pointerX: event.clientX, pointerY: event.clientY, rect, mode: action };
@@ -97,10 +97,10 @@ function EditablePdfHotspot({ candidate, active, enabled, mode, draftName, onSel
   };
   const handles = [["nw", "-left-1 -top-1 cursor-nwse-resize"], ["n", "left-1/2 -top-1 -translate-x-1/2 cursor-ns-resize"], ["ne", "-right-1 -top-1 cursor-nesw-resize"], ["w", "-left-1 top-1/2 -translate-y-1/2 cursor-ew-resize"], ["e", "-right-1 top-1/2 -translate-y-1/2 cursor-ew-resize"], ["sw", "-left-1 -bottom-1 cursor-nesw-resize"], ["s", "left-1/2 -bottom-1 -translate-x-1/2 cursor-ns-resize"], ["se", "-right-1 -bottom-1 cursor-nwse-resize"]] as const;
   return <div className={"absolute z-30 " + (!enabled ? "opacity-40" : "")} style={{ left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.width * 100}%`, height: `${rect.height * 100}%` }}>
-    <button type="button" aria-label={active ? "Selected menu area" : "Select menu area"} onClick={(event) => { event.stopPropagation(); onSelect(); }} onPointerDown={(event) => begin(event, "move")} onPointerMove={move} onPointerUp={end} onPointerCancel={end} className={`absolute inset-0 rounded-lg border-2 transition ${active ? "border-primary bg-primary/12 shadow-[0_0_0_3px_hsl(var(--primary)/.12)]" : "border-primary/45 bg-primary/5 hover:border-primary"} ${!enabled ? "border-dashed" : ""}`}>
-      {active && <span className="absolute -top-6 left-0 max-w-[210px] truncate rounded-md bg-foreground px-2 py-1 text-[10px] font-bold text-background shadow-sm">{draftName || "Selected area"}</span>}
+    <button type="button" aria-label={active ? "Active menu area" : "Choose menu area"} onClick={(event) => { event.stopPropagation(); onSelect(); }} onPointerDown={(event) => begin(event, "move")} onPointerMove={move} onPointerUp={end} onPointerCancel={end} className={`absolute inset-0 rounded-lg border-2 transition ${active ? "border-primary bg-primary/12 shadow-[0_0_0_3px_hsl(var(--primary)/.12)]" : "border-primary/45 bg-primary/5 hover:border-primary"} ${!enabled ? "border-dashed" : ""}`}>
+      {active && <span className="absolute -top-6 left-0 max-w-[210px] truncate rounded-md bg-foreground px-2 py-1 text-[10px] font-bold text-background shadow-sm">{draftName || "Active area"}</span>}
     </button>
-    {active && mode === "edit" && enabled && handles.map(([handle, position]) => <button key={handle} type="button" aria-label={`Resize selected area ${handle}`} onPointerDown={(event) => resize(event, handle)} onPointerMove={resizeMove} onPointerUp={end} onPointerCancel={end} className={`absolute z-50 size-3 rounded-full border-2 border-background bg-primary shadow ${position}`} />)}
+    {active && mode === "edit" && enabled && handles.map(([handle, position]) => <button key={handle} type="button" aria-label={`Resize active area ${handle}`} onPointerDown={(event) => resize(event, handle)} onPointerMove={resizeMove} onPointerUp={end} onPointerCancel={end} className={`absolute z-50 size-3 rounded-full border-2 border-background bg-primary shadow ${position}`} />)}
   </div>;
 }
 
@@ -117,7 +117,7 @@ export function PdfMenuManagerV2({ restaurantId }: { restaurantId: string }) {
   const [fileParts, setFileParts] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [page, setPage] = useState(1);
-  const [zoom, setZoom] = useState(0.85);
+  const [zoom, setZoom] = useState(0.55);
   const [selecting, setSelecting] = useState(false);
   const [interactionMode, setInteractionMode] = useState<InteractionMode>("select");
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
@@ -169,6 +169,15 @@ export function PdfMenuManagerV2({ restaurantId }: { restaurantId: string }) {
   const activeCandidate = activeId ? analysis.candidates.find((c) => c.id === activeId) ?? null : null;
   const savedCount = Object.keys(drafts).length;
 
+  function fitPage() {
+    const width = typeof window === "undefined" ? 1200 : window.innerWidth;
+    setZoom(width < 640 ? 0.36 : width < 1024 ? 0.45 : width < 1440 ? 0.55 : 0.65);
+  }
+  function fitWidth() {
+    const width = typeof window === "undefined" ? 1200 : window.innerWidth;
+    setZoom(width < 640 ? 0.43 : width < 1024 ? 0.58 : width < 1440 ? 0.72 : 0.86);
+  }
+
   async function handleFile(nextFile?: File) {
     if (!nextFile) return;
     if (nextFile.type !== "application/pdf" && !nextFile.name.toLowerCase().endsWith(".pdf")) { toast.error("Please upload a PDF menu."); return; }
@@ -179,7 +188,7 @@ export function PdfMenuManagerV2({ restaurantId }: { restaurantId: string }) {
       const nextAnalysis: PdfMenuAnalysis = { page_count: pdf.numPages, pages: [], candidates: [] };
       const { data, error } = await (supabase as any).from("menu_pdf_documents").upsert({ restaurant_id: restaurantId, file_url: uploaded.url, file_parts: uploaded.parts, file_name: nextFile.name, page_count: pdf.numPages, analysis: nextAnalysis, is_active: true }, { onConflict: "restaurant_id" }).select("id,file_url,file_parts,file_name,page_count,analysis,is_active").single();
       if (error) throw error;
-      setDocumentRow(data as DocumentRow); setFile(nextFile); setFileUrl(uploaded.url); setFileParts(uploaded.parts); setAnalysis(nextAnalysis); setDrafts({}); setEnabledMap({}); setPage(1); setZoom(0.85); setSelecting(true); setInteractionMode("select"); setActiveId(null);
+      setDocumentRow(data as DocumentRow); setFile(nextFile); setFileUrl(uploaded.url); setFileParts(uploaded.parts); setAnalysis(nextAnalysis); setDrafts({}); setEnabledMap({}); setPage(1); setZoom(0.55); setSelecting(true); setInteractionMode("select"); setActiveId(null);
       toast.success(`${pdf.numPages} page${pdf.numPages === 1 ? "" : "s"} ready. Select your first product.`);
     } catch (error) { toast.error(humanError(error)); } finally { setSaving(false); if (inputRef.current) inputRef.current.value = ""; }
   }
@@ -207,7 +216,7 @@ export function PdfMenuManagerV2({ restaurantId }: { restaurantId: string }) {
   }
   function updateDraft(patch: Partial<Product>) { if (!activeId) return; setDrafts((current) => ({ ...current, [activeId]: { ...(current[activeId] ?? emptyProduct(activeId)), ...patch } })); }
   function updateCandidate(id: string, rect: Rect) { setAnalysis((current) => ({ ...current, candidates: current.candidates.map((c) => c.id === id ? { ...c, ...rect } : c) })); }
-  function setSelectedMode(mode: InteractionMode) { if (!activeId) return; setInteractionMode(mode); setSelecting(false); }
+  function setActiveMode(mode: InteractionMode) { if (!activeId) return; setInteractionMode(mode); setSelecting(false); }
   function toggleEnabled() { if (!activeId) return; setEnabledMap((current) => ({ ...current, [activeId]: !(current[activeId] ?? true) })); }
 
   async function saveProduct() {
@@ -232,54 +241,59 @@ export function PdfMenuManagerV2({ restaurantId }: { restaurantId: string }) {
     try { const { error: rError } = await supabase.from("restaurants").update({ tax_rate: tax, service_charge: service }).eq("id", restaurantId); if (rError) throw rError; const { data: settings, error: sError } = await supabase.from("restaurant_settings").select("id").eq("restaurant_id", restaurantId).maybeSingle(); if (sError) throw sError; if (settings?.id) { const { error } = await supabase.from("restaurant_settings").update({ enable_service_charge: serviceEnabled }).eq("id", settings.id); if (error) throw error; } else { const { error } = await supabase.from("restaurant_settings").insert({ restaurant_id: restaurantId, enable_service_charge: serviceEnabled }); if (error) throw error; } await queryClient.invalidateQueries({ queryKey: ["platform", "restaurant-menu-charges", restaurantId] }); toast.success("Menu charges saved. They apply to the whole menu."); } catch (error) { toast.error(humanError(error)); } finally { setChargesSaving(false); }
   }
 
-  if (existing.isPending) return <Skeleton className="mx-auto h-[70vh] max-w-7xl rounded-[30px]" />;
+  if (existing.isPending) return <Skeleton className="mx-auto h-[70vh] max-w-[1600px] rounded-[30px]" />;
 
-  return <div className="mx-auto max-w-7xl space-y-4 pb-20">
-    <div className="rounded-[30px] border bg-card p-4 shadow-sm sm:p-6">
+  return <div className="mx-auto max-w-[1600px] space-y-4 pb-24">
+    <div className="rounded-[26px] border bg-card p-4 shadow-sm sm:p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0"><div className="flex items-center gap-2"><Badge className="rounded-full">Interactive mode</Badge><span className="text-xs font-medium text-muted-foreground">Select • Move • Edit</span></div><h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Interactive PDF Menu</h1><p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">Keep the original menu design and place precise clickable areas. Click an area to select it, then choose exactly how you want to customize it.</p></div>
+        <div className="min-w-0"><div className="flex items-center gap-2"><Badge className="rounded-full">Interactive PDF</Badge><span className="text-xs font-medium text-muted-foreground">Preview • Select Area • Link Product</span></div><h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Clickable PDF Menu</h1><p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">The full menu page is the primary workspace. Keep the original design visible while creating precise clickable product areas.</p></div>
         <div className="flex shrink-0 gap-2"><input ref={inputRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => void handleFile(e.target.files?.[0])}/><Button onClick={() => inputRef.current?.click()} disabled={saving}><Upload className="mr-2 size-4"/>{documentRow ? "Replace PDF" : "Upload PDF"}</Button></div>
       </div>
       {documentRow ? <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl bg-muted/60 p-4"><p className="text-xs text-muted-foreground">PDF</p><p className="mt-1 truncate font-bold">{documentRow.file_name}</p></div><div className="rounded-2xl bg-muted/60 p-4"><p className="text-xs text-muted-foreground">Pages</p><p className="mt-1 font-bold">{documentRow.page_count}</p></div><div className="rounded-2xl bg-muted/60 p-4"><p className="text-xs text-muted-foreground">Clickable areas</p><p className="mt-1 font-bold">{savedCount}</p></div></div> : <button onClick={() => inputRef.current?.click()} className="mt-5 flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-10 text-sm font-bold text-muted-foreground transition hover:bg-muted/50"><FileText className="size-5"/>Upload your original PDF to start</button>}
     </div>
 
     {documentRow && <>
-      <div className="rounded-[30px] border bg-card shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3 sm:p-4">
+      <div className="overflow-hidden rounded-[26px] border bg-card shadow-sm">
+        <div className="sticky top-[70px] z-20 flex flex-wrap items-center justify-between gap-3 border-b bg-card/95 p-3 backdrop-blur sm:p-4 lg:static">
           <div className="flex items-center gap-2"><Button size="icon" variant="outline" disabled={page <= 1} onClick={() => { setPage((p) => p - 1); setActiveId(null); setSelecting(false); }}><ChevronLeft className="size-4"/></Button><span className="min-w-24 text-center text-sm font-bold">Page {page} / {documentRow.page_count}</span><Button size="icon" variant="outline" disabled={page >= documentRow.page_count} onClick={() => { setPage((p) => p + 1); setActiveId(null); setSelecting(false); }}><ChevronRight className="size-4"/></Button></div>
-          <div className="flex flex-wrap items-center gap-2"><div className="flex items-center rounded-xl border bg-background p-1"><Button size="icon" variant="ghost" disabled={zoom <= MIN_ZOOM} onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))}><ZoomOut className="size-4"/></Button><button className="min-w-14 px-1 text-xs font-black tabular-nums" onClick={() => setZoom(0.85)}>{Math.round(zoom * 100)}%</button><Button size="icon" variant="ghost" disabled={zoom >= MAX_ZOOM} onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}><ZoomIn className="size-4"/></Button></div><Button variant={selecting ? "default" : "outline"} onClick={() => { setActiveId(null); setSelecting(true); setInteractionMode("select"); }}><MousePointer2 className="mr-2 size-4"/>New area</Button></div>
+          <div className="no-scrollbar flex max-w-full items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+            <Button size="sm" variant="outline" className="shrink-0" onClick={fitPage}><Maximize2 className="mr-1.5 size-3.5"/>Fit Page</Button>
+            <Button size="sm" variant="outline" className="shrink-0" onClick={fitWidth}>Fit Width</Button>
+            <div className="flex shrink-0 items-center rounded-xl border bg-background p-1"><Button size="icon" variant="ghost" disabled={zoom <= MIN_ZOOM} onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))}><ZoomOut className="size-4"/></Button><button className="min-w-14 px-1 text-xs font-black tabular-nums" onClick={fitPage}>{Math.round(zoom * 100)}%</button><Button size="icon" variant="ghost" disabled={zoom >= MAX_ZOOM} onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}><ZoomIn className="size-4"/></Button></div>
+            <Button className="shrink-0" variant={selecting ? "default" : "outline"} onClick={() => { setActiveId(null); setSelecting(true); setInteractionMode("select"); }}><MousePointer2 className="mr-2 size-4"/>New Area</Button>
+          </div>
         </div>
 
-        <div className="grid gap-4 p-3 lg:grid-cols-[minmax(0,1fr)_360px] lg:p-5">
-          <div className="overflow-auto rounded-2xl bg-muted/40 p-3 sm:p-5">
-            <div className="flex min-h-[60vh] min-w-0 items-start justify-center overflow-visible">
+        <div className="grid min-w-0 gap-4 p-2 sm:p-3 xl:grid-cols-[minmax(0,2.35fr)_minmax(320px,.8fr)] xl:p-5">
+          <div className="min-w-0 overflow-auto rounded-2xl bg-muted/40 p-2 sm:p-4 xl:max-h-[calc(100dvh-190px)] xl:min-h-[720px]">
+            <div className="flex min-h-[70vh] min-w-0 items-start justify-center overflow-visible py-2 sm:py-4">
               <div ref={stageRef} className="relative w-fit touch-none select-none" style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
-                <canvas ref={canvasRef} className="block max-w-none rounded-md bg-white shadow-xl" />
+                <canvas ref={canvasRef} className="block max-w-none rounded-lg bg-white shadow-xl ring-1 ring-black/5" />
                 {pageCandidates.map((candidate) => <EditablePdfHotspot key={candidate.id} candidate={candidate} active={activeId === candidate.id} enabled={enabledMap[candidate.id] ?? true} mode={interactionMode} draftName={drafts[candidate.id]?.name_en || drafts[candidate.id]?.name_ar || "Product"} onSelect={() => { setActiveId(candidate.id); setSelecting(false); setInteractionMode("select"); }} onChange={(rect) => updateCandidate(candidate.id, rect)} stageRef={stageRef}/>) }
                 {dragRect && <div className="pointer-events-none absolute z-40 rounded-lg border-2 border-dashed border-primary bg-primary/10" style={{ left: `${dragRect.x * 100}%`, top: `${dragRect.y * 100}%`, width: `${dragRect.width * 100}%`, height: `${dragRect.height * 100}%` }}/>} 
               </div>
             </div>
           </div>
 
-          <aside className="space-y-3">
-            {activeId && activeCandidate && active ? <>
+          {activeId && activeCandidate && active ? <>
+            <button type="button" aria-label="Close area editor" onClick={() => { setActiveId(null); setInteractionMode("select"); }} className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px] xl:hidden" />
+            <aside className={cn("space-y-3 overflow-y-auto", "fixed inset-x-2 bottom-[calc(78px+env(safe-area-inset-bottom))] z-50 max-h-[76dvh] rounded-3xl border bg-background p-3 shadow-2xl", "xl:sticky xl:top-24 xl:z-auto xl:max-h-[calc(100dvh-120px)] xl:self-start xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none")}>
               <div className="rounded-2xl border bg-background p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Selected area</p><h2 className="mt-1 truncate text-lg font-black">{active.name_en || active.name_ar || "New product"}</h2></div><button className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted" onClick={() => { setActiveId(null); setInteractionMode("select"); }}><X className="size-4"/></button></div>
-                <div className="mt-4 grid grid-cols-3 gap-2"><Button size="sm" variant={interactionMode === "move" ? "default" : "outline"} onClick={() => setSelectedMode("move")}><Move className="mr-1.5 size-3.5"/>Move</Button><Button size="sm" variant={interactionMode === "edit" ? "default" : "outline"} onClick={() => setSelectedMode("edit")}><Edit3 className="mr-1.5 size-3.5"/>Edit</Button><Button size="sm" variant={enabledMap[activeId] ?? true ? "outline" : "secondary"} onClick={toggleEnabled}>{enabledMap[activeId] ?? true ? <><Check className="mr-1.5 size-3.5"/>On</> : "Off"}</Button></div>
-                <p className="mt-3 text-xs leading-5 text-muted-foreground">{interactionMode === "move" ? "Drag inside the selected box to reposition it." : interactionMode === "edit" ? "Drag the handles to resize the selected box." : "Select Move or Edit to customize this area."}</p>
+                <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Active area</p><h2 className="mt-1 truncate text-lg font-black">{active.name_en || active.name_ar || "New product"}</h2></div><button className="grid size-10 place-items-center rounded-xl text-muted-foreground hover:bg-muted" onClick={() => { setActiveId(null); setInteractionMode("select"); }}><X className="size-4"/></button></div>
+                <div className="mt-4 grid grid-cols-3 gap-2"><Button size="sm" variant={interactionMode === "move" ? "default" : "outline"} onClick={() => setActiveMode("move")}><Move className="mr-1.5 size-3.5"/>Move</Button><Button size="sm" variant={interactionMode === "edit" ? "default" : "outline"} onClick={() => setActiveMode("edit")}><Edit3 className="mr-1.5 size-3.5"/>Edit</Button><Button size="sm" variant={enabledMap[activeId] ?? true ? "outline" : "secondary"} onClick={toggleEnabled}>{enabledMap[activeId] ?? true ? <><Check className="mr-1.5 size-3.5"/>On</> : "Off"}</Button></div>
+                <p className="mt-3 text-xs leading-5 text-muted-foreground">{interactionMode === "move" ? "Drag inside the active box to reposition it." : interactionMode === "edit" ? "Drag the handles to resize the active box." : "Choose Move or Edit to customize this area."}</p>
               </div>
               <div className="rounded-2xl border bg-background p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between"><h3 className="font-black">Product details</h3>{reading && <Loader2 className="size-4 animate-spin text-primary"/>}</div>
+                <div className="mb-3 flex items-center justify-between"><h3 className="font-black">Product Details</h3>{reading && <Loader2 className="size-4 animate-spin text-primary"/>}</div>
                 <div className="space-y-3"><Input placeholder="Name (English)" value={active.name_en} onChange={(e) => updateDraft({ name_en: e.target.value })}/><Input placeholder="Name (Arabic)" value={active.name_ar} onChange={(e) => updateDraft({ name_ar: e.target.value })}/><Textarea placeholder="Description (English)" value={active.description_en ?? ""} onChange={(e) => updateDraft({ description_en: e.target.value })}/><Textarea placeholder="Description (Arabic)" value={active.description_ar ?? ""} onChange={(e) => updateDraft({ description_ar: e.target.value })}/><Input type="number" min="0" step="0.01" placeholder="Price" value={active.price ?? ""} onChange={(e) => updateDraft({ price: e.target.value === "" ? null : Number(e.target.value) })}/></div>
-                <div className="mt-4 grid grid-cols-2 gap-2"><Button onClick={() => void saveProduct()} disabled={saving || reading}><Save className="mr-2 size-4"/>Save</Button><Button variant="outline" onClick={() => void deleteProduct(activeId)} disabled={saving}><Trash2 className="mr-2 size-4"/>Delete</Button></div>
+                <div className="safe-bottom sticky bottom-0 mt-4 grid grid-cols-2 gap-2 border-t border-border bg-background/95 pt-3 backdrop-blur"><Button onClick={() => void saveProduct()} disabled={saving || reading}><Save className="mr-2 size-4"/>Save</Button><Button variant="outline" onClick={() => void deleteProduct(activeId)} disabled={saving}><Trash2 className="mr-2 size-4"/>Delete</Button></div>
               </div>
-            </> : <div className="rounded-2xl border bg-background p-5 shadow-sm"><div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><MousePointer2 className="size-5"/></div><h2 className="mt-3 font-black">Simple area control</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">Click an existing area to select it. Use <b>Move</b> to reposition, <b>Edit</b> to resize, or <b>On/Off</b> to control whether it is clickable.</p><Button className="mt-4 w-full" onClick={() => { setSelecting(true); setInteractionMode("select"); setActiveId(null); }}>Create new area</Button></div>}
-            <div className="rounded-2xl border bg-muted/30 p-4"><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tip</p><p className="mt-1 text-sm leading-6 text-muted-foreground">Zoom can go down to <b>40%</b>. This makes it easier to work with large menus without losing the full-page view.</p></div>
-          </aside>
+            </aside>
+          </> : <aside className="space-y-3 xl:sticky xl:top-24 xl:self-start"><div className="rounded-2xl border bg-background p-5 shadow-sm"><div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><MousePointer2 className="size-5"/></div><h2 className="mt-3 font-black">Area Controls</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">The complete PDF stays visible. Choose an existing area or create a new one, then move, resize, enable, or link product details.</p><Button className="mt-4 w-full" onClick={() => { setSelecting(true); setInteractionMode("select"); setActiveId(null); }}>Create New Area</Button></div><div className="rounded-2xl border bg-muted/30 p-4"><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preview Tip</p><p className="mt-1 text-sm leading-6 text-muted-foreground">Use <b>Fit Page</b> to keep the entire menu visible, then zoom in only when precise hotspot editing is needed.</p></div></aside>}
         </div>
       </div>
 
-      <div className="rounded-[30px] border bg-card p-5 shadow-sm"><div className="flex items-center gap-2"><Settings2 className="size-5 text-primary"/><h2 className="text-lg font-black">Menu charges</h2></div><p className="mt-1 text-sm text-muted-foreground">These settings apply to the whole menu.</p><div className="mt-4 grid gap-3 sm:grid-cols-3"><div><label className="mb-1.5 block text-xs font-bold text-muted-foreground">Tax %</label><Input type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))}/></div><div><label className="mb-1.5 block text-xs font-bold text-muted-foreground">Service charge %</label><Input type="number" min="0" max="100" step="0.01" value={serviceRate} onChange={(e) => setServiceRate(Number(e.target.value))}/></div><div className="flex items-end gap-2"><Button variant={serviceEnabled ? "default" : "outline"} className="flex-1" onClick={() => setServiceEnabled((v) => !v)}>{serviceEnabled ? "Service charge ON" : "Service charge OFF"}</Button><Button onClick={() => void saveCharges()} disabled={chargesSaving}>{chargesSaving ? <Loader2 className="size-4 animate-spin"/> : "Save"}</Button></div></div></div>
+      <div className="rounded-[26px] border bg-card p-5 shadow-sm"><div className="flex items-center gap-2"><Settings2 className="size-5 text-primary"/><h2 className="text-lg font-black">Menu Charges</h2></div><p className="mt-1 text-sm text-muted-foreground">These settings apply to the whole PDF menu.</p><div className="mt-4 grid gap-3 sm:grid-cols-3"><div><label className="mb-1.5 block text-xs font-bold text-muted-foreground">Tax %</label><Input type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))}/></div><div><label className="mb-1.5 block text-xs font-bold text-muted-foreground">Service Charge %</label><Input type="number" min="0" max="100" step="0.01" value={serviceRate} onChange={(e) => setServiceRate(Number(e.target.value))}/></div><div className="flex items-end gap-2"><Button variant={serviceEnabled ? "default" : "outline"} className="flex-1" onClick={() => setServiceEnabled((v) => !v)}>{serviceEnabled ? "Service charge ON" : "Service charge OFF"}</Button><Button onClick={() => void saveCharges()} disabled={chargesSaving}>{chargesSaving ? <Loader2 className="size-4 animate-spin"/> : "Save"}</Button></div></div></div>
     </>}
   </div>;
 }
