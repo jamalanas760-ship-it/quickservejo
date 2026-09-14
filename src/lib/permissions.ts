@@ -5,11 +5,12 @@
 export type AppRole = "super_admin" | "restaurant_admin" | "manager" | "kitchen" | "waiter" | "cashier";
 export type SubscriptionPlan = "free" | "basic" | "professional" | "enterprise";
 
+/** User-facing account classes are Super Admin, Admin and Staff. Operational DB roles remain backward-compatible. */
 export const ROLE_LABELS: Record<AppRole,{en:string;ar:string}> = {
- super_admin:{en:"Owner",ar:"المالك"}, restaurant_admin:{en:"Admin",ar:"المدير"}, manager:{en:"Manager",ar:"مشرف"},
- kitchen:{en:"Staff",ar:"الموظف"}, waiter:{en:"Staff",ar:"الموظف"}, cashier:{en:"Staff",ar:"الموظف"},
+ super_admin:{en:"Super Admin",ar:"المشرف العام"}, restaurant_admin:{en:"Admin",ar:"مدير"}, manager:{en:"Staff",ar:"موظف"},
+ kitchen:{en:"Staff",ar:"موظف"}, waiter:{en:"Staff",ar:"موظف"}, cashier:{en:"Staff",ar:"موظف"},
 };
-export const ROLE_HOME:Record<AppRole,string>={super_admin:"/super-admin",restaurant_admin:"/",manager:"/kitchen",kitchen:"/kitchen",waiter:"/waiter",cashier:"/cashier"};
+export const ROLE_HOME:Record<AppRole,string>={super_admin:"/super-admin",restaurant_admin:"/dashboard",manager:"/kitchen",kitchen:"/kitchen",waiter:"/waiter",cashier:"/cashier"};
 export type Capability="manage_platform"|"manage_restaurant"|"manage_menu"|"manage_tables"|"manage_staff"|"manage_appearance"|"view_analytics"|"view_orders"|"view_order_prices"|"update_order_status"|"manage_payments"|"handle_waiter_calls";
 const ROLE_CAPABILITIES:Record<AppRole,Capability[]>={
  super_admin:["manage_platform","manage_restaurant","manage_menu","manage_tables","manage_staff","manage_appearance","view_analytics","view_orders","view_order_prices","update_order_status","manage_payments","handle_waiter_calls"],
