@@ -14,9 +14,6 @@ export const Route = createFileRoute("/_authenticated")({
     try {
       user = await getResilientAuthenticatedUser();
     } catch (error) {
-      // A temporary Auth/transport outage must not escape the route guard as a
-      // runtime error. Keep authentication authoritative and send the user to
-      // the usable sign-in/recovery screen while preserving the return target.
       if (isAuthNetworkError(error)) {
         throw redirect({ to: "/auth", search: { redirect: location.href } });
       }
@@ -34,9 +31,6 @@ function AuthenticatedShell() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { roles, isPending, isError } = useAccess();
-
-  // Never infer permissions from an empty role set caused by a temporary
-  // database/network failure. Only redirect once access data resolved cleanly.
   const accessResolved = !isPending && !isError;
   const staff = accessResolved && isFrontlineOnly(roles);
   const staffBlocked = staff && STAFF_BLOCKED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -50,13 +44,12 @@ function AuthenticatedShell() {
   useEffect(() => {
     if (staffBlocked || roleRouteBlocked) {
       void navigate({ to: frontlineHome(roles), replace: true });
-      return;
     }
   }, [navigate, roles, roleRouteBlocked, staffBlocked]);
 
   return (
     <TenantBrandShell>
-      <div className="pb-24 lg:pb-0">{blocked ? null : <Outlet />}</div>
+      <div className="pb-24 lg:min-h-dvh lg:ps-[236px] lg:pb-0">{blocked ? null : <Outlet />}</div>
       <BottomNav />
     </TenantBrandShell>
   );
