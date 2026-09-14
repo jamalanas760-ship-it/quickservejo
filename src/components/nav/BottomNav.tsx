@@ -36,19 +36,21 @@ export function BottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const access = useAccess();
   const session = useSupabaseSession();
-  if (access.isPending || access.isSuperAdmin) return null;
 
   const frontline = isFrontlineOnly(access.roles);
   const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
   const membership = (access.data ?? []).find(
     (row) => row.restaurant_id && row.restaurant && (!selectedId || row.restaurant_id === selectedId),
   );
-  const adminMembership = (access.data ?? []).find((row) => row.role === "restaurant_admin" && row.restaurant_id && row.restaurant);
+  const adminMembership = (access.data ?? []).find(
+    (row) => row.role === "restaurant_admin" && row.restaurant_id && row.restaurant,
+  );
   const current = membership ?? adminMembership ?? (access.data ?? []).find((row) => row.restaurant_id && row.restaurant);
-  const restaurant = current?.restaurant;
   const restaurantId = current?.restaurant_id ?? null;
   const report = useWorkspaceReport(restaurantId);
   const openOrders = report.data?.openOrders ?? 0;
+
+  if (access.isPending || access.isSuperAdmin) return null;
 
   const desktopItems: Item[] = restaurantId
     ? [
