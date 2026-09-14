@@ -9,7 +9,7 @@ import { avatarPresetUrl } from "@/lib/avatar-presets";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
-function RoleAvatarFallback({ role, superAdmin }: { role?: string | null; superAdmin: boolean }) {
+function RoleAvatarFallback({ role, superAdmin }: { role: string | null | undefined; superAdmin: boolean }) {
   const iconClass = "size-[18px]";
   if (superAdmin || role === "restaurant_admin") return <ShieldCheck className={iconClass} />;
   if (role === "manager") return <UserRoundCog className={iconClass} />;
