@@ -3,7 +3,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import {
   IdCard,
-  KeyRound,
   MoreVertical,
   Pencil,
   Plus,
@@ -28,7 +27,6 @@ import {
   inviteStaffMember,
   checkStaffManagementAccess,
   removeStaffMember,
-  resetStaffPassword,
   updateStaffMember,
 } from "@/lib/staff.functions";
 import { formatDate } from "@/lib/format";
@@ -73,7 +71,6 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
   const checkAccess = useServerFn(checkStaffManagementAccess);
   const [checking, setChecking] = useState(false);
   const update = useServerFn(updateStaffMember);
-  const reset = useServerFn(resetStaffPassword);
   const remove = useServerFn(removeStaffMember);
   const readAccess = useServerFn(getStaffAccess);
   const [open, setOpen] = useState(false);
@@ -134,6 +131,24 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
   }
   async function saveEdit() {
     if (!editing) return;
+    const newPassword = String(editing.password ?? "");
+    const confirmPassword = String(editing.confirmPassword ?? "");
+
+    if (newPassword && newPassword.length < 8) {
+      toast.error(
+        lang === "ar"
+          ? "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل."
+          : "Password must be at least 8 characters.",
+      );
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error(
+        lang === "ar" ? "كلمتا المرور غير متطابقتين." : "Passwords do not match.",
+      );
+      return;
+    }
+
     setBusy(true);
     try {
       await update({
@@ -143,23 +158,24 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
           email: editing.email,
           role: editing.role,
           isActive: editing.is_active,
+          ...(newPassword ? { password: newPassword } : {}),
         },
       });
       setEditing(null);
       await refresh();
-      toast.success(lang === "ar" ? "تم تحديث صلاحيات الموظف" : "Staff access updated");
+      toast.success(
+        lang === "ar"
+          ? newPassword
+            ? "تم تحديث الموظف وكلمة المرور"
+            : "تم تحديث صلاحيات الموظف"
+          : newPassword
+            ? "Staff details and password updated"
+            : "Staff access updated",
+      );
     } catch (e) {
       toast.error(humanError(e, lang));
     } finally {
       setBusy(false);
-    }
-  }
-  async function password(id: string, name: string) {
-    try {
-      const r = await reset({ data: { staffId: id } });
-      setCredentials({ name, email: r.email, password: r.password });
-    } catch (e) {
-      toast.error(humanError(e, lang));
     }
   }
   async function del(id: string, name: string) {
@@ -257,24 +273,15 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                   <MoreVertical className="size-5" />
                 </button>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-2 border-t pt-4 sm:grid-cols-4">
+              <div className="mt-4 grid grid-cols-1 gap-2 border-t pt-4 sm:grid-cols-3">
                 <Button
                   size="sm"
                   variant="outline"
                   disabled={m.role === "restaurant_admin" && !isSuperAdmin}
-                  onClick={() => setEditing({ ...m })}
+                  onClick={() => setEditing({ ...m, password: "", confirmPassword: "" })}
                 >
                   <Pencil className="size-4" />
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={m.role === "restaurant_admin" && !isSuperAdmin}
-                  onClick={() => void password(m.id, m.name)}
-                >
-                  <KeyRound className="size-4" />
-                  Reset
+                  {lang === "ar" ? "تعديل" : "Edit"}
                 </Button>
                 <Button
                   size="sm"
@@ -283,7 +290,7 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                   onClick={() => void openAccess(m.id)}
                 >
                   <IdCard className="size-4" />
-                  Access
+                  {lang === "ar" ? "الوصول" : "Access"}
                 </Button>
                 <Button
                   size="sm"
@@ -293,7 +300,7 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                   onClick={() => setPending(m)}
                 >
                   <Trash2 className="size-4" />
-                  Delete
+                  {lang === "ar" ? "حذف" : "Delete"}
                 </Button>
               </div>
             </article>
@@ -366,21 +373,21 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
             </DialogTitle>
             <DialogDescription>
               {lang === "ar"
-                ? "حدد الدور وحالة الوصول لهذا المطعم فقط."
-                : "Set this person's role and access for this restaurant only."}
+                ? "عدّل بيانات الموظف وصلاحياته، ويمكنك تعيين كلمة مرور جديدة عند الحاجة."
+                : "Edit this person's details and access, and set a new password when needed."}
             </DialogDescription>
           </DialogHeader>
           {editing && (
             <div className="space-y-3">
               <div>
-                <Label>Name</Label>
+                <Label>{lang === "ar" ? "الاسم" : "Name"}</Label>
                 <Input
                   value={editing.name ?? ""}
                   onChange={(e) => setEditing({ ...editing, name: e.target.value })}
                 />
               </div>
               <div>
-                <Label>Email</Label>
+                <Label>{lang === "ar" ? "البريد الإلكتروني" : "Email"}</Label>
                 <Input
                   type="email"
                   value={editing.email ?? ""}
@@ -388,7 +395,7 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                 />
               </div>
               <div>
-                <Label>Role</Label>
+                <Label>{lang === "ar" ? "الدور" : "Role"}</Label>
                 <Select
                   value={editing.role}
                   onValueChange={(v) => setEditing({ ...editing, role: v as AppRole })}
@@ -405,6 +412,31 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label>{lang === "ar" ? "كلمة المرور الجديدة" : "New password"}</Label>
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    value={editing.password ?? ""}
+                    onChange={(e) => setEditing({ ...editing, password: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>{lang === "ar" ? "تأكيد كلمة المرور" : "Confirm password"}</Label>
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    value={editing.confirmPassword ?? ""}
+                    onChange={(e) => setEditing({ ...editing, confirmPassword: e.target.value })}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {lang === "ar"
+                  ? "اترك الحقلين فارغين للإبقاء على كلمة المرور الحالية. الحد الأدنى 8 أحرف."
+                  : "Leave both fields blank to keep the current password. Minimum 8 characters."}
+              </p>
               <label className="flex items-center justify-between rounded-2xl border p-3">
                 <span className="text-sm font-medium">
                   {lang === "ar" ? "وصول نشط" : "Active access"}
@@ -423,7 +455,13 @@ export function StaffManager({ restaurantId }: { restaurantId: string }) {
               {t("common.cancel")}
             </Button>
             <Button disabled={busy} onClick={() => void saveEdit()}>
-              {lang === "ar" ? "حفظ التغييرات" : "Save changes"}
+              {busy
+                ? lang === "ar"
+                  ? "جارٍ الحفظ…"
+                  : "Saving…"
+                : lang === "ar"
+                  ? "حفظ التغييرات"
+                  : "Save changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
