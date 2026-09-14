@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertStaffCredentialScope, findStaffAuthUser } from "@/lib/staff-security";
+import { quickServeSupabase } from "@/integrations/supabase/public-config";
 
 const inviteSchema = z.object({
   restaurantId: z.string().uuid(),
@@ -12,265 +12,7 @@ const inviteSchema = z.object({
 });
 
 const staffRefSchema = z.object({ staffId: z.string().uuid() });
-
-/** Readable but strong temporary password shared with the staff member. */
-function generatePassword(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-  const bytes = new Uint8Array(14);
-  crypto.getRandomValues(bytes);
-  const body = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
-  return `Qs-${body}!7`;
-}
-
-/** Throws unless the caller may manage staff for the given restaurant. */
-async function assertCanManage(
-  supabase: { rpc: (fn: "is_platform_owner") => Promise<{ data: unknown; error: unknown }>; from: Function },
-  userId: string,
-  restaurantId: string,
-): Promise<boolean> {
-  const owner = await supabase.rpc("is_platform_owner");
-  if (owner.error) throw owner.error;
-  if (owner.data) return true;
-
-  const { data: rows, error } = await supabase
-    .from("staff")
-    .select("role")
-    .eq("restaurant_id", restaurantId)
-    .eq("auth_user_id", userId)
-    .eq("is_active", true);
-  if (error) throw error;
-  const allowed = ((rows ?? []) as { role: string }[]).some((r) => r.role === "restaurant_admin");
-  if (!allowed) throw new Error("Forbidden");
-  return false;
-}
-
-/**
- * Creates (or links) an auth user and attaches a staff row for one restaurant.
- * Returns the sign-in credentials so the manager can hand them over directly.
- */
-export const inviteStaffMember = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => inviteSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const isPlatformOwner = await assertCanManage(supabase as never, userId, data.restaurantId);
-    if (data.role === "restaurant_admin" && !isPlatformOwner) {
-      throw new Error("Only the Super Admin can grant Admin access");
-    }
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    // Give immediate, readable feedback before creating or changing an Auth
-    // account. The database trigger repeats this check under a lock.
-    const [restaurant, usage] = await Promise.all([
-      supabaseAdmin.from("restaurants").select("seat_limit").eq("id", data.restaurantId).single(),
-      supabaseAdmin.from("staff").select("id", { count: "exact", head: true }).eq("restaurant_id", data.restaurantId).eq("is_active", true),
-    ]);
-    if (restaurant.error) throw restaurant.error;
-    if (usage.error) throw usage.error;
-    if (restaurant.data.seat_limit === null) throw new Error("The Super Admin must configure this restaurant's user limit before adding users.");
-    if (usage.count === null) throw new Error("Restaurant user usage could not be verified");
-    if (usage.count >= restaurant.data.seat_limit) {
-      throw new Error(`Restaurant user limit reached (${restaurant.data.seat_limit} active users)`);
-    }
-
-    const email = data.email.trim().toLowerCase();
-    const password = generatePassword();
-
-    // Reuse an existing auth account when the person already signed up.
-    let authUserId = await findStaffAuthUser(supabaseAdmin.auth.admin, email);
-    let passwordIsNew = true;
-
-    if (authUserId) {
-      const membership = await supabaseAdmin.from("staff").select("id").eq("restaurant_id", data.restaurantId).eq("auth_user_id", authUserId).maybeSingle();
-      if (membership.error) throw membership.error;
-      if (membership.data) throw new Error("This user already belongs to the restaurant. Edit their existing membership instead.");
-      // Linking a membership must not reset an existing person's credentials.
-      passwordIsNew = false;
-    } else {
-      const created = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: data.name },
-      });
-      if (created.error) throw created.error;
-      authUserId = created.data.user?.id;
-    }
-    if (!authUserId) throw new Error("Could not create the staff account");
-
-    const inserted = await supabaseAdmin
-      .from("staff")
-      .insert({
-        restaurant_id: data.restaurantId,
-        auth_user_id: authUserId,
-        name: data.name.trim(),
-        email,
-        role: data.role,
-        is_active: true,
-      })
-      .select("id")
-      .single();
-    if (inserted.error) throw inserted.error;
-
-    if (passwordIsNew) {
-      await supabaseAdmin.from("staff_login_secrets").upsert(
-        {
-          staff_id: inserted.data.id,
-          restaurant_id: data.restaurantId,
-          email,
-          password,
-        },
-        { onConflict: "staff_id" },
-      );
-    }
-
-    return {
-      staffId: inserted.data.id,
-      email,
-      password: passwordIsNew ? password : null,
-    };
-  });
-
-/** Read-only check of the same session, tenant permission, and Admin API used by user creation. */
-export const checkStaffManagementAccess = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ restaurantId: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }) => {
-    await assertCanManage(context.supabase as never, context.userId, data.restaurantId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const result = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1 });
-    if (result.error) {
-      const status = result.error.status;
-      const detail = status === 401
-        ? "Supabase rejected the server credential. Check that SUPAB_SECRET_KEY is an active secret key for the sign-in project."
-        : status === 403
-          ? "Supabase denied Admin API access. Check that SUPAB_SECRET_KEY is a secret key, not a publishable or anon key."
-          : "The Supabase Admin API request failed. Check service availability and server configuration.";
-      // Do not expose upstream error text, request headers, or credential values.
-      throw new Error(`QS-ADMIN-${typeof status === "number" ? status : "NETWORK"}: ${detail}`);
-    }
-    return { ready: true };
-  });
-
-/** Issues a fresh password for an existing staff member. */
-export const resetStaffPassword = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => staffRefSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: row, error } = await supabase
-      .from("staff")
-      .select("id, restaurant_id, email, auth_user_id, role")
-      .eq("id", data.staffId)
-      .single();
-    if (error) throw error;
-    if (!row.restaurant_id) throw new Error("Forbidden");
-    const isPlatformOwner = await assertCanManage(supabase as never, userId, row.restaurant_id);
-    if (row.role === "restaurant_admin" && !isPlatformOwner) {
-      throw new Error("Only the Super Admin can manage another Admin");
-    }
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await assertStaffCredentialScope(supabaseAdmin, row.auth_user_id, row.restaurant_id, isPlatformOwner);
-    const password = generatePassword();
-    const updated = await supabaseAdmin.auth.admin.updateUserById(row.auth_user_id, {
-      password,
-      email_confirm: true,
-    });
-    if (updated.error) throw updated.error;
-
-    await supabaseAdmin.from("staff_login_secrets").upsert(
-      {
-        staff_id: row.id,
-        restaurant_id: row.restaurant_id,
-        email: row.email ?? updated.data.user?.email ?? null,
-        password,
-      },
-      { onConflict: "staff_id" },
-    );
-
-    return { email: row.email ?? updated.data.user?.email ?? "", password };
-  });
-
-/**
- * Removes a staff member from a restaurant. The auth account itself is deleted
- * only when the person no longer belongs to any restaurant.
- */
-export const removeStaffMember = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => staffRefSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: row, error } = await supabase
-      .from("staff")
-      .select("id, restaurant_id, auth_user_id, role")
-      .eq("id", data.staffId)
-      .single();
-    if (error) throw error;
-    if (!row.restaurant_id || row.role === "super_admin") throw new Error("Forbidden");
-    const isPlatformOwner = await assertCanManage(supabase as never, userId, row.restaurant_id);
-    if (row.role === "restaurant_admin" && !isPlatformOwner) {
-      throw new Error("Only the Super Admin can remove an Admin");
-    }
-    if (row.auth_user_id === userId) throw new Error("You cannot remove your own access");
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const deleted = await supabaseAdmin.from("staff").delete().eq("id", row.id);
-    if (deleted.error) throw deleted.error;
-
-    const remaining = await supabaseAdmin
-      .from("staff")
-      .select("id")
-      .eq("auth_user_id", row.auth_user_id)
-      .limit(1);
-    if (!remaining.error && (remaining.data ?? []).length === 0) {
-      await supabaseAdmin.auth.admin.deleteUser(row.auth_user_id);
-    }
-
-    return { removed: true };
-  });
-
-/**
- * Admin-only directory of staff logins for one restaurant, including the last
- * password issued through QuickServe. Guarded by the same manage check as the
- * rest of staff administration; the underlying table is unreachable from the
- * client because it has no Data API grants.
- */
-export const listStaffLogins = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ restaurantId: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const isPlatformOwner = await assertCanManage(supabase as never, userId, data.restaurantId);
-    if (!isPlatformOwner) throw new Error("Only the Super Admin can view the staff login directory");
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [staff, secrets] = await Promise.all([
-      supabaseAdmin
-        .from("staff")
-        .select("id, name, email, role, is_active, created_at")
-        .eq("restaurant_id", data.restaurantId)
-        .order("created_at", { ascending: false }),
-      supabaseAdmin
-        .from("staff_login_secrets")
-        .select("staff_id, password")
-        .eq("restaurant_id", data.restaurantId),
-    ]);
-    if (staff.error) throw staff.error;
-    if (secrets.error) throw secrets.error;
-
-    const byStaff = new Map((secrets.data ?? []).map((r) => [r.staff_id, r.password]));
-    return (staff.data ?? []).map((row) => ({
-      id: row.id,
-      name: row.name,
-      email: row.email,
-      role: row.role,
-      isActive: row.is_active,
-      password: byStaff.get(row.id) ?? null,
-    }));
-  });
-
+const restaurantRefSchema = z.object({ restaurantId: z.string().uuid() });
 const updateSchema = z.object({
   staffId: z.string().uuid(),
   name: z.string().trim().min(1).max(120).optional(),
@@ -280,64 +22,122 @@ const updateSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+type EdgeError = { error?: string };
+
 /**
- * Single admin entry point for editing a staff member: name, email, password,
- * role (member/admin) and active state. Email/password changes are mirrored
- * into the auth account so the person can sign in with the new details.
+ * Privileged Supabase Auth operations run inside the `staff-admin` Edge Function.
+ * Supabase injects its service-role credential there, so QuickServe no longer
+ * needs a service-role/secret key in the Lovable server runtime.
  */
+async function callStaffAdmin<T>(accessToken: string, body: Record<string, unknown>): Promise<T> {
+  const response = await fetch(`${quickServeSupabase.url}/functions/v1/staff-admin`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      apikey: quickServeSupabase.publishableKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === "object" && "error" in payload
+        ? String((payload as EdgeError).error ?? "Staff administration request failed")
+        : "Staff administration request failed";
+    throw new Error(message);
+  }
+
+  return payload as T;
+}
+
+/** Creates or links a Supabase Auth user and adds the restaurant membership. */
+export const inviteStaffMember = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => inviteSchema.parse(input))
+  .handler(async ({ data, context }) =>
+    callStaffAdmin<{ staffId: string; email: string; password: string | null }>(context.accessToken, {
+      action: "invite",
+      ...data,
+    }),
+  );
+
+/** Verifies tenant permission and that Supabase's Admin API is operational. */
+export const checkStaffManagementAccess = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => restaurantRefSchema.parse(input))
+  .handler(async ({ data, context }) =>
+    callStaffAdmin<{ ready: true }>(context.accessToken, {
+      action: "check",
+      restaurantId: data.restaurantId,
+    }),
+  );
+
+/** Issues a fresh temporary password for an existing staff member. */
+export const resetStaffPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => staffRefSchema.parse(input))
+  .handler(async ({ data, context }) =>
+    callStaffAdmin<{ email: string; password: string }>(context.accessToken, {
+      action: "reset",
+      staffId: data.staffId,
+    }),
+  );
+
+/** Removes a restaurant membership and deletes the Auth user only if unused elsewhere. */
+export const removeStaffMember = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => staffRefSchema.parse(input))
+  .handler(async ({ data, context }) =>
+    callStaffAdmin<{ removed: true }>(context.accessToken, {
+      action: "remove",
+      staffId: data.staffId,
+    }),
+  );
+
+/** Updates profile/role/status and mirrors credential changes to Supabase Auth. */
 export const updateStaffMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => updateSchema.parse(input))
+  .handler(async ({ data, context }) =>
+    callStaffAdmin<{ ok: true }>(context.accessToken, {
+      action: "update",
+      ...data,
+    }),
+  );
+
+/**
+ * Backward-compatible staff directory. Passwords are deliberately no longer
+ * persisted or returned: a fresh password can be issued through Reset instead.
+ */
+export const listStaffLogins = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => restaurantRefSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: row, error } = await supabase
+    const owner = await context.supabase.rpc("is_platform_owner");
+    if (owner.error) throw owner.error;
+    if (!owner.data) throw new Error("Only the Super Admin can view the staff login directory");
+
+    const staff = await context.supabase
       .from("staff")
-      .select("id, restaurant_id, auth_user_id, email, name, role")
-      .eq("id", data.staffId)
-      .single();
-    if (error) throw error;
-    if (!row.restaurant_id || row.role === "super_admin") throw new Error("Forbidden");
-    const isPlatformOwner = await assertCanManage(supabase as never, userId, row.restaurant_id);
-    if ((row.role === "restaurant_admin" || data.role === "restaurant_admin") && !isPlatformOwner) {
-      throw new Error("Only the Super Admin can grant or change Admin access");
-    }
+      .select("id, name, email, role, is_active, created_at")
+      .eq("restaurant_id", data.restaurantId)
+      .order("created_at", { ascending: false });
+    if (staff.error) throw staff.error;
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const email = data.email ? data.email.toLowerCase() : undefined;
-
-    if ((email && email !== row.email?.toLowerCase()) || data.password) {
-      await assertStaffCredentialScope(supabaseAdmin, row.auth_user_id, row.restaurant_id, isPlatformOwner);
-      const authUpdate: { email?: string; password?: string; email_confirm?: boolean } = {
-        email_confirm: true,
-      };
-      if (email) authUpdate.email = email;
-      if (data.password) authUpdate.password = data.password;
-      const updated = await supabaseAdmin.auth.admin.updateUserById(row.auth_user_id, authUpdate);
-      if (updated.error) throw updated.error;
-    }
-
-    const staffUpdate = {
-      ...(data.name ? { name: data.name } : {}),
-      ...(email ? { email } : {}),
-      ...(data.role ? { role: data.role } : {}),
-      ...(typeof data.isActive === "boolean" ? { is_active: data.isActive } : {}),
-    };
-    if (Object.keys(staffUpdate).length > 0) {
-      const saved = await supabaseAdmin.from("staff").update(staffUpdate).eq("id", row.id);
-      if (saved.error) throw saved.error;
-    }
-
-    if (email || data.password) {
-      await supabaseAdmin.from("staff_login_secrets").upsert(
-        {
-          staff_id: row.id,
-          restaurant_id: row.restaurant_id,
-          email: email ?? row.email ?? null,
-          ...(data.password ? { password: data.password } : {}),
-        },
-        { onConflict: "staff_id" },
-      );
-    }
-
-    return { ok: true, email: email ?? row.email ?? null };
+    return (staff.data ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role,
+      isActive: row.is_active,
+      password: null,
+    }));
   });
