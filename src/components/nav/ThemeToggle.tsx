@@ -14,6 +14,7 @@ function applyTheme(theme: Theme) {
 
 export function ThemeToggle({ compact = false, className }: { compact?: boolean; className?: string }) {
   const [theme, setTheme] = useState<Theme>("light");
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(KEY) as Theme | null;
@@ -24,32 +25,57 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
         : "light";
     setTheme(initial);
     applyTheme(initial);
+    setReady(true);
   }, []);
 
-  function toggle() {
-    const next: Theme = theme === "dark" ? "light" : "dark";
+  function choose(next: Theme) {
+    if (next === theme) return;
     setTheme(next);
     window.localStorage.setItem(KEY, next);
     applyTheme(next);
   }
 
-  const dark = theme === "dark";
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-      aria-pressed={dark}
+    <div
       className={cn(
-        "inline-flex h-10 items-center gap-2 rounded-xl px-2 text-sm font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground",
+        "inline-grid h-10 grid-cols-2 items-center rounded-xl border border-border bg-muted/60 p-1 shadow-inner",
+        compact ? "w-[78px]" : "w-[148px]",
+        !ready && "opacity-80",
         className,
       )}
+      role="group"
+      aria-label="Color theme"
     >
-      {dark ? <Moon className="size-[18px]" /> : <Sun className="size-[18px]" />}
-      <span className="relative h-6 w-11 rounded-full bg-muted shadow-inner transition-colors data-[dark=true]:bg-[#ff5a0a]" data-dark={dark}>
-        <span className={cn("absolute top-1 size-4 rounded-full bg-white shadow transition-transform", dark ? "translate-x-6" : "translate-x-1")} />
-      </span>
-      {!compact ? <span className="hidden xl:inline">{dark ? "Dark" : "Light"}</span> : null}
-    </button>
+      <button
+        type="button"
+        onClick={() => choose("light")}
+        aria-label="Use light mode"
+        aria-pressed={theme === "light"}
+        className={cn(
+          "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold transition-all duration-200",
+          theme === "light"
+            ? "bg-white text-slate-950 shadow-sm ring-1 ring-black/5"
+            : "text-muted-foreground hover:text-foreground",
+        )}
+      >
+        <Sun className="size-4" />
+        {!compact ? <span>Light</span> : null}
+      </button>
+      <button
+        type="button"
+        onClick={() => choose("dark")}
+        aria-label="Use dark mode"
+        aria-pressed={theme === "dark"}
+        className={cn(
+          "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold transition-all duration-200",
+          theme === "dark"
+            ? "bg-slate-950 text-white shadow-sm ring-1 ring-white/10"
+            : "text-muted-foreground hover:text-foreground",
+        )}
+      >
+        <Moon className="size-4" />
+        {!compact ? <span>Dark</span> : null}
+      </button>
+    </div>
   );
 }
