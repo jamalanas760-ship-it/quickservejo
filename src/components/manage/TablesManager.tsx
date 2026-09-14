@@ -21,7 +21,6 @@ import {
   Move3d,
   Plus,
   Printer,
-  QrCode,
   RectangleHorizontal,
   RefreshCw,
   RotateCcw,
@@ -97,7 +96,6 @@ type DragState = {
 
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 700;
-const ORANGE = "#ff5a0a";
 
 const BASE_ZONES: ZoneOption[] = [
   { id: "main", en: "Main Dining", ar: "الصالة الرئيسية" },
@@ -233,7 +231,7 @@ export function TablesManager({ restaurantId }: { restaurantId: string }) {
   }, [tables.data]);
 
   const allZones = useMemo(() => {
-    const map = new Map<string, ZoneOption>();
+    const map = new globalThis.Map<string, ZoneOption>();
     BASE_ZONES.forEach((item) => map.set(item.id, item));
     customZones.forEach((item) => map.set(item.id, item));
     (tables.data ?? []).forEach((table) => {
