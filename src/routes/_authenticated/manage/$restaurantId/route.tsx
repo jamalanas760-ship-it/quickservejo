@@ -39,9 +39,12 @@ function ManageShell() {
   }
 
   return (
-    <div className="restaurant-theme-scope min-h-dvh" style={restaurantTheme}>
-      <AppHeader title={restaurant.data?.name ?? (lang === "ar" ? "إدارة المطعم" : "Restaurant workspace")} />
-      <main className="qs-page min-w-0"><Outlet /></main>
-    </div>
+    <>
+      <style>{`.restaurant-theme-scope{background:var(--restaurant-light-bg)}.dark .restaurant-theme-scope{background:var(--restaurant-dark-bg)}`}</style>
+      <div className="restaurant-theme-scope min-h-dvh transition-colors" style={restaurantTheme}>
+        <AppHeader title={restaurant.data?.name ?? (lang === "ar" ? "إدارة المطعم" : "Restaurant workspace")} />
+        <main className="qs-page min-w-0"><Outlet /></main>
+      </div>
+    </>
   );
 }
