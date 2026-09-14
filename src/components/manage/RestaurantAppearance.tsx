@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Moon, RotateCcw, Save, Sun } from "lucide-react";
+import { Check, Moon, RotateCcw, Save, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { useRestaurant, type RestaurantRow } from "@/hooks/useSuperAdmin";
 import { useAccess } from "@/hooks/useSession";
@@ -12,6 +12,7 @@ import { ImageUploader } from "@/components/media/ImageUploader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 export function RestaurantAppearance({ restaurantId }: { restaurantId: string }) {
   const restaurant = useRestaurant(restaurantId);
@@ -120,6 +121,7 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
   }
 
   const activePalette = brand.guestMenuMode === "dark" ? brand.guestMenuDark : brand.guestMenuLight;
+  const activeModeLabel = brand.guestMenuMode === "dark" ? (ar ? "الوضع الداكن" : "Dark mode") : (ar ? "الوضع الفاتح" : "Light mode");
 
   return (
     <form onSubmit={save} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -145,26 +147,55 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
           </div>
         </section>
 
-        <section className="panel space-y-5 p-4 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><h3 className="text-lg font-semibold">{ar ? "مظهر القائمة العادية للضيف" : "Standard Guest Menu Appearance"}</h3><p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{ar ? "اختر تصميم فاتح أو داكن للقائمة كاملة. يتم حفظ ألوان كل وضع بشكل مستقل." : "Choose one clean Light or Dark design for the whole guest menu. Each mode keeps its own saved palette."}</p></div>
-            <Button type="button" variant="outline" size="sm" onClick={resetGuestMenu}><RotateCcw className="size-4" />{ar ? "إعادة الافتراضي" : "Restore guest defaults"}</Button>
+        <section className="panel overflow-hidden p-0">
+          <div className="border-b border-border p-4 sm:p-6">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-semibold">{ar ? "مظهر قائمة الضيف" : "Guest Menu Appearance"}</h3>
+                  <span className="rounded-full bg-orange-500/10 px-2.5 py-1 text-[11px] font-bold text-[#ff5a0a]">{activeModeLabel}</span>
+                </div>
+                <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{ar ? "بدّل بين الوضعين وشاهد النتيجة مباشرة. ألوان كل وضع محفوظة بشكل مستقل ولن تتغير عند تعديل الوضع الآخر." : "Switch modes and see the result instantly. Each mode keeps its own independent palette, so editing one never overwrites the other."}</p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <MenuModeSwitch
+                  value={brand.guestMenuMode}
+                  ar={ar}
+                  onChange={(mode) => setBrand((p) => ({ ...p, guestMenuMode: mode }))}
+                />
+                <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={resetGuestMenu}><RotateCcw className="size-4" />{ar ? "إعادة الافتراضي" : "Reset"}</Button>
+              </div>
+            </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ThemeModeButton active={brand.guestMenuMode === "light"} icon={<Sun className="size-5" />} title={ar ? "قائمة فاتحة" : "Light Menu"} text={ar ? "خلفية فاتحة وتصميم نظيف وحديث." : "Bright surfaces, crisp text, modern standard menu."} onClick={() => setBrand((p) => ({ ...p, guestMenuMode: "light" }))} />
-            <ThemeModeButton active={brand.guestMenuMode === "dark"} icon={<Moon className="size-5" />} title={ar ? "قائمة داكنة" : "Dark Menu"} text={ar ? "قائمة داكنة مريحة وواضحة." : "Premium dark surfaces with strong readable contrast."} onClick={() => setBrand((p) => ({ ...p, guestMenuMode: "dark" }))} />
-          </div>
+          <div className="grid gap-0 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,.75fr)]">
+            <div className="border-b border-border bg-muted/20 p-4 sm:p-6 xl:border-b-0 xl:border-e">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div><p className="text-sm font-semibold">{ar ? "معاينة مباشرة" : "Live preview"}</p><p className="text-[11px] text-muted-foreground">{ar ? "هذه المعاينة تتغير فوراً مع الألوان المختارة." : "This preview updates immediately with your selected colors."}</p></div>
+                <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold", brand.guestMenuMode === "dark" ? "bg-slate-900 text-white" : "border border-border bg-white text-slate-900")}>
+                  {brand.guestMenuMode === "dark" ? <Moon className="size-3.5" /> : <Sun className="size-3.5" />}{activeModeLabel}
+                </span>
+              </div>
+              <GuestMenuPreview
+                mode={brand.guestMenuMode}
+                palette={activePalette}
+                logo={brand.menuLogo || form.logo_url}
+                name={restaurant.name}
+                ar={ar}
+              />
+            </div>
 
-          <PaletteEditor
-            ar={ar}
-            palette={activePalette}
-            onChange={(next) => setBrand((p) => brand.guestMenuMode === "dark" ? ({ ...p, guestMenuDark: next }) : ({ ...p, guestMenuLight: next }))}
-          />
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <GuestMenuPreview title={ar ? "معاينة فاتحة" : "Light preview"} palette={brand.guestMenuLight} logo={brand.menuLogo || form.logo_url} name={restaurant.name} active={brand.guestMenuMode === "light"} />
-            <GuestMenuPreview title={ar ? "معاينة داكنة" : "Dark preview"} palette={brand.guestMenuDark} logo={brand.menuLogo || form.logo_url} name={restaurant.name} active={brand.guestMenuMode === "dark"} />
+            <div className="space-y-5 p-4 sm:p-6">
+              <div>
+                <h4 className="text-sm font-semibold">{ar ? `تخصيص ${activeModeLabel}` : `Customize ${activeModeLabel}`}</h4>
+                <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{ar ? "عدّل ألوان الوضع المحدد فقط. يمكنك الانتقال للوضع الآخر في أي وقت بدون فقدان هذه الإعدادات." : "Edit only the selected mode. Switch to the other mode at any time without losing these settings."}</p>
+              </div>
+              <PaletteEditor
+                ar={ar}
+                palette={activePalette}
+                onChange={(next) => setBrand((p) => brand.guestMenuMode === "dark" ? ({ ...p, guestMenuDark: next }) : ({ ...p, guestMenuLight: next }))}
+              />
+            </div>
           </div>
         </section>
 
@@ -183,7 +214,7 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
   );
 }
 
-function ColorField({ label, value, onChange, icon }: { label: string; value: string; onChange: (value: string) => void; icon?: React.ReactNode }) {
+function ColorField({ label, value, onChange, icon }: { label: string; value: string; onChange: (value: string) => void; icon?: ReactNode }) {
   return <label className="space-y-2 text-sm"><span className="flex items-center gap-2 font-semibold">{icon}{label}</span><div className="flex gap-2"><Input type="color" className="h-12 w-16 cursor-pointer p-1" value={value} onChange={(e) => onChange(e.target.value)} /><Input value={value} onChange={(e) => /^#[0-9a-fA-F]{0,6}$/.test(e.target.value) && onChange(e.target.value)} /></div></label>;
 }
 
@@ -196,13 +227,71 @@ function PaletteEditor({ ar, palette, onChange }: { ar: boolean; palette: GuestM
     ["primary", "Buttons / primary", "الأزرار واللون الأساسي"],
     ["accent", "Price / accent", "السعر والتمييز"],
   ];
-  return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{fields.map(([key, en, arabic]) => <ColorField key={key} label={ar ? arabic : en} value={palette[key]} onChange={(value) => onChange({ ...palette, [key]: value })} />)}</div>;
+  return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">{fields.map(([key, en, arabic]) => <ColorField key={key} label={ar ? arabic : en} value={palette[key]} onChange={(value) => onChange({ ...palette, [key]: value })} />)}</div>;
 }
 
-function ThemeModeButton({ active, icon, title, text, onClick }: { active: boolean; icon: React.ReactNode; title: string; text: string; onClick: () => void }) {
-  return <button type="button" onClick={onClick} className={`flex min-h-24 items-start gap-3 rounded-2xl border p-4 text-start transition ${active ? "border-[#ff5a0a] bg-orange-500/[.06] shadow-[0_0_0_1px_rgba(255,90,10,.12)]" : "border-border bg-card hover:bg-muted/40"}`}><span className={`grid size-10 shrink-0 place-items-center rounded-xl ${active ? "bg-[#ff5a0a] text-white" : "bg-muted text-muted-foreground"}`}>{icon}</span><span><strong className="block text-sm">{title}</strong><span className="mt-1 block text-xs leading-5 text-muted-foreground">{text}</span></span></button>;
+function MenuModeSwitch({ value, ar, onChange }: { value: "light" | "dark"; ar: boolean; onChange: (mode: "light" | "dark") => void }) {
+  return (
+    <div className="grid min-h-11 grid-cols-2 rounded-xl border border-border bg-muted/60 p-1" role="group" aria-label={ar ? "وضع قائمة الضيف" : "Guest menu color mode"}>
+      <button
+        type="button"
+        aria-pressed={value === "light"}
+        onClick={() => onChange("light")}
+        className={cn("inline-flex min-w-[112px] items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-bold transition-all", value === "light" ? "bg-white text-slate-950 shadow-sm ring-1 ring-black/5" : "text-muted-foreground hover:text-foreground")}
+      >
+        <Sun className="size-4" />{ar ? "فاتح" : "Light"}{value === "light" ? <Check className="size-3.5 text-[#ff5a0a]" /> : null}
+      </button>
+      <button
+        type="button"
+        aria-pressed={value === "dark"}
+        onClick={() => onChange("dark")}
+        className={cn("inline-flex min-w-[112px] items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-bold transition-all", value === "dark" ? "bg-slate-950 text-white shadow-sm ring-1 ring-white/10" : "text-muted-foreground hover:text-foreground")}
+      >
+        <Moon className="size-4" />{ar ? "داكن" : "Dark"}{value === "dark" ? <Check className="size-3.5 text-[#ff5a0a]" /> : null}
+      </button>
+    </div>
+  );
 }
 
-function GuestMenuPreview({ title, palette, logo, name, active }: { title: string; palette: GuestMenuPalette; logo: string | null; name: string; active: boolean }) {
-  return <div className={`overflow-hidden rounded-2xl border ${active ? "ring-2 ring-[#ff5a0a]/30" : ""}`}><div className="flex items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground"><span>{title}</span>{active ? <span className="text-[#ff5a0a]">Active</span> : null}</div><div className="p-4" style={{ backgroundColor: palette.bg, color: palette.text }}><div className="flex items-center gap-3">{logo ? <img src={logo} alt="" className="size-11 rounded-xl bg-white object-contain p-1.5 shadow-sm" /> : <span className="grid size-11 place-items-center rounded-xl font-bold" style={{ backgroundColor: palette.primary, color: palette.primaryText }}>{name.slice(0,1)}</span>}<div><strong className="block">{name}</strong><span className="text-xs" style={{ color: palette.muted }}>Menu</span></div></div><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-xl p-3" style={{ backgroundColor: palette.surface }}><div className="h-3 w-16 rounded-full" style={{ backgroundColor: palette.text, opacity:.85 }} /><div className="mt-2 h-2 w-20 rounded-full" style={{ backgroundColor: palette.muted, opacity:.45 }} /><div className="mt-4 text-xs font-bold" style={{ color: palette.accent }}>JOD 4.50</div></div><div className="rounded-xl p-3" style={{ backgroundColor: palette.surface }}><div className="h-3 w-14 rounded-full" style={{ backgroundColor: palette.text, opacity:.85 }} /><div className="mt-2 h-2 w-16 rounded-full" style={{ backgroundColor: palette.muted, opacity:.45 }} /><button type="button" className="mt-3 rounded-lg px-3 py-1.5 text-[10px] font-bold" style={{ backgroundColor: palette.primary, color: palette.primaryText }}>Add</button></div></div></div></div>;
+function GuestMenuPreview({ mode, palette, logo, name, ar }: { mode: "light" | "dark"; palette: GuestMenuPalette; logo: string | null; name: string; ar: boolean }) {
+  return (
+    <div className="mx-auto w-full max-w-[620px] overflow-hidden rounded-[26px] border border-black/10 shadow-[0_24px_60px_rgba(0,0,0,.16)] transition-colors duration-200" style={{ backgroundColor: palette.bg, color: palette.text }}>
+      <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: `${palette.muted}28`, backgroundColor: palette.surface }}>
+        <div className="flex min-w-0 items-center gap-3">
+          {logo ? <img src={logo} alt="" className="size-11 shrink-0 rounded-xl bg-white object-contain p-1.5 shadow-sm" /> : <span className="grid size-11 shrink-0 place-items-center rounded-xl font-bold" style={{ backgroundColor: palette.primary, color: palette.primaryText }}>{name.slice(0, 1)}</span>}
+          <div className="min-w-0"><strong className="block truncate text-sm">{name}</strong><span className="text-[11px]" style={{ color: palette.muted }}>{ar ? "قائمة الطعام" : "Guest Menu"}</span></div>
+        </div>
+        <span className="rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ backgroundColor: `${palette.primary}18`, color: palette.primary }}>{mode === "dark" ? (ar ? "داكن" : "Dark") : (ar ? "فاتح" : "Light")}</span>
+      </div>
+
+      <div className="p-4 sm:p-5">
+        <div className="no-scrollbar flex gap-2 overflow-hidden">
+          {[ar ? "الأكثر طلباً" : "Popular", ar ? "وجبات" : "Meals", ar ? "مشروبات" : "Drinks"].map((label, index) => <span key={label} className="shrink-0 rounded-full px-3 py-1.5 text-[10px] font-bold" style={index === 0 ? { backgroundColor: palette.primary, color: palette.primaryText } : { backgroundColor: palette.surface, color: palette.muted }}>{label}</span>)}
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <PreviewDish palette={palette} title={ar ? "وجبة مميزة" : "Signature Meal"} subtitle={ar ? "وصف قصير وواضح للمنتج" : "A short, clear product description"} price="JOD 4.50" />
+          <PreviewDish palette={palette} title={ar ? "اختيار الشيف" : "Chef's Choice"} subtitle={ar ? "طازج ومحضر عند الطلب" : "Fresh and made to order"} price="JOD 5.25" showButton />
+        </div>
+
+        <div className="mt-4 flex items-center justify-between rounded-2xl p-3" style={{ backgroundColor: palette.surface }}>
+          <div><strong className="block text-xs">{ar ? "جاهز للطلب؟" : "Ready to order?"}</strong><span className="text-[10px]" style={{ color: palette.muted }}>{ar ? "أضف اختياراتك إلى السلة" : "Add your favorites to the cart"}</span></div>
+          <button type="button" tabIndex={-1} className="rounded-xl px-3 py-2 text-[10px] font-bold" style={{ backgroundColor: palette.primary, color: palette.primaryText }}>{ar ? "عرض السلة" : "View cart"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreviewDish({ palette, title, subtitle, price, showButton = false }: { palette: GuestMenuPalette; title: string; subtitle: string; price: string; showButton?: boolean }) {
+  return (
+    <div className="overflow-hidden rounded-2xl" style={{ backgroundColor: palette.surface }}>
+      <div className="h-24" style={{ background: `linear-gradient(135deg, ${palette.primary}24, ${palette.accent}45)` }} />
+      <div className="p-3">
+        <strong className="block text-xs">{title}</strong>
+        <span className="mt-1 block text-[10px] leading-4" style={{ color: palette.muted }}>{subtitle}</span>
+        <div className="mt-3 flex items-center justify-between gap-2"><span className="text-xs font-bold" style={{ color: palette.accent }}>{price}</span>{showButton ? <button type="button" tabIndex={-1} className="rounded-lg px-2.5 py-1.5 text-[9px] font-bold" style={{ backgroundColor: palette.primary, color: palette.primaryText }}>+</button> : null}</div>
+      </div>
+    </div>
+  );
 }
