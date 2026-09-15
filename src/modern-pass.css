@@ -12,13 +12,16 @@
 }
 .dark .qs-card { box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 10px 28px rgba(0,0,0,.14) !important; }
 
-/* PDF browse mode: the page scrolls/pans normally and areas cannot capture taps. */
+/* PDF browse/edit modes. Browse never captures accidental hotspots. */
 .qs-pdf-modern.qs-pdf-browse .qs-pdf-stage { cursor: grab; touch-action: pan-x pan-y !important; }
 .qs-pdf-modern.qs-pdf-browse .qs-pdf-stage:active { cursor: grabbing; }
 .qs-pdf-modern.qs-pdf-browse .qs-pdf-stage > div > div { pointer-events: none !important; touch-action: pan-x pan-y !important; }
 .qs-pdf-modern.qs-pdf-browse .qs-pdf-hotspot { pointer-events: none !important; opacity: .12 !important; }
 .qs-pdf-modern.qs-pdf-browse .qs-pdf-handle { display: none !important; }
+.qs-pdf-modern.qs-pdf-browse section.qs-card > div:first-child > button.ms-auto { display: none !important; }
 .qs-pdf-modern .qs-selection-mode { border-radius: 14px; }
+/* Position/size is intentionally hidden: direct drag + resize handles are the editing surface. */
+.qs-pdf-modern aside .qs-card:first-child > div.mt-4 { display: none !important; }
 
 /* Tables: convert the legacy dark room renderer into a clean floor-plan workspace without changing behavior. */
 .qs-tables-modern > div {
@@ -33,6 +36,11 @@
 .qs-tables-modern h2,
 .qs-tables-modern h3 { color: var(--foreground) !important; }
 .qs-tables-modern header p { color: var(--muted-foreground) !important; }
+.qs-tables-modern .qs-button-primary,
+.qs-tables-modern .qs-button-secondary,
+.qs-tables-modern button { overflow-wrap: normal; word-break: normal; }
+.qs-tables-modern .qs-button-primary,
+.qs-tables-modern .qs-button-secondary { white-space: nowrap; }
 
 .qs-tables-modern .qs-floor-control,
 .qs-tables-modern .qs-floor-icon-control {
