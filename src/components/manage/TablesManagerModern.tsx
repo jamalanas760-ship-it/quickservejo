@@ -1,9 +1,9 @@
-import { TablesManagerApproved } from "./TablesManagerApproved";
+import { TablesManagerPro } from "./TablesManagerPro";
 
 export function TablesManagerModern({ restaurantId }: { restaurantId: string }) {
   return (
     <div className="qs-tables-modern">
-      <TablesManagerApproved restaurantId={restaurantId} />
+      <TablesManagerPro restaurantId={restaurantId} />
     </div>
   );
 }
