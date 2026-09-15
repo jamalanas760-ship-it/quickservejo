@@ -34,13 +34,55 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
     applyTheme(next);
   }
 
+  if (compact) {
+    return (
+      <div
+        className={cn(
+          "inline-flex h-11 w-[92px] shrink-0 items-center justify-between rounded-full border border-border/90 bg-muted/70 p-1 shadow-inner",
+          !ready && "opacity-80",
+          className,
+        )}
+        role="group"
+        aria-label="Color theme"
+      >
+        <button
+          type="button"
+          onClick={() => choose("light")}
+          aria-label="Use light mode"
+          aria-pressed={theme === "light"}
+          className={cn(
+            "grid !h-9 !w-9 !min-h-0 !min-w-0 shrink-0 place-items-center rounded-full leading-none transition-[background-color,color,box-shadow] duration-200",
+            theme === "light"
+              ? "bg-background text-foreground shadow-sm ring-1 ring-black/5"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Sun className="size-4 shrink-0" />
+        </button>
+        <button
+          type="button"
+          onClick={() => choose("dark")}
+          aria-label="Use dark mode"
+          aria-pressed={theme === "dark"}
+          className={cn(
+            "grid !h-9 !w-9 !min-h-0 !min-w-0 shrink-0 place-items-center rounded-full leading-none transition-[background-color,color,box-shadow] duration-200",
+            theme === "dark"
+              ? "bg-slate-950 text-white shadow-sm ring-1 ring-white/10"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Moon className="size-4 shrink-0" />
+        </button>
+      </div>
+    );
+  }
+
   const buttonBase = "inline-flex h-full w-full min-w-0 items-center justify-center gap-1.5 rounded-full font-bold leading-none transition-[background-color,color,box-shadow] duration-200";
 
   return (
     <div
       className={cn(
-        "inline-grid shrink-0 grid-cols-2 items-stretch rounded-full border border-border/90 bg-muted/70 p-1",
-        compact ? "h-10 w-[96px]" : "h-10 w-[150px]",
+        "inline-grid h-10 w-[150px] shrink-0 grid-cols-2 items-stretch rounded-full border border-border/90 bg-muted/70 p-1",
         !ready && "opacity-80",
         className,
       )}
@@ -54,12 +96,12 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
         aria-pressed={theme === "light"}
         className={cn(
           buttonBase,
-          !compact && "px-2 text-xs",
+          "px-2 text-xs",
           theme === "light" ? "bg-background text-foreground shadow-sm ring-1 ring-black/5" : "text-muted-foreground hover:text-foreground",
         )}
       >
         <Sun className="size-4 shrink-0" />
-        {!compact ? <span>Light</span> : null}
+        <span>Light</span>
       </button>
       <button
         type="button"
@@ -68,12 +110,12 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
         aria-pressed={theme === "dark"}
         className={cn(
           buttonBase,
-          !compact && "px-2 text-xs",
+          "px-2 text-xs",
           theme === "dark" ? "bg-slate-950 text-white shadow-sm ring-1 ring-white/10" : "text-muted-foreground hover:text-foreground",
         )}
       >
         <Moon className="size-4 shrink-0" />
-        {!compact ? <span>Dark</span> : null}
+        <span>Dark</span>
       </button>
     </div>
   );
