@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AnalyticsManager } from "@/components/manage/AnalyticsManager";
+import { AnalyticsManagerPro } from "@/components/manage/AnalyticsManagerPro";
 
 export const Route = createFileRoute("/_authenticated/manage/$restaurantId/analytics")({
   head: () => ({
     meta: [
       { title: "Analytics — QuickServe" },
-      { name: "description", content: "Revenue, order counts, average order value and peak hours." },
+      { name: "description", content: "Customizable restaurant analytics, reports, tables and chart visualizations." },
       { property: "og:title", content: "Analytics — QuickServe" },
-      { property: "og:description", content: "Revenue, order counts, average order value and peak hours." },
+      { property: "og:description", content: "Customizable restaurant analytics, reports, tables and chart visualizations." },
     ],
   }),
   component: Page,
@@ -16,5 +16,5 @@ export const Route = createFileRoute("/_authenticated/manage/$restaurantId/analy
 
 function Page() {
   const { restaurantId } = Route.useParams();
-  return <AnalyticsManager restaurantId={restaurantId} />;
+  return <AnalyticsManagerPro restaurantId={restaurantId} />;
 }
