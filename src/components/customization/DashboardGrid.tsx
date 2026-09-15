@@ -1,6 +1,7 @@
 import { useRef, useState, type CSSProperties, type DragEvent, type PointerEvent, type ReactNode } from "react";
 import { GripVertical, Maximize2 } from "lucide-react";
 
+import "@/dashboard-grid.css";
 import { cn } from "@/lib/utils";
 
 export type DashboardItemSize = { columns: number; minHeight: number };
