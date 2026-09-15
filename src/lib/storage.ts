@@ -39,6 +39,9 @@ async function uploadRestaurantMedia(restaurantId: string, kind: UploadKind, fil
   });
   if (error) {
     const message = error.message ?? "";
+    if (/row-level security|rls|unauthorized|permission|403/i.test(message)) {
+      throw new Error("Your account is not allowed to upload media yet. Please refresh your session and try again.");
+    }
     if (/maximum size|file size|too large|entitytoolarge|413/i.test(message)) {
       throw new Error("Upload was rejected by storage because the configured file-size limit is too low.");
     }
@@ -50,6 +53,11 @@ async function uploadRestaurantMedia(restaurantId: string, kind: UploadKind, fil
 
 export async function uploadRestaurantImage(restaurantId: string, kind: MediaKind, file: File): Promise<string> {
   return uploadRestaurantMedia(restaurantId, kind, file, 5 * 1024 * 1024);
+}
+
+export async function uploadProfileImage(userId: string, file: File): Promise<string> {
+  if (!userId) throw new Error("Authentication required");
+  return uploadRestaurantMedia(`profiles/${userId}`, "avatar", file, 5 * 1024 * 1024);
 }
 
 function publicPdfUrl(path: string): string {
