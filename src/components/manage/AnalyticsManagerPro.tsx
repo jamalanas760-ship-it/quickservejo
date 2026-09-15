@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { formatMoney, formatNumber } from "@/lib/format";
 import { humanError } from "@/lib/errors";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type Language } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type WidgetId = "revenue" | "orders" | "channels" | "topProducts" | "peakHours" | "weekly" | "orderTable" | "paidProgress" | "summary";
@@ -118,7 +118,7 @@ export function AnalyticsManagerPro({ restaurantId }: { restaurantId: string }) 
         current.revenue += Number(item.total_price ?? 0);
         itemMap.set(name, current);
       }
-      const topProducts = Array.from(itemMap.entries()).map(([name, value]) => ({ name, nameAr: value.nameAr, ...value })).sort((a, b) => b.qty - a.qty).slice(0, 8);
+      const topProducts = Array.from(itemMap.entries()).map(([name, value]) => ({ name, ...value })).sort((a, b) => b.qty - a.qty).slice(0, 8);
       const weekly = byWeekday.map((value, index) => ({ label: new Intl.DateTimeFormat(ar ? "ar-JO" : "en-US", { weekday: "short" }).format(new Date(2026, 0, 4 + index)), ...value }));
       const peak = byHour.filter((value) => value.orders > 0);
       return {
@@ -213,7 +213,7 @@ const WIDGET_CATALOG: Array<{ id: WidgetId; en: string; ar: string; desc: string
   { id: "summary", en: "Summary report", ar: "تقرير ملخص", desc: "Text report calculated from live metrics", descAr: "تقرير نصي محسوب من المقاييس الفعلية", icon: FileText },
 ];
 
-function Widget({ id, index, count, customize, color, chartType, data, currency, lang, ar, onMove, onRemove, onColor, onChartType }: { id: WidgetId; index: number; count: number; customize: boolean; color: string; chartType?: ChartType; data: any; currency: string; lang: string; ar: boolean; onMove: (id: WidgetId, delta: number) => void; onRemove: (id: WidgetId) => void; onColor: (id: WidgetId, color: string) => void; onChartType: (id: WidgetId, chartType: ChartType) => void }) {
+function Widget({ id, index, count, customize, color, chartType, data, currency, lang, ar, onMove, onRemove, onColor, onChartType }: { id: WidgetId; index: number; count: number; customize: boolean; color: string; chartType?: ChartType | undefined; data: any; currency: string; lang: Language; ar: boolean; onMove: (id: WidgetId, delta: number) => void; onRemove: (id: WidgetId) => void; onColor: (id: WidgetId, color: string) => void; onChartType: (id: WidgetId, chartType: ChartType) => void }) {
   const options = CHART_OPTIONS[id];
   const wrap = (title: string, children: React.ReactNode, wide = false) => <section className={cn("qs-card min-w-0 overflow-hidden", wide ? "xl:col-span-8" : "xl:col-span-4", id === "orderTable" && "xl:col-span-8", id === "summary" && "xl:col-span-4")}><div className="flex min-h-14 flex-wrap items-center gap-2 border-b border-border px-4 py-2.5"><GripVertical className="size-4 text-muted-foreground" /><h2 className="min-w-[120px] flex-1 truncate text-sm font-bold">{title}</h2>{customize ? <div className="flex flex-wrap items-center gap-1.5">{options?.length ? <select value={chartType ?? options[0]} onChange={(event) => onChartType(id, event.target.value as ChartType)} className="h-9 rounded-lg border border-border bg-background px-2 text-[11px] font-semibold outline-none focus:border-[#ff5a0a]">{options.map((option) => <option key={option} value={option}>{option === "donut" ? (ar ? "دائري" : "Donut") : option === "area" ? (ar ? "مساحي" : "Area") : option === "line" ? (ar ? "خطي" : "Line") : (ar ? "أعمدة" : "Bar")}</option>)}</select> : null}{options?.length ? <Input type="color" aria-label={ar ? "لون الرسم" : "Chart color"} value={color} onChange={(event) => onColor(id, event.target.value)} className="h-9 w-11 p-1" /> : null}<button type="button" disabled={index === 0} onClick={() => onMove(id, -1)} className="grid size-9 place-items-center rounded-lg hover:bg-muted disabled:opacity-25"><ChevronUp className="size-4" /></button><button type="button" disabled={index === count - 1} onClick={() => onMove(id, 1)} className="grid size-9 place-items-center rounded-lg hover:bg-muted disabled:opacity-25"><ChevronDown className="size-4" /></button><button type="button" onClick={() => onRemove(id)} className="grid size-9 place-items-center rounded-lg text-red-600 hover:bg-red-50"><Trash2 className="size-4" /></button></div> : null}</div>{children}</section>;
 
@@ -228,7 +228,7 @@ function Widget({ id, index, count, customize, color, chartType, data, currency,
   return wrap(ar ? "تقرير ملخص" : "Summary Report", <div className="space-y-3 p-5 text-sm"><p>{ar ? `خلال آخر 30 يوماً سجل المطعم ${data.orders.length} طلباً بإيراد ${formatMoney(data.revenue, currency, lang)}.` : `In the last 30 days this restaurant recorded ${data.orders.length} orders and ${formatMoney(data.revenue, currency, lang)} in revenue.`}</p><p className="text-muted-foreground">{ar ? `متوسط قيمة الطلب ${formatMoney(data.aov, currency, lang)} ونسبة الطلبات المدفوعة ${Math.round(data.paidRate)}%.` : `Average order value is ${formatMoney(data.aov, currency, lang)} and ${Math.round(data.paidRate)}% of orders are paid.`}</p></div>);
 }
 
-function SeriesChart({ rows, xKey, yKey, type, color, currency, lang }: { rows: any[]; xKey: string; yKey: string; type: ChartType; color: string; currency?: string; lang?: string }) {
+function SeriesChart({ rows, xKey, yKey, type, color, currency, lang }: { rows: any[]; xKey: string; yKey: string; type: ChartType; color: string; currency?: string; lang?: Language | undefined }) {
   const tooltipFormatter = currency && lang ? (value: unknown) => formatMoney(Number(value ?? 0), currency, lang) : undefined;
   if (type === "line") return <div className="h-[260px] p-4"><ResponsiveContainer width="100%" height="100%"><LineChart data={rows}><CartesianGrid stroke="currentColor" strokeOpacity={.07} vertical={false} /><XAxis dataKey={xKey} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} /><Tooltip formatter={tooltipFormatter as any} /><Line type="monotone" dataKey={yKey} stroke={color} strokeWidth={2.5} dot={{ r: 3, fill: "var(--card)", stroke: color, strokeWidth: 2 }} activeDot={{ r: 5 }} /></LineChart></ResponsiveContainer></div>;
   if (type === "bar") return <div className="h-[260px] p-4"><ResponsiveContainer width="100%" height="100%"><BarChart data={rows}><CartesianGrid stroke="currentColor" strokeOpacity={.07} vertical={false} /><XAxis dataKey={xKey} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} /><Tooltip formatter={tooltipFormatter as any} /><Bar dataKey={yKey} fill={color} radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div>;
