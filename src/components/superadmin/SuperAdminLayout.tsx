@@ -14,6 +14,7 @@ import {
   Menu as MenuIcon,
   Search,
   Settings,
+  UserRound,
   Users,
 } from "lucide-react";
 
@@ -65,9 +66,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: (() => void) | undefined 
   const { lang } = useI18n();
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-[64px] items-center border-b border-white/5 px-5">
-        <Link to={"/super-admin" as never} onClick={onNavigate} className="text-white" aria-label="QuickServe admin"><BrandLogo className="size-9" accentClassName="text-white" textClassName="text-[20px] text-white" /></Link>
-      </div>
+      <div className="flex h-[64px] items-center border-b border-white/5 px-5"><Link to={"/super-admin" as never} onClick={onNavigate} className="text-white" aria-label="QuickServe admin"><BrandLogo className="size-9" accentClassName="text-white" textClassName="text-[20px] text-white" /></Link></div>
       <div className="qs-scroll flex-1 overflow-y-auto px-3 py-4"><NavLinks onNavigate={onNavigate} /></div>
       <div className="border-t border-white/6 px-4 py-4 text-white"><p className="text-[13px] font-bold">QuickServe</p><p className="text-[10px] text-white/55">{lang === "ar" ? "إدارة المنصة" : "Platform admin"}</p></div>
     </div>
@@ -111,7 +110,21 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}><SheetTrigger asChild><Button variant="ghost" size="icon" className="size-10 lg:hidden"><MenuIcon className="size-5" /></Button></SheetTrigger><SheetContent side="left" className="w-[86vw] max-w-[260px] bg-[#151a1e] p-0 text-white"><SheetTitle className="sr-only">QuickServe</SheetTitle><SidebarContent onNavigate={() => setMobileOpen(false)} /></SheetContent></Sheet>
           <Link to={"/super-admin" as never} className="lg:hidden"><BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="hidden sm:inline" /></Link>
           <button type="button" onClick={() => setSearchOpen(true)} className="qs-topbar-search hidden min-w-0 max-w-[440px] flex-1 items-center gap-3 px-4 text-start text-[13px] text-muted-foreground md:flex"><Search className="size-4" /><span className="min-w-0 flex-1 truncate">{lang === "ar" ? "بحث" : "Search"}</span><kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px]">⌘K</kbd></button>
-          <div className="ms-auto flex items-center gap-1 sm:gap-1.5"><ThemeToggle compact /><Notifications /><button type="button" onClick={toggleLang} className="grid size-10 place-items-center rounded-xl text-xs font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground">{lang === "ar" ? "EN" : "ع"}</button><DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="grid size-10 place-items-center rounded-full bg-muted ring-1 ring-border"><Users className="size-4" /></button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel className="max-w-56 truncate">{email ?? "QuickServe Owner"}</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem asChild><Link to="/dashboard">{lang === "ar" ? "لوحة المطعم" : "Restaurant dashboard"}</Link></DropdownMenuItem><DropdownMenuItem onClick={() => void signOut()}><LogOut className="size-4" />{lang === "ar" ? "تسجيل الخروج" : "Sign out"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+          <div className="ms-auto flex items-center gap-1 sm:gap-1.5">
+            <ThemeToggle compact />
+            <Notifications />
+            <button type="button" onClick={toggleLang} className="grid size-10 place-items-center rounded-xl text-xs font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground">{lang === "ar" ? "EN" : "ع"}</button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild><button type="button" className="grid size-10 place-items-center rounded-full bg-muted ring-1 ring-border"><Users className="size-4" /></button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel className="max-w-56 truncate">{email ?? "QuickServe Owner"}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild><Link to="/profile"><UserRound className="size-4" />{lang === "ar" ? "الملف الشخصي" : "Profile & Alerts"}</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link to="/dashboard">{lang === "ar" ? "لوحة المطعم" : "Restaurant dashboard"}</Link></DropdownMenuItem>
+                <DropdownMenuItem onClick={() => void signOut()}><LogOut className="size-4" />{lang === "ar" ? "تسجيل الخروج" : "Sign out"}</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
       <main className={cn("mx-auto min-h-[calc(100dvh-64px)] w-full max-w-[1600px] px-4 py-5 sm:px-6 lg:px-7")}>{children}</main>
