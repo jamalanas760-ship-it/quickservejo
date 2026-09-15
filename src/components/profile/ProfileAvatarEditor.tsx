@@ -41,11 +41,20 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
   async function persist(nextUrl: string | null, nextPreset: string | null) {
     setBusy(true);
     try {
-      const { error } = await (supabase as any).rpc("update_own_avatar", {
+      // Restaurant/team avatar is stored on the membership through a SECURITY DEFINER RPC.
+      // The RPC deliberately does not write auth.users because the Auth schema is owned by
+      // Supabase Auth and direct SQL writes can raise 42501. The supported Auth client API
+      // updates the current user's own metadata separately.
+      const { error: rpcError } = await (supabase as any).rpc("update_own_avatar", {
         _avatar_url: nextUrl,
         _avatar_preset: nextPreset,
       });
-      if (error) throw error;
+      if (rpcError) throw rpcError;
+
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { avatar_url: nextUrl, avatar_preset: nextPreset },
+      });
+      if (authError) throw authError;
 
       setAvatarUrl(nextUrl);
       setPreset(nextPreset);
@@ -86,7 +95,7 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="font-bold">{lang === "ar" ? "الصورة الشخصية" : "Profile picture"}</h3>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">{lang === "ar" ? "ارفع صورتك أو اختر صورة رمزية حسب الدور. ستظهر في الحساب وشريط التطبيق وقوائم الفريق." : "Upload your photo or choose a role-based illustrated avatar. It appears in your account, app header, and team identity."}</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">{lang === "ar" ? "ارفع صورتك أو اختر شخصية احترافية حسب الدور. ستظهر في الحساب وشريط التطبيق وقوائم الفريق." : "Upload your photo or choose a professional role avatar. It appears in your account, app header, and team identity."}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button type="button" variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}><Camera className="size-4" />{lang === "ar" ? "رفع صورة" : "Upload Photo"}</Button>
             {(avatarUrl || preset) ? <Button type="button" variant="ghost" disabled={busy} onClick={() => void persist(null, null)}><RotateCcw className="size-4" />{lang === "ar" ? "إزالة" : "Remove"}</Button> : null}
@@ -96,7 +105,7 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
 
       <div className="mt-5">
         <p className="text-xs font-bold text-muted-foreground">{lang === "ar" ? "أو اختر شخصية حسب الدور" : "Or choose a role avatar"}</p>
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-10">
           {AVATAR_PRESETS.map((item) => (
             <button
               key={item.id}
@@ -105,7 +114,7 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
               onClick={() => void persist(null, item.id)}
               aria-label={`${lang === "ar" ? "اختيار" : "Choose"} ${item.label}`}
               className={cn(
-                "group relative overflow-hidden rounded-2xl border bg-card p-1.5 text-start transition hover:-translate-y-0.5 hover:shadow-md",
+                "group relative overflow-hidden rounded-2xl border bg-card p-1.5 text-start transition duration-150 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60",
                 preset === item.id && !avatarUrl ? "border-[#ff5a0a] ring-2 ring-[#ff5a0a]/15" : "border-border",
               )}
             >
