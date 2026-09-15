@@ -1,0 +1,58 @@
+name: QuickServe Table Preview Patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-shot-table-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch table live preview
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/components/manage/TablesManagerPro.tsx')
+          text = path.read_text()
+
+          old_call = '''{visibleTables.map((row,index)=><TablePiece key={row.id} row={row} layout={draft[row.id]??layoutOf(row,index)} selected={selectedTableId===row.id} onDown={(e,m)=>beginTableDrag(e,row,m)} onMove={moveTable} onUp={endTableDrag}/>) }'''
+          new_call = '''{visibleTables.map((row,index)=>{const live=selectedTableId===row.id;return <TablePiece key={row.id} row={row} layout={draft[row.id]??layoutOf(row,index)} selected={live} previewMaterial={live?form.material:undefined} previewShape={live?form.shape:undefined} previewCapacity={live?Number(form.capacity)||4:undefined} onDown={(e,m)=>beginTableDrag(e,row,m)} onMove={moveTable} onUp={endTableDrag}/>}) }'''
+          if old_call not in text:
+              raise SystemExit('TablePiece canvas call marker not found')
+          text = text.replace(old_call, new_call, 1)
+
+          start = text.find('function TablePiece(')
+          end = text.find('\nfunction TableInspector(', start)
+          if start < 0 or end < 0:
+              raise SystemExit('TablePiece function markers not found')
+          new_piece = '''function TablePiece({row,layout,selected,previewMaterial,previewShape,previewCapacity,onDown,onMove,onUp}:{row:FloorTable;layout:Layout;selected:boolean;previewMaterial?:Material;previewShape?:Shape;previewCapacity?:number;onDown:(e:ReactPointerEvent<HTMLElement>,mode:"move"|"resize")=>void;onMove:(e:ReactPointerEvent<HTMLElement>)=>void;onUp:(e:ReactPointerEvent<HTMLElement>)=>void}){const shape=previewShape??shapeOf(row.shape);const material=previewMaterial??materialOf(row);const seats=clamp(previewCapacity??row.capacity??4,2,8);const styles:Record<Material,{top:string;chair:string;text:string;border:string;shadow:string}>={wood:{top:"linear-gradient(90deg,#875029,#c27c42 46%,#75411f)",chair:"#8b5a3c",text:"#fff",border:"#6f3d20",shadow:"0 8px 16px rgba(99,55,27,.28)"},glass:{top:"linear-gradient(135deg,rgba(215,244,255,.86),rgba(255,255,255,.22) 52%,rgba(173,225,242,.58))",chair:"#93aeb8",text:"#27485b",border:"#78bacf",shadow:"0 8px 18px rgba(73,147,171,.22)"},aluminum:{top:"linear-gradient(135deg,#f7f9fa 0%,#b9c2ca 42%,#eef1f3 60%,#929ea8 100%)",chair:"#77838d",text:"#26323b",border:"#7d8993",shadow:"0 8px 16px rgba(71,85,105,.24)"},marble:{top:"linear-gradient(135deg,#fbfaf7 0 27%,#d8d5cf 28% 32%,#ffffff 33% 56%,#c5c8cc 57% 61%,#f1efe9 62% 82%,#d0ccc3 83% 86%,#faf9f5 87%)",chair:"#59635c",text:"#26312a",border:"#aeb3af",shadow:"0 8px 18px rgba(55,65,60,.18)"},neutral:{top:"linear-gradient(135deg,#d9d6cf,#b7b3aa 55%,#cbc7bf)",chair:"#88847d",text:"#2e2d2a",border:"#9c978e",shadow:"0 8px 16px rgba(80,76,70,.18)"}};const s=styles[material];return <div role="button" tabIndex={0} aria-label={`Table ${row.table_number} ${material}`} data-material={material} onPointerDown={e=>onDown(e,"move")} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} className="absolute z-10 touch-none select-none" style={{left:`${layout.x/10}%`,top:`${layout.y/7}%`,width:shape==="rectangle"?"116px":"88px",height:"88px",transform:`translate(-50%,-50%) rotate(${layout.rotation}deg) scale(${layout.scale})`}}>{Array.from({length:Math.min(seats,6)},(_,index)=>{const angle=(360/Math.min(seats,6))*index-90;const x=50+Math.cos(angle*Math.PI/180)*50;const y=50+Math.sin(angle*Math.PI/180)*50;return <i key={index} className="absolute h-4 w-6 rounded-[5px] border shadow-sm transition-[background,border-color] duration-150" style={{left:`${x}%`,top:`${y}%`,transform:`translate(-50%,-50%) rotate(${angle+90}deg)`,background:s.chair,borderColor:s.border}}/>})}<span className={cn("absolute inset-[11px] grid place-items-center border-2 font-display text-sm font-bold transition-[background,color,border-color,box-shadow,border-radius] duration-150",shape==="round"?"rounded-full":shape==="square"?"rounded-xl":"rounded-[14px]")} style={{background:s.top,color:s.text,borderColor:selected?"#2486ff":s.border,boxShadow:s.shadow}}>{row.table_number}</span>{selected?<><span className="pointer-events-none absolute -inset-1 rounded-xl border-2 border-[#2486ff]"/><button type="button" aria-label="Resize table" onPointerDown={e=>onDown(e,"resize")} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} className="absolute -bottom-2 -end-2 z-30 size-4 touch-none rounded-full border-2 border-white bg-[#2486ff] shadow"/></>:null}</div>}'''
+          text = text[:start] + new_piece + text[end:]
+
+          old_inspector = '''<TableForm ar={ar} form={form} setForm={setForm} floors={floors}/><Field label={ar?"الدوران":"Rotation"}>'''
+          new_inspector = '''<TableForm ar={ar} form={form} setForm={setForm} floors={floors}/><p className="rounded-lg bg-muted/50 px-3 py-2 text-[10px] leading-4 text-muted-foreground">{ar?"تظهر تغييرات المادة والشكل والمقاعد مباشرة على المخطط. اضغط حفظ التغييرات للاحتفاظ بها.":"Material, shape and seat changes preview instantly on the floor plan. Choose Save Changes to keep them."}</p><Field label={ar?"الدوران":"Rotation"}>'''
+          if old_inspector not in text:
+              raise SystemExit('TableInspector marker not found')
+          text = text.replace(old_inspector, new_inspector, 1)
+
+          path.write_text(text)
+          PY
+          git diff --check
+          git config user.name "quickserve-automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/components/manage/TablesManagerPro.tsx
+          if git diff --cached --quiet; then
+            echo "No patch required"
+            exit 0
+          fi
+          git commit -m "fix(tables): preview material and shape changes live"
+          git push origin HEAD:main
