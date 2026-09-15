@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Check, RotateCcw } from "lucide-react";
+import { Camera, Check, Loader2, RotateCcw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -21,6 +21,7 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
   const [avatarUrl, setAvatarUrl] = useState<string | null>(membership?.avatar_url ?? null);
   const [preset, setPreset] = useState<string | null>(membership?.avatar_preset ?? null);
   const [busy, setBusy] = useState(false);
+  const [savingPreset, setSavingPreset] = useState<string | null>(null);
 
   useEffect(() => {
     setAvatarUrl(membership?.avatar_url ?? null);
@@ -38,36 +39,54 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
 
   const preview = avatarUrl || avatarPresetUrl(preset);
 
+  async function refreshIdentity() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["staff", "memberships"] }),
+      queryClient.invalidateQueries({ queryKey: ["auth", "session"] }),
+      queryClient.invalidateQueries({ queryKey: ["platform"] }),
+    ]);
+  }
+
   async function persist(nextUrl: string | null, nextPreset: string | null) {
+    const previousUrl = avatarUrl;
+    const previousPreset = preset;
+    setAvatarUrl(nextUrl);
+    setPreset(nextPreset);
+    setSavingPreset(nextPreset);
     setBusy(true);
     try {
-      // Restaurant/team avatar is stored on the membership through a SECURITY DEFINER RPC.
-      // The RPC deliberately does not write auth.users because the Auth schema is owned by
-      // Supabase Auth and direct SQL writes can raise 42501. The supported Auth client API
-      // updates the current user's own metadata separately.
-      const { error: rpcError } = await (supabase as any).rpc("update_own_avatar", {
-        _avatar_url: nextUrl,
-        _avatar_preset: nextPreset,
-      });
-      if (rpcError) throw rpcError;
+      if (membership) {
+        const { error: rpcError } = await (supabase as any).rpc("update_own_avatar", {
+          _avatar_url: nextUrl,
+          _avatar_preset: nextPreset,
+        });
+        if (rpcError) throw rpcError;
 
-      const { error: authError } = await supabase.auth.updateUser({
-        data: { avatar_url: nextUrl, avatar_preset: nextPreset },
-      });
-      if (authError) throw authError;
+        // The membership is QuickServe's authoritative avatar source. Auth metadata is
+        // convenience-only, so a transient metadata sync error must not make a successful
+        // membership update look like a failed avatar selection.
+        const { error: metadataError } = await supabase.auth.updateUser({
+          data: { avatar_url: nextUrl, avatar_preset: nextPreset },
+        });
+        if (metadataError) console.warn("Avatar metadata sync skipped:", metadataError.message);
+      } else {
+        const { error: authError } = await supabase.auth.updateUser({
+          data: { avatar_url: nextUrl, avatar_preset: nextPreset },
+        });
+        if (authError) throw authError;
+      }
 
-      setAvatarUrl(nextUrl);
-      setPreset(nextPreset);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["staff", "memberships"] }),
-        queryClient.invalidateQueries({ queryKey: ["auth", "session"] }),
-        queryClient.invalidateQueries({ queryKey: ["platform"] }),
-      ]);
+      await refreshIdentity();
       toast.success(lang === "ar" ? "تم تحديث الصورة الشخصية" : "Profile picture updated");
+      return true;
     } catch (error) {
+      setAvatarUrl(previousUrl);
+      setPreset(previousPreset);
       toast.error(humanError(error, lang));
+      return false;
     } finally {
       setBusy(false);
+      setSavingPreset(null);
     }
   }
 
@@ -95,7 +114,7 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="font-bold">{lang === "ar" ? "الصورة الشخصية" : "Profile picture"}</h3>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">{lang === "ar" ? "ارفع صورتك أو اختر شخصية احترافية حسب الدور. ستظهر في الحساب وشريط التطبيق وقوائم الفريق." : "Upload your photo or choose a professional role avatar. It appears in your account, app header, and team identity."}</p>
+          <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{lang === "ar" ? "ارفع صورتك أو اختر شخصية كرتونية احترافية حسب الدور. الاختيار يُحفظ مباشرة ويظهر في الحساب وشريط التطبيق وقائمة الفريق." : "Upload your photo or choose a professional cartoon role avatar. Your selection is saved immediately and appears across your account, app header, and team identity."}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button type="button" variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}><Camera className="size-4" />{lang === "ar" ? "رفع صورة" : "Upload Photo"}</Button>
             {(avatarUrl || preset) ? <Button type="button" variant="ghost" disabled={busy} onClick={() => void persist(null, null)}><RotateCcw className="size-4" />{lang === "ar" ? "إزالة" : "Remove"}</Button> : null}
@@ -103,25 +122,30 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
         </div>
       </div>
 
-      <div className="mt-5">
-        <p className="text-xs font-bold text-muted-foreground">{lang === "ar" ? "أو اختر شخصية حسب الدور" : "Or choose a role avatar"}</p>
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-10">
-          {AVATAR_PRESETS.map((item) => (
-            <button
+      <div className="mt-5 border-t border-border pt-5">
+        <div className="flex flex-wrap items-end justify-between gap-2"><div><p className="text-sm font-bold">{lang === "ar" ? "اختر شخصية" : "Choose an avatar"}</p><p className="mt-1 text-[11px] text-muted-foreground">{lang === "ar" ? "انقر مرة واحدة للاختيار والحفظ." : "Click once to select and save."}</p></div>{busy ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><Loader2 className="size-3.5 animate-spin" />{lang === "ar" ? "جارٍ الحفظ…" : "Saving…"}</span> : null}</div>
+        <div className="mt-4 grid grid-cols-2 gap-3 min-[480px]:grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6">
+          {AVATAR_PRESETS.map((item) => {
+            const selected = preset === item.id && !avatarUrl;
+            const saving = savingPreset === item.id;
+            return <button
               key={item.id}
               type="button"
               disabled={busy}
               onClick={() => void persist(null, item.id)}
+              aria-pressed={selected}
               aria-label={`${lang === "ar" ? "اختيار" : "Choose"} ${item.label}`}
               className={cn(
-                "group relative overflow-hidden rounded-2xl border bg-card p-1.5 text-start transition duration-150 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60",
-                preset === item.id && !avatarUrl ? "border-[#ff5a0a] ring-2 ring-[#ff5a0a]/15" : "border-border",
+                "group relative overflow-hidden rounded-2xl border bg-card p-2 text-start transition duration-150 hover:-translate-y-0.5 hover:border-[#ff5a0a]/45 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a0a]/35 disabled:cursor-wait",
+                selected ? "border-[#ff5a0a] ring-2 ring-[#ff5a0a]/15" : "border-border",
+                busy && !saving && "opacity-55",
               )}
             >
-              <div className="relative aspect-square overflow-hidden rounded-xl bg-muted"><img src={item.url} alt="" className="size-full object-cover" />{preset === item.id && !avatarUrl ? <span className="absolute end-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-[#ff5a0a] text-white"><Check className="size-3" /></span> : null}</div>
-              <span className="mt-1.5 block truncate px-1 text-[10px] font-bold text-foreground">{item.label}</span>
-            </button>
-          ))}
+              <div className="relative aspect-square overflow-hidden rounded-xl bg-muted"><img src={item.url} alt="" className="size-full object-cover" />{selected ? <span className="absolute end-2 top-2 grid size-6 place-items-center rounded-full bg-[#ff5a0a] text-white shadow"><Check className="size-3.5" /></span> : null}{saving ? <span className="absolute inset-0 grid place-items-center bg-background/60 backdrop-blur-[1px]"><Loader2 className="size-5 animate-spin text-[#ff5a0a]" /></span> : null}</div>
+              <span className="mt-2 block truncate px-0.5 text-[11px] font-bold text-foreground">{item.label}</span>
+              <span className="mt-0.5 block truncate px-0.5 text-[9px] font-medium text-muted-foreground">{item.role}</span>
+            </button>;
+          })}
         </div>
       </div>
       <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => void upload(event.target.files?.[0])} />
