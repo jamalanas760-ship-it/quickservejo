@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AVATAR_PRESETS, avatarPresetUrl } from "@/lib/avatar-presets";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
-import { uploadRestaurantImage } from "@/lib/storage";
+import { uploadProfileImage } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
 export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | null }) {
@@ -27,34 +27,48 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
     setPreset(membership?.avatar_preset ?? null);
   }, [membership?.avatar_preset, membership?.avatar_url, membership?.id]);
 
+  useEffect(() => {
+    if (membership) return;
+    void supabase.auth.getUser().then(({ data }) => {
+      const metadata = data.user?.user_metadata ?? {};
+      setAvatarUrl(typeof metadata.avatar_url === "string" ? metadata.avatar_url : null);
+      setPreset(typeof metadata.avatar_preset === "string" ? metadata.avatar_preset : null);
+    });
+  }, [membership]);
+
   const preview = avatarUrl || avatarPresetUrl(preset);
 
   async function persist(nextUrl: string | null, nextPreset: string | null) {
     setBusy(true);
     try {
-      if (restaurantId) {
-        const { error } = await (supabase as any).rpc("update_own_avatar", { _avatar_url: nextUrl, _avatar_preset: nextPreset });
-        if (error) throw error;
-      }
-      const authAvatar = nextUrl || avatarPresetUrl(nextPreset);
-      const { error: authError } = await supabase.auth.updateUser({ data: { avatar_url: authAvatar, avatar_preset: nextPreset } });
-      if (authError) throw authError;
-      setAvatarUrl(nextUrl); setPreset(nextPreset);
+      const { error } = await (supabase as any).rpc("update_own_avatar", {
+        _avatar_url: nextUrl,
+        _avatar_preset: nextPreset,
+      });
+      if (error) throw error;
+
+      setAvatarUrl(nextUrl);
+      setPreset(nextPreset);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["staff", "memberships"] }),
         queryClient.invalidateQueries({ queryKey: ["auth", "session"] }),
+        queryClient.invalidateQueries({ queryKey: ["platform"] }),
       ]);
       toast.success(lang === "ar" ? "تم تحديث الصورة الشخصية" : "Profile picture updated");
     } catch (error) {
       toast.error(humanError(error, lang));
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function upload(file: File | undefined) {
-    if (!file || !restaurantId) return;
+    if (!file) return;
     setBusy(true);
     try {
-      const url = await uploadRestaurantImage(restaurantId, "avatar", file);
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) throw error ?? new Error("Authentication required");
+      const url = await uploadProfileImage(data.user.id, file);
       await persist(url, null);
     } catch (error) {
       toast.error(humanError(error, lang));
@@ -72,19 +86,33 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="font-bold">{lang === "ar" ? "الصورة الشخصية" : "Profile picture"}</h3>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">{lang === "ar" ? "ارفع صورتك أو اختر صورة رمزية احترافية. ستظهر في الحساب وشريط التطبيق وقوائم الفريق." : "Upload your photo or choose a professional avatar. It appears in your account, app header, and team identity."}</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">{lang === "ar" ? "ارفع صورتك أو اختر صورة رمزية حسب الدور. ستظهر في الحساب وشريط التطبيق وقوائم الفريق." : "Upload your photo or choose a role-based illustrated avatar. It appears in your account, app header, and team identity."}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" variant="outline" disabled={busy || !restaurantId} onClick={() => inputRef.current?.click()}><Camera className="size-4" />{lang === "ar" ? "رفع صورة" : "Upload Photo"}</Button>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}><Camera className="size-4" />{lang === "ar" ? "رفع صورة" : "Upload Photo"}</Button>
             {(avatarUrl || preset) ? <Button type="button" variant="ghost" disabled={busy} onClick={() => void persist(null, null)}><RotateCcw className="size-4" />{lang === "ar" ? "إزالة" : "Remove"}</Button> : null}
           </div>
-          {!restaurantId ? <p className="mt-2 text-[11px] text-muted-foreground">{lang === "ar" ? "اربط الحساب بمطعم لرفع صورة. يمكنك استخدام صورة رمزية الآن." : "Link the account to a restaurant to upload a photo. Preset avatars are available now."}</p> : null}
         </div>
       </div>
 
       <div className="mt-5">
-        <p className="text-xs font-bold text-muted-foreground">{lang === "ar" ? "أو اختر صورة رمزية" : "Or choose an avatar"}</p>
-        <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-8">
-          {AVATAR_PRESETS.map((item) => <button key={item.id} type="button" disabled={busy} onClick={() => void persist(null, item.id)} aria-label={`${lang === "ar" ? "اختيار" : "Choose"} ${item.label}`} className={cn("relative aspect-square overflow-hidden rounded-2xl border-2 bg-card transition hover:-translate-y-0.5", preset === item.id && !avatarUrl ? "border-[#ff5a0a] ring-2 ring-[#ff5a0a]/15" : "border-transparent")}><img src={item.url} alt="" className="size-full object-cover" />{preset === item.id && !avatarUrl ? <span className="absolute end-1 top-1 grid size-5 place-items-center rounded-full bg-[#ff5a0a] text-white"><Check className="size-3" /></span> : null}</button>)}
+        <p className="text-xs font-bold text-muted-foreground">{lang === "ar" ? "أو اختر شخصية حسب الدور" : "Or choose a role avatar"}</p>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+          {AVATAR_PRESETS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              disabled={busy}
+              onClick={() => void persist(null, item.id)}
+              aria-label={`${lang === "ar" ? "اختيار" : "Choose"} ${item.label}`}
+              className={cn(
+                "group relative overflow-hidden rounded-2xl border bg-card p-1.5 text-start transition hover:-translate-y-0.5 hover:shadow-md",
+                preset === item.id && !avatarUrl ? "border-[#ff5a0a] ring-2 ring-[#ff5a0a]/15" : "border-border",
+              )}
+            >
+              <div className="relative aspect-square overflow-hidden rounded-xl bg-muted"><img src={item.url} alt="" className="size-full object-cover" />{preset === item.id && !avatarUrl ? <span className="absolute end-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-[#ff5a0a] text-white"><Check className="size-3" /></span> : null}</div>
+              <span className="mt-1.5 block truncate px-1 text-[10px] font-bold text-foreground">{item.label}</span>
+            </button>
+          ))}
         </div>
       </div>
       <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => void upload(event.target.files?.[0])} />
