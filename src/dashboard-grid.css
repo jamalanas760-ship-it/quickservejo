@@ -1,0 +1,33 @@
+.qs-custom-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.qs-custom-grid-item {
+  min-width: 0;
+  grid-column: 1 / -1;
+  min-height: var(--qs-grid-height, 160px);
+}
+
+.qs-custom-grid-item > .h-full {
+  min-height: inherit;
+}
+
+@media (min-width: 1280px) {
+  .qs-custom-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .qs-custom-grid-item {
+    grid-column: span var(--qs-grid-columns, 12) / span var(--qs-grid-columns, 12);
+  }
+}
+
+.qs-custom-grid--editing {
+  padding: 0.25rem;
+  border-radius: 1.25rem;
+  background-image: radial-gradient(circle, color-mix(in oklab, var(--border) 70%, transparent) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
