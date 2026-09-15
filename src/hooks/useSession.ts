@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import type { AppRole, Capability } from "@/lib/permissions";
-import { anyRoleHasCapability } from "@/lib/permissions";
+import type { AppRole, Capability, PermissionOverrides } from "@/lib/permissions";
+import { membershipHasCapability } from "@/lib/permissions";
 
 export type StaffMembership = {
   id: string;
@@ -12,6 +12,7 @@ export type StaffMembership = {
   is_active: boolean;
   avatar_url: string | null;
   avatar_preset: string | null;
+  permission_overrides: PermissionOverrides | null;
   restaurant: {
     id: string;
     name: string;
@@ -58,7 +59,7 @@ export function useMemberships() {
       if (!uid) return [];
       const { data, error } = await (supabase.from("staff") as any)
         .select(
-          "id, restaurant_id, role, name, is_active, avatar_url, avatar_preset, restaurant:restaurants(id, name, slug, logo_url, cover_image_url, primary_color, secondary_color, accent_color, background_color, text_color, menu_theme, is_active, subscription_plan)",
+          "id, restaurant_id, role, name, is_active, avatar_url, avatar_preset, permission_overrides, restaurant:restaurants(id, name, slug, logo_url, cover_image_url, primary_color, secondary_color, accent_color, background_color, text_color, menu_theme, is_active, subscription_plan)",
         )
         .eq("auth_user_id", uid)
         .eq("is_active", true);
@@ -70,13 +71,20 @@ export function useMemberships() {
 
 export function useAccess() {
   const memberships = useMemberships();
-  const roles = (memberships.data ?? []).map((m) => m.role);
+  const rows = memberships.data ?? [];
+  const roles = rows.map((m) => m.role);
+  const isSuperAdmin = roles.includes("super_admin");
+  const canFor = (restaurantId: string, capability: Capability) => {
+    if (isSuperAdmin) return true;
+    const membership = rows.find((row) => row.restaurant_id === restaurantId);
+    return membership ? membershipHasCapability(membership.role, membership.permission_overrides, capability) : false;
+  };
   return {
     ...memberships,
     roles,
-    isSuperAdmin: roles.includes("super_admin"),
-    can: (capability: Capability) => anyRoleHasCapability(roles, capability),
-    membershipFor: (restaurantId: string) =>
-      (memberships.data ?? []).find((m) => m.restaurant_id === restaurantId) ?? null,
+    isSuperAdmin,
+    can: (capability: Capability) => isSuperAdmin || rows.some((row) => membershipHasCapability(row.role, row.permission_overrides, capability)),
+    canFor,
+    membershipFor: (restaurantId: string) => rows.find((m) => m.restaurant_id === restaurantId) ?? null,
   };
 }
