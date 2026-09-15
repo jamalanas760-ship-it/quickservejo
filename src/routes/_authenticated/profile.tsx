@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { ROLE_LABELS } from "@/lib/permissions";
+import { cn } from "@/lib/utils";
 
 type Notifications = { newOrders:boolean; tableAlerts:boolean; system:boolean; marketing:boolean; sound:boolean; orderSounds:boolean; tableSounds:boolean };
 const DEFAULT_NOTIF:Notifications={newOrders:true,tableAlerts:true,system:true,marketing:false,sound:true,orderSounds:true,tableSounds:false};
