@@ -25,7 +25,7 @@ const updateSchema = z.object({
   password: z.string().min(8).max(72).optional(),
   role: z.enum(["restaurant_admin", "manager", "kitchen", "waiter", "cashier"]).optional(),
   isActive: z.boolean().optional(),
-  permissionOverrides: z.record(z.enum(permissionKeys), z.boolean()).optional(),
+  permissionOverrides: z.partialRecord(z.enum(permissionKeys), z.boolean()).optional(),
 });
 
 type EdgeError = { error?: string };
