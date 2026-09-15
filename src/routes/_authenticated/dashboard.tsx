@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Clock3,
   ClipboardList,
-  Home,
   Receipt,
   ShoppingBag,
   Table2,
@@ -63,15 +62,15 @@ function DashboardPage() {
     { label: ar ? "مبيعات اليوم" : "Sales Today", value: formatMoney(r?.salesToday ?? 0, currency, lang), icon: ShoppingBag, tone: "orange" },
     { label: ar ? "إجمالي الطلبات" : "Total Orders", value: formatNumber(r?.ordersToday ?? 0, lang), icon: ClipboardList, tone: "green" },
     { label: ar ? "الطاولات المفتوحة" : "Open Tables", value: String(tableCount.data ?? 0), icon: Table2, tone: "blue" },
-    { label: ar ? "متوسط وقت الطلب" : "Average Order Time", value: "0 min", icon: Clock3, tone: "gray" },
+    { label: ar ? "متوسط وقت الطلب" : "Average Order Time", value: "—", icon: Clock3, tone: "gray" },
   ] as const;
 
   const quick = rid ? [
-    { to: "/dashboard", label: ar ? "لوحة التحكم" : "Dashboard", hint: ar ? "عرض الملخص" : "View overview", icon: BarChart3 },
+    { to: `/manage/${rid}/analytics`, label: ar ? "التحليلات" : "Analytics", hint: ar ? "عرض الرؤى" : "View insights", icon: BarChart3 },
     { to: `/manage/${rid}/orders`, label: ar ? "الطلبات" : "Orders", hint: ar ? "متابعة الطلبات" : "Track orders", icon: ClipboardList },
     { to: `/manage/${rid}`, label: ar ? "القائمة" : "Menu", hint: ar ? "تحديث القائمة" : "Update menu", icon: UtensilsCrossed },
     { to: `/manage/${rid}/tables`, label: ar ? "الطاولات" : "Tables", hint: ar ? "إدارة الطاولات" : "Manage tables", icon: Table2 },
-    { to: `/manage/${rid}/analytics`, label: ar ? "التحليلات" : "Analytics", hint: ar ? "عرض الرؤى" : "View insights", icon: BarChart3 },
+    { to: `/manage/${rid}/staff`, label: ar ? "الفريق" : "Team", hint: ar ? "إدارة الفريق" : "Manage staff", icon: Users },
   ] : [];
 
   return (
@@ -101,20 +100,20 @@ function DashboardPage() {
             {metrics.map(({ label, value, icon: Icon, tone }) => (
               <article key={label} className="qs-stat flex items-center gap-4">
                 <span className={`grid size-11 shrink-0 place-items-center rounded-full ${tone === "orange" ? "bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30" : tone === "green" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30" : tone === "blue" ? "bg-blue-50 text-blue-600 dark:bg-blue-950/30" : "bg-slate-100 text-slate-600 dark:bg-slate-800"}`}><Icon className="size-5" /></span>
-                <div className="min-w-0"><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><p className="mt-1 truncate font-display text-[24px] font-bold tracking-[-.035em]">{value}</p><p className="mt-1 text-[10px] font-semibold text-emerald-600">↗ 0% <span className="font-normal text-muted-foreground">{ar ? "مقارنة بالأمس" : "vs. yesterday"}</span></p></div>
+                <div className="min-w-0"><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><p className="mt-1 truncate font-display text-[24px] font-bold tracking-[-.035em]">{value}</p></div>
               </article>
             ))}
           </section>
         )}
 
         <section>
-          <div className="mb-3 flex items-end justify-between gap-3"><div><h2 className="qs-section-title text-lg">{ar ? "وصول سريع" : "Quick Access"}</h2></div><p className="hidden text-xs text-muted-foreground sm:block">{ar ? "كل ما تحتاجه في مكان واحد." : "Everything you need, right here."}</p></div>
+          <div className="mb-3 flex items-end justify-between gap-3"><h2 className="qs-section-title text-lg">{ar ? "وصول سريع" : "Quick Access"}</h2><p className="hidden text-xs text-muted-foreground sm:block">{ar ? "كل ما تحتاجه في مكان واحد." : "Everything you need, right here."}</p></div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-            {quick.map(({ to, label, hint, icon: Icon }) => (
-              <Link key={to} to={to as never} className="qs-quick-tile">
+            {quick.map(({ to, label, hint, icon: Icon }, index) => (
+              <Link key={to} to={to as never} className={`qs-quick-tile ${index === 0 ? "border-orange-300 bg-orange-50/50 dark:bg-orange-950/10" : ""}`}>
                 <span className="qs-quick-icon"><Icon className="size-5" /></span>
                 <span><strong className="block text-sm">{label}</strong><span className="mt-1 block text-[11px] text-muted-foreground">{hint}</span></span>
-                <ChevronRight className="absolute hidden" />
+                <ChevronRight className="ms-auto size-4 text-muted-foreground" />
               </Link>
             ))}
           </div>
