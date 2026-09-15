@@ -79,24 +79,30 @@ function PlatformOrdersPage() {
         <p className="qs-page-subtitle">{lang === "ar" ? "مراقبة وتتبع فقط — بدون تعديل الطلبات." : "Monitor and track only — no order editing from admin."}</p>
       </div>
 
-      <div className="qs-card grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-5 sm:p-4">
-        <Select value={restaurantId} onValueChange={setRestaurantId}>
-          <SelectTrigger><SelectValue placeholder={t("sa.orders.restaurant")} /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("sa.filter.all")}</SelectItem>
-            {(restaurants.data ?? []).map((restaurant) => <SelectItem key={restaurant.id} value={restaurant.id}>{restaurant.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger><SelectValue placeholder={t("sa.orders.status")} /></SelectTrigger>
-          <SelectContent><SelectItem value="all">{t("sa.filter.all")}</SelectItem>{STATUSES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
-        </Select>
-        <Select value={payment} onValueChange={setPayment}>
-          <SelectTrigger><SelectValue placeholder={t("sa.orders.payment")} /></SelectTrigger>
-          <SelectContent><SelectItem value="all">{t("sa.filter.all")}</SelectItem>{PAYMENTS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
-        </Select>
-        <div className="space-y-1"><Label className="text-xs text-muted-foreground">{t("sa.orders.dateFrom")}</Label><Input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></div>
-        <div className="space-y-1"><Label className="text-xs text-muted-foreground">{t("sa.orders.dateTo")}</Label><Input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></div>
+      <div className="qs-card grid items-end gap-3 p-3 sm:grid-cols-2 lg:grid-cols-5 sm:p-4">
+        <FilterField label={t("sa.orders.restaurant")}>
+          <Select value={restaurantId} onValueChange={setRestaurantId}>
+            <SelectTrigger className="h-14"><SelectValue placeholder={t("sa.orders.restaurant")} /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("sa.filter.all")}</SelectItem>
+              {(restaurants.data ?? []).map((restaurant) => <SelectItem key={restaurant.id} value={restaurant.id}>{restaurant.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </FilterField>
+        <FilterField label={t("sa.orders.status")}>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="h-14"><SelectValue placeholder={t("sa.orders.status")} /></SelectTrigger>
+            <SelectContent><SelectItem value="all">{t("sa.filter.all")}</SelectItem>{STATUSES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+          </Select>
+        </FilterField>
+        <FilterField label={t("sa.orders.payment")}>
+          <Select value={payment} onValueChange={setPayment}>
+            <SelectTrigger className="h-14"><SelectValue placeholder={t("sa.orders.payment")} /></SelectTrigger>
+            <SelectContent><SelectItem value="all">{t("sa.filter.all")}</SelectItem>{PAYMENTS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+          </Select>
+        </FilterField>
+        <FilterField label={t("sa.orders.dateFrom")}><Input className="h-14" type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></FilterField>
+        <FilterField label={t("sa.orders.dateTo")}><Input className="h-14" type="date" value={to} onChange={(event) => setTo(event.target.value)} /></FilterField>
       </div>
 
       {orders.isPending ? (
@@ -135,9 +141,7 @@ function PlatformOrdersPage() {
       <Dialog open={openOrder !== null} onOpenChange={(open) => !open && setOpenOrder(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader><DialogTitle>{t("sa.orders.details")} {current?.order_number}</DialogTitle><DialogDescription>{current?.restaurant?.name ?? ""}</DialogDescription></DialogHeader>
-
           {current ? <Tracking status={current.status} lang={lang} /> : null}
-
           {items.isPending ? <Skeleton className="h-32 rounded-lg" /> : (
             <ul className="divide-y text-sm">
               {(items.data ?? []).map((item) => (
@@ -145,7 +149,6 @@ function PlatformOrdersPage() {
               ))}
             </ul>
           )}
-
           {current ? (
             <dl className="space-y-1 border-t pt-3 text-sm">
               <Line label={t("sa.orders.subtotal")} value={formatMoney(current.subtotal, current.currency, lang)} />
@@ -155,12 +158,15 @@ function PlatformOrdersPage() {
               <Line label={t("sa.orders.total")} value={formatMoney(current.total, current.currency, lang)} strong />
             </dl>
           ) : null}
-
           <DialogFooter><Button onClick={() => setOpenOrder(null)}>{t("common.close")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
+}
+
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div className="min-w-0 space-y-2"><Label className="block h-4 text-xs font-medium text-muted-foreground">{label}</Label>{children}</div>;
 }
 
 function Tracking({ status, lang }: { status: string; lang: "en" | "ar" }) {
