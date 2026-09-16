@@ -182,6 +182,8 @@ export type WorkspaceMember = {
   email: string | null;
   role: AppRole;
   is_active: boolean;
+  avatar_url: string | null;
+  avatar_preset: string | null;
 };
 
 /** Team roster for the workspace — RLS keeps it scoped to the tenant. */
@@ -193,7 +195,7 @@ export function useWorkspaceMembers(restaurantId: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
-        .select("id, name, email, role, is_active")
+        .select("id, name, email, role, is_active, avatar_url, avatar_preset")
         .eq("restaurant_id", restaurantId!)
         .order("created_at", { ascending: true });
       if (error) throw error;

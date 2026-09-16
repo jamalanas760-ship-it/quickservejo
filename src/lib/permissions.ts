@@ -10,13 +10,13 @@ export const ROLE_LABELS: Record<AppRole,{en:string;ar:string}> = {
  super_admin:{en:"Super Admin",ar:"المشرف العام"}, restaurant_admin:{en:"Admin",ar:"مدير"}, manager:{en:"Staff",ar:"موظف"},
  kitchen:{en:"Staff",ar:"موظف"}, waiter:{en:"Staff",ar:"موظف"}, cashier:{en:"Staff",ar:"موظف"},
 };
-export const ROLE_HOME:Record<AppRole,string>={super_admin:"/super-admin",restaurant_admin:"/dashboard",manager:"/kitchen",kitchen:"/kitchen",waiter:"/waiter",cashier:"/cashier"};
+export const ROLE_HOME:Record<AppRole,string>={super_admin:"/super-admin",restaurant_admin:"/dashboard",manager:"/manager",kitchen:"/kitchen",waiter:"/waiter",cashier:"/cashier"};
 export type Capability="manage_platform"|"manage_restaurant"|"manage_menu"|"manage_tables"|"manage_staff"|"manage_appearance"|"view_analytics"|"view_orders"|"view_order_prices"|"update_order_status"|"manage_payments"|"handle_waiter_calls";
 const ROLE_CAPABILITIES:Record<AppRole,Capability[]>={
  super_admin:["manage_platform","manage_restaurant","manage_menu","manage_tables","manage_staff","manage_appearance","view_analytics","view_orders","view_order_prices","update_order_status","manage_payments","handle_waiter_calls"],
  restaurant_admin:["manage_restaurant","manage_menu","manage_tables","manage_staff","manage_appearance","view_analytics","view_orders","view_order_prices","update_order_status","manage_payments","handle_waiter_calls"],
- manager:["view_analytics","view_orders","view_order_prices","update_order_status","handle_waiter_calls"],
- kitchen:["view_orders","update_order_status"],waiter:["view_orders","view_order_prices","update_order_status","handle_waiter_calls"],cashier:["view_orders","view_order_prices","manage_payments"]
+ manager:["manage_menu","manage_tables","view_analytics","view_orders","view_order_prices","update_order_status","handle_waiter_calls"],
+ kitchen:["view_orders","update_order_status"],waiter:["manage_tables","view_orders","view_order_prices","update_order_status","handle_waiter_calls"],cashier:["view_orders","view_order_prices","manage_payments"]
 };
 export function roleHasCapability(role:AppRole,capability:Capability){return ROLE_CAPABILITIES[role].includes(capability)}
 export function anyRoleHasCapability(roles:AppRole[],capability:Capability){return roles.some(r=>roleHasCapability(r,capability))}

@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 type Item = { to: string; icon: typeof Home; en: string; ar: string; exact?: boolean };
 
 const TASK_ITEMS: Partial<Record<string, Item>> = {
-  manager: { to: "/kitchen", icon: ClipboardList, en: "Operations", ar: "العمليات" },
+  manager: { to: "/manager", icon: ClipboardList, en: "Manager", ar: "المدير" },
   kitchen: { to: "/kitchen", icon: ChefHat, en: "Kitchen", ar: "المطبخ" },
   waiter: { to: "/waiter", icon: UtensilsCrossed, en: "Floor", ar: "الصالة" },
   cashier: { to: "/cashier", icon: Banknote, en: "Cashier", ar: "الكاشير" },

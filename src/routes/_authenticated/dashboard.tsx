@@ -22,6 +22,7 @@ import { useWorkspaceMembers, useWorkspaceReport, useWorkspaceScope } from "@/ho
 import { formatDateTime, formatMoney, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { ROLE_LABELS } from "@/lib/permissions";
+import { avatarPresetUrl } from "@/lib/avatar-presets";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Home — QuickServe" }, { name: "description", content: "QuickServe restaurant workspace overview." }] }),
@@ -126,13 +127,15 @@ function DashboardPage() {
             <div className="p-4 sm:p-5">
               {members.isPending ? <Skeleton className="h-20 rounded-xl" /> : (
                 <div className="space-y-2">
-                  {(members.data ?? []).slice(0, 4).map((member) => (
+                  {(members.data ?? []).slice(0, 4).map((member) => {
+                    const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
+                    return (
                     <div key={member.id} className="flex items-center gap-3 rounded-xl border border-border px-3 py-3">
-                      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted font-bold">{member.name.slice(0,1).toUpperCase()}</span>
+                      <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" loading="lazy" /> : member.name.slice(0,1).toUpperCase()}</span>
                       <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{member.name}</span><span className="text-[11px] text-muted-foreground">{ROLE_LABELS[member.role]?.[lang] ?? member.role}</span></span>
                       <span className={`size-2 rounded-full ${member.is_active ? "bg-emerald-500" : "bg-slate-400"}`} />
-                    </div>
-                  ))}
+                    </div>);
+                  })}
                   {(members.data ?? []).length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">{ar ? "لا يوجد أعضاء بعد." : "No workspace members yet."}</p> : null}
                 </div>
               )}

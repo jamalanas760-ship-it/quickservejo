@@ -96,7 +96,7 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
 
       <div className="mt-5">
         <p className="text-xs font-bold text-muted-foreground">{lang === "ar" ? "أو اختر شخصية حسب الدور" : "Or choose a role avatar"}</p>
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {AVATAR_PRESETS.map((item) => (
             <button
               key={item.id}
@@ -105,12 +105,12 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
               onClick={() => void persist(null, item.id)}
               aria-label={`${lang === "ar" ? "اختيار" : "Choose"} ${item.label}`}
               className={cn(
-                "group relative overflow-hidden rounded-2xl border bg-card p-1.5 text-start transition hover:-translate-y-0.5 hover:shadow-md",
+                "group relative min-w-0 overflow-hidden rounded-2xl border bg-card p-1.5 text-start transition hover:-translate-y-0.5 hover:shadow-md",
                 preset === item.id && !avatarUrl ? "border-[#ff5a0a] ring-2 ring-[#ff5a0a]/15" : "border-border",
               )}
             >
               <div className="relative aspect-square overflow-hidden rounded-xl bg-muted"><img src={item.url} alt="" className="size-full object-cover" />{preset === item.id && !avatarUrl ? <span className="absolute end-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-[#ff5a0a] text-white"><Check className="size-3" /></span> : null}</div>
-              <span className="mt-1.5 block truncate px-1 text-[10px] font-bold text-foreground">{item.label}</span>
+              <span className="mt-1.5 block min-h-8 px-1 text-[11px] font-bold leading-4 text-foreground">{item.label}</span>
             </button>
           ))}
         </div>

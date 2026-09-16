@@ -38,6 +38,7 @@ function AuthenticatedShell() {
   const staffBlocked = staff && STAFF_BLOCKED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const roleRouteBlocked = staff && (
     (pathname.startsWith("/kitchen") && !roles.some((role) => role === "kitchen" || role === "manager")) ||
+    (pathname.startsWith("/manager") && !roles.includes("manager")) ||
     (pathname.startsWith("/waiter") && !roles.includes("waiter")) ||
     (pathname.startsWith("/cashier") && !roles.includes("cashier"))
   );
