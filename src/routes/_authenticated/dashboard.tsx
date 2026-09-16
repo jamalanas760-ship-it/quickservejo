@@ -19,9 +19,9 @@ import {
 import { toast } from "sonner";
 
 import { DashboardGrid, normalizeDashboardSize, reorderDashboardItems, type DashboardItemSize } from "@/components/customization/DashboardGrid";
+import { HomeMetricDetail, isHomeMetricId } from "@/components/dashboard/HomeMetricDetail";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,7 +93,6 @@ function DashboardPage() {
   const [draft, setDraft] = useState<HomeLayout>(savedLayout);
   const [customize, setCustomize] = useState(false);
   const [savingLayout, setSavingLayout] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
     setLayout(savedLayout);
@@ -111,13 +110,16 @@ function DashboardPage() {
     },
   });
 
+  const detailMetric = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("detail");
+  if (rid && isHomeMetricId(detailMetric)) return <HomeMetricDetail metric={detailMetric} restaurantId={rid} restaurantName={restaurant.data?.name ?? scope.restaurantName ?? (ar ? "المطعم" : "Restaurant")} currency={currency} />;
+
   const today = new Intl.DateTimeFormat(ar ? "ar-JO" : "en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }).format(new Date());
   const hero = restaurant.data?.cover_image_url || "/signin-restaurant.webp";
   const metrics = [
-    { label: ar ? "مبيعات اليوم" : "Sales Today", value: formatMoney(r?.salesToday ?? 0, currency, lang), icon: ShoppingBag, tone: "orange" },
-    { label: ar ? "إجمالي الطلبات" : "Total Orders", value: formatNumber(r?.ordersToday ?? 0, lang), icon: ClipboardList, tone: "green" },
-    { label: ar ? "الطاولات المفتوحة" : "Open Tables", value: String(tableCount.data ?? 0), icon: Table2, tone: "blue" },
-    { label: ar ? "متوسط وقت الطلب" : "Average Order Time", value: "—", icon: Clock3, tone: "gray" },
+    { id: "sales", label: ar ? "مبيعات اليوم" : "Sales Today", value: formatMoney(r?.salesToday ?? 0, currency, lang), icon: ShoppingBag, tone: "orange" },
+    { id: "orders", label: ar ? "إجمالي الطلبات" : "Total Orders", value: formatNumber(r?.ordersToday ?? 0, lang), icon: ClipboardList, tone: "green" },
+    { id: "tables", label: ar ? "الطاولات المفتوحة" : "Open Tables", value: String(tableCount.data ?? 0), icon: Table2, tone: "blue" },
+    { id: "order-time", label: ar ? "متوسط وقت الطلب" : "Average Order Time", value: "—", icon: Clock3, tone: "gray" },
   ] as const;
 
   const quick = rid ? [
@@ -176,7 +178,7 @@ function DashboardPage() {
 
     if (id === "metrics") return report.isPending || tableCount.isPending
       ? <div className="grid h-full gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((index) => <Skeleton key={index} className="min-h-[116px] rounded-2xl" />)}</div>
-      : <section className="grid h-full gap-3 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(({ label, value, icon: Icon, tone }) => <button type="button" key={label} onClick={() => setDetailOpen(true)} className="qs-stat flex min-h-[116px] items-center gap-4 text-start transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/30"><span className={`grid size-11 shrink-0 place-items-center rounded-full ${tone === "orange" ? "bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30" : tone === "green" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30" : tone === "blue" ? "bg-blue-50 text-blue-600 dark:bg-blue-950/30" : "bg-slate-100 text-slate-600 dark:bg-slate-800"}`}><Icon className="size-5" /></span><div className="min-w-0"><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><p className="mt-1 truncate font-display text-[24px] font-bold tracking-[-.035em]">{value}</p><span className="mt-1 block text-[10px] font-bold text-[#ff5a0a]">{ar ? "عرض التفاصيل" : "View details"}</span></div></button>)}</section>;
+      : <section className="grid h-full gap-3 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(({ id, label, value, icon: Icon, tone }) => <a href={`/dashboard?detail=${id}`} key={id} className="qs-stat flex min-h-[116px] items-center gap-4 text-start transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/30"><span className={`grid size-11 shrink-0 place-items-center rounded-full ${tone === "orange" ? "bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30" : tone === "green" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30" : tone === "blue" ? "bg-blue-50 text-blue-600 dark:bg-blue-950/30" : "bg-slate-100 text-slate-600 dark:bg-slate-800"}`}><Icon className="size-5" /></span><div className="min-w-0"><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><p className="mt-1 truncate font-display text-[24px] font-bold tracking-[-.035em]">{value}</p><span className="mt-1 block text-[10px] font-bold text-[#ff5a0a]">{ar ? "عرض التفاصيل" : "View details"}</span></div></a>)}</section>;
 
     if (id === "quick") return <section className="h-full"><div className="mb-3 flex items-end justify-between gap-3"><h2 className="qs-section-title text-lg">{ar ? "وصول سريع" : "Quick Access"}</h2><p className="hidden text-xs text-muted-foreground sm:block">{ar ? "كل ما تحتاجه في مكان واحد." : "Everything you need, right here."}</p></div><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">{quick.map(({ to, label, hint, icon: Icon }, index) => <Link key={to} to={to as never} className={`qs-quick-tile ${index === 0 ? "border-orange-300 bg-orange-50/50 dark:bg-orange-950/10" : ""}`}><span className="qs-quick-icon"><Icon className="size-5" /></span><span><strong className="block text-sm">{label}</strong><span className="mt-1 block text-[11px] text-muted-foreground">{hint}</span></span><ChevronRight className="ms-auto size-4 text-muted-foreground" /></Link>)}</div></section>;
 
@@ -206,7 +208,6 @@ function DashboardPage() {
         onResize={(id, size) => setDraft((current) => ({ ...current, sizes: { ...current.sizes, [id]: size } }))}
         renderItem={renderSection}
       />
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}><DialogContent className="max-h-[90vh] overflow-hidden p-0 sm:max-w-3xl"><DialogHeader className="border-b border-border p-5"><DialogTitle>{ar ? "تفاصيل اليوم" : "Today’s details"}</DialogTitle><DialogDescription>{ar ? "الطلبات والنشاط الفعلي لهذا المطعم." : "Real orders and activity for this restaurant."}</DialogDescription></DialogHeader><div className="max-h-[60vh] overflow-auto p-5"><table className="qs-table min-w-[620px]"><thead><tr><th>{ar ? "الطلب" : "Order"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "الطاولة" : "Table"}</th><th>{ar ? "الوقت" : "Time"}</th></tr></thead><tbody>{(r?.recent ?? []).map((order) => <tr key={order.id}><td>{order.order_number}</td><td>{order.status}</td><td>{order.table ?? (ar ? "خارجي" : "Takeaway")}</td><td>{formatDateTime(order.created_at, lang)}</td></tr>)}</tbody></table>{(r?.recent ?? []).length === 0 ? <p className="py-10 text-center text-sm text-muted-foreground">{ar ? "لا يوجد نشاط اليوم." : "No activity today."}</p> : null}</div></DialogContent></Dialog>
     </main>
   </div>;
 }
