@@ -199,7 +199,7 @@ export function useWorkspaceMembers(restaurantId: string | null) {
         .eq("restaurant_id", restaurantId!)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as WorkspaceMember[];
+      return (data ?? []) as unknown as WorkspaceMember[];
     },
   });
 }
