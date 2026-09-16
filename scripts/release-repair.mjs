@@ -45,6 +45,34 @@ await edit('src/lib/menu-designer.server.ts', (text) => {
   return text;
 });
 
+await edit('src/components/manage/AnalyticsManagerPro.tsx', (text) => {
+  text = text.replace(
+    'value={config.chartTypes[id] ?? DEFAULT_CHART_TYPES[id]}',
+    'value={config.chartTypes[id] ?? DEFAULT_CHART_TYPES[id] ?? "bar"}',
+  );
+  return text;
+});
+
+await edit('src/components/nav/BottomNav.tsx', (text) => {
+  text = text.replace(
+    'const managementItems: Item[] = restaurantId ? [',
+    'const managementItems: Item[] = restaurantId ? ([',
+  );
+  text = text.replace(
+    '  ].filter((item) => !item.capability || can(item.capability)) : [];',
+    '  ] satisfies Item[]).filter((item) => !item.capability || can(item.capability)) : [];',
+  );
+  return text;
+});
+
+await edit('src/hooks/useWorkspace.ts', (text) => {
+  text = text.replace(
+    '      const { data, error } = await supabase\n        .from("staff")\n        .select("id, name, email, role, is_active, avatar_url, avatar_preset")',
+    '      const { data, error } = await (supabase.from("staff") as any)\n        .select("id, name, email, role, is_active, avatar_url, avatar_preset")',
+  );
+  return text;
+});
+
 await edit('tsconfig.json', (text) => {
   text = text.replace(/"noPropertyAccessFromIndexSignature"\s*:\s*true/g, '"noPropertyAccessFromIndexSignature": false');
   text = text.replace(/"noUncheckedIndexedAccess"\s*:\s*true/g, '"noUncheckedIndexedAccess": false');
