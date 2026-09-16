@@ -54,7 +54,7 @@ export function BottomNav() {
   const useRestaurantLogo = Boolean(restaurant?.logo_url && !appearance.useQuickServeLogo);
   const homeTo = role === "manager" ? "/manager" : "/dashboard";
 
-  const managementItems: Item[] = restaurantId ? [
+  const managementItems: Item[] = restaurantId ? ([
     { to: homeTo, icon: role === "manager" ? UserRoundCog : Home, en: role === "manager" ? "Manager" : "Home", ar: role === "manager" ? "المدير" : "الرئيسية", exact: true },
     { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات", capability: "view_orders" },
     { to: `/manage/${restaurantId}`, icon: UtensilsCrossed, en: "Menu", ar: "القائمة", exact: true, capability: "manage_menu" },
@@ -62,7 +62,7 @@ export function BottomNav() {
     { to: `/manage/${restaurantId}/analytics`, icon: BarChart3, en: "Analytics", ar: "التحليلات", capability: "view_analytics" },
     { to: `/manage/${restaurantId}/staff`, icon: Users, en: "Team", ar: "الفريق", capability: "manage_staff" },
     { to: "/profile", icon: User, en: "Profile", ar: "الحساب", exact: true },
-  ].filter((item) => !item.capability || can(item.capability)) : [];
+  ] satisfies Item[]).filter((item) => !item.capability || can(item.capability)) : [];
 
   const frontlineItem = role ? FRONTLINE_ITEMS[role] : undefined;
   const desktopItems: Item[] = role === "manager"

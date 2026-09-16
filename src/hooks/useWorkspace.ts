@@ -186,8 +186,7 @@ export function useWorkspaceMembers(restaurantId: string | null) {
     enabled: Boolean(restaurantId),
     staleTime: 20_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("staff")
+      const { data, error } = await (supabase.from("staff") as any)
         .select("id, name, email, role, is_active, avatar_url, avatar_preset")
         .eq("restaurant_id", restaurantId!)
         .order("created_at", { ascending: true });
