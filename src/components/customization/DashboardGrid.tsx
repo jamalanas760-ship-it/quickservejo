@@ -1,4 +1,5 @@
-import { useRef, useState, type CSSProperties, type DragEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { GripVertical, Maximize2 } from "lucide-react";
 
 import "@/dashboard-grid.css";
@@ -70,17 +71,41 @@ export function DashboardGrid<T extends string>({
   const dragging = useRef<T | null>(null);
   const resizing = useRef<ResizeState<T> | null>(null);
   const [dropTarget, setDropTarget] = useState<T | null>(null);
+  const [dragPreview, setDragPreview] = useState<{ id: T; x: number; y: number; width: number; height: number; offsetX: number; offsetY: number } | null>(null);
+
+  useEffect(() => {
+    if (!dragPreview) return;
+    const move = (event: globalThis.DragEvent) => {
+      if (!event.clientX && !event.clientY) return;
+      setDragPreview((current) => current ? { ...current, x: event.clientX, y: event.clientY } : null);
+      const edge = 72;
+      const speed = 18;
+      if (event.clientY < edge) window.scrollBy({ top: -speed, behavior: "auto" });
+      else if (event.clientY > window.innerHeight - edge) window.scrollBy({ top: speed, behavior: "auto" });
+    };
+    window.addEventListener("dragover", move);
+    return () => window.removeEventListener("dragover", move);
+  }, [Boolean(dragPreview)]);
 
   function startDrag(event: DragEvent<HTMLButtonElement>, id: T) {
     dragging.current = id;
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", id);
+    const item = event.currentTarget.closest<HTMLElement>(".qs-custom-grid-item");
+    const rect = item?.getBoundingClientRect();
+    if (rect) {
+      const transparent = document.createElement("canvas");
+      transparent.width = transparent.height = 1;
+      event.dataTransfer.setDragImage(transparent, 0, 0);
+      setDragPreview({ id, x: event.clientX, y: event.clientY, width: rect.width, height: rect.height, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top });
+    }
   }
 
   function drop(event: DragEvent<HTMLDivElement>, target: T) {
     event.preventDefault();
     const source = dragging.current ?? event.dataTransfer.getData("text/plain") as T;
     dragging.current = null;
+    setDragPreview(null);
     setDropTarget(null);
     if (source && source !== target) onReorder?.(source, target);
   }
@@ -143,7 +168,7 @@ export function DashboardGrid<T extends string>({
                   type="button"
                   draggable
                   onDragStart={(event) => startDrag(event, id)}
-                  onDragEnd={() => { dragging.current = null; setDropTarget(null); }}
+                  onDragEnd={() => { dragging.current = null; setDropTarget(null); setDragPreview(null); }}
                   className="inline-flex min-h-0 cursor-grab items-center gap-1.5 text-[10px] font-bold text-muted-foreground active:cursor-grabbing"
                   aria-label={`Drag ${labelFor?.(id) ?? id}`}
                 >
@@ -170,6 +195,16 @@ export function DashboardGrid<T extends string>({
           </div>
         );
       })}
+      {dragPreview && typeof document !== "undefined" ? createPortal(
+        <div
+          className="qs-dashboard-drag-overlay"
+          aria-hidden="true"
+          style={{ width: dragPreview.width, height: dragPreview.height, transform: `translate3d(${dragPreview.x - dragPreview.offsetX}px,${dragPreview.y - dragPreview.offsetY}px,0)` }}
+        >
+          <div className="h-full min-h-0 overflow-hidden rounded-2xl border border-[#ff5a0a]/50 bg-card shadow-2xl">{renderItem(dragPreview.id)}</div>
+        </div>,
+        document.body,
+      ) : null}
     </div>
   );
 }
