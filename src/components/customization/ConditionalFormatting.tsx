@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 export type ConditionalOperator = "gte" | "gt" | "lte" | "lt" | "eq" | "neq" | "contains" | "not_contains" | "starts_with" | "ends_with" | "empty" | "not_empty";
 export type ConditionalRule = {
@@ -15,6 +16,7 @@ export type ConditionalRule = {
   value: string;
   background: string;
   textColor: string;
+  bold: boolean;
   applyTo: "cell" | "row";
 };
 export type ConditionalColumn = { id: string; en: string; ar: string; numeric?: boolean };
@@ -41,6 +43,7 @@ const DEFAULT_RULE: ConditionalRule = {
   value: "",
   background: "#dcfce7",
   textColor: "#166534",
+  bold: false,
   applyTo: "cell",
 };
 
@@ -65,6 +68,7 @@ export function normalizeConditionalRules(value: unknown, columns: readonly stri
       value: typeof item.value === "string" ? item.value : String(item.value ?? ""),
       background: validColor(item.background, "#dcfce7"),
       textColor: validColor(item.textColor, "#166534"),
+      bold: item.bold === true,
       applyTo: item.applyTo === "row" ? "row" as const : "cell" as const,
     }];
   });
@@ -73,7 +77,6 @@ export function normalizeConditionalRules(value: unknown, columns: readonly stri
 function normalizedText(value: unknown) {
   return String(value ?? "").trim().toLocaleLowerCase();
 }
-
 function numeric(value: unknown) {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   const parsed = Number(String(value ?? "").replace(/[^0-9.+-]/g, ""));
@@ -89,7 +92,6 @@ export function conditionalRuleMatches(rule: ConditionalRule, rawValue: unknown)
   if (rule.operator === "not_contains") return !actualText.includes(expectedText);
   if (rule.operator === "starts_with") return actualText.startsWith(expectedText);
   if (rule.operator === "ends_with") return actualText.endsWith(expectedText);
-
   const actualNumber = numeric(rawValue);
   const expectedNumber = numeric(rule.value);
   const bothNumeric = actualNumber !== null && expectedNumber !== null;
@@ -104,22 +106,14 @@ export function conditionalRuleMatches(rule: ConditionalRule, rawValue: unknown)
 
 export function conditionalCellStyle(rules: readonly ConditionalRule[], column: string, value: unknown): CSSProperties | undefined {
   const match = rules.find((rule) => rule.column === column && rule.applyTo === "cell" && conditionalRuleMatches(rule, value));
-  return match ? { backgroundColor: match.background, color: match.textColor, fontWeight: 650 } : undefined;
+  return match ? { backgroundColor: match.background, color: match.textColor, fontWeight: match.bold ? 700 : undefined } : undefined;
 }
-
 export function conditionalRowStyle(rules: readonly ConditionalRule[], row: Record<string, unknown>): CSSProperties | undefined {
   const match = rules.find((rule) => rule.applyTo === "row" && conditionalRuleMatches(rule, row[rule.column]));
-  return match ? { backgroundColor: match.background, color: match.textColor } : undefined;
+  return match ? { backgroundColor: match.background, color: match.textColor, fontWeight: match.bold ? 700 : undefined } : undefined;
 }
 
-export function ConditionalFormattingDialog({
-  open,
-  onOpenChange,
-  ar,
-  columns,
-  rules,
-  onChange,
-}: {
+export function ConditionalFormattingDialog({ open, onOpenChange, ar, columns, rules, onChange }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   ar: boolean;
@@ -137,39 +131,31 @@ export function ConditionalFormattingDialog({
     setDraft({ ...DEFAULT_RULE, column: draft.column });
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{ar ? "التنسيق الشرطي" : "Conditional Formatting"}</DialogTitle>
-          <DialogDescription>{ar ? "لوّن الخلايا أو الصفوف تلقائياً حسب القيم. يتم تطبيق أول قاعدة مطابقة." : "Automatically color cells or rows based on their values. The first matching rule is applied."}</DialogDescription>
-        </DialogHeader>
-
-        <section className="rounded-2xl border border-border bg-muted/20 p-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-1.5"><Label>{ar ? "العمود" : "Column"}</Label><Select value={draft.column} onValueChange={(column) => setDraft((current) => ({ ...current, column }))}><SelectTrigger><SelectValue placeholder={ar ? "اختر عموداً" : "Choose column"} /></SelectTrigger><SelectContent>{columns.map((column) => <SelectItem key={column.id} value={column.id}>{ar ? column.ar : column.en}</SelectItem>)}</SelectContent></Select></div>
-            <div className="space-y-1.5"><Label>{ar ? "الشرط" : "Condition"}</Label><Select value={draft.operator} onValueChange={(operator) => setDraft((current) => ({ ...current, operator: operator as ConditionalOperator }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{OPERATORS.map((operator) => <SelectItem key={operator.id} value={operator.id}>{ar ? operator.ar : operator.en}</SelectItem>)}</SelectContent></Select></div>
-            <div className="space-y-1.5"><Label>{ar ? "القيمة" : "Value"}</Label><Input disabled={!needsValue} inputMode={selectedColumn?.numeric ? "decimal" : "text"} value={draft.value} onChange={(event) => setDraft((current) => ({ ...current, value: event.target.value }))} placeholder={needsValue ? (selectedColumn?.numeric ? "100" : (ar ? "القيمة" : "Value")) : (ar ? "غير مطلوب" : "Not required")} /></div>
-          </div>
-          <div className="mt-4 flex flex-wrap items-end gap-4">
-            <label className="space-y-1.5 text-xs font-semibold"><span className="block">{ar ? "الخلفية" : "Background"}</span><Input type="color" value={draft.background} onChange={(event) => setDraft((current) => ({ ...current, background: event.target.value }))} className="h-11 w-16 p-1" /></label>
-            <label className="space-y-1.5 text-xs font-semibold"><span className="block">{ar ? "لون النص" : "Text color"}</span><Input type="color" value={draft.textColor} onChange={(event) => setDraft((current) => ({ ...current, textColor: event.target.value }))} className="h-11 w-16 p-1" /></label>
-            <div className="min-w-[170px] space-y-1.5"><Label>{ar ? "التطبيق على" : "Apply to"}</Label><Select value={draft.applyTo} onValueChange={(applyTo) => setDraft((current) => ({ ...current, applyTo: applyTo as "cell" | "row" }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cell">{ar ? "الخلية" : "Matching cell"}</SelectItem><SelectItem value="row">{ar ? "الصف كامل" : "Entire row"}</SelectItem></SelectContent></Select></div>
-            <Button type="button" className="ms-auto" disabled={!draft.column || (needsValue && !draft.value.trim())} onClick={addRule}><Plus className="size-4" />{ar ? "إضافة قاعدة" : "Add Rule"}</Button>
-          </div>
-        </section>
-
-        <div className="space-y-2">
-          {rules.length ? rules.map((rule) => {
-            const column = columns.find((item) => item.id === rule.column);
-            const operator = OPERATORS.find((item) => item.id === rule.operator);
-            return <div key={rule.id} className="flex flex-col gap-3 rounded-xl border border-border p-3 sm:flex-row sm:items-center"><span className="size-4 shrink-0 rounded-full border border-black/10" style={{ backgroundColor: rule.background }} /><div className="min-w-0 flex-1"><strong className="block text-xs">{ar ? column?.ar : column?.en} · {ar ? operator?.ar : operator?.en}{needsRuleValue(rule.operator) ? ` · ${rule.value}` : ""}</strong><span className="mt-1 block text-[10px] text-muted-foreground">{rule.applyTo === "row" ? (ar ? "الصف كامل" : "Entire row") : (ar ? "الخلية المطابقة" : "Matching cell")}</span></div><button type="button" onClick={() => onChange(rules.filter((item) => item.id !== rule.id))} className="grid size-10 place-items-center rounded-xl text-red-600 hover:bg-red-50" aria-label={ar ? "حذف القاعدة" : "Delete rule"}><Trash2 className="size-4" /></button></div>;
-          }) : <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">{ar ? "لا توجد قواعد بعد." : "No formatting rules yet."}</div>}
+  return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
+      <DialogHeader><DialogTitle>{ar ? "التنسيق الشرطي" : "Conditional Formatting"}</DialogTitle><DialogDescription>{ar ? "لوّن الخلايا أو الصفوف تلقائياً حسب القيم. يتم تطبيق أول قاعدة مطابقة." : "Automatically style cells or rows based on values. The first matching rule is applied."}</DialogDescription></DialogHeader>
+      <section className="rounded-2xl border border-border bg-muted/20 p-4">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-1.5"><Label>{ar ? "العمود" : "Column"}</Label><Select value={draft.column} onValueChange={(column) => setDraft((current) => ({ ...current, column }))}><SelectTrigger><SelectValue placeholder={ar ? "اختر عموداً" : "Choose column"} /></SelectTrigger><SelectContent>{columns.map((column) => <SelectItem key={column.id} value={column.id}>{ar ? column.ar : column.en}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1.5"><Label>{ar ? "الشرط" : "Condition"}</Label><Select value={draft.operator} onValueChange={(operator) => setDraft((current) => ({ ...current, operator: operator as ConditionalOperator }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{OPERATORS.map((operator) => <SelectItem key={operator.id} value={operator.id}>{ar ? operator.ar : operator.en}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1.5"><Label>{ar ? "القيمة" : "Value"}</Label><Input disabled={!needsValue} inputMode={selectedColumn?.numeric ? "decimal" : "text"} value={draft.value} onChange={(event) => setDraft((current) => ({ ...current, value: event.target.value }))} placeholder={needsValue ? (selectedColumn?.numeric ? "100" : (ar ? "القيمة" : "Value")) : (ar ? "غير مطلوب" : "Not required")} /></div>
         </div>
-        <DialogFooter><Button onClick={() => onOpenChange(false)}>{ar ? "تم" : "Done"}</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+        <div className="mt-4 flex flex-wrap items-end gap-4">
+          <label className="space-y-1.5 text-xs font-semibold"><span className="block">{ar ? "الخلفية" : "Background"}</span><Input type="color" value={draft.background} onChange={(event) => setDraft((current) => ({ ...current, background: event.target.value }))} className="h-11 w-16 p-1" /></label>
+          <label className="space-y-1.5 text-xs font-semibold"><span className="block">{ar ? "لون النص" : "Text color"}</span><Input type="color" value={draft.textColor} onChange={(event) => setDraft((current) => ({ ...current, textColor: event.target.value }))} className="h-11 w-16 p-1" /></label>
+          <div className="min-w-[170px] space-y-1.5"><Label>{ar ? "التطبيق على" : "Apply to"}</Label><Select value={draft.applyTo} onValueChange={(applyTo) => setDraft((current) => ({ ...current, applyTo: applyTo as "cell" | "row" }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cell">{ar ? "الخلية" : "Matching cell"}</SelectItem><SelectItem value="row">{ar ? "الصف كامل" : "Entire row"}</SelectItem></SelectContent></Select></div>
+          <label className="flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-xs font-semibold"><Switch checked={draft.bold} onCheckedChange={(bold) => setDraft((current) => ({ ...current, bold }))} /><span>{ar ? "خط عريض" : "Bold text"}</span></label>
+          <Button type="button" className="ms-auto" disabled={!draft.column || (needsValue && !draft.value.trim())} onClick={addRule}><Plus className="size-4" />{ar ? "إضافة قاعدة" : "Add Rule"}</Button>
+        </div>
+      </section>
+      <div className="space-y-2">{rules.length ? rules.map((rule) => {
+        const column = columns.find((item) => item.id === rule.column);
+        const operator = OPERATORS.find((item) => item.id === rule.operator);
+        return <div key={rule.id} className="flex flex-col gap-3 rounded-xl border border-border p-3 sm:flex-row sm:items-center"><span className="size-4 shrink-0 rounded-full border border-black/10" style={{ backgroundColor: rule.background }} /><div className="min-w-0 flex-1"><strong className="block text-xs">{ar ? column?.ar : column?.en} · {ar ? operator?.ar : operator?.en}{needsRuleValue(rule.operator) ? ` · ${rule.value}` : ""}</strong><span className="mt-1 block text-[10px] text-muted-foreground">{rule.applyTo === "row" ? (ar ? "الصف كامل" : "Entire row") : (ar ? "الخلية المطابقة" : "Matching cell")}{rule.bold ? ` · ${ar ? "عريض" : "Bold"}` : ""}</span></div><button type="button" onClick={() => onChange(rules.filter((item) => item.id !== rule.id))} className="grid size-10 place-items-center rounded-xl text-red-600 hover:bg-red-50" aria-label={ar ? "حذف القاعدة" : "Delete rule"}><Trash2 className="size-4" /></button></div>;
+      }) : <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">{ar ? "لا توجد قواعد بعد." : "No formatting rules yet."}</div>}</div>
+      <DialogFooter><Button onClick={() => onOpenChange(false)}>{ar ? "تم" : "Done"}</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>;
 }
 
 function needsRuleValue(operator: ConditionalOperator) {
