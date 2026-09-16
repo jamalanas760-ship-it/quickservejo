@@ -21,6 +21,9 @@ jobs:
       - name: Apply targeted upgrade
         run: python .github/scripts/quickserve_upgrade.py
 
+      - name: Apply lint-safe follow-up
+        run: python .github/scripts/fix_upgrade_lint.py
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -49,7 +52,7 @@ jobs:
           grep -q 'AnalyticsDetailPage' src/components/manage/AnalyticsManagerPro.tsx
 
       - name: Remove one-time upgrade helpers
-        run: rm -f .github/scripts/quickserve_upgrade.py .github/workflows/apply-quickserve-upgrade.yml
+        run: rm -f .github/scripts/quickserve_upgrade.py .github/scripts/fix_upgrade_lint.py .github/workflows/apply-quickserve-upgrade.yml
 
       - name: Commit validated implementation
         run: |
