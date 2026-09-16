@@ -193,7 +193,7 @@ export function useWorkspaceMembers(restaurantId: string | null) {
     enabled: Boolean(restaurantId),
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("staff")
         .select("id, name, email, role, is_active, avatar_url, avatar_preset")
         .eq("restaurant_id", restaurantId!)
