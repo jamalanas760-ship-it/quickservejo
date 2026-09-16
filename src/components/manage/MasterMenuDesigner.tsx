@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react";
-import { ExternalLink, FileText, Image as ImageIcon, Layers3, Package, Palette, Tags, UtensilsCrossed } from "lucide-react";
+import { ExternalLink, FileText, Image as ImageIcon, Layers3, Package, Tags, UtensilsCrossed } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
@@ -21,10 +21,10 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
   const [section, setSection] = useState<StandardSection>("design");
 
   const standardSections = [
-    { id: "design" as const, icon: ImageIcon, en: "Design & Branding", ar: "التصميم والهوية", hint: ar ? "الشعار والمظهر" : "Logo, theme and appearance" },
+    { id: "design" as const, icon: ImageIcon, en: "Design & Branding", ar: "التصميم والهوية", hint: ar ? "الشعار وإعدادات المؤسسة" : "Logo and organization settings" },
     { id: "categories" as const, icon: Tags, en: "Categories", ar: "الفئات", hint: ar ? "تنظيم القائمة" : "Organize your menu" },
     { id: "products" as const, icon: Package, en: "Products", ar: "المنتجات", hint: ar ? "إضافة وإدارة المنتجات" : "Add and manage items" },
-    { id: "pricing" as const, icon: Tags, en: "Pricing & Options", ar: "الأسعار والخيارات", hint: ar ? "الأسعار والإضافات" : "Variants, add-ons, and prices" },
+    { id: "pricing" as const, icon: Tags, en: "Pricing & Options", ar: "الأسعار والخيارات", hint: ar ? "الأسعار والتوفر والتحضير" : "Price, availability and prep" },
   ];
 
   return (
@@ -45,11 +45,11 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
 
       <Suspense fallback={<Skeleton className="h-[650px] rounded-2xl" />}>
         {workflow === "pdf" ? <PdfEditor restaurantId={restaurantId} /> : (
-          <div className="grid min-w-0 gap-4 xl:grid-cols-[210px_minmax(0,1fr)_360px]">
+          <div className="grid min-w-0 gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
             <aside className="qs-card self-start overflow-hidden xl:sticky xl:top-24">
-              <nav className="p-2">
+              <nav className="grid gap-1 p-2 sm:grid-cols-2 xl:grid-cols-1">
                 {standardSections.map(({ id, icon: Icon, en, ar: arabic, hint }) => (
-                  <button key={id} type="button" onClick={() => setSection(id)} className={cn("flex w-full items-start gap-3 rounded-xl px-3 py-3 text-start transition", section === id ? "bg-[#fff0e7] text-[#e34d00] dark:bg-orange-950/25" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")}>
+                  <button key={id} type="button" onClick={() => setSection(id)} aria-current={section === id ? "page" : undefined} className={cn("flex w-full items-start gap-3 rounded-xl px-3 py-3 text-start transition", section === id ? "bg-[#fff0e7] text-[#e34d00] dark:bg-orange-950/25" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")}>
                     <Icon className="mt-0.5 size-[18px] shrink-0" /><span className="min-w-0"><strong className="block text-xs">{ar ? arabic : en}</strong><span className="mt-1 block text-[10px] leading-4 opacity-70">{hint}</span></span>
                   </button>
                 ))}
@@ -60,17 +60,10 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
               {section === "design" ? <Appearance restaurantId={restaurantId} /> : (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2"><span className="grid size-9 place-items-center rounded-full bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><Layers3 className="size-4" /></span><div><h2 className="font-display text-lg font-bold">{ar ? standardSections.find((item) => item.id === section)?.ar : standardSections.find((item) => item.id === section)?.en}</h2><p className="text-xs text-muted-foreground">{ar ? "تعديل القائمة العادية فقط — منتجات PDF تبقى منفصلة." : "Standard Menu only — PDF hotspot products remain separate."}</p></div></div>
-                  <Products restaurantId={restaurantId} />
+                  <Products restaurantId={restaurantId} mode={section} />
                 </div>
               )}
             </main>
-
-            <aside className="qs-right-panel hidden self-start xl:sticky xl:top-24 xl:block">
-              <div className="qs-panel-header"><div><h2 className="font-display text-base font-bold">{ar ? "معاينة القائمة المباشرة" : "Live Menu Preview"}</h2><p className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground"><i className="size-2 rounded-full bg-emerald-500" />{ar ? "تتحدث في الوقت الفعلي" : "Updates in real time"}</p></div></div>
-              <div className="bg-muted/30 p-3">
-                {restaurant.data ? <iframe title={ar ? "معاينة قائمة الضيف" : "Guest menu preview"} src={`/m/${restaurant.data.slug}`} className="h-[620px] w-full rounded-[18px] border border-border bg-white shadow-sm" /> : <Skeleton className="h-[620px] rounded-[18px]" />}
-              </div>
-            </aside>
           </div>
         )}
       </Suspense>
