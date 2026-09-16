@@ -48,7 +48,7 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
         {onMenu ? <button type="button" onClick={onMenu} aria-label="Menu" className="grid size-10 shrink-0 place-items-center rounded-xl border border-border bg-card lg:hidden"><MenuIcon className="size-5" /></button> : null}
 
         <Link to={access.isSuperAdmin ? "/super-admin" : "/dashboard"} className="shrink-0 lg:hidden" aria-label={restaurant?.name || "QuickServe"}>
-          <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-lg text-foreground" />
+          {restaurant?.logo_url ? <img src={restaurant.logo_url} alt={restaurant.name} className="h-9 max-w-32 object-contain" /> : <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-lg text-foreground" />}
         </Link>
 
         <div className="hidden min-w-0 items-center gap-3 lg:flex">

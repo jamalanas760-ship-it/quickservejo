@@ -19,6 +19,7 @@ import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useAccess } from "@/hooks/useSession";
 import { useWorkspaceReport } from "@/hooks/useWorkspace";
 import { useI18n } from "@/lib/i18n";
+import { readAppearance } from "@/lib/restaurant-appearance";
 import { isFrontlineOnly } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +46,7 @@ export function BottomNav() {
   );
   const current = membership ?? adminMembership ?? (access.data ?? []).find((row) => row.restaurant_id && row.restaurant);
   const restaurantId = current?.restaurant_id ?? null;
+  const appearance = readAppearance(current?.restaurant?.menu_theme);
   const report = useWorkspaceReport(restaurantId);
   const openOrders = report.data?.openOrders ?? 0;
 
@@ -90,10 +92,10 @@ export function BottomNav() {
 
   return (
     <>
-      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden w-[196px] flex-col lg:flex">
+      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden w-[196px] flex-col lg:flex" style={{ backgroundColor: appearance.sidebarBackground, color: appearance.sidebarForeground }}>
         <div className="flex h-[68px] items-center border-b border-border px-5">
-          <Link to="/dashboard" className="text-foreground" aria-label="QuickServe dashboard">
-            <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-[18px] text-foreground" />
+          <Link to="/dashboard" className="text-inherit" aria-label={current?.restaurant?.name || "QuickServe dashboard"}>
+            {current?.restaurant?.logo_url ? <img src={current.restaurant.logo_url} alt={current.restaurant.name} className="h-9 max-w-[150px] object-contain" /> : <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-[18px] text-inherit" />}
           </Link>
         </div>
 
