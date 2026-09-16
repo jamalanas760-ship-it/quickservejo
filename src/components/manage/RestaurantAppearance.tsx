@@ -8,6 +8,7 @@ import { useAccess } from "@/hooks/useSession";
 import { useI18n } from "@/lib/i18n";
 import { readAppearance } from "@/lib/restaurant-appearance";
 import { humanError } from "@/lib/errors";
+import { contrastRatio } from "@/lib/contrast";
 import { supabase } from "@/integrations/supabase/client";
 import { ImageUploader } from "@/components/media/ImageUploader";
 import { Button } from "@/components/ui/button";
@@ -114,6 +115,10 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
               <ColorField label={ar ? "لون العلامة الأساسي" : "Primary brand color"} value={form.primary_color} onChange={(value) => field("primary_color", value)} />
               <ColorField label={ar ? "لون التمييز" : "Accent color"} value={form.accent_color} onChange={(value) => field("accent_color", value)} />
             </div>
+            <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
+              <div className="flex min-h-12 items-center gap-3 border-b border-border px-4" style={{ background: brand.topNavBackground, color: brand.topNavText }}><span className="grid size-7 place-items-center rounded-lg text-xs font-black" style={{ background: form.primary_color, color: "#fff" }}>Q</span><strong className="text-xs">{restaurant.name}</strong><span className="ms-auto text-[10px] opacity-75">{ar ? "معاينة مباشرة" : "Live preview"}</span></div>
+              <div className="grid min-h-44 grid-cols-[128px_1fr]" style={{ background: brand.lightBackground }}><aside className="space-y-2 border-e border-black/10 p-3" style={{ background: brand.sidebarBackground, color: brand.sidebarText }}><div className="rounded-lg px-3 py-2 text-[10px] font-bold" style={{ background: `${brand.selectedNavColor}18`, color: brand.selectedNavColor }}>{ar ? "الرئيسية" : "Home"}</div>{[ar ? "الطلبات" : "Orders", ar ? "القائمة" : "Menu", ar ? "التحليلات" : "Analytics"].map((label) => <div key={label} className="px-3 py-1.5 text-[10px] opacity-70">{label}</div>)}</aside><main className="p-4"><div className="grid grid-cols-2 gap-3"><div className="rounded-xl border border-black/10 bg-white p-3"><span className="text-[9px] text-slate-500">{ar ? "المبيعات" : "Sales"}</span><strong className="mt-1 block text-lg text-slate-900">JOD 1,240</strong></div><div className="rounded-xl border border-black/10 bg-white p-3"><span className="text-[9px] text-slate-500">{ar ? "الطلبات" : "Orders"}</span><strong className="mt-1 block text-lg text-slate-900">42</strong></div></div><button type="button" className="mt-3 rounded-lg px-3 py-2 text-[10px] font-bold text-white" style={{ background: form.primary_color }}>{ar ? "إجراء أساسي" : "Primary action"}</button></main></div>
+            </div>
           </div>
         </section>
 
@@ -130,5 +135,7 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
 }
 
 function ColorField({ label, value, onChange, icon }: { label: string; value: string; onChange: (value: string) => void; icon?: ReactNode }) {
-  return <label className="min-w-0 space-y-2"><span className="flex items-center gap-2 text-xs font-semibold">{icon}{label}</span><span className="grid grid-cols-[46px_minmax(0,1fr)] gap-2"><Input type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full p-1" /><Input value={value} onChange={(event) => onChange(event.target.value)} className="h-11 min-w-0 font-mono text-xs" /></span></label>;
+  const valid = /^#[0-9a-f]{6}$/i.test(value);
+  const ratio = valid ? Math.max(contrastRatio(value, "#ffffff"), contrastRatio(value, "#111827")) : 0;
+  return <label className="min-w-0 space-y-2 rounded-xl border border-border bg-muted/15 p-3"><span className="flex items-center gap-2 text-xs font-semibold">{icon}{label}</span><span className="grid grid-cols-[46px_minmax(0,1fr)] gap-2"><Input type="color" value={valid ? value : "#000000"} onChange={(event) => onChange(event.target.value)} className="h-11 w-full p-1" /><Input value={value} aria-invalid={!valid} onChange={(event) => onChange(event.target.value)} className="h-11 min-w-0 font-mono text-xs" /></span><span className={`block text-[10px] font-semibold ${valid && ratio >= 4.5 ? "text-emerald-600" : "text-amber-600"}`}>{!valid ? "Enter a 6-digit hex color" : ratio >= 4.5 ? `Accessible contrast · ${ratio.toFixed(1)}:1` : `Review contrast · ${ratio.toFixed(1)}:1`}</span></label>;
 }

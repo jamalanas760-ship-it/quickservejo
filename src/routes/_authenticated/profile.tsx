@@ -27,7 +27,7 @@ function ProfilePage(){
   const [notif,setNotif]=useState<Notifications>(DEFAULT_NOTIF); const user=session.data?.user; const meta=user?.user_metadata as {full_name?:string;name?:string}|undefined; const membership=rid?access.membershipFor(rid):(access.data??[]).find(row=>row.restaurant_id)??null;
   const displayName=meta?.full_name||meta?.name||membership?.name||user?.email?.split("@")[0]||(ar?"المستخدم":"User"); const email=user?.email??"—"; const role=access.isSuperAdmin?"super_admin":membership?.role; const roleLabel=role&&role in ROLE_LABELS?ROLE_LABELS[role as keyof typeof ROLE_LABELS][lang]:(ar?"عضو":"Member"); const notifKey=`quickserve.notifications:${user?.id??"guest"}`;
   useEffect(()=>{try{const raw=localStorage.getItem(notifKey);if(raw)setNotif({...DEFAULT_NOTIF,...JSON.parse(raw)});}catch{setNotif(DEFAULT_NOTIF)}},[notifKey]);
-  function toggle(key:keyof Notifications,value:boolean){const next={...notif,[key]:value};setNotif(next);try{localStorage.setItem(notifKey,JSON.stringify(next))}catch{}}
+  function toggle(key:keyof Notifications,value:boolean){const next={...notif,[key]:value,...(key==="sound"&&!value?{orderSounds:false,tableSounds:false}:{})};setNotif(next);try{localStorage.setItem(notifKey,JSON.stringify(next))}catch{}}
   async function signOut(){await qc.cancelQueries();qc.clear();await supabase.auth.signOut();navigate({to:"/auth",replace:true});}
   const rows:[keyof Notifications,string,string,string,string][]=[
     ["newOrders","Order Notifications","إشعارات الطلبات","Get notified when new orders arrive","تلقي تنبيه عند وصول طلب جديد"],
