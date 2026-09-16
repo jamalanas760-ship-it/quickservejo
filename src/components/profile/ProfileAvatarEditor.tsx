@@ -42,6 +42,7 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
   async function refreshIdentity() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["staff", "memberships"] }),
+      queryClient.invalidateQueries({ queryKey: ["workspace", "members"] }),
       queryClient.invalidateQueries({ queryKey: ["auth", "session"] }),
       queryClient.invalidateQueries({ queryKey: ["platform"] }),
     ]);
@@ -62,9 +63,9 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
         });
         if (rpcError) throw rpcError;
 
-        // The membership is QuickServe's authoritative avatar source. Auth metadata is
-        // convenience-only, so a transient metadata sync error must not make a successful
-        // membership update look like a failed avatar selection.
+        // The tenant membership is QuickServe's authoritative avatar source. Auth metadata
+        // is convenience-only, so a secondary metadata sync issue never turns a successful
+        // self-service avatar update into a false permission failure.
         const { error: metadataError } = await supabase.auth.updateUser({
           data: { avatar_url: nextUrl, avatar_preset: nextPreset },
         });
@@ -114,7 +115,7 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="font-bold">{lang === "ar" ? "الصورة الشخصية" : "Profile picture"}</h3>
-          <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{lang === "ar" ? "ارفع صورتك أو اختر شخصية كرتونية احترافية حسب الدور. الاختيار يُحفظ مباشرة ويظهر في الحساب وشريط التطبيق وقائمة الفريق." : "Upload your photo or choose a professional cartoon role avatar. Your selection is saved immediately and appears across your account, app header, and team identity."}</p>
+          <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{lang === "ar" ? "ارفع صورتك أو اختر شخصية احترافية حديثة حسب الدور. يُحفظ الاختيار مباشرة ويظهر في الحساب وشريط التطبيق والصفحة الرئيسية وقائمة الفريق." : "Upload your photo or choose a modern professional role portrait. Your selection saves immediately and appears in your account, app header, home page, and team identity."}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button type="button" variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}><Camera className="size-4" />{lang === "ar" ? "رفع صورة" : "Upload Photo"}</Button>
             {(avatarUrl || preset) ? <Button type="button" variant="ghost" disabled={busy} onClick={() => void persist(null, null)}><RotateCcw className="size-4" />{lang === "ar" ? "إزالة" : "Remove"}</Button> : null}
@@ -143,7 +144,7 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
             >
               <div className="relative aspect-square overflow-hidden rounded-xl bg-muted"><img src={item.url} alt="" className="size-full object-cover" />{selected ? <span className="absolute end-2 top-2 grid size-6 place-items-center rounded-full bg-[#ff5a0a] text-white shadow"><Check className="size-3.5" /></span> : null}{saving ? <span className="absolute inset-0 grid place-items-center bg-background/60 backdrop-blur-[1px]"><Loader2 className="size-5 animate-spin text-[#ff5a0a]" /></span> : null}</div>
               <span className="mt-2 block truncate px-0.5 text-[11px] font-bold text-foreground">{item.label}</span>
-              <span className="mt-0.5 block truncate px-0.5 text-[9px] font-medium text-muted-foreground">{item.role}</span>
+              <span className="mt-0.5 block truncate px-0.5 text-[9px] font-medium capitalize text-muted-foreground">{item.role}</span>
             </button>;
           })}
         </div>
