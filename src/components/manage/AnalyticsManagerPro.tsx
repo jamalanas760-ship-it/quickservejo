@@ -1,19 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, CalendarDays, ChevronDown, ChevronUp, CircleGauge, FileText, GripVertical, LineChart as LineIcon, ListPlus, Plus, RotateCcw, Settings2, Table2, Trash2, TrendingUp } from "lucide-react";
+import { BarChart3, CalendarDays, FileText, ListPlus, Palette, RotateCcw, Save, Settings2, SlidersHorizontal, Table2, Trash2, X } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 
+import { ConditionalFormattingDialog, conditionalCellStyle, conditionalRowStyle, normalizeConditionalRules, type ConditionalColumn, type ConditionalRule } from "@/components/customization/ConditionalFormatting";
+import { DashboardGrid, normalizeDashboardSize, reorderDashboardItems, type DashboardItemSize } from "@/components/customization/DashboardGrid";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
-import { formatMoney, formatNumber } from "@/lib/format";
 import { humanError } from "@/lib/errors";
-import { useI18n, type Language } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
+import { formatDateTime, formatMoney, formatNumber } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 
 type WidgetId = "revenue" | "orders" | "channels" | "topProducts" | "peakHours" | "weekly" | "orderTable" | "paidProgress" | "summary";
 type ChartType = "area" | "line" | "bar" | "donut";
@@ -22,6 +24,8 @@ type DashboardConfig = {
   accent: string;
   colors: Partial<Record<WidgetId, string>>;
   chartTypes: Partial<Record<WidgetId, ChartType>>;
+  sizes: Partial<Record<WidgetId, DashboardItemSize>>;
+  conditional: Partial<Record<WidgetId, ConditionalRule[]>>;
 };
 type OrderRow = { id: string; order_number: string; status: string; payment_status: string; total: number | string; table_id: string | null; created_at: string };
 type OrderItemRow = { product_name_snapshot_en: string; product_name_snapshot_ar: string; quantity: number; total_price: number | string; created_at: string };
@@ -29,33 +33,48 @@ type OrderItemRow = { product_name_snapshot_en: string; product_name_snapshot_ar
 const ALL_WIDGETS: WidgetId[] = ["revenue", "orders", "channels", "topProducts", "peakHours", "weekly", "orderTable", "paidProgress", "summary"];
 const DEFAULT_WIDGETS: WidgetId[] = ["revenue", "orders", "channels", "topProducts", "peakHours", "weekly", "paidProgress", "orderTable"];
 const DEFAULT_CHART_TYPES: Partial<Record<WidgetId, ChartType>> = { revenue: "area", orders: "bar", channels: "donut", peakHours: "bar", weekly: "bar" };
-const CHART_OPTIONS: Partial<Record<WidgetId, ChartType[]>> = {
-  revenue: ["area", "line", "bar"],
-  orders: ["bar", "line", "area"],
-  channels: ["donut", "bar"],
-  peakHours: ["bar", "line", "area"],
-  weekly: ["bar", "line", "area"],
+const DEFAULT_SIZES: Record<WidgetId, DashboardItemSize> = {
+  revenue: { columns: 8, minHeight: 340 }, orders: { columns: 4, minHeight: 340 }, channels: { columns: 4, minHeight: 320 },
+  topProducts: { columns: 8, minHeight: 320 }, peakHours: { columns: 6, minHeight: 320 }, weekly: { columns: 6, minHeight: 320 },
+  orderTable: { columns: 12, minHeight: 380 }, paidProgress: { columns: 4, minHeight: 240 }, summary: { columns: 8, minHeight: 240 },
 };
-const COLORS = ["#ff6a1a", "#10b981", "#3b82f6", "#8b5cf6"];
+const CHART_OPTIONS: Partial<Record<WidgetId, ChartType[]>> = {
+  revenue: ["area", "line", "bar"], orders: ["bar", "line", "area"], channels: ["donut", "bar"], peakHours: ["bar", "line", "area"], weekly: ["bar", "line", "area"],
+};
+const CHANNEL_COLORS = ["#ff6a1a", "#3b82f6", "#10b981", "#8b5cf6"];
+const ORDER_COLUMNS: ConditionalColumn[] = [
+  { id: "order", en: "Order #", ar: "رقم الطلب" }, { id: "status", en: "Status", ar: "الحالة" }, { id: "payment", en: "Payment", ar: "الدفع" }, { id: "total", en: "Total", ar: "الإجمالي", numeric: true }, { id: "date", en: "Date", ar: "التاريخ" },
+];
+const PRODUCT_COLUMNS: ConditionalColumn[] = [
+  { id: "name", en: "Product", ar: "المنتج" }, { id: "qty", en: "Quantity", ar: "الكمية", numeric: true }, { id: "revenue", en: "Revenue", ar: "الإيراد", numeric: true },
+];
 
 function objectValue(value: unknown): Record<string, unknown> { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
 function validColor(value: unknown, fallback: string) { return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback; }
 function readConfig(theme: unknown): DashboardConfig {
   const workspace = objectValue(objectValue(theme).workspace);
   const raw = objectValue(workspace.analyticsDashboard);
-  const widgets = Array.isArray(raw.widgets) ? raw.widgets.filter((value): value is WidgetId => ALL_WIDGETS.includes(value as WidgetId)) : DEFAULT_WIDGETS;
+  const saved = Array.isArray(raw.widgets) ? raw.widgets.filter((value): value is WidgetId => ALL_WIDGETS.includes(value as WidgetId)) : DEFAULT_WIDGETS;
+  const widgets = saved.length ? saved : DEFAULT_WIDGETS;
   const accent = validColor(raw.accent, "#ff6a1a");
   const rawColors = objectValue(raw.colors);
   const colors: Partial<Record<WidgetId, string>> = {};
-  ALL_WIDGETS.forEach((id) => { if (rawColors[id] !== undefined) colors[id] = validColor(rawColors[id], accent); });
   const rawTypes = objectValue(raw.chartTypes);
   const chartTypes: Partial<Record<WidgetId, ChartType>> = {};
-  ALL_WIDGETS.forEach((id) => {
-    const value = rawTypes[id];
+  const rawSizes = objectValue(raw.sizes);
+  const sizes: Partial<Record<WidgetId, DashboardItemSize>> = {};
+  for (const id of ALL_WIDGETS) {
+    if (rawColors[id] !== undefined) colors[id] = validColor(rawColors[id], accent);
     const allowed = CHART_OPTIONS[id];
-    if (allowed?.includes(value as ChartType)) chartTypes[id] = value as ChartType;
-  });
-  return { widgets: widgets.length ? widgets : DEFAULT_WIDGETS, accent, colors, chartTypes };
+    if (allowed?.includes(rawTypes[id] as ChartType)) chartTypes[id] = rawTypes[id] as ChartType;
+    sizes[id] = normalizeDashboardSize(rawSizes[id], DEFAULT_SIZES[id]);
+  }
+  const rawConditional = objectValue(raw.conditional);
+  const conditional: Partial<Record<WidgetId, ConditionalRule[]>> = {
+    orderTable: normalizeConditionalRules(rawConditional.orderTable, ORDER_COLUMNS.map((item) => item.id)),
+    topProducts: normalizeConditionalRules(rawConditional.topProducts, PRODUCT_COLUMNS.map((item) => item.id)),
+  };
+  return { widgets, accent, colors, chartTypes: { ...DEFAULT_CHART_TYPES, ...chartTypes }, sizes, conditional };
 }
 
 export function AnalyticsManagerPro({ restaurantId }: { restaurantId: string }) {
@@ -64,24 +83,23 @@ export function AnalyticsManagerPro({ restaurantId }: { restaurantId: string }) 
   const restaurant = useRestaurant(restaurantId);
   const currency = restaurant.data?.currency ?? "JOD";
   const qc = useQueryClient();
-  const initial = useMemo(() => readConfig(restaurant.data?.menu_theme), [restaurant.data?.menu_theme]);
-  const [config, setConfig] = useState<DashboardConfig>(initial);
+  const savedConfig = useMemo(() => readConfig(restaurant.data?.menu_theme), [restaurant.data?.menu_theme]);
+  const [config, setConfig] = useState<DashboardConfig>(savedConfig);
   const [customize, setCustomize] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [conditionalWidget, setConditionalWidget] = useState<"orderTable" | "topProducts" | null>(null);
   const [saving, setSaving] = useState(false);
+  useEffect(() => { if (!customize) setConfig(savedConfig); }, [savedConfig, customize]);
 
   const analytics = useQuery({
     queryKey: ["platform", "analytics-pro", restaurantId],
     queryFn: async () => {
-      const since = new Date();
-      since.setDate(since.getDate() - 30);
-      const iso = since.toISOString();
+      const since = new Date(); since.setDate(since.getDate() - 30); const iso = since.toISOString();
       const [{ data: orders, error: ordersError }, { data: items, error: itemsError }] = await Promise.all([
         supabase.from("orders").select("id,order_number,status,payment_status,total,table_id,created_at").eq("restaurant_id", restaurantId).gte("created_at", iso).order("created_at", { ascending: true }),
         supabase.from("order_items").select("product_name_snapshot_en,product_name_snapshot_ar,quantity,total_price,created_at").eq("restaurant_id", restaurantId).gte("created_at", iso),
       ]);
-      if (ordersError) throw ordersError;
-      if (itemsError) throw itemsError;
+      if (ordersError) throw ordersError; if (itemsError) throw itemsError;
       const rows = (orders ?? []) as unknown as OrderRow[];
       const live = rows.filter((order) => order.status !== "cancelled");
       const revenue = live.reduce((sum, order) => sum + Number(order.total ?? 0), 0);
@@ -89,150 +107,86 @@ export function AnalyticsManagerPro({ restaurantId }: { restaurantId: string }) 
       const byDay = new Map<string, { sales: number; orders: number }>();
       const byHour = Array.from({ length: 24 }, (_, hour) => ({ hour, orders: 0 }));
       const byWeekday = Array.from({ length: 7 }, (_, day) => ({ day, orders: 0, sales: 0 }));
-      let dineIn = 0;
-      let takeaway = 0;
+      let dineIn = 0; let takeaway = 0;
       for (const order of live) {
-        const date = new Date(order.created_at);
-        const key = date.toISOString().slice(0, 10);
-        const current = byDay.get(key) ?? { sales: 0, orders: 0 };
-        current.sales += Number(order.total ?? 0);
-        current.orders += 1;
-        byDay.set(key, current);
-        byHour[date.getHours()]!.orders += 1;
-        const weekday = date.getDay();
-        byWeekday[weekday]!.orders += 1;
-        byWeekday[weekday]!.sales += Number(order.total ?? 0);
-        if (order.table_id) dineIn += 1; else takeaway += 1;
+        const date = new Date(order.created_at); const key = date.toISOString().slice(0, 10); const current = byDay.get(key) ?? { sales: 0, orders: 0 };
+        current.sales += Number(order.total ?? 0); current.orders += 1; byDay.set(key, current); byHour[date.getHours()]!.orders += 1;
+        const weekday = date.getDay(); byWeekday[weekday]!.orders += 1; byWeekday[weekday]!.sales += Number(order.total ?? 0); if (order.table_id) dineIn += 1; else takeaway += 1;
       }
-      const series = Array.from({ length: 14 }, (_, index) => {
-        const date = new Date();
-        date.setDate(date.getDate() - (13 - index));
-        const key = date.toISOString().slice(0, 10);
-        return { key, label: date.toLocaleDateString(ar ? "ar-JO" : "en-US", { month: "short", day: "numeric" }), ...(byDay.get(key) ?? { sales: 0, orders: 0 }) };
-      });
+      const series = Array.from({ length: 14 }, (_, index) => { const date = new Date(); date.setDate(date.getDate() - (13 - index)); const key = date.toISOString().slice(0, 10); return { key, label: date.toLocaleDateString(ar ? "ar-JO" : "en-US", { month: "short", day: "numeric" }), ...(byDay.get(key) ?? { sales: 0, orders: 0 }) }; });
       const itemMap = new Map<string, { nameAr: string; qty: number; revenue: number }>();
-      for (const item of (items ?? []) as unknown as OrderItemRow[]) {
-        const name = item.product_name_snapshot_en || item.product_name_snapshot_ar || "Item";
-        const current = itemMap.get(name) ?? { nameAr: item.product_name_snapshot_ar || name, qty: 0, revenue: 0 };
-        current.qty += Number(item.quantity ?? 0);
-        current.revenue += Number(item.total_price ?? 0);
-        itemMap.set(name, current);
-      }
-      const topProducts = Array.from(itemMap.entries()).map(([name, value]) => ({ name, ...value })).sort((a, b) => b.qty - a.qty).slice(0, 8);
+      for (const item of (items ?? []) as unknown as OrderItemRow[]) { const name = item.product_name_snapshot_en || item.product_name_snapshot_ar || "Item"; const current = itemMap.get(name) ?? { nameAr: item.product_name_snapshot_ar || name, qty: 0, revenue: 0 }; current.qty += Number(item.quantity ?? 0); current.revenue += Number(item.total_price ?? 0); itemMap.set(name, current); }
+      const topProducts = Array.from(itemMap.entries()).map(([name, value]) => ({ name, ...value })).sort((a, b) => b.qty - a.qty).slice(0, 10);
       const weekly = byWeekday.map((value, index) => ({ label: new Intl.DateTimeFormat(ar ? "ar-JO" : "en-US", { weekday: "short" }).format(new Date(2026, 0, 4 + index)), ...value }));
-      const peak = byHour.filter((value) => value.orders > 0);
-      return {
-        orders: live,
-        revenue,
-        aov: live.length ? revenue / live.length : 0,
-        paidRate: live.length ? paid / live.length * 100 : 0,
-        series,
-        channels: [{ name: ar ? "داخل المطعم" : "Dine-in", value: dineIn }, { name: ar ? "خارجي" : "Takeaway", value: takeaway }].filter((value) => value.value > 0),
-        topProducts,
-        peak,
-        weekly,
-        recent: [...live].reverse().slice(0, 10),
-      };
+      return { orders: live, revenue, aov: live.length ? revenue / live.length : 0, paidRate: live.length ? paid / live.length * 100 : 0, series, channels: [{ name: ar ? "داخل المطعم" : "Dine-in", value: dineIn }, { name: ar ? "خارجي" : "Takeaway", value: takeaway }].filter((value) => value.value > 0), topProducts, peak: byHour.filter((value) => value.orders > 0), weekly, recent: [...live].reverse().slice(0, 20) };
     },
   });
 
-  async function saveConfig(next = config) {
+  async function saveConfig() {
     setSaving(true);
     try {
-      const current = await supabase.from("restaurants").select("menu_theme").eq("id", restaurantId).single();
-      if (current.error) throw current.error;
-      const theme = objectValue(current.data.menu_theme);
-      const workspace = objectValue(theme.workspace);
-      const { error } = await supabase.from("restaurants").update({ menu_theme: { ...theme, workspace: { ...workspace, analyticsDashboard: next } } }).eq("id", restaurantId);
-      if (error) throw error;
-      await qc.invalidateQueries({ queryKey: ["platform"] });
-      toast.success(ar ? "تم حفظ لوحة التحليلات" : "Analytics dashboard saved");
-    } catch (error) {
-      toast.error(humanError(error, lang));
-    } finally {
-      setSaving(false);
-    }
+      const current = await supabase.from("restaurants").select("menu_theme").eq("id", restaurantId).single(); if (current.error) throw current.error;
+      const theme = objectValue(current.data.menu_theme); const workspace = objectValue(theme.workspace);
+      const { error } = await supabase.from("restaurants").update({ menu_theme: { ...theme, workspace: { ...workspace, analyticsDashboard: config } } }).eq("id", restaurantId); if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["platform"] }); setCustomize(false); toast.success(ar ? "تم حفظ لوحة التحليلات" : "Analytics dashboard saved");
+    } catch (error) { toast.error(humanError(error, lang)); } finally { setSaving(false); }
   }
-  function move(id: WidgetId, delta: number) {
-    setConfig((previous) => {
-      const list = [...previous.widgets];
-      const index = list.indexOf(id);
-      const target = index + delta;
-      if (index < 0 || target < 0 || target >= list.length) return previous;
-      [list[index], list[target]] = [list[target]!, list[index]!];
-      return { ...previous, widgets: list };
-    });
-  }
-  function remove(id: WidgetId) { setConfig((previous) => ({ ...previous, widgets: previous.widgets.filter((value) => value !== id) })); }
-  function add(id: WidgetId) { setConfig((previous) => previous.widgets.includes(id) ? previous : { ...previous, widgets: [...previous.widgets, id] }); setAddOpen(false); }
-  function setWidgetColor(id: WidgetId, color: string) { setConfig((previous) => ({ ...previous, colors: { ...previous.colors, [id]: color } })); }
-  function setChartType(id: WidgetId, chartType: ChartType) { setConfig((previous) => ({ ...previous, chartTypes: { ...previous.chartTypes, [id]: chartType } })); }
-  function resetDashboard() { setConfig({ widgets: [...DEFAULT_WIDGETS], accent: "#ff6a1a", colors: {}, chartTypes: { ...DEFAULT_CHART_TYPES } }); }
 
   if (analytics.isPending || restaurant.isPending) return <Skeleton className="h-[760px] rounded-2xl" />;
   if (analytics.isError) return <div className="qs-card p-6 text-sm text-destructive">{humanError(analytics.error, lang)}</div>;
   const data = analytics.data!;
-  const kpis = [
-    { label: ar ? "إجمالي الإيرادات" : "Total Revenue", value: formatMoney(data.revenue, currency, lang), tone: "orange" },
-    { label: ar ? "إجمالي الطلبات" : "Total Orders", value: formatNumber(data.orders.length, lang), tone: "green" },
-    { label: ar ? "متوسط قيمة الطلب" : "Average Order Value", value: formatMoney(data.aov, currency, lang), tone: "purple" },
-    { label: ar ? "نسبة المدفوع" : "Paid Orders", value: `${Math.round(data.paidRate)}%`, tone: "blue" },
-  ];
+  const labels: Record<WidgetId, string> = {
+    revenue: ar ? "الإيراد عبر الزمن" : "Revenue Over Time", orders: ar ? "الطلبات" : "Orders", channels: ar ? "قنوات الطلب" : "Order Channels", topProducts: ar ? "أفضل المنتجات" : "Top Products", peakHours: ar ? "ساعات الذروة" : "Peak Hours", weekly: ar ? "الأداء الأسبوعي" : "Weekly Performance", orderTable: ar ? "جدول الطلبات" : "Orders Data Table", paidProgress: ar ? "تقدم المدفوعات" : "Payment Progress", summary: ar ? "تقرير ملخص" : "Executive Report",
+  };
+
+  function colorFor(id: WidgetId) { return config.colors[id] ?? config.accent; }
+  function chart(id: WidgetId, rows: Array<Record<string, string | number>>, x: string, y: string) {
+    const type = config.chartTypes[id] ?? DEFAULT_CHART_TYPES[id] ?? "bar"; const color = colorFor(id);
+    if (type === "line") return <ResponsiveContainer width="100%" height="100%"><LineChart data={rows}><CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} /><XAxis dataKey={x} fontSize={10} tickLine={false} axisLine={false} /><YAxis fontSize={10} tickLine={false} axisLine={false} /><Tooltip /><Line type="monotone" dataKey={y} stroke={color} strokeWidth={3} dot={false} /></LineChart></ResponsiveContainer>;
+    if (type === "area") return <ResponsiveContainer width="100%" height="100%"><AreaChart data={rows}><CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} /><XAxis dataKey={x} fontSize={10} tickLine={false} axisLine={false} /><YAxis fontSize={10} tickLine={false} axisLine={false} /><Tooltip /><Area type="monotone" dataKey={y} stroke={color} fill={color} fillOpacity={0.14} strokeWidth={3} /></AreaChart></ResponsiveContainer>;
+    return <ResponsiveContainer width="100%" height="100%"><BarChart data={rows}><CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} /><XAxis dataKey={x} fontSize={10} tickLine={false} axisLine={false} /><YAxis fontSize={10} tickLine={false} axisLine={false} /><Tooltip /><Bar dataKey={y} fill={color} radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer>;
+  }
+
+  function toolbar(id: WidgetId) {
+    if (!customize) return null;
+    const options = CHART_OPTIONS[id];
+    return <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-muted/35 p-2">
+      <label className="flex items-center gap-1.5 text-[10px] font-bold"><Palette className="size-3.5" /><Input type="color" value={colorFor(id)} onChange={(e) => setConfig((current) => ({ ...current, colors: { ...current.colors, [id]: e.target.value } }))} className="h-8 w-11 p-1" /></label>
+      {options ? <Select value={config.chartTypes[id] ?? DEFAULT_CHART_TYPES[id]} onValueChange={(value) => setConfig((current) => ({ ...current, chartTypes: { ...current.chartTypes, [id]: value as ChartType } }))}><SelectTrigger className="h-8 w-[120px] text-[10px]"><SelectValue /></SelectTrigger><SelectContent>{options.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent></Select> : null}
+      {(id === "orderTable" || id === "topProducts") ? <Button type="button" variant="outline" size="sm" className="h-8 text-[10px]" onClick={() => setConditionalWidget(id)}><SlidersHorizontal className="size-3.5" />{ar ? "تنسيق شرطي" : "Conditional"}</Button> : null}
+      <button type="button" className="ms-auto grid size-8 place-items-center rounded-lg text-red-600 hover:bg-red-50" onClick={() => setConfig((current) => ({ ...current, widgets: current.widgets.filter((widget) => widget !== id) }))} aria-label={ar ? "حذف" : "Remove"}><Trash2 className="size-4" /></button>
+    </div>;
+  }
+
+  function renderWidget(id: WidgetId) {
+    const color = colorFor(id);
+    const rules = config.conditional[id] ?? [];
+    if (id === "revenue") return <Widget title={labels[id]} tools={toolbar(id)}><div className="h-[250px]">{chart(id, data.series, "label", "sales")}</div></Widget>;
+    if (id === "orders") return <Widget title={labels[id]} tools={toolbar(id)}><div className="mb-4 grid grid-cols-2 gap-2"><Kpi label={ar ? "30 يوم" : "30 days"} value={formatNumber(data.orders.length, lang)} /><Kpi label={ar ? "متوسط الطلب" : "Avg. order"} value={formatMoney(data.aov, currency, lang)} /></div><div className="h-[190px]">{chart(id, data.series, "label", "orders")}</div></Widget>;
+    if (id === "channels") return <Widget title={labels[id]} tools={toolbar(id)}>{data.channels.length ? config.chartTypes[id] === "bar" ? <div className="h-[230px]">{chart(id, data.channels, "name", "value")}</div> : <div className="h-[230px]"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={data.channels} dataKey="value" nameKey="name" innerRadius={58} outerRadius={86} paddingAngle={4}>{data.channels.map((_, index) => <Cell key={index} fill={CHANNEL_COLORS[index % CHANNEL_COLORS.length]} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer></div> : <Empty ar={ar} />}</Widget>;
+    if (id === "topProducts") return <Widget title={labels[id]} tools={toolbar(id)}>{data.topProducts.length ? <div className="overflow-x-auto"><table className="qs-table min-w-[520px]"><thead><tr><th>{ar ? "المنتج" : "Product"}</th><th>{ar ? "الكمية" : "Qty"}</th><th>{ar ? "الإيراد" : "Revenue"}</th></tr></thead><tbody>{data.topProducts.map((item) => { const row = { name: ar ? item.nameAr : item.name, qty: item.qty, revenue: item.revenue }; return <tr key={item.name} style={conditionalRowStyle(rules, row)}><td style={conditionalCellStyle(rules, "name", row.name)}>{row.name}</td><td style={conditionalCellStyle(rules, "qty", row.qty)}>{row.qty}</td><td style={conditionalCellStyle(rules, "revenue", row.revenue)}>{formatMoney(row.revenue, currency, lang)}</td></tr>; })}</tbody></table></div> : <Empty ar={ar} />}</Widget>;
+    if (id === "peakHours") return <Widget title={labels[id]} tools={toolbar(id)}>{data.peak.length ? <div className="h-[235px]">{chart(id, data.peak.map((row) => ({ ...row, label: `${row.hour}:00` })), "label", "orders")}</div> : <Empty ar={ar} />}</Widget>;
+    if (id === "weekly") return <Widget title={labels[id]} tools={toolbar(id)}><div className="h-[235px]">{chart(id, data.weekly, "label", "sales")}</div></Widget>;
+    if (id === "paidProgress") return <Widget title={labels[id]} tools={toolbar(id)}><div className="grid h-full place-items-center py-4"><div className="text-center"><div className="relative mx-auto grid size-32 place-items-center rounded-full" style={{ background: `conic-gradient(${color} ${data.paidRate}%, var(--muted) 0)` }}><div className="grid size-24 place-items-center rounded-full bg-card"><strong className="text-2xl">{Math.round(data.paidRate)}%</strong></div></div><p className="mt-4 text-xs text-muted-foreground">{ar ? "نسبة الطلبات المدفوعة" : "Paid order rate"}</p></div></div></Widget>;
+    if (id === "summary") return <Widget title={labels[id]} tools={toolbar(id)}><div className="grid gap-3 sm:grid-cols-2"><Kpi label={ar ? "الإيراد" : "Revenue"} value={formatMoney(data.revenue, currency, lang)} /><Kpi label={ar ? "الطلبات" : "Orders"} value={formatNumber(data.orders.length, lang)} /><Kpi label={ar ? "متوسط الطلب" : "Average order"} value={formatMoney(data.aov, currency, lang)} /><Kpi label={ar ? "مدفوع" : "Paid"} value={`${Math.round(data.paidRate)}%`} /></div><p className="mt-4 text-xs leading-5 text-muted-foreground">{ar ? "هذا التقرير يعتمد فقط على بيانات المطعم الفعلية لآخر 30 يوماً." : "This report is generated only from this restaurant's real data for the last 30 days."}</p></Widget>;
+    return <Widget title={labels[id]} tools={toolbar(id)}>{data.recent.length ? <div className="overflow-x-auto"><table className="qs-table min-w-[720px]"><thead><tr><th>{ar ? "الطلب" : "Order"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "الدفع" : "Payment"}</th><th>{ar ? "الإجمالي" : "Total"}</th><th>{ar ? "التاريخ" : "Date"}</th></tr></thead><tbody>{data.recent.map((order) => { const row = { order: order.order_number, status: order.status, payment: order.payment_status, total: Number(order.total ?? 0), date: formatDateTime(order.created_at, lang) }; return <tr key={order.id} style={conditionalRowStyle(rules, row)}><td style={conditionalCellStyle(rules, "order", row.order)}>{row.order}</td><td style={conditionalCellStyle(rules, "status", row.status)}>{row.status}</td><td style={conditionalCellStyle(rules, "payment", row.payment)}>{row.payment}</td><td style={conditionalCellStyle(rules, "total", row.total)}>{formatMoney(row.total, currency, lang)}</td><td style={conditionalCellStyle(rules, "date", row.date)}>{row.date}</td></tr>; })}</tbody></table></div> : <Empty ar={ar} />}</Widget>;
+  }
 
   return <div className="space-y-5">
-    <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div><h1 className="qs-page-title">{ar ? "التحليلات" : "Analytics"}</h1><p className="qs-page-subtitle">{ar ? "حوّل بيانات المطعم إلى قرارات واضحة، ورتب لوحة التحليلات حسب احتياجك." : "Turn real restaurant data into clear decisions and shape the dashboard around your workflow."}</p></div>
-      <div className="flex flex-wrap gap-2"><button type="button" className="qs-button-secondary"><CalendarDays className="size-4" />{ar ? "آخر 30 يوماً" : "Last 30 days"}</button><button type="button" className={customize ? "qs-button-primary" : "qs-button-secondary"} onClick={() => setCustomize((value) => !value)}><Settings2 className="size-4" />{ar ? "تخصيص اللوحة" : "Customize Dashboard"}</button>{customize ? <button type="button" className="qs-button-primary" disabled={saving} onClick={() => void saveConfig()}>{saving ? (ar ? "حفظ…" : "Saving…") : (ar ? "حفظ التخطيط" : "Save Layout")}</button> : null}</div>
-    </header>
+    <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><h1 className="qs-page-title">{ar ? "التحليلات" : "Analytics"}</h1><p className="qs-page-subtitle">{ar ? "لوحة تفاعلية قابلة للتخصيص تعتمد على بيانات المطعم الفعلية." : "An interactive, customizable dashboard powered by real restaurant data."}</p></div><div className="flex flex-wrap gap-2"><span className="qs-button-secondary pointer-events-none"><CalendarDays className="size-4" />{ar ? "آخر 30 يوماً" : "Last 30 days"}</span>{customize ? <><Button variant="outline" onClick={() => { setConfig(savedConfig); setCustomize(false); }}><X className="size-4" />{ar ? "إلغاء" : "Cancel"}</Button><Button variant="outline" onClick={() => setConfig({ ...readConfig({ workspace: {} }), widgets: [...DEFAULT_WIDGETS] })}><RotateCcw className="size-4" />{ar ? "إعادة" : "Reset"}</Button><Button variant="outline" onClick={() => setAddOpen(true)}><ListPlus className="size-4" />{ar ? "إضافة أداة" : "Add Widget"}</Button><Button disabled={saving} onClick={() => void saveConfig()}><Save className="size-4" />{saving ? (ar ? "حفظ…" : "Saving…") : (ar ? "حفظ" : "Save Layout")}</Button></> : <button type="button" className="qs-button-secondary" onClick={() => setCustomize(true)}><Settings2 className="size-4" />{ar ? "تخصيص اللوحة" : "Customize Dashboard"}</button>}</div></header>
 
-    {customize ? <section className="qs-card flex flex-col gap-4 p-4 lg:flex-row lg:items-center">
-      <div className="min-w-0 flex-1"><h2 className="text-sm font-bold">{ar ? "وضع التخصيص" : "Customization mode"}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar ? "غيّر نوع كل رسم ولونه، رتب الأدوات، وأضف تقارير وجداول بيانات. كل شيء يعتمد على بيانات المطعم الفعلية." : "Change each chart type and color, reorder widgets, and add reports or data tables. Everything stays tied to real restaurant data."}</p></div>
-      <label className="flex items-center gap-2 text-xs font-bold"><span>{ar ? "اللون الافتراضي" : "Default chart color"}</span><Input type="color" value={config.accent} onChange={(event) => setConfig({ ...config, accent: event.target.value })} className="h-11 w-16 p-1" /></label>
-      <div className="flex flex-wrap gap-2"><button type="button" className="qs-button-secondary" onClick={resetDashboard}><RotateCcw className="size-4" />{ar ? "إعادة الافتراضي" : "Reset Dashboard"}</button><button type="button" className="qs-button-secondary" onClick={() => setAddOpen(true)}><ListPlus className="size-4" />{ar ? "إضافة أداة" : "Add Widget"}</button></div>
-    </section> : null}
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Kpi label={ar ? "إجمالي الإيرادات" : "Total Revenue"} value={formatMoney(data.revenue, currency, lang)} /><Kpi label={ar ? "إجمالي الطلبات" : "Total Orders"} value={formatNumber(data.orders.length, lang)} /><Kpi label={ar ? "متوسط قيمة الطلب" : "Average Order Value"} value={formatMoney(data.aov, currency, lang)} /><Kpi label={ar ? "الطلبات المدفوعة" : "Paid Orders"} value={`${Math.round(data.paidRate)}%`} /></section>
 
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{kpis.map((card, index) => <article key={card.label} className="qs-stat relative overflow-hidden"><div className="flex items-center justify-between"><span className="text-[11px] font-semibold text-muted-foreground">{card.label}</span><span className={cn("size-2 rounded-full", index === 0 ? "bg-orange-500" : index === 1 ? "bg-emerald-500" : index === 2 ? "bg-violet-500" : "bg-blue-500")} /></div><p className="mt-2 truncate font-display text-[24px] font-bold tracking-[-.04em]">{card.value}</p></article>)}</section>
+    {customize ? <section className="qs-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><strong className="text-sm">{ar ? "وضع التخصيص" : "Customization mode"}</strong><p className="mt-1 text-xs text-muted-foreground">{ar ? "اسحب من مقابض النقاط الست، غيّر الحجم من الزاوية، وعدّل اللون والنوع داخل كل أداة." : "Drag widgets from the six-dot handles, resize from the corner, and change type/color inside each widget."}</p></div><label className="flex items-center gap-2 text-xs font-bold"><span>{ar ? "اللون الافتراضي" : "Default color"}</span><Input type="color" value={config.accent} onChange={(event) => setConfig((current) => ({ ...current, accent: event.target.value }))} className="h-10 w-14 p-1" /></label></section> : null}
 
-    <div className="grid gap-4 xl:grid-cols-12">{config.widgets.map((id, index) => <Widget key={id} id={id} index={index} count={config.widgets.length} customize={customize} color={config.colors[id] ?? config.accent} chartType={config.chartTypes[id] ?? DEFAULT_CHART_TYPES[id]} data={data} currency={currency} lang={lang} ar={ar} onMove={move} onRemove={remove} onColor={setWidgetColor} onChartType={setChartType} />)}</div>
+    <DashboardGrid ids={config.widgets} customize={customize} sizeFor={(id) => config.sizes[id] ?? DEFAULT_SIZES[id]} labelFor={(id) => labels[id]} minColumns={(id) => id === "orderTable" ? 8 : 4} minHeight={() => 220} onReorder={(source, target) => setConfig((current) => ({ ...current, widgets: reorderDashboardItems(current.widgets, source, target) }))} onResize={(id, size) => setConfig((current) => ({ ...current, sizes: { ...current.sizes, [id]: size } }))} renderItem={renderWidget} />
 
-    <button type="button" onClick={() => setAddOpen(true)} className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-card/60 px-4 text-center text-sm font-bold text-muted-foreground transition hover:border-[#ff5a0a]/50 hover:text-foreground"><Plus className="size-5" />{ar ? "إضافة رسم أو تقرير أو جدول بيانات أو مؤشر" : "Add chart, report, data table or KPI"}</button>
+    <Dialog open={addOpen} onOpenChange={setAddOpen}><DialogContent className="sm:max-w-xl"><DialogHeader><DialogTitle>{ar ? "إضافة أداة" : "Add Widget"}</DialogTitle><DialogDescription>{ar ? "أضف رسماً أو تقريراً أو جدول بيانات." : "Add a chart, report, data table or progress widget."}</DialogDescription></DialogHeader><div className="grid gap-2 sm:grid-cols-2">{ALL_WIDGETS.filter((id) => !config.widgets.includes(id)).map((id) => <button key={id} type="button" className="flex min-h-14 items-center gap-3 rounded-xl border border-border p-3 text-start hover:border-orange-300" onClick={() => { setConfig((current) => ({ ...current, widgets: [...current.widgets, id] })); setAddOpen(false); }}>{id === "orderTable" || id === "topProducts" ? <Table2 className="size-4 text-[#ff5a0a]" /> : id === "summary" ? <FileText className="size-4 text-[#ff5a0a]" /> : <BarChart3 className="size-4 text-[#ff5a0a]" />}<span className="text-sm font-semibold">{labels[id]}</span></button>)}</div></DialogContent></Dialog>
 
-    <Dialog open={addOpen} onOpenChange={setAddOpen}><DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>{ar ? "إضافة أداة تحليل" : "Add Analytics Widget"}</DialogTitle><DialogDescription>{ar ? "اختر رسماً، جدولاً أو تقريراً. جميع الأدوات تستخدم بيانات المطعم الفعلية فقط." : "Choose a chart, data table or report. Every widget uses real restaurant data only."}</DialogDescription></DialogHeader><div className="grid gap-3 sm:grid-cols-2">{WIDGET_CATALOG.map((item) => <button key={item.id} type="button" disabled={config.widgets.includes(item.id)} onClick={() => add(item.id)} className="min-h-[116px] rounded-xl border border-border p-4 text-start transition hover:border-orange-300 hover:bg-orange-50/40 disabled:opacity-40"><item.icon className="size-5 text-[#ff5a0a]" /><strong className="mt-3 block text-sm">{ar ? item.ar : item.en}</strong><span className="mt-1 block text-xs leading-5 text-muted-foreground">{ar ? item.descAr : item.desc}</span></button>)}</div><DialogFooter><Button variant="ghost" onClick={() => setAddOpen(false)}>{ar ? "إغلاق" : "Close"}</Button></DialogFooter></DialogContent></Dialog>
+    <ConditionalFormattingDialog open={conditionalWidget !== null} onOpenChange={(open) => !open && setConditionalWidget(null)} ar={ar} columns={conditionalWidget === "topProducts" ? PRODUCT_COLUMNS : ORDER_COLUMNS} rules={conditionalWidget ? config.conditional[conditionalWidget] ?? [] : []} onChange={(rules) => { if (!conditionalWidget) return; setConfig((current) => ({ ...current, conditional: { ...current.conditional, [conditionalWidget]: rules } })); }} />
   </div>;
 }
 
-const WIDGET_CATALOG: Array<{ id: WidgetId; en: string; ar: string; desc: string; descAr: string; icon: any }> = [
-  { id: "revenue", en: "Revenue chart", ar: "رسم الإيرادات", desc: "Revenue over time with Area, Line or Bar visualization", descAr: "الإيرادات عبر الزمن مع رسم مساحي أو خطي أو أعمدة", icon: TrendingUp },
-  { id: "orders", en: "Orders chart", ar: "رسم الطلبات", desc: "Orders by day with selectable chart style", descAr: "الطلبات حسب اليوم مع اختيار نوع الرسم", icon: BarChart3 },
-  { id: "channels", en: "Order channels", ar: "قنوات الطلب", desc: "Dine-in vs takeaway as Donut or Bar", descAr: "داخل المطعم مقابل الخارجي كدائرة أو أعمدة", icon: CircleGauge },
-  { id: "topProducts", en: "Top products table", ar: "جدول أفضل المنتجات", desc: "Sortable-style product data table", descAr: "جدول بيانات المنتجات الأعلى", icon: Table2 },
-  { id: "peakHours", en: "Peak hours chart", ar: "رسم ساعات الذروة", desc: "Hourly order volume", descAr: "حجم الطلبات حسب الساعة", icon: BarChart3 },
-  { id: "weekly", en: "Weekly performance", ar: "الأداء الأسبوعي", desc: "Orders by weekday with selectable chart style", descAr: "الطلبات حسب يوم الأسبوع مع نوع رسم قابل للتغيير", icon: LineIcon },
-  { id: "paidProgress", en: "Paid orders progress", ar: "تقدم المدفوعات", desc: "Payment completion progress", descAr: "نسبة اكتمال الدفع", icon: CircleGauge },
-  { id: "orderTable", en: "Recent orders table", ar: "جدول الطلبات", desc: "Recent real orders in a data table", descAr: "أحدث الطلبات الفعلية في جدول بيانات", icon: Table2 },
-  { id: "summary", en: "Summary report", ar: "تقرير ملخص", desc: "Text report calculated from live metrics", descAr: "تقرير نصي محسوب من المقاييس الفعلية", icon: FileText },
-];
-
-function Widget({ id, index, count, customize, color, chartType, data, currency, lang, ar, onMove, onRemove, onColor, onChartType }: { id: WidgetId; index: number; count: number; customize: boolean; color: string; chartType?: ChartType | undefined; data: any; currency: string; lang: Language; ar: boolean; onMove: (id: WidgetId, delta: number) => void; onRemove: (id: WidgetId) => void; onColor: (id: WidgetId, color: string) => void; onChartType: (id: WidgetId, chartType: ChartType) => void }) {
-  const options = CHART_OPTIONS[id];
-  const wrap = (title: string, children: React.ReactNode, wide = false) => <section className={cn("qs-card min-w-0 overflow-hidden", wide ? "xl:col-span-8" : "xl:col-span-4", id === "orderTable" && "xl:col-span-8", id === "summary" && "xl:col-span-4")}><div className="flex min-h-14 flex-wrap items-center gap-2 border-b border-border px-4 py-2.5"><GripVertical className="size-4 text-muted-foreground" /><h2 className="min-w-[120px] flex-1 truncate text-sm font-bold">{title}</h2>{customize ? <div className="flex flex-wrap items-center gap-1.5">{options?.length ? <select value={chartType ?? options[0]} onChange={(event) => onChartType(id, event.target.value as ChartType)} className="h-9 rounded-lg border border-border bg-background px-2 text-[11px] font-semibold outline-none focus:border-[#ff5a0a]">{options.map((option) => <option key={option} value={option}>{option === "donut" ? (ar ? "دائري" : "Donut") : option === "area" ? (ar ? "مساحي" : "Area") : option === "line" ? (ar ? "خطي" : "Line") : (ar ? "أعمدة" : "Bar")}</option>)}</select> : null}{options?.length ? <Input type="color" aria-label={ar ? "لون الرسم" : "Chart color"} value={color} onChange={(event) => onColor(id, event.target.value)} className="h-9 w-11 p-1" /> : null}<button type="button" disabled={index === 0} onClick={() => onMove(id, -1)} className="grid size-9 place-items-center rounded-lg hover:bg-muted disabled:opacity-25"><ChevronUp className="size-4" /></button><button type="button" disabled={index === count - 1} onClick={() => onMove(id, 1)} className="grid size-9 place-items-center rounded-lg hover:bg-muted disabled:opacity-25"><ChevronDown className="size-4" /></button><button type="button" onClick={() => onRemove(id)} className="grid size-9 place-items-center rounded-lg text-red-600 hover:bg-red-50"><Trash2 className="size-4" /></button></div> : null}</div>{children}</section>;
-
-  if (id === "revenue") return wrap(ar ? "الإيرادات عبر الزمن" : "Revenue Over Time", <SeriesChart rows={data.series} xKey="label" yKey="sales" type={chartType ?? "area"} color={color} currency={currency} lang={lang} />, true);
-  if (id === "orders") return wrap(ar ? "الطلبات حسب اليوم" : "Orders by Day", <SeriesChart rows={data.series} xKey="label" yKey="orders" type={chartType ?? "bar"} color={color} />, true);
-  if (id === "channels") return wrap(ar ? "الطلبات حسب القناة" : "Orders by Channel", data.channels.length ? (chartType === "bar" ? <div className="h-[260px] p-4"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.channels}><CartesianGrid stroke="currentColor" strokeOpacity={.07} vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} /><Tooltip /><Bar dataKey="value" fill={color} radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div> : <div className="grid min-h-[260px] grid-cols-[minmax(0,1fr)_140px] items-center gap-2 p-4"><ResponsiveContainer width="100%" height={220}><PieChart><Pie data={data.channels} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85}>{data.channels.map((_: any, itemIndex: number) => <Cell key={itemIndex} fill={itemIndex === 0 ? color : COLORS[(itemIndex + 1) % COLORS.length]} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer><div className="space-y-3">{data.channels.map((channel: any, itemIndex: number) => <div key={channel.name} className="flex items-center justify-between gap-2 text-xs"><span className="flex items-center gap-2"><i className="size-2 rounded-full" style={{ background: itemIndex === 0 ? color : COLORS[(itemIndex + 1) % COLORS.length] }} />{channel.name}</span><strong>{channel.value}</strong></div>)}</div></div>) : <Empty ar={ar} />);
-  if (id === "topProducts") return wrap(ar ? "أفضل المنتجات" : "Top Products", data.topProducts.length ? <div className="overflow-x-auto"><table className="qs-table min-w-[520px]"><thead><tr><th>#</th><th>{ar ? "المنتج" : "Item"}</th><th>{ar ? "الكمية" : "Orders"}</th><th>{ar ? "الإيراد" : "Revenue"}</th></tr></thead><tbody>{data.topProducts.map((product: any, itemIndex: number) => <tr key={product.name}><td>{itemIndex + 1}</td><td>{ar ? product.nameAr : product.name}</td><td>{product.qty}</td><td>{formatMoney(product.revenue, currency, lang)}</td></tr>)}</tbody></table></div> : <Empty ar={ar} />);
-  if (id === "peakHours") return wrap(ar ? "ساعات الذروة" : "Peak Hours", data.peak.length ? <SeriesChart rows={data.peak.map((value: any) => ({ ...value, label: `${value.hour}:00` }))} xKey="label" yKey="orders" type={chartType ?? "bar"} color={color} /> : <Empty ar={ar} />, true);
-  if (id === "weekly") return wrap(ar ? "الأداء الأسبوعي" : "Weekly Performance", <SeriesChart rows={data.weekly} xKey="label" yKey="orders" type={chartType ?? "bar"} color={color} />);
-  if (id === "paidProgress") return wrap(ar ? "تقدم المدفوعات" : "Payment Completion", <div className="p-5"><div className="flex items-end justify-between"><strong className="text-3xl">{Math.round(data.paidRate)}%</strong><span className="text-xs text-muted-foreground">{ar ? "طلبات مدفوعة" : "orders paid"}</span></div><div className="mt-4 h-3 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full" style={{ width: `${data.paidRate}%`, background: color }} /></div></div>);
-  if (id === "orderTable") return wrap(ar ? "أحدث الطلبات" : "Recent Orders", data.recent.length ? <div className="overflow-x-auto"><table className="qs-table min-w-[620px]"><thead><tr><th>#</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "الدفع" : "Payment"}</th><th>{ar ? "الإجمالي" : "Total"}</th><th>{ar ? "الوقت" : "Time"}</th></tr></thead><tbody>{data.recent.map((order: any) => <tr key={order.id}><td>{order.order_number}</td><td>{order.status}</td><td>{order.payment_status}</td><td>{formatMoney(Number(order.total ?? 0), currency, lang)}</td><td>{new Date(order.created_at).toLocaleString(ar ? "ar-JO" : "en-US")}</td></tr>)}</tbody></table></div> : <Empty ar={ar} />, true);
-  return wrap(ar ? "تقرير ملخص" : "Summary Report", <div className="space-y-3 p-5 text-sm"><p>{ar ? `خلال آخر 30 يوماً سجل المطعم ${data.orders.length} طلباً بإيراد ${formatMoney(data.revenue, currency, lang)}.` : `In the last 30 days this restaurant recorded ${data.orders.length} orders and ${formatMoney(data.revenue, currency, lang)} in revenue.`}</p><p className="text-muted-foreground">{ar ? `متوسط قيمة الطلب ${formatMoney(data.aov, currency, lang)} ونسبة الطلبات المدفوعة ${Math.round(data.paidRate)}%.` : `Average order value is ${formatMoney(data.aov, currency, lang)} and ${Math.round(data.paidRate)}% of orders are paid.`}</p></div>);
-}
-
-function SeriesChart({ rows, xKey, yKey, type, color, currency, lang }: { rows: any[]; xKey: string; yKey: string; type: ChartType; color: string; currency?: string; lang?: Language | undefined }) {
-  const tooltipFormatter = currency && lang ? (value: unknown) => formatMoney(Number(value ?? 0), currency, lang) : undefined;
-  if (type === "line") return <div className="h-[260px] p-4"><ResponsiveContainer width="100%" height="100%"><LineChart data={rows}><CartesianGrid stroke="currentColor" strokeOpacity={.07} vertical={false} /><XAxis dataKey={xKey} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} /><Tooltip formatter={tooltipFormatter as any} /><Line type="monotone" dataKey={yKey} stroke={color} strokeWidth={2.5} dot={{ r: 3, fill: "var(--card)", stroke: color, strokeWidth: 2 }} activeDot={{ r: 5 }} /></LineChart></ResponsiveContainer></div>;
-  if (type === "bar") return <div className="h-[260px] p-4"><ResponsiveContainer width="100%" height="100%"><BarChart data={rows}><CartesianGrid stroke="currentColor" strokeOpacity={.07} vertical={false} /><XAxis dataKey={xKey} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} /><Tooltip formatter={tooltipFormatter as any} /><Bar dataKey={yKey} fill={color} radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div>;
-  return <div className="h-[260px] p-4"><ResponsiveContainer width="100%" height="100%"><AreaChart data={rows}><defs><linearGradient id={`gradient-${yKey}-${color.replace("#", "")}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={color} stopOpacity={.24} /><stop offset="1" stopColor={color} stopOpacity={0} /></linearGradient></defs><CartesianGrid stroke="currentColor" strokeOpacity={.07} vertical={false} /><XAxis dataKey={xKey} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} /><Tooltip formatter={tooltipFormatter as any} /><Area type="monotone" dataKey={yKey} stroke={color} strokeWidth={2.5} fill={`url(#gradient-${yKey}-${color.replace("#", "")})`} /></AreaChart></ResponsiveContainer></div>;
-}
-
-function Empty({ ar }: { ar: boolean }) { return <div className="grid min-h-[220px] place-items-center p-6 text-center text-sm text-muted-foreground">{ar ? "لا توجد بيانات كافية لهذه الأداة بعد." : "Not enough real data for this widget yet."}</div>; }
+function Widget({ title, tools, children }: { title: string; tools?: React.ReactNode; children: React.ReactNode }) { return <section className="qs-card flex h-full min-h-0 flex-col overflow-hidden p-4 sm:p-5"><div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-sm font-bold">{title}</h2></div>{tools}<div className="min-h-0 flex-1">{children}</div></section>; }
+function Kpi({ label, value }: { label: string; value: string }) { return <article className="qs-stat p-4"><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><p className="mt-2 truncate font-display text-2xl font-bold tracking-[-.035em]">{value}</p></article>; }
+function Empty({ ar }: { ar: boolean }) { return <div className="grid min-h-[180px] place-items-center p-6 text-center text-sm text-muted-foreground">{ar ? "لا توجد بيانات كافية لهذه الأداة بعد." : "Not enough real data for this widget yet."}</div>; }
