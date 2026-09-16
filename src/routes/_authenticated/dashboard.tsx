@@ -10,6 +10,7 @@ import {
   ShoppingBag,
   Table2,
   Users,
+  UsersRound,
   UtensilsCrossed,
 } from "lucide-react";
 

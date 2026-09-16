@@ -12,7 +12,7 @@ export const ROLE_LABELS: Record<AppRole,{en:string;ar:string}> = {
 };
 export const ROLE_HOME:Record<AppRole,string>={super_admin:"/super-admin",restaurant_admin:"/dashboard",manager:"/manager",kitchen:"/kitchen",waiter:"/waiter",cashier:"/cashier"};
 export type Capability="manage_platform"|"manage_restaurant"|"manage_menu"|"manage_tables"|"manage_staff"|"manage_appearance"|"view_analytics"|"view_orders"|"view_order_prices"|"update_order_status"|"manage_payments"|"handle_waiter_calls";
-const ROLE_CAPABILITIES:Record<AppRole,Capability[]>={
+export const ROLE_CAPABILITIES:Record<AppRole,Capability[]>={
  super_admin:["manage_platform","manage_restaurant","manage_menu","manage_tables","manage_staff","manage_appearance","view_analytics","view_orders","view_order_prices","update_order_status","manage_payments","handle_waiter_calls"],
  restaurant_admin:["manage_restaurant","manage_menu","manage_tables","manage_staff","manage_appearance","view_analytics","view_orders","view_order_prices","update_order_status","manage_payments","handle_waiter_calls"],
  manager:["manage_menu","manage_tables","view_analytics","view_orders","view_order_prices","update_order_status","handle_waiter_calls"],
