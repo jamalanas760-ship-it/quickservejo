@@ -52,7 +52,9 @@ export function BottomNav() {
 
   if (access.isPending || access.isSuperAdmin) return null;
 
-  const desktopItems: Item[] = restaurantId
+  const desktopItems: Item[] = frontline
+    ? ([task, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }].filter(Boolean) as Item[])
+    : restaurantId
     ? [
         { to: "/dashboard", icon: Home, en: "Home", ar: "الرئيسية", exact: true },
         { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات" },
