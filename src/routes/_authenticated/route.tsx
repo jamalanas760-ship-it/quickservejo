@@ -15,9 +15,7 @@ export const Route = createFileRoute("/_authenticated")({
     try {
       user = await getResilientAuthenticatedUser();
     } catch (error) {
-      if (isAuthNetworkError(error)) {
-        throw redirect({ to: "/auth", search: { redirect: location.href } });
-      }
+      if (isAuthNetworkError(error)) throw redirect({ to: "/auth", search: { redirect: location.href } });
       throw error;
     }
     if (!user) throw redirect({ to: "/auth", search: { redirect: location.href } });
@@ -26,7 +24,7 @@ export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedShell,
 });
 
-const STAFF_BLOCKED_PREFIXES = ["/dashboard", "/manage", "/super-admin"];
+const FRONTLINE_BLOCKED_PREFIXES = ["/dashboard", "/manage", "/super-admin", "/manager"];
 
 function AuthenticatedShell() {
   const navigate = useNavigate();
@@ -34,20 +32,24 @@ function AuthenticatedShell() {
   const access = useAccess();
   const { roles, isPending, isError } = access;
   const accessResolved = !isPending && !isError;
-  const staff = accessResolved && isFrontlineOnly(roles);
-  const staffBlocked = staff && STAFF_BLOCKED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  const roleRouteBlocked = staff && (
+  const frontline = accessResolved && isFrontlineOnly(roles);
+  const isManager = roles.includes("manager");
+
+  // Managers are operational users with a dedicated /manager home and may enter
+  // capability-guarded /manage pages. Kitchen/waiter/cashier users remain isolated.
+  const frontlineBlocked = frontline && !isManager && FRONTLINE_BLOCKED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  const managerWrongHome = isManager && pathname === "/dashboard";
+  const roleRouteBlocked = frontline && (
+    (pathname.startsWith("/manager") && !isManager) ||
     (pathname.startsWith("/kitchen") && !roles.some((role) => role === "kitchen" || role === "manager")) ||
     (pathname.startsWith("/waiter") && !roles.includes("waiter")) ||
     (pathname.startsWith("/cashier") && !roles.includes("cashier"))
   );
-  const blocked = staffBlocked || roleRouteBlocked;
+  const blocked = frontlineBlocked || managerWrongHome || roleRouteBlocked;
 
   useEffect(() => {
-    if (staffBlocked || roleRouteBlocked) {
-      void navigate({ to: frontlineHome(roles), replace: true });
-    }
-  }, [navigate, roles, roleRouteBlocked, staffBlocked]);
+    if (blocked) void navigate({ to: frontlineHome(roles), replace: true });
+  }, [blocked, navigate, roles]);
 
   return (
     <TenantBrandShell>
