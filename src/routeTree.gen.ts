@@ -34,6 +34,7 @@ import { Route as RSlugRouteImport } from './routes/r/$slug'
 import { Route as StaffIndexRouteImport } from './routes/staff/index'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as AuthenticatedDashboardMetricRouteImport } from './routes/_authenticated/dashboard_/$metric'
 import { Route as AuthenticatedManageIndexRouteImport } from './routes/_authenticated/manage/index'
 import { Route as AuthenticatedManageRestaurantIdRouteRouteImport } from './routes/_authenticated/manage/$restaurantId/route'
 import { Route as AuthenticatedSuperAdminIndexRouteImport } from './routes/_authenticated/super-admin/index'
@@ -53,6 +54,7 @@ import { Route as AuthenticatedManageRestaurantIdTablesRouteImport } from './rou
 import { Route as AuthenticatedSuperAdminRestaurantsIndexRouteImport } from './routes/_authenticated/super-admin/restaurants/index'
 import { Route as AuthenticatedSuperAdminRestaurantsRestaurantIdRouteRouteImport } from './routes/_authenticated/super-admin/restaurants/$restaurantId/route'
 import { Route as AuthenticatedSuperAdminRestaurantsNewRouteImport } from './routes/_authenticated/super-admin/restaurants/new'
+import { Route as AuthenticatedManageRestaurantIdAnalyticsWidgetIdRouteImport } from './routes/_authenticated/manage/$restaurantId/analytics_/$widgetId'
 import { Route as AuthenticatedSuperAdminRestaurantsRestaurantIdIndexRouteImport } from './routes/_authenticated/super-admin/restaurants/$restaurantId/index'
 import { Route as AuthenticatedSuperAdminRestaurantsRestaurantIdAnalyticsRouteImport } from './routes/_authenticated/super-admin/restaurants/$restaurantId/analytics'
 import { Route as AuthenticatedSuperAdminRestaurantsRestaurantIdDesignRouteImport } from './routes/_authenticated/super-admin/restaurants/$restaurantId/design'
@@ -193,6 +195,12 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedDashboardMetricRoute =
+  AuthenticatedDashboardMetricRouteImport.update({
+    id: '/dashboard_/$metric',
+    path: '/dashboard/$metric',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedManageIndexRoute =
   AuthenticatedManageIndexRouteImport.update({
     id: '/',
@@ -306,6 +314,12 @@ const AuthenticatedSuperAdminRestaurantsNewRoute =
     path: '/restaurants/new',
     getParentRoute: () => AuthenticatedSuperAdminRouteRoute,
   } as any)
+const AuthenticatedManageRestaurantIdAnalyticsWidgetIdRoute =
+  AuthenticatedManageRestaurantIdAnalyticsWidgetIdRouteImport.update({
+    id: '/analytics_/$widgetId',
+    path: '/analytics/$widgetId',
+    getParentRoute: () => AuthenticatedManageRestaurantIdRouteRoute,
+  } as any)
 const AuthenticatedSuperAdminRestaurantsRestaurantIdIndexRoute =
   AuthenticatedSuperAdminRestaurantsRestaurantIdIndexRouteImport.update({
     id: '/',
@@ -396,6 +410,7 @@ export interface FileRoutesByFullPath {
   '/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/dashboard/$metric': typeof AuthenticatedDashboardMetricRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
   '/super-admin/licenses': typeof AuthenticatedSuperAdminLicensesRoute
@@ -414,6 +429,7 @@ export interface FileRoutesByFullPath {
   '/super-admin/restaurants/new': typeof AuthenticatedSuperAdminRestaurantsNewRoute
   '/manage/$restaurantId/': typeof AuthenticatedManageRestaurantIdIndexRoute
   '/super-admin/restaurants/': typeof AuthenticatedSuperAdminRestaurantsIndexRoute
+  '/manage/$restaurantId/analytics/$widgetId': typeof AuthenticatedManageRestaurantIdAnalyticsWidgetIdRoute
   '/super-admin/restaurants/$restaurantId/analytics': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdAnalyticsRoute
   '/super-admin/restaurants/$restaurantId/design': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdDesignRoute
   '/super-admin/restaurants/$restaurantId/edit': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdEditRoute
@@ -447,6 +463,7 @@ export interface FileRoutesByTo {
   '/staff': typeof StaffIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/dashboard/$metric': typeof AuthenticatedDashboardMetricRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
   '/super-admin/licenses': typeof AuthenticatedSuperAdminLicensesRoute
@@ -464,6 +481,7 @@ export interface FileRoutesByTo {
   '/super-admin/restaurants/new': typeof AuthenticatedSuperAdminRestaurantsNewRoute
   '/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdIndexRoute
   '/super-admin/restaurants': typeof AuthenticatedSuperAdminRestaurantsIndexRoute
+  '/manage/$restaurantId/analytics/$widgetId': typeof AuthenticatedManageRestaurantIdAnalyticsWidgetIdRoute
   '/super-admin/restaurants/$restaurantId/analytics': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdAnalyticsRoute
   '/super-admin/restaurants/$restaurantId/design': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdDesignRoute
   '/super-admin/restaurants/$restaurantId/edit': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdEditRoute
@@ -502,6 +520,7 @@ export interface FileRoutesById {
   '/_authenticated/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/_authenticated/dashboard_/$metric': typeof AuthenticatedDashboardMetricRoute
   '/_authenticated/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/_authenticated/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
   '/_authenticated/super-admin/licenses': typeof AuthenticatedSuperAdminLicensesRoute
@@ -520,6 +539,7 @@ export interface FileRoutesById {
   '/_authenticated/super-admin/restaurants/new': typeof AuthenticatedSuperAdminRestaurantsNewRoute
   '/_authenticated/manage/$restaurantId/': typeof AuthenticatedManageRestaurantIdIndexRoute
   '/_authenticated/super-admin/restaurants/': typeof AuthenticatedSuperAdminRestaurantsIndexRoute
+  '/_authenticated/manage/$restaurantId/analytics_/$widgetId': typeof AuthenticatedManageRestaurantIdAnalyticsWidgetIdRoute
   '/_authenticated/super-admin/restaurants/$restaurantId/analytics': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdAnalyticsRoute
   '/_authenticated/super-admin/restaurants/$restaurantId/design': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdDesignRoute
   '/_authenticated/super-admin/restaurants/$restaurantId/edit': typeof AuthenticatedSuperAdminRestaurantsRestaurantIdEditRoute
@@ -558,6 +578,7 @@ export interface FileRouteTypes {
     | '/manage/$restaurantId'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/dashboard/$metric'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
     | '/super-admin/licenses'
@@ -576,6 +597,7 @@ export interface FileRouteTypes {
     | '/super-admin/restaurants/new'
     | '/manage/$restaurantId/'
     | '/super-admin/restaurants/'
+    | '/manage/$restaurantId/analytics/$widgetId'
     | '/super-admin/restaurants/$restaurantId/analytics'
     | '/super-admin/restaurants/$restaurantId/design'
     | '/super-admin/restaurants/$restaurantId/edit'
@@ -609,6 +631,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/dashboard/$metric'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
     | '/super-admin/licenses'
@@ -626,6 +649,7 @@ export interface FileRouteTypes {
     | '/super-admin/restaurants/new'
     | '/manage/$restaurantId'
     | '/super-admin/restaurants'
+    | '/manage/$restaurantId/analytics/$widgetId'
     | '/super-admin/restaurants/$restaurantId/analytics'
     | '/super-admin/restaurants/$restaurantId/design'
     | '/super-admin/restaurants/$restaurantId/edit'
@@ -663,6 +687,7 @@ export interface FileRouteTypes {
     | '/_authenticated/manage/$restaurantId'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/_authenticated/dashboard_/$metric'
     | '/_authenticated/super-admin/analytics'
     | '/_authenticated/super-admin/audit-logs'
     | '/_authenticated/super-admin/licenses'
@@ -681,6 +706,7 @@ export interface FileRouteTypes {
     | '/_authenticated/super-admin/restaurants/new'
     | '/_authenticated/manage/$restaurantId/'
     | '/_authenticated/super-admin/restaurants/'
+    | '/_authenticated/manage/$restaurantId/analytics_/$widgetId'
     | '/_authenticated/super-admin/restaurants/$restaurantId/analytics'
     | '/_authenticated/super-admin/restaurants/$restaurantId/design'
     | '/_authenticated/super-admin/restaurants/$restaurantId/edit'
@@ -889,6 +915,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/dashboard_/$metric': {
+      id: '/_authenticated/dashboard_/$metric'
+      path: '/dashboard/$metric'
+      fullPath: '/dashboard/$metric'
+      preLoaderRoute: typeof AuthenticatedDashboardMetricRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/manage/': {
       id: '/_authenticated/manage/'
       path: '/'
@@ -1022,6 +1055,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSuperAdminRestaurantsNewRouteImport
       parentRoute: typeof AuthenticatedSuperAdminRouteRoute
     }
+    '/_authenticated/manage/$restaurantId/analytics_/$widgetId': {
+      id: '/_authenticated/manage/$restaurantId/analytics_/$widgetId'
+      path: '/analytics/$widgetId'
+      fullPath: '/manage/$restaurantId/analytics/$widgetId'
+      preLoaderRoute: typeof AuthenticatedManageRestaurantIdAnalyticsWidgetIdRouteImport
+      parentRoute: typeof AuthenticatedManageRestaurantIdRouteRoute
+    }
     '/_authenticated/super-admin/restaurants/$restaurantId/': {
       id: '/_authenticated/super-admin/restaurants/$restaurantId/'
       path: '/'
@@ -1095,6 +1135,7 @@ interface AuthenticatedManageRestaurantIdRouteRouteChildren {
   AuthenticatedManageRestaurantIdStaffRoute: typeof AuthenticatedManageRestaurantIdStaffRoute
   AuthenticatedManageRestaurantIdTablesRoute: typeof AuthenticatedManageRestaurantIdTablesRoute
   AuthenticatedManageRestaurantIdIndexRoute: typeof AuthenticatedManageRestaurantIdIndexRoute
+  AuthenticatedManageRestaurantIdAnalyticsWidgetIdRoute: typeof AuthenticatedManageRestaurantIdAnalyticsWidgetIdRoute
 }
 
 const AuthenticatedManageRestaurantIdRouteRouteChildren: AuthenticatedManageRestaurantIdRouteRouteChildren =
@@ -1111,6 +1152,8 @@ const AuthenticatedManageRestaurantIdRouteRouteChildren: AuthenticatedManageRest
       AuthenticatedManageRestaurantIdTablesRoute,
     AuthenticatedManageRestaurantIdIndexRoute:
       AuthenticatedManageRestaurantIdIndexRoute,
+    AuthenticatedManageRestaurantIdAnalyticsWidgetIdRoute:
+      AuthenticatedManageRestaurantIdAnalyticsWidgetIdRoute,
   }
 
 const AuthenticatedManageRestaurantIdRouteRouteWithChildren =
@@ -1222,6 +1265,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedWaiterRoute: typeof AuthenticatedWaiterRoute
+  AuthenticatedDashboardMetricRoute: typeof AuthenticatedDashboardMetricRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -1235,6 +1279,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedWaiterRoute: AuthenticatedWaiterRoute,
+  AuthenticatedDashboardMetricRoute: AuthenticatedDashboardMetricRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
