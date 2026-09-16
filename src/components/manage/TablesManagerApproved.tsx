@@ -30,7 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
-import { downloadDataUrl, printQrCards, qrDataUrl, tableMenuUrl } from "@/lib/qr";
+import { downloadDataUrl, downloadText, printQrCards, qrDataUrl, qrSvg, tableMenuUrl } from "@/lib/qr";
 import { removeRestaurantImage, uploadRestaurantImage } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
@@ -140,6 +140,7 @@ export function TablesManagerApproved({ restaurantId }: { restaurantId: string }
   const [busy, setBusy] = useState(false);
   const [floorBusy, setFloorBusy] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [form, setForm] = useState({ number: "", name: "", capacity: "4", floor: "ground", zone: "main", shape: "square" as Shape, active: true, rotation: "0" });
 
   const tables = useQuery<FloorTable[]>({
@@ -214,7 +215,8 @@ export function TablesManagerApproved({ restaurantId }: { restaurantId: string }
     }).eq("id", restaurantId);
     if (error) throw error;
     setFloors(nextFloors);
-    await qc.invalidateQueries({ queryKey: ["platform"] });
+    qc.setQueryData(["platform", "restaurant", restaurantId], (cached: typeof restaurant) => cached ? { ...cached, menu_theme: { ...theme, workspace: { ...workspace, tableFloors: nextFloors, floorPlanBackgroundUrl: groundBackground } } } : cached);
+    await qc.invalidateQueries({ queryKey: ["platform", "restaurant", restaurantId], exact: true });
   }
 
   async function persistLayout(id: string, layout: Layout) {
@@ -305,8 +307,9 @@ export function TablesManagerApproved({ restaurantId }: { restaurantId: string }
     const clean = zoneName.trim();
     if (!clean) return;
     const id = slug(clean, `zone-${Date.now()}`);
+    if (currentFloor.zones.some((zone) => zone.id === id)) { toast.error(ar ? "هذه المنطقة موجودة بالفعل." : "This zone already exists."); return; }
     const nextFloors = floors.map((floor) => floor.id === activeFloor
-      ? { ...floor, zones: [...floor.zones.filter((zone) => zone.id !== id), { id, en: clean, ar: clean }] }
+      ? { ...floor, zones: [...floor.zones, { id, en: clean, ar: clean }] }
       : floor);
     try {
       await persistFloors(nextFloors);
@@ -431,7 +434,19 @@ export function TablesManagerApproved({ restaurantId }: { restaurantId: string }
   }
   async function printSingle() {
     if (!selected || !restaurant) return;
-    await printQrCards(restaurant.name, t("sa.tables.scan"), [{ table_number: selected.table_number, table_name: selected.table_name, url: tableMenuUrl(restaurant.slug, selected.qr_token) }], { back: ar ? "← رجوع" : "← Back", print: ar ? "طباعة" : "Print" });
+    const opened = await printQrCards(restaurant.name, t("sa.tables.scan"), [{ table_number: selected.table_number, table_name: selected.table_name, url: tableMenuUrl(restaurant.slug, selected.qr_token) }], { back: ar ? "← رجوع" : "← Back", print: ar ? "طباعة" : "Print" });
+    if (!opened) toast.error(ar ? "اسمح بالنوافذ المنبثقة للطباعة." : "Allow pop-ups to print QR codes.");
+  }
+  async function printAll(scope: "all" | "zone" = "all") {
+    if (!restaurant) return;
+    const source = scope === "zone" && activeZone !== "all" ? visibleTables : floorTables;
+    if (!source.length) { toast.error(ar ? "لا توجد طاولات للطباعة." : "There are no tables to print."); return; }
+    const opened = await printQrCards(restaurant.name, t("sa.tables.scan"), source.map((row) => ({ table_number: row.table_number, table_name: row.table_name, url: tableMenuUrl(restaurant.slug, row.qr_token) })), { back: ar ? "← رجوع" : "← Back", print: ar ? "طباعة" : "Print" });
+    if (!opened) toast.error(ar ? "اسمح بالنوافذ المنبثقة للطباعة." : "Allow pop-ups to print QR codes.");
+  }
+  async function downloadSelectedSvg() {
+    if (!selected || !restaurant) return;
+    downloadText(await qrSvg(tableMenuUrl(restaurant.slug, selected.qr_token)), `table-${selected.table_number}-qr.svg`);
   }
 
   if (tables.isPending || restaurantQuery.isPending) return <Skeleton className="h-[720px] rounded-2xl" />;
@@ -458,6 +473,7 @@ export function TablesManagerApproved({ restaurantId }: { restaurantId: string }
 
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" className="qs-button-primary" onClick={openCreate}><Plus className="size-4" />{ar ? "إضافة طاولة" : "Add Table"}</button>
+            <button type="button" className="qs-button-secondary whitespace-nowrap" onClick={() => void printAll(activeZone === "all" ? "all" : "zone")}><Printer className="size-4" />{activeZone === "all" ? (ar ? "طباعة كل رموز QR" : "Print all QR codes") : (ar ? "طباعة رموز المنطقة" : "Print zone QR codes")}</button>
             <input ref={floorInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => void uploadFloorPlan(event.target.files?.[0])} />
             <button type="button" disabled={floorBusy} className="qs-button-secondary whitespace-nowrap" onClick={() => floorInputRef.current?.click()}><ImagePlus className="size-4" />{floorBusy ? (ar ? "جارٍ الرفع…" : "Uploading…") : (currentFloor.backgroundUrl ? (ar ? "تغيير المخطط" : "Replace plan") : (ar ? "رفع مخطط" : "Upload plan"))}</button>
             {currentFloor.backgroundUrl ? <button type="button" disabled={floorBusy} className="grid size-11 place-items-center rounded-xl border border-border text-destructive hover:bg-destructive/10" onClick={() => void clearFloorPlan()} aria-label={ar ? "إزالة خلفية المخطط" : "Remove floor background"}><Trash2 className="size-4" /></button> : null}
@@ -485,7 +501,7 @@ export function TablesManagerApproved({ restaurantId }: { restaurantId: string }
             <div className="ms-auto hidden items-center rounded-xl border border-border bg-card p-1 sm:flex"><button type="button" className="grid size-9 place-items-center rounded-lg hover:bg-muted" onClick={() => setZoom((value) => clamp(value - 0.1, 0.7, 1.35))}><ZoomOut className="size-4" /></button><span className="grid min-w-14 place-items-center text-xs font-bold">{Math.round(zoom * 100)}%</span><button type="button" className="grid size-9 place-items-center rounded-lg hover:bg-muted" onClick={() => setZoom((value) => clamp(value + 0.1, 0.7, 1.35))}><ZoomIn className="size-4" /></button></div>
           </div>
 
-          {mobileMode === "list" ? <div className="space-y-2 p-3 md:hidden">{visibleTables.map((row) => <button key={row.id} type="button" onClick={() => { setSelectedId(row.id); setMobileMode("floor"); }} className="flex w-full items-center gap-3 rounded-xl border border-border p-3 text-start"><span className="grid size-10 place-items-center rounded-xl bg-orange-50 font-bold text-[#ff5a0a] dark:bg-orange-950/30">T{row.table_number}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{row.table_name || `${ar ? "طاولة" : "Table"} ${row.table_number}`}</strong><span className="text-xs text-muted-foreground">{row.capacity ?? 4} {ar ? "مقاعد" : "seats"} · {currentZones.find((zone) => zone.id === (row.zone || currentZones[0]?.id))?.[ar ? "ar" : "en"] ?? row.zone}</span></span><i className={cn("size-2 rounded-full", row.is_active ? "bg-emerald-500" : "bg-slate-400")} /></button>)}</div> : <div className="overflow-auto bg-[#f6f7f8] p-3 dark:bg-[#11171b]">
+          {mobileMode === "list" ? <div className="space-y-2 p-3 md:hidden">{visibleTables.map((row) => <button key={row.id} type="button" onClick={() => { setSelectedId(row.id); setDetailsOpen(true); }} className="flex w-full items-center gap-3 rounded-xl border border-border p-3 text-start"><span className="grid size-10 place-items-center rounded-xl bg-orange-50 font-bold text-[#ff5a0a] dark:bg-orange-950/30">T{row.table_number}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{row.table_name || `${ar ? "طاولة" : "Table"} ${row.table_number}`}</strong><span className="text-xs text-muted-foreground">{row.capacity ?? 4} {ar ? "مقاعد" : "seats"} · {currentZones.find((zone) => zone.id === (row.zone || currentZones[0]?.id))?.[ar ? "ar" : "en"] ?? row.zone}</span></span><i className={cn("size-2 rounded-full", row.is_active ? "bg-emerald-500" : "bg-slate-400")} /></button>)}</div> : <div className="overflow-auto bg-[#f6f7f8] p-3 dark:bg-[#11171b]">
             <div
               ref={floorRef}
               className="relative mx-auto min-w-[690px] overflow-hidden rounded-2xl border border-border bg-[#ebe8e1] shadow-inner dark:bg-slate-900"
@@ -533,6 +549,17 @@ export function TablesManagerApproved({ restaurantId }: { restaurantId: string }
         </aside>
       </div>
     </section>
+
+    <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>{selected ? `${ar ? "طاولة" : "Table"} ${selected.table_number}` : (ar ? "تفاصيل الطاولة" : "Table details")}</DialogTitle><DialogDescription>{selected?.table_name || (ar ? "رمز QR ومعلومات الطاولة" : "QR code and table information")}</DialogDescription></DialogHeader>
+        {selected ? <div className="grid gap-4">
+          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border bg-muted/30 p-3 text-center"><div><span className="block text-[10px] uppercase text-muted-foreground">{ar ? "المقاعد" : "Seats"}</span><strong>{selected.capacity ?? 4}</strong></div><div><span className="block text-[10px] uppercase text-muted-foreground">{ar ? "المنطقة" : "Zone"}</span><strong className="text-xs">{currentZones.find((zone) => zone.id === (selected.zone || currentZones[0]?.id))?.[ar ? "ar" : "en"] ?? selected.zone ?? "—"}</strong></div><div><span className="block text-[10px] uppercase text-muted-foreground">{ar ? "الحالة" : "Status"}</span><strong className={selected.is_active ? "text-emerald-600" : "text-muted-foreground"}>{selected.is_active ? (ar ? "نشطة" : "Active") : (ar ? "متوقفة" : "Inactive")}</strong></div></div>
+          <div className="mx-auto grid size-60 place-items-center rounded-3xl border border-border bg-white p-4 shadow-sm">{qr ? <img src={qr} alt={`${ar ? "رمز QR للطاولة" : "QR code for table"} ${selected.table_number}`} className="size-full" /> : <Skeleton className="size-full rounded-2xl" />}</div>
+          <div className="grid grid-cols-3 gap-2"><Button variant="outline" disabled={!qr} onClick={() => qr && downloadDataUrl(qr, `table-${selected.table_number}-qr.png`)}><Download className="size-4" />PNG</Button><Button variant="outline" onClick={() => void downloadSelectedSvg()}><Download className="size-4" />SVG</Button><Button onClick={() => void printSingle()}><Printer className="size-4" />{ar ? "طباعة" : "Print"}</Button></div>
+        </div> : null}
+      </DialogContent>
+    </Dialog>
 
     <Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>{ar ? "إضافة طاولة" : "Add Table"}</DialogTitle><DialogDescription>{ar ? "أضف طاولة إلى الطابق والمنطقة المحددين." : "Add a table to the selected floor and zone."}</DialogDescription></DialogHeader><div className="grid gap-4 sm:grid-cols-2"><Field label={ar ? "رقم الطاولة" : "Table Number"}><Input value={form.number} onChange={(event) => setForm({ ...form, number: event.target.value })} /></Field><Field label={ar ? "الاسم" : "Name"}><Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></Field><Field label={ar ? "المقاعد" : "Seats"}><Input type="number" min="1" max="30" value={form.capacity} onChange={(event) => setForm({ ...form, capacity: event.target.value })} /></Field><Field label={ar ? "الطابق" : "Floor"}><Select value={form.floor} onValueChange={(value) => { const floor = floors.find((entry) => entry.id === value); setForm({ ...form, floor: value, zone: floor?.zones[0]?.id ?? "main" }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{floors.map((floor) => <SelectItem key={floor.id} value={floor.id}>{ar ? floor.ar : floor.en}</SelectItem>)}</SelectContent></Select></Field><Field label={ar ? "المنطقة" : "Zone"}><Select value={form.zone} onValueChange={(value) => setForm({ ...form, zone: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{(floors.find((floor) => floor.id === form.floor)?.zones ?? currentZones).map((zone) => <SelectItem key={zone.id} value={zone.id}>{ar ? zone.ar : zone.en}</SelectItem>)}</SelectContent></Select></Field></div><DialogFooter><Button variant="ghost" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button><Button disabled={busy || !form.number.trim()} onClick={() => void createTable()}>{ar ? "إضافة" : "Add Table"}</Button></DialogFooter></DialogContent></Dialog>
 
