@@ -13,10 +13,6 @@ export type WorkspaceScope = {
   isPending: boolean;
 };
 
-/**
- * The restaurant the home/dashboard widgets report on: the user's membership
- * when they have one, otherwise the newest tenant for platform owners.
- */
 export function useWorkspaceScope(): WorkspaceScope {
   const access = useAccess();
   const pathname = useRouterState({ select: state => state.location.pathname });
@@ -65,7 +61,6 @@ export type WorkspaceReport = {
   openOrders: number;
   paidToday: number;
   topItems: { name: string; quantity: number }[];
-  /** Last 7 days, oldest first: daily sales total and order count. */
   series: { day: string; sales: number; orders: number }[];
   recent: {
     id: string;
@@ -80,7 +75,6 @@ export type WorkspaceReport = {
 
 const OPEN_STATUSES = ["new", "accepted", "preparing", "ready"];
 
-/** Daily buckets for the sparkline strips on the home and dashboard cards. */
 function buildSeries(orders: { total: number; created_at: string }[]) {
   const days: { day: string; sales: number; orders: number }[] = [];
   const now = new Date();
@@ -100,7 +94,6 @@ function buildSeries(orders: { total: number; created_at: string }[]) {
   return days;
 }
 
-/** One round-trip pair that powers every home widget and the dashboard. */
 export function useWorkspaceReport(restaurantId: string | null) {
   return useQuery<WorkspaceReport>({
     queryKey: ["workspace", "report", restaurantId],
@@ -182,6 +175,8 @@ export type WorkspaceMember = {
   email: string | null;
   role: AppRole;
   is_active: boolean;
+  avatar_url: string | null;
+  avatar_preset: string | null;
 };
 
 /** Team roster for the workspace — RLS keeps it scoped to the tenant. */
@@ -189,11 +184,11 @@ export function useWorkspaceMembers(restaurantId: string | null) {
   return useQuery<WorkspaceMember[]>({
     queryKey: ["workspace", "members", restaurantId],
     enabled: Boolean(restaurantId),
-    staleTime: 60_000,
+    staleTime: 20_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
-        .select("id, name, email, role, is_active")
+        .select("id, name, email, role, is_active, avatar_url, avatar_preset")
         .eq("restaurant_id", restaurantId!)
         .order("created_at", { ascending: true });
       if (error) throw error;
