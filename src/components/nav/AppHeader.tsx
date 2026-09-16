@@ -9,6 +9,7 @@ import { useWorkspaceReport, useWorkspaceScope } from "@/hooks/useWorkspace";
 import { avatarPresetUrl } from "@/lib/avatar-presets";
 import { useI18n } from "@/lib/i18n";
 import { ROLE_LABELS } from "@/lib/permissions";
+import { readAppearance } from "@/lib/restaurant-appearance";
 import { cn } from "@/lib/utils";
 
 function RoleAvatarFallback({ role, superAdmin }: { role: string | null | undefined; superAdmin: boolean }) {
@@ -34,6 +35,8 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
     row => row.restaurant_id && row.restaurant && (!selectedId || row.restaurant_id === selectedId),
   ) ?? (access.data ?? []).find(row => row.restaurant_id && row.restaurant);
   const restaurant = membership?.restaurant;
+  const appearance = readAppearance(restaurant?.menu_theme);
+  const customLogo = Boolean(restaurant?.logo_url && !appearance.useQuickServeLogo);
   const user = session.data?.user;
   const meta = user?.user_metadata as { full_name?: string; name?: string; avatar_url?: string } | undefined;
   const avatarUrl = membership?.avatar_url || avatarPresetUrl(membership?.avatar_preset) || meta?.avatar_url || null;
@@ -41,14 +44,15 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
   const role = access.isSuperAdmin ? "super_admin" : membership?.role;
   const roleLabel = role && role in ROLE_LABELS ? ROLE_LABELS[role as keyof typeof ROLE_LABELS][lang] : (lang === "ar" ? "عضو" : "Member");
   const openOrders = report.data?.openOrders ?? 0;
+  const homeTo = membership?.role === "manager" ? "/manager" : access.isSuperAdmin ? "/super-admin" : "/dashboard";
 
   return (
     <header className={cn("qs-topbar safe-top sticky top-0 z-40", className)}>
       <div className="mx-auto flex h-[68px] w-full max-w-[1600px] items-center gap-3 px-3 sm:px-5 lg:px-6">
         {onMenu ? <button type="button" onClick={onMenu} aria-label="Menu" className="grid size-10 shrink-0 place-items-center rounded-xl border border-border bg-card lg:hidden"><MenuIcon className="size-5" /></button> : null}
 
-        <Link to={access.isSuperAdmin ? "/super-admin" : "/dashboard"} className="shrink-0 lg:hidden" aria-label={restaurant?.name || "QuickServe"}>
-          <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-lg text-foreground" />
+        <Link to={homeTo as never} className="min-w-0 shrink-0 lg:hidden" aria-label={restaurant?.name || "QuickServe"}>
+          {customLogo ? <img src={restaurant!.logo_url!} alt={restaurant?.name ?? "Restaurant"} className="size-9 rounded-xl object-cover ring-1 ring-border" /> : <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-lg text-foreground" />}
         </Link>
 
         <div className="hidden min-w-0 items-center gap-3 lg:flex">
