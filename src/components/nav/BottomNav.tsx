@@ -49,6 +49,7 @@ export function BottomNav() {
   const appearance = readAppearance(current?.restaurant?.menu_theme);
   const report = useWorkspaceReport(restaurantId);
   const openOrders = report.data?.openOrders ?? 0;
+  const task = access.roles.map((role) => TASK_ITEMS[role]).find(Boolean);
 
   if (access.isPending || access.isSuperAdmin) return null;
 
@@ -70,7 +71,6 @@ export function BottomNav() {
         { to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات" },
       ];
 
-  const task = access.roles.map((role) => TASK_ITEMS[role]).find(Boolean);
   const mobileItems: Item[] = frontline
     ? ([
         task,
