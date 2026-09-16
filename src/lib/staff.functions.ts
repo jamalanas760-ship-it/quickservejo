@@ -4,11 +4,6 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { quickServeSupabase } from "@/integrations/supabase/public-config";
 
-const permissionKeys = [
-  "manage_restaurant","manage_menu","manage_tables","manage_staff","manage_appearance","view_analytics",
-  "view_orders","view_order_prices","update_order_status","manage_payments","handle_waiter_calls",
-] as const;
-
 const inviteSchema = z.object({
   restaurantId: z.string().uuid(),
   email: z.string().trim().email(),
@@ -25,11 +20,15 @@ const updateSchema = z.object({
   password: z.string().min(8).max(72).optional(),
   role: z.enum(["restaurant_admin", "manager", "kitchen", "waiter", "cashier"]).optional(),
   isActive: z.boolean().optional(),
-  permissionOverrides: z.partialRecord(z.enum(permissionKeys), z.boolean()).optional(),
 });
 
 type EdgeError = { error?: string };
 
+/**
+ * Privileged Supabase Auth operations run inside the `staff-admin` Edge Function.
+ * Supabase injects its service-role credential there, so QuickServe no longer
+ * needs a service-role/secret key in the Lovable server runtime.
+ */
 async function callStaffAdmin<T>(accessToken: string, body: Record<string, unknown>): Promise<T> {
   const response = await fetch(`${quickServeSupabase.url}/functions/v1/staff-admin`, {
     method: "POST",
@@ -42,37 +41,71 @@ async function callStaffAdmin<T>(accessToken: string, body: Record<string, unkno
   });
 
   let payload: unknown;
-  try { payload = await response.json(); } catch { payload = null; }
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
   if (!response.ok) {
-    const message = payload && typeof payload === "object" && "error" in payload
-      ? String((payload as EdgeError).error ?? "Staff administration request failed")
-      : "Staff administration request failed";
+    const message =
+      payload && typeof payload === "object" && "error" in payload
+        ? String((payload as EdgeError).error ?? "Staff administration request failed")
+        : "Staff administration request failed";
     throw new Error(message);
   }
+
   return payload as T;
 }
 
+/** Creates or links a Supabase Auth user and adds the restaurant membership. */
 export const inviteStaffMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inviteSchema.parse(input))
-  .handler(async ({ data, context }) => callStaffAdmin<{ staffId: string; email: string; password: string | null }>(context.accessToken, { action: "invite", ...data }));
+  .handler(async ({ data, context }) =>
+    callStaffAdmin<{ staffId: string; email: string; password: string | null }>(context.accessToken, {
+      action: "invite",
+      ...data,
+    }),
+  );
 
+/** Verifies tenant permission and that Supabase's Admin API is operational. */
 export const checkStaffManagementAccess = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => restaurantRefSchema.parse(input))
-  .handler(async ({ data, context }) => callStaffAdmin<{ ready: true }>(context.accessToken, { action: "check", restaurantId: data.restaurantId }));
+  .handler(async ({ data, context }) =>
+    callStaffAdmin<{ ready: true }>(context.accessToken, {
+      action: "check",
+      restaurantId: data.restaurantId,
+    }),
+  );
 
+/** Removes a restaurant membership and deletes the Auth user only if unused elsewhere. */
 export const removeStaffMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => staffRefSchema.parse(input))
-  .handler(async ({ data, context }) => callStaffAdmin<{ removed: true }>(context.accessToken, { action: "remove", staffId: data.staffId }));
+  .handler(async ({ data, context }) =>
+    callStaffAdmin<{ removed: true }>(context.accessToken, {
+      action: "remove",
+      staffId: data.staffId,
+    }),
+  );
 
-/** Updates profile/role/status/permission overrides and mirrors optional password changes to Supabase Auth. */
+/** Updates profile/role/status and mirrors optional password changes to Supabase Auth. */
 export const updateStaffMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => updateSchema.parse(input))
-  .handler(async ({ data, context }) => callStaffAdmin<{ ok: true }>(context.accessToken, { action: "update", ...data }));
+  .handler(async ({ data, context }) =>
+    callStaffAdmin<{ ok: true }>(context.accessToken, {
+      action: "update",
+      ...data,
+    }),
+  );
 
+/**
+ * Backward-compatible staff directory. Passwords are deliberately never
+ * persisted or returned; administrators can set a new password through Edit.
+ */
 export const listStaffLogins = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => restaurantRefSchema.parse(input))

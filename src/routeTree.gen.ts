@@ -22,6 +22,7 @@ import { Route as AuthenticatedCashierRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
 import { Route as AuthenticatedManageRouteRouteImport } from './routes/_authenticated/manage/route'
+import { Route as AuthenticatedManagerRouteImport } from './routes/_authenticated/manager'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_authenticated/super-admin/route'
@@ -129,6 +130,11 @@ const AuthenticatedManageRouteRoute =
     path: '/manage',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedManagerRoute = AuthenticatedManagerRouteImport.update({
+  id: '/manager',
+  path: '/manager',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedNotificationsRoute =
   AuthenticatedNotificationsRouteImport.update({
     id: '/notifications',
@@ -378,6 +384,7 @@ export interface FileRoutesByFullPath {
   '/cashier': typeof AuthenticatedCashierRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
+  '/manager': typeof AuthenticatedManagerRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/waiter': typeof AuthenticatedWaiterRoute
@@ -429,6 +436,7 @@ export interface FileRoutesByTo {
   '/cashier': typeof AuthenticatedCashierRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
+  '/manager': typeof AuthenticatedManagerRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/waiter': typeof AuthenticatedWaiterRoute
@@ -482,6 +490,7 @@ export interface FileRoutesById {
   '/_authenticated/cashier': typeof AuthenticatedCashierRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
+  '/_authenticated/manager': typeof AuthenticatedManagerRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
@@ -537,6 +546,7 @@ export interface FileRouteTypes {
     | '/cashier'
     | '/dashboard'
     | '/kitchen'
+    | '/manager'
     | '/notifications'
     | '/profile'
     | '/waiter'
@@ -588,6 +598,7 @@ export interface FileRouteTypes {
     | '/cashier'
     | '/dashboard'
     | '/kitchen'
+    | '/manager'
     | '/notifications'
     | '/profile'
     | '/waiter'
@@ -640,6 +651,7 @@ export interface FileRouteTypes {
     | '/_authenticated/cashier'
     | '/_authenticated/dashboard'
     | '/_authenticated/kitchen'
+    | '/_authenticated/manager'
     | '/_authenticated/notifications'
     | '/_authenticated/profile'
     | '/_authenticated/waiter'
@@ -791,6 +803,13 @@ declare module '@tanstack/react-router' {
       path: '/manage'
       fullPath: '/manage'
       preLoaderRoute: typeof AuthenticatedManageRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/manager': {
+      id: '/_authenticated/manager'
+      path: '/manager'
+      fullPath: '/manager'
+      preLoaderRoute: typeof AuthenticatedManagerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/notifications': {
@@ -1199,6 +1218,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCashierRoute: typeof AuthenticatedCashierRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedKitchenRoute: typeof AuthenticatedKitchenRoute
+  AuthenticatedManagerRoute: typeof AuthenticatedManagerRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedWaiterRoute: typeof AuthenticatedWaiterRoute
@@ -1211,6 +1231,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCashierRoute: AuthenticatedCashierRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedKitchenRoute: AuthenticatedKitchenRoute,
+  AuthenticatedManagerRoute: AuthenticatedManagerRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedWaiterRoute: AuthenticatedWaiterRoute,

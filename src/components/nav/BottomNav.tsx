@@ -19,13 +19,14 @@ import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useAccess } from "@/hooks/useSession";
 import { useWorkspaceReport } from "@/hooks/useWorkspace";
 import { useI18n } from "@/lib/i18n";
+import { readAppearance } from "@/lib/restaurant-appearance";
 import { isFrontlineOnly } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 type Item = { to: string; icon: typeof Home; en: string; ar: string; exact?: boolean };
 
 const TASK_ITEMS: Partial<Record<string, Item>> = {
-  manager: { to: "/kitchen", icon: ClipboardList, en: "Operations", ar: "العمليات" },
+  manager: { to: "/manager", icon: ClipboardList, en: "Manager", ar: "المدير" },
   kitchen: { to: "/kitchen", icon: ChefHat, en: "Kitchen", ar: "المطبخ" },
   waiter: { to: "/waiter", icon: UtensilsCrossed, en: "Floor", ar: "الصالة" },
   cashier: { to: "/cashier", icon: Banknote, en: "Cashier", ar: "الكاشير" },
@@ -45,12 +46,16 @@ export function BottomNav() {
   );
   const current = membership ?? adminMembership ?? (access.data ?? []).find((row) => row.restaurant_id && row.restaurant);
   const restaurantId = current?.restaurant_id ?? null;
+  const appearance = readAppearance(current?.restaurant?.menu_theme);
   const report = useWorkspaceReport(restaurantId);
   const openOrders = report.data?.openOrders ?? 0;
+  const task = access.roles.map((role) => TASK_ITEMS[role]).find(Boolean);
 
   if (access.isPending || access.isSuperAdmin) return null;
 
-  const desktopItems: Item[] = restaurantId
+  const desktopItems: Item[] = frontline
+    ? ([task, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }].filter(Boolean) as Item[])
+    : restaurantId
     ? [
         { to: "/dashboard", icon: Home, en: "Home", ar: "الرئيسية", exact: true },
         { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات" },
@@ -66,7 +71,6 @@ export function BottomNav() {
         { to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات" },
       ];
 
-  const task = access.roles.map((role) => TASK_ITEMS[role]).find(Boolean);
   const mobileItems: Item[] = frontline
     ? ([
         task,
@@ -90,10 +94,10 @@ export function BottomNav() {
 
   return (
     <>
-      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden w-[196px] flex-col lg:flex">
+      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden w-[196px] flex-col lg:flex" style={{ backgroundColor: appearance.sidebarBackground, color: appearance.sidebarForeground }}>
         <div className="flex h-[68px] items-center border-b border-border px-5">
-          <Link to="/dashboard" className="text-foreground" aria-label="QuickServe dashboard">
-            <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-[18px] text-foreground" />
+          <Link to="/dashboard" className="text-inherit" aria-label={current?.restaurant?.name || "QuickServe dashboard"}>
+            {current?.restaurant?.logo_url ? <img src={current.restaurant.logo_url} alt={current.restaurant.name} className="h-9 max-w-[150px] object-contain" /> : <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-[18px] text-inherit" />}
           </Link>
         </div>
 

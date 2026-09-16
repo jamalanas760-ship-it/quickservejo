@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react";
-import { ExternalLink, FileText, Image as ImageIcon, Layers3, Package, Palette, Tags, UtensilsCrossed } from "lucide-react";
+import { ExternalLink, FileText, Image as ImageIcon, Layers3, Package, Tags, UtensilsCrossed } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
@@ -45,7 +45,7 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
 
       <Suspense fallback={<Skeleton className="h-[650px] rounded-2xl" />}>
         {workflow === "pdf" ? <PdfEditor restaurantId={restaurantId} /> : (
-          <div className="grid min-w-0 gap-4 xl:grid-cols-[210px_minmax(0,1fr)_360px]">
+          <div className="grid min-w-0 gap-4 xl:grid-cols-[210px_minmax(0,1fr)]">
             <aside className="qs-card self-start overflow-hidden xl:sticky xl:top-24">
               <nav className="p-2">
                 {standardSections.map(({ id, icon: Icon, en, ar: arabic, hint }) => (
@@ -60,17 +60,11 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
               {section === "design" ? <Appearance restaurantId={restaurantId} /> : (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2"><span className="grid size-9 place-items-center rounded-full bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><Layers3 className="size-4" /></span><div><h2 className="font-display text-lg font-bold">{ar ? standardSections.find((item) => item.id === section)?.ar : standardSections.find((item) => item.id === section)?.en}</h2><p className="text-xs text-muted-foreground">{ar ? "تعديل القائمة العادية فقط — منتجات PDF تبقى منفصلة." : "Standard Menu only — PDF hotspot products remain separate."}</p></div></div>
-                  <Products restaurantId={restaurantId} />
+                  <Products restaurantId={restaurantId} mode={section} />
                 </div>
               )}
             </main>
 
-            <aside className="qs-right-panel hidden self-start xl:sticky xl:top-24 xl:block">
-              <div className="qs-panel-header"><div><h2 className="font-display text-base font-bold">{ar ? "معاينة القائمة المباشرة" : "Live Menu Preview"}</h2><p className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground"><i className="size-2 rounded-full bg-emerald-500" />{ar ? "تتحدث في الوقت الفعلي" : "Updates in real time"}</p></div></div>
-              <div className="bg-muted/30 p-3">
-                {restaurant.data ? <iframe title={ar ? "معاينة قائمة الضيف" : "Guest menu preview"} src={`/m/${restaurant.data.slug}`} className="h-[620px] w-full rounded-[18px] border border-border bg-white shadow-sm" /> : <Skeleton className="h-[620px] rounded-[18px]" />}
-              </div>
-            </aside>
           </div>
         )}
       </Suspense>

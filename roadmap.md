@@ -32,3 +32,13 @@
 - [ ] `bunx tsgo --noEmit -p tsconfig.json`, `bun run lint`, `bun run build`.
 - [ ] Browser-verify `/r/:slug` + designer bridge together.
 - [ ] Publish to lovable.app and report the production URL.
+
+## 6. Current targeted production fixes
+- [ ] Replace role avatar presets with polished local portraits while preserving legacy preset IDs.
+- [ ] Add a dedicated Manager route and align role-specific navigation and permission ceilings.
+- [ ] Remove the Admin Orders link to the Kitchen display.
+- [ ] Remove the Standard Menu preview panel and separate Categories, Products, and Pricing views.
+- [ ] Add grip-only pointer/touch widget reordering to Analytics customization.
+- [ ] Add tenant-scoped navigation colors and restaurant logo application.
+- [ ] Show staff avatars on Dashboard member cards.
+- [ ] Run TypeScript, lint, production build, and responsive workflow checks.

@@ -136,7 +136,7 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
 
         <section className="panel space-y-6 p-4 sm:p-6">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-            <div className="min-w-0"><h3 className="text-lg font-semibold">{ar ? "هوية تطبيق المطعم" : "Restaurant App Appearance"}</h3><p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{ar ? "خلفيات منفصلة للوضع الفاتح والداكن داخل تطبيق الفريق والإدارة." : "Separate light and dark backgrounds for the restaurant admin/staff experience."}</p></div>
+            <div className="min-w-0"><h3 className="text-lg font-semibold">{ar ? "ألوان التنقل" : "Navigation colors"}</h3><p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{ar ? "خصص ألوان التنقل لهذا المطعم فقط." : "Customize navigation colors for this restaurant only."}</p></div>
             <Button type="button" variant="outline" size="sm" className="w-fit whitespace-nowrap" onClick={resetWorkspaceTheme}><RotateCcw className="size-4" />{ar ? "إعادة الافتراضي" : "Restore defaults"}</Button>
           </div>
 
@@ -147,9 +147,15 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
             <ColorField label={ar ? "خلفية الوضع الفاتح" : "Light mode background"} value={brand.lightBackground} icon={<Sun className="size-4" />} onChange={(value) => setBrand((p) => ({ ...p, lightBackground: value }))} />
             <ColorField label={ar ? "خلفية الوضع الداكن" : "Dark mode background"} value={brand.darkBackground} icon={<Moon className="size-4" />} onChange={(value) => setBrand((p) => ({ ...p, darkBackground: value }))} />
           </div>
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+            <ColorField label={ar ? "خلفية التنقل العلوي" : "Top navigation background"} value={brand.topNavBackground} onChange={(value) => setBrand((p) => ({ ...p, topNavBackground: value }))} />
+            <ColorField label={ar ? "نص وأيقونات التنقل العلوي" : "Top navigation text & icons"} value={brand.topNavForeground} onChange={(value) => setBrand((p) => ({ ...p, topNavForeground: value }))} />
+            <ColorField label={ar ? "خلفية الشريط الجانبي" : "Left sidebar background"} value={brand.sidebarBackground} onChange={(value) => setBrand((p) => ({ ...p, sidebarBackground: value }))} />
+            <ColorField label={ar ? "نص وأيقونات الشريط الجانبي" : "Left sidebar text & icons"} value={brand.sidebarForeground} onChange={(value) => setBrand((p) => ({ ...p, sidebarForeground: value }))} />
+          </div>
         </section>
 
-        <section className="panel overflow-hidden p-0">
+        <section className="hidden" aria-hidden="true">
           <div className="border-b border-border p-4 sm:p-6">
             <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
               <div className="min-w-0">

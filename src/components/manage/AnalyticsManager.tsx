@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Clock3, MapPin, ShoppingBag, TrendingUp, UsersRound, UtensilsCrossed } from "lucide-react";
+import { useRef, useState } from "react";
+import { CalendarDays, Clock3, GripVertical, MapPin, Save, Settings2, ShoppingBag, TrendingUp, UsersRound, UtensilsCrossed } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,24 @@ export function AnalyticsManager({ restaurantId }: { restaurantId: string }) {
   const { data: restaurant } = useRestaurant(restaurantId);
   const report = useWorkspaceReport(restaurantId);
   const currency = restaurant?.currency ?? "JOD";
+  type WidgetId = "revenue" | "orders" | "items" | "branches" | "service";
+  const defaultOrder: WidgetId[] = ["revenue", "orders", "items", "branches", "service"];
+  const storedOrder = ((restaurant?.menu_theme as any)?.workspace?.analyticsWidgetOrder as WidgetId[] | undefined) ?? defaultOrder;
+  const [customizing, setCustomizing] = useState(false);
+  const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>(storedOrder);
+  const dragging = useRef<WidgetId | null>(null);
+
+  function moveWidget(active: WidgetId, target: WidgetId) {
+    if (active === target) return;
+    setWidgetOrder((current) => { const next = [...current]; const from = next.indexOf(active); const to = next.indexOf(target); if (from < 0 || to < 0) return current; next.splice(from, 1); next.splice(to, 0, active); return next; });
+  }
+
+  async function saveLayout() {
+    const theme = restaurant?.menu_theme && typeof restaurant.menu_theme === "object" ? restaurant.menu_theme as Record<string, any> : {};
+    const workspace = theme.workspace && typeof theme.workspace === "object" ? theme.workspace : {};
+    const { error } = await supabase.from("restaurants").update({ menu_theme: { ...theme, workspace: { ...workspace, analyticsWidgetOrder: widgetOrder } } }).eq("id", restaurantId);
+    if (!error) setCustomizing(false);
+  }
 
   const stats = useQuery({
     queryKey: ["platform", "restaurant-analytics-approved", restaurantId],
@@ -55,7 +74,7 @@ export function AnalyticsManager({ restaurantId }: { restaurantId: string }) {
         <div><p className="mb-2 text-[10px] font-bold uppercase tracking-[.24em] text-muted-foreground">{ar ? "التحليلات" : "Analytics"}</p><h1 className="qs-page-title">{ar ? "أداء المطعم بنظرة واحدة" : "Restaurant performance at a glance"}</h1><p className="qs-page-subtitle">{ar ? "تابع المبيعات والطلبات والعمليات عبر مطعمك." : "Track sales, orders, and operations across your restaurant."}</p></div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <button type="button" className="qs-button-secondary"><CalendarDays className="size-4" />{ar ? "آخر 30 يوماً" : "Last 30 days"}</button>
-          <button type="button" className="qs-button-secondary"><MapPin className="size-4" />{restaurant?.name ?? (ar ? "المطعم" : "Restaurant")}</button>
+          <button type="button" className="qs-button-secondary" onClick={() => customizing ? void saveLayout() : setCustomizing(true)}>{customizing ? <Save className="size-4" /> : <Settings2 className="size-4" />}{customizing ? (ar ? "حفظ التخطيط" : "Save Layout") : (ar ? "تخصيص لوحة التحكم" : "Customize Dashboard")}</button>
         </div>
       </header>
 
@@ -64,22 +83,20 @@ export function AnalyticsManager({ restaurantId }: { restaurantId: string }) {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
-        <ChartCard title={ar ? "اتجاه الإيرادات" : "Revenue Trend"} subtitle={ar ? "الإيراد اليومي للفترة المحددة" : "Daily revenue for the selected period"} icon={<TrendingUp className="size-4 text-[#ff5a0a]" />}>
+        {widgetOrder.map((id) => <div key={id} className={id === "items" || id === "branches" || id === "service" ? "xl:col-span-1" : ""} onPointerEnter={() => dragging.current && moveWidget(dragging.current, id)}>
+        {id === "revenue" ? <ChartCard customizing={customizing} onPointerDown={(event) => { dragging.current = id; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerUp={() => { dragging.current = null; }} title={ar ? "اتجاه الإيرادات" : "Revenue Trend"} subtitle={ar ? "الإيراد اليومي للفترة المحددة" : "Daily revenue for the selected period"} icon={<TrendingUp className="size-4 text-[#ff5a0a]" />}>
           <ResponsiveContainer width="100%" height="100%"><BarChart data={data.series} margin={{ left: -14, right: 8, top: 12, bottom: 0 }}><CartesianGrid stroke="currentColor" strokeOpacity={.07} vertical={false}/><XAxis dataKey="label" tick={{ fontSize: 9, fill: "currentColor", opacity: .55 }} axisLine={false} tickLine={false}/><YAxis tick={{ fontSize: 9, fill: "currentColor", opacity: .55 }} axisLine={false} tickLine={false}/><Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", fontSize: 11 }} formatter={(value) => formatMoney(Number(value ?? 0), currency, lang)}/><Bar dataKey="sales" fill="#ff6a22" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer>
-        </ChartCard>
-        <ChartCard title={ar ? "اتجاه الطلبات" : "Orders Trend"} subtitle={ar ? "عدد الطلبات اليومي للفترة المحددة" : "Daily order count for the selected period"} icon={<ShoppingBag className="size-4 text-emerald-600" />}>
+        </ChartCard> : id === "orders" ? <ChartCard customizing={customizing} onPointerDown={(event) => { dragging.current = id; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerUp={() => { dragging.current = null; }} title={ar ? "اتجاه الطلبات" : "Orders Trend"} subtitle={ar ? "عدد الطلبات اليومي للفترة المحددة" : "Daily order count for the selected period"} icon={<ShoppingBag className="size-4 text-emerald-600" />}>
           <ResponsiveContainer width="100%" height="100%"><AreaChart data={data.series} margin={{ left: -14, right: 8, top: 12, bottom: 0 }}><defs><linearGradient id="ordersApprovedFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#16a34a" stopOpacity={.2}/><stop offset="100%" stopColor="#16a34a" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="currentColor" strokeOpacity={.07} vertical={false}/><XAxis dataKey="label" tick={{ fontSize: 9, fill: "currentColor", opacity: .55 }} axisLine={false} tickLine={false}/><YAxis tick={{ fontSize: 9, fill: "currentColor", opacity: .55 }} axisLine={false} tickLine={false}/><Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", fontSize: 11 }}/><Area type="monotone" dataKey="orders" stroke="#16a34a" strokeWidth={2.2} fill="url(#ordersApprovedFill)" dot={{ r:3, fill:"#fff", stroke:"#16a34a", strokeWidth:2 }}/></AreaChart></ResponsiveContainer>
-        </ChartCard>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="qs-card p-5"><div className="flex items-center justify-between"><div><h2 className="qs-section-title">{ar ? "المنتجات الشائعة" : "Popular Items"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "الأعلى حسب عدد الطلبات" : "Top items by number of orders"}</p></div><UtensilsCrossed className="size-5 text-[#ff5a0a]" /></div><div className="mt-5 space-y-4">{topItems.slice(0,5).map((item,index) => <div key={item.name} className="flex items-center gap-3"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold">{index+1}</span><span className="min-w-0 flex-1"><strong className="block truncate text-xs">{item.name}</strong><span className="text-[10px] text-muted-foreground">{item.quantity} {ar ? "طلب" : "orders"}</span></span><div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-[#ff5a0a]" style={{width:`${Math.max(10,100-index*16)}%`}} /></div></div>)}{topItems.length===0 ? <p className="py-8 text-center text-sm text-muted-foreground">{ar ? "لا توجد بيانات بعد." : "No item data yet."}</p> : null}</div></div>
-        <div className="qs-card p-5"><div><h2 className="qs-section-title">{ar ? "أفضل الفروع" : "Top Branches"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "الإيراد حسب الفرع" : "Revenue by branch"}</p></div><div className="mt-5 rounded-xl border border-border p-4"><div className="flex items-center gap-3"><span className="grid size-8 place-items-center rounded-full bg-orange-50 font-bold text-[#ff5a0a]">1</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{restaurant?.name ?? "Restaurant"}</strong><span className="text-[10px] text-muted-foreground">{formatMoney(data.revenue,currency,lang)}</span></span><span className="font-bold">100%</span></div><div className="mt-3 h-1.5 rounded-full bg-muted"><div className="h-full w-full rounded-full bg-[#ff5a0a]" /></div></div></div>
-        <div className="qs-card p-5"><div><h2 className="qs-section-title">{ar ? "رؤى وقت الخدمة" : "Service Time Insights"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "من الطلب حتى التقديم" : "From order to serve"}</p></div><div className="mt-5 space-y-4"><Insight label={ar ? "متوسط وقت التحضير" : "Average Preparation Time"} value="0 min" /><Insight label={ar ? "متوسط وقت الخدمة" : "Average Total Service Time"} value="0 min" /><Insight label={ar ? "الطلبات في الوقت" : "On-Time Orders"} value="100%" /></div><div className="mt-5 rounded-xl bg-orange-50 p-3 text-xs font-semibold text-orange-700 dark:bg-orange-950/30 dark:text-orange-300">💡 {ar ? "الخدمة الأسرع تعني ضيوفاً أسعد." : "Faster service leads to happier customers!"}</div></div>
+        </ChartCard> : id === "items" ? <WidgetShell customizing={customizing} onPointerDown={(event) => { dragging.current=id; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerUp={()=>{dragging.current=null;}}><div className="flex items-center justify-between"><div><h2 className="qs-section-title">{ar ? "المنتجات الشائعة" : "Popular Items"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "الأعلى حسب عدد الطلبات" : "Top items by number of orders"}</p></div><UtensilsCrossed className="size-5 text-[#ff5a0a]" /></div><div className="mt-5 space-y-4">{topItems.slice(0,5).map((item,index) => <div key={item.name} className="flex items-center gap-3"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold">{index+1}</span><span className="min-w-0 flex-1"><strong className="block truncate text-xs">{item.name}</strong><span className="text-[10px] text-muted-foreground">{item.quantity} {ar ? "طلب" : "orders"}</span></span></div>)}{topItems.length===0 ? <p className="py-8 text-center text-sm text-muted-foreground">{ar ? "لا توجد بيانات بعد." : "No item data yet."}</p> : null}</div></WidgetShell> : id === "branches" ? <WidgetShell customizing={customizing} onPointerDown={(event)=>{dragging.current=id;event.currentTarget.setPointerCapture(event.pointerId);}} onPointerUp={()=>{dragging.current=null;}}><h2 className="qs-section-title">{ar ? "أفضل الفروع" : "Top Branches"}</h2><div className="mt-5 rounded-xl border border-border p-4"><strong>{restaurant?.name}</strong><p className="text-sm text-muted-foreground">{formatMoney(data.revenue,currency,lang)}</p></div></WidgetShell> : <WidgetShell customizing={customizing} onPointerDown={(event)=>{dragging.current=id;event.currentTarget.setPointerCapture(event.pointerId);}} onPointerUp={()=>{dragging.current=null;}}><h2 className="qs-section-title">{ar ? "رؤى وقت الخدمة" : "Service Time Insights"}</h2><p className="mt-4 text-sm text-muted-foreground">{ar ? "لا تتوفر بيانات توقيت الخدمة بعد." : "Service timing data is not available yet."}</p></WidgetShell>}
+        </div>)}
       </section>
     </div>
   );
 }
 
-function ChartCard({ title, subtitle, icon, children }: { title:string; subtitle:string; icon:React.ReactNode; children:React.ReactNode }) { return <div className="qs-card p-5"><div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-full bg-muted">{icon}</span><div><h2 className="qs-section-title">{title}</h2><p className="mt-1 text-xs text-muted-foreground">{subtitle}</p></div><span className="ms-auto rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-muted-foreground">Daily⌄</span></div><div className="mt-4 h-[275px]">{children}</div></div>; }
+type DragProps={customizing:boolean;onPointerDown:React.PointerEventHandler<HTMLButtonElement>;onPointerUp:React.PointerEventHandler<HTMLButtonElement>};
+function Grip({customizing,onPointerDown,onPointerUp}:DragProps){return customizing?<button type="button" className="ms-auto grid size-11 touch-none cursor-grab place-items-center rounded-lg border border-border active:cursor-grabbing" aria-label="Drag to reorder widget" onPointerDown={onPointerDown} onPointerUp={onPointerUp}><GripVertical className="size-5"/></button>:null;}
+function ChartCard({ title, subtitle, icon, children,...drag }: { title:string; subtitle:string; icon:React.ReactNode; children:React.ReactNode }&DragProps) { return <div className="qs-card p-5"><div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-full bg-muted">{icon}</span><div><h2 className="qs-section-title">{title}</h2><p className="mt-1 text-xs text-muted-foreground">{subtitle}</p></div><Grip {...drag}/></div><div className="mt-4 h-[275px]">{children}</div></div>; }
+function WidgetShell({children,...drag}:{children:React.ReactNode}&DragProps){return <div className="qs-card relative min-h-44 p-5"><div className="absolute end-3 top-3"><Grip {...drag}/></div>{children}</div>}
 function Insight({ label, value }: { label:string; value:string }) { return <div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-full bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><Clock3 className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-[11px] text-muted-foreground">{label}</span><strong className="text-lg">{value}</strong></span><span className="text-[10px] font-bold text-emerald-600">↗ 0%</span></div>; }

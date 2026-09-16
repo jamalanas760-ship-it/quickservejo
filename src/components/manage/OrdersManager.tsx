@@ -1,7 +1,5 @@
-import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
-  ChefHat,
   ChevronRight,
   Clock3,
   FileText,
@@ -74,7 +72,6 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
         <div><h1 className="qs-page-title">{ar ? "الطلبات المباشرة" : "Live Orders"}</h1><p className="qs-page-subtitle">{ar ? "تابع وراقب جميع الطلبات في الوقت الفعلي." : "Track and monitor all orders in real-time."}</p></div>
         <div className="flex items-center gap-3">
           <span className="hidden text-end text-[11px] text-muted-foreground md:block"><span className="flex items-center justify-end gap-2 font-semibold text-foreground"><i className="size-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,.10)]" />{ar ? "تحديث مباشر" : "Live updates"}</span><span>{ar ? "تتحدث تلقائياً" : "Updates automatically"}</span></span>
-          <Link to="/kitchen" className="qs-button-primary"><ChefHat className="size-4" />{ar ? "عرض شاشة المطبخ" : "View Kitchen Display"}</Link>
         </div>
       </header>
 

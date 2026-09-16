@@ -15,7 +15,8 @@ function ManageShell() {
   const { lang, t } = useI18n();
   const restaurant = useRestaurant(restaurantId);
   const access = useAccess();
-  const allowed = access.isSuperAdmin || access.membershipFor(restaurantId)?.role === "restaurant_admin";
+  const role = access.membershipFor(restaurantId)?.role;
+  const allowed = access.isSuperAdmin || role === "restaurant_admin" || role === "manager";
   const appearance = readAppearance(restaurant.data?.menu_theme);
   const restaurantTheme = {
     "--restaurant-light-bg": appearance.lightBackground,

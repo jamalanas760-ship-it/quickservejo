@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedShell,
 });
 
-const STAFF_BLOCKED_PREFIXES = ["/dashboard", "/manage", "/super-admin"];
+const STAFF_BLOCKED_PREFIXES = ["/dashboard", "/super-admin"];
 
 function AuthenticatedShell() {
   const navigate = useNavigate();
@@ -36,12 +36,14 @@ function AuthenticatedShell() {
   const accessResolved = !isPending && !isError;
   const staff = accessResolved && isFrontlineOnly(roles);
   const staffBlocked = staff && STAFF_BLOCKED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const managerManageRoute = roles.includes("manager") && /^\/manage\/[^/]+(?:\/(?:orders|tables|analytics))?\/?$/.test(pathname);
   const roleRouteBlocked = staff && (
     (pathname.startsWith("/kitchen") && !roles.some((role) => role === "kitchen" || role === "manager")) ||
+    (pathname.startsWith("/manager") && !roles.includes("manager")) ||
     (pathname.startsWith("/waiter") && !roles.includes("waiter")) ||
     (pathname.startsWith("/cashier") && !roles.includes("cashier"))
   );
-  const blocked = staffBlocked || roleRouteBlocked;
+  const blocked = staffBlocked || roleRouteBlocked || (staff && pathname.startsWith("/manage/") && !managerManageRoute);
 
   useEffect(() => {
     if (staffBlocked || roleRouteBlocked) {
