@@ -13,7 +13,7 @@ export function TenantBrandShell({ children }: { children: ReactNode }) {
   const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
   const membership = (access.data ?? []).find(
     row => row.restaurant_id && row.restaurant && (!selectedId || row.restaurant_id === selectedId),
-  );
+  ) ?? (access.data ?? []).find(row => row.restaurant_id && row.restaurant);
   const restaurant = access.isSuperAdmin ? null : membership?.restaurant;
 
   if (!restaurant) return <div className="qs-app tenant-app">{children}</div>;
@@ -29,13 +29,14 @@ export function TenantBrandShell({ children }: { children: ReactNode }) {
     "--restaurant-topbar-text": appearance.topNavText || "#171a18",
     "--restaurant-sidebar-bg": appearance.sidebarBackground || "#ffffff",
     "--restaurant-sidebar-text": appearance.sidebarText || "#64748b",
+    "--restaurant-selected-nav": appearance.selectedNavColor || restaurant.primary_color || "#ff5a0a",
     "--primary": restaurant.primary_color || "#ff5a0a",
     "--accent": restaurant.accent_color || "#ff5a0a",
   };
 
   return (
     <>
-      <style>{`.tenant-theme-scope{--background:var(--restaurant-light-bg)!important;background:var(--restaurant-light-bg);transition:background-color .18s ease}.dark .tenant-theme-scope{--background:var(--restaurant-dark-bg)!important;background:var(--restaurant-dark-bg)}.tenant-theme-scope .bg-background{background-color:var(--background)!important}.tenant-theme-scope .qs-topbar{background:var(--restaurant-topbar-bg)!important;color:var(--restaurant-topbar-text)!important}.tenant-theme-scope .qs-topbar :is(a,button){color:inherit}.tenant-theme-scope .qs-sidebar-shell{background:var(--restaurant-sidebar-bg)!important;color:var(--restaurant-sidebar-text)!important}.tenant-theme-scope .qs-sidebar-shell .qs-sidebar-item{color:var(--restaurant-sidebar-text)}.tenant-theme-scope .qs-sidebar-shell .qs-sidebar-item[data-active=true]{color:var(--restaurant-primary)!important}`}</style>
+      <style>{`.tenant-theme-scope{--background:var(--restaurant-light-bg)!important;background:var(--restaurant-light-bg);transition:background-color .18s ease}.dark .tenant-theme-scope{--background:var(--restaurant-dark-bg)!important;background:var(--restaurant-dark-bg)}.tenant-theme-scope .bg-background{background-color:var(--background)!important}.tenant-theme-scope .qs-topbar{background:var(--restaurant-topbar-bg)!important;color:var(--restaurant-topbar-text)!important}.tenant-theme-scope .qs-topbar :is(a,button){color:inherit}.tenant-theme-scope .qs-sidebar-shell{background:var(--restaurant-sidebar-bg)!important;color:var(--restaurant-sidebar-text)!important}.tenant-theme-scope .qs-sidebar-shell .qs-sidebar-item{color:var(--restaurant-sidebar-text)}.tenant-theme-scope .qs-sidebar-shell .qs-sidebar-item[data-active=true]{color:var(--restaurant-selected-nav)!important;background:color-mix(in oklab,var(--restaurant-selected-nav) 10%,transparent)!important}.tenant-theme-scope .qs-sidebar-shell .qs-sidebar-item[data-active=true]::before{background:var(--restaurant-selected-nav)!important}`}</style>
       <div className="qs-app tenant-app tenant-theme-scope" style={style} data-tenant={restaurant.id}>
         {children}
       </div>
