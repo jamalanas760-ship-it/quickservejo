@@ -13,12 +13,14 @@ export type RestaurantAppearance = {
   menuLogo: string | null;
   homeTitle: string;
   dashboardTitle: string;
+  useQuickServeLogo: boolean;
   lightBackground: string;
   darkBackground: string;
   topNavBackground: string;
   topNavText: string;
   sidebarBackground: string;
   sidebarText: string;
+  selectedNavColor: string;
   guestMenuMode: "light" | "dark";
   guestMenuLight: GuestMenuPalette;
   guestMenuDark: GuestMenuPalette;
@@ -69,12 +71,14 @@ export function readAppearance(theme: unknown): RestaurantAppearance {
     menuLogo: typeof value.menuLogo === "string" && /^https:\/\//.test(value.menuLogo) ? value.menuLogo : null,
     homeTitle: typeof value.homeTitle === "string" ? value.homeTitle.slice(0, 100) : "",
     dashboardTitle: typeof value.dashboardTitle === "string" ? value.dashboardTitle.slice(0, 100) : "",
+    useQuickServeLogo: value.useQuickServeLogo !== false,
     lightBackground: color(value.lightBackground, "#ffffff"),
     darkBackground: color(value.darkBackground, "#11171b"),
     topNavBackground: color(value.topNavBackground, "#ffffff"),
     topNavText: color(value.topNavText, "#171a18"),
     sidebarBackground: color(value.sidebarBackground, "#ffffff"),
     sidebarText: color(value.sidebarText, "#64748b"),
+    selectedNavColor: color(value.selectedNavColor, "#ff5a0a"),
     guestMenuMode: value.guestMenuMode === "dark" ? "dark" : "light",
     guestMenuLight: palette(value.guestMenuLight, LIGHT_DEFAULTS),
     guestMenuDark: palette(value.guestMenuDark, DARK_DEFAULTS),
