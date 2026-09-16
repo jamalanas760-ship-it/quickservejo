@@ -15,6 +15,10 @@ export type RestaurantAppearance = {
   dashboardTitle: string;
   lightBackground: string;
   darkBackground: string;
+  topNavBackground: string;
+  topNavText: string;
+  sidebarBackground: string;
+  sidebarText: string;
   guestMenuMode: "light" | "dark";
   guestMenuLight: GuestMenuPalette;
   guestMenuDark: GuestMenuPalette;
@@ -67,6 +71,10 @@ export function readAppearance(theme: unknown): RestaurantAppearance {
     dashboardTitle: typeof value.dashboardTitle === "string" ? value.dashboardTitle.slice(0, 100) : "",
     lightBackground: color(value.lightBackground, "#ffffff"),
     darkBackground: color(value.darkBackground, "#11171b"),
+    topNavBackground: color(value.topNavBackground, "#ffffff"),
+    topNavText: color(value.topNavText, "#171a18"),
+    sidebarBackground: color(value.sidebarBackground, "#ffffff"),
+    sidebarText: color(value.sidebarText, "#64748b"),
     guestMenuMode: value.guestMenuMode === "dark" ? "dark" : "light",
     guestMenuLight: palette(value.guestMenuLight, LIGHT_DEFAULTS),
     guestMenuDark: palette(value.guestMenuDark, DARK_DEFAULTS),
