@@ -136,7 +136,7 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
 
         <section className="panel space-y-6 p-4 sm:p-6">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-            <div className="min-w-0"><h3 className="text-lg font-semibold">{ar ? "هوية تطبيق المطعم" : "Restaurant App Appearance"}</h3><p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{ar ? "خلفيات منفصلة للوضع الفاتح والداكن داخل تطبيق الفريق والإدارة." : "Separate light and dark backgrounds for the restaurant admin/staff experience."}</p></div>
+            <div className="min-w-0"><h3 className="text-lg font-semibold">{ar ? "ألوان التنقل" : "Navigation colors"}</h3><p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{ar ? "خصص ألوان التنقل لهذا المطعم فقط." : "Customize navigation colors for this restaurant only."}</p></div>
             <Button type="button" variant="outline" size="sm" className="w-fit whitespace-nowrap" onClick={resetWorkspaceTheme}><RotateCcw className="size-4" />{ar ? "إعادة الافتراضي" : "Restore defaults"}</Button>
           </div>
 
