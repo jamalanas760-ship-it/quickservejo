@@ -26,6 +26,7 @@ export function isWithinLimit(limit:number|null,current:number){return limit===n
 export const MANAGEMENT_ROLES:AppRole[]=["super_admin","restaurant_admin"];
 export function isFrontlineOnly(roles:AppRole[]){return roles.length>0&&!roles.some(r=>MANAGEMENT_ROLES.includes(r))}
 export function frontlineHome(roles:AppRole[]){
+ if(roles.includes("manager"))return "/manager";
  if(roles.includes("waiter"))return "/waiter";
  if(roles.includes("cashier"))return "/cashier";
  return "/kitchen";
