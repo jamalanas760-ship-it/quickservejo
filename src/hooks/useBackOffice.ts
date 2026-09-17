@@ -20,39 +20,53 @@ export type BackOfficeData = {
   movements: StockMovement[];
   expenses: Expense[];
 };
+export type BackOfficeAccess = {
+  inventory: boolean;
+  procurement: boolean;
+  finance: boolean;
+};
 
 export function backOfficeKey(restaurantId: string) {
   return ["back-office", restaurantId] as const;
 }
 
-/** Single batched read for the whole Back Office workspace. */
-export function useBackOffice(restaurantId: string, enabled: boolean) {
+/**
+ * Capability-aware batched read. Independent ERP modules are fetched in parallel,
+ * while inaccessible modules resolve locally to [] instead of producing RLS errors.
+ */
+export function useBackOffice(restaurantId: string, access: BackOfficeAccess, enabled = true) {
   return useQuery<BackOfficeData>({
-    queryKey: backOfficeKey(restaurantId),
-    enabled: enabled && Boolean(restaurantId),
+    queryKey: [...backOfficeKey(restaurantId), access.inventory, access.procurement, access.finance],
+    enabled: enabled && Boolean(restaurantId) && (access.inventory || access.procurement || access.finance),
     staleTime: 15_000,
     queryFn: async () => {
       const [inventory, suppliers, movements, expenses] = await Promise.all([
-        erpSelect<InventoryBalance>("erp_inventory_balances", (q) =>
-          q.select("id,name,unit,reorder_level,quantity").eq("restaurant_id", restaurantId).order("name").limit(2000),
-        ),
-        erpSelect<Supplier>("erp_suppliers", (q) =>
-          q.select("id,name,contact,created_at").eq("restaurant_id", restaurantId).order("name").limit(1000),
-        ),
-        erpSelect<StockMovement>("erp_stock_movements", (q) =>
-          q
-            .select("id,item_id,supplier_id,quantity,unit_cost,reason,created_at")
-            .eq("restaurant_id", restaurantId)
-            .order("created_at", { ascending: false })
-            .limit(500),
-        ),
-        erpSelect<Expense>("erp_expenses", (q) =>
-          q
-            .select("id,description,category,amount,expense_date,reference,created_at")
-            .eq("restaurant_id", restaurantId)
-            .order("expense_date", { ascending: false })
-            .limit(500),
-        ),
+        access.inventory
+          ? erpSelect<InventoryBalance>("erp_inventory_balances", (q) =>
+              q.select("id,name,unit,reorder_level,quantity").eq("restaurant_id", restaurantId).order("name").limit(2000),
+            )
+          : Promise.resolve([]),
+        access.procurement || access.inventory
+          ? erpSelect<Supplier>("erp_suppliers", (q) =>
+              q.select("id,name,contact,created_at").eq("restaurant_id", restaurantId).order("name").limit(1000),
+            )
+          : Promise.resolve([]),
+        access.inventory
+          ? erpSelect<StockMovement>("erp_stock_movements", (q) =>
+              q.select("id,item_id,supplier_id,quantity,unit_cost,reason,created_at")
+                .eq("restaurant_id", restaurantId)
+                .order("created_at", { ascending: false })
+                .limit(500),
+            )
+          : Promise.resolve([]),
+        access.finance
+          ? erpSelect<Expense>("erp_expenses", (q) =>
+              q.select("id,description,category,amount,expense_date,reference,created_at")
+                .eq("restaurant_id", restaurantId)
+                .order("expense_date", { ascending: false })
+                .limit(500),
+            )
+          : Promise.resolve([]),
       ]);
       return { inventory, suppliers, movements, expenses };
     },
@@ -144,7 +158,6 @@ export function useBackOfficeWrite(restaurantId: string) {
       };
     },
     onSuccess: async (result) => {
-      // The write is already committed; audit logging is best-effort by design.
       void logAudit(result.action, {
         restaurantId,
         entity: result.entity,
