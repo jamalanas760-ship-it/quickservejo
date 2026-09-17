@@ -21,19 +21,36 @@ export function HomeMetricDetail({ metric, restaurantId, restaurantName, currenc
   const { lang } = useI18n();
   const ar = lang === "ar";
   const detail = useQuery({
-    queryKey: ["workspace", "home-metric-detail", restaurantId],
+    queryKey: ["workspace", "home-metric-detail", restaurantId, metric],
     staleTime: 30_000,
     refetchOnWindowFocus: false,
     queryFn: async () => {
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
       const since = new Date(todayStart); since.setDate(since.getDate() - 6);
-      const [{ data: orders, error: orderError }, { data: tables, error: tableError }, { data: events, error: eventError }] = await Promise.all([
+      const [{ data: orders, error: orderError }, { data: tables, error: tableError }] = await Promise.all([
         supabase.from("orders").select("id,order_number,status,payment_status,total,table_id,created_at,updated_at").eq("restaurant_id", restaurantId).gte("created_at", since.toISOString()).order("created_at", { ascending: true }),
         supabase.from("restaurant_tables").select("*").eq("restaurant_id", restaurantId).order("table_number", { ascending: true }),
-        supabase.from("order_status_events").select("order_id,to_status,created_at").eq("restaurant_id", restaurantId).gte("created_at", todayStart.toISOString()).order("created_at", { ascending: true }),
       ]);
-      if (orderError) throw orderError; if (tableError) throw tableError; if (eventError) throw eventError;
-      return { orders: (orders ?? []) as unknown as OrderRow[], tables: (tables ?? []) as unknown as TableRow[], events: (events ?? []) as unknown as StatusEvent[], todayStart: todayStart.toISOString() };
+      if (orderError) throw orderError;
+      if (tableError) throw tableError;
+
+      let events: StatusEvent[] = [];
+      let timingEventsAvailable = metric !== "order-time";
+      if (metric === "order-time") {
+        const eventResult = await supabase.from("order_status_events").select("order_id,to_status,created_at").eq("restaurant_id", restaurantId).gte("created_at", todayStart.toISOString()).order("created_at", { ascending: true });
+        if (eventResult.error) {
+          if (eventResult.error.code === "PGRST205") {
+            timingEventsAvailable = false;
+          } else {
+            throw eventResult.error;
+          }
+        } else {
+          events = (eventResult.data ?? []) as unknown as StatusEvent[];
+          timingEventsAvailable = true;
+        }
+      }
+
+      return { orders: (orders ?? []) as unknown as OrderRow[], tables: (tables ?? []) as unknown as TableRow[], events, timingEventsAvailable, todayStart: todayStart.toISOString() };
     },
   });
 
@@ -66,7 +83,7 @@ export function HomeMetricDetail({ metric, restaurantId, restaurantName, currenc
     {metric === "sales" ? <SalesDetail ar={ar} lang={lang} currency={currency} sales={todaySales} orders={todayOrders} daily={daily} hourly={hourly} tableMap={tableMap} /> : null}
     {metric === "orders" ? <OrdersDetail ar={ar} lang={lang} currency={currency} orders={todayOrders} daily={daily} tableMap={tableMap} /> : null}
     {metric === "tables" ? <TablesDetail ar={ar} tables={detail.data.tables} active={activeTables} /> : null}
-    {metric === "order-time" ? <OrderTimeDetail ar={ar} lang={lang} durations={durations} average={averageMinutes} /> : null}
+    {metric === "order-time" ? <OrderTimeDetail ar={ar} lang={lang} durations={durations} average={averageMinutes} timingEventsAvailable={detail.data.timingEventsAvailable} /> : null}
   </main></div>;
 }
 
@@ -86,11 +103,11 @@ function TablesDetail({ ar, tables, active }: { ar:boolean;tables:TableRow[];act
   return <><KpiGrid items={[{label:ar?"الطاولات المفعّلة":"Active tables",value:String(active.length),icon:<Table2/>},{label:ar?"كل الطاولات":"All tables",value:String(tables.length),icon:<Table2/>},{label:ar?"المقاعد المعرّفة":"Configured seats",value:String(capacity||"—"),icon:<Receipt/>},{label:ar?"المناطق":"Zones",value:String(zones.length),icon:<ShoppingBag/>}]} /><ChartCard title={ar?"الطاولات حسب المنطقة":"Tables by zone"}>{zones.length?<ResponsiveContainer width="100%" height="100%"><BarChart data={zones}><CartesianGrid strokeDasharray="3 3" vertical={false} opacity={.18}/><XAxis dataKey="zone" fontSize={10} tickLine={false} axisLine={false}/><YAxis fontSize={10} tickLine={false} axisLine={false}/><Tooltip/><Bar dataKey="count" fill="#3b82f6" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer>:<Empty ar={ar}/>}</ChartCard><DetailCard title={ar?"بيانات الطاولات":"Table configuration"}><ModernTable headers={[ar?"الطاولة":"Table",ar?"الاسم":"Name",ar?"الطابق":"Floor",ar?"المنطقة":"Zone",ar?"المقاعد":"Seats",ar?"الحالة":"Status"]} rows={tables.map(row=>[<strong>T{row.table_number}</strong>,row.table_name||"—",floorOf(row),row.zone||"main",row.capacity??"—",<Status value={row.is_active?(ar?"active":"active"):(ar?"inactive":"inactive")}/>])} ar={ar}/></DetailCard></>;
 }
 
-function OrderTimeDetail({ ar, lang, durations, average }: { ar:boolean;lang:"ar"|"en";durations:Array<{order:OrderRow;end:StatusEvent;minutes:number}>;average:number|null }) {
+function OrderTimeDetail({ ar, lang, durations, average, timingEventsAvailable }: { ar:boolean;lang:"ar"|"en";durations:Array<{order:OrderRow;end:StatusEvent;minutes:number}>;average:number|null;timingEventsAvailable:boolean }) {
   const sorted=durations.map(row=>row.minutes); const fastest=sorted.length?Math.min(...sorted):null; const slowest=sorted.length?Math.max(...sorted):null;
   const chartRows=durations.slice(-12).map(row=>({order:row.order.order_number,minutes:Math.round(row.minutes)}));
   const minutes=(value:number|null)=>value===null?"—":`${Math.round(value)} ${ar?"د":"min"}`;
-  return <><KpiGrid items={[{label:ar?"متوسط الوقت":"Average time",value:minutes(average),icon:<Clock3/>},{label:ar?"طلبات قابلة للقياس":"Tracked orders",value:String(durations.length),icon:<Receipt/>},{label:ar?"الأسرع":"Fastest",value:minutes(fastest),icon:<TrendingUp/>},{label:ar?"الأبطأ":"Slowest",value:minutes(slowest),icon:<Clock3/>}]} />{durations.length?<><ChartCard title={ar?"وقت الإكمال حسب الطلب":"Completion time by order"}><ResponsiveContainer width="100%" height="100%"><BarChart data={chartRows}><CartesianGrid strokeDasharray="3 3" vertical={false} opacity={.18}/><XAxis dataKey="order" fontSize={9} tickLine={false} axisLine={false}/><YAxis fontSize={10} tickLine={false} axisLine={false}/><Tooltip/><Bar dataKey="minutes" fill="#64748b" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></ChartCard><DetailCard title={ar?"الطلبات المقاسة":"Measured orders"}><ModernTable headers={[ar?"الطلب":"Order",ar?"وقت الإنشاء":"Created",ar?"حدث الإكمال":"Completion event",ar?"وقت الإكمال":"Completed",ar?"المدة":"Duration"]} rows={durations.slice().reverse().map(row=>[<strong>{row.order.order_number}</strong>,formatDateTime(row.order.created_at,lang),<Status value={row.end.to_status}/>,formatDateTime(row.end.created_at,lang),minutes(row.minutes)])} ar={ar}/></DetailCard></>:<section className="qs-card p-8 text-center"><Clock3 className="mx-auto size-10 text-muted-foreground"/><h2 className="mt-4 text-lg font-bold">{ar?"لا توجد بيانات توقيت موثوقة بعد":"Not enough reliable timing data yet"}</h2><p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{ar?"لن يعرض QuickServe متوسطاً تقديرياً. سيظهر القياس عندما تتوفر للطلبات أحداث Served أو Paid مسجلة فعلياً.":"QuickServe will not invent an estimated average. Timing appears once orders have real Served or Paid status events."}</p></section>}</>;
+  return <><KpiGrid items={[{label:ar?"متوسط الوقت":"Average time",value:minutes(average),icon:<Clock3/>},{label:ar?"طلبات قابلة للقياس":"Tracked orders",value:String(durations.length),icon:<Receipt/>},{label:ar?"الأسرع":"Fastest",value:minutes(fastest),icon:<TrendingUp/>},{label:ar?"الأبطأ":"Slowest",value:minutes(slowest),icon:<Clock3/>}]} />{durations.length?<><ChartCard title={ar?"وقت الإكمال حسب الطلب":"Completion time by order"}><ResponsiveContainer width="100%" height="100%"><BarChart data={chartRows}><CartesianGrid strokeDasharray="3 3" vertical={false} opacity={.18}/><XAxis dataKey="order" fontSize={9} tickLine={false} axisLine={false}/><YAxis fontSize={10} tickLine={false} axisLine={false}/><Tooltip/><Bar dataKey="minutes" fill="#64748b" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></ChartCard><DetailCard title={ar?"الطلبات المقاسة":"Measured orders"}><ModernTable headers={[ar?"الطلب":"Order",ar?"وقت الإنشاء":"Created",ar?"حدث الإكمال":"Completion event",ar?"وقت الإكمال":"Completed",ar?"المدة":"Duration"]} rows={durations.slice().reverse().map(row=>[<strong>{row.order.order_number}</strong>,formatDateTime(row.order.created_at,lang),<Status value={row.end.to_status}/>,formatDateTime(row.end.created_at,lang),minutes(row.minutes)])} ar={ar}/></DetailCard></>:<section className="qs-card p-8 text-center"><Clock3 className="mx-auto size-10 text-muted-foreground"/><h2 className="mt-4 text-lg font-bold">{timingEventsAvailable?(ar?"لا توجد بيانات توقيت موثوقة بعد":"Not enough reliable timing data yet"):(ar?"سجل أوقات الطلب غير مفعّل بعد":"Order timing history is not configured yet")}</h2><p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{timingEventsAvailable?(ar?"لن يعرض QuickServe متوسطاً تقديرياً. سيظهر القياس عندما تتوفر للطلبات أحداث Served أو Paid مسجلة فعلياً.":"QuickServe will not invent an estimated average. Timing appears once orders have real Served or Paid status events."):(ar?"صفحات المبيعات والطلبات والطاولات تعمل بشكل مستقل. وسيظهر متوسط وقت الطلب تلقائياً بعد إضافة سجل حالات الطلب إلى قاعدة البيانات.":"Sales, Orders, and Tables details work independently. Average Order Time will appear automatically once order status history is available in the database.")}</p></section>}</>;
 }
 
 function KpiGrid({ items }: { items:Array<{label:string;value:string;icon:React.ReactNode}> }) { return <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{items.map(item=><article key={item.label} className="qs-stat flex min-h-[118px] items-center gap-4 p-4"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-orange-500/10 text-[#ff5a0a] [&>svg]:size-5">{item.icon}</span><div className="min-w-0"><p className="text-[11px] font-semibold text-muted-foreground">{item.label}</p><strong className="mt-1 block truncate font-display text-2xl tracking-[-.04em]">{item.value}</strong></div></article>)}</section>; }
