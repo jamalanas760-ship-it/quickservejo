@@ -233,9 +233,11 @@ export function InventoryPanel({
                       {formatDateTime(movement.created_at, lang)}
                     </time>
                     {Number(movement.unit_cost) > 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        {formatMoney(Number(movement.unit_cost), currency, lang)} / {historyItem?.unit}
-                      </p>
+                      <div className="space-y-0.5 text-xs text-muted-foreground">
+                        <p>{formatMoney(Number(movement.unit_cost), currency, lang)} / {historyItem?.unit}</p>
+                        <p className="font-semibold text-foreground">{lang === "ar" ? "الإجمالي" : "Total"}: {formatMoney(Number(movement.total_cost ?? Math.abs(Number(movement.quantity)) * Number(movement.unit_cost)), currency, lang)}</p>
+                        {movement.movement_type === "receipt" ? <p className={movement.finance_expense_id ? "text-emerald-600" : "text-amber-600"}>{movement.finance_expense_id ? (lang === "ar" ? "تم ترحيله للمالية تلقائياً" : "Auto-posted to Finance") : (lang === "ar" ? "بانتظار الربط المالي" : "Finance link pending")}</p> : null}
+                      </div>
                     ) : null}
                   </div>
                   <span

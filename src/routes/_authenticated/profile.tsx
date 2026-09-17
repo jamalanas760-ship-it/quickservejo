@@ -81,8 +81,9 @@ function ProfilePage() {
   const restaurantName = restaurant?.name ?? scope.restaurantName ?? "—";
   const notifKey = `quickserve.notifications:${user?.id ?? "guest"}`;
   const canManageRestaurant = Boolean(rid && (access.isSuperAdmin || membership?.role === "restaurant_admin"));
+  const personalCoverEligible = Boolean(membership && membership.role !== "restaurant_admin");
   const avatar = membership?.avatar_url || avatarPresetUrl(membership?.avatar_preset) || meta?.avatar_url || avatarPresetUrl(meta?.avatar_preset ?? null);
-  const accountCover = membership?.cover_image_url ?? null;
+  const accountCover = personalCoverEligible ? (membership?.cover_image_url ?? null) : null;
   const accountCoverX = Number(membership?.cover_position_x ?? 50);
   const accountCoverY = Number(membership?.cover_position_y ?? 50);
   const accountCoverZoom = Number(membership?.cover_zoom ?? 100);
@@ -191,7 +192,7 @@ function ProfilePage() {
         <div className="min-w-0">
           {section === "profile" ? <PersonalSection ar={ar} lang={lang} rid={rid} displayName={displayName} email={email} roleLabel={roleLabel} restaurantName={restaurantName} createdAt={user?.created_at} /> : null}
           {section === "notifications" ? <NotificationsSection ar={ar} notif={notif} operationalRows={operationalRows} soundRows={soundRows} toggle={toggle} /> : null}
-          {section === "organization" && rid ? <OrganizationSection ar={ar} restaurantId={rid} canManageRestaurant={canManageRestaurant} /> : null}
+          {section === "organization" && rid ? <OrganizationSection ar={ar} restaurantId={rid} canManageRestaurant={canManageRestaurant} showAccountCover={personalCoverEligible} /> : null}
         </div>
       </div>
     </main>
@@ -226,10 +227,10 @@ function NotificationsSection({ ar, notif, operationalRows, soundRows, toggle }:
   </div>;
 }
 
-function OrganizationSection({ ar, restaurantId, canManageRestaurant }: { ar: boolean; restaurantId: string; canManageRestaurant: boolean }) {
+function OrganizationSection({ ar, restaurantId, canManageRestaurant, showAccountCover }: { ar: boolean; restaurantId: string; canManageRestaurant: boolean; showAccountCover: boolean }) {
   return <div className="space-y-5">
     <SectionHeading icon={<Store className="size-5" />} title={ar ? "المؤسسة والمظهر" : "Organization & appearance"} description={canManageRestaurant ? (ar ? "إدارة هوية المطعم وإعدادات الحساب من مساحة واحدة منظمة." : "Manage restaurant identity and your account appearance from one organized workspace.") : (ar ? "خصص غلاف حسابك فقط بدون التأثير على هوية المطعم أو إعداداته." : "Customize only your account cover without changing restaurant branding or settings.")} />
-    <AccountCoverEditor restaurantId={restaurantId} />
+    {showAccountCover ? <AccountCoverEditor restaurantId={restaurantId} /> : null}
     {canManageRestaurant ? <>
       <div className="flex flex-wrap gap-2 rounded-2xl border border-border bg-muted/20 p-3 text-[10px] font-bold text-muted-foreground">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-2"><Building2 className="size-3.5" />{ar ? "هوية المطعم" : "Restaurant identity"}</span>

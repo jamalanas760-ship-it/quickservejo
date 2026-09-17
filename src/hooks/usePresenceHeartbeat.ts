@@ -21,7 +21,7 @@ export function usePresenceHeartbeat(enabled: boolean) {
     const onFocus = () => void touch();
 
     void touch();
-    timer = setInterval(() => void touch(), 45_000);
+    timer = setInterval(() => void touch(), 30_000);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("focus", onFocus);
 
