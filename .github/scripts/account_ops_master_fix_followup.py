@@ -14,6 +14,19 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
         raise RuntimeError(f"{label}: expected exactly one match, found {count}")
     return text.replace(old, new, 1)
 
+# The generated Supabase client types lag the live restaurant_tables schema (zone exists in
+# production and is already used by floor management). Keep this narrow query aligned with the
+# production schema without weakening runtime validation.
+host_path = "src/routes/_authenticated/host.tsx"
+host = read(host_path)
+host = replace_once(
+    host,
+    'supabase.from("restaurant_tables").select("id,table_number,table_name,zone")',
+    '(supabase.from("restaurant_tables") as any).select("id,table_number,table_name,zone")',
+    "host table query",
+)
+write(host_path, host)
+
 # The OrganizationSection replacement intentionally changes only that section. Restore the
 # existing notification preference component if the earlier broad replacement consumed it.
 profile_path = "src/routes/_authenticated/profile.tsx"
