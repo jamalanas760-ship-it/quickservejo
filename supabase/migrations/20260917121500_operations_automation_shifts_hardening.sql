@@ -12,6 +12,8 @@ create index if not exists shifts_opened_by_idx
 create index if not exists shifts_closed_by_idx
   on public.shifts(closed_by_staff_id)
   where closed_by_staff_id is not null;
+create index if not exists shift_assignments_staff_fk_idx
+  on public.shift_assignments(staff_id);
 create index if not exists shift_handovers_from_staff_idx
   on public.shift_handovers(from_staff_id)
   where from_staff_id is not null;
