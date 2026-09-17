@@ -17,6 +17,8 @@ jobs:
           fetch-depth: 0
       - name: Apply targeted UI integration patches
         run: python .github/scripts/apply_phase2_ui_links.py
+      - name: Repair generated JSX syntax
+        run: python .github/scripts/fix_phase2_syntax.py
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -36,7 +38,7 @@ jobs:
           grep -q 'waiter_call_created' supabase/migrations/20260917120000_operations_automation_shifts.sql
           grep -q 'shift_status_automation' supabase/migrations/20260917121500_operations_automation_shifts_hardening.sql
       - name: Remove one-time validation helpers
-        run: rm .github/scripts/apply_phase2_ui_links.py .github/workflows/validate-phase2-operations.yml
+        run: rm .github/scripts/apply_phase2_ui_links.py .github/scripts/fix_phase2_syntax.py .github/workflows/validate-phase2-operations.yml
       - name: Commit validated implementation
         run: |
           git config user.name "QuickServe Upgrade Bot"
