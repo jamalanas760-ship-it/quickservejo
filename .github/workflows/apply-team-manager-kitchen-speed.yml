@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0
 
       - name: Apply targeted update
-        run: python .github/scripts/team_manager_kitchen_speed.py
+        run: python .github/scripts/run_team_manager_kitchen_speed.py
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -52,7 +52,7 @@ jobs:
           grep -q 'staleTime: 8_000' src/routes/_authenticated/kitchen.tsx
 
       - name: Remove one-time helpers
-        run: rm -f .github/scripts/team_manager_kitchen_speed.py .github/workflows/apply-team-manager-kitchen-speed.yml
+        run: rm -f .github/scripts/team_manager_kitchen_speed.py .github/scripts/run_team_manager_kitchen_speed.py .github/workflows/apply-team-manager-kitchen-speed.yml
 
       - name: Commit validated implementation
         run: |
