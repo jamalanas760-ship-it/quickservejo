@@ -197,7 +197,7 @@ function ProfilePage() {
   </div>;
 }
 
-function PersonalSection({ ar, lang, rid, displayName, email, roleLabel, restaurantName, createdAt }: { ar: boolean; lang: "ar" | "en"; rid: string | null; displayName: string; email: string; roleLabel: string; restaurantName: string; createdAt?: string }) {
+function PersonalSection({ ar, lang, rid, displayName, email, roleLabel, restaurantName, createdAt }: { ar: boolean; lang: "ar" | "en"; rid: string | null; displayName: string; email: string; roleLabel: string; restaurantName: string; createdAt: string | undefined }) {
   return <div className="space-y-5">
     <SectionHeading icon={<UserRound className="size-5" />} title={ar ? "الملف الشخصي" : "Personal profile"} description={ar ? "حدّث صورتك وراجع معلومات حسابك من مكان واحد." : "Update your profile image and review your account information in one place."} />
     <section className="qs-card overflow-hidden">
