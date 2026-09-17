@@ -1,0 +1,64 @@
+name: Apply Team manager and Kitchen speed
+
+on:
+  push:
+    branches: [chatgpt/team-manager-name-kitchen-speed]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v6
+        with:
+          ref: chatgpt/team-manager-name-kitchen-speed
+          fetch-depth: 0
+
+      - name: Apply targeted update
+        run: python .github/scripts/team_manager_kitchen_speed.py
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate routes and build
+        run: bun run build
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Production build
+        run: bun run build
+
+      - name: Verify targeted behavior
+        run: |
+          grep -q 'Restaurant Manager names are managed from the Team page' src/routes/_authenticated/profile.tsx
+          ! grep -q 'EditableNameTile' src/routes/_authenticated/profile.tsx
+          grep -q 'isOwnRestaurantManager' src/components/manage/StaffManagerAdvanced.tsx
+          grep -q 'Restaurant Manager name updated' src/components/manage/StaffManagerAdvanced.tsx
+          grep -q 'RESTAURANT_KEY' src/routes/_authenticated/kitchen.tsx
+          grep -q 'memberships.isPending && !activeId' src/routes/_authenticated/kitchen.tsx
+          grep -q 'staleTime: 8_000' src/routes/_authenticated/kitchen.tsx
+
+      - name: Remove one-time helpers
+        run: rm -f .github/scripts/team_manager_kitchen_speed.py .github/workflows/apply-team-manager-kitchen-speed.yml
+
+      - name: Commit validated implementation
+        run: |
+          git config user.name "QuickServe Upgrade Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: move manager naming to Team and speed up Kitchen"
+          git push origin HEAD:chatgpt/team-manager-name-kitchen-speed
