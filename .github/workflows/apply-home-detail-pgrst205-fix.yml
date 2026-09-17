@@ -1,0 +1,61 @@
+name: Apply home detail PGRST205 fix
+
+on:
+  push:
+    branches: [chatgpt/fix-home-detail-pgrst205]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v6
+        with:
+          ref: chatgpt/fix-home-detail-pgrst205
+          fetch-depth: 0
+
+      - name: Apply fix
+        run: python .github/scripts/fix_home_detail_pgrst205.py
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate/build
+        run: bun run build
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Production build
+        run: bun run build
+
+      - name: Verify regression fix
+        run: |
+          grep -q 'home-metric-detail", restaurantId, metric' src/components/dashboard/HomeMetricDetail.tsx
+          grep -q 'metric === "order-time"' src/components/dashboard/HomeMetricDetail.tsx
+          grep -q 'eventResult.error.code === "PGRST205"' src/components/dashboard/HomeMetricDetail.tsx
+          test "$(grep -c 'from("order_status_events")' src/components/dashboard/HomeMetricDetail.tsx)" -eq 1
+
+      - name: Remove one-time helpers
+        run: rm -f .github/scripts/fix_home_detail_pgrst205.py .github/workflows/apply-home-detail-pgrst205-fix.yml
+
+      - name: Commit validated fix
+        run: |
+          git config user.name "QuickServe Upgrade Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: keep home detail pages independent of missing status history"
+          git push origin HEAD:chatgpt/fix-home-detail-pgrst205
