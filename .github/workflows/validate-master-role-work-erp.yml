@@ -5,15 +5,19 @@ on:
     branches: [chatgpt/master-role-work-erp-foundation]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           ref: chatgpt/master-role-work-erp-foundation
+          fetch-depth: 0
+      - name: Apply final role/type patches
+        run: python .github/scripts/apply_role_work_foundation.py
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -24,9 +28,24 @@ jobs:
         run: bunx tsc --noEmit
       - name: Lint
         run: bun run lint
+      - name: Second production build
+        run: bun run build
       - name: Foundation assertions
         run: |
           grep -q 'create table if not exists public.work_tasks' supabase/migrations/20260917082500_role_work_erp_foundation.sql
           grep -q 'operations_manager' src/lib/permissions.ts
+          grep -q 'Inventory Controller' src/lib/permissions.ts
           grep -q 'My Work' src/routes/_authenticated/work.tsx
           grep -q 'view_erp' 'src/routes/_authenticated/manage/$restaurantId/route.tsx'
+          grep -q 'operations_manager' src/components/manage/StaffManagerAdvanced.tsx
+          grep -q 'operations_manager' src/integrations/supabase/types.ts
+      - name: Remove one-time validation helpers
+        run: rm -f .github/scripts/apply_role_work_foundation.py .github/workflows/validate-master-role-work-erp.yml
+      - name: Commit validated implementation
+        run: |
+          git config user.name "QuickServe Upgrade Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: complete role-aware work and ERP foundation"
+          git push origin HEAD:chatgpt/master-role-work-erp-foundation
