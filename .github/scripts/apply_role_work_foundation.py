@@ -32,4 +32,11 @@ if old in text:
     text = text.replace(old, new, 1)
     p.write_text(text, encoding="utf-8")
 
+# The work tables are introduced by this migration, before generated Supabase types
+# can be regenerated from production. Cast the client, not the overloaded `.from()` call.
+p = Path("src/routes/_authenticated/work.tsx")
+text = p.read_text(encoding="utf-8")
+text = text.replace('(supabase.from("work_tasks") as any)', '(supabase as any).from("work_tasks")')
+p.write_text(text, encoding="utf-8")
+
 print("Role/work foundation patches applied.")
