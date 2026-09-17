@@ -41,6 +41,10 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
   for (const result of [settingsRes, tableRes, categoriesRes, itemsRes, groupsRes, modifiersRes, pdfDocumentRes]) {
     if (result.error) throw result.error;
   }
+  if (qrToken && tableRes.data) {
+    const { error: activationError } = await (supabase as any).rpc("activate_table_from_qr", { _qr_token: qrToken });
+    if (activationError) console.warn("Table activation from QR skipped:", activationError.message);
+  }
   const groups = groupsRes.data ?? [];
   const modifiers = modifiersRes.data ?? [];
   const items: DinerItem[] = (itemsRes.data ?? []).map((item) => ({

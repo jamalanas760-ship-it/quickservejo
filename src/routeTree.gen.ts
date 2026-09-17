@@ -20,6 +20,7 @@ import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
 import { Route as AuthenticatedAutomationsRouteImport } from './routes/_authenticated/automations'
+import { Route as AuthenticatedBookingsRouteImport } from './routes/_authenticated/bookings'
 import { Route as AuthenticatedCashierRouteImport } from './routes/_authenticated/cashier'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedHostRouteImport } from './routes/_authenticated/host'
@@ -127,6 +128,11 @@ const AuthenticatedAutomationsRoute =
     path: '/automations',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBookingsRoute = AuthenticatedBookingsRouteImport.update({
+  id: '/bookings',
+  path: '/bookings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCashierRoute = AuthenticatedCashierRouteImport.update({
   id: '/cashier',
   path: '/cashier',
@@ -428,6 +434,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/automations': typeof AuthenticatedAutomationsRoute
+  '/bookings': typeof AuthenticatedBookingsRoute
   '/cashier': typeof AuthenticatedCashierRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/host': typeof AuthenticatedHostRoute
@@ -487,6 +494,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/automations': typeof AuthenticatedAutomationsRoute
+  '/bookings': typeof AuthenticatedBookingsRoute
   '/cashier': typeof AuthenticatedCashierRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/host': typeof AuthenticatedHostRoute
@@ -548,6 +556,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/approvals': typeof AuthenticatedApprovalsRoute
   '/_authenticated/automations': typeof AuthenticatedAutomationsRoute
+  '/_authenticated/bookings': typeof AuthenticatedBookingsRoute
   '/_authenticated/cashier': typeof AuthenticatedCashierRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/host': typeof AuthenticatedHostRoute
@@ -611,6 +620,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/approvals'
     | '/automations'
+    | '/bookings'
     | '/cashier'
     | '/dashboard'
     | '/host'
@@ -670,6 +680,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/approvals'
     | '/automations'
+    | '/bookings'
     | '/cashier'
     | '/dashboard'
     | '/host'
@@ -730,6 +741,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/approvals'
     | '/_authenticated/automations'
+    | '/_authenticated/bookings'
     | '/_authenticated/cashier'
     | '/_authenticated/dashboard'
     | '/_authenticated/host'
@@ -876,6 +888,13 @@ declare module '@tanstack/react-router' {
       path: '/automations'
       fullPath: '/automations'
       preLoaderRoute: typeof AuthenticatedAutomationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/bookings': {
+      id: '/_authenticated/bookings'
+      path: '/bookings'
+      fullPath: '/bookings'
+      preLoaderRoute: typeof AuthenticatedBookingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/cashier': {
@@ -1356,6 +1375,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSuperAdminRouteRoute: typeof AuthenticatedSuperAdminRouteRouteWithChildren
   AuthenticatedApprovalsRoute: typeof AuthenticatedApprovalsRoute
   AuthenticatedAutomationsRoute: typeof AuthenticatedAutomationsRoute
+  AuthenticatedBookingsRoute: typeof AuthenticatedBookingsRoute
   AuthenticatedCashierRoute: typeof AuthenticatedCashierRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHostRoute: typeof AuthenticatedHostRoute
@@ -1375,6 +1395,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedSuperAdminRouteRouteWithChildren,
   AuthenticatedApprovalsRoute: AuthenticatedApprovalsRoute,
   AuthenticatedAutomationsRoute: AuthenticatedAutomationsRoute,
+  AuthenticatedBookingsRoute: AuthenticatedBookingsRoute,
   AuthenticatedCashierRoute: AuthenticatedCashierRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHostRoute: AuthenticatedHostRoute,
