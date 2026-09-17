@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { History, IdCard, KeyRound, MoreHorizontal, Plus, Search, ShieldCheck, Trash2, UserRound, UsersRound } from "lucide-react";
@@ -52,6 +52,7 @@ type StaffRow = {
   avatar_url?: string | null;
   avatar_preset?: string | null;
   permission_overrides?: PermissionOverrides | null;
+  last_seen_at?: string | null;
 };
 type Editing = StaffRow & { password: string; confirmPassword: string; permission_overrides: PermissionOverrides };
 type AuditRow = { id: string; action: string; entity: string | null; created_at: string; metadata: unknown };
@@ -89,12 +90,22 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
 
   const staff = useQuery<StaffRow[]>({
     queryKey: ["platform", "staff", restaurantId],
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     queryFn: async () => {
       const { data, error } = await (supabase.from("staff") as any).select("*").eq("restaurant_id", restaurantId).order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as StaffRow[];
     },
   });
+  useEffect(() => {
+    const channel = supabase.channel(`team-presence:${restaurantId}`).on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "staff", filter: `restaurant_id=eq.${restaurantId}` },
+      () => void qc.invalidateQueries({ queryKey: ["platform", "staff", restaurantId] }),
+    ).subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [qc, restaurantId]);
   const audit = useQuery<AuditRow[]>({
     queryKey: ["platform", "staff-audit", restaurantId, editing?.auth_user_id],
     enabled: Boolean(editing && drawerTab === "log"),
@@ -187,14 +198,10 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     setBusy(true);
     try {
       if (ownRestaurantManager) {
-        const { error: authError } = await supabase.auth.updateUser({ data: { full_name: nextName, name: nextName } });
-        if (authError) throw authError;
-        const { error: staffError } = await (supabase.from("staff") as any)
-          .update({ name: nextName })
-          .eq("id", editing.id)
-          .eq("auth_user_id", currentUserId!)
-          .eq("restaurant_id", restaurantId);
+        const { error: staffError } = await (supabase as any).rpc("update_own_display_name", { _staff_id: editing.id, _name: nextName });
         if (staffError) throw staffError;
+        const { error: metadataError } = await supabase.auth.updateUser({ data: { full_name: nextName, name: nextName } });
+        if (metadataError) console.warn("Display-name metadata sync skipped:", metadataError.message);
         await Promise.all([
           refresh(),
           qc.invalidateQueries({ queryKey: ["auth", "session"] }),
@@ -269,7 +276,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
         <div className="hidden overflow-x-auto md:block"><table className="qs-table min-w-[760px]"><thead><tr><th>#</th><th>{ar ? "الموظف" : "Staff Member"}</th><th>{ar ? "البريد" : "Email"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "آخر نشاط" : "Last Active"}</th><th>{ar ? "إجراءات" : "Actions"}</th></tr></thead><tbody>{rows.map((member, index) => {
           const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
           const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
-          return <tr key={member.id}><td className="text-muted-foreground">#{String(index + 1).padStart(3, "0")}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex items-center gap-3 text-start"><span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="font-bold">{member.name}</span></button></td><td className="text-muted-foreground">{member.email ?? "—"}</td><td><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span></td><td><span className={cn("qs-status", member.is_active ? "bg-emerald-500/12 text-emerald-600" : "bg-slate-500/12 text-slate-500")}><i className={cn("size-1.5 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} />{member.is_active ? t("common.active") : t("common.inactive")}</span></td><td className="text-muted-foreground">{member.is_active ? (ar ? "الآن" : "Now") : "—"}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="grid size-9 place-items-center rounded-lg bg-muted/40 hover:bg-muted" aria-label={ar ? "تعديل" : "Edit"}><MoreHorizontal className="size-4" /></button></td></tr>;
+          return <tr key={member.id}><td className="text-muted-foreground">#{String(index + 1).padStart(3, "0")}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex items-center gap-3 text-start"><span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="font-bold">{member.name}</span></button></td><td className="text-muted-foreground">{member.email ?? "—"}</td><td><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span></td><td><span className={cn("qs-status", member.is_active ? "bg-emerald-500/12 text-emerald-600" : "bg-slate-500/12 text-slate-500")}><i className={cn("size-1.5 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} />{member.is_active ? t("common.active") : t("common.inactive")}</span></td><td className="text-muted-foreground">{formatLastSeen(member.last_seen_at, ar)}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="grid size-9 place-items-center rounded-lg bg-muted/40 hover:bg-muted" aria-label={ar ? "تعديل" : "Edit"}><MoreHorizontal className="size-4" /></button></td></tr>;
         })}</tbody></table></div>
         <div className="space-y-2 p-3 md:hidden">{rows.map((member) => {
           const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
@@ -324,3 +331,16 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div className="space-y-1.5"><Label className="text-xs font-bold">{label}</Label>{children}</div>; }
 function Read({ label, value }: { label: string; value: string }) { return <div className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-border px-4 py-3"><span className="text-xs font-semibold text-muted-foreground">{label}</span><strong className="truncate text-sm">{value}</strong></div>; }
 function Stat({ icon, value, label, tone, detail }: { icon: React.ReactNode; value: number; label: string; tone: "blue" | "green" | "cyan"; detail: string }) { const bg = tone === "green" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30" : tone === "cyan" ? "bg-cyan-50 text-cyan-600 dark:bg-cyan-950/30" : "bg-blue-50 text-blue-600 dark:bg-blue-950/30"; return <div className="qs-stat flex items-center gap-4"><span className={cn("grid size-11 place-items-center rounded-full", bg)}>{icon}</span><div><p className="font-display text-2xl font-bold">{value}</p><p className="text-xs font-semibold text-muted-foreground">{label}</p><p className="mt-1 text-[10px] text-muted-foreground">{detail}</p></div></div>; }
+
+function formatLastSeen(value: string | null | undefined, ar: boolean) {
+  if (!value) return ar ? "لم يظهر بعد" : "No activity yet";
+  const date = new Date(value);
+  const diff = Date.now() - date.getTime();
+  if (!Number.isFinite(diff)) return "—";
+  if (diff <= 90_000) return ar ? "متصل الآن" : "Online now";
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 60) return ar ? `قبل ${minutes} د` : `${minutes} min ago`;
+  const now = new Date();
+  if (date.toDateString() === now.toDateString()) return ar ? `اليوم ${date.toLocaleTimeString("ar-JO", { hour: "2-digit", minute: "2-digit" })}` : `Today ${date.toLocaleTimeString("en-JO", { hour: "2-digit", minute: "2-digit" })}`;
+  return date.toLocaleString(ar ? "ar-JO" : "en-JO", { dateStyle: "medium", timeStyle: "short" });
+}

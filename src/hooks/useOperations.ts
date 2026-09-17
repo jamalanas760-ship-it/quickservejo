@@ -233,6 +233,16 @@ export async function closeShift(id: string, staffId: string) {
   await expectNoError(result);
 }
 
+export async function deleteShift(id: string) {
+  const result = await fromOperations("shifts").delete().eq("id", id) as unknown as { error: Error | null };
+  await expectNoError(result);
+}
+
+export async function updateOwnShiftAssignmentStatus(id: string, status: "present" | "released") {
+  const { error } = await (supabase as any).rpc("update_own_shift_assignment_status", { _assignment_id: id, _status: status });
+  if (error) throw error;
+}
+
 export async function assignStaffToShift(input: Pick<ShiftAssignment, "restaurant_id" | "shift_id" | "staff_id" | "role_snapshot" | "starts_at" | "ends_at">) {
   const result = await fromOperations("shift_assignments").insert({ ...input, status: "scheduled" }) as unknown as { error: Error | null };
   await expectNoError(result);

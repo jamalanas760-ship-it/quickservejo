@@ -60,6 +60,11 @@ export async function uploadProfileImage(userId: string, file: File): Promise<st
   return uploadRestaurantMedia(`profiles/${userId}`, "avatar", file, 5 * 1024 * 1024);
 }
 
+export async function uploadProfileCover(userId: string, file: File): Promise<string> {
+  if (!userId) throw new Error("Authentication required");
+  return uploadRestaurantMedia(`profiles/${userId}`, "cover", file, 5 * 1024 * 1024);
+}
+
 function publicPdfUrl(path: string): string {
   return supabase.storage.from(PDF_BUCKET).getPublicUrl(path).data.publicUrl;
 }

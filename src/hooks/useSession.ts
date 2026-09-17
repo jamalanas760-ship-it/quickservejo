@@ -13,6 +13,11 @@ export type StaffMembership = {
   avatar_url: string | null;
   avatar_preset: string | null;
   permission_overrides: PermissionOverrides | null;
+  last_seen_at: string | null;
+  cover_image_url: string | null;
+  cover_position_x: number;
+  cover_position_y: number;
+  cover_zoom: number;
   restaurant: {
     id: string;
     name: string;
@@ -59,7 +64,7 @@ export function useMemberships() {
       if (!uid) return [];
       const { data, error } = await (supabase.from("staff") as any)
         .select(
-          "id, restaurant_id, role, name, is_active, avatar_url, avatar_preset, permission_overrides, restaurant:restaurants(id, name, slug, logo_url, cover_image_url, primary_color, secondary_color, accent_color, background_color, text_color, menu_theme, is_active, subscription_plan)",
+          "id, restaurant_id, role, name, is_active, avatar_url, avatar_preset, permission_overrides, last_seen_at, cover_image_url, cover_position_x, cover_position_y, cover_zoom, restaurant:restaurants(id, name, slug, logo_url, cover_image_url, primary_color, secondary_color, accent_color, background_color, text_color, menu_theme, is_active, subscription_plan)",
         )
         .eq("auth_user_id", uid)
         .eq("is_active", true);

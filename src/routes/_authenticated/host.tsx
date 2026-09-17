@@ -36,7 +36,7 @@ function useHostFloor(restaurantId: string | null) {
     refetchIntervalInBackground: false,
     queryFn: async () => {
       const [tablesRes, ordersRes, callsRes] = await Promise.all([
-        supabase.from("restaurant_tables").select("id,table_number,table_name,zone").eq("restaurant_id", restaurantId!).eq("is_active", true).order("table_number", { ascending: true }),
+        (supabase.from("restaurant_tables") as any).select("id,table_number,table_name,zone").eq("restaurant_id", restaurantId!).eq("is_active", true).order("table_number", { ascending: true }),
         supabase.from("orders").select("id,table_id,status").eq("restaurant_id", restaurantId!).in("status", OPEN_STATUSES),
         supabase.from("waiter_calls").select("id,table_id,status").eq("restaurant_id", restaurantId!).in("status", ["pending", "acknowledged"]),
       ]);
@@ -47,7 +47,7 @@ function useHostFloor(restaurantId: string | null) {
       const calls = callsRes.error ? [] : (callsRes.data ?? []);
       const busyIds = new Set((ordersRes.data ?? []).map((row) => row.table_id).filter(Boolean));
       const callIds = new Set(calls.filter((row) => row.status === "pending").map((row) => row.table_id).filter(Boolean));
-      return (tablesRes.data ?? []).map((table) => ({
+      return (tablesRes.data ?? []).map((table: { id: string; table_number: string; table_name: string | null; zone: string | null }) => ({
         id: table.id,
         table_number: table.table_number,
         table_name: table.table_name,

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { BottomNav } from "@/components/nav/BottomNav";
 import { TenantBrandShell } from "@/components/tenant/TenantBrandShell";
 import { useAccess } from "@/hooks/useSession";
+import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
 import { getResilientAuthenticatedUser, isAuthNetworkError } from "@/lib/auth-resilience";
 import { frontlineHome, isFrontlineOnly } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ function AuthenticatedShell() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const access = useAccess();
+  usePresenceHeartbeat(!access.isPending && !access.isError);
   const { roles, isPending, isError } = access;
   const accessResolved = !isPending && !isError;
   const frontline = accessResolved && isFrontlineOnly(roles);
@@ -50,7 +52,8 @@ function AuthenticatedShell() {
   const roleRouteBlocked = frontline && (
     (pathname.startsWith("/manager") && !isManager) ||
     (pathname.startsWith("/kitchen") && !roles.some((role) => role === "kitchen" || role === "manager")) ||
-    (pathname.startsWith("/waiter") && !roles.some((role) => role === "waiter" || role === "host")) ||
+    (pathname.startsWith("/waiter") && !roles.includes("waiter")) ||
+    (pathname.startsWith("/host") && !roles.includes("host")) ||
     (pathname.startsWith("/cashier") && !roles.includes("cashier"))
   );
   const blocked = frontlineBlocked || managerWrongHome || roleRouteBlocked;

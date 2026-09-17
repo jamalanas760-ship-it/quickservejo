@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarClock, CheckCircle2, Clock3, Handshake, PlayCircle, Plus, StopCircle, UserPlus, UsersRound } from "lucide-react";
+import { CalendarClock, CheckCircle2, Clock3, Handshake, PlayCircle, Plus, StopCircle, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/nav/AppHeader";
@@ -13,12 +13,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  acknowledgeShiftHandover,
   assignStaffToShift,
   closeShift,
   createShift,
+  deleteShift,
   createShiftHandover,
   openShift,
   removeShiftAssignment,
+  updateOwnShiftAssignmentStatus,
   updateShiftAssignment,
   useOpenWorkCount,
   useShiftAssignments,
@@ -27,6 +30,7 @@ import {
   type Shift,
   type ShiftAssignment,
   type ShiftAssignmentStatus,
+  type ShiftHandover,
 } from "@/hooks/useOperations";
 import { useAccess } from "@/hooks/useSession";
 import { useWorkspaceMembers, useWorkspaceScope } from "@/hooks/useWorkspace";
@@ -59,6 +63,7 @@ function ShiftsPage() {
   const members = useWorkspaceMembers(canManage ? rid : null);
   const [createOpen, setCreateOpen] = useState(false);
   const [closingShift, setClosingShift] = useState<Shift | null>(null);
+  const [deletingShift, setDeletingShift] = useState<Shift | null>(null);
 
   if (scope.isPending || access.isPending) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><Skeleton className="h-[620px] rounded-3xl" /></main></div>;
   if (!rid || !membership || !canView) return <Denied ar={ar} />;
@@ -91,18 +96,19 @@ function ShiftsPage() {
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,.8fr)]">
         <div className="qs-card overflow-hidden">
           <div className="border-b border-border p-5"><h2 className="qs-section-title">{ar ? "جدول الورديات" : "Shift schedule"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "الورديات التي تسمح سياسات الوصول بعرضها لهذا الحساب." : "Only shifts allowed by this account's role and RLS are shown."}</p></div>
-          {shifts.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : shifts.isError ? <p className="p-5 text-sm text-destructive">{humanError(shifts.error, lang)}</p> : !rows.length ? <EmptyShifts ar={ar} /> : <div className="divide-y divide-border">{rows.slice(0, 20).map((shift) => <ShiftRow key={shift.id} shift={shift} assignments={(assignments.data ?? []).filter((row) => row.shift_id === shift.id)} canManage={canManage} currentStaffId={membership.id} ar={ar} lang={lang} onClose={() => setClosingShift(shift)} />)}</div>}
+          {shifts.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : shifts.isError ? <p className="p-5 text-sm text-destructive">{humanError(shifts.error, lang)}</p> : !rows.length ? <EmptyShifts ar={ar} /> : <div className="divide-y divide-border">{rows.slice(0, 20).map((shift) => <ShiftRow key={shift.id} shift={shift} assignments={(assignments.data ?? []).filter((row) => row.shift_id === shift.id)} canManage={canManage} currentStaffId={membership.id} ar={ar} lang={lang} onClose={() => setClosingShift(shift)} onDelete={() => setDeletingShift(shift)} />)}</div>}
         </div>
 
         <div className="qs-card overflow-hidden self-start">
           <div className="border-b border-border p-5"><h2 className="qs-section-title">{ar ? "آخر التسليمات" : "Recent handovers"}</h2></div>
-          {handovers.isPending ? <div className="p-5"><Skeleton className="h-48 rounded-2xl" /></div> : !(handovers.data ?? []).length ? <div className="p-8 text-center text-xs text-muted-foreground">{ar ? "لا توجد تسليمات بعد." : "No handovers yet."}</div> : <div className="divide-y divide-border">{(handovers.data ?? []).slice(0, 8).map((handover) => <div key={handover.id} className="p-4"><div className="flex items-center gap-2"><Handshake className="size-4 text-[#ff5a0a]" /><strong className="text-sm">{handover.summary}</strong></div>{handover.unresolved_items ? <p className="mt-2 text-xs leading-5 text-muted-foreground">{handover.unresolved_items}</p> : null}<div className="mt-2 flex justify-between gap-2 text-[10px] text-muted-foreground"><span>{handover.target_role ? ROLE_LABELS[handover.target_role]?.[lang] ?? handover.target_role : (ar ? "موظف محدد" : "Specific teammate")}</span><span>{handover.acknowledged_at ? (ar ? "تم الاستلام" : "Acknowledged") : (ar ? "بانتظار الاستلام" : "Pending")}</span></div></div>)}</div>}
+          {handovers.isPending ? <div className="p-5"><Skeleton className="h-48 rounded-2xl" /></div> : !(handovers.data ?? []).length ? <div className="p-8 text-center text-xs text-muted-foreground">{ar ? "لا توجد تسليمات بعد." : "No handovers yet."}</div> : <div className="divide-y divide-border">{(handovers.data ?? []).slice(0, 8).map((handover) => <HandoverItem key={handover.id} handover={handover} currentStaffId={membership.id} restaurantId={rid} ar={ar} lang={lang} />)}</div>}
         </div>
       </section>
     </main>
 
     {canManage ? <CreateShiftDialog open={createOpen} onOpenChange={setCreateOpen} restaurantId={rid} ar={ar} lang={lang} /> : null}
     {canManage && closingShift ? <CloseShiftDialog shift={closingShift} openWorkCount={openWork.data ?? 0} restaurantId={rid} currentStaffId={membership.id} onClose={() => setClosingShift(null)} ar={ar} lang={lang} /> : null}
+    {canManage && deletingShift ? <DeleteShiftDialog shift={deletingShift} restaurantId={rid} onClose={() => setDeletingShift(null)} ar={ar} lang={lang} /> : null}
   </div>;
 }
 
@@ -115,22 +121,43 @@ function CurrentShift({ shift, assignments, members, canManage, currentStaffId, 
 
   return <section className="qs-card overflow-hidden border-orange-200 bg-gradient-to-br from-orange-50/70 to-card dark:border-orange-900/60 dark:from-orange-950/10">
     <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center sm:p-6"><div><div className="flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.08em] text-emerald-700"><span className="size-1.5 rounded-full bg-emerald-500" />{ar ? "مفتوحة الآن" : "Open now"}</span><span className="text-xs text-muted-foreground">{shift.shift_date}</span></div><h2 className="mt-3 font-display text-2xl font-bold tracking-[-.03em]">{shift.name}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? `${assignments.length} أعضاء في هذه الوردية` : `${assignments.length} team members on this shift`}</p></div>{canManage ? <Button variant="outline" className="gap-2" onClick={onClose}><StopCircle className="size-4" />{ar ? "إغلاق الوردية" : "Close shift"}</Button> : null}</div>
-    <div className="border-t border-border/70 p-5"><div className="flex flex-wrap gap-2">{assignments.map((assignment) => { const member = members.find((row) => row.id === assignment.staff_id); return <AssignmentChip key={assignment.id} assignment={assignment} name={member?.name ?? (assignment.staff_id === currentStaffId ? (ar ? "أنت" : "You") : (ar ? "عضو فريق" : "Team member"))} canManage={canManage} restaurantId={shift.restaurant_id} ar={ar} lang={lang} />; })}{!assignments.length ? <span className="text-xs text-muted-foreground">{ar ? "لم تتم إضافة فريق بعد." : "No team members assigned yet."}</span> : null}</div>{canManage && available.length ? <div className="mt-4 flex max-w-xl flex-col gap-2 sm:flex-row"><Select value={memberId} onValueChange={setMemberId}><SelectTrigger className="flex-1"><SelectValue placeholder={ar ? "اختر موظفاً" : "Choose a team member"} /></SelectTrigger><SelectContent>{available.map((member) => <SelectItem key={member.id} value={member.id}>{member.name} · {ROLE_LABELS[member.role]?.[lang] ?? member.role}</SelectItem>)}</SelectContent></Select><Button disabled={!memberId || assign.isPending} onClick={() => assign.mutate()} className="gap-2"><UserPlus className="size-4" />{ar ? "إضافة" : "Assign"}</Button></div> : null}</div>
+    <div className="border-t border-border/70 p-5"><div className="flex flex-wrap gap-2">{assignments.map((assignment) => { const member = members.find((row) => row.id === assignment.staff_id); return <AssignmentChip key={assignment.id} assignment={assignment} name={member?.name ?? (assignment.staff_id === currentStaffId ? (ar ? "أنت" : "You") : (ar ? "عضو فريق" : "Team member"))} canManage={canManage} isSelf={assignment.staff_id === currentStaffId} restaurantId={shift.restaurant_id} ar={ar} lang={lang} />; })}{!assignments.length ? <span className="text-xs text-muted-foreground">{ar ? "لم تتم إضافة فريق بعد." : "No team members assigned yet."}</span> : null}</div>{canManage && available.length ? <div className="mt-4 flex max-w-xl flex-col gap-2 sm:flex-row"><Select value={memberId} onValueChange={setMemberId}><SelectTrigger className="flex-1"><SelectValue placeholder={ar ? "اختر موظفاً" : "Choose a team member"} /></SelectTrigger><SelectContent>{available.map((member) => <SelectItem key={member.id} value={member.id}>{member.name} · {ROLE_LABELS[member.role]?.[lang] ?? member.role}</SelectItem>)}</SelectContent></Select><Button disabled={!memberId || assign.isPending} onClick={() => assign.mutate()} className="gap-2"><UserPlus className="size-4" />{ar ? "إضافة" : "Assign"}</Button></div> : null}</div>
   </section>;
 }
 
-function ShiftRow({ shift, assignments, canManage, currentStaffId, ar, lang, onClose }: { shift: Shift; assignments: ShiftAssignment[]; canManage: boolean; currentStaffId: string; ar: boolean; lang: "en" | "ar"; onClose: () => void }) {
+function ShiftRow({ shift, assignments, canManage, currentStaffId, ar, lang, onClose, onDelete }: { shift: Shift; assignments: ShiftAssignment[]; canManage: boolean; currentStaffId: string; ar: boolean; lang: "en" | "ar"; onClose: () => void; onDelete: () => void }) {
   const qc = useQueryClient();
   const open = useMutation({ mutationFn: () => openShift(shift.id, currentStaffId), onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["operations", "shifts", shift.restaurant_id] }); await qc.invalidateQueries({ queryKey: ["operations", "automated-alerts", shift.restaurant_id] }); toast.success(ar ? "تم فتح الوردية" : "Shift opened"); }, onError: (error) => toast.error(humanError(error, lang)) });
-  return <article className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{shift.name}</h3><Status status={shift.status} ar={ar} /></div><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground"><span>{shift.shift_date}</span><span>{formatWindow(shift, ar)}</span><span className="inline-flex items-center gap-1"><UsersRound className="size-3" />{assignments.length}</span></div></div>{canManage ? <div className="flex gap-2">{shift.status === "planned" ? <Button size="sm" disabled={open.isPending} onClick={() => open.mutate()} className="gap-2"><PlayCircle className="size-4" />{ar ? "فتح" : "Open"}</Button> : null}{shift.status === "open" ? <Button size="sm" variant="outline" onClick={onClose}>{ar ? "إغلاق" : "Close"}</Button> : null}</div> : null}</article>;
+  const self = assignments.find((row) => row.staff_id === currentStaffId) ?? null;
+  return <article className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{shift.name}</h3><Status status={shift.status} ar={ar} />{self ? <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-bold capitalize text-muted-foreground">{self.status}</span> : null}</div><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground"><span>{shift.shift_date}</span><span>{formatWindow(shift, ar)}</span><span className="inline-flex items-center gap-1"><UsersRound className="size-3" />{assignments.length}</span></div></div><div className="flex flex-wrap items-center gap-2">{self && !canManage && shift.status === "open" ? <SelfShiftControls assignment={self} restaurantId={shift.restaurant_id} ar={ar} lang={lang} /> : null}{canManage ? <>{shift.status === "planned" ? <Button size="sm" disabled={open.isPending} onClick={() => open.mutate()} className="gap-2"><PlayCircle className="size-4" />{ar ? "فتح" : "Open"}</Button> : null}{shift.status === "open" ? <Button size="sm" variant="outline" onClick={onClose}>{ar ? "إغلاق" : "Close"}</Button> : null}{shift.status !== "open" ? <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={onDelete}><Trash2 className="size-4" />{ar ? "حذف" : "Delete"}</Button> : <span className="text-[10px] text-muted-foreground">{ar ? "أغلق الوردية قبل حذفها" : "Close before deleting"}</span>}</> : null}</div></article>;
 }
 
-function AssignmentChip({ assignment, name, canManage, restaurantId, ar, lang }: { assignment: ShiftAssignment; name: string; canManage: boolean; restaurantId: string; ar: boolean; lang: "en" | "ar" }) {
+function AssignmentChip({ assignment, name, canManage, isSelf, restaurantId, ar, lang }: { assignment: ShiftAssignment; name: string; canManage: boolean; isSelf: boolean; restaurantId: string; ar: boolean; lang: "en" | "ar" }) {
   const qc = useQueryClient();
   const update = useMutation({ mutationFn: (status: ShiftAssignmentStatus) => updateShiftAssignment(assignment.id, { status }), onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }); }, onError: (error) => toast.error(humanError(error, lang)) });
   const remove = useMutation({ mutationFn: () => removeShiftAssignment(assignment.id), onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }); }, onError: (error) => toast.error(humanError(error, lang)) });
-  if (!canManage) return <span className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold">{name}</span>;
+  if (!canManage) return <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card p-1 ps-3"><span className="text-xs font-semibold">{name}</span><span className="rounded-full bg-muted px-2 py-1 text-[10px] font-bold capitalize text-muted-foreground">{assignment.status}</span>{isSelf ? <SelfShiftControls assignment={assignment} restaurantId={restaurantId} ar={ar} lang={lang} compact /> : null}</div>;
   return <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1 ps-3"><span className="text-xs font-semibold">{name}</span><Select value={assignment.status} onValueChange={(value) => update.mutate(value as ShiftAssignmentStatus)}><SelectTrigger className="h-7 w-[112px] border-0 bg-transparent px-2 text-[10px] shadow-none"><SelectValue /></SelectTrigger><SelectContent>{(["scheduled","present","late","absent","released"] as ShiftAssignmentStatus[]).map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent></Select><button type="button" onClick={() => remove.mutate()} className="rounded-full px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive" aria-label={ar ? "إزالة" : "Remove"}>×</button></div>;
+}
+
+function SelfShiftControls({ assignment, restaurantId, ar, lang, compact = false }: { assignment: ShiftAssignment; restaurantId: string; ar: boolean; lang: "en" | "ar"; compact?: boolean }) {
+  const qc = useQueryClient();
+  const update = useMutation({ mutationFn: (status: "present" | "released") => updateOwnShiftAssignmentStatus(assignment.id, status), onSuccess: async (_data, status) => { await qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }); toast.success(status === "present" ? (ar ? "تم بدء الوردية" : "Shift started") : (ar ? "تم إنهاء الوردية" : "Shift ended")); }, onError: (error) => toast.error(humanError(error, lang)) });
+  if (assignment.status === "released") return <span className="px-2 text-[10px] font-bold text-muted-foreground">{ar ? "تم الانتهاء" : "Ended"}</span>;
+  const present = assignment.status === "present";
+  return <Button size="sm" variant={present ? "outline" : "default"} className={compact ? "h-7 rounded-full px-2 text-[10px]" : "h-9"} disabled={update.isPending} onClick={() => update.mutate(present ? "released" : "present")}>{present ? (ar ? "إنهاء ورديتي" : "End my shift") : (ar ? "بدء ورديتي" : "Start my shift")}</Button>;
+}
+
+function HandoverItem({ handover, currentStaffId, restaurantId, ar, lang }: { handover: ShiftHandover; currentStaffId: string; restaurantId: string; ar: boolean; lang: "en" | "ar" }) {
+  const qc = useQueryClient();
+  const acknowledge = useMutation({ mutationFn: () => acknowledgeShiftHandover(handover.id, currentStaffId), onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["operations", "shift-handovers", restaurantId] }); toast.success(ar ? "تم استلام التسليم" : "Handover acknowledged"); }, onError: (error) => toast.error(humanError(error, lang)) });
+  return <div className="p-4"><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2"><Handshake className="size-4 text-[#ff5a0a]" /><strong className="text-sm">{handover.summary}</strong></div>{handover.unresolved_items ? <p className="mt-2 text-xs leading-5 text-muted-foreground">{handover.unresolved_items}</p> : null}</div>{!handover.acknowledged_at ? <Button size="sm" variant="outline" disabled={acknowledge.isPending} onClick={() => acknowledge.mutate()}>{ar ? "استلام" : "Acknowledge"}</Button> : null}</div><div className="mt-2 flex justify-between gap-2 text-[10px] text-muted-foreground"><span>{handover.target_role ? ROLE_LABELS[handover.target_role]?.[lang] ?? handover.target_role : (ar ? "موظف محدد" : "Specific teammate")}</span><span>{handover.acknowledged_at ? (ar ? "تم الاستلام" : "Acknowledged") : (ar ? "بانتظار الاستلام" : "Pending")}</span></div></div>;
+}
+
+function DeleteShiftDialog({ shift, restaurantId, onClose, ar, lang }: { shift: Shift; restaurantId: string; onClose: () => void; ar: boolean; lang: "en" | "ar" }) {
+  const qc = useQueryClient();
+  const remove = useMutation({ mutationFn: () => deleteShift(shift.id), onSuccess: async () => { await Promise.all([qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }), qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }), qc.invalidateQueries({ queryKey: ["operations", "shift-handovers", restaurantId] })]); toast.success(ar ? "تم حذف الوردية" : "Shift deleted"); onClose(); }, onError: (error) => toast.error(humanError(error, lang)) });
+  return <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}><DialogContent className="sm:max-w-[460px]"><DialogHeader><DialogTitle>{ar ? "حذف الوردية؟" : "Delete shift?"}</DialogTitle><DialogDescription>{ar ? `سيتم حذف ${shift.name} وتعيينات الفريق المرتبطة بها. تبقى سجلات التسليم محفوظة بدون ربط بالوردية.` : `This removes ${shift.name} and its team assignments. Existing handover records are preserved but detached from the deleted shift.`}</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button><Button variant="destructive" disabled={remove.isPending} onClick={() => remove.mutate()}><Trash2 className="size-4" />{ar ? "حذف الوردية" : "Delete shift"}</Button></DialogFooter></DialogContent></Dialog>;
 }
 
 function CreateShiftDialog({ open, onOpenChange, restaurantId, ar, lang }: { open: boolean; onOpenChange: (open: boolean) => void; restaurantId: string; ar: boolean; lang: "en" | "ar" }) {
