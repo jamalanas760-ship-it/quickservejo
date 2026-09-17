@@ -5,6 +5,7 @@ import {
   BellRing,
   Boxes,
   BriefcaseBusiness,
+  CalendarClock,
   ChefHat,
   ClipboardList,
   Home,
@@ -15,6 +16,7 @@ import {
   UserRoundCog,
   Users,
   UtensilsCrossed,
+  Workflow,
 } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
@@ -61,6 +63,8 @@ export function BottomNav() {
   const managementItems: Item[] = restaurantId ? ([
     { to: homeTo, icon: role === "operations_manager" || role === "manager" ? UserRoundCog : Home, en: role === "operations_manager" ? "Operations" : role === "manager" ? "Shift" : "Home", ar: role === "operations_manager" ? "العمليات" : role === "manager" ? "الوردية" : "الرئيسية", exact: true },
     { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي", capability: "view_work" },
+    { to: "/shifts", icon: CalendarClock, en: "Shifts", ar: "الورديات", capability: "view_work" },
+    { to: "/automations", icon: Workflow, en: "Automation", ar: "الأتمتة", capability: "manage_work" },
     { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات", capability: "view_orders" },
     { to: `/manage/${restaurantId}`, icon: UtensilsCrossed, en: "Menu", ar: "القائمة", exact: true, capability: "manage_menu" },
     { to: `/manage/${restaurantId}/tables`, icon: Table2, en: "Tables", ar: "الطاولات", capability: "manage_tables" },
@@ -72,13 +76,14 @@ export function BottomNav() {
 
   const frontlineItem = role ? FRONTLINE_ITEMS[role] : undefined;
   const workItem: Item | null = can("view_work") ? { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي" } : null;
+  const shiftItem: Item | null = can("view_work") ? { to: "/shifts", icon: CalendarClock, en: "Shifts", ar: "الورديات" } : null;
   const erpItem: Item | null = restaurantId && can("view_erp") ? { to: `/manage/${restaurantId}/operations`, icon: Boxes, en: "ERP", ar: "ERP" } : null;
   const desktopItems: Item[] = managerial
     ? managementItems
     : erpSpecialist
-      ? [workItem, erpItem, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }].filter(Boolean) as Item[]
+      ? [workItem, shiftItem, erpItem, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }].filter(Boolean) as Item[]
       : frontlineItem
-        ? [frontlineItem, workItem, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }].filter(Boolean) as Item[]
+        ? [frontlineItem, workItem, shiftItem, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }].filter(Boolean) as Item[]
         : restaurantId
           ? managementItems
           : [
@@ -87,7 +92,7 @@ export function BottomNav() {
               { to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات" },
             ];
 
-  const mobilePriority = [homeTo, "/work", `/manage/${restaurantId}/orders`, `/manage/${restaurantId}/operations`, "/profile"];
+  const mobilePriority = [homeTo, "/work", "/shifts", `/manage/${restaurantId}/orders`, `/manage/${restaurantId}/operations`, "/profile"];
   const mobileItems = desktopItems.length > 5
     ? mobilePriority.flatMap((to) => desktopItems.find((item) => item.to === to) ?? []).slice(0, 5)
     : desktopItems;
