@@ -178,10 +178,36 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((event) => {
+    let syncTimer: number | null = null;
+    const scheduleAuthSync = (event: string) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
-      router.invalidate();
-      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+      if (syncTimer !== null) window.clearTimeout(syncTimer);
+      syncTimer = window.setTimeout(() => {
+        syncTimer = null;
+
+        // Supabase auth state callbacks run while the auth client holds its own
+        // synchronization lock. Starting router loaders or React Query refetches
+        // inside that callback can recursively call auth/session APIs and deadlock
+        // the client exactly as a user signs in. Always leave the callback first.
+        if (event === "SIGNED_OUT") {
+          queryClient.removeQueries({ queryKey: ["auth"] });
+          queryClient.removeQueries({ queryKey: ["staff"] });
+          void router.invalidate();
+          return;
+        }
+
+        void queryClient.invalidateQueries({ queryKey: ["auth"] });
+        void queryClient.invalidateQueries({ queryKey: ["staff"] });
+
+        // /auth performs the SIGNED_IN navigation itself. Avoid racing that
+        // transition with a second router.invalidate(). USER_UPDATED, however,
+        // needs the current route guards to re-evaluate after profile changes.
+        if (event === "USER_UPDATED") void router.invalidate();
+      }, 0);
+    };
+
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      scheduleAuthSync(event);
     });
     const onFocus = () => {
       if (document.visibilityState !== "visible") return;
@@ -190,6 +216,7 @@ function RootComponent() {
     document.addEventListener("visibilitychange", onFocus);
     window.addEventListener("focus", onFocus);
     return () => {
+      if (syncTimer !== null) window.clearTimeout(syncTimer);
       data.subscription.unsubscribe();
       document.removeEventListener("visibilitychange", onFocus);
       window.removeEventListener("focus", onFocus);
