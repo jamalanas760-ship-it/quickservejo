@@ -169,3 +169,22 @@ create policy work_task_activity_insert on public.work_task_activity for insert 
 
 grant select, insert, update, delete on public.work_tasks to authenticated;
 grant select, insert on public.work_task_activity to authenticated;
+
+-- ERP ownership is split by capability rather than one all-powerful back-office role.
+drop policy if exists tenant_admin on public.erp_inventory;
+create policy erp_inventory_select on public.erp_inventory for select using (app.has_capability(restaurant_id, 'manage_inventory') or app.has_capability(restaurant_id, 'manage_restaurant'));
+create policy erp_inventory_write on public.erp_inventory for all using (app.has_capability(restaurant_id, 'manage_inventory') or app.has_capability(restaurant_id, 'manage_restaurant')) with check (app.has_capability(restaurant_id, 'manage_inventory') or app.has_capability(restaurant_id, 'manage_restaurant'));
+
+drop policy if exists tenant_read on public.erp_stock_movements;
+drop policy if exists tenant_insert on public.erp_stock_movements;
+create policy erp_stock_movements_select on public.erp_stock_movements for select using (app.has_capability(restaurant_id, 'manage_inventory') or app.has_capability(restaurant_id, 'manage_restaurant'));
+create policy erp_stock_movements_insert on public.erp_stock_movements for insert with check ((app.has_capability(restaurant_id, 'manage_inventory') or app.has_capability(restaurant_id, 'manage_restaurant')) and created_by = (select auth.uid()));
+
+drop policy if exists tenant_admin on public.erp_suppliers;
+create policy erp_suppliers_select on public.erp_suppliers for select using (app.has_capability(restaurant_id, 'manage_procurement') or app.has_capability(restaurant_id, 'manage_inventory') or app.has_capability(restaurant_id, 'manage_restaurant'));
+create policy erp_suppliers_write on public.erp_suppliers for all using (app.has_capability(restaurant_id, 'manage_procurement') or app.has_capability(restaurant_id, 'manage_restaurant')) with check (app.has_capability(restaurant_id, 'manage_procurement') or app.has_capability(restaurant_id, 'manage_restaurant'));
+
+drop policy if exists tenant_read on public.erp_expenses;
+drop policy if exists tenant_insert on public.erp_expenses;
+create policy erp_expenses_select on public.erp_expenses for select using (app.has_capability(restaurant_id, 'manage_finance') or app.has_capability(restaurant_id, 'manage_restaurant'));
+create policy erp_expenses_insert on public.erp_expenses for insert with check ((app.has_capability(restaurant_id, 'manage_finance') or app.has_capability(restaurant_id, 'manage_restaurant')) and created_by = (select auth.uid()));
