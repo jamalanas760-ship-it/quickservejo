@@ -1,0 +1,61 @@
+name: Apply sign-in cleanup and role label update
+
+on:
+  push:
+    branches: [chatgpt/hide-staff-quick-access]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v6
+        with:
+          ref: chatgpt/hide-staff-quick-access
+          fetch-depth: 0
+
+      - name: Apply requested changes
+        run: python .github/scripts/hide_staff_rename_admin.py
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate routes and build
+        run: bun run build
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Production build
+        run: bun run build
+
+      - name: Verify requested behavior
+        run: |
+          ! grep -q 'Staff quick access' src/routes/auth.tsx
+          ! grep -q 'to="/staff"' src/routes/auth.tsx
+          grep -q 'restaurant_admin: { en: "Restaurant Manager"' src/lib/permissions.ts
+          grep -q 'admin: { en: "Management"' src/lib/permissions.ts
+
+      - name: Remove one-time helpers
+        run: rm -f .github/scripts/hide_staff_rename_admin.py .github/workflows/apply-hide-staff-role-label.yml
+
+      - name: Commit validated implementation
+        run: |
+          git config user.name "QuickServe Upgrade Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: simplify sign-in and professionalize management labels"
+          git push origin HEAD:chatgpt/hide-staff-quick-access
