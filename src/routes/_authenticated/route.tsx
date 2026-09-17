@@ -25,6 +25,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 const FRONTLINE_BLOCKED_PREFIXES = ["/dashboard", "/manage", "/super-admin", "/manager"];
+const ERP_SPECIALIST_ROLES = ["inventory", "procurement", "accountant"] as const;
 
 function AuthenticatedShell() {
   const navigate = useNavigate();
@@ -34,15 +35,22 @@ function AuthenticatedShell() {
   const accessResolved = !isPending && !isError;
   const frontline = accessResolved && isFrontlineOnly(roles);
   const isManager = roles.includes("manager");
+  const isErpSpecialist = roles.some((role) => ERP_SPECIALIST_ROLES.includes(role as (typeof ERP_SPECIALIST_ROLES)[number]));
+  const isScopedErpRoute = /^\/manage\/[^/]+\/operations(?:\/|$)/.test(pathname);
 
   // Managers are operational users with a dedicated /manager home and may enter
-  // capability-guarded /manage pages. Kitchen/waiter/cashier users remain isolated.
-  const frontlineBlocked = frontline && !isManager && FRONTLINE_BLOCKED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  // capability-guarded /manage pages. ERP specialists are frontline-scoped users,
+  // but must be able to enter only their restaurant's capability-guarded ERP route.
+  // Kitchen/waiter/cashier/host users remain isolated from management workspaces.
+  const frontlineBlocked = frontline
+    && !isManager
+    && !(isErpSpecialist && isScopedErpRoute)
+    && FRONTLINE_BLOCKED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
   const managerWrongHome = isManager && pathname === "/dashboard";
   const roleRouteBlocked = frontline && (
     (pathname.startsWith("/manager") && !isManager) ||
     (pathname.startsWith("/kitchen") && !roles.some((role) => role === "kitchen" || role === "manager")) ||
-    (pathname.startsWith("/waiter") && !roles.includes("waiter")) ||
+    (pathname.startsWith("/waiter") && !roles.some((role) => role === "waiter" || role === "host")) ||
     (pathname.startsWith("/cashier") && !roles.includes("cashier"))
   );
   const blocked = frontlineBlocked || managerWrongHome || roleRouteBlocked;
