@@ -1,0 +1,32 @@
+name: Validate role work ERP foundation
+
+on:
+  push:
+    branches: [chatgpt/master-role-work-erp-foundation]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: chatgpt/master-role-work-erp-foundation
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Generate routes and production build
+        run: bun run build
+      - name: Typecheck
+        run: bunx tsc --noEmit
+      - name: Lint
+        run: bun run lint
+      - name: Foundation assertions
+        run: |
+          grep -q 'create table if not exists public.work_tasks' supabase/migrations/20260917082500_role_work_erp_foundation.sql
+          grep -q 'operations_manager' src/lib/permissions.ts
+          grep -q 'My Work' src/routes/_authenticated/work.tsx
+          grep -q 'view_erp' 'src/routes/_authenticated/manage/$restaurantId/route.tsx'
