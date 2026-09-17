@@ -19,6 +19,7 @@ function requiredCapability(pathname: string, restaurantId: string): Capability 
   if (suffix.startsWith("/tables")) return "manage_tables";
   if (suffix.startsWith("/analytics")) return "view_analytics";
   if (suffix.startsWith("/staff")) return "manage_staff";
+  if (suffix.startsWith("/operations")) return "view_erp";
   return "manage_restaurant";
 }
 
