@@ -144,14 +144,9 @@ function Landing() {
                 <Link to="/dashboard">{t("nav.dashboard")}</Link>
               </Button>
             ) : (
-              <>
-                <Button asChild variant="outline" size="sm" className="h-10">
-                  <Link to="/staff">{lang === "ar" ? "الموظفين" : "Staff"}</Link>
-                </Button>
-                <Button asChild size="sm" className="h-10">
-                  <Link to="/auth">{lang === "ar" ? "الإدارة" : "Admin"}</Link>
-                </Button>
-              </>
+              <Button asChild size="sm" className="h-10 px-4">
+                <Link to="/auth">{lang === "ar" ? "تسجيل الدخول" : "Sign in"}</Link>
+              </Button>
             )}
           </div>
         </div>
@@ -178,14 +173,9 @@ function Landing() {
                 <Link to="/dashboard">{t("nav.dashboard")}</Link>
               </Button>
             ) : (
-              <>
-                <Button asChild size="lg">
-                  <Link to="/auth">{lang === "ar" ? "دخول الإدارة" : "Admin sign in"}</Link>
-                </Button>
-                <Button asChild variant="outline" size="lg">
-                  <Link to="/staff">{lang === "ar" ? "دخول الموظفين بالرمز" : "Staff sign in with PIN"}</Link>
-                </Button>
-              </>
+              <Button asChild size="lg" className="min-w-32">
+                <Link to="/auth">{lang === "ar" ? "تسجيل الدخول" : "Sign in"}</Link>
+              </Button>
             )}
           </div>
         </section>
@@ -254,9 +244,6 @@ function Landing() {
             </Link>
             <Link to="/contact" className="hover:text-foreground">
               {lang === "ar" ? "اتصل بنا" : "Contact"}
-            </Link>
-            <Link to="/staff" className="hover:text-foreground">
-              {lang === "ar" ? "دخول الموظفين" : "Staff sign in"}
             </Link>
           </nav>
         </div>
