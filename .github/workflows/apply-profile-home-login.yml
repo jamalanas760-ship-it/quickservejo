@@ -1,0 +1,63 @@
+name: Apply profile redesign and home login
+
+on:
+  push:
+    branches: [chatgpt/profile-redesign-home-login]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v6
+        with:
+          ref: chatgpt/profile-redesign-home-login
+          fetch-depth: 0
+
+      - name: Apply home-login routing update
+        run: python .github/scripts/profile_home_login_upgrade.py
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate routes and build
+        run: bun run build
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Production build
+        run: bun run build
+
+      - name: Verify requested behavior
+        run: |
+          grep -q 'const target="/dashboard";' src/routes/auth.tsx
+          ! grep -q 'roleDestination' src/routes/auth.tsx
+          ! grep -q 'safeSessionRedirect' src/routes/auth.tsx
+          grep -q 'Organization & appearance' src/routes/_authenticated/profile.tsx
+          grep -q 'Personal profile' src/routes/_authenticated/profile.tsx
+          grep -q 'Notifications & alerts' src/routes/_authenticated/profile.tsx
+
+      - name: Remove one-time helpers
+        run: rm -f .github/scripts/profile_home_login_upgrade.py .github/workflows/apply-profile-home-login.yml
+
+      - name: Commit validated implementation
+        run: |
+          git config user.name "QuickServe Upgrade Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: redesign profile and always open home after sign-in"
+          git push origin HEAD:chatgpt/profile-redesign-home-login
