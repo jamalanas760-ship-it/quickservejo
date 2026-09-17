@@ -5,6 +5,7 @@ import { Bell, Building2, CalendarDays, CheckCircle2, LogOut, Mail, ShieldCheck,
 
 import { AppHeader } from "@/components/nav/AppHeader";
 import { ProfileAvatarEditor } from "@/components/profile/ProfileAvatarEditor";
+import { RestaurantProfileSettings } from "@/components/profile/RestaurantProfileSettings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -47,6 +48,7 @@ function ProfilePage(){
 
       <section className="qs-card overflow-hidden"><div className="qs-panel-header"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-full bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><Bell className="size-5"/></span><div><h2 className="font-display text-lg font-bold">{ar?"التنبيهات والإشعارات":"Alerts & Notifications"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"تحكم بكيفية وصول التنبيهات. يتم الحفظ تلقائياً.":"Control how you stay informed. Changes are saved automatically."}</p></div></div></div><div className="p-4 sm:p-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-[.18em] text-muted-foreground">{ar?"الإشعارات":"Notifications"}</p><div className="divide-y divide-border">{rows.map(([key,en,arabic,hintEn,hintAr],index)=><div key={key} className={cn("flex min-h-[70px] items-center gap-4 py-3",index===4&&"mt-4 border-t-2 border-border pt-5")}><span className={cn("grid size-10 shrink-0 place-items-center rounded-full",index%4===0?"bg-orange-50 text-[#ff5a0a]":index%4===1?"bg-emerald-50 text-emerald-600":index%4===2?"bg-blue-50 text-blue-600":"bg-violet-50 text-violet-600")}><Bell className="size-4"/></span><span className="min-w-0 flex-1"><strong className="block text-sm">{ar?arabic:en}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar?hintAr:hintEn}</span></span><Switch checked={notif[key]} onCheckedChange={value=>toggle(key,value)} aria-label={ar?arabic:en}/></div>)}</div></div></section>
     </div>
+    {rid ? <RestaurantProfileSettings restaurantId={rid} /> : null}
   </main></div>;
 }
 function ReadOnly({icon,label,value,last,accent}:{icon:React.ReactNode;label:string;value:string;last?:boolean;accent?:boolean}){return <div className={cn("grid grid-cols-[34px_minmax(105px,.65fr)_minmax(0,1.35fr)] items-center gap-2 px-4 py-3.5",!last&&"border-b border-border")}><span className="grid size-8 place-items-center rounded-lg bg-muted/60 text-muted-foreground">{icon}</span><span className="text-xs font-semibold text-muted-foreground">{label}</span><span className={cn("truncate text-end text-sm font-semibold",accent&&"text-emerald-600")}>{value}</span></div>}

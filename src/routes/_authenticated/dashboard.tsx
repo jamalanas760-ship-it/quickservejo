@@ -33,6 +33,7 @@ import { humanError } from "@/lib/errors";
 import { formatDateTime, formatMoney, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { ROLE_LABELS } from "@/lib/permissions";
+import { readAppearance } from "@/lib/restaurant-appearance";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Home — QuickServe" }, { name: "description", content: "QuickServe restaurant workspace overview." }] }),
@@ -115,6 +116,7 @@ function DashboardPage() {
 
   const today = new Intl.DateTimeFormat(ar ? "ar-JO" : "en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }).format(new Date());
   const hero = restaurant.data?.cover_image_url || "/signin-restaurant.webp";
+  const appearance = readAppearance(restaurant.data?.menu_theme);
   const metrics = [
     { id: "sales", label: ar ? "مبيعات اليوم" : "Sales Today", value: formatMoney(r?.salesToday ?? 0, currency, lang), icon: ShoppingBag, tone: "orange" },
     { id: "orders", label: ar ? "إجمالي الطلبات" : "Total Orders", value: formatNumber(r?.ordersToday ?? 0, lang), icon: ClipboardList, tone: "green" },
@@ -168,7 +170,7 @@ function DashboardPage() {
 
   function renderSection(id: HomeSectionId) {
     if (id === "hero") return <section className="qs-hero-card h-full min-h-[220px] overflow-hidden">
-      <img src={hero} alt="" className="qs-hero-media" loading="eager" />
+      <img src={hero} alt="" className="qs-hero-media transition-transform duration-300" loading="eager" style={{ objectPosition: `${appearance.coverPositionX}% ${appearance.coverPositionY}%`, transform: `scale(${appearance.coverZoom / 100})`, transformOrigin: `${appearance.coverPositionX}% ${appearance.coverPositionY}%` }} />
       <div className="qs-hero-overlay" />
       <div className="relative z-10 flex h-full min-h-[220px] flex-col justify-between p-6 text-white sm:p-8">
         <div><p className="text-[10px] font-bold uppercase tracking-[.28em] text-white/70">QuickServe</p><h1 className="mt-3 max-w-2xl font-display text-[clamp(2rem,3vw,3.2rem)] font-bold leading-[1.03] tracking-[-.05em]">{ar ? `أهلاً بعودتك، ${displayName}` : `Welcome back, ${displayName}`} 👋</h1><p className="mt-2 text-sm text-white/78">{ar ? `هذا ما يحدث في ${restaurant.data?.name ?? scope.restaurantName ?? "مطعمك"} اليوم.` : `Here’s what’s happening at ${restaurant.data?.name ?? scope.restaurantName ?? "your restaurant"} today.`}</p></div>
@@ -178,7 +180,7 @@ function DashboardPage() {
 
     if (id === "metrics") return report.isPending || tableCount.isPending
       ? <div className="grid h-full gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((index) => <Skeleton key={index} className="min-h-[116px] rounded-2xl" />)}</div>
-      : <section className="grid h-full gap-3 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(({ id, label, value, icon: Icon, tone }) => <a href={`/dashboard/${id}`} key={id} className="qs-stat flex min-h-[116px] items-center gap-4 text-start transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/30"><span className={`grid size-11 shrink-0 place-items-center rounded-full ${tone === "orange" ? "bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30" : tone === "green" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30" : tone === "blue" ? "bg-blue-50 text-blue-600 dark:bg-blue-950/30" : "bg-slate-100 text-slate-600 dark:bg-slate-800"}`}><Icon className="size-5" /></span><div className="min-w-0"><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><p className="mt-1 truncate font-display text-[24px] font-bold tracking-[-.035em]">{value}</p><span className="mt-1 block text-[10px] font-bold text-[#ff5a0a]">{ar ? "عرض التفاصيل" : "View details"}</span></div></a>)}</section>;
+      : <section className="grid h-full gap-3 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(({ id, label, value, icon: Icon, tone }) => <Link to="/dashboard/$metric" params={{ metric: id }} preload="intent" key={id} className="qs-stat flex min-h-[116px] items-center gap-4 text-start transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/30"><span className={`grid size-11 shrink-0 place-items-center rounded-full ${tone === "orange" ? "bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30" : tone === "green" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30" : tone === "blue" ? "bg-blue-50 text-blue-600 dark:bg-blue-950/30" : "bg-slate-100 text-slate-600 dark:bg-slate-800"}`}><Icon className="size-5" /></span><div className="min-w-0"><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><p className="mt-1 truncate font-display text-[24px] font-bold tracking-[-.035em]">{value}</p><span className="mt-1 block text-[10px] font-bold text-[#ff5a0a]">{ar ? "عرض التفاصيل" : "View details"}</span></div></Link>)}</section>;
 
     if (id === "quick") return <section className="h-full"><div className="mb-3 flex items-end justify-between gap-3"><h2 className="qs-section-title text-lg">{ar ? "وصول سريع" : "Quick Access"}</h2><p className="hidden text-xs text-muted-foreground sm:block">{ar ? "كل ما تحتاجه في مكان واحد." : "Everything you need, right here."}</p></div><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">{quick.map(({ to, label, hint, icon: Icon }, index) => <Link key={to} to={to as never} className={`qs-quick-tile ${index === 0 ? "border-orange-300 bg-orange-50/50 dark:bg-orange-950/10" : ""}`}><span className="qs-quick-icon"><Icon className="size-5" /></span><span><strong className="block text-sm">{label}</strong><span className="mt-1 block text-[11px] text-muted-foreground">{hint}</span></span><ChevronRight className="ms-auto size-4 text-muted-foreground" /></Link>)}</div></section>;
 
