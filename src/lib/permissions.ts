@@ -8,7 +8,7 @@ export type SubscriptionPlan = "free" | "basic" | "professional" | "enterprise";
 /** Keep operational roles explicit in the UI instead of collapsing them into generic Staff. */
 export const ROLE_LABELS: Record<AppRole, { en: string; ar: string }> = {
   super_admin: { en: "Super Admin", ar: "المشرف العام" },
-  restaurant_admin: { en: "Admin", ar: "مدير المطعم" },
+  restaurant_admin: { en: "Restaurant Manager", ar: "مدير المطعم" },
   manager: { en: "Manager", ar: "مدير التشغيل" },
   kitchen: { en: "Kitchen", ar: "المطبخ" },
   waiter: { en: "Waiter", ar: "نادل" },
@@ -123,4 +123,4 @@ export function frontlineHome(roles: AppRole[]) {
 }
 export type AccessLevel = "admin" | "member";
 export function accessLevelFor(role: AppRole): AccessLevel { return MANAGEMENT_ROLES.includes(role) ? "admin" : "member"; }
-export const ACCESS_LEVEL_LABELS: Record<AccessLevel, { en: string; ar: string }> = { admin: { en: "Admin", ar: "مدير" }, member: { en: "Staff", ar: "موظف" } };
+export const ACCESS_LEVEL_LABELS: Record<AccessLevel, { en: string; ar: string }> = { admin: { en: "Management", ar: "الإدارة" }, member: { en: "Team Member", ar: "عضو الفريق" } };
