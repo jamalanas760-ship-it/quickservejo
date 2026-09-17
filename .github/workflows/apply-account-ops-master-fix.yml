@@ -21,6 +21,9 @@ jobs:
       - name: Apply targeted patch
         run: python .github/scripts/account_ops_master_fix.py
 
+      - name: Apply validation follow-up
+        run: python .github/scripts/account_ops_master_fix_followup.py
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -51,7 +54,7 @@ jobs:
           grep -q 'last_seen_at' supabase/migrations/20260917103500_account_presence_cover_shift_self_service.sql
 
       - name: Remove one-time helpers
-        run: rm -f .github/scripts/account_ops_master_fix.py .github/workflows/apply-account-ops-master-fix.yml
+        run: rm -f .github/scripts/account_ops_master_fix.py .github/scripts/account_ops_master_fix_followup.py .github/workflows/apply-account-ops-master-fix.yml
 
       - name: Commit validated implementation
         run: |
