@@ -25,6 +25,12 @@ host = replace_once(
     '(supabase.from("restaurant_tables") as any).select("id,table_number,table_name,zone")',
     "host table query",
 )
+host = replace_once(
+    host,
+    'return (tablesRes.data ?? []).map((table) => ({',
+    'return (tablesRes.data ?? []).map((table: { id: string; table_number: string; table_name: string | null; zone: string | null }) => ({',
+    "host table row type",
+)
 write(host_path, host)
 
 # The OrganizationSection replacement intentionally changes only that section. Restore the
