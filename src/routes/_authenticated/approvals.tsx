@@ -125,7 +125,7 @@ function ApprovalsPage() {
     </main>
 
     <Dialog open={Boolean(selected)} onOpenChange={(open) => { if (!open) setSelected(null); }}>
-      <DialogContent><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>{selected?.title}</DialogDescription></DialogHeader><Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={ar ? "ملاحظة القرار (اختيارية)" : "Decision note (optional)"} className="min-h-28" /><DialogFooter><Button variant="outline" onClick={() => setSelected(null)}>{ar ? "إلغاء" : "Cancel"}</Button><Button disabled={!selected || mutation.isPending} variant={action === "reject" ? "destructive" : "default"} onClick={() => selected && mutation.mutate({ id: selected.id, action, note })}>{action === "approve" ? <Check className="size-4" /> : action === "reject" ? <X className="size-4" /> : <MessageSquareReply className="size-4" />}{title}</Button></DialogFooter>
+      <DialogContent><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>{selected?.title}</DialogDescription></DialogHeader><Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={ar ? "ملاحظة القرار (اختيارية)" : "Decision note (optional)"} className="min-h-28" /><DialogFooter><Button variant="outline" onClick={() => setSelected(null)}>{ar ? "إلغاء" : "Cancel"}</Button><Button disabled={!selected || mutation.isPending} variant={action === "reject" ? "destructive" : "default"} onClick={() => selected && mutation.mutate({ id: selected.id, action, note })}>{action === "approve" ? <Check className="size-4" /> : action === "reject" ? <X className="size-4" /> : <MessageSquareReply className="size-4" />}{title}</Button></DialogFooter></DialogContent>
     </Dialog>
   </div>;
 }
