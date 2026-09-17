@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { useAccess } from "@/hooks/useSession";
+import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useRestaurantSeatUsage } from "@/hooks/useRestaurantSeatUsage";
 import { supabase } from "@/integrations/supabase/client";
 import { avatarPresetUrl } from "@/lib/avatar-presets";
@@ -61,6 +61,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const { t, lang } = useI18n();
   const ar = lang === "ar";
   const accessHook = useAccess();
+  const session = useSupabaseSession();
+  const currentUserId = session.data?.user.id ?? null;
   const isSuperAdmin = accessHook.isSuperAdmin;
   const assignableRoles = isSuperAdmin ? ROLES : ROLES.filter((role) => role !== "restaurant_admin");
   const qc = useQueryClient();
@@ -126,9 +128,12 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       qc.invalidateQueries({ queryKey: ["seats", restaurantId] }),
     ]);
   }
+  function isOwnRestaurantManager(member: StaffRow) {
+    return !isSuperAdmin && member.role === "restaurant_admin" && Boolean(currentUserId) && member.auth_user_id === currentUserId;
+  }
   function startEdit(member: StaffRow) {
     setEditing({ ...member, password: "", confirmPassword: "", permission_overrides: { ...(member.permission_overrides ?? {}) } });
-    setDrawerTab("permissions");
+    setDrawerTab(isOwnRestaurantManager(member) ? "profile" : "permissions");
   }
   function permissionEnabled(cap: Capability) {
     if (!editing) return false;
@@ -160,31 +165,47 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   async function saveEdit() {
     if (!editing) return;
     const password = editing.password.trim();
-    if (!editing.name.trim()) {
+    const nextName = editing.name.trim().replace(/\s+/g, " ");
+    if (!nextName) {
       toast.error(ar ? "الاسم مطلوب." : "Name is required.");
       return;
     }
-    if (password && password.length < 8) {
-      toast.error(ar ? "كلمة المرور 8 أحرف على الأقل." : "Password must be at least 8 characters.");
+    if (nextName.length > 80) {
+      toast.error(ar ? "الاسم طويل جداً. الحد الأقصى 80 حرفاً." : "The name is too long. Maximum 80 characters.");
       return;
     }
-    if (password !== editing.confirmPassword) {
-      toast.error(ar ? "كلمتا المرور غير متطابقتين." : "Passwords do not match.");
-      return;
+    const ownRestaurantManager = isOwnRestaurantManager(editing);
+    if (!ownRestaurantManager) {
+      if (password && password.length < 8) {
+        toast.error(ar ? "كلمة المرور 8 أحرف على الأقل." : "Password must be at least 8 characters.");
+        return;
+      }
+      if (password !== editing.confirmPassword) {
+        toast.error(ar ? "كلمتا المرور غير متطابقتين." : "Passwords do not match.");
+        return;
+      }
     }
     setBusy(true);
     try {
-      await update({
-        data: {
-          staffId: editing.id,
-          name: editing.name.trim(),
-          email: editing.email?.trim() || undefined,
-          role: editing.role,
-          isActive: editing.is_active,
-          permissionOverrides: editing.permission_overrides,
-          ...(password ? { password } : {}),
-        },
-      });
+      if (ownRestaurantManager) {
+        const { error: authError } = await supabase.auth.updateUser({ data: { full_name: nextName, name: nextName } });
+        if (authError) throw authError;
+        const { error: staffError } = await (supabase.from("staff") as any)
+          .update({ name: nextName })
+          .eq("id", editing.id)
+          .eq("auth_user_id", currentUserId!)
+          .eq("restaurant_id", restaurantId);
+        if (staffError) throw staffError;
+        await Promise.all([
+          refresh(),
+          qc.invalidateQueries({ queryKey: ["auth", "session"] }),
+          qc.invalidateQueries({ queryKey: ["staff", "memberships"] }),
+        ]);
+        setEditing(null);
+        toast.success(ar ? "تم تحديث اسم مدير المطعم" : "Restaurant Manager name updated");
+        return;
+      }
+      await update({ data: { staffId: editing.id, name: nextName, email: editing.email?.trim() || undefined, role: editing.role, isActive: editing.is_active, permissionOverrides: editing.permission_overrides, ...(password ? { password } : {}) } });
       await refresh();
       setEditing(null);
       toast.success(ar ? "تم حفظ التغييرات" : "Changes saved");
@@ -194,6 +215,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       setBusy(false);
     }
   }
+
   async function del() {
     if (!pendingDelete) return;
     setBusy(true);
@@ -246,12 +268,12 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       </div>
       {staff.isPending ? <Skeleton className="m-4 h-[420px] rounded-xl" /> : <>
         <div className="hidden overflow-x-auto md:block"><table className="qs-table min-w-[760px]"><thead><tr><th>#</th><th>{ar ? "الموظف" : "Staff Member"}</th><th>{ar ? "البريد" : "Email"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "آخر نشاط" : "Last Active"}</th><th>{ar ? "إجراءات" : "Actions"}</th></tr></thead><tbody>{rows.map((member, index) => {
-          const locked = member.role === "restaurant_admin" && !isSuperAdmin;
+          const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
           const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
           return <tr key={member.id}><td className="text-muted-foreground">#{String(index + 1).padStart(3, "0")}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex items-center gap-3 text-start"><span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="font-bold">{member.name}</span></button></td><td className="text-muted-foreground">{member.email ?? "—"}</td><td><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span></td><td><span className={cn("qs-status", member.is_active ? "bg-emerald-500/12 text-emerald-600" : "bg-slate-500/12 text-slate-500")}><i className={cn("size-1.5 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} />{member.is_active ? t("common.active") : t("common.inactive")}</span></td><td className="text-muted-foreground">{member.is_active ? (ar ? "الآن" : "Now") : "—"}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="grid size-9 place-items-center rounded-lg bg-muted/40 hover:bg-muted" aria-label={ar ? "تعديل" : "Edit"}><MoreHorizontal className="size-4" /></button></td></tr>;
         })}</tbody></table></div>
         <div className="space-y-2 p-3 md:hidden">{rows.map((member) => {
-          const locked = member.role === "restaurant_admin" && !isSuperAdmin;
+          const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
           const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
           return <button key={member.id} type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-start"><span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{member.name}</strong><span className="mt-1 flex items-center gap-2"><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span><span className={cn("size-2 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} /></span></span><MoreHorizontal className="size-4 text-muted-foreground" /></button>;
         })}</div>
@@ -261,6 +283,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     <Dialog open={Boolean(editing)} onOpenChange={(open) => { if (!open && !busy) setEditing(null); }}>
       <DialogContent className="flex h-[min(880px,calc(100dvh-1.5rem))] w-[calc(100vw-1.5rem)] max-w-[1100px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1100px]">
         {editing ? <>
+          {(() => { const ownRestaurantManager = isOwnRestaurantManager(editing); return <>
           <div className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex min-w-0 items-center gap-3 pe-8">
               <span className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-lg font-bold ring-1 ring-border">{(editing.avatar_url || avatarPresetUrl(editing.avatar_preset)) ? <img src={(editing.avatar_url || avatarPresetUrl(editing.avatar_preset)) ?? undefined} alt="" className="size-full object-cover" /> : editing.name.slice(0, 1).toUpperCase()}</span>
@@ -269,7 +292,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
             </div>
           </div>
 
-          <div className="flex shrink-0 overflow-x-auto border-b border-border px-2 sm:px-4">{([["permissions", ar ? "الصلاحيات" : "Permissions", ShieldCheck], ["profile", ar ? "الملف" : "Profile", UserRound], ["log", ar ? "سجل الوصول" : "Access Log", History]] as const).map(([id, label, Icon]) => <button key={id} type="button" onClick={() => setDrawerTab(id)} className={cn("relative flex min-h-14 min-w-[140px] flex-1 items-center justify-center gap-2 px-3 text-sm font-semibold", drawerTab === id ? "text-[#ff5a0a]" : "text-muted-foreground hover:text-foreground")}><Icon className="size-4" />{label}{drawerTab === id ? <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-[#ff5a0a]" /> : null}</button>)}</div>
+          <div className="flex shrink-0 overflow-x-auto border-b border-border px-2 sm:px-4">{(ownRestaurantManager ? [["profile", ar ? "الاسم" : "Manager name", UserRound]] as const : [["permissions", ar ? "الصلاحيات" : "Permissions", ShieldCheck], ["profile", ar ? "الملف" : "Profile", UserRound], ["log", ar ? "سجل الوصول" : "Access Log", History]] as const).map(([id, label, Icon]) => <button key={id} type="button" onClick={() => setDrawerTab(id)} className={cn("relative flex min-h-14 min-w-[140px] flex-1 items-center justify-center gap-2 px-3 text-sm font-semibold", drawerTab === id ? "text-[#ff5a0a]" : "text-muted-foreground hover:text-foreground")}><Icon className="size-4" />{label}{drawerTab === id ? <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-[#ff5a0a]" /> : null}</button>)}</div>
 
           <div className="min-h-0 flex-1 overflow-y-auto bg-muted/10 p-4 sm:p-6">
             {drawerTab === "permissions" ? <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -282,11 +305,12 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                 return <label key={item.capability} className={cn("flex min-h-9 items-center justify-between gap-3 text-xs", !supported && "opacity-45")}><span className="leading-4">{ar ? item.ar : item.en}</span><Switch disabled={!supported} checked={permissionEnabled(item.capability)} onCheckedChange={(value) => setPermission(item.capability, value)} /></label>;
               })}</div></section>)}</div></section>
             </div> : drawerTab === "profile" ? <div className="mx-auto max-w-3xl space-y-5">
-              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm"><h3 className="text-base font-bold">{ar ? "معلومات المستخدم" : "User profile"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكن تعديل الاسم والبريد وحفظهما مع بقية التغييرات." : "Edit the name and email here; they are saved with the rest of the changes."}</p><div className="mt-5 grid gap-4 sm:grid-cols-2"><Field label={ar ? "الاسم" : "Name"}><Input value={editing.name} onChange={(event) => setEditing({ ...editing, name: event.target.value })} /></Field><Field label={ar ? "البريد الإلكتروني" : "Email"}><Input type="email" value={editing.email ?? ""} onChange={(event) => setEditing({ ...editing, email: event.target.value })} /></Field><Read label={ar ? "الدور" : "Role"} value={ROLE_NAMES[editing.role][lang]} /><Read label={ar ? "تاريخ الإضافة" : "Joined"} value={new Date(editing.created_at).toLocaleDateString(ar ? "ar-JO" : "en-US")} /></div><button type="button" className="qs-button-secondary mt-5 w-full sm:w-auto" onClick={() => void openAccess(editing.id)}><IdCard className="size-4" />{ar ? "عرض بطاقة الوصول" : "View Staff Access"}</button></section>
+              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm"><h3 className="text-base font-bold">{ownRestaurantManager ? (ar ? "اسم مدير المطعم" : "Restaurant Manager name") : (ar ? "معلومات المستخدم" : "User profile")}</h3><p className="mt-1 text-xs text-muted-foreground">{ownRestaurantManager ? (ar ? "يمكنك تعديل اسمك هنا فقط. البريد والدور والصلاحيات تبقى محمية." : "Edit your name here. Email, role and permissions remain protected.") : (ar ? "يمكن تعديل الاسم والبريد وحفظهما مع بقية التغييرات." : "Edit the name and email here; they are saved with the rest of the changes.")}</p><div className="mt-5 grid gap-4 sm:grid-cols-2"><Field label={ar ? "الاسم" : "Name"}><Input value={editing.name} maxLength={80} onChange={(event) => setEditing({ ...editing, name: event.target.value })} /></Field>{ownRestaurantManager ? <Read label={ar ? "البريد الإلكتروني" : "Email"} value={editing.email ?? "—"} /> : <Field label={ar ? "البريد الإلكتروني" : "Email"}><Input type="email" value={editing.email ?? ""} onChange={(event) => setEditing({ ...editing, email: event.target.value })} /></Field>}<Read label={ar ? "الدور" : "Role"} value={ROLE_NAMES[editing.role][lang]} /><Read label={ar ? "تاريخ الإضافة" : "Joined"} value={new Date(editing.created_at).toLocaleDateString(ar ? "ar-JO" : "en-US")} /></div>{!ownRestaurantManager ? <button type="button" className="qs-button-secondary mt-5 w-full sm:w-auto" onClick={() => void openAccess(editing.id)}><IdCard className="size-4" />{ar ? "عرض بطاقة الوصول" : "View Staff Access"}</button> : null}</section>
             </div> : <div className="mx-auto max-w-3xl"><section className="rounded-2xl border border-border bg-card p-5 shadow-sm"><div className="mb-4"><h3 className="text-base font-bold">{ar ? "سجل الوصول والنشاط" : "Access & activity log"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "آخر الأحداث المسجلة لهذا المستخدم." : "Latest recorded events for this user."}</p></div>{audit.isPending ? <Skeleton className="h-48 rounded-xl" /> : audit.isError ? <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">{ar ? "تعذر تحميل سجل الوصول." : "Access log is unavailable for this account."}</p> : (audit.data ?? []).length ? <div className="space-y-2">{(audit.data ?? []).map((row) => <div key={row.id} className="rounded-xl border border-border p-3"><div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"><strong className="text-xs">{row.action}</strong><span className="text-[10px] text-muted-foreground">{new Date(row.created_at).toLocaleString(ar ? "ar-JO" : "en-US")}</span></div><p className="mt-1 text-[10px] text-muted-foreground">{row.entity ?? (ar ? "النظام" : "System")}</p></div>)}</div> : <p className="rounded-xl bg-muted/40 p-8 text-center text-sm text-muted-foreground">{ar ? "لا يوجد نشاط مسجل لهذا المستخدم بعد." : "No recorded activity for this user yet."}</p>}</section></div>}
           </div>
 
-          <div className="safe-bottom shrink-0 border-t border-border bg-card p-3 sm:p-4"><div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center"><button type="button" className="qs-button-secondary min-h-11 sm:min-w-28" disabled={busy} onClick={() => setEditing(null)}>{t("common.cancel")}</button><button type="button" className="qs-button-secondary min-h-11 sm:min-w-28" disabled={busy} onClick={() => void openAccess(editing.id)}><IdCard className="size-4" />{ar ? "الوصول" : "Access"}</button><button type="button" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-destructive hover:bg-destructive/10 sm:ms-auto" disabled={busy} onClick={() => setPendingDelete(editing)}><Trash2 className="size-4" />{ar ? "حذف" : "Delete"}</button><button type="button" className="qs-button-primary min-h-11 sm:min-w-44" disabled={busy} onClick={() => void saveEdit()}>{busy ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ التغييرات" : "Save Changes")}</button></div></div>
+          <div className="safe-bottom shrink-0 border-t border-border bg-card p-3 sm:p-4"><div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center"><button type="button" className="qs-button-secondary min-h-11 sm:min-w-28" disabled={busy} onClick={() => setEditing(null)}>{t("common.cancel")}</button>{!ownRestaurantManager ? <><button type="button" className="qs-button-secondary min-h-11 sm:min-w-28" disabled={busy} onClick={() => void openAccess(editing.id)}><IdCard className="size-4" />{ar ? "الوصول" : "Access"}</button><button type="button" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-destructive hover:bg-destructive/10 sm:ms-auto" disabled={busy} onClick={() => setPendingDelete(editing)}><Trash2 className="size-4" />{ar ? "حذف" : "Delete"}</button></> : <span className="hidden sm:block sm:flex-1" />}<button type="button" className="qs-button-primary min-h-11 sm:min-w-44" disabled={busy} onClick={() => void saveEdit()}>{busy ? (ar ? "جارٍ الحفظ…" : "Saving…") : ownRestaurantManager ? (ar ? "حفظ الاسم" : "Save name") : (ar ? "حفظ التغييرات" : "Save Changes")}</button></div></div>
+          </>; })()}
         </> : null}
       </DialogContent>
     </Dialog>
