@@ -1,0 +1,63 @@
+name: Apply QuickServe profile detail fixes
+
+on:
+  push:
+    branches: [chatgpt/quickserve-profile-details-zone-cover]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v6
+        with:
+          ref: chatgpt/quickserve-profile-details-zone-cover
+          fetch-depth: 0
+
+      - name: Apply requested fixes
+        run: python .github/scripts/apply_quickserve_profile_details.py
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate route tree and build
+        run: bun run build
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Production build
+        run: bun run build
+
+      - name: Verify requested behaviors
+        run: |
+          grep -q 'RestaurantProfileSettings' src/routes/_authenticated/profile.tsx
+          grep -q 'coverPositionX' src/lib/restaurant-appearance.ts
+          grep -q 'to="/dashboard/$metric"' src/routes/_authenticated/dashboard.tsx
+          grep -q 'analytics/revenue' src/components/manage/AnalyticsManagerPro.tsx
+          grep -q 'zoneContaining' src/components/manage/TablesManagerPro.tsx
+          ! grep -q 'ApplicationColorStudio' src/components/manage/RestaurantAppearance.tsx
+
+      - name: Remove one-time helpers
+        run: rm -f .github/scripts/apply_quickserve_profile_details.py .github/workflows/apply-profile-details-zone-cover.yml
+
+      - name: Commit validated implementation
+        run: |
+          git config user.name "QuickServe Upgrade Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: refine QuickServe profile details zones and cover"
+          git push origin HEAD:chatgpt/quickserve-profile-details-zone-cover
