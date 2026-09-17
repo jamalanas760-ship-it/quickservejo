@@ -27,6 +27,7 @@ import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authen
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_authenticated/super-admin/route'
 import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
+import { Route as AuthenticatedWorkRouteImport } from './routes/_authenticated/work'
 import { Route as MSlugRouteImport } from './routes/m/$slug'
 import { Route as OTokenRouteImport } from './routes/o/$token'
 import { Route as PreviewSlugRouteImport } from './routes/preview/$slug'
@@ -157,6 +158,11 @@ const AuthenticatedSuperAdminRouteRoute =
 const AuthenticatedWaiterRoute = AuthenticatedWaiterRouteImport.update({
   id: '/waiter',
   path: '/waiter',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedWorkRoute = AuthenticatedWorkRouteImport.update({
+  id: '/work',
+  path: '/work',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const MSlugRoute = MSlugRouteImport.update({
@@ -402,6 +408,7 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/waiter': typeof AuthenticatedWaiterRoute
+  '/work': typeof AuthenticatedWorkRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
@@ -456,6 +463,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/waiter': typeof AuthenticatedWaiterRoute
+  '/work': typeof AuthenticatedWorkRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
@@ -512,6 +520,7 @@ export interface FileRoutesById {
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
+  '/_authenticated/work': typeof AuthenticatedWorkRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
@@ -570,6 +579,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/waiter'
+    | '/work'
     | '/m/$slug'
     | '/o/$token'
     | '/preview/$slug'
@@ -624,6 +634,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/waiter'
+    | '/work'
     | '/m/$slug'
     | '/o/$token'
     | '/preview/$slug'
@@ -679,6 +690,7 @@ export interface FileRouteTypes {
     | '/_authenticated/notifications'
     | '/_authenticated/profile'
     | '/_authenticated/waiter'
+    | '/_authenticated/work'
     | '/m/$slug'
     | '/o/$token'
     | '/preview/$slug'
@@ -864,6 +876,13 @@ declare module '@tanstack/react-router' {
       path: '/waiter'
       fullPath: '/waiter'
       preLoaderRoute: typeof AuthenticatedWaiterRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/work': {
+      id: '/_authenticated/work'
+      path: '/work'
+      fullPath: '/work'
+      preLoaderRoute: typeof AuthenticatedWorkRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/m/$slug': {
@@ -1265,6 +1284,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedWaiterRoute: typeof AuthenticatedWaiterRoute
+  AuthenticatedWorkRoute: typeof AuthenticatedWorkRoute
   AuthenticatedDashboardMetricRoute: typeof AuthenticatedDashboardMetricRoute
 }
 
@@ -1279,6 +1299,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedWaiterRoute: AuthenticatedWaiterRoute,
+  AuthenticatedWorkRoute: AuthenticatedWorkRoute,
   AuthenticatedDashboardMetricRoute: AuthenticatedDashboardMetricRoute,
 }
 

@@ -23,20 +23,19 @@ import { getStaffAccess } from "@/lib/staff-auth.functions";
 import { inviteStaffMember, removeStaffMember, updateStaffMember } from "@/lib/staff.functions";
 import { cn } from "@/lib/utils";
 
-const ROLES: AppRole[] = ["restaurant_admin", "manager", "kitchen", "waiter", "cashier"];
-const ROLE_NAMES: Record<AppRole, { en: string; ar: string }> = {
-  ...ROLE_LABELS,
-  manager: { en: "Manager", ar: "مدير تشغيل" },
-  kitchen: { en: "Kitchen", ar: "المطبخ" },
-  waiter: { en: "Waiter / Server", ar: "نادل / صالة" },
-  cashier: { en: "Cashier", ar: "كاشير" },
-};
+const ROLES: AppRole[] = ["restaurant_admin", "operations_manager", "manager", "kitchen", "waiter", "cashier", "host", "inventory", "procurement", "accountant"];
+const ROLE_NAMES: Record<AppRole, { en: string; ar: string }> = ROLE_LABELS;
 const ROLE_TONE: Record<string, string> = {
   restaurant_admin: "bg-orange-500/12 text-orange-600",
+  operations_manager: "bg-sky-500/12 text-sky-600",
   manager: "bg-blue-500/12 text-blue-600",
   kitchen: "bg-rose-500/12 text-rose-600",
   waiter: "bg-violet-500/12 text-violet-600",
   cashier: "bg-emerald-500/12 text-emerald-600",
+  host: "bg-cyan-500/12 text-cyan-600",
+  inventory: "bg-indigo-500/12 text-indigo-600",
+  procurement: "bg-amber-500/12 text-amber-700",
+  accountant: "bg-teal-500/12 text-teal-600",
 };
 type StaffTab = "all" | "admins" | "staff";
 type DrawerTab = "permissions" | "profile" | "log";

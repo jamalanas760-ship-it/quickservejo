@@ -91,7 +91,7 @@ export function WorkPage() {
     enabled: Boolean(rid && canView),
     staleTime: 10_000,
     queryFn: async () => {
-      const { data, error } = await (supabase.from("work_tasks") as any)
+      const { data, error } = await (supabase as any).from("work_tasks")
         .select("id,restaurant_id,title,description,category,priority,status,assigned_staff_id,assigned_role,created_by_staff_id,due_at,requires_approval,approval_role,source_type,completion_note,created_at,updated_at,completed_at")
         .eq("restaurant_id", rid!)
         .order("created_at", { ascending: false })
@@ -139,7 +139,7 @@ export function WorkPage() {
     mutationFn: async ({ id, status }: { id: string; status: WorkStatus }) => {
       const payload: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
       if (status === "completed") payload.completed_at = new Date().toISOString();
-      const { error } = await (supabase.from("work_tasks") as any).update(payload).eq("id", id);
+      const { error } = await (supabase as any).from("work_tasks").update(payload).eq("id", id);
       if (error) throw error;
     },
     onSuccess: async () => {
@@ -220,7 +220,7 @@ function CreateTaskDialog({ open, onOpenChange, restaurantId, currentStaffId, cu
     try {
       const dueRaw = String(form.get("due_at") ?? "");
       const requiresApproval = category === "approval" || form.get("requires_approval") === "on";
-      const { error } = await (supabase.from("work_tasks") as any).insert({
+      const { error } = await (supabase as any).from("work_tasks").insert({
         restaurant_id: restaurantId,
         title,
         description: String(form.get("description") ?? "").trim() || null,
