@@ -2,26 +2,47 @@
  * Centralized role + plan/feature-limit logic.
  * The database/RLS remains the security boundary; this module controls UX access.
  */
-export type AppRole = "super_admin" | "restaurant_admin" | "manager" | "kitchen" | "waiter" | "cashier";
+export type AppRole =
+  | "super_admin"
+  | "restaurant_admin"
+  | "operations_manager"
+  | "manager"
+  | "kitchen"
+  | "waiter"
+  | "cashier"
+  | "host"
+  | "inventory"
+  | "procurement"
+  | "accountant";
 export type SubscriptionPlan = "free" | "basic" | "professional" | "enterprise";
 
-/** Keep operational roles explicit in the UI instead of collapsing them into generic Staff. */
+/** Job profiles are templates. Permission overrides may narrow a role, never expand beyond its ceiling. */
 export const ROLE_LABELS: Record<AppRole, { en: string; ar: string }> = {
   super_admin: { en: "Super Admin", ar: "المشرف العام" },
   restaurant_admin: { en: "Restaurant Manager", ar: "مدير المطعم" },
-  manager: { en: "Manager", ar: "مدير التشغيل" },
+  operations_manager: { en: "Operations Manager", ar: "مدير العمليات" },
+  manager: { en: "Shift Manager", ar: "مدير الوردية" },
   kitchen: { en: "Kitchen", ar: "المطبخ" },
   waiter: { en: "Waiter", ar: "نادل" },
   cashier: { en: "Cashier", ar: "كاشير" },
+  host: { en: "Host", ar: "الاستقبال" },
+  inventory: { en: "Inventory Controller", ar: "مسؤول المخزون" },
+  procurement: { en: "Procurement Officer", ar: "مسؤول المشتريات" },
+  accountant: { en: "Finance & Accounting", ar: "المالية والمحاسبة" },
 };
 
 export const ROLE_HOME: Record<AppRole, string> = {
   super_admin: "/super-admin",
   restaurant_admin: "/dashboard",
+  operations_manager: "/manager",
   manager: "/manager",
   kitchen: "/kitchen",
   waiter: "/waiter",
   cashier: "/cashier",
+  host: "/waiter",
+  inventory: "/work",
+  procurement: "/work",
+  accountant: "/work",
 };
 
 export type Capability =
@@ -36,19 +57,58 @@ export type Capability =
   | "view_order_prices"
   | "update_order_status"
   | "manage_payments"
-  | "handle_waiter_calls";
+  | "handle_waiter_calls"
+  | "view_work"
+  | "create_work"
+  | "manage_work"
+  | "approve_work"
+  | "view_erp"
+  | "manage_inventory"
+  | "manage_procurement"
+  | "manage_finance"
+  | "manage_shifts";
 export type PermissionOverrides = Partial<Record<Capability, boolean>>;
 
+const WORKER_WORK: Capability[] = ["view_work", "create_work"];
+const MANAGER_WORK: Capability[] = [...WORKER_WORK, "manage_work", "approve_work", "manage_shifts"];
+const ERP_BASE: Capability[] = ["view_erp"];
+
 export const ROLE_CAPABILITIES: Record<AppRole, Capability[]> = {
-  super_admin: ["manage_platform", "manage_restaurant", "manage_menu", "manage_tables", "manage_staff", "manage_appearance", "view_analytics", "view_orders", "view_order_prices", "update_order_status", "manage_payments", "handle_waiter_calls"],
-  restaurant_admin: ["manage_restaurant", "manage_menu", "manage_tables", "manage_staff", "manage_appearance", "view_analytics", "view_orders", "view_order_prices", "update_order_status", "manage_payments", "handle_waiter_calls"],
-  manager: ["manage_menu", "manage_tables", "view_analytics", "view_orders", "view_order_prices", "update_order_status", "handle_waiter_calls"],
-  kitchen: ["view_orders", "update_order_status"],
-  waiter: ["view_orders", "view_order_prices", "update_order_status", "manage_tables", "handle_waiter_calls"],
-  cashier: ["view_orders", "view_order_prices", "manage_payments"],
+  super_admin: [
+    "manage_platform", "manage_restaurant", "manage_menu", "manage_tables", "manage_staff", "manage_appearance",
+    "view_analytics", "view_orders", "view_order_prices", "update_order_status", "manage_payments", "handle_waiter_calls",
+    ...MANAGER_WORK, ...ERP_BASE, "manage_inventory", "manage_procurement", "manage_finance",
+  ],
+  restaurant_admin: [
+    "manage_restaurant", "manage_menu", "manage_tables", "manage_staff", "manage_appearance", "view_analytics",
+    "view_orders", "view_order_prices", "update_order_status", "manage_payments", "handle_waiter_calls",
+    ...MANAGER_WORK, ...ERP_BASE, "manage_inventory", "manage_procurement", "manage_finance",
+  ],
+  operations_manager: [
+    "manage_menu", "manage_tables", "view_analytics", "view_orders", "view_order_prices", "update_order_status", "handle_waiter_calls",
+    ...MANAGER_WORK, ...ERP_BASE, "manage_inventory", "manage_procurement",
+  ],
+  manager: [
+    "manage_menu", "manage_tables", "view_analytics", "view_orders", "view_order_prices", "update_order_status", "handle_waiter_calls",
+    ...MANAGER_WORK,
+  ],
+  kitchen: ["view_orders", "update_order_status", ...WORKER_WORK],
+  waiter: ["view_orders", "view_order_prices", "update_order_status", "manage_tables", "handle_waiter_calls", ...WORKER_WORK],
+  cashier: ["view_orders", "view_order_prices", "manage_payments", ...WORKER_WORK],
+  host: ["view_orders", "manage_tables", "handle_waiter_calls", ...WORKER_WORK],
+  inventory: [...WORKER_WORK, ...ERP_BASE, "manage_inventory"],
+  procurement: [...WORKER_WORK, ...ERP_BASE, "manage_procurement"],
+  accountant: [...WORKER_WORK, ...ERP_BASE, "manage_finance", "view_analytics", "view_order_prices"],
 };
 
 export const PERMISSION_GROUPS: Array<{ id: string; en: string; ar: string; items: Array<{ capability: Capability; en: string; ar: string }> }> = [
+  { id: "work", en: "My Work & Approvals", ar: "عملي والموافقات", items: [
+    { capability: "view_work", en: "View assigned work", ar: "عرض العمل المكلّف" },
+    { capability: "create_work", en: "Create operational tasks", ar: "إنشاء مهام تشغيلية" },
+    { capability: "manage_work", en: "Manage team work", ar: "إدارة عمل الفريق" },
+    { capability: "approve_work", en: "Approve operational requests", ar: "اعتماد الطلبات التشغيلية" },
+    { capability: "manage_shifts", en: "Manage shifts & handover", ar: "إدارة الورديات والتسليم" },
+  ] },
   { id: "orders", en: "Orders", ar: "الطلبات", items: [
     { capability: "view_orders", en: "View orders", ar: "عرض الطلبات" },
     { capability: "update_order_status", en: "Manage order status", ar: "إدارة حالة الطلب" },
@@ -61,6 +121,12 @@ export const PERMISSION_GROUPS: Array<{ id: string; en: string; ar: string; item
   { id: "tables", en: "Tables & Floor", ar: "الطاولات والمخطط", items: [
     { capability: "manage_tables", en: "Manage tables & floor", ar: "إدارة الطاولات والمخطط" },
     { capability: "handle_waiter_calls", en: "Handle table alerts", ar: "معالجة تنبيهات الطاولات" },
+  ] },
+  { id: "erp", en: "ERP & Back Office", ar: "ERP والإدارة الخلفية", items: [
+    { capability: "view_erp", en: "Open ERP workspace", ar: "فتح مساحة ERP" },
+    { capability: "manage_inventory", en: "Inventory & stock control", ar: "المخزون وحركة المواد" },
+    { capability: "manage_procurement", en: "Procurement & suppliers", ar: "المشتريات والموردون" },
+    { capability: "manage_finance", en: "Finance & reconciliation", ar: "المالية والتسويات" },
   ] },
   { id: "analytics", en: "Analytics", ar: "التحليلات", items: [
     { capability: "view_analytics", en: "View analytics & reports", ar: "عرض التحليلات والتقارير" },
@@ -75,16 +141,13 @@ export const PERMISSION_GROUPS: Array<{ id: string; en: string; ar: string; item
 ];
 
 export function roleHasCapability(role: AppRole, capability: Capability) {
-  return ROLE_CAPABILITIES[role].includes(capability);
+  return ROLE_CAPABILITIES[role]?.includes(capability) ?? false;
 }
 export function anyRoleHasCapability(roles: AppRole[], capability: Capability) {
   return roles.some((role) => roleHasCapability(role, capability));
 }
 
-/**
- * Overrides cannot escalate a role beyond its role ceiling.
- * A true value preserves an already-allowed capability; false narrows it.
- */
+/** Overrides cannot escalate a role beyond its role ceiling. */
 export function membershipHasCapability(role: AppRole, overrides: PermissionOverrides | undefined | null, capability: Capability) {
   if (role === "super_admin") return true;
   if (!roleHasCapability(role, capability)) return false;
@@ -97,6 +160,7 @@ export function normalizedOverrides(value: unknown): PermissionOverrides {
   const allow = new Set<Capability>([
     "manage_platform", "manage_restaurant", "manage_menu", "manage_tables", "manage_staff", "manage_appearance",
     "view_analytics", "view_orders", "view_order_prices", "update_order_status", "manage_payments", "handle_waiter_calls",
+    "view_work", "create_work", "manage_work", "approve_work", "view_erp", "manage_inventory", "manage_procurement", "manage_finance", "manage_shifts",
   ]);
   const out: PermissionOverrides = {};
   for (const [key, val] of Object.entries(input)) {
@@ -113,12 +177,13 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
   enterprise: { maxTables: null, maxProducts: null, maxStaff: null, maxMonthlyOrders: null, analytics: true, customBranding: true, aiFeatures: true, advancedFeatures: true },
 };
 export function isWithinLimit(limit: number | null, current: number) { return limit === null || current < limit; }
-export const MANAGEMENT_ROLES: AppRole[] = ["super_admin", "restaurant_admin"];
+export const MANAGEMENT_ROLES: AppRole[] = ["super_admin", "restaurant_admin", "operations_manager", "manager"];
 export function isFrontlineOnly(roles: AppRole[]) { return roles.length > 0 && !roles.some((role) => MANAGEMENT_ROLES.includes(role)); }
 export function frontlineHome(roles: AppRole[]) {
-  if (roles.includes("manager")) return "/manager";
-  if (roles.includes("waiter")) return "/waiter";
+  if (roles.includes("operations_manager") || roles.includes("manager")) return "/manager";
+  if (roles.includes("waiter") || roles.includes("host")) return "/waiter";
   if (roles.includes("cashier")) return "/cashier";
+  if (roles.includes("inventory") || roles.includes("procurement") || roles.includes("accountant")) return "/work";
   return "/kitchen";
 }
 export type AccessLevel = "admin" | "member";
