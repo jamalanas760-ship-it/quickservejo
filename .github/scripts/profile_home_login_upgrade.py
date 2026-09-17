@@ -29,4 +29,14 @@ if 'const target="/dashboard";' not in text:
     raise RuntimeError("Dashboard destination was not installed")
 
 path.write_text(text, encoding="utf-8")
-print("Auth now always lands authenticated sign-ins on /dashboard.")
+
+profile_path = Path("src/routes/_authenticated/profile.tsx")
+profile = profile_path.read_text(encoding="utf-8")
+old_type = "createdAt?: string"
+new_type = "createdAt: string | undefined"
+if old_type not in profile:
+    raise RuntimeError("Expected PersonalSection createdAt type was not found")
+profile = profile.replace(old_type, new_type, 1)
+profile_path.write_text(profile, encoding="utf-8")
+
+print("Auth now always lands authenticated sign-ins on /dashboard and profile typing is exact-optional safe.")
