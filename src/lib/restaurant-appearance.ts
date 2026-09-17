@@ -21,6 +21,13 @@ export type RestaurantAppearance = {
   sidebarBackground: string;
   sidebarText: string;
   selectedNavColor: string;
+  darkPrimaryColor: string;
+  darkAccentColor: string;
+  darkTopNavBackground: string;
+  darkTopNavText: string;
+  darkSidebarBackground: string;
+  darkSidebarText: string;
+  darkSelectedNavColor: string;
   coverPositionX: number;
   coverPositionY: number;
   coverZoom: number;
@@ -30,45 +37,17 @@ export type RestaurantAppearance = {
 };
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
-const LIGHT_DEFAULTS: GuestMenuPalette = {
-  bg: "#f7f8fa",
-  surface: "#ffffff",
-  text: "#14181c",
-  muted: "#6b7280",
-  primary: "#ff5a0a",
-  primaryText: "#ffffff",
-  accent: "#ff8a3d",
-};
-const DARK_DEFAULTS: GuestMenuPalette = {
-  bg: "#101418",
-  surface: "#181e23",
-  text: "#f7f8f9",
-  muted: "#9aa4ad",
-  primary: "#ff6a1a",
-  primaryText: "#ffffff",
-  accent: "#ff9a5b",
-};
+const LIGHT_DEFAULTS: GuestMenuPalette = { bg: "#f7f8fa", surface: "#ffffff", text: "#14181c", muted: "#6b7280", primary: "#ff5a0a", primaryText: "#ffffff", accent: "#ff8a3d" };
+const DARK_DEFAULTS: GuestMenuPalette = { bg: "#101418", surface: "#181e23", text: "#f7f8f9", muted: "#9aa4ad", primary: "#ff6a1a", primaryText: "#ffffff", accent: "#ff9a5b" };
 
 function numberInRange(value: unknown, fallback: number, min: number, max: number) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? Math.min(max, Math.max(min, numeric)) : fallback;
 }
-
-function color(value: unknown, fallback: string) {
-  return typeof value === "string" && HEX.test(value) ? value : fallback;
-}
-
+function color(value: unknown, fallback: string) { return typeof value === "string" && HEX.test(value) ? value : fallback; }
 function palette(value: unknown, fallback: GuestMenuPalette): GuestMenuPalette {
   const source = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  return {
-    bg: color(source.bg, fallback.bg),
-    surface: color(source.surface, fallback.surface),
-    text: color(source.text, fallback.text),
-    muted: color(source.muted, fallback.muted),
-    primary: color(source.primary, fallback.primary),
-    primaryText: color(source.primaryText, fallback.primaryText),
-    accent: color(source.accent, fallback.accent),
-  };
+  return { bg: color(source.bg, fallback.bg), surface: color(source.surface, fallback.surface), text: color(source.text, fallback.text), muted: color(source.muted, fallback.muted), primary: color(source.primary, fallback.primary), primaryText: color(source.primaryText, fallback.primaryText), accent: color(source.accent, fallback.accent) };
 }
 
 export function readAppearance(theme: unknown): RestaurantAppearance {
@@ -87,6 +66,13 @@ export function readAppearance(theme: unknown): RestaurantAppearance {
     sidebarBackground: color(value.sidebarBackground, "#ffffff"),
     sidebarText: color(value.sidebarText, "#64748b"),
     selectedNavColor: color(value.selectedNavColor, "#ff5a0a"),
+    darkPrimaryColor: color(value.darkPrimaryColor, "#ff6a1a"),
+    darkAccentColor: color(value.darkAccentColor, "#ff9a5b"),
+    darkTopNavBackground: color(value.darkTopNavBackground, "#15191f"),
+    darkTopNavText: color(value.darkTopNavText, "#f8fafc"),
+    darkSidebarBackground: color(value.darkSidebarBackground, "#101418"),
+    darkSidebarText: color(value.darkSidebarText, "#cbd5e1"),
+    darkSelectedNavColor: color(value.darkSelectedNavColor, "#ff6a1a"),
     coverPositionX: numberInRange(value.coverPositionX, 50, 0, 100),
     coverPositionY: numberInRange(value.coverPositionY, 50, 0, 100),
     coverZoom: numberInRange(value.coverZoom, 100, 100, 220),
@@ -96,7 +82,4 @@ export function readAppearance(theme: unknown): RestaurantAppearance {
   };
 }
 
-export const guestMenuPaletteDefaults = {
-  light: LIGHT_DEFAULTS,
-  dark: DARK_DEFAULTS,
-} as const;
+export const guestMenuPaletteDefaults = { light: LIGHT_DEFAULTS, dark: DARK_DEFAULTS } as const;
