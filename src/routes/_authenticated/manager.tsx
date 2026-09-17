@@ -1,7 +1,8 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { BarChart3, Boxes, BriefcaseBusiness, ChefHat, ClipboardList, Table2, UtensilsCrossed } from "lucide-react";
+import { BarChart3, Boxes, BriefcaseBusiness, CalendarClock, ChefHat, ClipboardList, Table2, UtensilsCrossed, Workflow } from "lucide-react";
 
 import { AppHeader } from "@/components/nav/AppHeader";
+import { OperationsPulse } from "@/components/operations/OperationsPulse";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAccess } from "@/hooks/useSession";
 import { useWorkspaceReport } from "@/hooks/useWorkspace";
@@ -29,6 +30,8 @@ function ManagerWorkspace() {
   const roleName = ROLE_LABELS[membership.role]?.[lang] ?? membership.role;
   const links = [
     can("view_work") ? { to: "/work", icon: BriefcaseBusiness, title: ar ? "عملي والموافقات" : "My Work & Approvals", hint: ar ? "المهام العاجلة والتسليم والموافقات في مكان واحد." : "Tasks, handover and approvals in one operational queue." } : null,
+    can("manage_shifts") ? { to: "/shifts", icon: CalendarClock, title: ar ? "الورديات والتسليم" : "Shifts & Handover", hint: ar ? "افتح وأغلق الورديات ومرّر العمل غير المحلول للفريق التالي." : "Schedule, open, close and hand unresolved work to the next team." } : null,
+    can("manage_work") ? { to: "/automations", icon: Workflow, title: ar ? "قواعد الأتمتة" : "Automation Rules", hint: ar ? "حوّل أحداث التشغيل إلى مهام تلقائية مملوكة بوضوح." : "Convert live restaurant events into clearly owned work." } : null,
     can("view_orders") ? { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, title: ar ? "الطلبات" : "Orders", hint: ar ? "تابع الطلبات وحالاتها." : "Track restaurant orders and status." } : null,
     can("manage_menu") ? { to: `/manage/${restaurantId}`, icon: UtensilsCrossed, title: ar ? "القائمة والتوفر" : "Menu & Availability", hint: ar ? "حدّث التوفر والمحتوى المسموح." : "Manage allowed menu and availability actions." } : null,
     can("manage_tables") ? { to: `/manage/${restaurantId}/tables`, icon: Table2, title: ar ? "الطاولات" : "Tables", hint: ar ? "راقب مخطط الصالة والطاولات." : "Work with tables and floor layout." } : null,
@@ -51,6 +54,8 @@ function ManagerWorkspace() {
         <Metric label={ar ? "المبيعات اليوم" : "Sales today"} value={formatMoney(report.data?.salesToday ?? 0, "JOD", lang)} />
         <Metric label={ar ? "طلبات مفتوحة" : "Open orders"} value={String(report.data?.openOrders ?? 0)} />
       </section>
+
+      <OperationsPulse restaurantId={restaurantId} canManageRules={can("manage_work") || can("manage_shifts")} />
 
       <section><div className="mb-3"><h2 className="qs-section-title">{ar ? "مساحة العمل" : "Your workspace"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "تظهر الأدوات التي يسمح بها دورك فقط." : "Only tools inside your job profile and assigned permissions are shown."}</p></div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{links.map(({ to, icon: Icon, title, hint }) => <Link key={to} to={to as never} className="qs-card group flex min-h-36 items-start gap-4 p-5 transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-md"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><Icon className="size-5" /></span><span className="min-w-0"><strong className="block text-base">{title}</strong><span className="mt-2 block text-xs leading-5 text-muted-foreground">{hint}</span></span></Link>)}</div>
