@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { BarChart3, ChefHat, ClipboardList, Table2, UtensilsCrossed } from "lucide-react";
+import { BarChart3, Boxes, BriefcaseBusiness, ChefHat, ClipboardList, Table2, UtensilsCrossed } from "lucide-react";
 
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,10 +7,10 @@ import { useAccess } from "@/hooks/useSession";
 import { useWorkspaceReport } from "@/hooks/useWorkspace";
 import { formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
-import { membershipHasCapability, type Capability } from "@/lib/permissions";
+import { membershipHasCapability, ROLE_LABELS, type Capability } from "@/lib/permissions";
 
 export const Route = createFileRoute("/_authenticated/manager")({
-  head: () => ({ meta: [{ title: "Manager Workspace — QuickServe" }, { name: "description", content: "Manager operations workspace." }] }),
+  head: () => ({ meta: [{ title: "Operations Workspace — QuickServe" }, { name: "description", content: "Role-aware manager and operations workspace." }] }),
   component: ManagerWorkspace,
 });
 
@@ -18,7 +18,7 @@ function ManagerWorkspace() {
   const { lang } = useI18n();
   const ar = lang === "ar";
   const access = useAccess();
-  const membership = (access.data ?? []).find((row) => row.role === "manager" && row.restaurant_id && row.restaurant) ?? null;
+  const membership = (access.data ?? []).find((row) => (row.role === "operations_manager" || row.role === "manager") && row.restaurant_id && row.restaurant) ?? null;
   const restaurantId = membership?.restaurant_id ?? null;
   const report = useWorkspaceReport(restaurantId);
 
@@ -26,21 +26,24 @@ function ManagerWorkspace() {
   if (!membership || !restaurantId) return <Navigate to="/profile" replace />;
 
   const can = (capability: Capability) => membershipHasCapability(membership.role, membership.permission_overrides, capability);
+  const roleName = ROLE_LABELS[membership.role]?.[lang] ?? membership.role;
   const links = [
+    can("view_work") ? { to: "/work", icon: BriefcaseBusiness, title: ar ? "عملي والموافقات" : "My Work & Approvals", hint: ar ? "المهام العاجلة والتسليم والموافقات في مكان واحد." : "Tasks, handover and approvals in one operational queue." } : null,
     can("view_orders") ? { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, title: ar ? "الطلبات" : "Orders", hint: ar ? "تابع الطلبات وحالاتها." : "Track restaurant orders and status." } : null,
     can("manage_menu") ? { to: `/manage/${restaurantId}`, icon: UtensilsCrossed, title: ar ? "القائمة والتوفر" : "Menu & Availability", hint: ar ? "حدّث التوفر والمحتوى المسموح." : "Manage allowed menu and availability actions." } : null,
     can("manage_tables") ? { to: `/manage/${restaurantId}/tables`, icon: Table2, title: ar ? "الطاولات" : "Tables", hint: ar ? "راقب مخطط الصالة والطاولات." : "Work with tables and floor layout." } : null,
+    can("view_erp") ? { to: `/manage/${restaurantId}/operations`, icon: Boxes, title: ar ? "ERP والإدارة الخلفية" : "ERP & Back Office", hint: ar ? "المخزون والموردون والمشتريات والمالية حسب مسؤولياتك." : "Inventory, suppliers, procurement and finance according to your job profile." } : null,
     can("view_analytics") ? { to: `/manage/${restaurantId}/analytics`, icon: BarChart3, title: ar ? "التحليلات" : "Analytics", hint: ar ? "راقب الأداء والتقارير." : "Review performance and reports." } : null,
     can("update_order_status") ? { to: "/kitchen", icon: ChefHat, title: ar ? "عمليات المطبخ" : "Kitchen Operations", hint: ar ? "تابع تدفق التحضير والجاهزية." : "Supervise preparation and ready flow." } : null,
   ].filter(Boolean) as Array<{ to: string; icon: typeof ClipboardList; title: string; hint: string }>;
 
   return <div className="min-h-dvh bg-background">
-    <AppHeader title={ar ? "مساحة مدير التشغيل" : "Manager workspace"} />
+    <AppHeader title={ar ? "مساحة العمليات" : "Operations workspace"} />
     <main className="qs-page space-y-5">
       <section className="qs-card overflow-hidden bg-gradient-to-br from-slate-950 to-slate-800 p-6 text-white sm:p-8">
-        <p className="text-[10px] font-bold uppercase tracking-[.22em] text-orange-300">{ar ? "مدير التشغيل" : "Manager"}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[.22em] text-orange-300">{roleName}</p>
         <h1 className="mt-3 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? `مرحباً، ${membership.name}` : `Welcome, ${membership.name}`}</h1>
-        <p className="mt-2 max-w-2xl text-sm text-white/70">{ar ? `إدارة تشغيل ${membership.restaurant?.name ?? "المطعم"} من مساحة مركزة على المهام المسموح بها.` : `Run ${membership.restaurant?.name ?? "the restaurant"} from a focused workspace limited to your assigned role.`}</p>
+        <p className="mt-2 max-w-2xl text-sm text-white/70">{ar ? `إدارة تشغيل ${membership.restaurant?.name ?? "المطعم"} من مساحة مركزة على المسؤوليات والموافقات.` : `Run ${membership.restaurant?.name ?? "the restaurant"} from a focused workspace built around responsibilities and approvals.`}</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">
@@ -49,7 +52,7 @@ function ManagerWorkspace() {
         <Metric label={ar ? "طلبات مفتوحة" : "Open orders"} value={String(report.data?.openOrders ?? 0)} />
       </section>
 
-      <section><div className="mb-3"><h2 className="qs-section-title">{ar ? "مساحة العمل" : "Your workspace"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "تظهر الأدوات التي يسمح بها دورك فقط." : "Only tools inside your role and assigned permissions are shown."}</p></div>
+      <section><div className="mb-3"><h2 className="qs-section-title">{ar ? "مساحة العمل" : "Your workspace"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "تظهر الأدوات التي يسمح بها دورك فقط." : "Only tools inside your job profile and assigned permissions are shown."}</p></div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{links.map(({ to, icon: Icon, title, hint }) => <Link key={to} to={to as never} className="qs-card group flex min-h-36 items-start gap-4 p-5 transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-md"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><Icon className="size-5" /></span><span className="min-w-0"><strong className="block text-base">{title}</strong><span className="mt-2 block text-xs leading-5 text-muted-foreground">{hint}</span></span></Link>)}</div>
       </section>
     </main>
