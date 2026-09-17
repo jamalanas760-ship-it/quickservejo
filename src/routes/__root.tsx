@@ -22,6 +22,42 @@ import { SplashScreen } from "@/components/app/SplashScreen";
 import { NotificationPrompt } from "@/components/app/NotificationPrompt";
 import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-bridge";
 
+const RUNTIME_RECOVERY_PREFIX = "quickserve:runtime-recovery:";
+const RUNTIME_RECOVERY_WINDOW_MS = 60_000;
+
+function runtimeErrorMessage(error: unknown) {
+  if (error instanceof Response) return `Response ${error.status}`;
+  if (error instanceof Error) return `${error.name}: ${error.message}`;
+  return String(error ?? "");
+}
+
+/**
+ * A new Lovable deployment can briefly leave an already-open tab holding an old
+ * route/module graph while the new assets become authoritative. Recover once
+ * with a hard refresh for those transient cases, but never loop on real app bugs.
+ */
+function shouldHardRefresh(error: unknown) {
+  if (error instanceof Response) return [408, 425, 429, 500, 502, 503, 504].includes(error.status);
+  return /chunkloaderror|loading chunk|failed to fetch dynamically imported module|importing a module script failed|dynamically imported module|module script|failed to fetch|networkerror|load failed|network request failed/i.test(runtimeErrorMessage(error));
+}
+
+function hardRefreshOnce(error: unknown) {
+  if (typeof window === "undefined" || !shouldHardRefresh(error)) return false;
+  const key = `${RUNTIME_RECOVERY_PREFIX}${window.location.pathname}`;
+  const now = Date.now();
+  try {
+    const previous = Number(window.sessionStorage.getItem(key) ?? 0);
+    if (Number.isFinite(previous) && previous > 0 && now - previous < RUNTIME_RECOVERY_WINDOW_MS) return false;
+    window.sessionStorage.setItem(key, String(now));
+  } catch {
+    // Storage may be unavailable in hardened/private browser contexts. A single
+    // manual retry remains available below, so do not risk an uncontrolled loop.
+    return false;
+  }
+  window.location.reload();
+  return true;
+}
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -38,14 +74,30 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => { reportLovableError(error, { boundary: "tanstack_root_error_component" }); }, [error]);
+  const recoverable = shouldHardRefresh(error);
+  useEffect(() => {
+    reportLovableError(error, { boundary: "tanstack_root_error_component", recoverable });
+    void hardRefreshOnce(error);
+  }, [error, recoverable]);
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">This page didn't load</h1>
         <p className="mt-2 text-sm text-muted-foreground">Something went wrong on our end. You can try refreshing or head back home.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button onClick={() => { router.invalidate(); reset(); }} className="qs-button-primary">Try again</button>
+          <button
+            onClick={() => {
+              if (recoverable && typeof window !== "undefined") {
+                window.location.reload();
+                return;
+              }
+              router.invalidate();
+              reset();
+            }}
+            className="qs-button-primary"
+          >
+            Try again
+          </button>
           <a href="/" className="qs-button-secondary">Go home</a>
         </div>
       </div>
