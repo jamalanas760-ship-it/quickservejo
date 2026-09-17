@@ -110,6 +110,7 @@ const FILTER_LABELS: Record<QuickFilter, { en: string; ar: string }> = {
 };
 
 const PREFS_KEY = "quickserve.kitchen.prefs";
+const RESTAURANT_KEY = "quickserve.kitchen.restaurant";
 
 type Prefs = {
   soundOn: boolean;
@@ -183,7 +184,10 @@ function KitchenPage() {
   const { lang, pick } = useI18n();
   const queryClient = useQueryClient();
   const memberships = useMemberships();
-  const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [restaurantId, setRestaurantId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try { return window.localStorage.getItem(RESTAURANT_KEY); } catch { return null; }
+  });
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<QuickFilter>("all");
@@ -232,6 +236,19 @@ function KitchenPage() {
 
   const activeId = restaurantId ?? options[0]?.id ?? null;
 
+  useEffect(() => {
+    if (!memberships.isSuccess) return;
+    const valid = restaurantId && options.some((option) => option.id === restaurantId);
+    const next = valid ? restaurantId : (options[0]?.id ?? null);
+    if (next !== restaurantId) setRestaurantId(next);
+    try {
+      if (next) window.localStorage.setItem(RESTAURANT_KEY, next);
+      else window.localStorage.removeItem(RESTAURANT_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+  }, [memberships.isSuccess, options, restaurantId]);
+
   // Roles held in the active restaurant decide price visibility and whether
   // late-stage cancellations are allowed without a manager override.
   const activeRoles = useMemo<AppRole[]>(() => {
@@ -246,7 +263,10 @@ function KitchenPage() {
   const orders = useQuery({
     queryKey: ["kitchen", "orders", activeId],
     enabled: Boolean(activeId),
-    refetchInterval: 20000,
+    staleTime: 8_000,
+    gcTime: 5 * 60_000,
+    refetchInterval: live ? false : 12_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
@@ -255,7 +275,8 @@ function KitchenPage() {
         )
         .eq("restaurant_id", activeId!)
         .in("status", ["new", "accepted", "preparing", "ready"])
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true })
+        .limit(120);
       if (error) throw error;
       return (data ?? []) as unknown as OrderRow[];
     },
@@ -264,7 +285,8 @@ function KitchenPage() {
   const staffOptions = useQuery({
     queryKey: ["kitchen", "staff", activeId],
     enabled: Boolean(activeId),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 15 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
@@ -294,10 +316,16 @@ function KitchenPage() {
     return map;
   }, [statusLog.data]);
 
+  async function refreshKitchenOrders(includeEvents = false) {
+    const tasks = [queryClient.invalidateQueries({ queryKey: ["kitchen", "orders", activeId] })];
+    if (includeEvents) tasks.push(queryClient.invalidateQueries({ queryKey: ["kitchen", "events", activeId] }));
+    await Promise.all(tasks);
+  }
+
   async function assign(orderId: string, staffId: string | null) {
     try {
       await assignOrderToStaff(orderId, staffId);
-      await queryClient.invalidateQueries({ queryKey: ["kitchen"] });
+      await refreshKitchenOrders(false);
       toast.success(ar ? "تم تعيين الطلب" : "Order assigned");
     } catch (error) {
       toast.error(humanError(error, lang));
@@ -319,7 +347,7 @@ function KitchenPage() {
           filter: `restaurant_id=eq.${activeId}`,
         },
         (payload) => {
-          void queryClient.invalidateQueries({ queryKey: ["kitchen"] });
+          void queryClient.invalidateQueries({ queryKey: ["kitchen", "orders", activeId] });
           const row = payload.new as { status?: string } | null;
           if (payload.eventType === "INSERT" && row?.status === "new") {
             if (prefs.soundOn) playOrderAlert();
@@ -368,7 +396,7 @@ function KitchenPage() {
     try {
       const { error } = await supabase.from("orders").update({ status: next }).eq("id", id);
       if (error) throw error;
-      await queryClient.invalidateQueries({ queryKey: ["kitchen"] });
+      await refreshKitchenOrders(true);
     } catch (error) {
       toast.error(humanError(error, lang));
     }
@@ -446,7 +474,7 @@ function KitchenPage() {
   );
 
 
-  if (memberships.isPending) return <Skeleton className="m-6 h-64 rounded-3xl" />;
+  if (memberships.isPending && !activeId) return <KitchenBootSkeleton ar={ar} />;
 
   if (options.length === 0) {
     return (
@@ -806,7 +834,7 @@ function KitchenPage() {
         onClose={() => setCancelTarget(null)}
         onDone={async () => {
           setCancelTarget(null);
-          await queryClient.invalidateQueries({ queryKey: ["kitchen"] });
+          await refreshKitchenOrders(true);
         }}
       />
 
@@ -820,6 +848,20 @@ function KitchenPage() {
       />
     </div>
   );
+}
+
+function KitchenBootSkeleton({ ar }: { ar: boolean }) {
+  return <div className="min-h-screen bg-background">
+    <header className="border-b border-border bg-card px-4 py-4">
+      <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-4">
+        <div><div className="flex items-center gap-2"><ChefHat className="size-5 text-[#ff5a0a]" /><strong className="text-lg">{ar ? "شاشة المطبخ" : "Kitchen display"}</strong></div><p className="mt-1 text-xs text-muted-foreground">{ar ? "جارٍ فتح الطلبات النشطة…" : "Opening active tickets…"}</p></div>
+        <span className="h-2 w-16 overflow-hidden rounded-full bg-muted"><i className="block h-full w-1/2 animate-pulse rounded-full bg-[#ff5a0a]" /></span>
+      </div>
+    </header>
+    <main className="mx-auto max-w-[1800px] px-4 py-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="rounded-3xl border border-border bg-card p-4"><Skeleton className="h-5 w-24" /><Skeleton className="mt-4 h-24 rounded-2xl" /></div>)}</div>
+    </main>
+  </div>;
 }
 
 function CancelDialog({
