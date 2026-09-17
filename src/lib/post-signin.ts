@@ -1,8 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
+import { ROLE_HOME, type AppRole } from "@/lib/permissions";
 
 /**
- * Sends each role to the workspace it can actually use. The dashboard is the
- * fallback whenever the user has several memberships or none yet.
+ * Sends a single restaurant membership to the workspace designed for that job
+ * profile. Users with multiple memberships still land on the neutral dashboard
+ * so they can choose the intended restaurant context safely.
  */
 export async function roleDestination(fallback = "/dashboard", authenticatedUserId?: string): Promise<string> {
   if (fallback !== "/dashboard") return fallback;
@@ -25,15 +27,12 @@ export async function roleDestination(fallback = "/dashboard", authenticatedUser
     }
 
     const rows = data ?? [];
-    if (rows.some((r) => r.role === "super_admin")) return "/super-admin";
+    if (rows.some((row) => row.role === "super_admin")) return ROLE_HOME.super_admin;
+
     if (rows.length === 1) {
       const row = rows[0]!;
-      if (row.role === "restaurant_admin" && row.restaurant_id) {
-        return `/manage/${row.restaurant_id}`;
-      }
-      if (row.role === "waiter") return "/waiter";
-      if (row.role === "cashier") return "/cashier";
-      if (row.role === "manager" || row.role === "kitchen") return "/kitchen";
+      const role = row.role as AppRole;
+      return ROLE_HOME[role] ?? fallback;
     }
   } catch (error) {
     console.warn("Unable to resolve the post-sign-in role; using the safe destination.", error);
