@@ -113,7 +113,7 @@ function ApprovalsPage() {
       <section className="grid gap-3 sm:grid-cols-3">
         <Metric label={ar ? "بانتظار القرار" : "Pending"} value={pending.length} />
         <Metric label={ar ? "عاجل" : "Urgent"} value={urgent} tone="urgent" />
-        <Metric label={ar ? "متأخر" : "Overdue"} value={overdue} tone={overdue ? "urgent" : undefined} />
+        {overdue > 0 ? <Metric label={ar ? "متأخر" : "Overdue"} value={overdue} tone="urgent" /> : <Metric label={ar ? "متأخر" : "Overdue"} value={0} />}
       </section>
 
       <section className="qs-card overflow-hidden">
