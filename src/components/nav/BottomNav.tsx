@@ -32,7 +32,7 @@ type Item = { to: string; icon: typeof Home; en: string; ar: string; exact?: boo
 const FRONTLINE_ITEMS: Record<string, Item> = {
   kitchen: { to: "/kitchen", icon: ChefHat, en: "Kitchen", ar: "المطبخ" },
   waiter: { to: "/waiter", icon: UtensilsCrossed, en: "Floor", ar: "الصالة" },
-  host: { to: "/waiter", icon: UtensilsCrossed, en: "Host", ar: "الاستقبال" },
+  host: { to: "/host", icon: UtensilsCrossed, en: "Host", ar: "الاستقبال" },
   cashier: { to: "/cashier", icon: Banknote, en: "Cashier", ar: "الكاشير" },
 };
 

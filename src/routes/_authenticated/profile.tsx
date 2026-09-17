@@ -18,6 +18,7 @@ import {
 
 import { AppHeader } from "@/components/nav/AppHeader";
 import { ProfileAvatarEditor } from "@/components/profile/ProfileAvatarEditor";
+import { AccountCoverEditor } from "@/components/profile/AccountCoverEditor";
 import { RestaurantProfileSettings } from "@/components/profile/RestaurantProfileSettings";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -81,6 +82,10 @@ function ProfilePage() {
   const notifKey = `quickserve.notifications:${user?.id ?? "guest"}`;
   const canManageRestaurant = Boolean(rid && (access.isSuperAdmin || membership?.role === "restaurant_admin"));
   const avatar = membership?.avatar_url || avatarPresetUrl(membership?.avatar_preset) || meta?.avatar_url || avatarPresetUrl(meta?.avatar_preset ?? null);
+  const accountCover = membership?.cover_image_url ?? null;
+  const accountCoverX = Number(membership?.cover_position_x ?? 50);
+  const accountCoverY = Number(membership?.cover_position_y ?? 50);
+  const accountCoverZoom = Number(membership?.cover_zoom ?? 100);
 
   useEffect(() => {
     try {
@@ -91,9 +96,6 @@ function ProfilePage() {
     }
   }, [notifKey]);
 
-  useEffect(() => {
-    if (section === "organization" && !canManageRestaurant) setSection("profile");
-  }, [canManageRestaurant, section]);
 
   function toggle(key: keyof Notifications, value: boolean) {
     const next = {
@@ -131,14 +133,14 @@ function ProfilePage() {
   const navItems = [
     { id: "profile" as const, icon: UserRound, label: ar ? "الملف الشخصي" : "Personal profile", hint: ar ? "الصورة وبيانات الحساب" : "Identity and account details" },
     { id: "notifications" as const, icon: Bell, label: ar ? "الإشعارات" : "Notifications", hint: ar ? "التنبيهات والأصوات" : "Alerts and sound preferences" },
-    ...(canManageRestaurant ? [{ id: "organization" as const, icon: Store, label: ar ? "المؤسسة والمظهر" : "Organization & appearance", hint: ar ? "الهوية والألوان والغلاف" : "Brand, colors and cover" }] : []),
+    { id: "organization" as const, icon: Store, label: ar ? "المؤسسة والمظهر" : "Organization & appearance", hint: canManageRestaurant ? (ar ? "الهوية والألوان والغلاف" : "Brand, colors and cover") : (ar ? "غلاف حسابك" : "Your account cover") },
   ];
 
   return <div className="min-h-dvh bg-background">
     <AppHeader />
     <main className="qs-page space-y-5 pb-10">
       <section className="relative overflow-hidden rounded-[28px] border border-border bg-card">
-        <div className="absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_18%_0%,rgba(255,90,10,.15),transparent_55%)]" />
+        {accountCover ? <><img src={accountCover} alt="" className="pointer-events-none absolute inset-0 size-full object-cover opacity-30" style={{ objectPosition: `${accountCoverX}% ${accountCoverY}%`, transform: `scale(${accountCoverZoom / 100})` }} /><div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card/95 via-card/78 to-card/55" /></> : <div className="absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_18%_0%,rgba(255,90,10,.15),transparent_55%)]" />}
         <div className="relative flex flex-col gap-5 p-5 sm:p-7 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
             <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-[24px] border border-border bg-background shadow-sm">
@@ -189,7 +191,7 @@ function ProfilePage() {
         <div className="min-w-0">
           {section === "profile" ? <PersonalSection ar={ar} lang={lang} rid={rid} displayName={displayName} email={email} roleLabel={roleLabel} restaurantName={restaurantName} createdAt={user?.created_at} /> : null}
           {section === "notifications" ? <NotificationsSection ar={ar} notif={notif} operationalRows={operationalRows} soundRows={soundRows} toggle={toggle} /> : null}
-          {section === "organization" && rid && canManageRestaurant ? <OrganizationSection ar={ar} restaurantId={rid} /> : null}
+          {section === "organization" && rid ? <OrganizationSection ar={ar} restaurantId={rid} canManageRestaurant={canManageRestaurant} /> : null}
         </div>
       </div>
     </main>
@@ -224,15 +226,18 @@ function NotificationsSection({ ar, notif, operationalRows, soundRows, toggle }:
   </div>;
 }
 
-function OrganizationSection({ ar, restaurantId }: { ar: boolean; restaurantId: string }) {
+function OrganizationSection({ ar, restaurantId, canManageRestaurant }: { ar: boolean; restaurantId: string; canManageRestaurant: boolean }) {
   return <div className="space-y-5">
-    <SectionHeading icon={<Store className="size-5" />} title={ar ? "المؤسسة والمظهر" : "Organization & appearance"} description={ar ? "إدارة هوية المطعم والشعارات وصورة الغلاف ونظام ألوان التطبيق ضمن مساحة منظمة واحدة." : "Manage restaurant identity, logos, cover image and application colors in one organized workspace."} />
-    <div className="flex flex-wrap gap-2 rounded-2xl border border-border bg-muted/20 p-3 text-[10px] font-bold text-muted-foreground">
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-2"><Building2 className="size-3.5" />{ar ? "هوية المطعم" : "Restaurant identity"}</span>
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-2"><Palette className="size-3.5" />{ar ? "نظام الألوان" : "Color system"}</span>
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-2"><SlidersHorizontal className="size-3.5" />{ar ? "معاينة مباشرة" : "Live preview"}</span>
-    </div>
-    <RestaurantProfileSettings restaurantId={restaurantId} />
+    <SectionHeading icon={<Store className="size-5" />} title={ar ? "المؤسسة والمظهر" : "Organization & appearance"} description={canManageRestaurant ? (ar ? "إدارة هوية المطعم وإعدادات الحساب من مساحة واحدة منظمة." : "Manage restaurant identity and your account appearance from one organized workspace.") : (ar ? "خصص غلاف حسابك فقط بدون التأثير على هوية المطعم أو إعداداته." : "Customize only your account cover without changing restaurant branding or settings.")} />
+    <AccountCoverEditor restaurantId={restaurantId} />
+    {canManageRestaurant ? <>
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-border bg-muted/20 p-3 text-[10px] font-bold text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-2"><Building2 className="size-3.5" />{ar ? "هوية المطعم" : "Restaurant identity"}</span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-2"><Palette className="size-3.5" />{ar ? "نظام الألوان" : "Color system"}</span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-2"><SlidersHorizontal className="size-3.5" />{ar ? "مظهر مساحة العمل" : "Workspace appearance"}</span>
+      </div>
+      <RestaurantProfileSettings restaurantId={restaurantId} />
+    </> : <section className="rounded-2xl border border-border bg-muted/20 p-4 text-xs leading-5 text-muted-foreground">{ar ? "إعدادات الشعار والألوان والمطعم تبقى تحت إدارة مدير المطعم. هذا الحساب يستطيع تعديل غلافه الشخصي فقط." : "Restaurant logos, colors and organization settings remain controlled by the Restaurant Manager. This account can edit only its personal cover."}</section>}
   </div>;
 }
 

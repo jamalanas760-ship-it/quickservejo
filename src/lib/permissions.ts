@@ -39,7 +39,7 @@ export const ROLE_HOME: Record<AppRole, string> = {
   kitchen: "/kitchen",
   waiter: "/waiter",
   cashier: "/cashier",
-  host: "/waiter",
+  host: "/host",
   inventory: "/work",
   procurement: "/work",
   accountant: "/work",
@@ -181,7 +181,8 @@ export const MANAGEMENT_ROLES: AppRole[] = ["super_admin", "restaurant_admin", "
 export function isFrontlineOnly(roles: AppRole[]) { return roles.length > 0 && !roles.some((role) => MANAGEMENT_ROLES.includes(role)); }
 export function frontlineHome(roles: AppRole[]) {
   if (roles.includes("operations_manager") || roles.includes("manager")) return "/manager";
-  if (roles.includes("waiter") || roles.includes("host")) return "/waiter";
+  if (roles.includes("host")) return "/host";
+  if (roles.includes("waiter")) return "/waiter";
   if (roles.includes("cashier")) return "/cashier";
   if (roles.includes("inventory") || roles.includes("procurement") || roles.includes("accountant")) return "/work";
   return "/kitchen";
