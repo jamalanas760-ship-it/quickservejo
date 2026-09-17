@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Crop, Image as ImageIcon, Move, Save, SlidersHorizontal } from "lucide-react";
+import { Image as ImageIcon, Minus, Move, Plus, RotateCcw, Save, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
 import { ApplicationColorStudio } from "@/components/manage/ApplicationColorStudio";
@@ -105,22 +105,62 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
 }
 
 function CoverComposer({ ar, url, x, y, zoom, onChange }: { ar: boolean; url: string; x: number; y: number; zoom: number; onChange: (value: { coverPositionX?: number; coverPositionY?: number; coverZoom?: number }) => void }) {
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ pointerId: number; clientX: number; clientY: number; x: number; y: number } | null>(null);
   const previewStyle = { objectPosition: `${x}% ${y}%`, transform: `scale(${zoom / 100})`, transformOrigin: `${x}% ${y}%` };
-  const presets = [{ label: ar ? "أعلى" : "Top", x: 50, y: 18 }, { label: ar ? "وسط" : "Center", x: 50, y: 50 }, { label: ar ? "أسفل" : "Bottom", x: 50, y: 82 }];
-  return <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(280px,.7fr)]">
-    <div className="relative aspect-[16/6] overflow-hidden rounded-2xl border border-border bg-muted"><img src={url} alt="" className="h-full w-full object-cover transition-transform duration-200" style={previewStyle} /><div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-black/5" /><span className="absolute bottom-3 start-3 rounded-full bg-black/65 px-3 py-1 text-[10px] font-bold text-white backdrop-blur">{ar ? "معاينة الغلاف" : "Live cover preview"}</span></div>
-    <div className="space-y-4 rounded-2xl border border-border bg-muted/15 p-4">
-      <div className="flex items-center gap-2"><Move className="size-4 text-[#ff5a0a]" /><strong className="text-xs">{ar ? "موضع الصورة" : "Image position"}</strong></div>
-      <Slider label={ar ? "أفقي" : "Horizontal"} value={x} min={0} max={100} suffix="%" onChange={(value) => onChange({ coverPositionX: value })} />
-      <Slider label={ar ? "عمودي" : "Vertical"} value={y} min={0} max={100} suffix="%" onChange={(value) => onChange({ coverPositionY: value })} />
-      <div className="flex items-center gap-2 pt-1"><Crop className="size-4 text-[#ff5a0a]" /><strong className="text-xs">{ar ? "حجم الصورة" : "Image zoom"}</strong></div>
-      <Slider label={ar ? "تكبير" : "Zoom"} value={zoom} min={100} max={220} suffix="%" onChange={(value) => onChange({ coverZoom: value })} />
-      <div className="grid grid-cols-3 gap-2">{presets.map((preset) => <button key={preset.label} type="button" onClick={() => onChange({ coverPositionX: preset.x, coverPositionY: preset.y })} className="rounded-xl border border-border bg-card px-2 py-2 text-[10px] font-bold transition hover:border-orange-300 hover:text-[#ff5a0a]">{preset.label}</button>)}</div>
-      <button type="button" onClick={() => onChange({ coverPositionX: 50, coverPositionY: 50, coverZoom: 100 })} className="w-full rounded-xl border border-border bg-card px-3 py-2 text-[10px] font-bold text-muted-foreground transition hover:text-foreground">{ar ? "إعادة ضبط الغلاف" : "Reset cover framing"}</button>
-    </div>
-  </div>;
-}
+  const clampValue = (value: number) => Math.min(100, Math.max(0, value));
+  const clampZoom = (value: number) => Math.min(220, Math.max(100, value));
 
-function Slider({ label, value, min, max, suffix, onChange }: { label: string; value: number; min: number; max: number; suffix: string; onChange: (value: number) => void }) {
-  return <label className="block"><span className="mb-1.5 flex items-center justify-between text-[10px] font-semibold text-muted-foreground"><span>{label}</span><strong className="text-foreground">{Math.round(value)}{suffix}</strong></span><input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} className="h-2 w-full cursor-pointer accent-[#ff5a0a]" /></label>;
+  function beginDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    if ((event.target as HTMLElement).closest('button')) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, x, y };
+  }
+
+  function moveDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    const rect = frameRef.current?.getBoundingClientRect();
+    if (!drag || drag.pointerId !== event.pointerId || !rect) return;
+    event.preventDefault();
+    const dx = (event.clientX - drag.clientX) / rect.width * 100;
+    const dy = (event.clientY - drag.clientY) / rect.height * 100;
+    onChange({ coverPositionX: clampValue(drag.x - dx), coverPositionY: clampValue(drag.y - dy) });
+  }
+
+  function endDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
+  }
+
+  return <div className="space-y-2">
+    <div
+      ref={frameRef}
+      role="application"
+      aria-label={ar ? "اسحب صورة الغلاف لتغيير الجزء الظاهر" : "Drag the cover image to change the visible area"}
+      onPointerDown={beginDrag}
+      onPointerMove={moveDrag}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      className="group relative aspect-[16/6] touch-none select-none overflow-hidden rounded-2xl border border-border bg-muted shadow-sm cursor-grab active:cursor-grabbing"
+    >
+      <img src={url} alt="" draggable={false} className="pointer-events-none h-full w-full object-cover transition-transform duration-150" style={previewStyle} />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/10" />
+      <div className="pointer-events-none absolute inset-0 grid place-items-center opacity-0 transition group-hover:opacity-100">
+        <span className="grid size-10 place-items-center rounded-full border border-white/70 bg-black/25 text-white backdrop-blur-sm"><Move className="size-4" /></span>
+      </div>
+      <div className="absolute start-3 top-3 flex items-center gap-1 rounded-xl border border-white/20 bg-black/55 p-1 text-white shadow-lg backdrop-blur-md">
+        <button type="button" onClick={() => onChange({ coverZoom: clampZoom(zoom - 10) })} className="grid size-9 place-items-center rounded-lg transition hover:bg-white/15" aria-label={ar ? "تصغير" : "Zoom out"}><Minus className="size-4" /></button>
+        <span className="min-w-12 text-center text-[10px] font-bold tabular-nums">{Math.round(zoom)}%</span>
+        <button type="button" onClick={() => onChange({ coverZoom: clampZoom(zoom + 10) })} className="grid size-9 place-items-center rounded-lg transition hover:bg-white/15" aria-label={ar ? "تكبير" : "Zoom in"}><Plus className="size-4" /></button>
+        <span className="mx-0.5 h-5 w-px bg-white/20" />
+        <button type="button" onClick={() => onChange({ coverPositionX: 50, coverPositionY: 50, coverZoom: 100 })} className="grid size-9 place-items-center rounded-lg transition hover:bg-white/15" aria-label={ar ? "إعادة ضبط" : "Reset framing"}><RotateCcw className="size-4" /></button>
+      </div>
+      <div className="pointer-events-none absolute bottom-3 start-3 max-w-[78%] rounded-xl bg-black/55 px-3 py-2 text-[10px] font-semibold leading-4 text-white backdrop-blur-md">
+        {ar ? "اسحب الصورة نفسها لاختيار الجزء الظاهر. استخدم + و− للتكبير والتصغير." : "Drag the image itself to choose what stays visible. Use + and − to zoom."}
+      </div>
+    </div>
+    <p className="text-[10px] text-muted-foreground">{ar ? "يتم حفظ الموضع والتكبير عند حفظ إعدادات المؤسسة." : "The framing and zoom are saved with the organization settings."}</p>
+  </div>;
 }
