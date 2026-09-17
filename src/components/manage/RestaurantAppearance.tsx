@@ -9,12 +9,9 @@ import { useI18n } from "@/lib/i18n";
 import { readAppearance } from "@/lib/restaurant-appearance";
 import { humanError } from "@/lib/errors";
 import { supabase } from "@/integrations/supabase/client";
-import { ImageUploader } from "@/components/media/ImageUploader";
-import { ApplicationColorStudio } from "@/components/manage/ApplicationColorStudio";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 
 export function RestaurantAppearance({ restaurantId }: { restaurantId: string }) {
   const restaurant = useRestaurant(restaurantId);
@@ -87,33 +84,6 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
   return (
     <form onSubmit={save} className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_300px]">
       <div className="min-w-0 space-y-5">
-        <section className="panel space-y-6 p-4 sm:p-6">
-          <div><h3 className="text-lg font-semibold">{ar ? "إعدادات المؤسسة" : "Organization Settings"}</h3><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar ? "خصص شعار المطعم والغلاف وهوية مساحة العمل لهذا المطعم فقط." : "Customize this restaurant's logo, cover, navigation and workspace identity."}</p></div>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="space-y-3">
-              <ImageUploader restaurantId={restaurant.id} kind="logo" value={form.logo_url} onChange={(v) => field("logo_url", v)} label={ar ? "شعار المؤسسة" : "Organization logo"} />
-              <label className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-muted/20 p-4">
-                <span className="min-w-0"><strong className="block text-sm">{ar ? "استخدام شعار QuickServe" : "Use QuickServe logo"}</strong><span className="mt-1 block text-xs leading-5 text-muted-foreground">{ar ? "عند إيقافه سيظهر شعار المطعم في الشريط والقائمة إذا تم رفعه." : "Turn this off to show the restaurant logo in the app header and sidebar when one is uploaded."}</span></span>
-                <Switch checked={brand.useQuickServeLogo} onCheckedChange={(value) => setBrand((p) => ({ ...p, useQuickServeLogo: value }))} />
-              </label>
-            </div>
-            <ImageUploader restaurantId={restaurant.id} kind="logo" value={brand.menuLogo} onChange={(v) => setBrand((p) => ({ ...p, menuLogo: v }))} label={ar ? "شعار قائمة الضيف" : "Guest menu logo"} />
-            <div className="lg:col-span-2"><ImageUploader restaurantId={restaurant.id} kind="cover" aspect="wide" value={form.cover_image_url} onChange={(v) => field("cover_image_url", v)} label={ar ? "صورة الغلاف والرئيسية" : "Cover & home image"} /></div>
-          </div>
-
-          <ApplicationColorStudio
-            ar={ar}
-            restaurantName={restaurant.name}
-            brand={brand}
-            setBrand={setBrand}
-            primaryColor={form.primary_color}
-            accentColor={form.accent_color}
-            setPrimaryColor={(value) => field("primary_color", value)}
-            setAccentColor={(value) => field("accent_color", value)}
-          />
-        </section>
-
         <section className="panel space-y-5 p-4 sm:p-6"><h3 className="text-lg font-semibold">{ar ? "الرئيسية ولوحة التحكم" : "Home & dashboard"}</h3><label className="block space-y-2 text-sm"><span>{ar ? "عنوان الرئيسية" : "Home heading"}</span><Input maxLength={100} value={brand.homeTitle} placeholder={restaurant.name} onChange={(e) => setBrand((p) => ({ ...p, homeTitle: e.target.value }))} /></label><label className="block space-y-2 text-sm"><span>{ar ? "عنوان لوحة التحكم" : "Dashboard heading"}</span><Input maxLength={100} value={brand.dashboardTitle} placeholder={restaurant.name} onChange={(e) => setBrand((p) => ({ ...p, dashboardTitle: e.target.value }))} /></label></section>
       </div>
 

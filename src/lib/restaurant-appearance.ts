@@ -21,6 +21,9 @@ export type RestaurantAppearance = {
   sidebarBackground: string;
   sidebarText: string;
   selectedNavColor: string;
+  coverPositionX: number;
+  coverPositionY: number;
+  coverZoom: number;
   guestMenuMode: "light" | "dark";
   guestMenuLight: GuestMenuPalette;
   guestMenuDark: GuestMenuPalette;
@@ -45,6 +48,11 @@ const DARK_DEFAULTS: GuestMenuPalette = {
   primaryText: "#ffffff",
   accent: "#ff9a5b",
 };
+
+function numberInRange(value: unknown, fallback: number, min: number, max: number) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.min(max, Math.max(min, numeric)) : fallback;
+}
 
 function color(value: unknown, fallback: string) {
   return typeof value === "string" && HEX.test(value) ? value : fallback;
@@ -79,6 +87,9 @@ export function readAppearance(theme: unknown): RestaurantAppearance {
     sidebarBackground: color(value.sidebarBackground, "#ffffff"),
     sidebarText: color(value.sidebarText, "#64748b"),
     selectedNavColor: color(value.selectedNavColor, "#ff5a0a"),
+    coverPositionX: numberInRange(value.coverPositionX, 50, 0, 100),
+    coverPositionY: numberInRange(value.coverPositionY, 50, 0, 100),
+    coverZoom: numberInRange(value.coverZoom, 100, 100, 220),
     guestMenuMode: value.guestMenuMode === "dark" ? "dark" : "light",
     guestMenuLight: palette(value.guestMenuLight, LIGHT_DEFAULTS),
     guestMenuDark: palette(value.guestMenuDark, DARK_DEFAULTS),
