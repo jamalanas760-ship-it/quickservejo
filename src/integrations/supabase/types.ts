@@ -1098,10 +1098,15 @@ export type Database = {
       app_role:
         | "super_admin"
         | "restaurant_admin"
+        | "operations_manager"
         | "manager"
         | "kitchen"
         | "waiter"
         | "cashier"
+        | "host"
+        | "inventory"
+        | "procurement"
+        | "accountant"
       order_status:
         | "new"
         | "accepted"
@@ -1249,10 +1254,15 @@ export const Constants = {
       app_role: [
         "super_admin",
         "restaurant_admin",
+        "operations_manager",
         "manager",
         "kitchen",
         "waiter",
         "cashier",
+        "host",
+        "inventory",
+        "procurement",
+        "accountant",
       ],
       order_status: [
         "new",

@@ -3,10 +3,11 @@ import {
   BarChart3,
   Banknote,
   BellRing,
+  Boxes,
+  BriefcaseBusiness,
   ChefHat,
   ClipboardList,
   Home,
-  MoreHorizontal,
   Settings,
   Store,
   Table2,
@@ -29,6 +30,7 @@ type Item = { to: string; icon: typeof Home; en: string; ar: string; exact?: boo
 const FRONTLINE_ITEMS: Record<string, Item> = {
   kitchen: { to: "/kitchen", icon: ChefHat, en: "Kitchen", ar: "المطبخ" },
   waiter: { to: "/waiter", icon: UtensilsCrossed, en: "Floor", ar: "الصالة" },
+  host: { to: "/waiter", icon: UtensilsCrossed, en: "Host", ar: "الاستقبال" },
   cashier: { to: "/cashier", icon: Banknote, en: "Cashier", ar: "الكاشير" },
 };
 
@@ -52,25 +54,31 @@ export function BottomNav() {
   const can = (capability: Capability) => Boolean(role && membershipHasCapability(role, overrides, capability));
   const appearance = readAppearance(restaurant?.menu_theme);
   const useRestaurantLogo = Boolean(restaurant?.logo_url && !appearance.useQuickServeLogo);
-  const homeTo = role === "manager" ? "/manager" : "/dashboard";
+  const managerial = role === "restaurant_admin" || role === "operations_manager" || role === "manager";
+  const erpSpecialist = role === "inventory" || role === "procurement" || role === "accountant";
+  const homeTo = role === "operations_manager" || role === "manager" ? "/manager" : erpSpecialist ? "/work" : "/dashboard";
 
   const managementItems: Item[] = restaurantId ? ([
-    { to: homeTo, icon: role === "manager" ? UserRoundCog : Home, en: role === "manager" ? "Manager" : "Home", ar: role === "manager" ? "المدير" : "الرئيسية", exact: true },
+    { to: homeTo, icon: role === "operations_manager" || role === "manager" ? UserRoundCog : Home, en: role === "operations_manager" ? "Operations" : role === "manager" ? "Shift" : "Home", ar: role === "operations_manager" ? "العمليات" : role === "manager" ? "الوردية" : "الرئيسية", exact: true },
+    { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي", capability: "view_work" },
     { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات", capability: "view_orders" },
     { to: `/manage/${restaurantId}`, icon: UtensilsCrossed, en: "Menu", ar: "القائمة", exact: true, capability: "manage_menu" },
     { to: `/manage/${restaurantId}/tables`, icon: Table2, en: "Tables", ar: "الطاولات", capability: "manage_tables" },
+    { to: `/manage/${restaurantId}/operations`, icon: Boxes, en: "ERP", ar: "ERP", capability: "view_erp" },
     { to: `/manage/${restaurantId}/analytics`, icon: BarChart3, en: "Analytics", ar: "التحليلات", capability: "view_analytics" },
     { to: `/manage/${restaurantId}/staff`, icon: Users, en: "Team", ar: "الفريق", capability: "manage_staff" },
     { to: "/profile", icon: User, en: "Profile", ar: "الحساب", exact: true },
   ] satisfies Item[]).filter((item) => !item.capability || can(item.capability)) : [];
 
   const frontlineItem = role ? FRONTLINE_ITEMS[role] : undefined;
-  const desktopItems: Item[] = role === "manager"
+  const workItem: Item | null = can("view_work") ? { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي" } : null;
+  const erpItem: Item | null = restaurantId && can("view_erp") ? { to: `/manage/${restaurantId}/operations`, icon: Boxes, en: "ERP", ar: "ERP" } : null;
+  const desktopItems: Item[] = managerial
     ? managementItems
-    : role === "restaurant_admin"
-      ? managementItems
+    : erpSpecialist
+      ? [workItem, erpItem, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }].filter(Boolean) as Item[]
       : frontlineItem
-        ? [frontlineItem, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }]
+        ? [frontlineItem, workItem, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }].filter(Boolean) as Item[]
         : restaurantId
           ? managementItems
           : [
@@ -79,8 +87,9 @@ export function BottomNav() {
               { to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات" },
             ];
 
+  const mobilePriority = [homeTo, "/work", `/manage/${restaurantId}/orders`, `/manage/${restaurantId}/operations`, "/profile"];
   const mobileItems = desktopItems.length > 5
-    ? desktopItems.filter((item) => [homeTo, `/manage/${restaurantId}/orders`, `/manage/${restaurantId}`, `/manage/${restaurantId}/tables`, "/profile"].includes(item.to)).slice(0, 5)
+    ? mobilePriority.flatMap((to) => desktopItems.find((item) => item.to === to) ?? []).slice(0, 5)
     : desktopItems;
 
   function activeFor(item: Item) {
@@ -110,7 +119,7 @@ export function BottomNav() {
               const active = activeFor(item);
               const Icon = item.icon;
               const isOrders = item.en === "Orders";
-              const divider = item.en === "Team" || item.en === "Profile";
+              const divider = item.en === "Team" || item.en === "Profile" || item.en === "ERP";
               return (
                 <li key={`${item.to}-${item.en}`} className={divider && index > 0 ? "mt-4 border-t border-border pt-4" : ""}>
                   <Link to={item.to as never} data-active={active} className="qs-sidebar-item" aria-current={active ? "page" : undefined}>
@@ -124,11 +133,11 @@ export function BottomNav() {
           </ul>
         </nav>
 
-        {role === "restaurant_admin" || role === "manager" ? (
+        {managerial ? (
           <div className="p-3">
             <div className="rounded-[18px] border border-border/70 bg-card/70 p-4 text-muted-foreground">
-              <span className="grid size-8 place-items-center rounded-full bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><ChefHat className="size-4" /></span>
-              <p className="mt-3 text-[12px] font-medium leading-5">{lang === "ar" ? "مساحة عمل مصممة لدورك." : "A workspace tailored to your role."}</p>
+              <span className="grid size-8 place-items-center rounded-full bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><BriefcaseBusiness className="size-4" /></span>
+              <p className="mt-3 text-[12px] font-medium leading-5">{lang === "ar" ? "المهام والموافقات وERP حسب مسؤولياتك." : "Tasks, approvals and ERP are scoped to your responsibilities."}</p>
             </div>
           </div>
         ) : null}

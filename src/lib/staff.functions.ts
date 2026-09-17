@@ -7,13 +7,18 @@ import { quickServeSupabase } from "@/integrations/supabase/public-config";
 const permissionKeys = [
   "manage_restaurant","manage_menu","manage_tables","manage_staff","manage_appearance","view_analytics",
   "view_orders","view_order_prices","update_order_status","manage_payments","handle_waiter_calls",
+  "view_work","create_work","manage_work","approve_work","view_erp","manage_inventory","manage_procurement","manage_finance","manage_shifts",
+] as const;
+
+const staffRoles = [
+  "restaurant_admin","operations_manager","manager","kitchen","waiter","cashier","host","inventory","procurement","accountant",
 ] as const;
 
 const inviteSchema = z.object({
   restaurantId: z.string().uuid(),
   email: z.string().trim().email(),
   name: z.string().trim().min(1).max(120),
-  role: z.enum(["restaurant_admin", "manager", "kitchen", "waiter", "cashier"]),
+  role: z.enum(staffRoles),
 });
 
 const staffRefSchema = z.object({ staffId: z.string().uuid() });
@@ -23,7 +28,7 @@ const updateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   email: z.string().trim().email().optional(),
   password: z.string().min(8).max(72).optional(),
-  role: z.enum(["restaurant_admin", "manager", "kitchen", "waiter", "cashier"]).optional(),
+  role: z.enum(staffRoles).optional(),
   isActive: z.boolean().optional(),
   permissionOverrides: z.partialRecord(z.enum(permissionKeys), z.boolean()).optional(),
 });
