@@ -18,6 +18,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
 import { Route as AuthenticatedAutomationsRouteImport } from './routes/_authenticated/automations'
 import { Route as AuthenticatedCashierRouteImport } from './routes/_authenticated/cashier'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -114,6 +115,11 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedApprovalsRoute = AuthenticatedApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAutomationsRoute =
   AuthenticatedAutomationsRouteImport.update({
     id: '/automations',
@@ -414,6 +420,7 @@ export interface FileRoutesByFullPath {
   '/super-admin': typeof AuthenticatedSuperAdminRouteRouteWithChildren
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/approvals': typeof AuthenticatedApprovalsRoute
   '/automations': typeof AuthenticatedAutomationsRoute
   '/cashier': typeof AuthenticatedCashierRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -471,6 +478,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/approvals': typeof AuthenticatedApprovalsRoute
   '/automations': typeof AuthenticatedAutomationsRoute
   '/cashier': typeof AuthenticatedCashierRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -530,6 +538,7 @@ export interface FileRoutesById {
   '/_authenticated/super-admin': typeof AuthenticatedSuperAdminRouteRouteWithChildren
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/_authenticated/approvals': typeof AuthenticatedApprovalsRoute
   '/_authenticated/automations': typeof AuthenticatedAutomationsRoute
   '/_authenticated/cashier': typeof AuthenticatedCashierRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -591,6 +600,7 @@ export interface FileRouteTypes {
     | '/super-admin'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/approvals'
     | '/automations'
     | '/cashier'
     | '/dashboard'
@@ -648,6 +658,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/approvals'
     | '/automations'
     | '/cashier'
     | '/dashboard'
@@ -706,6 +717,7 @@ export interface FileRouteTypes {
     | '/_authenticated/super-admin'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/_authenticated/approvals'
     | '/_authenticated/automations'
     | '/_authenticated/cashier'
     | '/_authenticated/dashboard'
@@ -839,6 +851,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/.well-known/oauth-protected-resource'
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/approvals': {
+      id: '/_authenticated/approvals'
+      path: '/approvals'
+      fullPath: '/approvals'
+      preLoaderRoute: typeof AuthenticatedApprovalsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/automations': {
       id: '/_authenticated/automations'
@@ -1316,6 +1335,7 @@ const AuthenticatedSuperAdminRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedManageRouteRoute: typeof AuthenticatedManageRouteRouteWithChildren
   AuthenticatedSuperAdminRouteRoute: typeof AuthenticatedSuperAdminRouteRouteWithChildren
+  AuthenticatedApprovalsRoute: typeof AuthenticatedApprovalsRoute
   AuthenticatedAutomationsRoute: typeof AuthenticatedAutomationsRoute
   AuthenticatedCashierRoute: typeof AuthenticatedCashierRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -1333,6 +1353,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedManageRouteRoute: AuthenticatedManageRouteRouteWithChildren,
   AuthenticatedSuperAdminRouteRoute:
     AuthenticatedSuperAdminRouteRouteWithChildren,
+  AuthenticatedApprovalsRoute: AuthenticatedApprovalsRoute,
   AuthenticatedAutomationsRoute: AuthenticatedAutomationsRoute,
   AuthenticatedCashierRoute: AuthenticatedCashierRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
