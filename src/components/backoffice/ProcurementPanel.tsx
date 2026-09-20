@@ -99,7 +99,12 @@ export function ProcurementPanel({
 
   function submitOrder() {
     if (!orderTarget) return;
-    statusMutation.mutate({ id: orderTarget.id, status: "ordered", poReference: poRef.trim() || undefined });
+    const reference = poRef.trim();
+    statusMutation.mutate(
+      reference
+        ? { id: orderTarget.id, status: "ordered", poReference: reference }
+        : { id: orderTarget.id, status: "ordered" },
+    );
     setOrderTarget(null);
     setPoRef("");
   }
