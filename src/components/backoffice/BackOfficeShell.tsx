@@ -96,7 +96,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
         {query.isError ? <div role="alert" className="qs-card space-y-3 p-6"><p className="text-sm text-destructive">{humanError(query.error, lang)}</p><Button variant="outline" onClick={() => void query.refetch()}>{ar ? "إعادة المحاولة" : "Try again"}</Button></div>
         : query.isPending ? <div className="space-y-3"><Skeleton className="h-28 rounded-2xl" /><Skeleton className="h-72 rounded-2xl" /></div>
         : safeSection === "overview" ? <OverviewPanel data={data} summary={summary} access={moduleAccess} currency={currency} onAction={setRequest} onNavigate={setSection} canApproveProcurement={canApproveProcurement} />
-        : safeSection === "inventory" ? <InventoryPanel data={data} currency={currency} onAction={setRequest} />
+        : safeSection === "inventory" ? <InventoryPanel restaurantId={restaurantId} data={data} currency={currency} onAction={setRequest} />
         : safeSection === "receiving" ? <ReceivingPanel data={data} currency={currency} onAction={setRequest} onGoProcurement={() => setSection("procurement")} />
         : safeSection === "procurement" ? <ProcurementPanel restaurantId={restaurantId} data={data} currency={currency} canApprove={canApproveProcurement} canProcure={moduleAccess.procurement || canApproveProcurement} canReceive={moduleAccess.inventory || moduleAccess.procurement || canApproveProcurement} onAction={setRequest} />
         : safeSection === "suppliers" ? <SuppliersPanel data={data} currency={currency} onAction={moduleAccess.procurement || canApproveProcurement ? setRequest : () => undefined} />
