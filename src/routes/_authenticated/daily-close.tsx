@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Banknote, CheckCircle2, ClipboardCheck, Package, Receipt, RotateCcw, UsersRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/nav/AppHeader";
@@ -131,10 +131,9 @@ function DailyClosePage() {
   if (!rid || !membership) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><section className="qs-card p-8 text-center"><ClipboardCheck className="mx-auto size-10 text-muted-foreground" /><h1 className="mt-4 text-xl font-bold">{ar ? "لا يوجد مطعم محدد" : "No restaurant selected"}</h1></section></main></div>;
 
   const close = query.data?.close ?? null;
-  const summary = useMemo(() => {
-    if (close?.status === "finalized" && close.snapshot && Object.keys(close.snapshot).length) return close.snapshot as Summary;
-    return query.data?.live;
-  }, [close, query.data?.live]);
+  const summary = close?.status === "finalized" && close.snapshot && Object.keys(close.snapshot).length
+    ? close.snapshot as Summary
+    : query.data?.live;
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "إقفال اليوم" : "Daily Close"} />
