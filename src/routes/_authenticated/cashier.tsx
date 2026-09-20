@@ -49,6 +49,7 @@ type Payment = {
   tip_amount: number;
   reference: string;
   status: string;
+  parent_transaction_id: string | null;
   created_at: string;
 };
 
@@ -97,7 +98,7 @@ function CashierPage() {
           .limit(150),
         supabase
           .from("payment_transactions" as any)
-          .select("id,order_id,transaction_type,method,amount,tip_amount,reference,status,created_at")
+          .select("id,order_id,parent_transaction_id,transaction_type,method,amount,tip_amount,reference,status,created_at")
           .eq("restaurant_id", rid!)
           .order("created_at", { ascending: false })
           .limit(1000),
@@ -142,7 +143,7 @@ function CashierPage() {
     .reduce((sum, row) => sum + (row.transaction_type === "payment" ? row.amount : row.transaction_type === "refund" ? -row.amount : 0), 0);
 
   const activeBills = useMemo(
-    () => bills.filter((bill) => Math.max(0, bill.total - netPaid(bill.id)) > 0.001 && bill.payment_status !== "refunded"),
+    () => bills.filter((bill) => Math.max(0, bill.total - netPaid(bill.id)) > 0.001),
     [bills, payments],
   );
   const selected = bills.find((bill) => bill.id === selectedId) ?? null;
@@ -186,11 +187,19 @@ function CashierPage() {
     onError: (error) => toast.error(humanError(error, lang)),
   });
 
+  const refundedAgainst = (paymentId: string) => payments
+    .filter((row) => row.transaction_type === "refund" && row.parent_transaction_id === paymentId && row.status === "completed")
+    .reduce((sum, row) => sum + row.amount, 0);
+
+  const refundableAmount = (payment: Payment) => Math.max(0, payment.amount - refundedAgainst(payment.id));
+
   const refundMutation = useMutation({
     mutationFn: async (payment: Payment) => {
+      const remaining = refundableAmount(payment);
+      if (remaining <= 0.001) throw new Error(ar ? "تم استرداد هذه الدفعة بالكامل" : "This payment has already been fully refunded");
       const { error } = await (supabase as any).rpc("refund_order_payment", {
         _order_id: payment.order_id,
-        _amount: payment.amount,
+        _amount: remaining,
         _payment_id: payment.id,
         _reference: "Refund " + (payment.reference || payment.id.slice(0, 8)),
         _cash_session_id: payment.method === "cash" ? openSession?.id ?? null : null,
@@ -289,7 +298,7 @@ function CashierPage() {
                 <Button className="w-full" disabled={paymentMutation.isPending||!(Number(amount)>0)||(method==="gift_card"&&!reference.trim())} onClick={()=>paymentMutation.mutate()}>{methodIcon(method)}{ar?"تسجيل الدفعة":"Record payment"}</Button>
               </> : null}
 
-              <div><h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar?"سجل الدفعات":"Payment history"}</h3><div className="mt-2 space-y-2">{selectedPayments.length?selectedPayments.map(payment=><div key={payment.id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"><div><div className="flex items-center gap-2"><strong className="text-xs capitalize">{payment.transaction_type} · {methodLabel(payment.method,ar)}</strong>{payment.transaction_type==="refund"?<Badge variant="destructive">{ar?"استرداد":"Refund"}</Badge>:null}</div><p className="mt-1 text-[10px] text-muted-foreground">{formatDateTime(payment.created_at,lang)}{payment.reference?" · "+payment.reference:""}</p></div><div className="text-end"><strong className={cn("text-sm",payment.transaction_type==="refund"&&"text-red-600")}>{payment.transaction_type==="refund"?"−":""}{formatMoney(payment.amount,scope.currency,lang)}</strong>{payment.transaction_type==="payment"?<Button size="sm" variant="ghost" className="mt-1 h-6 px-2 text-[10px]" disabled={refundMutation.isPending} onClick={()=>refundMutation.mutate(payment)}><RotateCcw className="size-3"/>{ar?"استرداد":"Refund"}</Button>:null}</div></div>):<p className="py-4 text-xs text-muted-foreground">{ar?"لا توجد دفعات بعد.":"No payments yet."}</p>}</div></div>
+              <div><h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar?"سجل الدفعات":"Payment history"}</h3><div className="mt-2 space-y-2">{selectedPayments.length?selectedPayments.map(payment=><div key={payment.id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"><div><div className="flex items-center gap-2"><strong className="text-xs capitalize">{payment.transaction_type} · {methodLabel(payment.method,ar)}</strong>{payment.transaction_type==="refund"?<Badge variant="destructive">{ar?"استرداد":"Refund"}</Badge>:null}</div><p className="mt-1 text-[10px] text-muted-foreground">{formatDateTime(payment.created_at,lang)}{payment.reference?" · "+payment.reference:""}</p></div><div className="text-end"><strong className={cn("text-sm",payment.transaction_type==="refund"&&"text-red-600")}>{payment.transaction_type==="refund"?"−":""}{formatMoney(payment.amount,scope.currency,lang)}</strong>{payment.transaction_type==="payment"&&refundableAmount(payment)>0.001?<Button size="sm" variant="ghost" className="mt-1 h-6 px-2 text-[10px]" disabled={refundMutation.isPending} onClick={()=>refundMutation.mutate(payment)}><RotateCcw className="size-3"/>{ar?"استرداد":"Refund"} {formatMoney(refundableAmount(payment),scope.currency,lang)}</Button>:null}</div></div>):<p className="py-4 text-xs text-muted-foreground">{ar?"لا توجد دفعات بعد.":"No payments yet."}</p>}</div></div>
             </div>
           </>}
         </aside>
