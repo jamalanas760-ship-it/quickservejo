@@ -64,6 +64,7 @@ function ShiftsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [closingShift, setClosingShift] = useState<Shift | null>(null);
   const [deletingShift, setDeletingShift] = useState<Shift | null>(null);
+  const [detailShiftId, setDetailShiftId] = useState<string | null>(null);
 
   if (scope.isPending || access.isPending) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><Skeleton className="h-[620px] rounded-3xl" /></main></div>;
   if (!rid || !membership || !canView) return <Denied ar={ar} />;
