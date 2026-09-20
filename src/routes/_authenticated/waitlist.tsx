@@ -4,6 +4,7 @@ import { BellRing, CalendarCheck2, CalendarDays, CheckCircle2, Clock3, RotateCcw
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -155,27 +156,19 @@ function WaitlistPage(){
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}/>
     <main className="qs-page space-y-5">
-      <section className="overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-[0_18px_50px_rgba(15,23,42,.06)]">
-        <div className="border-b border-border/70 bg-gradient-to-br from-blue-500/[.07] via-background to-background p-5 sm:p-7">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-            <div className="max-w-3xl">
-              <span className="inline-flex items-center gap-2 rounded-full border border-blue-200/70 bg-blue-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.16em] text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-300"><Clock3 className="size-3.5"/>{ar?"إدارة الطلب":"Demand control"}</span>
-              <h1 className="mt-3 font-display text-3xl font-black tracking-[-.035em] sm:text-4xl">{ar?"قائمة انتظار الحجوزات":"Reservation waitlist"}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{ar?"حوّل الطلب غير المتاح إلى فرصة: رتّب الأولويات، تواصل مع الضيف، ثم حوّله لحجز مؤكد من نفس شاشة التشغيل.":"Turn unavailable demand into booked covers: prioritize guests, contact them, and convert to a protected reservation from the same operational desk."}</p>
-            </div>
-            <Input className="h-11 max-w-sm rounded-xl bg-background/90" value={search} onChange={e=>setSearch(e.target.value)} placeholder={ar?"ابحث بالاسم، الهاتف أو البريد":"Search name, phone or email"}/>
-          </div>
-          <div className="mt-6 inline-flex rounded-2xl border border-border bg-background/90 p-1 shadow-sm">
-            <Link to="/bookings" className="rounded-xl px-4 py-2 text-xs font-bold text-muted-foreground transition hover:bg-muted/60 hover:text-foreground">{ar?"الحجوزات":"Reservations"}</Link>
-            <Link to="/waitlist" className="rounded-xl bg-foreground px-4 py-2 text-xs font-bold text-background shadow-sm">{ar?"قائمة الانتظار":"Waitlist"}</Link>
-          </div>
-        </div>
-        <div className="grid gap-px bg-border/70 sm:grid-cols-2 xl:grid-cols-4">
-          <Metric icon={UsersRound} label={ar?"طلبات نشطة":"Active requests"} value={active.length}/>
-          <Metric icon={Clock3} label={ar?"بانتظار التواصل":"Waiting"} value={waiting.length}/>
-          <Metric icon={BellRing} label={ar?"تم التواصل":"Notified"} value={notified.length}/>
-          <Metric icon={CalendarCheck2} label={ar?"طلبات اليوم":"Today"} value={todayCount} hint={active.length?(ar?"أقدم طلب "+formatAge(oldestMinutes,ar):"Oldest "+formatAge(oldestMinutes,ar)):undefined}/>
-        </div>
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={Clock3}>{ar?"إدارة الطلب":"Demand Control"}</MasterEyebrow>}
+        title={ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}
+        description={ar?"رتّب الطلبات غير المتاحة، تواصل مع الضيف، وحوّل الفرصة إلى حجز مؤكد من نفس شاشة التشغيل.":"Prioritize unavailable demand, contact guests and convert opportunities into confirmed reservations from one desk."}
+        actions={<Input className="h-10 w-full sm:w-[280px]" value={search} onChange={e=>setSearch(e.target.value)} placeholder={ar?"ابحث بالاسم أو الهاتف":"Search guest or phone"}/>}
+        tabs={<div className="flex gap-1"><Link to="/bookings" className="rounded-[9px] px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-muted">{ar?"الحجوزات":"Reservations"}</Link><Link to="/waitlist" className="rounded-[9px] bg-foreground px-4 py-2 text-xs font-bold text-background">{ar?"قائمة الانتظار":"Waitlist"}</Link></div>}
+      />
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MasterKpi icon={UsersRound} label={ar?"طلبات نشطة":"Active Requests"} value={String(active.length)} hint={ar?"في الطابور":"In queue"} tone="orange"/>
+        <MasterKpi icon={Clock3} label={ar?"بانتظار التواصل":"Waiting"} value={String(waiting.length)} hint={ar?"لم يتم التواصل":"Not contacted"} tone="blue"/>
+        <MasterKpi icon={BellRing} label={ar?"تم التواصل":"Notified"} value={String(notified.length)} hint={ar?"بانتظار رد":"Waiting response"} tone="purple"/>
+        <MasterKpi icon={CalendarCheck2} label={ar?"طلبات اليوم":"Today"} value={String(todayCount)} hint={active.length?(ar?"أقدم "+formatAge(oldestMinutes,ar):"Oldest "+formatAge(oldestMinutes,ar)):undefined} tone="green"/>
       </section>
 
       <section className="qs-card overflow-hidden">
