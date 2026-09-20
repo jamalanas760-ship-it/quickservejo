@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, Handshake, List, PlayCircle, Plus, Rows3, StopCircle, TimerReset, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { DetailRow, DetailSheet, formatStamp } from "@/components/operations/DetailSheet";
 import { Button } from "@/components/ui/button";
@@ -92,18 +93,18 @@ function ShiftsPage() {
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "الورديات والتسليم" : "Shifts & Handover"} />
     <main className="qs-page space-y-5">
-      <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
-        <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-8">
-          <div><div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><CalendarClock className="size-3.5" />{ar ? "جدول الفريق" : "Team schedule"}</div><h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? "اعرف من يعمل، ومتى، وما يحتاج تدخل" : "Know who is working, when, and what needs attention"}</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{ar ? "جدول واضح للوردية مع الحضور والتسليم والإجراءات المهمة بدون ازدحام." : "A clear shift workspace for staffing, attendance, handover and the actions that matter during service."}</p></div>
-          <div className="flex flex-wrap items-center gap-2"><div className="inline-grid grid-cols-2 rounded-xl border border-border p-1"><button type="button" onClick={() => setViewMode("timeline")} className={cn("inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold", viewMode === "timeline" ? "bg-foreground text-background" : "text-muted-foreground")}><Rows3 className="size-4" />{ar ? "زمني" : "Timeline"}</button><button type="button" onClick={() => setViewMode("list")} className={cn("inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold", viewMode === "list" ? "bg-foreground text-background" : "text-muted-foreground")}><List className="size-4" />{ar ? "قائمة" : "List"}</button></div>{canManage ? <Button className="gap-2" onClick={() => setCreateOpen(true)}><Plus className="size-4" />{ar ? "وردية جديدة" : "New shift"}</Button> : null}</div>
-        </div>
-      </section>
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={CalendarClock}>{ar ? "جدول الفريق" : "Team schedule"}</MasterEyebrow>}
+        title={ar ? "الورديات والتسليم" : "Shifts & Handover"}
+        description={ar ? "جدول واضح للحضور، التغطية، التسليم والإجراءات التي تحتاج تدخل أثناء التشغيل." : "A clear workforce workspace for staffing coverage, attendance, handover and shift-critical actions."}
+        actions={<div className="flex flex-wrap items-center gap-2"><div className="inline-grid grid-cols-2 rounded-xl border border-border p-1"><button type="button" onClick={() => setViewMode("timeline")} className={cn("inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold", viewMode === "timeline" ? "bg-foreground text-background" : "text-muted-foreground")}><Rows3 className="size-4" />{ar ? "زمني" : "Timeline"}</button><button type="button" onClick={() => setViewMode("list")} className={cn("inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold", viewMode === "list" ? "bg-foreground text-background" : "text-muted-foreground")}><List className="size-4" />{ar ? "قائمة" : "List"}</button></div>{canManage ? <Button onClick={() => setCreateOpen(true)}><Plus className="size-4" />{ar ? "وردية جديدة" : "New shift"}</Button> : null}</div>}
+      />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={PlayCircle} label={ar ? "نشطة الآن" : "Active now"} value={openShiftRow ? 1 : 0} active={Boolean(openShiftRow)} />
-        <Metric icon={Clock3} label={ar ? "قادمة اليوم" : "Upcoming today"} value={plannedToday} />
-        <Metric icon={AlertTriangle} label={ar ? "تحتاج انتباه" : "Needs attention"} value={needsAttention} active={needsAttention > 0} tone="danger" />
-        <Metric icon={CheckCircle2} label={ar ? "مكتملة اليوم" : "Completed today"} value={closedToday} />
+        <MasterKpi icon={PlayCircle} label={ar ? "نشطة الآن" : "Active now"} value={openShiftRow ? 1 : 0} tone={openShiftRow ? "green" : "slate"} />
+        <MasterKpi icon={Clock3} label={ar ? "قادمة اليوم" : "Upcoming today"} value={plannedToday} tone="blue" />
+        <MasterKpi icon={AlertTriangle} label={ar ? "تحتاج انتباه" : "Needs attention"} value={needsAttention} tone={needsAttention > 0 ? "red" : "green"} />
+        <MasterKpi icon={CheckCircle2} label={ar ? "مكتملة اليوم" : "Completed today"} value={closedToday} tone="purple" />
       </section>
 
       <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} ar={ar} lang={lang} />
