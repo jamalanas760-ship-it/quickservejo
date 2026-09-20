@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceReport, useWorkspaceScope } from "@/hooks/useWorkspace";
+import { operationalCountersKey, type OperationalCounters } from "@/hooks/useOperationalCounters";
 import { supabase } from "@/integrations/supabase/client";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
@@ -73,7 +74,18 @@ function NotificationsPage() {
       const { error } = await fromNotifications().update({ read_at: new Date().toISOString() }).in("id", ids);
       if (error) throw error;
     },
-    onSuccess: async () => qc.invalidateQueries({ queryKey: ["notifications", rid] }),
+    onSuccess: async (_result, ids) => {
+      qc.setQueryData<OperationalCounters>(operationalCountersKey(rid), (current) => {
+        if (!current) return current;
+        const removed = Math.min(ids.length, current.unread);
+        const unread = Math.max(0, current.unread - removed);
+        return { ...current, unread, total: Math.max(0, current.total - removed) };
+      });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["notifications", rid] }),
+        qc.invalidateQueries({ queryKey: operationalCountersKey(rid) }),
+      ]);
+    },
     onError: (error) => toast.error(humanError(error, lang)),
   });
 

@@ -13,6 +13,10 @@ export type OperationalCounters = {
 
 const EMPTY: OperationalCounters = { tasks: 0, shifts: 0, orders: 0, unread: 0, total: 0 };
 
+export function operationalCountersKey(restaurantId: string | null) {
+  return ["operational-counters", restaurantId] as const;
+}
+
 /**
  * Fail-safe navigation/header counters.
  *
@@ -23,7 +27,7 @@ const EMPTY: OperationalCounters = { tasks: 0, shifts: 0, orders: 0, unread: 0, 
  */
 export function useOperationalCounters(restaurantId: string | null) {
   const qc = useQueryClient();
-  const key = ["operational-counters", restaurantId] as const;
+  const key = operationalCountersKey(restaurantId);
 
   const query = useQuery<OperationalCounters>({
     queryKey: key,
@@ -56,6 +60,20 @@ export function useOperationalCounters(restaurantId: string | null) {
         }
       }
 
+      async function safeRpcCount(name: string, args: Record<string, unknown>) {
+        try {
+          const result = await client.rpc(name, args);
+          if (result?.error) {
+            console.warn("Operational RPC counter skipped:", result.error.message ?? result.error);
+            return 0;
+          }
+          return Number(result?.data ?? 0);
+        } catch (error) {
+          console.warn("Operational RPC counter unavailable:", error);
+          return 0;
+        }
+      }
+
       const [unread, tasks, shifts, orders] = await Promise.all([
         safeCount(
           client
@@ -82,13 +100,7 @@ export function useOperationalCounters(restaurantId: string | null) {
             .gte("shift_date", day)
             .lte("shift_date", nextDay),
         ),
-        safeCount(
-          client
-            .from("orders")
-            .select("id", { count: "exact", head: true })
-            .eq("restaurant_id", restaurantId)
-            .in("status", ["new", "accepted", "preparing", "ready"]),
-        ),
+        safeRpcCount("unseen_order_count", { _restaurant_id: restaurantId }),
       ]);
 
       return { unread, tasks, shifts, orders, total: unread + tasks + shifts + orders };
@@ -107,6 +119,7 @@ export function useOperationalCounters(restaurantId: string | null) {
         .on("postgres_changes", { event: "*", schema: "public", table: "work_tasks", filter: `restaurant_id=eq.${restaurantId}` }, invalidate)
         .on("postgres_changes", { event: "*", schema: "public", table: "shifts", filter: `restaurant_id=eq.${restaurantId}` }, invalidate)
         .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `restaurant_id=eq.${restaurantId}` }, invalidate)
+        .on("postgres_changes", { event: "*", schema: "public", table: "order_view_receipts", filter: `restaurant_id=eq.${restaurantId}` }, invalidate)
         .subscribe((status) => {
           if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
             console.warn("Operational counter realtime unavailable; polling remains active.");

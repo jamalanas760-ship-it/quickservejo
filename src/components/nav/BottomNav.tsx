@@ -116,8 +116,8 @@ export function BottomNav() {
 
   return (
     <>
-      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden w-[196px] flex-col lg:flex">
-        <div className="flex h-[68px] items-center border-b border-border px-4">
+      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden w-[224px] flex-col lg:flex">
+        <div className="flex h-[72px] items-center border-b border-border px-4">
           <Link to={homeTo as never} className="min-w-0 text-foreground" aria-label={restaurant?.name || "QuickServe dashboard"}>{brand}</Link>
         </div>
 

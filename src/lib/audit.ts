@@ -43,6 +43,7 @@ export type AuditAction =
   | "platform.settings_updated"
   | "plan.updated"
   | "erp.item_created"
+  | "erp.item_deleted"
   | "erp.supplier_created"
   | "erp.procurement_requested"
   | "erp.stock_received"

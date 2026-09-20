@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronRight,
   Clock3,
@@ -14,6 +15,8 @@ import { usePlatformOrders, useOrderItems, useRestaurant } from "@/hooks/useSupe
 import { useI18n } from "@/lib/i18n";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { markOrderViewed } from "@/lib/order-attention";
+import { operationalCountersKey } from "@/hooks/useOperationalCounters";
 
 const TABS = [
   { id: "all", en: "All", ar: "الكل", dot: "bg-slate-400" },
@@ -43,9 +46,22 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const qc = useQueryClient();
   const { data: restaurant } = useRestaurant(restaurantId);
   const orders = usePlatformOrders({ restaurantId });
   const currency = restaurant?.currency ?? "JOD";
+  const viewed = useMutation({
+    mutationFn: (orderId: string) => markOrderViewed(orderId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: operationalCountersKey(restaurantId) });
+    },
+    onError: (error) => console.warn("Could not mark order as viewed:", error),
+  });
+
+  function selectOrder(orderId: string) {
+    setSelectedId(orderId);
+    viewed.mutate(orderId);
+  }
 
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -99,7 +115,7 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
               <table className="qs-table min-w-[760px]">
                 <thead><tr><th>{ar ? "رقم الطلب" : "Order #"}</th><th>{ar ? "الوقت" : "Time"}</th><th>{ar ? "العميل / الطاولة" : "Customer / Table"}</th><th>{ar ? "العناصر" : "Items"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "المدة" : "Elapsed"}</th><th /></tr></thead>
                 <tbody>{rows.map((order) => { const active = selected?.id === order.id; return (
-                  <tr key={order.id} onClick={() => setSelectedId(order.id)} className={cn("cursor-pointer", active && "outline outline-1 -outline-offset-1 outline-[#ff5a0a] bg-orange-500/[.045]")}>
+                  <tr key={order.id} onClick={() => selectOrder(order.id)} className={cn("cursor-pointer", active && "outline outline-1 -outline-offset-1 outline-[#ff5a0a] bg-orange-500/[.045]")}>
                     <td><strong className="tabular-nums">{order.order_number}</strong></td>
                     <td>{new Date(order.created_at).toLocaleTimeString(ar ? "ar-JO" : "en-US", { hour: "2-digit", minute: "2-digit" })}</td>
                     <td><strong className="block text-xs">{order.table?.table_number ? (ar ? "داخل المطعم" : "Dine In") : (ar ? "خارجي" : "Takeaway")}</strong><span className="text-[10px] text-muted-foreground">{order.table?.table_number ? `${ar ? "طاولة" : "Table"} ${order.table.table_number}` : "—"}</span></td>
@@ -114,7 +130,7 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
 
             <div className="divide-y divide-border md:hidden">
               {rows.map((order) => { const active = selected?.id === order.id; return (
-                <button key={order.id} type="button" onClick={() => setSelectedId(order.id)} className={cn("grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 p-4 text-start", active && "bg-orange-500/[.055]")}>
+                <button key={order.id} type="button" onClick={() => selectOrder(order.id)} className={cn("grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 p-4 text-start", active && "bg-orange-500/[.055]")}>
                   <span className="min-w-0"><span className="flex items-center gap-2"><strong className="truncate">{order.order_number}</strong><span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted")}>{order.status}</span></span><span className="mt-1 block truncate text-xs text-muted-foreground">{order.table?.table_number ? `${ar ? "طاولة" : "Table"} ${order.table.table_number}` : (ar ? "طلب خارجي" : "Takeaway")} · {elapsed(order.created_at)}</span></span><ChevronRight className="mt-2 size-4 text-muted-foreground" />
                 </button>
               ); })}
