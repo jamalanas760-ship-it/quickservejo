@@ -191,8 +191,9 @@ function CashierPage() {
       const { error } = await (supabase as any).rpc("refund_order_payment", {
         _order_id: payment.order_id,
         _amount: payment.amount,
-        _method: payment.method,
+        _payment_id: payment.id,
         _reference: "Refund " + (payment.reference || payment.id.slice(0, 8)),
+        _cash_session_id: payment.method === "cash" ? openSession?.id ?? null : null,
       });
       if (error) throw error;
     },
@@ -205,7 +206,9 @@ function CashierPage() {
 
   const openSessionMutation = useMutation({
     mutationFn: async () => {
+      if (!rid) throw new Error(ar ? "اختر مطعماً أولاً" : "Select a restaurant first");
       const { error } = await (supabase as any).rpc("open_cash_session", {
+        _restaurant_id: rid,
         _opening_float: Math.max(0, Number(openingFloat || 0)),
         _staff_id: null,
       });
@@ -282,8 +285,8 @@ function CashierPage() {
             <div className="space-y-4 p-5">
               {selectedDue>.001 ? <>
                 <div className="grid grid-cols-2 gap-2"><Button type="button" variant="outline" onClick={()=>setAmount(String((selectedDue/Math.max(1,splitWays)).toFixed(3)))}><Minus className="size-4"/>{ar?"حصة":"Split"}</Button><div className="flex items-center justify-center gap-2 rounded-xl border border-border"><Button type="button" size="icon" variant="ghost" onClick={()=>setSplitWays(v=>Math.max(2,v-1))}><Minus className="size-3.5"/></Button><strong className="text-sm">{splitWays}</strong><Button type="button" size="icon" variant="ghost" onClick={()=>setSplitWays(v=>Math.min(20,v+1))}><Plus className="size-3.5"/></Button></div></div>
-                <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-xs"><span>{ar?"طريقة الدفع":"Method"}</span><Select value={method} onValueChange={(value)=>setMethod(value as typeof method)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{METHODS.map(item=><SelectItem key={item} value={item}>{methodLabel(item,ar)}</SelectItem>)}</SelectContent></Select></label><label className="space-y-1.5 text-xs"><span>{ar?"المبلغ":"Amount"}</span><Input type="number" min="0.001" step="0.001" value={amount} onChange={e=>setAmount(e.target.value)}/></label><label className="space-y-1.5 text-xs"><span>{ar?"إكرامية":"Tip"}</span><Input type="number" min="0" step="0.001" value={tip} onChange={e=>setTip(e.target.value)}/></label><label className="space-y-1.5 text-xs"><span>{ar?"مرجع":"Reference"}</span><Input value={reference} onChange={e=>setReference(e.target.value)} placeholder={method==="card"?"AUTH-1234":""}/></label></div>
-                <Button className="w-full" disabled={paymentMutation.isPending||!(Number(amount)>0)} onClick={()=>paymentMutation.mutate()}>{methodIcon(method)}{ar?"تسجيل الدفعة":"Record payment"}</Button>
+                <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-xs"><span>{ar?"طريقة الدفع":"Method"}</span><Select value={method} onValueChange={(value)=>{setMethod(value as typeof method);if(value==="gift_card")setTip("0");}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{METHODS.map(item=><SelectItem key={item} value={item}>{methodLabel(item,ar)}</SelectItem>)}</SelectContent></Select></label><label className="space-y-1.5 text-xs"><span>{ar?"المبلغ":"Amount"}</span><Input type="number" min="0.001" max={selectedDue} step="0.001" value={amount} onChange={e=>setAmount(e.target.value)}/></label><label className="space-y-1.5 text-xs"><span>{ar?"إكرامية":"Tip"}</span><Input type="number" min="0" step="0.001" value={tip} disabled={method==="gift_card"} onChange={e=>setTip(e.target.value)}/>{method==="gift_card"?<span className="block text-[10px] text-muted-foreground">{ar?"بطاقات الهدايا لا تمول الإكرامية.":"Gift cards cannot be used for tips."}</span>:null}</label><label className="space-y-1.5 text-xs"><span>{method==="gift_card"?(ar?"رمز بطاقة الهدية":"Gift card code"):(ar?"مرجع":"Reference")}</span><Input value={reference} onChange={e=>setReference(e.target.value)} autoCapitalize={method==="gift_card"?"characters":"off"} placeholder={method==="card"?"AUTH-1234":method==="gift_card"?"AB12CD34EF56":""}/>{method==="gift_card"?<span className="block text-[10px] text-muted-foreground">{ar?"سيتم خصم الرصيد والتحقق منه قبل اعتماد الدفعة.":"Balance is validated and deducted atomically before settlement."}</span>:null}</label></div>
+                <Button className="w-full" disabled={paymentMutation.isPending||!(Number(amount)>0)||(method==="gift_card"&&!reference.trim())} onClick={()=>paymentMutation.mutate()}>{methodIcon(method)}{ar?"تسجيل الدفعة":"Record payment"}</Button>
               </> : null}
 
               <div><h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar?"سجل الدفعات":"Payment history"}</h3><div className="mt-2 space-y-2">{selectedPayments.length?selectedPayments.map(payment=><div key={payment.id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"><div><div className="flex items-center gap-2"><strong className="text-xs capitalize">{payment.transaction_type} · {methodLabel(payment.method,ar)}</strong>{payment.transaction_type==="refund"?<Badge variant="destructive">{ar?"استرداد":"Refund"}</Badge>:null}</div><p className="mt-1 text-[10px] text-muted-foreground">{formatDateTime(payment.created_at,lang)}{payment.reference?" · "+payment.reference:""}</p></div><div className="text-end"><strong className={cn("text-sm",payment.transaction_type==="refund"&&"text-red-600")}>{payment.transaction_type==="refund"?"−":""}{formatMoney(payment.amount,scope.currency,lang)}</strong>{payment.transaction_type==="payment"?<Button size="sm" variant="ghost" className="mt-1 h-6 px-2 text-[10px]" disabled={refundMutation.isPending} onClick={()=>refundMutation.mutate(payment)}><RotateCcw className="size-3"/>{ar?"استرداد":"Refund"}</Button>:null}</div></div>):<p className="py-4 text-xs text-muted-foreground">{ar?"لا توجد دفعات بعد.":"No payments yet."}</p>}</div></div>
