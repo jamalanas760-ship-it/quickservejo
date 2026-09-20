@@ -4,6 +4,7 @@ import { AlertTriangle, Banknote, CheckCircle2, ClipboardCheck, Package, Receipt
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,24 +139,20 @@ function DailyClosePage() {
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "إقفال اليوم" : "Daily Close"} />
     <main className="qs-page space-y-5">
-      <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
-        <div className="grid gap-5 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-8">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><ClipboardCheck className="size-3.5" />{ar ? "رقابة المدير" : "Manager control"}</div>
-            <h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? "إقفال يومي موثق" : "Auditable daily close"}</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{ar ? "راجع المبيعات، المدفوعات، الصندوق، ساعات العمل وحركات المخزون قبل تثبيت لقطة اليوم." : "Review sales, payments, cash reconciliation, labor and inventory exceptions before locking the day."}</p>
-          </div>
-          <label className="text-sm font-semibold">{ar ? "التاريخ" : "Close date"}<Input type="date" value={date} onChange={(event) => setDate(event.target.value)} max={today()} className="mt-2 min-w-[190px]" /></label>
-        </div>
-      </section>
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={ClipboardCheck}>{ar ? "رقابة المدير" : "Manager control"}</MasterEyebrow>}
+        title={ar ? "إقفال يومي موثق" : "Auditable daily close"}
+        description={ar ? "راجع المبيعات، المدفوعات، الصندوق، ساعات العمل وحركات المخزون قبل تثبيت لقطة اليوم." : "Review sales, payments, cash reconciliation, labor and inventory exceptions before locking the day."}
+        actions={<label className="text-xs font-bold text-muted-foreground">{ar ? "التاريخ" : "Close date"}<Input type="date" value={date} onChange={(event) => setDate(event.target.value)} max={today()} className="mt-1.5 min-w-[190px] bg-card" /></label>}
+      />
 
       {query.isPending ? <Skeleton className="h-[460px] rounded-3xl" /> : query.isError ? <section className="qs-card p-6 text-sm text-destructive" role="alert">{humanError(query.error, lang)}</section> : summary ? <>
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <Metric icon={Receipt} label={ar ? "صافي المدفوعات" : "Net payments"} value={formatMoney(Number(summary.payments.net), scope.currency, lang)} />
-          <Metric icon={Banknote} label={ar ? "الكاش" : "Cash"} value={formatMoney(Number(summary.payments.cash), scope.currency, lang)} />
-          <Metric icon={Receipt} label={ar ? "البطاقات والمحافظ" : "Card + wallet"} value={formatMoney(Number(summary.payments.card) + Number(summary.payments.wallet), scope.currency, lang)} />
-          <Metric icon={UsersRound} label={ar ? "ساعات العمل" : "Labor hours"} value={`${Number(summary.labor.hours).toFixed(1)}h`} hint={`${formatNumber(summary.labor.staff_count, lang)} ${ar ? "موظف" : "staff"}`} />
-          <Metric icon={Package} label={ar ? "حركات غير اعتيادية" : "Inventory exceptions"} value={formatNumber(summary.inventory.unusual_movements, lang)} hint={formatMoney(Number(summary.inventory.unusual_value), scope.currency, lang)} />
+          <MasterKpi icon={Receipt} label={ar ? "صافي المدفوعات" : "Net payments"} value={formatMoney(Number(summary.payments.net), scope.currency, lang)} />
+          <MasterKpi icon={Banknote} label={ar ? "الكاش" : "Cash"} value={formatMoney(Number(summary.payments.cash), scope.currency, lang)} tone="green" />
+          <MasterKpi icon={Receipt} label={ar ? "البطاقات والمحافظ" : "Card + wallet"} value={formatMoney(Number(summary.payments.card) + Number(summary.payments.wallet), scope.currency, lang)} tone="blue" />
+          <MasterKpi icon={UsersRound} label={ar ? "ساعات العمل" : "Labor hours"} value={`${Number(summary.labor.hours).toFixed(1)}h`} hint={`${formatNumber(summary.labor.staff_count, lang)} ${ar ? "موظف" : "staff"}`} tone="purple" />
+          <MasterKpi icon={Package} label={ar ? "حركات غير اعتيادية" : "Inventory exceptions"} value={formatNumber(summary.inventory.unusual_movements, lang)} hint={formatMoney(Number(summary.inventory.unusual_value), scope.currency, lang)} tone={summary.inventory.unusual_movements ? "orange" : "slate"} />
         </section>
 
         <section className="grid gap-4 xl:grid-cols-3">
