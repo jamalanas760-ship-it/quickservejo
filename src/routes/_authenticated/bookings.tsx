@@ -4,6 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, Plus, Settings2, Timer, Trash2, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -160,33 +161,23 @@ function BookingsPage(){
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"الحجوزات":"Reservations"}/>
     <main className="qs-page space-y-5">
-      <section className="overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-[0_18px_50px_rgba(15,23,42,.06)]">
-        <div className="border-b border-border/70 bg-gradient-to-br from-orange-500/[.08] via-background to-background p-5 sm:p-7">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-            <div className="max-w-3xl">
-              <span className="inline-flex items-center gap-2 rounded-full border border-orange-200/70 bg-orange-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.16em] text-[#e34d00] dark:border-orange-900/50 dark:bg-orange-950/20"><CalendarCheck2 className="size-3.5"/>{ar?"مكتب الحجوزات":"Reservation Desk"}</span>
-              <h1 className="mt-3 font-display text-3xl font-black tracking-[-.035em] sm:text-4xl">{ar?"الحجوزات، الوصول والجلوس":"Reservations, arrivals & seating"}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{ar?"واجهة تشغيلية واحدة لإدارة الحجز من أول اتصال حتى جلوس الضيف، مع فحص توافر حي ومنع التعارض.":"One operational workspace from first contact to seating, with live availability and database-enforced conflict protection."}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {restaurant.data?.slug?<Button asChild variant="outline" className="rounded-xl bg-background/80"><Link to="/book/$slug" params={{slug:restaurant.data.slug}} target="_blank"><ExternalLink className="size-4"/>{ar?"صفحة الحجز العامة":"Public booking page"}</Link></Button>:null}
-              {canConfigure?<Button variant="outline" className="rounded-xl bg-background/80" onClick={()=>setSettingsOpen(true)}><Settings2 className="size-4"/>{ar?"الإعدادات":"Settings"}</Button>:null}
-              <Button className="rounded-xl px-5" onClick={()=>setCreateOpen(true)}><Plus className="size-4"/>{ar?"حجز جديد":"New reservation"}</Button>
-            </div>
-          </div>
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={CalendarCheck2}>{ar?"مكتب الحجوزات":"Reservation Desk"}</MasterEyebrow>}
+        title={ar?"الحجوزات والوصول والجلوس":"Reservations, Arrivals & Seating"}
+        description={ar?"واجهة تشغيلية واحدة من أول اتصال حتى جلوس الضيف، مع توافر حي ومنع التعارض.":"One operational workspace from first contact to seating, with live availability and conflict protection."}
+        actions={<>
+          {restaurant.data?.slug?<Button asChild variant="outline"><Link to="/book/$slug" params={{slug:restaurant.data.slug}} target="_blank"><ExternalLink className="size-4"/>{ar?"صفحة الحجز العامة":"Public booking"}</Link></Button>:null}
+          {canConfigure?<Button variant="outline" onClick={()=>setSettingsOpen(true)}><Settings2 className="size-4"/>{ar?"الإعدادات":"Settings"}</Button>:null}
+          <Button onClick={()=>setCreateOpen(true)}><Plus className="size-4"/>{ar?"حجز جديد":"Add Booking"}</Button>
+        </>}
+        tabs={<div className="flex gap-1"><Link to="/bookings" className="rounded-[9px] bg-foreground px-4 py-2 text-xs font-bold text-background">{ar?"الحجوزات":"Reservations"}</Link><Link to="/waitlist" className="rounded-[9px] px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-muted">{ar?"قائمة الانتظار":"Waitlist"}</Link></div>}
+      />
 
-          <div className="mt-6 inline-flex rounded-2xl border border-border bg-background/90 p-1 shadow-sm">
-            <Link to="/bookings" className="rounded-xl bg-foreground px-4 py-2 text-xs font-bold text-background shadow-sm">{ar?"الحجوزات":"Reservations"}</Link>
-            <Link to="/waitlist" className="rounded-xl px-4 py-2 text-xs font-bold text-muted-foreground transition hover:bg-muted/60 hover:text-foreground">{ar?"قائمة الانتظار":"Waitlist"}</Link>
-          </div>
-        </div>
-
-        <div className="grid gap-px bg-border/70 sm:grid-cols-2 xl:grid-cols-4">
-          <Metric icon={CalendarClock} label={ar?"حجوزات اليوم":"Today's reservations"} value={today.length}/>
-          <Metric icon={Clock3} label={ar?"قادمة":"Upcoming"} value={upcoming}/>
-          <Metric icon={CalendarCheck2} label={ar?"بانتظار التأكيد":"Pending confirmation"} value={pending}/>
-          <Metric icon={UserRoundCheck} label={ar?"جالسين الآن":"Currently seated"} value={seated}/>
-        </div>
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MasterKpi icon={CalendarClock} label={ar?"حجوزات اليوم":"Today's Reservations"} value={String(today.length)} hint={ar?"جدول اليوم":"Today's book"} tone="orange"/>
+        <MasterKpi icon={Clock3} label={ar?"قادمة":"Upcoming"} value={String(upcoming)} hint={ar?"لم تصل بعد":"Still to arrive"} tone="blue"/>
+        <MasterKpi icon={CalendarCheck2} label={ar?"بانتظار التأكيد":"Pending"} value={String(pending)} hint={ar?"تحتاج متابعة":"Need follow-up"} tone="purple"/>
+        <MasterKpi icon={UserRoundCheck} label={ar?"جالسين الآن":"Seated Now"} value={String(seated)} hint={ar?"في الخدمة":"In service"} tone="green"/>
       </section>
 
       <section className="qs-card overflow-hidden">
