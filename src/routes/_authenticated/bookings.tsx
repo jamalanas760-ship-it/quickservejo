@@ -108,7 +108,7 @@ function BookingsPage(){
   },[canManage,qc,rid]);
 
   const transition=useMutation({
-    mutationFn:async({id,status,reason}:{id:string;status:BookingStatus;reason?:string})=>{
+    mutationFn:async({id,status,reason}:{id:string;status:BookingStatus;reason?:string|undefined})=>{
       const {error}=await (supabase as any).rpc("transition_booking_status",{_booking_id:id,_next:status,_reason:reason??null});
       if(error)throw error;
     },
