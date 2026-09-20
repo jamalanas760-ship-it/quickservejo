@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { humanError } from "@/lib/errors";
 import { formatMoney, formatNumber } from "@/lib/format";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type Language } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type Order = { id:string; total:number; status:string; payment_status:string; fulfillment_type:string; created_at:string; updated_at:string; table_id:string|null };
@@ -115,7 +115,7 @@ export function DecisionIntelligencePanel({restaurantId}:{restaurantId:string}) 
 function Kpi({icon:Icon,label,value,tone}:{icon:typeof TrendingUp;label:string;value:string;tone?:"warning"|undefined}){return <article className="qs-stat min-h-[106px] p-4"><div className="flex items-center gap-2"><span className={cn("grid size-9 place-items-center rounded-xl",tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-4"/></span><p className="text-[10px] font-semibold text-muted-foreground">{label}</p></div><strong className="mt-3 block font-display text-lg tracking-[-.03em]">{value}</strong></article>}
 
 
-function ForecastPanel({forecast,pending,error,currency,lang}:{forecast:Forecast|undefined;pending:boolean;error:boolean;currency:string;lang:string}) {
+function ForecastPanel({forecast,pending,error,currency,lang}:{forecast:Forecast|undefined;pending:boolean;error:boolean;currency:string;lang:Language}) {
   const ar=lang==="ar";
   if(pending)return <Skeleton className="h-52 rounded-2xl"/>;
   if(error)return <article className="rounded-2xl border p-5"><h3 className="font-bold">{ar?"التوقع التشغيلي":"Operational forecast"}</h3><p className="mt-2 text-xs text-muted-foreground">{ar?"تعذر حساب التوقع الآن؛ لا يؤثر ذلك على بيانات التشغيل الحالية.":"Forecast could not be calculated right now; live operational data is unaffected."}</p></article>;
