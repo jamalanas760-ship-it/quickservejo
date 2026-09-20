@@ -40,7 +40,7 @@ type KitchenItem = {
 type StaffRow = { id: string; name: string; role: string };
 type Station = { id: string; name: string; name_ar: string | null };
 type MenuStation = { id: string; kitchen_station_id: string | null };
-type PrinterProfile = { id: string; name: string; kitchen_station_id: string | null; mode: "browser" | "network" | "provider"; is_default: boolean };
+type PrinterProfile = { id: string; name: string; kitchen_station_id: string | null; provider: "browser" | "network_adapter" | "cloud_adapter"; purpose: "kitchen" | "cashier" | "receipt" };
 
 const STAGES = [
   { id: "new", label: "Received", ar: "مستلم", icon: Clock3, next: "accepted" },
@@ -116,11 +116,11 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
     queryKey: ["kitchen-printers", restaurantId],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from("kitchen_printer_profiles")
-        .select("id,name,kitchen_station_id,mode,is_default")
+        .from("kitchen_printers")
+        .select("id,name,kitchen_station_id,provider,purpose")
         .eq("restaurant_id", restaurantId)
         .eq("is_active", true)
-        .order("is_default", { ascending: false })
+        .eq("purpose", "kitchen")
         .order("name");
       if (error) throw error;
       return (data ?? []) as PrinterProfile[];
@@ -271,9 +271,8 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
   async function printTicket(order: KitchenOrder) {
     const orderItems = byOrder.get(order.id) ?? [];
     const station = stationId === "all" ? (ar ? "كل المحطات" : "All stations") : (stations.data ?? []).find((s) => s.id === stationId)?.name ?? "";
-    const stationProfile = (printers.data ?? []).find((profile) => profile.kitchen_station_id === (stationId === "all" ? null : stationId) && profile.is_default)
-      ?? (printers.data ?? []).find((profile) => profile.kitchen_station_id === (stationId === "all" ? null : stationId))
-      ?? (printers.data ?? []).find((profile) => profile.is_default)
+    const stationProfile = (printers.data ?? []).find((profile) => profile.kitchen_station_id === (stationId === "all" ? null : stationId))
+      ?? (printers.data ?? []).find((profile) => profile.kitchen_station_id === null)
       ?? null;
     const win = window.open("", "_blank", "width=520,height=760");
     if (!win) return;
@@ -284,7 +283,7 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
       const { error } = await (supabase as any).rpc("record_kitchen_print", {
         _order_id: order.id,
         _station_id: stationId === "all" ? null : stationId,
-        _printer_profile_id: stationProfile?.id ?? null,
+        _printer_id: stationProfile?.id ?? null,
         _print_kind: "ticket",
       });
       if (error) throw error;
