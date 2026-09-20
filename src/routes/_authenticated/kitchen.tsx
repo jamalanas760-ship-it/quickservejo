@@ -17,6 +17,7 @@ import {
   ChefHat,
   History,
   ShieldAlert,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -62,6 +63,7 @@ import {
   type StatusEvent,
 } from "@/lib/order-ops";
 import { cn } from "@/lib/utils";
+import { printOrderReceipt } from "@/lib/receipt-print";
 import type { Database } from "@/integrations/supabase/types";
 
 
@@ -174,10 +176,13 @@ type OrderRow = {
     product_name_ar: string;
     notes: string | null;
     selected_modifiers: unknown;
+    kitchen_station_id: string | null;
+    kitchen_station_name_snapshot: string | null;
   }[];
 };
 
 type StaffOption = { id: string; name: string; role: AppRole };
+type KitchenStationOption = { id: string; name: string; print_width_mm: number };
 
 
 function KitchenPage() {
@@ -192,6 +197,7 @@ function KitchenPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<QuickFilter>("all");
   const [section, setSection] = useState<string>("all");
+  const [stationId, setStationId] = useState<string>("all");
   const [live, setLive] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [cancelTarget, setCancelTarget] = useState<OrderRow | null>(null);
@@ -268,10 +274,10 @@ function KitchenPage() {
     refetchInterval: live ? false : 12_000,
     refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("orders")
         .select(
-          "id, order_number, status, total, currency, customer_notes, created_at, assigned_staff_id, assigned_at, table:restaurant_tables(table_number, table_name), items:order_items(id, quantity, product_name_en:product_name_snapshot_en, product_name_ar:product_name_snapshot_ar, notes, selected_modifiers)",
+          "id, order_number, status, total, currency, customer_notes, created_at, assigned_staff_id, assigned_at, table:restaurant_tables(table_number, table_name), items:order_items(id, quantity, product_name_en:product_name_snapshot_en, product_name_ar:product_name_snapshot_ar, notes, selected_modifiers, kitchen_station_id, kitchen_station_name_snapshot)",
         )
         .eq("restaurant_id", activeId!)
         .in("status", ["new", "accepted", "preparing", "ready"])
@@ -279,6 +285,23 @@ function KitchenPage() {
         .limit(120);
       if (error) throw error;
       return (data ?? []) as unknown as OrderRow[];
+    },
+  });
+
+  const kitchenStations = useQuery({
+    queryKey: ["kitchen", "stations", activeId],
+    enabled: Boolean(activeId),
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("kitchen_stations")
+        .select("id,name,print_width_mm")
+        .eq("restaurant_id", activeId!)
+        .eq("is_active", true)
+        .order("display_order")
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as KitchenStationOption[];
     },
   });
 
@@ -394,7 +417,10 @@ function KitchenPage() {
 
   async function advance(id: string, next: OrderStatus) {
     try {
-      const { error } = await supabase.from("orders").update({ status: next }).eq("id", id);
+      const { error } = await (supabase as any).rpc("transition_order_status", {
+        _order_id: id,
+        _next: next,
+      });
       if (error) throw error;
       await refreshKitchenOrders(true);
     } catch (error) {
@@ -403,6 +429,7 @@ function KitchenPage() {
   }
 
   const allRows = orders.data ?? [];
+  const stations = kitchenStations.data ?? [];
 
   const sections = useMemo(() => {
     const set = new Set<string>();
@@ -414,7 +441,12 @@ function KitchenPage() {
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return allRows.filter((o) => {
+    const stationRows = stationId === "all"
+      ? allRows
+      : allRows
+          .map((order) => ({ ...order, items: (order.items ?? []).filter((item) => item.kitchen_station_id === stationId) }))
+          .filter((order) => order.items.length > 0);
+    return stationRows.filter((o) => {
       const age = Math.floor((now - new Date(o.created_at).getTime()) / 60000);
       if (filter === "pending" && o.status !== "new") return false;
       if (filter === "inprep" && o.status !== "accepted" && o.status !== "preparing") return false;
@@ -434,7 +466,7 @@ function KitchenPage() {
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [allRows, search, filter, section, prefs.lateMinutes, now]);
+  }, [allRows, search, filter, section, stationId, prefs.lateMinutes, now]);
 
   const oldest = rows.length
     ? elapsed(rows.reduce((a, b) => (a.created_at < b.created_at ? a : b)).created_at, now)
@@ -470,6 +502,7 @@ function KitchenPage() {
       onAssign={assign}
       onRequestCancel={setCancelTarget}
       onOpenLog={setOpenLog}
+      stationId={stationId === "all" ? null : stationId}
     />
   );
 
@@ -673,6 +706,23 @@ function KitchenPage() {
               ) : null}
             </div>
 
+            {stations.length > 0 ? (
+              <Select value={stationId} onValueChange={setStationId}>
+                <SelectTrigger className="h-9 w-44 rounded-full">
+                  <ChefHat className="size-3.5" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{ar ? "كل المحطات" : "All stations"}</SelectItem>
+                  {stations.map((station) => (
+                    <SelectItem key={station.id} value={station.id}>
+                      {station.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+
             {sections.length > 0 ? (
               <Select value={section} onValueChange={setSection}>
                 <SelectTrigger className="h-9 w-44 rounded-full">
@@ -747,6 +797,8 @@ function KitchenPage() {
       <main className="mx-auto max-w-[1800px] px-4 py-6">
         {orders.isPending ? (
           <Skeleton className="h-64 rounded-3xl" />
+        ) : orders.isError ? (
+          <div role="alert" className="rounded-3xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive"><p>{humanError(orders.error, lang)}</p><Button variant="outline" className="mt-3" onClick={() => void orders.refetch()}>{ar ? "إعادة المحاولة" : "Retry"}</Button></div>
         ) : rows.length === 0 ? (
           <p className="flex h-40 items-center justify-center rounded-3xl border-2 border-dashed border-border text-center text-sm text-muted-foreground">
             {ar ? "لا توجد تذاكر مطابقة" : "No tickets match the current filters"}
@@ -1130,6 +1182,7 @@ function Ticket({
   onAssign,
   onRequestCancel,
   onOpenLog,
+  stationId,
 }: {
   order: OrderRow;
   now: number;
@@ -1146,6 +1199,7 @@ function Ticket({
   onAssign: (id: string, staffId: string | null) => Promise<void>;
   onRequestCancel: (order: OrderRow) => void;
   onOpenLog: (order: OrderRow) => void;
+  stationId: string | null;
 }) {
 
   const age = elapsed(order.created_at, now);
@@ -1262,6 +1316,7 @@ function Ticket({
                       ))}
                     </p>
                   ) : null}
+                  {item.kitchen_station_name_snapshot ? <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{item.kitchen_station_name_snapshot}</p> : null}
                   {item.notes ? (
                     <p className="mt-1 rounded-md bg-warning/25 px-1.5 py-0.5 text-sm font-bold">
                       ⚠ {item.notes}
@@ -1308,8 +1363,16 @@ function Ticket({
           ) : null}
           <button
             type="button"
-            onClick={() => onOpenLog(order)}
+            onClick={() => void printOrderReceipt({ orderId: order.id, lang, stationId, includeTotals: canViewPrices }).catch((error) => toast.error(humanError(error, lang)))}
             className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground hover:bg-muted/70"
+          >
+            <Printer className="size-3.5" />
+            {ar ? "طباعة" : "Print"}
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenLog(order)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground hover:bg-muted/70"
           >
             <History className="size-3.5" />
             {events.length > 0
