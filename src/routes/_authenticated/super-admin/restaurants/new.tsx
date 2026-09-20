@@ -2,7 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Building2 } from "lucide-react";
 
+import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -328,20 +330,19 @@ function NewRestaurantPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 sm:space-y-6">
-      <div>
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/super-admin/restaurants">← {t("sa.rest.title")}</Link>
-        </Button>
-        <h1 className="mt-2 text-xl font-semibold sm:text-2xl">{t("sa.wizard.title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("sa.wizard.step")} {step + 1} {t("sa.wizard.of")} {STEP_KEYS.length} —{" "}
-          {t(STEP_KEYS[step]!)}
-        </p>
-        <Progress className="mt-3" value={((step + 1) / STEP_KEYS.length) * 100} />
-      </div>
-
-      <div className="panel space-y-4 p-6">
+    <div className="mx-auto max-w-4xl space-y-5">
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={Building2}>{lang==="ar"?"إعداد مستأجر جديد":"New tenant setup"}</MasterEyebrow>}
+        title={t("sa.wizard.title")}
+        description={`${t("sa.wizard.step")} ${step + 1} ${t("sa.wizard.of")} ${STEP_KEYS.length} · ${t(STEP_KEYS[step]!)}`}
+        actions={<Button asChild variant="outline"><Link to="/super-admin/restaurants">← {t("sa.rest.title")}</Link></Button>}
+      />
+      <section className="rounded-[18px] border border-border/85 bg-card shadow-[var(--qs-shadow-card)]">
+        <div className="border-b border-border/80 px-5 py-4 sm:px-6">
+          <div className="flex items-center justify-between gap-3"><strong className="text-sm">{t(STEP_KEYS[step]!)}</strong><span className="text-xs font-bold text-muted-foreground">{step + 1}/{STEP_KEYS.length}</span></div>
+          <Progress className="mt-3" value={((step + 1) / STEP_KEYS.length) * 100} />
+        </div>
+        <div className="space-y-4 p-5 sm:p-6">
         {step === 0 && (
           <>
             <Field label={t("sa.field.name")} error={errors.name}>
