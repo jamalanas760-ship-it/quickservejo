@@ -180,7 +180,8 @@ function EditRuleDialog({rule,runs,restaurantId,open,onOpenChange,ar,lang}:{rule
         qc.invalidateQueries({queryKey:["work",restaurantId]}),
         qc.invalidateQueries({queryKey:["operational-counters",restaurantId]}),
       ]);
-      result ? toast.success(ar?"تم تنفيذ القاعدة وإنشاء عمل":"Rule executed and work created") : toast.error(ar?"فشل التشغيل. راجع سجل التنفيذ.":"Run failed. Review execution history.");
+      if (result) toast.success(ar?"تم تنفيذ القاعدة وإنشاء عمل":"Rule executed and work created");
+      else toast.error(ar?"فشل التشغيل. راجع سجل التنفيذ.":"Run failed. Review execution history.");
     },
     onError:(error)=>toast.error(humanError(error,lang)),
   });
