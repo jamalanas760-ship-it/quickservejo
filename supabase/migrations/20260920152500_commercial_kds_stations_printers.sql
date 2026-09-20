@@ -84,7 +84,7 @@ BEGIN
   END IF;
 
   IF NOT (
-    app.has_capability(_order.restaurant_id, 'manage_orders')
+    app.has_capability(_order.restaurant_id, 'update_order_status')
     OR app.has_capability(_order.restaurant_id, 'manage_restaurant')
   ) THEN
     RAISE EXCEPTION 'Not authorized';
@@ -157,7 +157,7 @@ ON public.kitchen_stations
 FOR SELECT TO authenticated
 USING (
   app.has_capability(restaurant_id, 'view_orders')
-  OR app.has_capability(restaurant_id, 'manage_orders')
+  OR app.has_capability(restaurant_id, 'update_order_status')
   OR app.has_capability(restaurant_id, 'manage_restaurant')
 );
 DROP POLICY IF EXISTS kitchen_stations_manage ON public.kitchen_stations;
@@ -199,7 +199,7 @@ ON public.kitchen_printers
 FOR SELECT TO authenticated
 USING (
   app.has_capability(restaurant_id, 'view_orders')
-  OR app.has_capability(restaurant_id, 'manage_orders')
+  OR app.has_capability(restaurant_id, 'update_order_status')
   OR app.has_capability(restaurant_id, 'manage_restaurant')
 );
 DROP POLICY IF EXISTS kitchen_printers_manage ON public.kitchen_printers;
