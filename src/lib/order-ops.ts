@@ -42,7 +42,7 @@ export async function cancelOrder(input: {
   reason: string;
   note?: string | null;
 }): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from("orders")
     .update({
       status: "cancelled",
@@ -55,7 +55,7 @@ export async function cancelOrder(input: {
 }
 
 export async function assignOrderToStaff(orderId: string, staffId: string | null): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from("orders")
     .update({
       assigned_staff_id: staffId,
@@ -77,13 +77,13 @@ export type StatusEvent = {
 
 export async function fetchStatusEvents(orderIds: string[]): Promise<StatusEvent[]> {
   if (orderIds.length === 0) return [];
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("order_status_events")
     .select("id, order_id, from_status, to_status, actor_name, note, created_at")
     .in("order_id", orderIds)
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return (data ?? []) as StatusEvent[];
+  return (data ?? []) as unknown as StatusEvent[];
 }
 
 /** Seconds spent in each stage, derived from consecutive events. */
