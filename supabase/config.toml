@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.quickserve-campaign-worker]
 verify_jwt = false
+
+[functions.quickserve-payments]
+verify_jwt = false
+
+[functions.quickserve-stripe-webhook]
+verify_jwt = false
