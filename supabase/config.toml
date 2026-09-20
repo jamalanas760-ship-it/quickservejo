@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.quickserve-stripe-webhook]
 verify_jwt = false
+
+[functions.quickserve-integration-worker]
+verify_jwt = false
