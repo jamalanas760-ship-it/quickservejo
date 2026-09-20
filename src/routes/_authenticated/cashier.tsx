@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/common/EmptyState";
+import { StripePaymentDialog } from "@/components/payments/StripePaymentDialog";
 import { StaffHeader } from "@/components/staff/StaffHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,8 @@ type Payment = {
   status: string;
   parent_transaction_id: string | null;
   created_at: string;
+  provider: string | null;
+  provider_transaction_id: string | null;
 };
 
 type CashSession = {
@@ -82,6 +85,7 @@ function CashierPage() {
   const [openingFloat, setOpeningFloat] = useState("0");
   const [closeSessionDialog, setCloseSessionDialog] = useState(false);
   const [closingCash, setClosingCash] = useState("");
+  const [providerOpen, setProviderOpen] = useState(false);
 
   const query = useQuery({
     queryKey: ["cashier", "workspace", rid],
@@ -98,7 +102,7 @@ function CashierPage() {
           .limit(150),
         supabase
           .from("payment_transactions" as any)
-          .select("id,order_id,parent_transaction_id,transaction_type,method,amount,tip_amount,reference,status,created_at")
+          .select("id,order_id,parent_transaction_id,transaction_type,method,amount,tip_amount,reference,status,created_at,provider,provider_transaction_id")
           .eq("restaurant_id", rid!)
           .order("created_at", { ascending: false })
           .limit(1000),
@@ -131,6 +135,22 @@ function CashierPage() {
         variance: row.variance === null ? null : Number(row.variance),
       })) as CashSession[];
       return { bills, payments, sessions };
+    },
+  });
+
+  const stripeConnection = useQuery({
+    queryKey: ["cashier", "stripe-connection", rid],
+    enabled: Boolean(rid),
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("integration_connections")
+        .select("id,status,config,last_error")
+        .eq("restaurant_id", rid!)
+        .eq("category", "payments")
+        .eq("provider", "stripe")
+        .maybeSingle();
+      if (error) throw error;
+      return data as { id:string; status:string; config:Record<string,unknown>; last_error:string|null } | null;
     },
   });
 
@@ -197,6 +217,14 @@ function CashierPage() {
     mutationFn: async (payment: Payment) => {
       const remaining = refundableAmount(payment);
       if (remaining <= 0.001) throw new Error(ar ? "تم استرداد هذه الدفعة بالكامل" : "This payment has already been fully refunded");
+      if (payment.provider === "stripe") {
+        const { data, error } = await supabase.functions.invoke("quickserve-payments", {
+          body: { action: "refund", paymentId: payment.id, amount: remaining, idempotencyKey: `refund:${payment.id}:${crypto.randomUUID()}` },
+        });
+        if (error) throw error;
+        if (data?.status !== "succeeded" && data?.status !== "pending") throw new Error(data?.error || "Provider refund failed");
+        return;
+      }
       const { error } = await (supabase as any).rpc("refund_order_payment", {
         _order_id: payment.order_id,
         _amount: remaining,
@@ -295,7 +323,12 @@ function CashierPage() {
               {selectedDue>.001 ? <>
                 <div className="grid grid-cols-2 gap-2"><Button type="button" variant="outline" onClick={()=>setAmount(String((selectedDue/Math.max(1,splitWays)).toFixed(3)))}><Minus className="size-4"/>{ar?"حصة":"Split"}</Button><div className="flex items-center justify-center gap-2 rounded-xl border border-border"><Button type="button" size="icon" variant="ghost" onClick={()=>setSplitWays(v=>Math.max(2,v-1))}><Minus className="size-3.5"/></Button><strong className="text-sm">{splitWays}</strong><Button type="button" size="icon" variant="ghost" onClick={()=>setSplitWays(v=>Math.min(20,v+1))}><Plus className="size-3.5"/></Button></div></div>
                 <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-xs"><span>{ar?"طريقة الدفع":"Method"}</span><Select value={method} onValueChange={(value)=>{setMethod(value as typeof method);if(value==="gift_card")setTip("0");}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{METHODS.map(item=><SelectItem key={item} value={item}>{methodLabel(item,ar)}</SelectItem>)}</SelectContent></Select></label><label className="space-y-1.5 text-xs"><span>{ar?"المبلغ":"Amount"}</span><Input type="number" min="0.001" max={selectedDue} step="0.001" value={amount} onChange={e=>setAmount(e.target.value)}/></label><label className="space-y-1.5 text-xs"><span>{ar?"إكرامية":"Tip"}</span><Input type="number" min="0" step="0.001" value={tip} disabled={method==="gift_card"} onChange={e=>setTip(e.target.value)}/>{method==="gift_card"?<span className="block text-[10px] text-muted-foreground">{ar?"بطاقات الهدايا لا تمول الإكرامية.":"Gift cards cannot be used for tips."}</span>:null}</label><label className="space-y-1.5 text-xs"><span>{method==="gift_card"?(ar?"رمز بطاقة الهدية":"Gift card code"):(ar?"مرجع":"Reference")}</span><Input value={reference} onChange={e=>setReference(e.target.value)} autoCapitalize={method==="gift_card"?"characters":"off"} placeholder={method==="card"?"AUTH-1234":method==="gift_card"?"AB12CD34EF56":""}/>{method==="gift_card"?<span className="block text-[10px] text-muted-foreground">{ar?"سيتم خصم الرصيد والتحقق منه قبل اعتماد الدفعة.":"Balance is validated and deducted atomically before settlement."}</span>:null}</label></div>
-                <Button className="w-full" disabled={paymentMutation.isPending||!(Number(amount)>0)||(method==="gift_card"&&!reference.trim())} onClick={()=>paymentMutation.mutate()}>{methodIcon(method)}{ar?"تسجيل الدفعة":"Record payment"}</Button>
+                <Button className="w-full" disabled={paymentMutation.isPending||!(Number(amount)>0)||(method==="gift_card"&&!reference.trim())} onClick={()=>paymentMutation.mutate()}>{methodIcon(method)}{method==="card"?(ar?"تسجيل دفع جهاز خارجي":"Record external-terminal payment"):(ar?"تسجيل الدفعة":"Record payment")}</Button>
+                <div className="rounded-xl border border-dashed p-3">
+                  <div className="flex items-start justify-between gap-3"><div><strong className="text-xs">{ar?"الدفع عبر مزود متصل":"Connected online payment"}</strong><p className="mt-1 text-[10px] text-muted-foreground">{ar?"Stripe Payment Element مع Apple Pay / Google Pay عندما تكون متاحة.":"Stripe Payment Element with Apple Pay / Google Pay when eligible."}</p></div><Badge variant={stripeConnection.data && stripeConnection.data.status!=="disabled"?"secondary":"outline"}>{stripeConnection.data && stripeConnection.data.status!=="disabled"?(ar?"متصل":"Connected"):(ar?"غير مهيأ":"Not configured")}</Badge></div>
+                  <Button className="mt-3 w-full" variant="outline" disabled={!stripeConnection.data||stripeConnection.data.status==="disabled"||!(Number(amount)>0)} onClick={()=>setProviderOpen(true)}><CreditCard className="size-4"/>{ar?"فتح الدفع الإلكتروني":"Open online payment"}</Button>
+                  {!stripeConnection.data?<p className="mt-2 text-[10px] text-muted-foreground">{ar?"هيّئ Stripe أولاً من QuickServe Connect.":"Configure Stripe first in QuickServe Connect."}</p>:stripeConnection.data.last_error?<p className="mt-2 text-[10px] text-red-600">{stripeConnection.data.last_error}</p>:null}
+                </div>
               </> : null}
 
               <div><h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar?"سجل الدفعات":"Payment history"}</h3><div className="mt-2 space-y-2">{selectedPayments.length?selectedPayments.map(payment=><div key={payment.id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"><div><div className="flex items-center gap-2"><strong className="text-xs capitalize">{payment.transaction_type} · {methodLabel(payment.method,ar)}</strong>{payment.transaction_type==="refund"?<Badge variant="destructive">{ar?"استرداد":"Refund"}</Badge>:null}</div><p className="mt-1 text-[10px] text-muted-foreground">{formatDateTime(payment.created_at,lang)}{payment.reference?" · "+payment.reference:""}</p></div><div className="text-end"><strong className={cn("text-sm",payment.transaction_type==="refund"&&"text-red-600")}>{payment.transaction_type==="refund"?"−":""}{formatMoney(payment.amount,scope.currency,lang)}</strong>{payment.transaction_type==="payment"&&refundableAmount(payment)>0.001?<Button size="sm" variant="ghost" className="mt-1 h-6 px-2 text-[10px]" disabled={refundMutation.isPending} onClick={()=>refundMutation.mutate(payment)}><RotateCcw className="size-3"/>{ar?"استرداد":"Refund"} {formatMoney(refundableAmount(payment),scope.currency,lang)}</Button>:null}</div></div>):<p className="py-4 text-xs text-muted-foreground">{ar?"لا توجد دفعات بعد.":"No payments yet."}</p>}</div></div>
@@ -308,6 +341,7 @@ function CashierPage() {
     <Dialog open={openSessionDialog} onOpenChange={setOpenSessionDialog}><DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>{ar?"فتح صندوق الكاش":"Open cash session"}</DialogTitle><DialogDescription>{ar?"أدخل الرصيد الافتتاحي للصندوق قبل بدء التحصيل النقدي.":"Enter the opening cash float before collecting cash."}</DialogDescription></DialogHeader><label className="space-y-2 text-sm"><span>{ar?"الرصيد الافتتاحي":"Opening float"} ({scope.currency})</span><Input type="number" min="0" step="0.001" value={openingFloat} onChange={e=>setOpeningFloat(e.target.value)}/></label><DialogFooter><Button variant="outline" onClick={()=>setOpenSessionDialog(false)}>{ar?"إلغاء":"Cancel"}</Button><Button disabled={openSessionMutation.isPending} onClick={()=>openSessionMutation.mutate()}>{ar?"فتح":"Open"}</Button></DialogFooter></DialogContent></Dialog>
 
     <Dialog open={closeSessionDialog} onOpenChange={setCloseSessionDialog}><DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>{ar?"إغلاق صندوق الكاش":"Close cash session"}</DialogTitle><DialogDescription>{openSession?(ar?"مفتوح منذ ":"Opened ")+formatDateTime(openSession.opened_at,lang):""}</DialogDescription></DialogHeader><label className="space-y-2 text-sm"><span>{ar?"الكاش الفعلي عند الإغلاق":"Actual closing cash"} ({scope.currency})</span><Input type="number" min="0" step="0.001" value={closingCash} onChange={e=>setClosingCash(e.target.value)}/></label><DialogFooter><Button variant="outline" onClick={()=>setCloseSessionDialog(false)}>{ar?"إلغاء":"Cancel"}</Button><Button disabled={closeSessionMutation.isPending||closingCash===""} onClick={()=>closeSessionMutation.mutate()}>{ar?"إغلاق وتسوية":"Close & reconcile"}</Button></DialogFooter></DialogContent></Dialog>
+    {selected ? <StripePaymentDialog open={providerOpen} onOpenChange={setProviderOpen} orderId={selected.id} orderNumber={selected.order_number} amount={Math.min(selectedDue,Math.max(0,Number(amount||selectedDue)))} tip={Math.max(0,Number(tip||0))} currency={scope.currency} onSettled={refresh} /> : null}
   </div>;
 }
 
