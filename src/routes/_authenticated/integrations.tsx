@@ -4,6 +4,7 @@ import { Activity, BarChart3, CreditCard, Link2, MessageSquareText, PlugZap, Pri
 import { useMemo } from "react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterPageHeader, MasterStatus } from "@/components/app/MasterPage";
 import { DeveloperConnectPanel } from "@/components/integrations/DeveloperConnectPanel";
 import { IntegrationOperationsPanel } from "@/components/integrations/IntegrationOperationsPanel";
 import { AppHeader } from "@/components/nav/AppHeader";
@@ -149,13 +150,11 @@ function IntegrationsPage() {
   return <div className="min-h-dvh bg-background">
     <AppHeader title="QuickServe Connect" />
     <main className="qs-page space-y-5">
-      <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
-        <div className="p-6 sm:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><PlugZap className="size-3.5" />QuickServe Connect</div>
-          <h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? "كل أنظمتك متصلة من مكان واحد" : "Connect your restaurant stack in one place"}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{ar ? "اختر المزود، راقب حالة الاتصال، واحتفظ بالمفاتيح السرية على الخادم فقط." : "Choose providers, monitor connection health, and keep credentials server-side only."}</p>
-        </div>
-      </section>
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={PlugZap}>QuickServe Connect</MasterEyebrow>}
+        title={ar ? "الإعدادات والتكاملات" : "Settings & Integrations"}
+        description={ar ? "أدر المدفوعات والرسائل والتوصيل والمحاسبة والطباعة وواجهات API من مكان واحد." : "Manage payments, messaging, delivery, accounting, printing and API connectivity from one place."}
+      />
 
       {query.isPending ? <Skeleton className="h-[480px] rounded-2xl" /> : query.isError ? <section className="qs-card p-5 text-sm text-destructive">{humanError(query.error, lang)}</section> : (
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -163,10 +162,10 @@ function IntegrationsPage() {
             const row = byKey.get(`${preset.category}:${preset.provider}`);
             const Icon = preset.icon;
             const status = row?.status ?? "not_configured";
-            return <article key={`${preset.category}:${preset.provider}`} className="qs-card p-5">
+            return <article key={`${preset.category}:${preset.provider}`} className="group rounded-[18px] border border-border/85 bg-card p-5 shadow-[var(--qs-shadow-card)] transition hover:-translate-y-px hover:shadow-[var(--qs-shadow-hover)]">
               <div className="flex items-start justify-between gap-3">
                 <span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-5" /></span>
-                <span className={status === "healthy" ? "rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-700" : status === "configured" ? "rounded-full bg-blue-500/10 px-2.5 py-1 text-[10px] font-bold text-blue-700" : status === "disabled" ? "rounded-full bg-muted px-2.5 py-1 text-[10px] font-bold text-muted-foreground" : "rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-700"}>{status.replaceAll("_", " ")}</span>
+                <MasterStatus tone={status === "healthy" ? "green" : status === "configured" ? "blue" : status === "disabled" ? "slate" : "orange"}>{status.replaceAll("_", " ")}</MasterStatus>
               </div>
               <h2 className="mt-4 font-bold">{preset.name}</h2>
               <p className="mt-1 text-xs text-muted-foreground">{preset.credential ? (ar ? `مرجع السر: ${preset.credential}` : `Server secret: ${preset.credential}`) : (ar ? "لا يحتاج مفتاحاً خارجياً" : "No external credential required")}</p>
