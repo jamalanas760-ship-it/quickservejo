@@ -10,6 +10,7 @@ import {
   ChefHat,
   ClipboardCheck,
   ClipboardList,
+  Clock3,
   Home,
   HeartHandshake,
   Megaphone,
