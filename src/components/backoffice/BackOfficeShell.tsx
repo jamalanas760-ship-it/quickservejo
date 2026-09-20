@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { BarChart3, Coins, LayoutDashboard, Package, PackageCheck, ShoppingCart, Truck } from "lucide-react";
+import { BarChart3, ChefHat, Coins, FileText, LayoutDashboard, Package, PackageCheck, ShoppingCart, Truck } from "lucide-react";
 
 import { FinancePanel } from "@/components/backoffice/FinancePanel";
 import { InventoryPanel } from "@/components/backoffice/InventoryPanel";
+import { InvoicesPanel } from "@/components/backoffice/InvoicesPanel";
 import { OverviewPanel } from "@/components/backoffice/OverviewPanel";
 import { ProcurementPanel } from "@/components/backoffice/ProcurementPanel";
+import { RecipesPanel } from "@/components/backoffice/RecipesPanel";
 import { ReceivingPanel } from "@/components/backoffice/ReceivingPanel";
 import { RecordDialog, type RecordRequest } from "@/components/backoffice/RecordDialog";
 import { ReportsPanel } from "@/components/backoffice/ReportsPanel";
@@ -19,7 +21,7 @@ import { useI18n } from "@/lib/i18n";
 import { membershipHasCapability } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
-type SectionKey = "overview" | "inventory" | "receiving" | "procurement" | "suppliers" | "finance" | "reports";
+type SectionKey = "overview" | "inventory" | "recipes" | "receiving" | "procurement" | "suppliers" | "invoices" | "finance" | "reports";
 
 type Section = {
   key: SectionKey;
@@ -60,9 +62,11 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
   const allSections: Section[] = [
     { key: "overview", en: "Overview", ar: "نظرة عامة", icon: LayoutDashboard, show: true },
     { key: "inventory", en: "Inventory", ar: "المخزون", icon: Package, show: moduleAccess.inventory },
+    { key: "recipes", en: "Recipes & Cost", ar: "الوصفات والتكلفة", icon: ChefHat, show: moduleAccess.inventory || canApproveProcurement },
     { key: "receiving", en: "Receiving", ar: "الاستلام", icon: PackageCheck, show: moduleAccess.inventory || moduleAccess.procurement },
     { key: "procurement", en: "Procurement", ar: "المشتريات", icon: ShoppingCart, show: moduleAccess.procurement || canApproveProcurement },
     { key: "suppliers", en: "Suppliers", ar: "الموردون", icon: Truck, show: moduleAccess.procurement || moduleAccess.inventory || moduleAccess.finance },
+    { key: "invoices", en: "Supplier Invoices", ar: "فواتير الموردين", icon: FileText, show: moduleAccess.procurement || moduleAccess.finance || canApproveProcurement },
     { key: "finance", en: "Finance", ar: "المالية", icon: Coins, show: moduleAccess.finance },
     { key: "reports", en: "Reports", ar: "التقارير", icon: BarChart3, show: true },
   ];
@@ -97,9 +101,11 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
         : query.isPending ? <div className="space-y-3"><Skeleton className="h-28 rounded-2xl" /><Skeleton className="h-72 rounded-2xl" /></div>
         : safeSection === "overview" ? <OverviewPanel data={data} summary={summary} access={moduleAccess} currency={currency} onAction={setRequest} onNavigate={setSection} canApproveProcurement={canApproveProcurement} />
         : safeSection === "inventory" ? <InventoryPanel restaurantId={restaurantId} data={data} currency={currency} onAction={setRequest} />
+        : safeSection === "recipes" ? <RecipesPanel restaurantId={restaurantId} data={data} currency={currency} />
         : safeSection === "receiving" ? <ReceivingPanel data={data} currency={currency} onAction={setRequest} onGoProcurement={() => setSection("procurement")} />
         : safeSection === "procurement" ? <ProcurementPanel restaurantId={restaurantId} data={data} currency={currency} canApprove={canApproveProcurement} canProcure={moduleAccess.procurement || canApproveProcurement} canReceive={moduleAccess.inventory || moduleAccess.procurement || canApproveProcurement} onAction={setRequest} />
         : safeSection === "suppliers" ? <SuppliersPanel data={data} currency={currency} onAction={moduleAccess.procurement || canApproveProcurement ? setRequest : () => undefined} />
+        : safeSection === "invoices" ? <InvoicesPanel restaurantId={restaurantId} data={data} currency={currency} canFinance={moduleAccess.finance || canApproveProcurement} />
         : safeSection === "finance" ? <FinancePanel data={data} currency={currency} restaurantName={restaurantName} onAction={setRequest} />
         : <ReportsPanel data={data} access={moduleAccess} currency={currency} restaurantName={restaurantName} />}
       </div>
