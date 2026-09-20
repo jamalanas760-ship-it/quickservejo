@@ -247,7 +247,7 @@ function FilterChip({active,onClick,label,count}:{active:boolean;onClick:()=>voi
   return <button type="button" onClick={onClick} className={cn("inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition",active?"border-foreground bg-foreground text-background shadow-sm":"border-border bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground")}><span>{label}</span><span className={cn("min-w-5 rounded-full px-1.5 py-0.5 text-[9px]",active?"bg-background/15":"bg-muted")}>{count}</span></button>;
 }
 
-function Metric({icon:Icon,label,value,hint}:{icon:typeof UsersRound;label:string;value:number;hint?:string}){
+function Metric({icon:Icon,label,value,hint}:{icon:typeof UsersRound;label:string;value:number;hint?:string|undefined}){
   return <article className="flex min-h-[105px] items-center gap-4 bg-card p-5"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-blue-500/10 text-blue-600"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong>{hint?<p className="mt-0.5 text-[9px] text-muted-foreground">{hint}</p>:null}</div></article>;
 }
 
