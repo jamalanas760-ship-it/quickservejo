@@ -33,7 +33,8 @@ import { membershipHasCapability, type Capability } from "@/lib/permissions";
 import { readAppearance } from "@/lib/restaurant-appearance";
 import { cn } from "@/lib/utils";
 
-type Item = { to: string; icon: typeof Home; en: string; ar: string; exact?: boolean; capability?: Capability; badge?: "tasks" | "shifts" | "orders" | "unread" };
+type NavGroup = "overview" | "service" | "operations" | "growth" | "admin";
+type Item = { to: string; icon: typeof Home; en: string; ar: string; exact?: boolean; capability?: Capability; badge?: "tasks" | "shifts" | "orders" | "unread"; group?: NavGroup };
 
 const FRONTLINE_ITEMS: Record<string, Item> = {
   kitchen: { to: "/kitchen", icon: ChefHat, en: "Kitchen", ar: "المطبخ" },
@@ -67,24 +68,24 @@ export function BottomNav() {
   const homeTo = role === "operations_manager" || role === "manager" ? "/manager" : erpSpecialist ? "/work" : "/dashboard";
 
   const managementItems: Item[] = restaurantId ? ([
-    { to: homeTo, icon: role === "operations_manager" || role === "manager" ? UserRoundCog : Home, en: role === "operations_manager" ? "Operations" : role === "manager" ? "Shift" : "Home", ar: role === "operations_manager" ? "العمليات" : role === "manager" ? "الوردية" : "الرئيسية", exact: true },
-    { to: "/hq", icon: Building2, en: "HQ", ar: "المجموعة" },
-    { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي", capability: "view_work", badge: "tasks" },
-    { to: "/shifts", icon: CalendarClock, en: "Shifts", ar: "الورديات", capability: "view_work", badge: "shifts" },
-    { to: "/automations", icon: Workflow, en: "Automation", ar: "الأتمتة", capability: "manage_work" },
-    { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات", capability: "view_orders", badge: "orders" },
-    { to: `/manage/${restaurantId}`, icon: UtensilsCrossed, en: "Menu", ar: "القائمة", exact: true, capability: "manage_menu" },
-    { to: `/manage/${restaurantId}/tables`, icon: Table2, en: "Tables", ar: "الطاولات", capability: "manage_tables" },
-    { to: "/bookings", icon: CalendarClock, en: "Reservations", ar: "الحجوزات", capability: "manage_tables" },
-    { to: "/waitlist", icon: Clock3, en: "Waitlist", ar: "الانتظار", capability: "manage_tables" },
-    { to: `/manage/${restaurantId}/operations`, icon: Boxes, en: "ERP", ar: "ERP", capability: "view_erp" },
-    { to: `/manage/${restaurantId}/analytics`, icon: BarChart3, en: "Analytics", ar: "التحليلات", capability: "view_analytics" },
-    { to: "/daily-close", icon: ClipboardCheck, en: "Daily Close", ar: "إقفال اليوم", capability: "manage_payments" },
-    { to: "/guests", icon: HeartHandshake, en: "Guests", ar: "الضيوف", capability: "view_analytics" },
-    { to: "/campaigns", icon: Megaphone, en: "Campaigns", ar: "الحملات", capability: "manage_restaurant" },
-    { to: "/integrations", icon: PlugZap, en: "Connect", ar: "التكاملات", capability: "manage_restaurant" },
-    { to: `/manage/${restaurantId}/staff`, icon: Users, en: "Team", ar: "الفريق", capability: "manage_staff" },
-    { to: "/profile", icon: User, en: "Profile", ar: "الحساب", exact: true },
+    { to: homeTo, icon: role === "operations_manager" || role === "manager" ? UserRoundCog : Home, en: role === "operations_manager" ? "Operations" : role === "manager" ? "Shift" : "Home", ar: role === "operations_manager" ? "العمليات" : role === "manager" ? "الوردية" : "الرئيسية", exact: true, group: "overview" },
+    { to: "/hq", icon: Building2, en: "HQ", ar: "المجموعة", group: "overview" },
+    { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي", capability: "view_work", badge: "tasks", group: "overview" },
+    { to: "/shifts", icon: CalendarClock, en: "Shifts", ar: "الورديات", capability: "view_work", badge: "shifts", group: "operations" },
+    { to: "/automations", icon: Workflow, en: "Automation", ar: "الأتمتة", capability: "manage_work", group: "operations" },
+    { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات", capability: "view_orders", badge: "orders", group: "service" },
+    { to: `/manage/${restaurantId}`, icon: UtensilsCrossed, en: "Menu", ar: "القائمة", exact: true, capability: "manage_menu", group: "service" },
+    { to: `/manage/${restaurantId}/tables`, icon: Table2, en: "Tables", ar: "الطاولات", capability: "manage_tables", group: "service" },
+    { to: "/bookings", icon: CalendarClock, en: "Reservations", ar: "الحجوزات", capability: "manage_tables", group: "service" },
+    { to: "/waitlist", icon: Clock3, en: "Waitlist", ar: "الانتظار", capability: "manage_tables", group: "service" },
+    { to: `/manage/${restaurantId}/operations`, icon: Boxes, en: "ERP", ar: "ERP", capability: "view_erp", group: "operations" },
+    { to: `/manage/${restaurantId}/analytics`, icon: BarChart3, en: "Analytics", ar: "التحليلات", capability: "view_analytics", group: "operations" },
+    { to: "/daily-close", icon: ClipboardCheck, en: "Daily Close", ar: "إقفال اليوم", capability: "manage_payments", group: "operations" },
+    { to: "/guests", icon: HeartHandshake, en: "Guests", ar: "الضيوف", capability: "view_analytics", group: "growth" },
+    { to: "/campaigns", icon: Megaphone, en: "Campaigns", ar: "الحملات", capability: "manage_restaurant", group: "growth" },
+    { to: "/integrations", icon: PlugZap, en: "Connect", ar: "التكاملات", capability: "manage_restaurant", group: "admin" },
+    { to: `/manage/${restaurantId}/staff`, icon: Users, en: "Team", ar: "الفريق", capability: "manage_staff", group: "admin" },
+    { to: "/profile", icon: User, en: "Profile", ar: "الحساب", exact: true, group: "admin" },
   ] satisfies Item[]).filter((item) => (item.to !== "/hq" || multiLocation) && (!item.capability || can(item.capability))) : [];
 
   const frontlineItem = role ? FRONTLINE_ITEMS[role] : undefined;
@@ -110,6 +111,17 @@ export function BottomNav() {
     ? mobilePriority.flatMap((to) => desktopItems.find((item) => item.to === to) ?? []).slice(0, 5)
     : desktopItems;
 
+  function groupLabel(group: NavGroup) {
+    const labels: Record<NavGroup, { en: string; ar: string }> = {
+      overview: { en: "Overview", ar: "نظرة عامة" },
+      service: { en: "Service", ar: "الخدمة" },
+      operations: { en: "Operations", ar: "العمليات" },
+      growth: { en: "Guests & Growth", ar: "الضيوف والنمو" },
+      admin: { en: "Administration", ar: "الإدارة" },
+    };
+    return lang === "ar" ? labels[group].ar : labels[group].en;
+  }
+
   function countFor(item: Item) {
     return item.badge ? counters.data[item.badge] : 0;
   }
@@ -130,24 +142,26 @@ export function BottomNav() {
 
   return (
     <>
-      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden w-[224px] flex-col lg:flex">
-        <div className="flex h-[72px] items-center border-b border-border px-4">
+      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden flex-col lg:flex">
+        <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-4">
           <Link to={homeTo as never} className="min-w-0 text-foreground" aria-label={restaurant?.name || "QuickServe dashboard"}>{brand}</Link>
         </div>
 
-        <nav className="qs-scroll flex-1 overflow-y-auto px-3 py-5" aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"}>
+        <nav className="qs-scroll flex-1 overflow-y-auto px-3 py-4" aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"}>
           <ul className="space-y-1">
             {desktopItems.map((item, index) => {
               const active = activeFor(item);
               const Icon = item.icon;
               const count = countFor(item);
-              const divider = item.en === "Team" || item.en === "Profile" || item.en === "ERP";
+              const previousGroup = index > 0 ? desktopItems[index - 1]?.group : undefined;
+              const showGroup = managerial && item.group && item.group !== previousGroup;
               return (
-                <li key={`${item.to}-${item.en}`} className={divider && index > 0 ? "mt-4 border-t border-border pt-4" : ""}>
+                <li key={`${item.to}-${item.en}`} className={showGroup && index > 0 ? "mt-5" : ""}>
+                  {showGroup ? <p className="mb-2 px-3 text-[9px] font-extrabold uppercase tracking-[.14em] text-muted-foreground/70">{groupLabel(item.group!)}</p> : null}
                   <Link to={item.to as never} data-active={active} className="qs-sidebar-item" aria-current={active ? "page" : undefined}>
                     <Icon className="size-[18px] shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{lang === "ar" ? item.ar : item.en}</span>
-                    {count > 0 ? <span className="min-w-6 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{count > 99 ? "99+" : count}</span> : null}
+                    {count > 0 ? <span className="min-w-6 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white shadow-sm">{count > 99 ? "99+" : count}</span> : null}
                   </Link>
                 </li>
               );
