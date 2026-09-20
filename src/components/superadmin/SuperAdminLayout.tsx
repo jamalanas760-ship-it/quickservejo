@@ -68,9 +68,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: (() => void) | undefined 
   const { lang } = useI18n();
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-5"><Link to={"/super-admin" as never} onClick={onNavigate} className="text-foreground" aria-label="QuickServe admin"><BrandLogo className="size-9" accentClassName="text-[#ff5a0a]" textClassName="text-[20px] text-foreground" /></Link></div>
+      <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-5"><Link to={"/super-admin" as never} onClick={onNavigate} className="text-white" aria-label="QuickServe admin"><BrandLogo className="size-9" accentClassName="text-[#ff5a0a]" textClassName="text-[20px] text-white" /></Link></div>
       <div className="qs-scroll flex-1 overflow-y-auto px-3 py-4"><NavLinks onNavigate={onNavigate} /></div>
-      <div className="border-t border-border/80 px-4 py-4"><p className="text-[13px] font-bold text-foreground">QuickServe</p><p className="text-[10px] text-muted-foreground">{lang === "ar" ? "إدارة المنصة" : "Platform admin"}</p></div>
+      <div className="border-t border-white/10 px-4 py-4"><p className="text-[13px] font-bold text-white">QuickServe</p><p className="text-[10px] text-white/45">{lang === "ar" ? "إدارة المنصة" : "Platform admin"}</p></div>
     </div>
   );
 }
