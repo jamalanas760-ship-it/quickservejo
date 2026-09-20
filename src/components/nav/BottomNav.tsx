@@ -74,6 +74,8 @@ export function BottomNav() {
     { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات", capability: "view_orders", badge: "orders" },
     { to: `/manage/${restaurantId}`, icon: UtensilsCrossed, en: "Menu", ar: "القائمة", exact: true, capability: "manage_menu" },
     { to: `/manage/${restaurantId}/tables`, icon: Table2, en: "Tables", ar: "الطاولات", capability: "manage_tables" },
+    { to: "/bookings", icon: CalendarClock, en: "Reservations", ar: "الحجوزات", capability: "manage_tables" },
+    { to: "/waitlist", icon: Clock3, en: "Waitlist", ar: "الانتظار", capability: "manage_tables" },
     { to: `/manage/${restaurantId}/operations`, icon: Boxes, en: "ERP", ar: "ERP", capability: "view_erp" },
     { to: `/manage/${restaurantId}/analytics`, icon: BarChart3, en: "Analytics", ar: "التحليلات", capability: "view_analytics" },
     { to: "/daily-close", icon: ClipboardCheck, en: "Daily Close", ar: "إقفال اليوم", capability: "manage_payments" },
