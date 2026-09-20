@@ -6,6 +6,7 @@ import type { AppRole } from "@/lib/permissions";
 export type WorkPriority = "low" | "normal" | "high" | "urgent";
 export type OperationalEventType = "waiter_call_created" | "order_stuck" | "low_stock" | "shift_opening" | "shift_closing" | "manual_exception";
 export type ShiftStatus = "planned" | "open" | "closed";
+export type AutomationRunStatus = "running" | "success" | "failed";
 export type ShiftAssignmentStatus = "scheduled" | "present" | "late" | "absent" | "released";
 
 export type OperationalRule = {
@@ -29,6 +30,19 @@ export type OperationalRule = {
   last_error: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type AutomationRun = {
+  id: string;
+  restaurant_id: string;
+  rule_id: string;
+  triggered_by: "manual" | "scheduled" | "event";
+  started_at: string;
+  completed_at: string | null;
+  status: AutomationRunStatus;
+  result_summary: string | null;
+  error: string | null;
+  work_task_id: string | null;
 };
 
 export type Shift = {
@@ -96,7 +110,7 @@ type LooseQuery = {
 };
 
 /** Narrow compatibility boundary until generated Supabase types include the Phase 2 tables. */
-function fromOperations(table: "operational_rules" | "shifts" | "shift_assignments" | "shift_handovers" | "work_tasks") {
+function fromOperations(table: "operational_rules" | "automation_runs" | "shifts" | "shift_assignments" | "shift_handovers" | "work_tasks") {
   return (supabase.from as unknown as (name: string) => LooseQuery)(table);
 }
 
@@ -110,6 +124,24 @@ export function useOperationalRules(restaurantId: string | null, enabled = true)
         .select("*")
         .eq("restaurant_id", restaurantId!)
         .order("created_at", { ascending: true }) as unknown as { data: OperationalRule[] | null; error: Error | null };
+      if (result.error) throw result.error;
+      return result.data ?? [];
+    },
+  });
+}
+
+export function useAutomationRuns(restaurantId: string | null, enabled = true) {
+  return useQuery<AutomationRun[]>({
+    queryKey: ["operations", "automation-runs", restaurantId],
+    enabled: Boolean(restaurantId && enabled),
+    staleTime: 8_000,
+    refetchInterval: restaurantId && enabled ? 20_000 : false,
+    queryFn: async () => {
+      const result = await fromOperations("automation_runs")
+        .select("*")
+        .eq("restaurant_id", restaurantId!)
+        .order("started_at", { ascending: false })
+        .limit(100) as unknown as { data: AutomationRun[] | null; error: Error | null };
       if (result.error) throw result.error;
       return result.data ?? [];
     },
@@ -225,7 +257,7 @@ export async function createOperationalRule(
 
 export async function updateOperationalRule(
   id: string,
-  patch: Partial<Pick<OperationalRule, "name" | "event_type" | "enabled" | "priority" | "target_role" | "due_minutes" | "requires_approval" | "approval_role" | "schedule_time" | "schedule_recurrence" | "schedule_timezone">>,
+  patch: Partial<Pick<OperationalRule, "name" | "event_type" | "enabled" | "priority" | "target_role" | "due_minutes" | "requires_approval" | "approval_role" | "schedule_time" | "schedule_recurrence" | "schedule_timezone" | "rule_config">>,
 ) {
   const result = await fromOperations("operational_rules").update(patch).eq("id", id) as unknown as { error: Error | null };
   await expectNoError(result);
