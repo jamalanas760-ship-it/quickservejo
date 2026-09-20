@@ -11,6 +11,7 @@ import {
   ClipboardList,
   Home,
   HeartHandshake,
+  PlugZap,
   Settings,
   Store,
   Table2,
