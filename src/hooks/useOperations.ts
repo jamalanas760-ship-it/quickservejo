@@ -20,6 +20,13 @@ export type OperationalRule = {
   requires_approval: boolean;
   approval_role: AppRole | null;
   rule_config: Record<string, unknown>;
+  schedule_time: string | null;
+  schedule_recurrence: "daily" | "weekly" | null;
+  schedule_timezone: string;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  last_status: "success" | "failed" | "never" | null;
+  last_error: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -37,6 +44,8 @@ export type Shift = {
   opened_by_staff_id: string | null;
   closed_by_staff_id: string | null;
   notes: string | null;
+  deleted_at: string | null;
+  deleted_by_staff_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -77,6 +86,7 @@ type LooseQuery = {
   delete: (...args: unknown[]) => LooseQuery;
   eq: (...args: unknown[]) => LooseQuery;
   in: (...args: unknown[]) => LooseQuery;
+  is: (...args: unknown[]) => LooseQuery;
   contains: (...args: unknown[]) => LooseQuery;
   order: (...args: unknown[]) => LooseQuery;
   limit: (...args: unknown[]) => LooseQuery;
@@ -116,6 +126,7 @@ export function useUrgentAutomatedWork(restaurantId: string | null) {
         .select("id,title,priority,status,due_at,metadata")
         .eq("restaurant_id", restaurantId!)
         .in("status", ["open", "in_progress", "waiting_approval"])
+        .is("deleted_at", null)
         .contains("metadata", { automated: true })
         .order("created_at", { ascending: false })
         .limit(100) as unknown as { data: Array<{ id: string; title: string; priority: WorkPriority; status: string; due_at: string | null; metadata: Record<string, unknown> }> | null; error: Error | null };
@@ -140,7 +151,8 @@ export function useOpenWorkCount(restaurantId: string | null) {
       const result = await fromOperations("work_tasks")
         .select("id", { count: "exact", head: true })
         .eq("restaurant_id", restaurantId!)
-        .in("status", ["open", "in_progress", "waiting_approval"]) as unknown as { count: number | null; error: Error | null };
+        .in("status", ["open", "in_progress", "waiting_approval"])
+        .is("deleted_at", null) as unknown as { count: number | null; error: Error | null };
       if (result.error) throw result.error;
       return result.count ?? 0;
     },
@@ -156,6 +168,7 @@ export function useShifts(restaurantId: string | null) {
       const result = await fromOperations("shifts")
         .select("*")
         .eq("restaurant_id", restaurantId!)
+        .is("deleted_at", null)
         .order("shift_date", { ascending: false })
         .order("planned_start", { ascending: false })
         .limit(80) as unknown as { data: Shift[] | null; error: Error | null };
@@ -202,12 +215,18 @@ async function expectNoError(result: { error: Error | null }) {
   if (result.error) throw result.error;
 }
 
-export async function createOperationalRule(input: Omit<OperationalRule, "id" | "created_at" | "updated_at" | "rule_config"> & { rule_config?: Record<string, unknown> }) {
+export async function createOperationalRule(
+  input: Pick<OperationalRule, "restaurant_id" | "name" | "event_type" | "enabled" | "priority" | "target_role" | "due_minutes" | "requires_approval" | "approval_role">
+    & Partial<Pick<OperationalRule, "rule_config" | "schedule_time" | "schedule_recurrence" | "schedule_timezone">>,
+) {
   const result = await fromOperations("operational_rules").insert({ ...input, rule_config: input.rule_config ?? {} }) as unknown as { error: Error | null };
   await expectNoError(result);
 }
 
-export async function updateOperationalRule(id: string, patch: Partial<Pick<OperationalRule, "name" | "enabled" | "priority" | "target_role" | "due_minutes" | "requires_approval" | "approval_role">>) {
+export async function updateOperationalRule(
+  id: string,
+  patch: Partial<Pick<OperationalRule, "name" | "event_type" | "enabled" | "priority" | "target_role" | "due_minutes" | "requires_approval" | "approval_role" | "schedule_time" | "schedule_recurrence" | "schedule_timezone">>,
+) {
   const result = await fromOperations("operational_rules").update(patch).eq("id", id) as unknown as { error: Error | null };
   await expectNoError(result);
 }
@@ -234,8 +253,14 @@ export async function closeShift(id: string, staffId: string) {
 }
 
 export async function deleteShift(id: string) {
-  const result = await fromOperations("shifts").delete().eq("id", id) as unknown as { error: Error | null };
-  await expectNoError(result);
+  const { error } = await (supabase as any).rpc("archive_shift", { _shift_id: id });
+  if (error) throw error;
+}
+
+export async function runOperationalRule(id: string) {
+  const { data, error } = await (supabase as any).rpc("run_operational_rule", { _rule_id: id });
+  if (error) throw error;
+  return data as string | null;
 }
 
 export async function updateOwnShiftAssignmentStatus(id: string, status: "present" | "released") {

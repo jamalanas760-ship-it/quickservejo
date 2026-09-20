@@ -20,14 +20,14 @@ import {
 } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { useOperationalCounters } from "@/hooks/useOperationalCounters";
 import { useAccess } from "@/hooks/useSession";
-import { useWorkspaceReport } from "@/hooks/useWorkspace";
 import { useI18n } from "@/lib/i18n";
 import { membershipHasCapability, type Capability } from "@/lib/permissions";
 import { readAppearance } from "@/lib/restaurant-appearance";
 import { cn } from "@/lib/utils";
 
-type Item = { to: string; icon: typeof Home; en: string; ar: string; exact?: boolean; capability?: Capability };
+type Item = { to: string; icon: typeof Home; en: string; ar: string; exact?: boolean; capability?: Capability; badge?: "tasks" | "shifts" | "orders" | "unread" };
 
 const FRONTLINE_ITEMS: Record<string, Item> = {
   kitchen: { to: "/kitchen", icon: ChefHat, en: "Kitchen", ar: "المطبخ" },
@@ -46,8 +46,7 @@ export function BottomNav() {
     ?? null;
   const restaurantId = membership?.restaurant_id ?? null;
   const restaurant = membership?.restaurant ?? null;
-  const report = useWorkspaceReport(restaurantId);
-  const openOrders = report.data?.openOrders ?? 0;
+  const counters = useOperationalCounters(restaurantId);
 
   if (access.isPending || access.isSuperAdmin) return null;
 
@@ -62,10 +61,10 @@ export function BottomNav() {
 
   const managementItems: Item[] = restaurantId ? ([
     { to: homeTo, icon: role === "operations_manager" || role === "manager" ? UserRoundCog : Home, en: role === "operations_manager" ? "Operations" : role === "manager" ? "Shift" : "Home", ar: role === "operations_manager" ? "العمليات" : role === "manager" ? "الوردية" : "الرئيسية", exact: true },
-    { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي", capability: "view_work" },
-    { to: "/shifts", icon: CalendarClock, en: "Shifts", ar: "الورديات", capability: "view_work" },
+    { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي", capability: "view_work", badge: "tasks" },
+    { to: "/shifts", icon: CalendarClock, en: "Shifts", ar: "الورديات", capability: "view_work", badge: "shifts" },
     { to: "/automations", icon: Workflow, en: "Automation", ar: "الأتمتة", capability: "manage_work" },
-    { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات", capability: "view_orders" },
+    { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات", capability: "view_orders", badge: "orders" },
     { to: `/manage/${restaurantId}`, icon: UtensilsCrossed, en: "Menu", ar: "القائمة", exact: true, capability: "manage_menu" },
     { to: `/manage/${restaurantId}/tables`, icon: Table2, en: "Tables", ar: "الطاولات", capability: "manage_tables" },
     { to: `/manage/${restaurantId}/operations`, icon: Boxes, en: "ERP", ar: "ERP", capability: "view_erp" },
@@ -75,15 +74,15 @@ export function BottomNav() {
   ] satisfies Item[]).filter((item) => !item.capability || can(item.capability)) : [];
 
   const frontlineItem = role ? FRONTLINE_ITEMS[role] : undefined;
-  const workItem: Item | null = can("view_work") ? { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي" } : null;
-  const shiftItem: Item | null = can("view_work") ? { to: "/shifts", icon: CalendarClock, en: "Shifts", ar: "الورديات" } : null;
+  const workItem: Item | null = can("view_work") ? { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي", badge: "tasks" } : null;
+  const shiftItem: Item | null = can("view_work") ? { to: "/shifts", icon: CalendarClock, en: "Shifts", ar: "الورديات", badge: "shifts" } : null;
   const erpItem: Item | null = restaurantId && can("view_erp") ? { to: `/manage/${restaurantId}/operations`, icon: Boxes, en: "ERP", ar: "ERP" } : null;
   const desktopItems: Item[] = managerial
     ? managementItems
     : erpSpecialist
-      ? [workItem, shiftItem, erpItem, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }].filter(Boolean) as Item[]
+      ? [workItem, shiftItem, erpItem, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات", badge: "unread" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }].filter(Boolean) as Item[]
       : frontlineItem
-        ? [frontlineItem, workItem, shiftItem, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }].filter(Boolean) as Item[]
+        ? [frontlineItem, workItem, shiftItem, { to: "/notifications", icon: BellRing, en: "Alerts", ar: "التنبيهات", badge: "unread" }, { to: "/profile", icon: User, en: "Profile", ar: "الحساب" }].filter(Boolean) as Item[]
         : restaurantId
           ? managementItems
           : [
@@ -97,6 +96,10 @@ export function BottomNav() {
     ? mobilePriority.flatMap((to) => desktopItems.find((item) => item.to === to) ?? []).slice(0, 5)
     : desktopItems;
 
+  function countFor(item: Item) {
+    return item.badge ? counters.data[item.badge] : 0;
+  }
+
   function activeFor(item: Item) {
     if (item.exact) return pathname.replace(/\/$/, "") === item.to.replace(/\/$/, "");
     return pathname === item.to || pathname.startsWith(`${item.to}/`);
@@ -104,7 +107,7 @@ export function BottomNav() {
 
   const brand = useRestaurantLogo ? (
     <span className="flex min-w-0 items-center gap-2">
-      <img src={restaurant!.logo_url!} alt="" className="size-9 rounded-xl object-cover ring-1 ring-border" />
+      <span className="flex h-10 max-w-[112px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-white px-2 shadow-sm"><img src={restaurant!.logo_url!} alt={restaurant?.name ?? "Restaurant"} className="h-7 w-auto max-w-full object-contain" /></span>
       <span className="truncate text-sm font-bold">{restaurant?.name}</span>
     </span>
   ) : (
@@ -123,14 +126,14 @@ export function BottomNav() {
             {desktopItems.map((item, index) => {
               const active = activeFor(item);
               const Icon = item.icon;
-              const isOrders = item.en === "Orders";
+              const count = countFor(item);
               const divider = item.en === "Team" || item.en === "Profile" || item.en === "ERP";
               return (
                 <li key={`${item.to}-${item.en}`} className={divider && index > 0 ? "mt-4 border-t border-border pt-4" : ""}>
                   <Link to={item.to as never} data-active={active} className="qs-sidebar-item" aria-current={active ? "page" : undefined}>
                     <Icon className="size-[18px] shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{lang === "ar" ? item.ar : item.en}</span>
-                    {isOrders && openOrders > 0 ? <span className="min-w-6 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{openOrders > 99 ? "99+" : openOrders}</span> : null}
+                    {count > 0 ? <span className="min-w-6 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{count > 99 ? "99+" : count}</span> : null}
                   </Link>
                 </li>
               );
@@ -153,9 +156,10 @@ export function BottomNav() {
           {mobileItems.map((item) => {
             const active = activeFor(item);
             const Icon = item.icon;
+            const count = countFor(item);
             return (
               <Link key={`${item.to}-${item.en}`} to={item.to as never} className={cn("relative flex min-h-[66px] flex-col items-center justify-center gap-1 text-[10px] font-semibold transition", active ? "text-[var(--restaurant-selected-nav,#ff5a0a)]" : "text-muted-foreground")}>
-                <Icon className="size-5" />
+                <span className="relative"><Icon className="size-5" />{count > 0 ? <span className="absolute -end-2.5 -top-2 min-w-[17px] rounded-full bg-red-500 px-1 text-center text-[8px] font-black leading-[17px] text-white">{count > 99 ? "99+" : count}</span> : null}</span>
                 <span className="max-w-20 truncate">{lang === "ar" ? item.ar : item.en}</span>
                 {active ? <span className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-[var(--restaurant-selected-nav,#ff5a0a)]" /> : null}
               </Link>
