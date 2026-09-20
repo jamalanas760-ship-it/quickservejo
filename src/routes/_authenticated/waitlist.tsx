@@ -135,64 +135,108 @@ function WaitlistPage(){
   if(!rid||!membership||!canManage)return <div className="min-h-dvh bg-background"><AppHeader/><main className="qs-page"><section className="qs-card p-10 text-center"><Clock3 className="mx-auto size-10 text-muted-foreground"/><h1 className="mt-4 font-display text-xl font-bold">{ar?"قائمة الانتظار غير متاحة":"Waitlist is not available"}</h1><p className="mt-2 text-sm text-muted-foreground">{ar?"تحتاج صلاحية إدارة الطاولات أو المطعم.":"Table or restaurant management access is required."}</p></section></main></div>;
 
   const all=query.data??[];
-  const needle=search.trim().toLowerCase();
-  const rows=all.filter(row=>!needle||[row.customer_name,row.phone,row.email,row.occasion,row.status].filter(Boolean).join(" ").toLowerCase().includes(needle));
   const active=all.filter(row=>row.status==="waiting"||row.status==="notified");
-  const notified=active.filter(row=>row.status==="notified").length;
+  const waiting=active.filter(row=>row.status==="waiting");
+  const notified=active.filter(row=>row.status==="notified");
+  const history=all.filter(row=>!["waiting","notified"].includes(row.status));
   const today=new Date().toLocaleDateString("en-CA");
   const todayCount=active.filter(row=>row.desired_date===today).length;
+  const oldestMinutes=active.length?Math.max(...active.map(row=>Math.max(0,Math.floor((Date.now()-new Date(row.created_at).getTime())/60_000)))):0;
+  const rows=useMemo(()=>{
+    const needle=search.trim().toLowerCase();
+    return all.filter(row=>{
+      const matchSearch=!needle||[row.customer_name,row.phone,row.email,row.occasion,row.status,row.source].filter(Boolean).join(" ").toLowerCase().includes(needle);
+      if(!matchSearch)return false;
+      if(filter==="active")return row.status==="waiting"||row.status==="notified";
+      if(filter==="waiting")return row.status==="waiting";
+      if(filter==="notified")return row.status==="notified";
+      return !["waiting","notified"].includes(row.status);
+    });
+  },[all,filter,search]);
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}/>
     <main className="qs-page space-y-5">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-[#ff5a0a]"><Clock3 className="size-3.5"/>{ar?"إدارة الطلب":"Demand control"}</span>
-          <h1 className="qs-page-title mt-3">{ar?"قائمة انتظار الحجوزات":"Reservation waitlist"}</h1>
-          <p className="qs-page-subtitle max-w-2xl">{ar?"رتّب الطلبات غير المتاحة، تواصل مع الضيف، ثم حوّله إلى حجز مؤكد مع فحص التوفر والتعارض من قاعدة البيانات.":"Queue unavailable reservation demand, contact the guest, then convert them into a confirmed reservation with database-enforced availability and conflict checks."}</p>
+      <section className="overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-[0_18px_50px_rgba(15,23,42,.06)]">
+        <div className="border-b border-border/70 bg-gradient-to-br from-blue-500/[.07] via-background to-background p-5 sm:p-7">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-3xl">
+              <span className="inline-flex items-center gap-2 rounded-full border border-blue-200/70 bg-blue-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.16em] text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-300"><Clock3 className="size-3.5"/>{ar?"إدارة الطلب":"Demand control"}</span>
+              <h1 className="mt-3 font-display text-3xl font-black tracking-[-.035em] sm:text-4xl">{ar?"قائمة انتظار الحجوزات":"Reservation waitlist"}</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{ar?"حوّل الطلب غير المتاح إلى فرصة: رتّب الأولويات، تواصل مع الضيف، ثم حوّله لحجز مؤكد من نفس شاشة التشغيل.":"Turn unavailable demand into booked covers: prioritize guests, contact them, and convert to a protected reservation from the same operational desk."}</p>
+            </div>
+            <Input className="h-11 max-w-sm rounded-xl bg-background/90" value={search} onChange={e=>setSearch(e.target.value)} placeholder={ar?"ابحث بالاسم، الهاتف أو البريد":"Search name, phone or email"}/>
+          </div>
+          <div className="mt-6 inline-flex rounded-2xl border border-border bg-background/90 p-1 shadow-sm">
+            <Link to="/bookings" className="rounded-xl px-4 py-2 text-xs font-bold text-muted-foreground transition hover:bg-muted/60 hover:text-foreground">{ar?"الحجوزات":"Reservations"}</Link>
+            <Link to="/waitlist" className="rounded-xl bg-foreground px-4 py-2 text-xs font-bold text-background shadow-sm">{ar?"قائمة الانتظار":"Waitlist"}</Link>
+          </div>
         </div>
-        <Input className="max-w-sm" value={search} onChange={e=>setSearch(e.target.value)} placeholder={ar?"ابحث بالاسم أو الهاتف أو البريد":"Search name, phone or email"}/>
-      </header>
-
-      <section className="grid gap-3 sm:grid-cols-3">
-        <Metric icon={UsersRound} label={ar?"قيد الانتظار":"Waiting"} value={active.length}/>
-        <Metric icon={BellRing} label={ar?"تم التواصل":"Notified"} value={notified}/>
-        <Metric icon={CalendarCheck2} label={ar?"طلبات اليوم":"Today"} value={todayCount}/>
+        <div className="grid gap-px bg-border/70 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric icon={UsersRound} label={ar?"طلبات نشطة":"Active requests"} value={active.length}/>
+          <Metric icon={Clock3} label={ar?"بانتظار التواصل":"Waiting"} value={waiting.length}/>
+          <Metric icon={BellRing} label={ar?"تم التواصل":"Notified"} value={notified.length}/>
+          <Metric icon={CalendarCheck2} label={ar?"طلبات اليوم":"Today"} value={todayCount} hint={active.length?(ar?"أقدم طلب "+formatAge(oldestMinutes,ar):"Oldest "+formatAge(oldestMinutes,ar)):undefined}/>
+        </div>
       </section>
 
       <section className="qs-card overflow-hidden">
-        <div className="border-b border-border p-5"><h2 className="qs-section-title">{ar?"طابور الانتظار":"Waitlist queue"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"التحويل إلى حجز يختار أفضل طاولة متاحة تلقائياً إذا لم تحدد طاولة يدوياً.":"Conversion uses the protected booking engine and automatically chooses the best-fit available table."}</p></div>
+        <div className="flex flex-col gap-4 border-b border-border p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div><h2 className="qs-section-title">{ar?"طابور الانتظار":"Waitlist queue"}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar?"رتّب الطلبات حسب الحالة، ثم اختر تاريخ ووقت التحويل بشكل واضح. يتم إعادة فحص التوفر عند الإنشاء.":"Filter by status, then choose a clear conversion date and time. Availability is checked again when the reservation is created."}</p></div>
+          <div className="flex flex-wrap gap-2">
+            <FilterChip active={filter==="active"} onClick={()=>setFilter("active")} label={ar?"نشطة":"Active"} count={active.length}/>
+            <FilterChip active={filter==="waiting"} onClick={()=>setFilter("waiting")} label={ar?"انتظار":"Waiting"} count={waiting.length}/>
+            <FilterChip active={filter==="notified"} onClick={()=>setFilter("notified")} label={ar?"تم التواصل":"Notified"} count={notified.length}/>
+            <FilterChip active={filter==="history"} onClick={()=>setFilter("history")} label={ar?"السجل":"History"} count={history.length}/>
+          </div>
+        </div>
         {query.isPending?<div className="p-5"><Skeleton className="h-[420px] rounded-xl"/></div>
           :query.isError?<div className="p-5 text-sm text-destructive">{humanError(query.error,lang)}</div>
-          :rows.length===0?<div className="grid min-h-[300px] place-items-center p-8 text-center"><div><Clock3 className="mx-auto size-9 text-muted-foreground"/><p className="mt-3 text-sm text-muted-foreground">{ar?"لا توجد طلبات في قائمة الانتظار.":"No waitlist requests."}</p></div></div>
+          :rows.length===0?<div className="grid min-h-[320px] place-items-center p-8 text-center"><div><Clock3 className="mx-auto size-10 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"لا توجد طلبات بهذا الفلتر":"No waitlist requests in this view"}</h3><p className="mt-1 text-sm text-muted-foreground">{ar?"غيّر الفلتر أو ابحث عن ضيف آخر.":"Try another filter or search for another guest."}</p></div></div>
           :<div className="divide-y divide-border">{rows.map(row=>{
             const live=row.status==="waiting"||row.status==="notified";
-            const conversionValue=convertTimes[row.id]??localDateTimeValue(row.desired_date);
-            return <article key={row.id} className="p-4 sm:p-5">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            const value=convertValues[row.id]??defaultConversion(row);
+            const ageMinutes=Math.max(0,Math.floor((Date.now()-new Date(row.created_at).getTime())/60_000));
+            return <article key={row.id} className="p-3 sm:p-4">
+              <div className="grid gap-5 rounded-2xl border border-border/80 bg-card p-4 shadow-sm transition hover:shadow-md sm:p-5 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-start">
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2"><strong className="text-base">{row.customer_name}</strong><Status value={row.status}/></div>
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    <span>{row.guest_count} {ar?"ضيوف":"guests"}</span>
-                    <span>{row.desired_date}</span>
-                    {row.phone?<span>{row.phone}</span>:null}
-                    {row.email?<span>{row.email}</span>:null}
-                    <span className="capitalize">{row.source.replaceAll("_"," ")}</span>
+                  <div className="flex items-start gap-3">
+                    <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-muted text-sm font-black">{initials(row.customer_name)}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2"><strong className="text-base">{row.customer_name}</strong><Status value={row.status}/></div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Meta icon={UsersRound} text={String(row.guest_count)+" "+(ar?"ضيوف":"guests")}/>
+                        <Meta icon={CalendarDays} text={row.desired_date}/>
+                        {row.preferred_time?<Meta icon={Clock3} text={row.preferred_time}/>:null}
+                        {live?<span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold",ageMinutes>=120?"bg-red-500/10 text-red-700":ageMinutes>=45?"bg-amber-500/10 text-amber-700":"bg-muted text-muted-foreground")}>{ar?"منذ ":"Waiting "}{formatAge(ageMinutes,ar)}</span>:null}
+                      </div>
+                      <div className="mt-3 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                        {row.phone?<span>{ar?"هاتف: ":"Phone: "}<strong className="font-semibold text-foreground">{row.phone}</strong></span>:null}
+                        {row.email?<span>{ar?"بريد: ":"Email: "}<strong className="font-semibold text-foreground">{row.email}</strong></span>:null}
+                        {row.occasion?<span>{ar?"المناسبة: ":"Occasion: "}<strong className="font-semibold text-foreground">{row.occasion}</strong></span>:null}
+                        <span>{ar?"المصدر: ":"Source: "}<strong className="font-semibold capitalize text-foreground">{row.source.replaceAll("_"," ")}</strong></span>
+                      </div>
+                      {row.notes?<div className="mt-3 rounded-xl bg-muted/45 px-3 py-2 text-xs leading-5 text-muted-foreground">{row.notes}</div>:null}
+                      {row.cancellation_reason?<div className="mt-3 rounded-xl bg-red-500/8 px-3 py-2 text-xs text-red-700">{row.cancellation_reason}</div>:null}
+                    </div>
                   </div>
-                  {row.occasion||row.notes?<p className="mt-2 text-xs text-muted-foreground">{[row.occasion,row.notes].filter(Boolean).join(" · ")}</p>:null}
-                  {row.cancellation_reason?<p className="mt-2 text-xs text-red-600">{row.cancellation_reason}</p>:null}
                 </div>
 
-                {live?<div className="w-full space-y-2 xl:max-w-[420px]">
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Input type="datetime-local" value={conversionValue} onChange={e=>setConvertTimes(prev=>({...prev,[row.id]:e.target.value}))}/>
-                    <Button disabled={convert.isPending} onClick={()=>convert.mutate(row)}><UserRoundCheck className="size-4"/>{ar?"تحويل لحجز":"Convert"}</Button>
+                {live?<div className="rounded-2xl border border-border bg-muted/20 p-4">
+                  <div className="flex items-center gap-2"><UserRoundCheck className="size-4 text-[#ff5a0a]"/><strong className="text-sm">{ar?"تحويل إلى حجز":"Convert to reservation"}</strong></div>
+                  <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{ar?"اختر الموعد المقترح. يتم تعيين أفضل طاولة متاحة تلقائياً عند التحويل.":"Choose the proposed slot. The best-fit available table is assigned automatically during conversion."}</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="space-y-1.5"><span className="text-[10px] font-bold text-muted-foreground">{ar?"التاريخ":"Date"}</span><Input className="h-10 rounded-xl bg-background" type="date" value={value.date} onChange={e=>setConvertValues(prev=>({...prev,[row.id]:{...value,date:e.target.value}}))}/></label>
+                    <label className="space-y-1.5"><span className="text-[10px] font-bold text-muted-foreground">{ar?"الوقت":"Time"}</span><Input className="h-10 rounded-xl bg-background" type="time" step="900" value={value.time} onChange={e=>setConvertValues(prev=>({...prev,[row.id]:{...value,time:e.target.value}}))}/></label>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {row.status==="waiting"?<Button size="sm" variant="outline" disabled={transition.isPending} onClick={()=>transition.mutate({id:row.id,next:"notified"})}><BellRing className="size-3"/>{ar?"تم التواصل":"Mark notified"}</Button>:<Button size="sm" variant="outline" disabled={transition.isPending} onClick={()=>transition.mutate({id:row.id,next:"waiting"})}><RotateCcw className="size-3"/>{ar?"إرجاع للانتظار":"Back to waiting"}</Button>}
-                    <Button size="sm" variant="outline" disabled={transition.isPending} onClick={()=>transition.mutate({id:row.id,next:"cancelled",reason:"Cancelled by restaurant"})}><XCircle className="size-3"/>{ar?"إلغاء":"Cancel"}</Button>
+                  <Button className="mt-3 w-full rounded-xl" disabled={convert.isPending} onClick={()=>convert.mutate(row)}><UserRoundCheck className="size-4"/>{convert.isPending?(ar?"جارٍ فحص التوفر…":"Checking availability…"):(ar?"إنشاء حجز مؤكد":"Create confirmed reservation")}</Button>
+                  <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+                    {row.status==="waiting"?<Button size="sm" variant="outline" className="rounded-xl" disabled={transition.isPending} onClick={()=>transition.mutate({id:row.id,next:"notified"})}><BellRing className="size-3"/>{ar?"تم التواصل":"Mark notified"}</Button>:<Button size="sm" variant="outline" className="rounded-xl" disabled={transition.isPending} onClick={()=>transition.mutate({id:row.id,next:"waiting"})}><RotateCcw className="size-3"/>{ar?"إرجاع للانتظار":"Back to waiting"}</Button>}
+                    <Button size="sm" variant="ghost" className="rounded-xl text-muted-foreground" disabled={transition.isPending} onClick={()=>transition.mutate({id:row.id,next:"cancelled",reason:"Cancelled by restaurant"})}><XCircle className="size-3"/>{ar?"إلغاء الطلب":"Cancel request"}</Button>
                   </div>
-                </div>:row.converted_booking_id?<span className="text-xs font-semibold text-emerald-700">{ar?"تم إنشاء حجز مؤكد":"Confirmed reservation created"}</span>:null}
+                </div>:<div className="flex min-h-24 items-center justify-center rounded-2xl border border-dashed border-border bg-muted/15 p-4 text-center">
+                  {row.converted_booking_id?<div><CheckCircle2 className="mx-auto size-5 text-emerald-600"/><strong className="mt-2 block text-xs text-emerald-700">{ar?"تم إنشاء حجز مؤكد":"Confirmed reservation created"}</strong></div>:<span className="text-xs text-muted-foreground">{ar?"هذا الطلب مغلق":"This request is closed"}</span>}
+                </div>}
               </div>
             </article>;
           })}</div>}
@@ -201,11 +245,33 @@ function WaitlistPage(){
   </div>;
 }
 
-function Metric({icon:Icon,label,value}:{icon:typeof UsersRound;label:string;value:number}){
-  return <article className="qs-stat min-h-[105px] p-4"><div className="flex items-center gap-2"><span className="grid size-9 place-items-center rounded-xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-4"/></span><span className="text-[11px] font-semibold text-muted-foreground">{label}</span></div><strong className="mt-3 block font-display text-2xl">{value}</strong></article>;
+function FilterChip({active,onClick,label,count}:{active:boolean;onClick:()=>void;label:string;count:number}){
+  return <button type="button" onClick={onClick} className={cn("inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition",active?"border-foreground bg-foreground text-background shadow-sm":"border-border bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground")}><span>{label}</span><span className={cn("min-w-5 rounded-full px-1.5 py-0.5 text-[9px]",active?"bg-background/15":"bg-muted")}>{count}</span></button>;
+}
+
+function Metric({icon:Icon,label,value,hint}:{icon:typeof UsersRound;label:string;value:number;hint?:string}){
+  return <article className="flex min-h-[105px] items-center gap-4 bg-card p-5"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-blue-500/10 text-blue-600"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong>{hint?<p className="mt-0.5 text-[9px] text-muted-foreground">{hint}</p>:null}</div></article>;
+}
+
+function Meta({icon:Icon,text}:{icon:typeof UsersRound;text:string}){
+  return <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold text-muted-foreground"><Icon className="size-3"/>{text}</span>;
 }
 
 function Status({value}:{value:WaitlistStatus}){
   const classes=value==="converted"?"bg-emerald-500/10 text-emerald-700":value==="notified"?"bg-blue-500/10 text-blue-700":value==="waiting"?"bg-amber-500/10 text-amber-700":"bg-muted text-muted-foreground";
   return <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-bold capitalize",classes)}>{value.replaceAll("_"," ")}</span>;
+}
+
+
+function initials(name:string){
+  return name.trim().split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()??"").join("")||"?";
+}
+
+function formatAge(minutes:number,ar:boolean){
+  if(minutes<60)return ar?String(minutes)+" د":String(minutes)+"m";
+  const hours=Math.floor(minutes/60);
+  const mins=minutes%60;
+  if(hours<24)return ar?String(hours)+" س"+(mins?" "+String(mins)+" د":""):String(hours)+"h"+(mins?" "+String(mins)+"m":"");
+  const days=Math.floor(hours/24);
+  return ar?String(days)+" يوم":String(days)+"d";
 }
