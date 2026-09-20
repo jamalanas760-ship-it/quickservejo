@@ -154,6 +154,29 @@ export function WorkPage() {
     onError: (error) => toast.error(humanError(error, lang)),
   });
 
+  // Manager-scoped removal. Until the soft-delete columns ship, the record is
+  // retired as `cancelled` so history/audit stays intact and it drops out of
+  // every active list. RLS still enforces the restaurant scope server-side.
+  const removeTask = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("work_tasks")
+        .update({ status: "cancelled", updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("restaurant_id", rid!);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      setPendingDelete(null);
+      setSelectedId(null);
+      await qc.invalidateQueries({ queryKey: ["work", rid] });
+      await qc.invalidateQueries({ queryKey: ["operational-counters", rid] });
+      toast.success(ar ? "تم حذف عنصر العمل" : "Work item removed");
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  const selected = (tasks.data ?? []).find((row) => row.id === selectedId) ?? null;
+
   if (scope.isPending || access.isPending) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><Skeleton className="h-[620px] rounded-3xl" /></main></div>;
 
   if (!rid || !membership || !canView) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><section className="qs-card p-8 text-center"><ShieldCheck className="mx-auto size-10 text-muted-foreground" /><h1 className="mt-4 text-xl font-bold">{ar ? "مساحة العمل غير متاحة" : "My Work is not available"}</h1><p className="mt-2 text-sm text-muted-foreground">{ar ? "لا يملك هذا الدور صلاحية مساحة العمل لهذا المطعم." : "This role does not have My Work access for this restaurant."}</p></section></main></div>;
