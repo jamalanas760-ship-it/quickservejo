@@ -4,6 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Bell, CheckCheck, ClipboardList, Info, ShieldCheck, TimerReset, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,20 +107,18 @@ function NotificationsPage() {
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "الإشعارات" : "Notifications"} />
     <main className="qs-page space-y-5">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><Bell className="size-3.5" />{ar ? "مركز التنبيهات" : "Operational inbox"}</div>
-          <h1 className="qs-page-title mt-3">{ar ? "ما يحتاج انتباهك الآن" : "What needs your attention"}</h1>
-          <p className="qs-page-subtitle max-w-2xl">{ar ? "المهام والموافقات وتسليم الورديات والتنبيهات الموجهة لدورك فقط." : "Tasks, approvals, handovers and operational alerts scoped to your restaurant role."}</p>
-        </div>
-        {counts.unread > 0 ? <Button variant="outline" className="gap-2" disabled={markRead.isPending} onClick={() => markRead.mutate(unreadRows.map((row) => row.id))}><CheckCheck className="size-4" />{ar ? "قراءة الكل" : "Mark all read"}</Button> : null}
-      </header>
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={Bell}>{ar ? "مركز التنبيهات" : "Operational inbox"}</MasterEyebrow>}
+        title={ar ? "ما يحتاج انتباهك الآن" : "What needs your attention"}
+        description={ar ? "المهام والموافقات وتسليم الورديات والتنبيهات الموجهة لدورك فقط." : "Tasks, approvals, handovers and operational alerts scoped to your restaurant role."}
+        actions={counts.unread > 0 ? <Button variant="outline" disabled={markRead.isPending} onClick={() => markRead.mutate(unreadRows.map((row) => row.id))}><CheckCheck className="size-4" />{ar ? "قراءة الكل" : "Mark all read"}</Button> : null}
+      />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={Bell} label={ar ? "غير مقروء" : "Unread"} value={counts.unread} active={counts.unread > 0} />
-        <Metric icon={ShieldCheck} label={ar ? "موافقات" : "Approvals"} value={counts.approvals} active={counts.approvals > 0} />
-        <Metric icon={UsersRound} label={ar ? "تسليم ورديات" : "Handovers"} value={counts.handovers} active={counts.handovers > 0} />
-        <Metric icon={TimerReset} label={ar ? "تنبيهات تشغيل" : "Operational alerts"} value={counts.alerts} active={counts.alerts > 0} />
+        <MasterKpi icon={Bell} label={ar ? "غير مقروء" : "Unread"} value={counts.unread} tone={counts.unread > 0 ? "orange" : "slate"} />
+        <MasterKpi icon={ShieldCheck} label={ar ? "موافقات" : "Approvals"} value={counts.approvals} tone={counts.approvals > 0 ? "purple" : "slate"} />
+        <MasterKpi icon={UsersRound} label={ar ? "تسليم ورديات" : "Handovers"} value={counts.handovers} tone={counts.handovers > 0 ? "blue" : "slate"} />
+        <MasterKpi icon={TimerReset} label={ar ? "تنبيهات تشغيل" : "Operational alerts"} value={counts.alerts} tone={counts.alerts > 0 ? "red" : "slate"} />
       </section>
 
       {openOrders > 0 ? <section className="qs-card flex flex-col gap-4 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/50 dark:bg-amber-950/10 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-700"><ClipboardList className="size-4" /></span><div><strong className="text-sm">{ar ? "طلبات مفتوحة تحتاج متابعة" : "Open orders need attention"}</strong><p className="mt-1 text-xs text-muted-foreground">{ar ? `${openOrders} طلب مفتوح حالياً.` : `${openOrders} open order${openOrders === 1 ? "" : "s"} currently in service.`}</p></div></div><Button asChild size="sm" variant="outline"><Link to="/dashboard">{ar ? "عرض الطلبات" : "View orders"}</Link></Button></section> : null}
