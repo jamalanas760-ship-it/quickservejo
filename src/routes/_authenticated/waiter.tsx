@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { EmptyState } from "@/components/common/EmptyState";
 import { DetailRow, DetailSheet, formatStamp } from "@/components/operations/DetailSheet";
 import { StaffHeader } from "@/components/staff/StaffHeader";
@@ -199,35 +200,19 @@ function WaiterFloor() {
   return (
     <div className="min-h-screen bg-background" onPointerDown={() => void unlockAlertSound()}>
       <StaffHeader title={t("waiter.title")} />
-      <main className="mx-auto w-full max-w-[1440px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
-        <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
-          <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]">
-                <Utensils className="size-3.5" />
-                {ar ? "أرضية المطعم" : "Live floor"}
-              </div>
-              <h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">
-                {ar ? "كل طاولة واضحة من أول نظرة" : "Every table, clear at a glance"}
-              </h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-                {ar
-                  ? "شاهد من يطلب خدمة، ما هو قيد الطلب، وأي طاولة جاهزة للضيف التالي. مسح QR ينشّط الطاولة تلقائياً."
-                  : "See who is calling, what is being served, and which tables are ready for the next party. QR scans activate tables automatically."}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-border bg-muted/35 px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{ar ? "تحديث مباشر" : "Live status"}</p>
-              <p className="mt-1 inline-flex items-center gap-2 text-xs font-bold"><span className="size-2 rounded-full bg-emerald-500" />{ar ? "متصل بأرضية المطعم" : "Floor is connected"}</p>
-            </div>
-          </div>
-        </section>
+      <main className="qs-page space-y-5">
+        <MasterPageHeader
+          eyebrow={<MasterEyebrow icon={Utensils}>{ar ? "أرضية المطعم" : "Live floor"}</MasterEyebrow>}
+          title={ar ? "كل طاولة واضحة من أول نظرة" : "Every table, clear at a glance"}
+          description={ar ? "شاهد من يطلب خدمة، ما هو قيد الطلب، وأي طاولة جاهزة للضيف التالي. مسح QR ينشّط الطاولة تلقائياً." : "See who is calling, what is being served, and which tables are ready for the next party. QR scans activate tables automatically."}
+          actions={<span className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/15"><span className="size-2 rounded-full bg-emerald-500" />{ar ? "متصل مباشرة" : "Live connected"}</span>}
+        />
 
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <FloorMetric icon={Table2} label={ar ? "متاحة" : "Free"} value={free} tone="success" />
-          <FloorMetric icon={UsersRound} label={ar ? "نشطة" : "Active"} value={active} />
-          <FloorMetric icon={BellRing} label={ar ? "تطلب خدمة" : "Calling"} value={pending} tone={pending > 0 ? "danger" : undefined} />
-          <FloorMetric icon={ReceiptText} label={ar ? "طلبات مفتوحة" : "Open orders"} value={openOrders} />
+          <MasterKpi icon={Table2} label={ar ? "متاحة" : "Free"} value={free} tone="green" />
+          <MasterKpi icon={UsersRound} label={ar ? "نشطة" : "Active"} value={active} tone="blue" />
+          <MasterKpi icon={BellRing} label={ar ? "تطلب خدمة" : "Calling"} value={pending} tone={pending > 0 ? "red" : "slate"} />
+          <MasterKpi icon={ReceiptText} label={ar ? "طلبات مفتوحة" : "Open orders"} value={openOrders} tone="orange" />
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -309,9 +294,6 @@ function WaiterFloor() {
   );
 }
 
-function FloorMetric({ icon: Icon, label, value, tone }: { icon: typeof Table2; label: string; value: number; tone?: "success" | "danger" | undefined }) {
-  return <article className="qs-stat flex min-h-[106px] items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl", tone === "danger" ? "bg-red-500/10 text-red-600" : tone === "success" ? "bg-emerald-500/10 text-emerald-600" : "bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-5" /></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong></div></article>;
-}
 
 function FloorTableCard({
   table,
