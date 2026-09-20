@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, AlertTriangle, CheckCircle2, Gauge, Server, TriangleAlert } from "lucide-react";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader, MasterSection } from "@/components/app/MasterPage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
@@ -84,22 +85,18 @@ function HealthPage() {
   const healthy = critical === 0 && errors < 5 && (lcp === 0 || lcp <= 2500) && (inp === 0 || inp <= 200) && (cls === 0 || cls <= .1);
 
   return <div className="space-y-5">
-    <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
-      <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-8">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><Server className="size-3.5" />{ar ? "مراقبة المنصة" : "Platform observability"}</div>
-          <h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? "اعرف المشكلة قبل أن يبلغ عنها المطعم" : "See issues before restaurants report them"}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{ar ? "أخطاء الواجهة وإشارات الأداء خلال آخر 24 ساعة في مكان واحد." : "Client errors and performance signals from the last 24 hours in one operational view."}</p>
-        </div>
-        <span className={cn("inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold", healthy ? "bg-emerald-500/10 text-emerald-700" : "bg-amber-500/10 text-amber-700")}>{healthy ? <CheckCircle2 className="size-4" /> : <AlertTriangle className="size-4" />}{healthy ? (ar ? "الوضع طبيعي" : "Healthy") : (ar ? "يحتاج مراجعة" : "Needs review")}</span>
-      </div>
-    </section>
+    <MasterPageHeader
+      eyebrow={<MasterEyebrow icon={Server}>{ar ? "مراقبة المنصة" : "Platform observability"}</MasterEyebrow>}
+      title={ar ? "صحة وأداء المنصة" : "Platform health & performance"}
+      description={ar ? "أخطاء الواجهة وإشارات الأداء خلال آخر 24 ساعة في مكان واحد." : "Runtime errors and performance signals from the last 24 hours in one operational control center."}
+      actions={<span className={cn("inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold", healthy ? "bg-emerald-500/10 text-emerald-700" : "bg-amber-500/10 text-amber-700")}>{healthy ? <CheckCircle2 className="size-4" /> : <AlertTriangle className="size-4" />}{healthy ? (ar ? "الوضع طبيعي" : "Healthy") : (ar ? "يحتاج مراجعة" : "Needs review")}</span>}
+    />
 
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <HealthMetric icon={TriangleAlert} label={ar ? "أخطاء" : "Errors"} value={formatNumber(errors + critical, lang)} tone={errors + critical ? "danger" : "ok"} />
-      <HealthMetric icon={Gauge} label="LCP p75" value={lcp ? Math.round(lcp) + " ms" : "—"} tone={lcp && lcp > 2500 ? "warning" : "ok"} />
-      <HealthMetric icon={Activity} label="INP p75" value={inp ? Math.round(inp) + " ms" : "—"} tone={inp && inp > 200 ? "warning" : "ok"} />
-      <HealthMetric icon={Server} label="CLS p75" value={cls ? cls.toFixed(3) : "—"} tone={cls && cls > .1 ? "warning" : "ok"} />
+      <MasterKpi icon={TriangleAlert} label={ar ? "أخطاء" : "Errors"} value={formatNumber(errors + critical, lang)} tone={errors + critical ? "red" : "green"} />
+      <MasterKpi icon={Gauge} label="LCP p75" value={lcp ? Math.round(lcp) + " ms" : "—"} tone={lcp && lcp > 2500 ? "orange" : "green"} />
+      <MasterKpi icon={Activity} label="INP p75" value={inp ? Math.round(inp) + " ms" : "—"} tone={inp && inp > 200 ? "orange" : "green"} />
+      <MasterKpi icon={Server} label="CLS p75" value={cls ? cls.toFixed(3) : "—"} tone={cls && cls > .1 ? "orange" : "green"} />
     </section>
 
     <section className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,.75fr)]">
