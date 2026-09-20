@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BellRing, Minus, Plus, Search, ShoppingBag, Trash2, X } from "lucide-react";
 import { z } from "zod";
@@ -50,6 +50,7 @@ import {
   TextureLayer,
 } from "@/components/menu/MenuChrome";
 import { TAG_META, detectTags, type DietTag } from "@/lib/kitchen-tags";
+import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-bridge";
 import {
   callWaiter,
   loadDinerMenu,
@@ -61,7 +62,7 @@ import {
 } from "@/lib/diner";
 
 const DIET_FILTERS: DietTag[] = ["vegetarian", "vegan", "spicy", "gluten", "nuts", "seafood"];
-const searchSchema = z.object({ t: z.string().optional() });
+const searchSchema = z.object({ t: z.string().optional(), preview: z.enum(["1"]).optional() });
 
 export const Route = createFileRoute("/r/$slug")({
   validateSearch: searchSchema,
@@ -80,8 +81,10 @@ export const Route = createFileRoute("/r/$slug")({
 
 function DinerPage() {
   const { slug } = Route.useParams();
-  const { t: qrToken } = Route.useSearch();
+  const { t: qrToken, preview } = Route.useSearch();
   const { t, lang, pick, toggleLang } = useI18n();
+  const queryClient = useQueryClient();
+  const previewMode = preview === "1";
   const menu = useQuery({
     queryKey: ["diner", slug, qrToken ?? null],
     queryFn: () => loadDinerMenu(slug, qrToken ?? null),
@@ -105,10 +108,42 @@ function DinerPage() {
   const [busy, setBusy] = useState(false);
 
   const restaurant = menu.data?.restaurant;
+
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const queryKey = ["diner", slug, qrToken ?? null] as const;
+    const applyTheme = (value: unknown) => {
+      if (!isMenuThemeBridgeMessage(value) || value.restaurantId !== restaurant.id) return;
+      queryClient.setQueryData(queryKey, (current: any) => current ? {
+        ...current,
+        restaurant: { ...current.restaurant, menu_theme: value.theme },
+      } : current);
+    };
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      applyTheme(event.data);
+    };
+    window.addEventListener("message", onMessage);
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel(MENU_THEME_CHANNEL);
+      channel.addEventListener("message", (event) => applyTheme(event.data));
+    } catch {
+      channel = null;
+    }
+
+    return () => {
+      window.removeEventListener("message", onMessage);
+      channel?.close();
+    };
+  }, [queryClient, qrToken, restaurant?.id, slug]);
+
   const currency = restaurant?.currency ?? "JOD";
   const showPrices = menu.data?.settings?.show_prices ?? true;
   const onlineEnabled = Boolean(menu.data?.settings?.enable_pickup || menu.data?.settings?.enable_delivery);
-  const ordersEnabled = (menu.data?.settings?.enable_orders ?? true) && (Boolean(menu.data?.table) || onlineEnabled);
+  const ordersEnabled = !previewMode && (menu.data?.settings?.enable_orders ?? true) && (Boolean(menu.data?.table) || onlineEnabled);
   const dineIn = Boolean(menu.data?.table);
   const effectiveFulfillment: "pickup" | "delivery" = menu.data?.settings?.enable_pickup
     ? fulfillment
@@ -168,6 +203,10 @@ function DinerPage() {
   }
 
   async function submitOrder() {
+    if (previewMode) {
+      toast.info(lang === "ar" ? "وضع المعاينة لا يرسل طلبات حقيقية." : "Preview mode never submits real orders.");
+      return;
+    }
     if (!ordersEnabled) return;
     if (!dineIn && !guestPhone.trim()) {
       toast.error(lang === "ar" ? "رقم الهاتف مطلوب لطلبات الاستلام والتوصيل." : "Phone number is required for pickup and delivery.");
@@ -205,6 +244,10 @@ function DinerPage() {
   }
 
   async function ringWaiter() {
+    if (previewMode) {
+      toast.info(lang === "ar" ? "وضع المعاينة لا يرسل نداءات للنادل." : "Preview mode never sends real waiter calls.");
+      return;
+    }
     if (!qrToken) return;
     try {
       await callWaiter(qrToken, "");
@@ -235,6 +278,7 @@ function DinerPage() {
   return (
     <div className="relative min-h-screen pb-28" style={{ ...themeVars(theme), ...pageBackground(theme), color: "var(--qs-text)", fontFamily: "var(--qs-body-font)" }}>
       <TextureLayer theme={theme} />
+      {previewMode ? <div className="sticky top-0 z-50 border-b border-amber-300 bg-amber-100/95 px-4 py-2 text-center text-xs font-bold text-amber-900 backdrop-blur">{lang === "ar" ? "معاينة مباشرة — الطلبات ونداءات النادل معطلة" : "LIVE PREVIEW — ordering and waiter calls are disabled"}</div> : null}
       <div className="relative z-10">
         <header className="mx-auto max-w-3xl">
           <MenuHero theme={theme} name={restaurant.name} subtitle={pick(restaurant.description_en, restaurant.description_ar) || t("brand.tagline")} logoUrl={restaurant.logo_url} coverUrl={restaurant.cover_image_url} aside={<Button size="sm" variant="ghost" className="h-10 shrink-0 px-2" onClick={toggleLang} style={{ color: "var(--qs-muted)" }}>{t("common.language")}</Button>} />
@@ -259,7 +303,7 @@ function DinerPage() {
         </div>
       </div>
 
-      {menu.data?.settings?.enable_waiter_calls && menu.data.table ? <div className="mx-auto mt-6 max-w-3xl px-4"><Button variant="outline" className="w-full" onClick={() => void ringWaiter()}><BellRing className="size-4" /> {t("diner.callWaiter")}</Button></div> : null}
+      {menu.data?.settings?.enable_waiter_calls && menu.data.table ? <div className="mx-auto mt-6 max-w-3xl px-4"><Button variant="outline" className="w-full" disabled={previewMode} onClick={() => void ringWaiter()}><BellRing className="size-4" /> {t("diner.callWaiter")}</Button></div> : null}
       {ordersEnabled && cartCount > 0 ? <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 p-3 backdrop-blur"><div className="mx-auto flex max-w-3xl items-center gap-3"><Button className="flex-1" onClick={() => setCartOpen(true)}><ShoppingBag className="size-4" />{t("diner.viewCart")} ({cartCount}) · {formatMoney(total, currency, lang)}</Button></div></div> : null}
 
       <ItemSheet item={detail} currency={currency} showPrices={showPrices} canOrder={ordersEnabled} allowNotes={menu.data?.settings?.allow_special_notes ?? true} onClose={() => setDetail(null)} onAdd={addLine} />
