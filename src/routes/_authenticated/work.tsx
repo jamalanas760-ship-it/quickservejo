@@ -216,6 +216,43 @@ export function WorkPage() {
         {tasks.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : tasks.isError ? <p className="p-6 text-sm text-destructive">{humanError(tasks.error, lang)}</p> : visible.length === 0 ? <EmptyState ar={ar} /> : <div className="divide-y divide-border">{visible.map((task) => <TaskRow key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} />)}</div>}
       </section>
     </main>
+
+    <DetailSheet
+      open={Boolean(selected)}
+      onOpenChange={(open) => { if (!open) setSelectedId(null); }}
+      title={selected?.title ?? ""}
+      description={selected ? `${ar ? "نوع" : "Type"}: ${selected.category} · ${selected.status.replaceAll("_", " ")}` : undefined}
+      footer={selected && canManage ? <Button variant="destructive" className="w-full gap-2" onClick={() => setPendingDelete(selected)}><Trash2 className="size-4" />{ar ? "حذف عنصر العمل" : "Delete work item"}</Button> : undefined}
+    >
+      {selected ? <div>
+        {selected.description ? <p className="mb-4 whitespace-pre-wrap rounded-2xl bg-muted/40 p-3 text-sm leading-6">{selected.description}</p> : null}
+        <DetailRow label={ar ? "النوع" : "Type"} value={<span className="capitalize">{selected.category}</span>} />
+        <DetailRow label={ar ? "الحالة" : "Status"} value={<span className="capitalize">{selected.status.replaceAll("_", " ")}</span>} />
+        <DetailRow label={ar ? "الأولوية" : "Priority"} value={<Badge className={cn("border-0 capitalize", priorityTone[selected.priority])}>{selected.priority}</Badge>} />
+        <DetailRow label={ar ? "المسؤول" : "Assigned to"} value={(selected.assigned_staff_id ? (staff.data ?? []).find((row) => row.id === selected.assigned_staff_id)?.name : null) ?? (selected.assigned_role ? roleLabel(selected.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))} />
+        <DetailRow label={ar ? "أنشأها" : "Created by"} value={(selected.created_by_staff_id ? (staff.data ?? []).find((row) => row.id === selected.created_by_staff_id)?.name : null) ?? (ar ? "النظام / الأتمتة" : "System / automation")} />
+        <DetailRow label={ar ? "الاستحقاق" : "Due"} value={formatStamp(selected.due_at, ar)} />
+        <DetailRow label={ar ? "الموافقة" : "Approval"} value={selected.requires_approval ? (selected.approval_role ? roleLabel(selected.approval_role, ar) : (ar ? "مطلوبة" : "Required")) : (ar ? "غير مطلوبة" : "Not required")} />
+        <DetailRow label={ar ? "المصدر" : "Source"} value={selected.source_type ? selected.source_type.replaceAll("_", " ") : (ar ? "يدوي" : "Manual")} />
+        <DetailRow label={ar ? "أُنشئت" : "Created"} value={formatStamp(selected.created_at, ar)} />
+        <DetailRow label={ar ? "آخر تحديث" : "Updated"} value={formatStamp(selected.updated_at, ar)} />
+        <DetailRow label={ar ? "أُكملت" : "Completed"} value={formatStamp(selected.completed_at, ar)} />
+        <DetailRow label={ar ? "ملاحظة الإنجاز" : "Completion note"} value={selected.completion_note} />
+      </div> : null}
+    </DetailSheet>
+
+    <Dialog open={Boolean(pendingDelete)} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
+      <DialogContent className="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>{ar ? "حذف عنصر العمل؟" : "Delete this work item?"}</DialogTitle>
+          <DialogDescription>{ar ? "سيختفي من قوائم العمل النشطة مع الحفاظ على سجله للمراجعة. لا يمكن التراجع من الواجهة." : "It disappears from active work lists while its record is kept for audit. This cannot be undone from the app."}</DialogDescription>
+        </DialogHeader>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setPendingDelete(null)}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button variant="destructive" disabled={removeTask.isPending} onClick={() => pendingDelete && removeTask.mutate(pendingDelete.id)}><Trash2 className="size-4" />{ar ? "حذف" : "Delete"}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   </div>;
 }
 
