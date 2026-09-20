@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Gift, HeartHandshake, Search, Sparkles, UsersRound, WalletCards } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/nav/AppHeader";
@@ -128,11 +128,10 @@ function GuestsPage() {
   const data = query.data;
   const guests = data?.guests ?? [];
   const loyalty = new Map((data?.loyalty ?? []).map((row) => [row.guest_id, row]));
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return guests;
-    return guests.filter((guest) => [guest.name, guest.phone, guest.email].some((value) => value?.toLowerCase().includes(q)));
-  }, [guests, search]);
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? guests.filter((guest) => [guest.name, guest.phone, guest.email].some((value) => value?.toLowerCase().includes(q)))
+    : guests;
 
   const repeat = guests.filter((guest) => guest.visits >= 2).length;
   const lifetime = guests.reduce((sum, guest) => sum + Number(guest.lifetime_spend), 0);
