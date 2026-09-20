@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, AlertTriangle, CheckCircle2, Gauge, Server, TriangleAlert } from "lucide-react";
 
-import { MasterEyebrow, MasterKpi, MasterPageHeader, MasterSection } from "@/components/app/MasterPage";
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
@@ -113,8 +113,5 @@ function HealthPage() {
   </div>;
 }
 
-function HealthMetric({icon:Icon,label,value,tone}:{icon:typeof Server;label:string;value:string;tone:"ok"|"warning"|"danger"}) {
-  return <article className="qs-stat flex min-h-[110px] items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl",tone==="danger"?"bg-red-500/10 text-red-600":tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-emerald-500/10 text-emerald-700")}><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-xl tracking-[-.03em]">{value}</strong></div></article>;
-}
 function Budget({label,value,limit,suffix}:{label:string;value:number;limit:number;suffix:string}) { const ratio=value?Math.min(100,(value/limit)*100):0; const good=!value||value<=limit; return <div><div className="flex justify-between gap-3 text-xs"><span>{label}</span><strong className={good?"text-emerald-700":"text-amber-700"}>{value?(value<1?value.toFixed(3):Math.round(value))+suffix:"—"}</strong></div><div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"><div className={cn("h-full rounded-full",good?"bg-emerald-500":"bg-amber-500")} style={{width:(ratio||2)+"%"}}/></div></div>; }
 function Mini({label,value}:{label:string;value:string}) { return <div className="rounded-xl bg-muted/45 p-3"><p className="text-[10px] text-muted-foreground">{label}</p><strong className="mt-1 block text-lg">{value}</strong></div>; }
