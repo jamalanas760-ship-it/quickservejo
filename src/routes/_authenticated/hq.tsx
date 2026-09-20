@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, Coins, Package, ReceiptText, TrendingUp } from "lucide-react";
 
-import { MasterEyebrow, MasterKpi, MasterPageHeader, MasterSection } from "@/components/app/MasterPage";
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +10,6 @@ import { useAccess } from "@/hooks/useSession";
 import { humanError } from "@/lib/errors";
 import { formatMoney, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/hq")({
   head:()=>({meta:[{title:"HQ — QuickServe"},{name:"description",content:"Multi-location restaurant portfolio overview."}]}),
@@ -79,4 +78,3 @@ function HQPage(){
   </main></div>;
 }
 
-function Kpi({icon:Icon,label,value,tone}:{icon:typeof Building2;label:string;value:string;tone?:"warning"|undefined}){return <article className="qs-stat flex min-h-[108px] items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl",tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-xl tracking-[-.03em]">{value}</strong></div></article>}
