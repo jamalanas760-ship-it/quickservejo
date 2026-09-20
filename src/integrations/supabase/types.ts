@@ -1538,6 +1538,7 @@ export type Database = {
           currency: string
           customer_notes: string | null
           delivery_address: string | null
+          delivery_amount: number
           discount_amount: number
           fulfillment_type: string
           guest_email: string | null
@@ -1564,6 +1565,7 @@ export type Database = {
           currency?: string
           customer_notes?: string | null
           delivery_address?: string | null
+          delivery_amount?: number
           discount_amount?: number
           fulfillment_type?: string
           guest_email?: string | null
@@ -1590,6 +1592,7 @@ export type Database = {
           currency?: string
           customer_notes?: string | null
           delivery_address?: string | null
+          delivery_amount?: number
           discount_amount?: number
           fulfillment_type?: string
           guest_email?: string | null
@@ -1645,6 +1648,7 @@ export type Database = {
           metadata: Json
           method: string
           order_id: string
+          parent_transaction_id: string | null
           reference: string
           restaurant_id: string
           status: string
@@ -1660,6 +1664,7 @@ export type Database = {
           metadata?: Json
           method: string
           order_id: string
+          parent_transaction_id?: string | null
           reference?: string
           restaurant_id: string
           status?: string
@@ -1675,6 +1680,7 @@ export type Database = {
           metadata?: Json
           method?: string
           order_id?: string
+          parent_transaction_id?: string | null
           reference?: string
           restaurant_id?: string
           status?: string
@@ -1694,6 +1700,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_parent_transaction_id_fkey"
+            columns: ["parent_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
           },
           {
@@ -3130,7 +3143,11 @@ export type Database = {
       }
       mark_order_viewed: { Args: { _order_id: string }; Returns: undefined }
       open_cash_session: {
-        Args: { _opening_float?: number; _staff_id?: string }
+        Args: {
+          _opening_float?: number
+          _restaurant_id: string
+          _staff_id?: string
+        }
         Returns: string
       }
       place_public_fulfillment_order: {
@@ -3249,8 +3266,9 @@ export type Database = {
       refund_order_payment: {
         Args: {
           _amount: number
-          _method?: string
+          _cash_session_id?: string
           _order_id: string
+          _payment_id: string
           _reference?: string
         }
         Returns: string
