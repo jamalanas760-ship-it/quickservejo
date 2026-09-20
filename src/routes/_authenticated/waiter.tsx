@@ -309,7 +309,7 @@ function WaiterFloor() {
   );
 }
 
-function FloorMetric({ icon: Icon, label, value, tone }: { icon: typeof Table2; label: string; value: number; tone?: "success" | "danger" }) {
+function FloorMetric({ icon: Icon, label, value, tone }: { icon: typeof Table2; label: string; value: number; tone?: "success" | "danger" | undefined }) {
   return <article className="qs-stat flex min-h-[106px] items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl", tone === "danger" ? "bg-red-500/10 text-red-600" : tone === "success" ? "bg-emerald-500/10 text-emerald-600" : "bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-5" /></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong></div></article>;
 }
 
