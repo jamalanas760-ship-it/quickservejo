@@ -26,6 +26,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedGuestsRouteImport } from './routes/_authenticated/guests'
 import { Route as AuthenticatedHostRouteImport } from './routes/_authenticated/host'
 import { Route as AuthenticatedHqRouteImport } from './routes/_authenticated/hq'
+import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
 import { Route as AuthenticatedManageRouteRouteImport } from './routes/_authenticated/manage/route'
 import { Route as AuthenticatedManagerRouteImport } from './routes/_authenticated/manager'
@@ -35,6 +36,7 @@ import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_authenticated/super-admin/route'
 import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
 import { Route as AuthenticatedWorkRouteImport } from './routes/_authenticated/work'
+import { Route as KioskSlugRouteImport } from './routes/kiosk/$slug'
 import { Route as MSlugRouteImport } from './routes/m/$slug'
 import { Route as OTokenRouteImport } from './routes/o/$token'
 import { Route as PreviewSlugRouteImport } from './routes/preview/$slug'
@@ -161,6 +163,12 @@ const AuthenticatedHqRoute = AuthenticatedHqRouteImport.update({
   path: '/hq',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedIntegrationsRoute =
+  AuthenticatedIntegrationsRouteImport.update({
+    id: '/integrations',
+    path: '/integrations',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedKitchenRoute = AuthenticatedKitchenRouteImport.update({
   id: '/kitchen',
   path: '/kitchen',
@@ -208,6 +216,11 @@ const AuthenticatedWorkRoute = AuthenticatedWorkRouteImport.update({
   id: '/work',
   path: '/work',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const KioskSlugRoute = KioskSlugRouteImport.update({
+  id: '/kiosk/$slug',
+  path: '/kiosk/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MSlugRoute = MSlugRouteImport.update({
   id: '/m/$slug',
@@ -459,6 +472,7 @@ export interface FileRoutesByFullPath {
   '/guests': typeof AuthenticatedGuestsRoute
   '/host': typeof AuthenticatedHostRoute
   '/hq': typeof AuthenticatedHqRoute
+  '/integrations': typeof AuthenticatedIntegrationsRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/manager': typeof AuthenticatedManagerRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -466,6 +480,7 @@ export interface FileRoutesByFullPath {
   '/shifts': typeof AuthenticatedShiftsRoute
   '/waiter': typeof AuthenticatedWaiterRoute
   '/work': typeof AuthenticatedWorkRoute
+  '/kiosk/$slug': typeof KioskSlugRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
@@ -522,6 +537,7 @@ export interface FileRoutesByTo {
   '/guests': typeof AuthenticatedGuestsRoute
   '/host': typeof AuthenticatedHostRoute
   '/hq': typeof AuthenticatedHqRoute
+  '/integrations': typeof AuthenticatedIntegrationsRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/manager': typeof AuthenticatedManagerRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -529,6 +545,7 @@ export interface FileRoutesByTo {
   '/shifts': typeof AuthenticatedShiftsRoute
   '/waiter': typeof AuthenticatedWaiterRoute
   '/work': typeof AuthenticatedWorkRoute
+  '/kiosk/$slug': typeof KioskSlugRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
@@ -587,6 +604,7 @@ export interface FileRoutesById {
   '/_authenticated/guests': typeof AuthenticatedGuestsRoute
   '/_authenticated/host': typeof AuthenticatedHostRoute
   '/_authenticated/hq': typeof AuthenticatedHqRoute
+  '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
   '/_authenticated/manager': typeof AuthenticatedManagerRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
@@ -594,6 +612,7 @@ export interface FileRoutesById {
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
   '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
   '/_authenticated/work': typeof AuthenticatedWorkRoute
+  '/kiosk/$slug': typeof KioskSlugRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
@@ -654,6 +673,7 @@ export interface FileRouteTypes {
     | '/guests'
     | '/host'
     | '/hq'
+    | '/integrations'
     | '/kitchen'
     | '/manager'
     | '/notifications'
@@ -661,6 +681,7 @@ export interface FileRouteTypes {
     | '/shifts'
     | '/waiter'
     | '/work'
+    | '/kiosk/$slug'
     | '/m/$slug'
     | '/o/$token'
     | '/preview/$slug'
@@ -717,6 +738,7 @@ export interface FileRouteTypes {
     | '/guests'
     | '/host'
     | '/hq'
+    | '/integrations'
     | '/kitchen'
     | '/manager'
     | '/notifications'
@@ -724,6 +746,7 @@ export interface FileRouteTypes {
     | '/shifts'
     | '/waiter'
     | '/work'
+    | '/kiosk/$slug'
     | '/m/$slug'
     | '/o/$token'
     | '/preview/$slug'
@@ -781,6 +804,7 @@ export interface FileRouteTypes {
     | '/_authenticated/guests'
     | '/_authenticated/host'
     | '/_authenticated/hq'
+    | '/_authenticated/integrations'
     | '/_authenticated/kitchen'
     | '/_authenticated/manager'
     | '/_authenticated/notifications'
@@ -788,6 +812,7 @@ export interface FileRouteTypes {
     | '/_authenticated/shifts'
     | '/_authenticated/waiter'
     | '/_authenticated/work'
+    | '/kiosk/$slug'
     | '/m/$slug'
     | '/o/$token'
     | '/preview/$slug'
@@ -838,6 +863,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  KioskSlugRoute: typeof KioskSlugRoute
   MSlugRoute: typeof MSlugRoute
   OTokenRoute: typeof OTokenRoute
   PreviewSlugRoute: typeof PreviewSlugRoute
@@ -969,6 +995,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHqRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/integrations': {
+      id: '/_authenticated/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof AuthenticatedIntegrationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/kitchen': {
       id: '/_authenticated/kitchen'
       path: '/kitchen'
@@ -1031,6 +1064,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/work'
       preLoaderRoute: typeof AuthenticatedWorkRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/kiosk/$slug': {
+      id: '/kiosk/$slug'
+      path: '/kiosk/$slug'
+      fullPath: '/kiosk/$slug'
+      preLoaderRoute: typeof KioskSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/m/$slug': {
       id: '/m/$slug'
@@ -1441,6 +1481,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGuestsRoute: typeof AuthenticatedGuestsRoute
   AuthenticatedHostRoute: typeof AuthenticatedHostRoute
   AuthenticatedHqRoute: typeof AuthenticatedHqRoute
+  AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedKitchenRoute: typeof AuthenticatedKitchenRoute
   AuthenticatedManagerRoute: typeof AuthenticatedManagerRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
@@ -1463,6 +1504,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedGuestsRoute: AuthenticatedGuestsRoute,
   AuthenticatedHostRoute: AuthenticatedHostRoute,
   AuthenticatedHqRoute: AuthenticatedHqRoute,
+  AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedKitchenRoute: AuthenticatedKitchenRoute,
   AuthenticatedManagerRoute: AuthenticatedManagerRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
@@ -1487,6 +1529,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  KioskSlugRoute: KioskSlugRoute,
   MSlugRoute: MSlugRoute,
   OTokenRoute: OTokenRoute,
   PreviewSlugRoute: PreviewSlugRoute,
