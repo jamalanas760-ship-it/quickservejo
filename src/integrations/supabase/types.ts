@@ -520,21 +520,93 @@ export type Database = {
           },
         ]
       }
+      erp_order_consumption_items: {
+        Row: {
+          created_at: string
+          id: string
+          inventory_item_id: string
+          order_id: string
+          quantity: number
+          restaurant_id: string
+          stock_movement_id: string | null
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inventory_item_id: string
+          order_id: string
+          quantity: number
+          restaurant_id: string
+          stock_movement_id?: string | null
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inventory_item_id?: string
+          order_id?: string
+          quantity?: number
+          restaurant_id?: string
+          stock_movement_id?: string | null
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_order_consumption_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "erp_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_order_consumption_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "erp_inventory_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_order_consumption_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_order_consumption_items_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_order_consumption_items_stock_movement_id_fkey"
+            columns: ["stock_movement_id"]
+            isOneToOne: false
+            referencedRelation: "erp_stock_movements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       erp_order_consumptions: {
         Row: {
           consumed_at: string
           order_id: string
           restaurant_id: string
+          reversed_at: string | null
         }
         Insert: {
           consumed_at?: string
           order_id: string
           restaurant_id: string
+          reversed_at?: string | null
         }
         Update: {
           consumed_at?: string
           order_id?: string
           restaurant_id?: string
+          reversed_at?: string | null
         }
         Relationships: [
           {
@@ -733,7 +805,7 @@ export type Database = {
       erp_stock_movements: {
         Row: {
           created_at: string
-          created_by: string
+          created_by: string | null
           finance_expense_id: string | null
           id: string
           item_id: string
@@ -747,7 +819,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           finance_expense_id?: string | null
           id?: string
           item_id: string
@@ -761,7 +833,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           finance_expense_id?: string | null
           id?: string
           item_id?: string
