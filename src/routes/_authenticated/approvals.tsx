@@ -4,6 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Check, MessageSquareReply, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -103,17 +104,16 @@ function ApprovalsPage() {
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "الموافقات" : "Approvals"} />
     <main className="qs-page space-y-5">
-      <section className="overflow-hidden rounded-[28px] border border-border bg-card">
-        <div className="grid gap-6 p-6 lg:grid-cols-[1fr_auto] lg:items-center sm:p-8">
-          <div><div className="inline-flex items-center gap-2 rounded-full bg-violet-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-violet-600"><ShieldCheck className="size-3.5" />{ar ? "حوكمة التشغيل" : "Operational governance"}</div><h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? "قرارات واضحة، مع سجل كامل" : "Clear decisions, complete audit trail"}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{ar ? "وافق أو ارفض أو أعد الطلب للتعديل. صلاحية القرار يتم التحقق منها في الخادم وليس في الواجهة فقط." : "Approve, reject or return work for changes. Authorization is enforced on the server, not only in the interface."}</p></div>
-          <Button asChild variant="outline"><Link to="/work">{ar ? "فتح عملي" : "Open My Work"}</Link></Button>
-        </div>
-      </section>
-
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={ShieldCheck}>{ar?"حوكمة التشغيل":"Operational Governance"}</MasterEyebrow>}
+        title={ar?"الموافقات":"Approvals"}
+        description={ar?"اتخذ قرارات واضحة مع سجل تدقيق كامل وصلاحيات يتم التحقق منها في الخادم.":"Make clear operational decisions with a complete audit trail and server-enforced authorization."}
+        actions={<Button asChild variant="outline"><Link to="/work">{ar?"فتح عملي":"Open My Work"}</Link></Button>}
+      />
       <section className="grid gap-3 sm:grid-cols-3">
-        <Metric label={ar ? "بانتظار القرار" : "Pending"} value={pending.length} />
-        <Metric label={ar ? "عاجل" : "Urgent"} value={urgent} tone="urgent" />
-        {overdue > 0 ? <Metric label={ar ? "متأخر" : "Overdue"} value={overdue} tone="urgent" /> : <Metric label={ar ? "متأخر" : "Overdue"} value={0} />}
+        <MasterKpi icon={ShieldCheck} label={ar?"بانتظار القرار":"Pending"} value={String(pending.length)} hint={ar?"تحتاج قرار":"Need a decision"} tone="blue"/>
+        <MasterKpi icon={MessageSquareReply} label={ar?"عاجل":"Urgent"} value={String(urgent)} hint={ar?"أولوية قصوى":"Highest priority"} tone={urgent>0?"red":"slate"}/>
+        <MasterKpi icon={X} label={ar?"متأخر":"Overdue"} value={String(overdue)} hint={ar?"تجاوز الاستحقاق":"Past due"} tone={overdue>0?"red":"slate"}/>
       </section>
 
       <section className="qs-card overflow-hidden">
