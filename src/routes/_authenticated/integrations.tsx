@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 
 import { DeveloperConnectPanel } from "@/components/integrations/DeveloperConnectPanel";
+import { IntegrationOperationsPanel } from "@/components/integrations/IntegrationOperationsPanel";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -181,6 +182,7 @@ function IntegrationsPage() {
       )}
 
       <DeveloperConnectPanel restaurantId={rid} />
+      <IntegrationOperationsPanel restaurantId={rid} />
 
       <section className="qs-card p-5">
         <div className="flex items-start gap-3"><Activity className="mt-0.5 size-5 text-[#ff5a0a]" /><div><h2 className="font-bold">{ar ? "قاعدة أمان" : "Security rule"}</h2><p className="mt-1 text-sm text-muted-foreground">{ar ? "أسرار Webhook محفوظة مشفرة داخل Supabase Vault، ومفاتيح API تحفظ كبصمات SHA-256 فقط. القيم الكاملة تظهر مرة واحدة عند الإنشاء." : "Webhook signing secrets are encrypted in Supabase Vault, while API keys are stored only as SHA-256 hashes. Full secret values are revealed once at creation."}</p></div></div>
