@@ -4,6 +4,7 @@ import { Banknote, CircleDollarSign, CreditCard, Minus, Plus, Receipt, RotateCcw
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StripePaymentDialog } from "@/components/payments/StripePaymentDialog";
 import { StaffHeader } from "@/components/staff/StaffHeader";
@@ -285,26 +286,22 @@ function CashierPage() {
   return <div className="min-h-screen bg-background">
     <StaffHeader title={ar ? "الكاشير والمدفوعات" : "Cashier & Payments"} />
     <main className="qs-page space-y-5">
-      <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
-        <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-8">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><WalletCards className="size-3.5" />{ar ? "نقطة التسوية" : "Settlement desk"}</div>
-            <h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? "كل دفعة محسوبة ومطابقة" : "Every payment accounted for"}</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{ar ? "دفعات جزئية، تقسيم الفاتورة، إكرامية، استرداد وتسوية كاش في مسار واحد." : "Partial payments, split bills, tips, refunds and cash reconciliation in one workflow."}</p>
-          </div>
-          {openSession ? <Button variant="outline" onClick={() => setCloseSessionDialog(true)}><Banknote className="size-4" />{ar ? "إغلاق الصندوق" : "Close cash session"}</Button> : <Button onClick={() => setOpenSessionDialog(true)}><Banknote className="size-4" />{ar ? "فتح الصندوق" : "Open cash session"}</Button>}
-        </div>
-      </section>
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={WalletCards}>{ar ? "نقطة التسوية" : "Settlement desk"}</MasterEyebrow>}
+        title={ar ? "الكاشير والمدفوعات" : "Cashier & Payments"}
+        description={ar ? "دفعات جزئية، تقسيم الفاتورة، الإكرامية والاسترداد وتسوية الكاش في مسار واحد واضح." : "Handle partial payments, split bills, tips, refunds and cash reconciliation in one focused workflow."}
+        actions={openSession?<Button variant="outline" onClick={()=>setCloseSessionDialog(true)}><Banknote className="size-4"/>{ar?"إغلاق الصندوق":"Close cash session"}</Button>:<Button onClick={()=>setOpenSessionDialog(true)}><Banknote className="size-4"/>{ar?"فتح الصندوق":"Open cash session"}</Button>}
+      />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={Receipt} label={ar ? "فواتير مفتوحة" : "Open bills"} value={formatNumber(activeBills.length,lang)} />
-        <Metric icon={CircleDollarSign} label={ar ? "مبلغ مستحق" : "Outstanding"} value={formatMoney(outstanding,scope.currency,lang)} />
-        <Metric icon={Banknote} label={ar ? "كاش محصل" : "Cash collected"} value={formatMoney(cashCollected,scope.currency,lang)} />
-        <Metric icon={CreditCard} label={ar ? "بطاقات" : "Card collected"} value={formatMoney(cardCollected,scope.currency,lang)} />
+        <MasterKpi icon={Receipt} label={ar?"فواتير مفتوحة":"Open Bills"} value={formatNumber(activeBills.length,lang)} hint={ar?"تحتاج تسوية":"Need settlement"} tone="orange"/>
+        <MasterKpi icon={CircleDollarSign} label={ar?"مبلغ مستحق":"Outstanding"} value={formatMoney(outstanding,scope.currency,lang)} hint={ar?"على الفواتير المفتوحة":"Across open bills"} tone="red"/>
+        <MasterKpi icon={Banknote} label={ar?"كاش محصل":"Cash Collected"} value={formatMoney(cashCollected,scope.currency,lang)} hint={openSession?(ar?"جلسة كاش مفتوحة":"Cash session open"):(ar?"لا توجد جلسة":"No open session")} tone="green"/>
+        <MasterKpi icon={CreditCard} label={ar?"بطاقات":"Card Collected"} value={formatMoney(cardCollected,scope.currency,lang)} hint={ar?"الدفعات المسجلة":"Recorded card payments"} tone="blue"/>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,.85fr)]">
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="overflow-hidden rounded-[18px] border border-border/85 bg-card shadow-[var(--qs-shadow-card)]">
           <div className="border-b border-border p-5"><h2 className="font-display text-lg font-bold">{ar ? "الفواتير" : "Bills"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "اختر فاتورة لإضافة دفعة أو مراجعة ما تم تحصيله." : "Select a bill to add a payment or review its settlement history."}</p></div>
           {query.isPending ? <div className="p-5"><Skeleton className="h-72 rounded-2xl" /></div> : query.isError ? <p className="p-5 text-sm text-destructive">{humanError(query.error,lang)}</p> : !activeBills.length ? <div className="p-5"><EmptyState icon={<Wallet className="size-6"/>} title={ar?"لا فواتير مفتوحة":"No open bills"} description={ar?"كل الفواتير مسددة حالياً.":"Everything is settled right now."}/></div> : <div className="divide-y divide-border">{activeBills.map((bill)=>{
             const paid=netPaid(bill.id), due=Math.max(0,bill.total-paid);
