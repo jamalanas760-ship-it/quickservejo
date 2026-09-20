@@ -40,6 +40,7 @@ type KitchenItem = {
 type StaffRow = { id: string; name: string; role: string };
 type Station = { id: string; name: string; name_ar: string | null };
 type MenuStation = { id: string; kitchen_station_id: string | null };
+type PrinterProfile = { id: string; name: string; kitchen_station_id: string | null; mode: "browser" | "network" | "provider"; is_default: boolean };
 
 const STAGES = [
   { id: "new", label: "Received", ar: "مستلم", icon: Clock3, next: "accepted" },
@@ -60,6 +61,7 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
   const queryClient = useQueryClient();
   const [now, setNow] = useState(() => Date.now());
   const [stationId, setStationId] = useState<string>("all");
+  const [realtimeStatus, setRealtimeStatus] = useState<"connected" | "fallback">("fallback");
   const [soundEnabled, setSoundEnabled] = useState(() => {
     if (typeof window === "undefined") return true;
     return window.localStorage.getItem(SOUND_KEY) !== "0";
@@ -107,6 +109,21 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
         .order("name");
       if (error) throw error;
       return (data ?? []) as Station[];
+    },
+  });
+
+  const printers = useQuery<PrinterProfile[]>({
+    queryKey: ["kitchen-printers", restaurantId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("kitchen_printer_profiles")
+        .select("id,name,kitchen_station_id,mode,is_default")
+        .eq("restaurant_id", restaurantId)
+        .eq("is_active", true)
+        .order("is_default", { ascending: false })
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as PrinterProfile[];
     },
   });
 
@@ -158,7 +175,9 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "order_items", filter: `restaurant_id=eq.${restaurantId}` }, () => {
         void queryClient.invalidateQueries({ queryKey: ["kitchen-order-items", restaurantId] });
       })
-      .subscribe();
+.subscribe((status) => {
+        setRealtimeStatus(status === "SUBSCRIBED" ? "connected" : "fallback");
+      });
     return () => { void supabase.removeChannel(channel); };
   }, [queryClient, restaurantId]);
 
@@ -249,14 +268,30 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
     });
   }
 
-  function printTicket(order: KitchenOrder) {
+  async function printTicket(order: KitchenOrder) {
     const orderItems = byOrder.get(order.id) ?? [];
     const station = stationId === "all" ? (ar ? "كل المحطات" : "All stations") : (stations.data ?? []).find((s) => s.id === stationId)?.name ?? "";
+    const stationProfile = (printers.data ?? []).find((profile) => profile.kitchen_station_id === (stationId === "all" ? null : stationId) && profile.is_default)
+      ?? (printers.data ?? []).find((profile) => profile.kitchen_station_id === (stationId === "all" ? null : stationId))
+      ?? (printers.data ?? []).find((profile) => profile.is_default)
+      ?? null;
     const win = window.open("", "_blank", "width=520,height=760");
     if (!win) return;
     const esc = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char] ?? char));
     win.document.write(`<!doctype html><html><head><title>Kitchen #${esc(order.order_number)}</title><style>body{font-family:system-ui,sans-serif;padding:24px;color:#111}h1{margin:0;font-size:26px}.muted{color:#666;font-size:12px}.item{display:flex;gap:10px;padding:10px 0;border-bottom:1px dashed #aaa}.qty{font-weight:800}.note{font-size:12px;margin-top:4px}.meta{margin:12px 0;padding:10px;border:1px solid #ddd;border-radius:8px}@media print{button{display:none}}</style></head><body><h1>#${esc(order.order_number)}</h1><div class="muted">${esc(station)} · ${esc(order.table ? `Table ${order.table.table_name || order.table.table_number}` : "Pickup / Delivery")}</div><div class="meta">${esc(new Date(order.created_at).toLocaleString())}</div>${orderItems.map((item) => `<div class="item"><span class="qty">×${esc(item.quantity)}</span><div><strong>${esc(ar ? item.product_name_snapshot_ar || item.product_name_snapshot_en : item.product_name_snapshot_en || item.product_name_snapshot_ar)}</strong>${item.notes ? `<div class="note">${esc(item.notes)}</div>` : ""}</div></div>`).join("")}${order.customer_notes ? `<p><strong>Customer note:</strong> ${esc(order.customer_notes)}</p>` : ""}<script>window.onload=()=>window.print()<\/script></body></html>`);
     win.document.close();
+    try {
+      const { error } = await (supabase as any).rpc("record_kitchen_print", {
+        _order_id: order.id,
+        _station_id: stationId === "all" ? null : stationId,
+        _printer_profile_id: stationProfile?.id ?? null,
+        _print_kind: "ticket",
+      });
+      if (error) throw error;
+    } catch (error) {
+      toast.error(ar ? "تمت الطباعة ولكن تعذر تسجيل العملية." : "Printed, but the print audit could not be recorded.");
+      console.error(error);
+    }
   }
 
   if (orders.isPending) {
@@ -275,7 +310,7 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
           {(stations.data ?? []).map((station) => <option key={station.id} value={station.id}>{ar ? station.name_ar || station.name : station.name}</option>)}
         </select>
         <Button type="button" variant="outline" size="sm" onClick={toggleSound}>{soundEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}{ar ? "الصوت" : "Sound"}</Button>
-        <Badge variant="secondary" className="rounded-full">{ar ? "مباشر" : "Live"}</Badge>
+        <Badge variant={realtimeStatus === "connected" ? "secondary" : "outline"} className="rounded-full">{realtimeStatus === "connected" ? (ar ? "مباشر" : "Live") : (ar ? "تحديث احتياطي" : "Polling fallback")}</Badge>
       </div>
     </header>
 
@@ -317,7 +352,7 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
 
                 <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
                   <Button onClick={() => void advance(order)}>{stage.next === "served" ? <Check className="size-4" /> : null}{stage.next === "served" ? (ar ? "تم التقديم" : "Mark served") : `${ar ? "نقل إلى" : "Move to"} ${ar ? STAGES.find((item) => item.id === stage.next)?.ar : STAGES.find((item) => item.id === stage.next)?.label}`}</Button>
-                  <Button type="button" variant="outline" size="icon" onClick={() => printTicket(order)} aria-label={ar ? "طباعة" : "Print"}><Printer className="size-4" /></Button>
+                  <Button type="button" variant="outline" size="icon" onClick={() => void printTicket(order)} aria-label={ar ? "طباعة" : "Print"}><Printer className="size-4" /></Button>
                 </div>
               </article>;
             })}
