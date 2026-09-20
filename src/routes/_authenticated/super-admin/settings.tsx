@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Bell, CreditCard, Link2, Palette, Save, Settings, ShieldCheck, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,7 +55,7 @@ function PlatformSettingsPage() {
 
   return (
     <div className="space-y-5">
-      <header><h1 className="qs-page-title">{ar ? "الإعدادات" : "Settings"}</h1><p className="qs-page-subtitle">{ar ? "إدارة المنصة والفوترة والتراخيص والتكاملات." : "Manage platform defaults, billing, licenses, and integrations."}</p></header>
+      <MasterPageHeader eyebrow={<MasterEyebrow icon={Settings}>{ar ? "إدارة المنصة" : "Platform administration"}</MasterEyebrow>} title={ar ? "الإعدادات" : "Settings"} description={ar ? "إدارة القيم الافتراضية، الفوترة، التراخيص والتكاملات من مكان واحد." : "Manage platform defaults, billing, licensing and integrations from one control center."} />
 
       <nav className="flex gap-2 overflow-x-auto border-b border-border pb-0">
         <span className="flex min-h-12 items-center gap-2 border-b-2 border-[#ff5a0a] px-4 text-sm font-bold text-[#ff5a0a]"><Settings className="size-4" />{ar ? "عام" : "General"}</span>
