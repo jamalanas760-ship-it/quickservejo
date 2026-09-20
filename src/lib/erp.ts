@@ -26,6 +26,31 @@ export function expenseCategoryLabel(value: string, lang: Language): string {
 
 export type InventoryBalance = { id: string; name: string; unit: ErpUnit; reorder_level: number; quantity: number };
 export type Supplier = { id: string; name: string; contact: string; created_at: string };
+export type ProcurementStatus = "requested" | "approved" | "rejected" | "ordered" | "received" | "cancelled";
+export type ProcurementRequest = {
+  id: string;
+  restaurant_id: string;
+  item_id: string | null;
+  item_name_snapshot: string;
+  quantity: number;
+  unit: string;
+  estimated_unit_cost: number;
+  actual_unit_cost: number | null;
+  supplier_id: string | null;
+  status: ProcurementStatus;
+  needed_by: string | null;
+  notes: string;
+  po_reference: string;
+  requested_by: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  ordered_at: string | null;
+  received_at: string | null;
+  stock_movement_id: string | null;
+  finance_expense_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
 export type StockMovement = {
   id: string;
   item_id: string;
@@ -51,7 +76,7 @@ export type Expense = {
   created_at: string;
 };
 
-export type ErpTableName = "erp_inventory" | "erp_inventory_balances" | "erp_suppliers" | "erp_stock_movements" | "erp_expenses";
+export type ErpTableName = "erp_inventory" | "erp_inventory_balances" | "erp_suppliers" | "erp_stock_movements" | "erp_expenses" | "erp_procurement_requests";
 type ErpResponse = { data: unknown; error: { message: string } | null };
 interface ErpBuilder extends PromiseLike<ErpResponse> {
   select(columns: string): ErpBuilder;
@@ -73,6 +98,24 @@ export async function erpInsert(table: Exclude<ErpTableName, "erp_inventory_bala
   const { error } = await erpFrom(table).insert({ ...payload, restaurant_id: restaurantId }).select("id");
   if (error) throw error;
 }
+export async function setProcurementStatus(id: string, status: Exclude<ProcurementStatus, "requested" | "received">, poReference?: string): Promise<void> {
+  const { error } = await (supabase as any).rpc("erp_set_procurement_status", {
+    _request_id: id,
+    _status: status,
+    _po_reference: poReference ?? null,
+  });
+  if (error) throw error;
+}
+
+export async function receiveProcurementRequest(id: string, unitCost?: number): Promise<string | null> {
+  const { data, error } = await (supabase as any).rpc("erp_receive_procurement_request", {
+    _request_id: id,
+    _unit_cost: unitCost ?? null,
+  });
+  if (error) throw error;
+  return data as string | null;
+}
+
 export function isLowStock(item: InventoryBalance): boolean { return Number(item.quantity) <= Number(item.reorder_level); }
 export function stockValuation(items: InventoryBalance[], movements: StockMovement[]): { value: number; pricedItems: number; itemsWithoutCost: number } {
   const latestCost = new Map<string, number>();
