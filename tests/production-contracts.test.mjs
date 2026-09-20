@@ -17,6 +17,8 @@ test("PWA has a service worker and standalone manifest", async () => {
   const sw = await file("public/sw.js");
   const manifest = JSON.parse(await file("public/manifest.webmanifest"));
   assert.match(sw, /addEventListener\("fetch"/);
+  assert.match(sw, /isPublicNavigation/);
+  assert.match(sw, /Authenticated\/operational pages are always network-only/);
   assert.equal(manifest.display, "standalone");
   assert.ok(manifest.icons?.length >= 2);
 });
@@ -27,6 +29,8 @@ test("cashier uses ledger RPC instead of directly forcing paid status", async ()
   assert.match(cashier, /refund_order_payment/);
   assert.match(cashier, /open_cash_session/);
   assert.match(cashier, /close_cash_session/);
+  assert.match(cashier, /_restaurant_id:\s*rid/);
+  assert.match(cashier, /_payment_id:\s*payment\.id/);
   assert.doesNotMatch(cashier, /payment_status:\s*"paid"/);
 });
 
@@ -60,4 +64,18 @@ test("platform health route reads runtime events and performance samples", async
   assert.match(health, /LCP/);
   assert.match(health, /INP/);
   assert.match(health, /CLS/);
+});
+
+
+test("payment integrity migration caps settlement and links refunds", async () => {
+  const migration = await file("supabase/migrations/20260920100000_phase4_payment_integrity.sql");
+  assert.match(migration, /parent_transaction_id/);
+  assert.match(migration, /Payment exceeds outstanding balance/);
+  assert.match(migration, /Gift card balance is insufficient/);
+  assert.match(migration, /_restaurant_id uuid/);
+});
+
+test("delivery accounting persists the fee separately from order total", async () => {
+  const migration = await file("supabase/migrations/20260920101000_phase4_delivery_accounting.sql");
+  assert.match(migration, /delivery_amount=_delivery/);
 });
