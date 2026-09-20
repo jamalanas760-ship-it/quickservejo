@@ -7,8 +7,11 @@ import {
   ClipboardCheck,
   Clock3,
   Handshake,
+  LayoutGrid,
   ListTodo,
   Plus,
+  Rows3,
+  Search,
   ShieldCheck,
   Trash2,
   UserRound,
@@ -43,6 +46,9 @@ type WorkStatus = "open" | "in_progress" | "waiting_approval" | "completed" | "c
 type WorkCategory = "task" | "approval" | "handover" | "alert";
 type WorkPriority = "low" | "normal" | "high" | "urgent";
 type Tab = "mine" | "team" | "approvals" | "handover" | "completed";
+type ViewMode = "cards" | "list";
+type QuickFocus = "all" | "open" | "due_today" | "overdue" | "completed";
+type SortMode = "due" | "priority" | "newest";
 
 type WorkTask = {
   id: string;
@@ -96,6 +102,11 @@ export function WorkPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<WorkTask | null>(null);
+  const [search, setSearch] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState<"all" | WorkPriority>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("due");
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [quickFocus, setQuickFocus] = useState<QuickFocus>("all");
 
   const tasks = useQuery({
     queryKey: ["work", rid],
@@ -130,19 +141,50 @@ export function WorkPage() {
 
   const visible = useMemo(() => {
     const rows = tasks.data ?? [];
-    if (tab === "completed") return rows.filter((row) => row.status === "completed");
-    if (tab === "approvals") return rows.filter((row) => row.category === "approval" || row.status === "waiting_approval");
-    if (tab === "handover") return rows.filter((row) => row.category === "handover");
-    if (tab === "team") return canManage ? rows.filter((row) => row.status !== "completed" && row.status !== "cancelled") : [];
-    return rows.filter((row) => row.status !== "completed" && row.status !== "cancelled");
-  }, [tasks.data, tab, canManage]);
+    const now = Date.now();
+    const todayKey = new Date().toLocaleDateString("en-CA");
+
+    let next = tab === "completed"
+      ? rows.filter((row) => row.status === "completed")
+      : tab === "approvals"
+        ? rows.filter((row) => row.category === "approval" || row.status === "waiting_approval")
+        : tab === "handover"
+          ? rows.filter((row) => row.category === "handover")
+          : tab === "team"
+            ? (canManage ? rows.filter((row) => row.status !== "completed" && row.status !== "cancelled") : [])
+            : rows.filter((row) =>
+                row.status !== "completed"
+                && row.status !== "cancelled"
+                && (row.assigned_staff_id === membership?.id || row.assigned_role === membership?.role || (!row.assigned_staff_id && !row.assigned_role)),
+              );
+
+    if (quickFocus === "open") next = next.filter((row) => row.status === "open" || row.status === "in_progress" || row.status === "waiting_approval");
+    if (quickFocus === "completed") next = next.filter((row) => row.status === "completed");
+    if (quickFocus === "overdue") next = next.filter((row) => row.due_at && new Date(row.due_at).getTime() < now && row.status !== "completed" && row.status !== "cancelled");
+    if (quickFocus === "due_today") next = next.filter((row) => row.due_at && new Date(row.due_at).toLocaleDateString("en-CA") === todayKey && row.status !== "completed" && row.status !== "cancelled");
+
+    const q = search.trim().toLowerCase();
+    if (q) next = next.filter((row) => [row.title, row.description, row.assigned_role, row.source_type].some((value) => value?.toLowerCase().includes(q)));
+    if (priorityFilter !== "all") next = next.filter((row) => row.priority === priorityFilter);
+
+    const priorityRank: Record<WorkPriority, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
+    return [...next].sort((a, b) => {
+      if (sortMode === "priority") return priorityRank[a.priority] - priorityRank[b.priority] || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (sortMode === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      const ad = a.due_at ? new Date(a.due_at).getTime() : Number.MAX_SAFE_INTEGER;
+      const bd = b.due_at ? new Date(b.due_at).getTime() : Number.MAX_SAFE_INTEGER;
+      return ad - bd || priorityRank[a.priority] - priorityRank[b.priority];
+    });
+  }, [tasks.data, tab, canManage, membership?.id, membership?.role, quickFocus, search, priorityFilter, sortMode]);
 
   const counts = useMemo(() => {
     const rows = tasks.data ?? [];
+    const todayKey = new Date().toLocaleDateString("en-CA");
+    const now = Date.now();
     return {
-      open: rows.filter((row) => row.status === "open" || row.status === "in_progress").length,
-      urgent: rows.filter((row) => row.priority === "urgent" && row.status !== "completed" && row.status !== "cancelled").length,
-      approvals: rows.filter((row) => row.category === "approval" || row.status === "waiting_approval").length,
+      open: rows.filter((row) => row.status === "open" || row.status === "in_progress" || row.status === "waiting_approval").length,
+      dueToday: rows.filter((row) => row.due_at && new Date(row.due_at).toLocaleDateString("en-CA") === todayKey && row.status !== "completed" && row.status !== "cancelled").length,
+      overdue: rows.filter((row) => row.due_at && new Date(row.due_at).getTime() < now && row.status !== "completed" && row.status !== "cancelled").length,
       completed: rows.filter((row) => row.status === "completed").length,
     };
   }, [tasks.data]);
@@ -207,28 +249,38 @@ export function WorkPage() {
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "عملي" : "My Work"} />
     <main className="qs-page space-y-5">
-      <section className="overflow-hidden rounded-[28px] border border-border bg-card">
-        <div className="grid gap-6 p-6 lg:grid-cols-[1fr_auto] lg:items-center sm:p-8">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><ListTodo className="size-3.5" />{ar ? "مركز العمل التشغيلي" : "Operational work center"}</div>
-            <h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? `مرحباً، ${membership.name}` : `Good work starts here, ${membership.name}`}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{ar ? "مكان واحد للمهام والموافقات والتنبيهات وتسليم الوردية — حسب دورك فقط." : "One place for tasks, approvals, alerts and shift handover — scoped to your role and restaurant."}</p>
+      <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
+        <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-8">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><ListTodo className="size-3.5" />{ar ? "مساحة العمل" : "My workspace"}</div>
+            <h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? "العمل المطلوب، بدون تشتيت" : "The work that needs attention"}</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{ar ? `مرحباً ${membership.name}. راقب ما عليك اليوم، ما تأخر، وما يحتاج موافقة من مكان واحد.` : `Welcome, ${membership.name}. See what is due today, what is overdue, and what needs approval in one focused workspace.`}</p>
           </div>
           {canCreate ? <CreateTaskDialog open={createOpen} onOpenChange={setCreateOpen} restaurantId={rid} currentStaffId={membership.id} currentRole={membership.role} staff={staff.data ?? []} canManage={canManage} ar={ar} lang={lang} onCreated={async () => { setCreateOpen(false); await qc.invalidateQueries({ queryKey: ["work", rid] }); }} /> : null}
         </div>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={ListTodo} label={ar ? "قيد التنفيذ" : "Active work"} value={counts.open} />
-        <Metric icon={AlertTriangle} label={ar ? "عاجل" : "Urgent"} value={counts.urgent} tone="urgent" />
-        <Metric icon={ShieldCheck} label={ar ? "موافقات" : "Approvals"} value={counts.approvals} />
-        <Metric icon={CheckCircle2} label={ar ? "مكتمل" : "Completed"} value={counts.completed} />
+        <Metric icon={ListTodo} label={ar ? "مفتوح" : "Open"} value={counts.open} active={quickFocus === "open"} onClick={() => setQuickFocus((value) => value === "open" ? "all" : "open")} />
+        <Metric icon={Clock3} label={ar ? "مستحق اليوم" : "Due today"} value={counts.dueToday} active={quickFocus === "due_today"} onClick={() => setQuickFocus((value) => value === "due_today" ? "all" : "due_today")} />
+        <Metric icon={AlertTriangle} label={ar ? "متأخر" : "Overdue"} value={counts.overdue} tone="urgent" active={quickFocus === "overdue"} onClick={() => setQuickFocus((value) => value === "overdue" ? "all" : "overdue")} />
+        <Metric icon={CheckCircle2} label={ar ? "مكتمل" : "Completed"} value={counts.completed} active={quickFocus === "completed"} onClick={() => setQuickFocus((value) => value === "completed" ? "all" : "completed")} />
       </section>
 
       <section className="qs-card overflow-hidden">
-        <div className="overflow-x-auto border-b border-border p-2"><div className="flex min-w-max gap-1">{tabs.filter((item) => item.show).map((item) => <button key={item.id} type="button" onClick={() => setTab(item.id)} className={cn("rounded-xl px-4 py-2.5 text-xs font-bold transition", tab === item.id ? "bg-[#ff5a0a] text-white shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>{ar ? item.ar : item.en}</button>)}</div></div>
+        <div className="border-b border-border p-3 sm:p-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="overflow-x-auto"><div className="flex min-w-max gap-1">{tabs.filter((item) => item.show).map((item) => <button key={item.id} type="button" onClick={() => { setTab(item.id); setQuickFocus("all"); }} className={cn("rounded-xl px-4 py-2.5 text-xs font-bold transition", tab === item.id ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>{ar ? item.ar : item.en}</button>)}</div></div>
+            {tab !== "handover" ? <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative min-w-0 sm:w-[220px]"><Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="ps-9" placeholder={ar ? "بحث بالعنوان أو الوصف" : "Search work"} /></div>
+              <Select value={priorityFilter} onValueChange={(value) => setPriorityFilter(value as "all" | WorkPriority)}><SelectTrigger className="sm:w-[135px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل الأولويات" : "All priority"}</SelectItem><SelectItem value="urgent">Urgent</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="low">Low</SelectItem></SelectContent></Select>
+              <Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}><SelectTrigger className="sm:w-[130px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="due">{ar ? "الاستحقاق" : "Due date"}</SelectItem><SelectItem value="priority">{ar ? "الأولوية" : "Priority"}</SelectItem><SelectItem value="newest">{ar ? "الأحدث" : "Newest"}</SelectItem></SelectContent></Select>
+              <div className="inline-grid grid-cols-2 rounded-xl border border-border p-1"><button type="button" onClick={() => setViewMode("cards")} aria-label={ar ? "عرض بطاقات" : "Card view"} className={cn("grid size-9 place-items-center rounded-lg", viewMode === "cards" ? "bg-muted text-foreground" : "text-muted-foreground")}><LayoutGrid className="size-4" /></button><button type="button" onClick={() => setViewMode("list")} aria-label={ar ? "عرض قائمة" : "List view"} className={cn("grid size-9 place-items-center rounded-lg", viewMode === "list" ? "bg-muted text-foreground" : "text-muted-foreground")}><Rows3 className="size-4" /></button></div>
+            </div> : null}
+          </div>
+        </div>
         {tab === "handover" ? <ShiftHandoverPanel restaurantId={rid} currentStaffId={membership.id} currentRole={membership.role} /> : null}
-        {tasks.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : tasks.isError ? <p className="p-6 text-sm text-destructive">{humanError(tasks.error, lang)}</p> : visible.length === 0 ? <EmptyState ar={ar} /> : <div className="divide-y divide-border">{visible.map((task) => <TaskRow key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} onOpen={() => setSelectedId(task.id)} />)}</div>}
+        {tab !== "handover" ? tasks.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : tasks.isError ? <p className="p-6 text-sm text-destructive">{humanError(tasks.error, lang)}</p> : visible.length === 0 ? <EmptyState ar={ar} /> : viewMode === "cards" ? <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-4 xl:grid-cols-3">{visible.map((task) => <WorkCard key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} onOpen={() => setSelectedId(task.id)} />)}</div> : <div className="divide-y divide-border">{visible.map((task) => <TaskRow key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} onOpen={() => setSelectedId(task.id)} />)}</div> : null}
       </section>
     </main>
 
@@ -275,8 +327,20 @@ export function WorkPage() {
   </div>;
 }
 
-function Metric({ icon: Icon, label, value, tone }: { icon: typeof ListTodo; label: string; value: number; tone?: "urgent" }) {
-  return <article className="qs-stat flex min-h-[112px] items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl", tone === "urgent" ? "bg-red-500/10 text-red-600" : "bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-5" /></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong></div></article>;
+function Metric({ icon: Icon, label, value, tone, active, onClick }: { icon: typeof ListTodo; label: string; value: number; tone?: "urgent"; active?: boolean; onClick?: () => void }) {
+  return <button type="button" onClick={onClick} className={cn("qs-stat flex min-h-[112px] w-full items-center gap-4 p-4 text-start transition hover:-translate-y-0.5 hover:shadow-sm", active && "ring-2 ring-[#ff5a0a]/50")}><span className={cn("grid size-11 place-items-center rounded-2xl", tone === "urgent" ? "bg-red-500/10 text-red-600" : "bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-5" /></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong></div></button>;
+}
+
+function WorkCard({ task, staff, ar, canApprove, busy, onStatus, onOpen }: { task: WorkTask; staff: StaffOption[]; ar: boolean; canApprove: boolean; busy: boolean; onStatus: (status: WorkStatus) => void; onOpen: () => void }) {
+  const assignee = task.assigned_staff_id ? staff.find((row) => row.id === task.assigned_staff_id)?.name : null;
+  const overdue = task.due_at && new Date(task.due_at).getTime() < Date.now() && task.status !== "completed";
+  const CategoryIcon = task.category === "approval" ? ShieldCheck : task.category === "handover" ? Handshake : task.category === "alert" ? AlertTriangle : ClipboardCheck;
+  return <article role="button" tabIndex={0} onClick={onOpen} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }} className="group flex min-h-[220px] cursor-pointer flex-col rounded-2xl border border-border bg-card p-4 text-start outline-none transition hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-[#ff5a0a]">
+    <div className="flex items-start justify-between gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground"><CategoryIcon className="size-4" /></span><div className="flex flex-wrap justify-end gap-1.5"><Badge className={cn("border-0 capitalize", priorityTone[task.priority])}>{task.priority}</Badge>{overdue ? <Badge variant="destructive">{ar ? "متأخر" : "Overdue"}</Badge> : null}</div></div>
+    <div className="mt-4 min-w-0 flex-1"><h3 className="line-clamp-2 font-display text-base font-bold leading-6">{task.title}</h3>{task.description ? <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{task.description}</p> : <p className="mt-1.5 text-xs text-muted-foreground">{ar ? "لا يوجد وصف إضافي." : "No additional description."}</p>}</div>
+    <div className="mt-4 grid gap-1.5 border-t border-border/70 pt-3 text-[10px] font-semibold text-muted-foreground"><span className="inline-flex min-w-0 items-center gap-1.5"><UserRound className="size-3.5 shrink-0" /><span className="truncate">{assignee ?? (task.assigned_role ? roleLabel(task.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))}</span></span>{task.due_at ? <span className="inline-flex items-center gap-1.5"><Clock3 className="size-3.5" />{formatStamp(task.due_at, ar)}</span> : null}</div>
+    <div className="mt-3 flex items-center gap-2" onClick={(event) => event.stopPropagation()}>{task.status === "open" ? <Button variant="outline" size="sm" className="flex-1" disabled={busy} onClick={() => onStatus("in_progress")}>{ar ? "بدء" : "Start"}</Button> : null}{task.status === "in_progress" && task.requires_approval ? <Button variant="outline" size="sm" className="flex-1" disabled={busy} onClick={() => onStatus("waiting_approval")}>{ar ? "إرسال للموافقة" : "Submit"}</Button> : null}{task.status === "in_progress" && !task.requires_approval ? <Button size="sm" className="flex-1" disabled={busy} onClick={() => onStatus("completed")}>{ar ? "إكمال" : "Complete"}</Button> : null}{task.status === "waiting_approval" && canApprove ? <Button size="sm" className="flex-1" disabled={busy} onClick={() => onStatus("completed")}><CheckCircle2 className="size-4" />{ar ? "اعتماد" : "Approve"}</Button> : <span className="capitalize text-xs text-muted-foreground">{task.status.replaceAll("_", " ")}</span>}</div>
+  </article>;
 }
 
 function TaskRow({ task, staff, ar, canApprove, busy, onStatus, onOpen }: { task: WorkTask; staff: StaffOption[]; ar: boolean; canApprove: boolean; busy: boolean; onStatus: (status: WorkStatus) => void; onOpen: () => void }) {
