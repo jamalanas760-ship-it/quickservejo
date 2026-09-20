@@ -9,6 +9,7 @@ import {
   ChefHat,
   ClipboardList,
   Home,
+  HeartHandshake,
   Settings,
   Store,
   Table2,
@@ -69,6 +70,7 @@ export function BottomNav() {
     { to: `/manage/${restaurantId}/tables`, icon: Table2, en: "Tables", ar: "الطاولات", capability: "manage_tables" },
     { to: `/manage/${restaurantId}/operations`, icon: Boxes, en: "ERP", ar: "ERP", capability: "view_erp" },
     { to: `/manage/${restaurantId}/analytics`, icon: BarChart3, en: "Analytics", ar: "التحليلات", capability: "view_analytics" },
+    { to: "/guests", icon: HeartHandshake, en: "Guests", ar: "الضيوف", capability: "view_analytics" },
     { to: `/manage/${restaurantId}/staff`, icon: Users, en: "Team", ar: "الفريق", capability: "manage_staff" },
     { to: "/profile", icon: User, en: "Profile", ar: "الحساب", exact: true },
   ] satisfies Item[]).filter((item) => !item.capability || can(item.capability)) : [];
