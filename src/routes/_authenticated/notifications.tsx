@@ -142,10 +142,6 @@ function NotificationItem({ row, ar, busy, onRead }: { row: NotificationRow; ar:
   </article>;
 }
 
-function Metric({ icon: Icon, label, value, active }: { icon: typeof Bell; label: string; value: number; active: boolean }) {
-  return <article className="qs-stat flex min-h-[108px] items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl", active ? "bg-orange-500/10 text-[#ff5a0a]" : "bg-muted text-muted-foreground")}><Icon className="size-5" /></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong></div></article>;
-}
-
 function kindConfig(kind: NotificationKind, ar: boolean) {
   if (kind === "approval") return { icon: ShieldCheck, label: ar ? "موافقة" : "Approval", tone: "bg-violet-500/10 text-violet-600" };
   if (kind === "handover") return { icon: UsersRound, label: ar ? "تسليم" : "Handover", tone: "bg-cyan-500/10 text-cyan-700" };
