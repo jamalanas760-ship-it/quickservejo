@@ -1,0 +1,346 @@
+/* QuickServe 2026 Rebrand
+ * A restrained, product-led visual system for the authenticated application.
+ * Keeps restaurant brand colors while standardizing spacing, surfaces, navigation,
+ * tables and responsive behavior across desktop, tablet and mobile.
+ */
+
+:root {
+  --qs-shell-sidebar: 224px;
+  --qs-shell-topbar: 72px;
+  --qs-r-sm: 12px;
+  --qs-r-md: 16px;
+  --qs-r-lg: 20px;
+  --qs-r-xl: 26px;
+  --qs-shadow-card: 0 1px 2px rgb(15 23 42 / .025), 0 10px 28px rgb(15 23 42 / .045);
+  --qs-shadow-float: 0 18px 50px rgb(15 23 42 / .10);
+}
+
+.dark {
+  --qs-shadow-card: 0 1px 2px rgb(0 0 0 / .22), 0 12px 30px rgb(0 0 0 / .18);
+  --qs-shadow-float: 0 22px 60px rgb(0 0 0 / .30);
+}
+
+.qs-app {
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.qs-route-frame {
+  min-height: calc(100dvh - var(--qs-shell-topbar));
+}
+
+.qs-page {
+  width: min(100%, 1680px) !important;
+  margin-inline: auto;
+  padding: 28px 32px 52px !important;
+}
+
+.qs-page > :first-child {
+  scroll-margin-top: calc(var(--qs-shell-topbar) + 18px);
+}
+
+.qs-page-title {
+  font-size: clamp(2rem, 2.4vw, 2.75rem) !important;
+  line-height: 1.03 !important;
+  font-weight: 720 !important;
+  letter-spacing: -.052em !important;
+}
+
+[dir="rtl"] .qs-page-title { letter-spacing: normal !important; }
+
+.qs-page-subtitle {
+  max-width: 760px;
+  margin-top: .55rem !important;
+  font-size: .92rem !important;
+  line-height: 1.65 !important;
+}
+
+.qs-section-title {
+  font-size: 1.05rem !important;
+  font-weight: 720 !important;
+}
+
+/* Surfaces */
+.qs-card,
+.panel,
+.qs-stat,
+.qs-right-panel {
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent) !important;
+  border-radius: var(--qs-r-lg) !important;
+  background: color-mix(in srgb, var(--card) 98%, var(--background) 2%) !important;
+  box-shadow: var(--qs-shadow-card) !important;
+}
+
+.qs-stat {
+  min-height: 112px;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+@media (hover:hover) {
+  .qs-stat:hover {
+    border-color: color-mix(in srgb, var(--primary) 18%, var(--border)) !important;
+    transform: translateY(-1px);
+  }
+}
+
+.qs-panel-header {
+  padding: 18px 20px !important;
+  background: color-mix(in srgb, var(--card) 98%, var(--muted) 2%);
+}
+
+.qs-right-panel {
+  overflow: clip !important;
+}
+
+/* Top navigation */
+.qs-topbar {
+  min-height: var(--qs-shell-topbar) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 84%, transparent) !important;
+  background: color-mix(in srgb, var(--restaurant-topbar-bg, var(--card)) 94%, transparent) !important;
+  box-shadow: 0 1px 0 rgb(15 23 42 / .02);
+  backdrop-filter: blur(18px) saturate(1.08) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+}
+
+.qs-topbar > div {
+  min-height: var(--qs-shell-topbar);
+}
+
+.qs-topbar a,
+.qs-topbar button {
+  border-radius: var(--qs-r-sm) !important;
+}
+
+/* Desktop navigation */
+.qs-sidebar-shell {
+  width: var(--qs-shell-sidebar) !important;
+  border-inline-end: 1px solid color-mix(in srgb, var(--border) 88%, transparent) !important;
+  background: color-mix(in srgb, var(--restaurant-sidebar-bg, var(--card)) 98%, var(--background) 2%) !important;
+  box-shadow: 8px 0 34px rgb(15 23 42 / .025) !important;
+}
+
+[dir="rtl"] .qs-sidebar-shell {
+  box-shadow: -8px 0 34px rgb(15 23 42 / .025) !important;
+}
+
+.qs-sidebar-shell > div:first-child {
+  min-height: var(--qs-shell-topbar) !important;
+  padding-inline: 18px !important;
+}
+
+.qs-sidebar-shell nav {
+  padding: 18px 12px 20px !important;
+}
+
+.qs-sidebar-item {
+  position: relative;
+  min-height: 46px !important;
+  gap: 12px !important;
+  border-radius: 12px !important;
+  padding: .68rem .82rem !important;
+  font-size: .84rem !important;
+  font-weight: 650 !important;
+  color: var(--restaurant-sidebar-text, var(--muted-foreground)) !important;
+  transition: background-color .14s ease, color .14s ease, box-shadow .14s ease !important;
+}
+
+.qs-sidebar-item::before { display: none !important; }
+
+.qs-sidebar-item:hover {
+  background: color-mix(in srgb, var(--foreground) 5%, transparent) !important;
+  color: var(--foreground) !important;
+}
+
+.qs-sidebar-item[data-active="true"] {
+  background: color-mix(in srgb, var(--restaurant-selected-nav, var(--primary)) 11%, var(--card)) !important;
+  color: var(--restaurant-selected-nav, var(--primary)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--restaurant-selected-nav, var(--primary)) 18%, transparent) !important;
+}
+
+.qs-sidebar-item[data-active="true"] svg {
+  color: currentColor !important;
+}
+
+/* Controls */
+.qs-control,
+.qs-app input:not([type="checkbox"]):not([type="radio"]),
+.qs-app textarea,
+.qs-app select {
+  border-radius: var(--qs-r-sm) !important;
+}
+
+.qs-control:focus-within,
+.qs-app input:focus,
+.qs-app textarea:focus,
+.qs-app select:focus {
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--border)) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 9%, transparent) !important;
+}
+
+.qs-chip {
+  min-height: 42px !important;
+  border-radius: 12px !important;
+  padding-inline: .9rem !important;
+}
+
+.qs-chip[data-active="true"] {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--border)) !important;
+  background: color-mix(in srgb, var(--primary) 9%, var(--card)) !important;
+  color: var(--primary) !important;
+}
+
+/* Tables */
+.qs-table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.qs-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 48px !important;
+  padding: .78rem 1rem !important;
+  background: color-mix(in srgb, var(--muted) 76%, var(--card)) !important;
+  color: var(--muted-foreground) !important;
+  font-size: .68rem !important;
+  font-weight: 760 !important;
+  letter-spacing: .015em;
+  white-space: nowrap;
+}
+
+.qs-table td {
+  padding: .9rem 1rem !important;
+  font-size: .8rem !important;
+}
+
+.qs-table tbody tr {
+  transition: background-color .14s ease, box-shadow .14s ease !important;
+}
+
+.qs-table tbody tr:hover {
+  background: color-mix(in srgb, var(--primary) 3.5%, var(--card)) !important;
+}
+
+/* Statuses and icon wells */
+.qs-status {
+  min-height: 27px;
+  padding: .34rem .64rem !important;
+  font-size: .66rem !important;
+  font-weight: 760 !important;
+}
+
+.qs-stat-icon,
+.qs-quick-icon {
+  border-radius: 14px !important;
+}
+
+/* Dialogs/sheets */
+.qs-app [role="dialog"] {
+  border-radius: 22px !important;
+  border-color: color-mix(in srgb, var(--border) 88%, transparent) !important;
+  box-shadow: var(--qs-shadow-float) !important;
+}
+
+.qs-app [data-slot="dialog-header"] {
+  gap: .4rem;
+}
+
+/* Empty states become intentional, not blank. */
+.qs-card > div:only-child:has(> svg),
+.qs-card > div:only-child:has(> div > svg) {
+  min-height: 220px;
+}
+
+/* Tablet */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  :root { --qs-shell-sidebar: 208px; }
+  .qs-page { padding: 24px 24px 46px !important; }
+  .qs-sidebar-item { font-size: .8rem !important; }
+}
+
+/* Mobile / tablet navigation */
+@media (max-width: 1023px) {
+  .qs-page {
+    padding: 20px 16px calc(104px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .qs-page-title {
+    font-size: clamp(1.7rem, 7vw, 2.15rem) !important;
+  }
+
+  .qs-page-subtitle {
+    font-size: .84rem !important;
+  }
+
+  .qs-topbar {
+    min-height: 64px !important;
+  }
+
+  .qs-topbar > div {
+    min-height: 64px;
+  }
+
+  .qs-card,
+  .panel,
+  .qs-stat,
+  .qs-right-panel {
+    border-radius: 16px !important;
+  }
+
+  .qs-app nav.safe-bottom > div {
+    border-radius: 22px !important;
+    border-color: color-mix(in srgb, var(--border) 86%, transparent) !important;
+    background: color-mix(in srgb, var(--card) 94%, transparent) !important;
+    box-shadow: 0 18px 50px rgb(15 23 42 / .18) !important;
+    backdrop-filter: blur(22px) saturate(1.08);
+    -webkit-backdrop-filter: blur(22px) saturate(1.08);
+  }
+
+  .qs-app nav.safe-bottom a {
+    min-height: 68px !important;
+    border-radius: 16px;
+  }
+
+  .qs-table thead th { position: static; }
+}
+
+@media (max-width: 640px) {
+  .qs-page {
+    padding-inline: 12px !important;
+  }
+
+  .qs-page > header {
+    gap: 14px !important;
+  }
+
+  .qs-card {
+    box-shadow: 0 1px 2px rgb(15 23 42 / .025), 0 6px 18px rgb(15 23 42 / .035) !important;
+  }
+
+  .qs-panel-header {
+    padding: 16px !important;
+  }
+
+  .qs-chip {
+    min-height: 40px !important;
+    padding-inline: .75rem !important;
+  }
+
+  .qs-app [role="dialog"] {
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    border-radius: 20px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qs-stat,
+  .qs-sidebar-item,
+  .qs-card,
+  .qs-chip {
+    transition: none !important;
+    transform: none !important;
+  }
+}
