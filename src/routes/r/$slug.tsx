@@ -188,7 +188,7 @@ function DinerPage() {
             lines: cart,
             notes: orderNotes,
             guest,
-            deliveryAddress: effectiveFulfillment === "delivery" ? deliveryAddress : undefined,
+            ...(effectiveFulfillment === "delivery" ? { deliveryAddress } : {}),
             scheduledFor: scheduledFor ? new Date(scheduledFor).toISOString() : null,
           });
       setPlaced(result);
