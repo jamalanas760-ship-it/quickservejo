@@ -137,14 +137,14 @@ export function BottomNav() {
       <span className="truncate text-sm font-bold">{restaurant?.name}</span>
     </span>
   ) : (
-    <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-[18px] text-foreground" />
+    <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-[18px] text-white" />
   );
 
   return (
     <>
       <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden flex-col lg:flex">
         <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-4">
-          <Link to={homeTo as never} className="min-w-0 text-foreground" aria-label={restaurant?.name || "QuickServe dashboard"}>{brand}</Link>
+          <Link to={homeTo as never} className="min-w-0 text-white" aria-label={restaurant?.name || "QuickServe dashboard"}>{brand}</Link>
         </div>
 
         <nav className="qs-scroll flex-1 overflow-y-auto px-3 py-4" aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"}>
@@ -157,7 +157,7 @@ export function BottomNav() {
               const showGroup = managerial && item.group && item.group !== previousGroup;
               return (
                 <li key={`${item.to}-${item.en}`} className={showGroup && index > 0 ? "mt-5" : ""}>
-                  {showGroup ? <p className="mb-2 px-3 text-[9px] font-extrabold uppercase tracking-[.14em] text-muted-foreground/70">{groupLabel(item.group!)}</p> : null}
+                  {showGroup ? <p className="mb-2 px-3 text-[9px] font-extrabold uppercase tracking-[.14em] text-white/40">{groupLabel(item.group!)}</p> : null}
                   <Link to={item.to as never} data-active={active} className="qs-sidebar-item" aria-current={active ? "page" : undefined}>
                     <Icon className="size-[18px] shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{lang === "ar" ? item.ar : item.en}</span>
@@ -171,7 +171,7 @@ export function BottomNav() {
 
         {managerial ? (
           <div className="p-3">
-            <div className="rounded-[18px] border border-border/70 bg-card/70 p-4 text-muted-foreground">
+            <div className="qs-sidebar-support rounded-[18px] border p-4">
               <span className="grid size-8 place-items-center rounded-full bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><BriefcaseBusiness className="size-4" /></span>
               <p className="mt-3 text-[12px] font-medium leading-5">{lang === "ar" ? "المهام والموافقات وERP حسب مسؤولياتك." : "Tasks, approvals and ERP are scoped to your responsibilities."}</p>
             </div>
