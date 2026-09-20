@@ -23,7 +23,9 @@ import { Route as AuthenticatedAutomationsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedBookingsRouteImport } from './routes/_authenticated/bookings'
 import { Route as AuthenticatedCashierRouteImport } from './routes/_authenticated/cashier'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedGuestsRouteImport } from './routes/_authenticated/guests'
 import { Route as AuthenticatedHostRouteImport } from './routes/_authenticated/host'
+import { Route as AuthenticatedHqRouteImport } from './routes/_authenticated/hq'
 import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
 import { Route as AuthenticatedManageRouteRouteImport } from './routes/_authenticated/manage/route'
 import { Route as AuthenticatedManagerRouteImport } from './routes/_authenticated/manager'
@@ -46,6 +48,7 @@ import { Route as AuthenticatedManageRestaurantIdRouteRouteImport } from './rout
 import { Route as AuthenticatedSuperAdminIndexRouteImport } from './routes/_authenticated/super-admin/index'
 import { Route as AuthenticatedSuperAdminAnalyticsRouteImport } from './routes/_authenticated/super-admin/analytics'
 import { Route as AuthenticatedSuperAdminAuditLogsRouteImport } from './routes/_authenticated/super-admin/audit-logs'
+import { Route as AuthenticatedSuperAdminHealthRouteImport } from './routes/_authenticated/super-admin/health'
 import { Route as AuthenticatedSuperAdminLicensesRouteImport } from './routes/_authenticated/super-admin/licenses'
 import { Route as AuthenticatedSuperAdminOrdersRouteImport } from './routes/_authenticated/super-admin/orders'
 import { Route as AuthenticatedSuperAdminSettingsRouteImport } from './routes/_authenticated/super-admin/settings'
@@ -143,9 +146,19 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedGuestsRoute = AuthenticatedGuestsRouteImport.update({
+  id: '/guests',
+  path: '/guests',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedHostRoute = AuthenticatedHostRouteImport.update({
   id: '/host',
   path: '/host',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedHqRoute = AuthenticatedHqRouteImport.update({
+  id: '/hq',
+  path: '/hq',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedKitchenRoute = AuthenticatedKitchenRouteImport.update({
@@ -266,6 +279,12 @@ const AuthenticatedSuperAdminAuditLogsRoute =
   AuthenticatedSuperAdminAuditLogsRouteImport.update({
     id: '/audit-logs',
     path: '/audit-logs',
+    getParentRoute: () => AuthenticatedSuperAdminRouteRoute,
+  } as any)
+const AuthenticatedSuperAdminHealthRoute =
+  AuthenticatedSuperAdminHealthRouteImport.update({
+    id: '/health',
+    path: '/health',
     getParentRoute: () => AuthenticatedSuperAdminRouteRoute,
   } as any)
 const AuthenticatedSuperAdminLicensesRoute =
@@ -437,7 +456,9 @@ export interface FileRoutesByFullPath {
   '/bookings': typeof AuthenticatedBookingsRoute
   '/cashier': typeof AuthenticatedCashierRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/guests': typeof AuthenticatedGuestsRoute
   '/host': typeof AuthenticatedHostRoute
+  '/hq': typeof AuthenticatedHqRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/manager': typeof AuthenticatedManagerRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -456,6 +477,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/$metric': typeof AuthenticatedDashboardMetricRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
+  '/super-admin/health': typeof AuthenticatedSuperAdminHealthRoute
   '/super-admin/licenses': typeof AuthenticatedSuperAdminLicensesRoute
   '/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
   '/super-admin/settings': typeof AuthenticatedSuperAdminSettingsRoute
@@ -497,7 +519,9 @@ export interface FileRoutesByTo {
   '/bookings': typeof AuthenticatedBookingsRoute
   '/cashier': typeof AuthenticatedCashierRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/guests': typeof AuthenticatedGuestsRoute
   '/host': typeof AuthenticatedHostRoute
+  '/hq': typeof AuthenticatedHqRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/manager': typeof AuthenticatedManagerRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -515,6 +539,7 @@ export interface FileRoutesByTo {
   '/dashboard/$metric': typeof AuthenticatedDashboardMetricRoute
   '/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
+  '/super-admin/health': typeof AuthenticatedSuperAdminHealthRoute
   '/super-admin/licenses': typeof AuthenticatedSuperAdminLicensesRoute
   '/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
   '/super-admin/settings': typeof AuthenticatedSuperAdminSettingsRoute
@@ -559,7 +584,9 @@ export interface FileRoutesById {
   '/_authenticated/bookings': typeof AuthenticatedBookingsRoute
   '/_authenticated/cashier': typeof AuthenticatedCashierRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/guests': typeof AuthenticatedGuestsRoute
   '/_authenticated/host': typeof AuthenticatedHostRoute
+  '/_authenticated/hq': typeof AuthenticatedHqRoute
   '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
   '/_authenticated/manager': typeof AuthenticatedManagerRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
@@ -578,6 +605,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard_/$metric': typeof AuthenticatedDashboardMetricRoute
   '/_authenticated/super-admin/analytics': typeof AuthenticatedSuperAdminAnalyticsRoute
   '/_authenticated/super-admin/audit-logs': typeof AuthenticatedSuperAdminAuditLogsRoute
+  '/_authenticated/super-admin/health': typeof AuthenticatedSuperAdminHealthRoute
   '/_authenticated/super-admin/licenses': typeof AuthenticatedSuperAdminLicensesRoute
   '/_authenticated/super-admin/orders': typeof AuthenticatedSuperAdminOrdersRoute
   '/_authenticated/super-admin/settings': typeof AuthenticatedSuperAdminSettingsRoute
@@ -623,7 +651,9 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/cashier'
     | '/dashboard'
+    | '/guests'
     | '/host'
+    | '/hq'
     | '/kitchen'
     | '/manager'
     | '/notifications'
@@ -642,6 +672,7 @@ export interface FileRouteTypes {
     | '/dashboard/$metric'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
+    | '/super-admin/health'
     | '/super-admin/licenses'
     | '/super-admin/orders'
     | '/super-admin/settings'
@@ -683,7 +714,9 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/cashier'
     | '/dashboard'
+    | '/guests'
     | '/host'
+    | '/hq'
     | '/kitchen'
     | '/manager'
     | '/notifications'
@@ -701,6 +734,7 @@ export interface FileRouteTypes {
     | '/dashboard/$metric'
     | '/super-admin/analytics'
     | '/super-admin/audit-logs'
+    | '/super-admin/health'
     | '/super-admin/licenses'
     | '/super-admin/orders'
     | '/super-admin/settings'
@@ -744,7 +778,9 @@ export interface FileRouteTypes {
     | '/_authenticated/bookings'
     | '/_authenticated/cashier'
     | '/_authenticated/dashboard'
+    | '/_authenticated/guests'
     | '/_authenticated/host'
+    | '/_authenticated/hq'
     | '/_authenticated/kitchen'
     | '/_authenticated/manager'
     | '/_authenticated/notifications'
@@ -763,6 +799,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard_/$metric'
     | '/_authenticated/super-admin/analytics'
     | '/_authenticated/super-admin/audit-logs'
+    | '/_authenticated/super-admin/health'
     | '/_authenticated/super-admin/licenses'
     | '/_authenticated/super-admin/orders'
     | '/_authenticated/super-admin/settings'
@@ -911,11 +948,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/guests': {
+      id: '/_authenticated/guests'
+      path: '/guests'
+      fullPath: '/guests'
+      preLoaderRoute: typeof AuthenticatedGuestsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/host': {
       id: '/_authenticated/host'
       path: '/host'
       fullPath: '/host'
       preLoaderRoute: typeof AuthenticatedHostRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/hq': {
+      id: '/_authenticated/hq'
+      path: '/hq'
+      fullPath: '/hq'
+      preLoaderRoute: typeof AuthenticatedHqRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/kitchen': {
@@ -1070,6 +1121,13 @@ declare module '@tanstack/react-router' {
       path: '/audit-logs'
       fullPath: '/super-admin/audit-logs'
       preLoaderRoute: typeof AuthenticatedSuperAdminAuditLogsRouteImport
+      parentRoute: typeof AuthenticatedSuperAdminRouteRoute
+    }
+    '/_authenticated/super-admin/health': {
+      id: '/_authenticated/super-admin/health'
+      path: '/health'
+      fullPath: '/super-admin/health'
+      preLoaderRoute: typeof AuthenticatedSuperAdminHealthRouteImport
       parentRoute: typeof AuthenticatedSuperAdminRouteRoute
     }
     '/_authenticated/super-admin/licenses': {
@@ -1335,6 +1393,7 @@ const AuthenticatedSuperAdminRestaurantsRestaurantIdRouteRouteWithChildren =
 interface AuthenticatedSuperAdminRouteRouteChildren {
   AuthenticatedSuperAdminAnalyticsRoute: typeof AuthenticatedSuperAdminAnalyticsRoute
   AuthenticatedSuperAdminAuditLogsRoute: typeof AuthenticatedSuperAdminAuditLogsRoute
+  AuthenticatedSuperAdminHealthRoute: typeof AuthenticatedSuperAdminHealthRoute
   AuthenticatedSuperAdminLicensesRoute: typeof AuthenticatedSuperAdminLicensesRoute
   AuthenticatedSuperAdminOrdersRoute: typeof AuthenticatedSuperAdminOrdersRoute
   AuthenticatedSuperAdminSettingsRoute: typeof AuthenticatedSuperAdminSettingsRoute
@@ -1351,6 +1410,7 @@ const AuthenticatedSuperAdminRouteRouteChildren: AuthenticatedSuperAdminRouteRou
       AuthenticatedSuperAdminAnalyticsRoute,
     AuthenticatedSuperAdminAuditLogsRoute:
       AuthenticatedSuperAdminAuditLogsRoute,
+    AuthenticatedSuperAdminHealthRoute: AuthenticatedSuperAdminHealthRoute,
     AuthenticatedSuperAdminLicensesRoute: AuthenticatedSuperAdminLicensesRoute,
     AuthenticatedSuperAdminOrdersRoute: AuthenticatedSuperAdminOrdersRoute,
     AuthenticatedSuperAdminSettingsRoute: AuthenticatedSuperAdminSettingsRoute,
@@ -1378,7 +1438,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBookingsRoute: typeof AuthenticatedBookingsRoute
   AuthenticatedCashierRoute: typeof AuthenticatedCashierRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedGuestsRoute: typeof AuthenticatedGuestsRoute
   AuthenticatedHostRoute: typeof AuthenticatedHostRoute
+  AuthenticatedHqRoute: typeof AuthenticatedHqRoute
   AuthenticatedKitchenRoute: typeof AuthenticatedKitchenRoute
   AuthenticatedManagerRoute: typeof AuthenticatedManagerRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
@@ -1398,7 +1460,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBookingsRoute: AuthenticatedBookingsRoute,
   AuthenticatedCashierRoute: AuthenticatedCashierRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedGuestsRoute: AuthenticatedGuestsRoute,
   AuthenticatedHostRoute: AuthenticatedHostRoute,
+  AuthenticatedHqRoute: AuthenticatedHqRoute,
   AuthenticatedKitchenRoute: AuthenticatedKitchenRoute,
   AuthenticatedManagerRoute: AuthenticatedManagerRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
