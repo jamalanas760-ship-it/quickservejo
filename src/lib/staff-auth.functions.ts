@@ -75,7 +75,7 @@ export const issueStaffAccess = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await assertStaffCredentialScope(supabaseAdmin, row.auth_user_id, row.restaurant_id, isPlatformOwner, true);
-    const restaurant = await supabaseAdmin
+    const restaurant = await (supabaseAdmin as any)
       .from("restaurants")
       .select("staff_code")
       .eq("id", row.restaurant_id)
@@ -84,7 +84,7 @@ export const issueStaffAccess = createServerFn({ method: "POST" })
 
     const pin = randomDigits(6);
     const loginCode = randomToken();
-    const upserted = await supabaseAdmin.from("staff_credentials").upsert(
+    const upserted = await (supabaseAdmin as any).from("staff_credentials").upsert(
       {
         staff_id: row.id,
         restaurant_id: row.restaurant_id,
@@ -124,12 +124,12 @@ export const getStaffAccess = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await assertStaffCredentialScope(supabaseAdmin, row.auth_user_id, row.restaurant_id, isPlatformOwner, true);
     const [creds, restaurant] = await Promise.all([
-      supabaseAdmin
+      (supabaseAdmin as any)
         .from("staff_credentials")
         .select("pin_hash, login_code")
         .eq("staff_id", row.id)
         .maybeSingle(),
-      supabaseAdmin.from("restaurants").select("staff_code").eq("id", row.restaurant_id).single(),
+      (supabaseAdmin as any).from("restaurants").select("staff_code").eq("id", row.restaurant_id).single(),
     ]);
     if (creds.error) throw creds.error;
 
@@ -163,7 +163,7 @@ export const staffPinSignIn = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const code = data.restaurantCode.toUpperCase();
 
-    const restaurant = await supabaseAdmin
+    const restaurant = await (supabaseAdmin as any)
       .from("restaurants")
       .select("id, is_active, archived_at")
       .eq("staff_code", code)
@@ -173,7 +173,7 @@ export const staffPinSignIn = createServerFn({ method: "POST" })
       throw new Error("Wrong restaurant code or PIN");
     }
 
-    const creds = await supabaseAdmin
+    const creds = await (supabaseAdmin as any)
       .from("staff_credentials")
       .select("staff_id, pin_hash")
       .eq("restaurant_id", restaurant.data.id)
@@ -205,7 +205,7 @@ export const staffBadgeSignIn = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => badgeSignIn.parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const creds = await supabaseAdmin
+    const creds = await (supabaseAdmin as any)
       .from("staff_credentials")
       .select("staff_id")
       .eq("login_code", data.code)
@@ -220,7 +220,7 @@ export const staffBadgeSignIn = createServerFn({ method: "POST" })
       .single();
     if (staff.error) throw staff.error;
     if (!staff.data.is_active || !staff.data.restaurant_id) throw new Error("This badge is no longer valid");
-    const restaurant = await supabaseAdmin.from("restaurants").select("is_active,archived_at").eq("id", staff.data.restaurant_id).single();
+    const restaurant = await (supabaseAdmin as any).from("restaurants").select("is_active,archived_at").eq("id", staff.data.restaurant_id).single();
     if (restaurant.error) throw restaurant.error;
     if (!restaurant.data.is_active || restaurant.data.archived_at) throw new Error("This badge is no longer valid");
     await assertStaffCredentialScope(supabaseAdmin, staff.data.auth_user_id, staff.data.restaurant_id, true, true);
