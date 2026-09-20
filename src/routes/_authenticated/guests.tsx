@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Gift, HeartHandshake, Search, Sparkles, UsersRound, WalletCards } from "lucide-react";
+import { Download, Gift, HeartHandshake, Search, Sparkles, UsersRound, WalletCards } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -138,6 +138,41 @@ function GuestsPage() {
   const points = (data?.loyalty ?? []).reduce((sum, row) => sum + Number(row.points), 0);
   const activeCards = (data?.giftCards ?? []).filter((card) => card.status === "active").length;
 
+  function exportGuests() {
+    if (filtered.length === 0) return;
+
+    const headers = ar
+      ? ["الاسم", "الهاتف", "البريد الإلكتروني", "الزيارات", "الإنفاق مدى الحياة", "نقاط الولاء", "فئة الولاء", "آخر زيارة", "الموافقة التسويقية"]
+      : ["Name", "Phone", "Email", "Visits", "Lifetime spend", "Loyalty points", "Loyalty tier", "Last visit", "Marketing consent"];
+
+    const csvCell = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const rows = filtered.map((guest) => {
+      const account = loyalty.get(guest.id);
+      return [
+        guest.name ?? "",
+        guest.phone ?? "",
+        guest.email ?? "",
+        guest.visits,
+        Number(guest.lifetime_spend),
+        account?.points ?? 0,
+        account?.tier ?? "",
+        guest.last_visit_at ? new Date(guest.last_visit_at).toLocaleString(ar ? "ar-JO" : "en-US") : "",
+        guest.marketing_opt_in ? (ar ? "نعم" : "Yes") : (ar ? "لا" : "No"),
+      ];
+    });
+
+    const csv = "\uFEFF" + [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `quickserve-guests-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "الضيوف والولاء" : "Guests & Loyalty"} />
     <main className="qs-page space-y-5">
@@ -172,7 +207,10 @@ function GuestsPage() {
       <section className="overflow-hidden rounded-2xl border border-border bg-card">
         <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
           <div><h2 className="font-display text-lg font-bold">{ar ? "دليل الضيوف" : "Guest directory"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "مرتب حسب آخر زيارة." : "Sorted by most recent visit."}</p></div>
-          <div className="relative sm:w-[280px]"><Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="ps-9" placeholder={ar ? "بحث بالاسم أو الهاتف" : "Search name, phone or email"} /></div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button variant="outline" disabled={filtered.length === 0} onClick={exportGuests}><Download className="size-4" />{ar ? "تصدير CSV" : "Export CSV"}</Button>
+            <div className="relative sm:w-[280px]"><Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="ps-9" placeholder={ar ? "بحث بالاسم أو الهاتف" : "Search name, phone or email"} /></div>
+          </div>
         </div>
         {query.isPending ? <div className="p-5"><Skeleton className="h-72 rounded-2xl" /></div> : query.isError ? <p className="p-6 text-sm text-destructive">{humanError(query.error, lang)}</p> : filtered.length === 0 ? <div className="grid min-h-[260px] place-items-center p-8 text-center"><div><UsersRound className="mx-auto size-9 text-muted-foreground" /><h3 className="mt-3 font-bold">{ar ? "لا يوجد ضيوف بعد" : "No guests yet"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "عندما يشارك الضيف بياناته في الطلب سيظهر هنا." : "Guests appear here after they voluntarily share contact details at checkout."}</p></div></div> : <div className="divide-y divide-border">{filtered.map((guest) => {
           const account = loyalty.get(guest.id);
