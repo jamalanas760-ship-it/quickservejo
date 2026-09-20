@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { BellRing, CheckCircle2, Table2, UsersRound } from "lucide-react";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -72,16 +73,15 @@ function HostWorkspace() {
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "الاستقبال" : "Host"} />
     <main className="qs-page space-y-5">
-      <section>
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-[.2em] text-[#ff5a0a]">{ar ? "واجهة الاستقبال" : "Front of house"}</p>
-        <h1 className="qs-page-title">{ar ? "نظرة مباشرة على الصالة" : "Live floor overview"}</h1>
-        <p className="qs-page-subtitle max-w-2xl">{ar ? "اعرف الطاولات المتاحة والمشغولة وتنبيهات الضيوف بدون عرض أي بيانات مالية." : "See available and busy tables plus guest-service alerts without exposing financial information."}</p>
-      </section>
-
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={Table2}>{ar?"واجهة الاستقبال":"Front of House"}</MasterEyebrow>}
+        title={ar?"نظرة مباشرة على الصالة":"Live Floor Overview"}
+        description={ar?"اعرف الطاولات المتاحة والمشغولة وتنبيهات الضيوف بدون عرض أي بيانات مالية.":"See available and busy tables plus guest-service alerts without exposing financial information."}
+      />
       <section className="grid gap-3 sm:grid-cols-3">
-        <Metric icon={CheckCircle2} label={ar ? "متاحة" : "Available"} value={available} tone="green" />
-        <Metric icon={UsersRound} label={ar ? "مشغولة" : "Busy"} value={busy} tone="blue" />
-        <Metric icon={BellRing} label={ar ? "تنبيهات معلقة" : "Pending calls"} value={calls} tone="orange" />
+        <MasterKpi icon={CheckCircle2} label={ar?"متاحة":"Available"} value={String(available)} hint={ar?"جاهزة للجلوس":"Ready to seat"} tone="green"/>
+        <MasterKpi icon={UsersRound} label={ar?"مشغولة":"Busy"} value={String(busy)} hint={ar?"في الخدمة":"In service"} tone="blue"/>
+        <MasterKpi icon={BellRing} label={ar?"تنبيهات معلقة":"Pending Calls"} value={String(calls)} hint={ar?"تحتاج استجابة":"Need response"} tone={calls>0?"orange":"slate"}/>
       </section>
 
       {scope.isPending || floor.isPending ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}</div>
