@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { MasterKpi } from "@/components/app/MasterPage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -503,11 +504,11 @@ function KitchenPage() {
 
   return (
     <div className="min-h-screen bg-background pb-16">
-      <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto max-w-[1800px] space-y-3 px-4 py-3">
+      <header className="sticky top-0 z-20 border-b border-border/80 bg-card/96 shadow-[0_8px_28px_rgba(15,23,42,.04)] backdrop-blur-xl">
+        <div className="mx-auto max-w-[1800px] space-y-3 px-4 py-3 sm:px-5">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
             <div className="min-w-0">
-              <h1 className="truncate text-xl font-bold tracking-tight sm:text-2xl">
+              <h1 className="truncate font-display text-xl font-bold tracking-[-.035em] sm:text-2xl">
                 {ar ? "شاشة المطبخ" : "Kitchen display"}
               </h1>
               <p className="mt-0.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -639,7 +640,7 @@ function KitchenPage() {
 
           {/* View switcher + search */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-full bg-muted p-1">
+            <div className="flex rounded-xl border border-border/80 bg-muted/55 p-1">
               {(
                 [
                   { key: "board", icon: LayoutGrid, en: "Board", ar: "لوحة" },
@@ -652,7 +653,7 @@ function KitchenPage() {
                   type="button"
                   onClick={() => setPref("view", v.key)}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
+                    "flex items-center gap-1.5 rounded-[9px] px-3 py-1.5 text-xs font-bold transition-colors",
                     prefs.view === v.key
                       ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground",
@@ -672,7 +673,7 @@ function KitchenPage() {
                 placeholder={
                   ar ? "بحث برقم الطلب أو الطاولة أو الطبق" : "Search order, table or item"
                 }
-                className="h-9 rounded-full ps-9 pe-9"
+                className="h-9 rounded-xl ps-9 pe-9"
               />
               {search ? (
                 <button
@@ -687,7 +688,7 @@ function KitchenPage() {
 
             {sections.length > 0 ? (
               <Select value={section} onValueChange={setSection}>
-                <SelectTrigger className="h-9 w-44 rounded-full">
+                <SelectTrigger className="h-9 w-44 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -703,7 +704,7 @@ function KitchenPage() {
 
             {options.length > 1 ? (
               <Select value={activeId ?? ""} onValueChange={setRestaurantId}>
-                <SelectTrigger className="h-9 w-52 rounded-full">
+                <SelectTrigger className="h-9 w-52 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -756,11 +757,18 @@ function KitchenPage() {
         </div>
       </header>
 
+      <section className="mx-auto grid max-w-[1800px] gap-3 px-4 pt-4 sm:grid-cols-2 sm:px-5 xl:grid-cols-4">
+        <MasterKpi icon={ChefHat} label={ar?"طلبات نشطة":"Active Tickets"} value={String(allRows.length)} hint={ar?"داخل المطبخ الآن":"In kitchen now"} tone="orange"/>
+        <MasterKpi icon={BellRing} label={ar?"طلبات جديدة":"New"} value={String(filterCounts.pending)} hint={ar?"تحتاج قبول":"Need acceptance"} tone="blue"/>
+        <MasterKpi icon={Timer} label={ar?"جاهزة":"Ready"} value={String(filterCounts.ready)} hint={ar?"بانتظار التقديم":"Waiting for service"} tone="green"/>
+        <MasterKpi icon={ShieldAlert} label={ar?"متأخرة":"Overdue"} value={String(overdueCount)} hint={oldest?(ar?"أقدم "+oldest.label:"Oldest "+oldest.label):(ar?"لا يوجد تأخير":"No delays")} tone={overdueCount>0?"red":"slate"}/>
+      </section>
+
       <main className="mx-auto max-w-[1800px] px-4 py-6">
         {orders.isPending ? (
           <Skeleton className="h-64 rounded-3xl" />
         ) : rows.length === 0 ? (
-          <p className="flex h-40 items-center justify-center rounded-3xl border-2 border-dashed border-border text-center text-sm text-muted-foreground">
+          <p className="flex h-40 items-center justify-center rounded-[18px] border-2 border-dashed border-border text-center text-sm text-muted-foreground">
             {ar ? "لا توجد تذاكر مطابقة" : "No tickets match the current filters"}
           </p>
         ) : prefs.view === "list" ? (
