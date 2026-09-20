@@ -8,19 +8,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 
-type SetupState = { branding: boolean; menu: boolean; tables: boolean; live: boolean };
+type SetupState = { branding: boolean; menu: boolean; tables: boolean; staff: boolean; live: boolean };
 
 function useSetupState(restaurantId: string) {
   return useQuery<SetupState>({
     queryKey: ["restaurant-setup", restaurantId],
     queryFn: async () => {
-      const [rest, categories, items, tables] = await Promise.all([
+      const [rest, categories, items, tables, staff] = await Promise.all([
         supabase.from("restaurants").select("logo_url, cover_image_url, is_active").eq("id", restaurantId).maybeSingle(),
         supabase.from("menu_categories").select("id", { count: "exact", head: true }).eq("restaurant_id", restaurantId),
         supabase.from("menu_items").select("id", { count: "exact", head: true }).eq("restaurant_id", restaurantId),
         supabase.from("restaurant_tables").select("id", { count: "exact", head: true }).eq("restaurant_id", restaurantId),
+        supabase.from("staff").select("id", { count: "exact", head: true }).eq("restaurant_id", restaurantId).eq("is_active", true),
       ]);
-      return { branding: Boolean(rest.data?.logo_url || rest.data?.cover_image_url), menu: (categories.count ?? 0) > 0 || (items.count ?? 0) > 0, tables: (tables.count ?? 0) > 0, live: Boolean(rest.data?.is_active) };
+      return { branding: Boolean(rest.data?.logo_url || rest.data?.cover_image_url), menu: (items.count ?? 0) > 0, tables: (tables.count ?? 0) > 0, staff: (staff.count ?? 0) > 0, live: Boolean(rest.data?.is_active) };
     },
   });
 }
@@ -35,6 +36,7 @@ export function SetupStepper({ restaurantId }: { restaurantId: string }) {
     { key: "menu", done: data.menu, label: t("onboard.step.menu"), help: t("onboard.menu.help"), to: "/manage/$restaurantId" as const },
     { key: "tables", done: data.tables, label: t("onboard.step.tables"), help: t("onboard.tables.help"), to: "/manage/$restaurantId/tables" as const },
     { key: "qr", done: data.tables, label: t("onboard.step.qr"), help: t("onboard.qr.help"), to: "/manage/$restaurantId/tables" as const },
+    { key: "staff", done: data.staff, label: t("onboard.step.staff"), help: t("onboard.staff.help"), to: "/manage/$restaurantId/staff" as const },
     { key: "live", done: data.live, label: t("onboard.step.live"), help: t("onboard.live.help"), to: "/manage/$restaurantId/orders" as const },
   ];
   const done = steps.filter((s) => s.done).length;

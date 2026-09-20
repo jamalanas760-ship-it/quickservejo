@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Languages, Loader2, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -77,6 +77,7 @@ function PdfOrderPage() {
   const [notes, setNotes] = useState("");
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
   const [busy, setBusy] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
 
   if (menu.isPending) {
     return (
@@ -171,6 +172,7 @@ function PdfOrderPage() {
   }
 
   async function submitOrder() {
+    if (!isOnline) { toast.error(lang === "ar" ? "لا يمكن إرسال الطلب بدون اتصال بالإنترنت." : "Reconnect to the internet before sending your order."); return; }
     if (!qrToken || !cart.length || !canOrder || belowMinimum || submitting.current) return;
 
     submitting.current = true;
@@ -430,7 +432,7 @@ function PdfOrderPage() {
             ) : null}
             <Button
               className="h-12 w-full rounded-xl"
-              disabled={busy || !cart.length || !canOrder || belowMinimum}
+              disabled={busy || !isOnline || !cart.length || !canOrder || belowMinimum}
               onClick={() => void submitOrder()}
             >
               {busy
