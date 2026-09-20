@@ -42,7 +42,7 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
   if (!restaurant) throw new Error("Restaurant not found");
 
   const [settingsRes, tableRes, categoriesRes, itemsRes, groupsRes, modifiersRes, pdfDocumentRes] = await Promise.all([
-    supabase.from("restaurant_settings").select("enable_orders, enable_waiter_calls, show_prices, allow_special_notes, minimum_order, enable_service_charge, estimated_preparation_time, enable_pickup, enable_delivery, delivery_fee, collect_guest_details, enable_loyalty").eq("restaurant_id", restaurant.id).maybeSingle(),
+    (supabase as any).from("restaurant_settings").select("enable_orders, enable_waiter_calls, show_prices, allow_special_notes, minimum_order, enable_service_charge, estimated_preparation_time, enable_pickup, enable_delivery, delivery_fee, collect_guest_details, enable_loyalty").eq("restaurant_id", restaurant.id).maybeSingle(),
     qrToken ? supabase.from("restaurant_tables").select("id, table_number, table_name").eq("restaurant_id", restaurant.id).eq("qr_token", qrToken).eq("is_active", true).maybeSingle() : Promise.resolve({ data: null, error: null }),
     supabase.from("menu_categories").select("id, name_en, name_ar").eq("restaurant_id", restaurant.id).eq("is_active", true).order("display_order", { ascending: true }),
     supabase.from("menu_items").select("id, category_id, name_en, name_ar, description_en, description_ar, price, compare_at_price, image_url, is_featured, preparation_time, is_available").eq("restaurant_id", restaurant.id).eq("is_available", true).order("display_order", { ascending: true }),
