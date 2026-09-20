@@ -21,6 +21,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
 import { Route as AuthenticatedAutomationsRouteImport } from './routes/_authenticated/automations'
 import { Route as AuthenticatedBookingsRouteImport } from './routes/_authenticated/bookings'
+import { Route as AuthenticatedCampaignsRouteImport } from './routes/_authenticated/campaigns'
 import { Route as AuthenticatedCashierRouteImport } from './routes/_authenticated/cashier'
 import { Route as AuthenticatedDailyCloseRouteImport } from './routes/_authenticated/daily-close'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -137,6 +138,11 @@ const AuthenticatedAutomationsRoute =
 const AuthenticatedBookingsRoute = AuthenticatedBookingsRouteImport.update({
   id: '/bookings',
   path: '/bookings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCampaignsRoute = AuthenticatedCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCashierRoute = AuthenticatedCashierRouteImport.update({
@@ -473,6 +479,7 @@ export interface FileRoutesByFullPath {
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/automations': typeof AuthenticatedAutomationsRoute
   '/bookings': typeof AuthenticatedBookingsRoute
+  '/campaigns': typeof AuthenticatedCampaignsRoute
   '/cashier': typeof AuthenticatedCashierRoute
   '/daily-close': typeof AuthenticatedDailyCloseRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -539,6 +546,7 @@ export interface FileRoutesByTo {
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/automations': typeof AuthenticatedAutomationsRoute
   '/bookings': typeof AuthenticatedBookingsRoute
+  '/campaigns': typeof AuthenticatedCampaignsRoute
   '/cashier': typeof AuthenticatedCashierRoute
   '/daily-close': typeof AuthenticatedDailyCloseRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -607,6 +615,7 @@ export interface FileRoutesById {
   '/_authenticated/approvals': typeof AuthenticatedApprovalsRoute
   '/_authenticated/automations': typeof AuthenticatedAutomationsRoute
   '/_authenticated/bookings': typeof AuthenticatedBookingsRoute
+  '/_authenticated/campaigns': typeof AuthenticatedCampaignsRoute
   '/_authenticated/cashier': typeof AuthenticatedCashierRoute
   '/_authenticated/daily-close': typeof AuthenticatedDailyCloseRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -677,6 +686,7 @@ export interface FileRouteTypes {
     | '/approvals'
     | '/automations'
     | '/bookings'
+    | '/campaigns'
     | '/cashier'
     | '/daily-close'
     | '/dashboard'
@@ -743,6 +753,7 @@ export interface FileRouteTypes {
     | '/approvals'
     | '/automations'
     | '/bookings'
+    | '/campaigns'
     | '/cashier'
     | '/daily-close'
     | '/dashboard'
@@ -810,6 +821,7 @@ export interface FileRouteTypes {
     | '/_authenticated/approvals'
     | '/_authenticated/automations'
     | '/_authenticated/bookings'
+    | '/_authenticated/campaigns'
     | '/_authenticated/cashier'
     | '/_authenticated/daily-close'
     | '/_authenticated/dashboard'
@@ -970,6 +982,13 @@ declare module '@tanstack/react-router' {
       path: '/bookings'
       fullPath: '/bookings'
       preLoaderRoute: typeof AuthenticatedBookingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/campaigns': {
+      id: '/_authenticated/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof AuthenticatedCampaignsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/cashier': {
@@ -1495,6 +1514,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedApprovalsRoute: typeof AuthenticatedApprovalsRoute
   AuthenticatedAutomationsRoute: typeof AuthenticatedAutomationsRoute
   AuthenticatedBookingsRoute: typeof AuthenticatedBookingsRoute
+  AuthenticatedCampaignsRoute: typeof AuthenticatedCampaignsRoute
   AuthenticatedCashierRoute: typeof AuthenticatedCashierRoute
   AuthenticatedDailyCloseRoute: typeof AuthenticatedDailyCloseRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -1519,6 +1539,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedApprovalsRoute: AuthenticatedApprovalsRoute,
   AuthenticatedAutomationsRoute: AuthenticatedAutomationsRoute,
   AuthenticatedBookingsRoute: AuthenticatedBookingsRoute,
+  AuthenticatedCampaignsRoute: AuthenticatedCampaignsRoute,
   AuthenticatedCashierRoute: AuthenticatedCashierRoute,
   AuthenticatedDailyCloseRoute: AuthenticatedDailyCloseRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
