@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellRing, CalendarCheck2, Clock3, RotateCcw, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
-import { useState } from "react";
+import { BellRing, CalendarCheck2, CalendarDays, CheckCircle2, Clock3, RotateCcw, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/nav/AppHeader";
@@ -27,6 +27,8 @@ export const Route = createFileRoute("/_authenticated/waitlist")({
 });
 
 type WaitlistStatus="waiting"|"notified"|"converted"|"cancelled"|"expired";
+type WaitlistFilter="active"|"waiting"|"notified"|"history";
+type ConversionValue={date:string;time:string};
 type WaitlistRow={
   id:string;
   customer_name:string;
@@ -45,10 +47,19 @@ type WaitlistRow={
   created_at:string;
 };
 
-function localDateTimeValue(date:string) {
+function defaultConversion(row:WaitlistRow):ConversionValue {
   const now=new Date();
-  const hh=String(Math.max(now.getHours()+1,12)%24).padStart(2,"0");
-  return `${date}T${hh}:00`;
+  const today=now.toLocaleDateString("en-CA");
+  const baseDate=row.desired_date||today;
+  let hour=18;
+  let minute=0;
+  if(baseDate===today){
+    const future=new Date(now.getTime()+60*60_000);
+    future.setMinutes(Math.ceil(future.getMinutes()/15)*15,0,0);
+    hour=future.getHours();
+    minute=future.getMinutes();
+  }
+  return {date:baseDate,time:`${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}`};
 }
 
 function WaitlistPage(){
@@ -64,7 +75,8 @@ function WaitlistPage(){
     || membershipHasCapability(membership.role,membership.permission_overrides,"manage_restaurant")
   )));
   const [search,setSearch]=useState("");
-  const [convertTimes,setConvertTimes]=useState<Record<string,string>>({});
+  const [filter,setFilter]=useState<WaitlistFilter>("active");
+  const [convertValues,setConvertValues]=useState<Record<string,ConversionValue>>({});
 
   const query=useQuery<WaitlistRow[]>({
     queryKey:["booking-waitlist",rid],
@@ -98,9 +110,9 @@ function WaitlistPage(){
 
   const convert=useMutation({
     mutationFn:async(row:WaitlistRow)=>{
-      const input=convertTimes[row.id]||localDateTimeValue(row.desired_date);
-      const date=new Date(input);
-      if(!Number.isFinite(date.getTime()))throw new Error("Choose a valid reservation time");
+      const value=convertValues[row.id]??defaultConversion(row);
+      const date=new Date(`${value.date}T${value.time}`);
+      if(!Number.isFinite(date.getTime()))throw new Error(ar?"اختر تاريخاً ووقتاً صحيحين":"Choose a valid reservation date and time");
       const {data,error}=await (supabase as any).rpc("convert_booking_waitlist",{
         _waitlist_id:row.id,
         _booking_at:date.toISOString(),
