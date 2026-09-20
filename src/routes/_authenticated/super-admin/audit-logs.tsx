@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { History } from "lucide-react";
 import { useState } from "react";
 
-import { MasterEyebrow, MasterPageHeader, MasterSection } from "@/components/app/MasterPage";
+import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
