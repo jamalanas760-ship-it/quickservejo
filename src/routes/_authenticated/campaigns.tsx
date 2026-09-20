@@ -4,6 +4,7 @@ import { CalendarClock, CheckCircle2, Mail, Megaphone, MessageSquareText, Send, 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { CrmAutomationPanel } from "@/components/crm/CrmAutomationPanel";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -128,12 +129,17 @@ function CampaignsPage() {
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"حملات العملاء":"CRM Campaigns"}/>
     <main className="qs-page space-y-5">
-      <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
-        <div className="p-6 sm:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><Megaphone className="size-3.5"/>{ar?"احتفاظ العملاء":"Retention"}</div>
-          <h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar?"تواصل فقط مع العملاء الموافقين":"Reach the right guests with explicit consent"}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{ar?"الجمهور يُحفظ كلقطة عند الجدولة، ويتم فحص الموافقة مرة أخرى لحظة الإرسال. لا يعتبر أي إرسال ناجحاً قبل تأكيد المزود.":"Audiences are snapshotted at scheduling time and consent is checked again at delivery. Nothing is counted as sent until the provider confirms it."}</p>
-        </div>
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={Megaphone}>{ar?"احتفاظ العملاء":"Retention"}</MasterEyebrow>}
+        title={ar?"حملات العملاء":"CRM Campaigns"}
+        description={ar?"أنشئ حملات موافقة وآمنة، عاين الجمهور، وجدول الإرسال مع متابعة حقيقية للنتائج.":"Build consent-safe campaigns, preview the audience, schedule delivery and monitor real provider outcomes."}
+      />
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MasterKpi icon={Megaphone} label={ar?"كل الحملات":"Campaigns"} value={(campaigns.data??[]).length} tone="slate" />
+        <MasterKpi icon={Send} label={ar?"مكتملة":"Completed"} value={(campaigns.data??[]).filter(row=>row.status==="completed").length} tone="green" />
+        <MasterKpi icon={CalendarClock} label={ar?"مجدولة":"Scheduled"} value={(campaigns.data??[]).filter(row=>row.status==="scheduled"||row.status==="processing").length} tone="blue" />
+        <MasterKpi icon={XCircle} label={ar?"تحتاج تدخل":"Needs attention"} value={(campaigns.data??[]).filter(row=>row.status==="blocked"||row.failed_count>0).length} tone={(campaigns.data??[]).some(row=>row.status==="blocked"||row.failed_count>0)?"red":"slate"} />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)]">
