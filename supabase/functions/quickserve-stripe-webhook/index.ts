@@ -33,6 +33,18 @@ Deno.serve(async(req)=>{
 
   try{
     if(event.type==="payment_intent.succeeded"){
+      const bookingDepositIntentId=metadata.quickserve_booking_deposit_intent_id;
+      if(bookingDepositIntentId){
+        await admin.rpc("record_booking_deposit_payment",{
+          _intent_id:String(bookingDepositIntentId),
+          _provider_intent_id:String(object.id),
+          _provider_transaction_id:String(object.latest_charge||object.id),
+          _provider_event_id:String(event.id),
+        });
+        await admin.rpc("complete_payment_provider_event",{_provider:"stripe",_event_id:String(event.id),_status:"processed",_error:null});
+        return json({received:true,bookingDeposit:true});
+      }
+
       const intentRecordId=metadata.quickserve_intent_id;
       if(!intentRecordId)throw new Error("Missing QuickServe intent metadata");
       await admin.rpc("record_provider_payment",{
@@ -45,6 +57,18 @@ Deno.serve(async(req)=>{
       return json({received:true});
     }
     if(event.type==="payment_intent.payment_failed"||event.type==="payment_intent.canceled"){
+      const bookingDepositIntentId=metadata.quickserve_booking_deposit_intent_id;
+      if(bookingDepositIntentId){
+        await admin.rpc("update_booking_deposit_intent_status",{
+          _intent_id:String(bookingDepositIntentId),
+          _provider_intent_id:String(object.id),
+          _status:event.type==="payment_intent.canceled"?"canceled":"failed",
+          _last_error:object.last_payment_error?.message||null,
+        });
+        await admin.rpc("complete_payment_provider_event",{_provider:"stripe",_event_id:String(event.id),_status:"processed",_error:null});
+        return json({received:true,bookingDeposit:true});
+      }
+
       const intentRecordId=metadata.quickserve_intent_id;
       if(intentRecordId)await admin.rpc("update_provider_intent_status",{
         _intent_id:intentRecordId,_provider_intent_id:String(object.id),
