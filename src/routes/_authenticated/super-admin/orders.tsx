@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, CircleDot } from "lucide-react";
+import { Check, CircleDot, ReceiptText } from "lucide-react";
 
+import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,10 +75,11 @@ function PlatformOrdersPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="qs-page-title">{t("sa.orders.title")}</h1>
-        <p className="qs-page-subtitle">{lang === "ar" ? "مراقبة وتتبع فقط — بدون تعديل الطلبات." : "Monitor and track only — no order editing from admin."}</p>
-      </div>
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={ReceiptText}>{lang === "ar" ? "مراقبة الطلبات" : "Order monitoring"}</MasterEyebrow>}
+        title={t("sa.orders.title")}
+        description={lang === "ar" ? "مراقبة وتتبع جميع طلبات المطاعم بدون تعديل بيانات التشغيل." : "Monitor every restaurant order across the platform without changing tenant operations."}
+      />
 
       <div className="qs-card grid items-end gap-3 p-3 sm:grid-cols-2 lg:grid-cols-5 sm:p-4">
         <FilterField label={t("sa.orders.restaurant")}>
