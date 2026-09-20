@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellRing, CalendarCheck2, CalendarDays, CheckCircle2, Clock3, RotateCcw, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/nav/AppHeader";
@@ -142,17 +142,15 @@ function WaitlistPage(){
   const today=new Date().toLocaleDateString("en-CA");
   const todayCount=active.filter(row=>row.desired_date===today).length;
   const oldestMinutes=active.length?Math.max(...active.map(row=>Math.max(0,Math.floor((Date.now()-new Date(row.created_at).getTime())/60_000)))):0;
-  const rows=useMemo(()=>{
-    const needle=search.trim().toLowerCase();
-    return all.filter(row=>{
-      const matchSearch=!needle||[row.customer_name,row.phone,row.email,row.occasion,row.status,row.source].filter(Boolean).join(" ").toLowerCase().includes(needle);
-      if(!matchSearch)return false;
-      if(filter==="active")return row.status==="waiting"||row.status==="notified";
-      if(filter==="waiting")return row.status==="waiting";
-      if(filter==="notified")return row.status==="notified";
-      return !["waiting","notified"].includes(row.status);
-    });
-  },[all,filter,search]);
+  const needle=search.trim().toLowerCase();
+  const rows=all.filter(row=>{
+    const matchSearch=!needle||[row.customer_name,row.phone,row.email,row.occasion,row.status,row.source].filter(Boolean).join(" ").toLowerCase().includes(needle);
+    if(!matchSearch)return false;
+    if(filter==="active")return row.status==="waiting"||row.status==="notified";
+    if(filter==="waiting")return row.status==="waiting";
+    if(filter==="notified")return row.status==="notified";
+    return !["waiting","notified"].includes(row.status);
+  });
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}/>
