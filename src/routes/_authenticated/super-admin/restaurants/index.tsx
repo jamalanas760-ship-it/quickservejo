@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Archive, ChevronDown, ChevronRight, ExternalLink, MapPin, MoreHorizontal, Pencil, Plus, Search, Settings, Store, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
+import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,7 +31,12 @@ function RestaurantsPage(){
   async function archive(id:string,name:string){if(!confirm(ar?`أرشفة ${name}؟`:`Archive ${name}?`))return;try{const {error}=await supabase.from("restaurants").update({archived_at:new Date().toISOString(),is_active:false}).eq("id",id);if(error)throw error;await qc.invalidateQueries({queryKey:["platform","restaurants"]});toast.success(ar?"تمت أرشفة الفرع":"Branch archived");}catch(error){toast.error(humanError(error,lang));}}
 
   return <div className="space-y-5">
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="qs-page-title">{ar?"الفروع / المطاعم":"Branches / Restaurants"}</h1><p className="qs-page-subtitle">{ar?"أدر جميع مواقع مطاعمك من مكان واحد.":"Manage all your restaurant locations from one place."}</p></div><Link to="/super-admin/restaurants/new" className="qs-button-primary"><Plus className="size-4" />{ar?"إضافة فرع":"Add Branch"}</Link></header>
+    <MasterPageHeader
+      eyebrow={<MasterEyebrow icon={Store}>{ar?"إدارة المستأجرين":"Tenant management"}</MasterEyebrow>}
+      title={ar?"الفروع / المطاعم":"Branches / Restaurants"}
+      description={ar?"أدر جميع مواقع المطاعم، حالتها وأدائها من مساحة تشغيل واحدة.":"Manage restaurant locations, status and performance from one operational workspace."}
+      actions={<Button asChild><Link to="/super-admin/restaurants/new"><Plus className="size-4" />{ar?"إضافة فرع":"Add Branch"}</Link></Button>}
+    />
 
     <div className={cn("grid gap-4",selected?"xl:grid-cols-[minmax(0,1fr)_350px]":"grid-cols-1")}>
       <section className="qs-card min-w-0 overflow-hidden">
