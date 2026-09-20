@@ -20,6 +20,7 @@ import { useI18n } from "@/lib/i18n";
 export type RecordRequest =
   | { kind: "item" }
   | { kind: "supplier" }
+  | { kind: "procurement"; itemId?: string }
   | { kind: "expense" }
   | { kind: "receive"; itemId?: string }
   | { kind: "issue"; itemId?: string };
@@ -62,9 +63,11 @@ export function RecordDialog({
       ? t("bo.form.item")
       : request.kind === "supplier"
         ? t("bo.form.supplier")
-        : request.kind === "expense"
-          ? t("bo.form.expense")
-          : request.kind === "receive"
+        : request.kind === "procurement"
+          ? (ar ? "طلب شراء" : "Procurement request")
+          : request.kind === "expense"
+            ? t("bo.form.expense")
+            : request.kind === "receive"
             ? t("bo.form.receive")
             : t("bo.form.issue");
 
@@ -84,6 +87,21 @@ export function RecordDialog({
         await write.mutateAsync({ kind: "item", name: text("name"), unit: text("unit"), reorder_level: number("reorder") });
       } else if (request.kind === "supplier") {
         await write.mutateAsync({ kind: "supplier", name: text("name"), contact: text("contact") });
+      } else if (request.kind === "procurement") {
+        const itemId = text("item");
+        const item = inventory.find((row) => row.id === itemId);
+        if (!item) throw new Error(ar ? "اختر مادة مخزون" : "Choose an inventory item");
+        await write.mutateAsync({
+          kind: "procurement",
+          item_id: item.id,
+          item_name_snapshot: item.name,
+          quantity: Math.abs(number("quantity")),
+          unit: item.unit,
+          estimated_unit_cost: Math.max(0, number("estimatedCost")),
+          supplier_id: text("supplier") || null,
+          needed_by: text("neededBy") || null,
+          notes: text("notes"),
+        });
       } else if (request.kind === "expense") {
         await write.mutateAsync({ kind: "expense", description: text("description"), category: text("category"), amount: number("amount"), expense_date: text("date"), reference: text("reference") });
       } else {
@@ -120,6 +138,15 @@ export function RecordDialog({
         <DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>{t("bo.form.check")}</DialogDescription></DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           {request?.kind === "item" || request?.kind === "supplier" ? <label className="block space-y-2 text-sm"><span>{t("bo.form.name")}</span><Input name="name" required maxLength={160} autoComplete="off" /></label> : null}
+
+          {request?.kind === "procurement" ? <div className="space-y-4">
+            <div className="rounded-2xl border border-border bg-muted/35 p-4"><p className="text-sm font-bold">{ar ? "مسار شراء منظم" : "Structured purchase request"}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar ? "يُرسل الطلب للموافقة، ثم الشراء، ثم الاستلام. عند الاستلام يتم تحديث المخزون وتسجيل المصروف المالي تلقائياً." : "The request moves through approval, ordering and receiving. Receiving updates inventory and posts the Finance expense automatically."}</p></div>
+            <label className="block space-y-2 text-sm"><span>{ar ? "مادة المخزون" : "Inventory item"}</span><select name="item" className={selectClass} required defaultValue={defaultItem ?? ""}><option value="" disabled>{ar ? "اختر مادة" : "Choose an item"}</option>{inventory.map((item) => <option value={item.id} key={item.id}>{item.name} ({item.unit})</option>)}</select></label>
+            <div className="grid gap-4 sm:grid-cols-2"><label className="block space-y-2 text-sm"><span>{ar ? "الكمية" : "Quantity"}</span><Input required name="quantity" type="number" min="0.001" step="0.001" /></label><label className="block space-y-2 text-sm"><span>{ar ? "سعر الوحدة التقديري" : "Estimated unit cost"} ({currency})</span><Input required name="estimatedCost" type="number" min="0" step="0.001" defaultValue="0" /></label></div>
+            <label className="block space-y-2 text-sm"><span>{ar ? "المورد" : "Supplier"}</span><select name="supplier" className={selectClass}><option value="">{ar ? "غير محدد بعد" : "Not selected yet"}</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
+            <label className="block space-y-2 text-sm"><span>{ar ? "مطلوب قبل" : "Needed by"}</span><Input name="neededBy" type="date" /></label>
+            <label className="block space-y-2 text-sm"><span>{ar ? "ملاحظات" : "Notes"}</span><Input name="notes" maxLength={500} /></label>
+          </div> : null}
 
           {request?.kind === "item" ? <><label className="block space-y-2 text-sm"><span>{t("bo.inv.unit")}</span><select name="unit" className={selectClass}>{ERP_UNITS.map((unit) => <option key={unit}>{unit}</option>)}</select></label><label className="block space-y-2 text-sm"><span>{t("bo.form.reorderLevel")}</span><Input name="reorder" required type="number" min="0" step="0.001" defaultValue="0" /></label></> : null}
           {request?.kind === "supplier" ? <label className="block space-y-2 text-sm"><span>{t("bo.sup.contact")}</span><Input name="contact" maxLength={250} /></label> : null}

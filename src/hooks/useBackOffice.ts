@@ -9,12 +9,13 @@ import {
   sumBy,
   type Expense,
   type InventoryBalance,
+  type ProcurementRequest,
   type StockMovement,
   type Supplier,
 } from "@/lib/erp";
 import { logAudit } from "@/lib/audit";
 
-export type BackOfficeData = { inventory: InventoryBalance[]; suppliers: Supplier[]; movements: StockMovement[]; expenses: Expense[] };
+export type BackOfficeData = { inventory: InventoryBalance[]; suppliers: Supplier[]; movements: StockMovement[]; expenses: Expense[]; procurement: ProcurementRequest[] };
 export type BackOfficeAccess = { inventory: boolean; procurement: boolean; finance: boolean };
 
 export function backOfficeKey(restaurantId: string) { return ["back-office", restaurantId] as const; }
@@ -25,13 +26,16 @@ export function useBackOffice(restaurantId: string, access: BackOfficeAccess, en
     enabled: enabled && Boolean(restaurantId) && (access.inventory || access.procurement || access.finance),
     staleTime: 15_000,
     queryFn: async () => {
-      const [inventory, suppliers, movements, expenses] = await Promise.all([
-        access.inventory ? erpSelect<InventoryBalance>("erp_inventory_balances", (q) => q.select("id,name,unit,reorder_level,quantity").eq("restaurant_id", restaurantId).order("name").limit(2000)) : Promise.resolve([]),
-        access.procurement || access.inventory ? erpSelect<Supplier>("erp_suppliers", (q) => q.select("id,name,contact,created_at").eq("restaurant_id", restaurantId).order("name").limit(1000)) : Promise.resolve([]),
-        access.inventory ? erpSelect<StockMovement>("erp_stock_movements", (q) => q.select("id,item_id,supplier_id,quantity,unit_cost,total_cost,movement_type,finance_expense_id,reason,created_at").eq("restaurant_id", restaurantId).order("created_at", { ascending: false }).limit(500)) : Promise.resolve([]),
+      const [inventory, suppliers, movements, expenses, procurement] = await Promise.all([
+        (access.inventory || access.procurement || access.finance) ? erpSelect<InventoryBalance>("erp_inventory_balances", (q) => q.select("id,name,unit,reorder_level,quantity").eq("restaurant_id", restaurantId).order("name").limit(2000)) : Promise.resolve([]),
+        (access.procurement || access.inventory || access.finance) ? erpSelect<Supplier>("erp_suppliers", (q) => q.select("id,name,contact,created_at").eq("restaurant_id", restaurantId).order("name").limit(1000)) : Promise.resolve([]),
+        (access.inventory || access.procurement || access.finance) ? erpSelect<StockMovement>("erp_stock_movements", (q) => q.select("id,item_id,supplier_id,quantity,unit_cost,total_cost,movement_type,finance_expense_id,reason,created_at").eq("restaurant_id", restaurantId).order("created_at", { ascending: false }).limit(500)) : Promise.resolve([]),
         access.finance ? erpSelect<Expense>("erp_expenses", (q) => q.select("id,description,category,amount,expense_date,reference,source_type,source_id,supplier_id,created_at").eq("restaurant_id", restaurantId).order("expense_date", { ascending: false }).limit(500)) : Promise.resolve([]),
+        (access.procurement || access.inventory || access.finance)
+          ? erpSelect<ProcurementRequest>("erp_procurement_requests", (q) => q.select("id,restaurant_id,item_id,item_name_snapshot,quantity,unit,estimated_unit_cost,actual_unit_cost,supplier_id,status,needed_by,notes,po_reference,requested_by,approved_by,approved_at,ordered_at,received_at,stock_movement_id,finance_expense_id,created_at,updated_at").eq("restaurant_id", restaurantId).order("created_at", { ascending: false }).limit(1000))
+          : Promise.resolve([]),
       ]);
-      return { inventory, suppliers, movements, expenses };
+      return { inventory, suppliers, movements, expenses, procurement };
     },
   });
 }
@@ -44,6 +48,7 @@ export function backOfficeSummary(data: BackOfficeData | undefined) {
   const monthExpenses = expenses.filter((e) => e.expense_date >= monthStart);
   const lowStock = inventory.filter(isLowStock).sort((a, b) => Number(a.quantity) - Number(b.quantity) || a.name.localeCompare(b.name));
   const valuation = stockValuation(inventory, movements);
+  const procurement = data?.procurement ?? [];
   const byCategory = new Map<string, number>();
   for (const expense of monthExpenses) byCategory.set(expense.category, (byCategory.get(expense.category) ?? 0) + Number(expense.amount));
   return {
@@ -54,13 +59,19 @@ export function backOfficeSummary(data: BackOfficeData | undefined) {
     monthTotal: sumBy(monthExpenses, (e) => Number(e.amount)),
     monthCount: monthExpenses.length,
     monthByCategory: [...byCategory.entries()].sort((a, b) => b[1] - a[1]),
-    isEmpty: inventory.length === 0 && expenses.length === 0 && (data?.suppliers.length ?? 0) === 0,
+    pendingApproval: procurement.filter((row) => row.status === "requested").length,
+    pendingReceiving: procurement.filter((row) => row.status === "ordered" || row.status === "approved").length,
+    openProcurementValue: procurement
+      .filter((row) => row.status === "approved" || row.status === "ordered")
+      .reduce((sum, row) => sum + Number(row.quantity) * Number(row.estimated_unit_cost), 0),
+    isEmpty: inventory.length === 0 && expenses.length === 0 && (data?.suppliers.length ?? 0) === 0 && procurement.length === 0,
   };
 }
 
 export type BackOfficeWrite =
   | { kind: "item"; name: string; unit: string; reorder_level: number }
   | { kind: "supplier"; name: string; contact: string }
+  | { kind: "procurement"; item_id: string | null; item_name_snapshot: string; quantity: number; unit: string; estimated_unit_cost: number; supplier_id: string | null; needed_by: string | null; notes: string }
   | { kind: "expense"; description: string; category: string; amount: number; expense_date: string; reference: string }
   | { kind: "movement"; item_id: string; supplier_id: string | null; quantity: number; unit_cost: number; movement_type: "receipt" | "issue" | "adjustment" | "transfer" | "waste"; reason: string };
 
@@ -76,6 +87,19 @@ export function useBackOfficeWrite(restaurantId: string) {
       if (input.kind === "supplier") {
         await erpInsert("erp_suppliers", restaurantId, { name: input.name, contact: input.contact });
         return { action: "erp.supplier_created" as const, entity: "erp_suppliers", metadata: { name: input.name } };
+      }
+      if (input.kind === "procurement") {
+        await erpInsert("erp_procurement_requests", restaurantId, {
+          item_id: input.item_id,
+          item_name_snapshot: input.item_name_snapshot,
+          quantity: input.quantity,
+          unit: input.unit,
+          estimated_unit_cost: input.estimated_unit_cost,
+          supplier_id: input.supplier_id,
+          needed_by: input.needed_by,
+          notes: input.notes,
+        });
+        return { action: "erp.procurement_requested" as const, entity: "erp_procurement_requests", metadata: { item: input.item_name_snapshot, quantity: input.quantity, unit: input.unit } };
       }
       if (input.kind === "expense") {
         await erpInsert("erp_expenses", restaurantId, { description: input.description, category: input.category, amount: input.amount, expense_date: input.expense_date, reference: input.reference });
