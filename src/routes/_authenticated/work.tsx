@@ -88,6 +88,8 @@ export function WorkPage() {
   const canApprove = Boolean(membership && membershipHasCapability(membership.role, membership.permission_overrides, "approve_work"));
   const [tab, setTab] = useState<Tab>("mine");
   const [createOpen, setCreateOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<WorkTask | null>(null);
 
   const tasks = useQuery({
     queryKey: ["work", rid],
