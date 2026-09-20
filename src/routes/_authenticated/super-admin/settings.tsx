@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Bell, CreditCard, Link2, Palette, Save, Settings, ShieldCheck, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
-import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
+import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
