@@ -4,6 +4,7 @@ import { Download, Gift, HeartHandshake, Search, Sparkles, UsersRound, WalletCar
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -187,22 +188,18 @@ function GuestsPage() {
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "الضيوف والولاء" : "Guests & Loyalty"} />
     <main className="qs-page space-y-5">
-      <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
-        <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-8">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><HeartHandshake className="size-3.5" />CRM</div>
-            <h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? "اعرف ضيوفك، وليس طلباتهم فقط" : "Know your guests, not only their orders"}</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{ar ? "زيارات، إنفاق، نقاط ولاء وبطاقات هدايا في ملف ضيف واحد." : "Visits, spend, loyalty points and gift cards in one guest workspace."}</p>
-          </div>
-          {canGift ? <Button onClick={() => setGiftOpen(true)}><Gift className="size-4" />{ar ? "إصدار بطاقة هدية" : "Issue gift card"}</Button> : null}
-        </div>
-      </section>
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={HeartHandshake}>{ar ? "علاقات الضيوف" : "Guest relationships"}</MasterEyebrow>}
+        title={ar ? "العملاء وCRM" : "Customers & CRM"}
+        description={ar ? "ملف ضيف موحّد يجمع الزيارات، الإنفاق، الولاء، الشرائح والنشاط الأخير." : "A unified guest view for visits, spend, loyalty, segments and recent activity."}
+        actions={canGift?<Button onClick={()=>setGiftOpen(true)}><Gift className="size-4"/>{ar?"إصدار بطاقة هدية":"Issue Gift Card"}</Button>:null}
+      />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={UsersRound} label={ar ? "الضيوف" : "Guests"} value={formatNumber(guests.length, lang)} />
-        <Metric icon={HeartHandshake} label={ar ? "ضيوف متكررون" : "Repeat guests"} value={formatNumber(repeat, lang)} />
-        <Metric icon={WalletCards} label={ar ? "إنفاق مدى الحياة" : "Lifetime spend"} value={formatMoney(lifetime, scope.currency, lang)} />
-        <Metric icon={Sparkles} label={ar ? "نقاط قائمة" : "Outstanding points"} value={formatNumber(points, lang)} hint={activeCards ? (ar ? activeCards + " بطاقات هدايا فعالة" : activeCards + " active gift cards") : undefined} />
+        <MasterKpi icon={UsersRound} label={ar?"الضيوف":"Guests"} value={formatNumber(guests.length,lang)} hint={ar?"إجمالي الملفات":"Total profiles"} tone="blue"/>
+        <MasterKpi icon={HeartHandshake} label={ar?"متكررون":"Repeat Guests"} value={formatNumber(repeat,lang)} hint={ar?"زيارتان أو أكثر":"2+ visits"} tone="green"/>
+        <MasterKpi icon={WalletCards} label={ar?"إنفاق مدى الحياة":"Lifetime Spend"} value={formatMoney(lifetime,scope.currency,lang)} hint={ar?"عبر كل الزيارات":"Across all visits"} tone="orange"/>
+        <MasterKpi icon={Sparkles} label={ar?"نقاط قائمة":"Outstanding Points"} value={formatNumber(points,lang)} hint={activeCards?(ar?activeCards+" بطاقات فعالة":activeCards+" active gift cards"):undefined} tone="purple"/>
       </section>
 
       {canManage && data ? <section className="rounded-2xl border border-border bg-card p-5">
@@ -215,7 +212,7 @@ function GuestsPage() {
         </div>
       </section> : null}
 
-      <section className="rounded-2xl border border-border bg-card p-4">
+      <section className="rounded-[18px] border border-border/85 bg-card p-4 shadow-[var(--qs-shadow-card)]">
         <div className="flex flex-wrap items-center gap-2">
           {([
             ["all", ar ? "الكل" : "All guests"],
@@ -229,7 +226,7 @@ function GuestsPage() {
         <p className="mt-3 text-xs text-muted-foreground">{ar ? "تُحسب الشرائح مباشرة من بيانات الزيارات والإنفاق، ويمكن استخدامها للاستهداف بعد ربط مزود رسائل." : "Segments are computed from visit/spend history and are ready for campaign targeting once a messaging provider is connected."}</p>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-border bg-card">
+      <section className="overflow-hidden rounded-[18px] border border-border/85 bg-card shadow-[var(--qs-shadow-card)]">
         <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
           <div><h2 className="font-display text-lg font-bold">{ar ? "دليل الضيوف" : "Guest directory"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "مرتب حسب آخر زيارة." : "Sorted by most recent visit."}</p></div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
