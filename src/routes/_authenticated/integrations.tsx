@@ -1,0 +1,156 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Activity, BarChart3, CreditCard, Link2, MessageSquareText, PlugZap, Printer, Truck, Webhook } from "lucide-react";
+import { useMemo } from "react";
+import { toast } from "sonner";
+
+import { AppHeader } from "@/components/nav/AppHeader";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import { useAccess } from "@/hooks/useSession";
+import { useWorkspaceScope } from "@/hooks/useWorkspace";
+import { humanError } from "@/lib/errors";
+import { useI18n } from "@/lib/i18n";
+import { membershipHasCapability } from "@/lib/permissions";
+
+export const Route = createFileRoute("/_authenticated/integrations")({
+  head: () => ({ meta: [{ title: "QuickServe Connect" }, { name: "description", content: "Payments, messaging, delivery, accounting, printing and API integrations." }] }),
+  component: IntegrationsPage,
+});
+
+type Connection = {
+  id: string;
+  category: string;
+  provider: string;
+  display_name: string;
+  status: string;
+  credential_ref: string | null;
+  config: Record<string, unknown>;
+  capabilities: string[];
+  last_tested_at: string | null;
+  last_sync_at: string | null;
+  last_error: string | null;
+};
+
+const PRESETS = [
+  { category: "payments", provider: "stripe", name: "Stripe-compatible card gateway", icon: CreditCard, credential: "STRIPE_SECRET_KEY" },
+  { category: "payments", provider: "mena_gateway", name: "Jordan / MENA payment gateway", icon: CreditCard, credential: "QUICKSERVE_PAYMENT_SECRET" },
+  { category: "messaging", provider: "twilio", name: "SMS / WhatsApp provider", icon: MessageSquareText, credential: "TWILIO_AUTH_TOKEN" },
+  { category: "delivery", provider: "aggregator", name: "Delivery aggregator", icon: Truck, credential: "DELIVERY_PROVIDER_SECRET" },
+  { category: "accounting", provider: "accounting", name: "Accounting connector", icon: Link2, credential: "ACCOUNTING_PROVIDER_SECRET" },
+  { category: "printers", provider: "browser", name: "Browser / local printing", icon: Printer, credential: "" },
+  { category: "webhooks", provider: "webhooks", name: "Webhooks & API", icon: Webhook, credential: "QUICKSERVE_WEBHOOK_SECRET" },
+  { category: "bi", provider: "bi", name: "BI / warehouse export", icon: BarChart3, credential: "BI_PROVIDER_SECRET" },
+] as const;
+
+function IntegrationsPage() {
+  const { lang } = useI18n();
+  const ar = lang === "ar";
+  const scope = useWorkspaceScope();
+  const access = useAccess();
+  const rid = scope.restaurantId;
+  const membership = rid ? access.membershipFor(rid) : null;
+  const canManage = Boolean(access.isSuperAdmin || (membership && membershipHasCapability(membership.role, membership.permission_overrides, "manage_restaurant")));
+  const qc = useQueryClient();
+
+  const query = useQuery<Connection[]>({
+    queryKey: ["integrations", rid],
+    enabled: Boolean(rid && canManage),
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("integration_connections")
+        .select("id,category,provider,display_name,status,credential_ref,config,capabilities,last_tested_at,last_sync_at,last_error")
+        .eq("restaurant_id", rid!)
+        .order("category")
+        .order("display_name");
+      if (error) throw error;
+      return (data ?? []) as Connection[];
+    },
+  });
+
+  const byKey = useMemo(() => new Map((query.data ?? []).map((row) => [`${row.category}:${row.provider}`, row])), [query.data]);
+
+  const configure = useMutation({
+    mutationFn: async (preset: (typeof PRESETS)[number]) => {
+      const existing = byKey.get(`${preset.category}:${preset.provider}`);
+      const payload = {
+        restaurant_id: rid,
+        category: preset.category,
+        provider: preset.provider,
+        display_name: preset.name,
+        status: preset.provider === "browser" ? "healthy" : "configured",
+        credential_ref: preset.credential || null,
+        capabilities: preset.category === "payments" ? ["card","wallet"] : preset.category === "messaging" ? ["sms","whatsapp"] : [],
+        config: existing?.config ?? {},
+        last_tested_at: preset.provider === "browser" ? new Date().toISOString() : existing?.last_tested_at ?? null,
+        last_error: null,
+      };
+      const { error } = await (supabase as any)
+        .from("integration_connections")
+        .upsert(payload, { onConflict: "restaurant_id,category,provider" });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["integrations", rid] });
+      toast.success(ar ? "تم تحديث الاتصال" : "Integration configuration updated");
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  const disable = useMutation({
+    mutationFn: async (connection: Connection) => {
+      const { error } = await (supabase as any)
+        .from("integration_connections")
+        .update({ status: connection.status === "disabled" ? "configured" : "disabled" })
+        .eq("id", connection.id)
+        .eq("restaurant_id", rid);
+      if (error) throw error;
+    },
+    onSuccess: async () => qc.invalidateQueries({ queryKey: ["integrations", rid] }),
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  if (scope.isPending || access.isPending) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><Skeleton className="h-[520px] rounded-3xl" /></main></div>;
+  if (!rid || !canManage) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><section className="qs-card p-8 text-center"><PlugZap className="mx-auto size-10 text-muted-foreground" /><h1 className="mt-4 text-xl font-bold">{ar ? "التكاملات غير متاحة" : "Integrations are not available"}</h1></section></main></div>;
+
+  return <div className="min-h-dvh bg-background">
+    <AppHeader title="QuickServe Connect" />
+    <main className="qs-page space-y-5">
+      <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
+        <div className="p-6 sm:p-8">
+          <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><PlugZap className="size-3.5" />QuickServe Connect</div>
+          <h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? "كل أنظمتك متصلة من مكان واحد" : "Connect your restaurant stack in one place"}</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{ar ? "اختر المزود، راقب حالة الاتصال، واحتفظ بالمفاتيح السرية على الخادم فقط." : "Choose providers, monitor connection health, and keep credentials server-side only."}</p>
+        </div>
+      </section>
+
+      {query.isPending ? <Skeleton className="h-[480px] rounded-2xl" /> : query.isError ? <section className="qs-card p-5 text-sm text-destructive">{humanError(query.error, lang)}</section> : (
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {PRESETS.map((preset) => {
+            const row = byKey.get(`${preset.category}:${preset.provider}`);
+            const Icon = preset.icon;
+            const status = row?.status ?? "not_configured";
+            return <article key={`${preset.category}:${preset.provider}`} className="qs-card p-5">
+              <div className="flex items-start justify-between gap-3">
+                <span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-5" /></span>
+                <span className={status === "healthy" ? "rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-700" : status === "configured" ? "rounded-full bg-blue-500/10 px-2.5 py-1 text-[10px] font-bold text-blue-700" : status === "disabled" ? "rounded-full bg-muted px-2.5 py-1 text-[10px] font-bold text-muted-foreground" : "rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-700"}>{status.replaceAll("_", " ")}</span>
+              </div>
+              <h2 className="mt-4 font-bold">{preset.name}</h2>
+              <p className="mt-1 text-xs text-muted-foreground">{preset.credential ? (ar ? `مرجع السر: ${preset.credential}` : `Server secret: ${preset.credential}`) : (ar ? "لا يحتاج مفتاحاً خارجياً" : "No external credential required")}</p>
+              {row?.last_error ? <p className="mt-3 rounded-xl bg-red-500/10 p-2 text-xs text-red-700">{row.last_error}</p> : null}
+              <div className="mt-4 flex gap-2">
+                <Button size="sm" onClick={() => configure.mutate(preset)} disabled={configure.isPending}>{row ? (ar ? "تحديث" : "Refresh config") : (ar ? "تهيئة" : "Configure")}</Button>
+                {row ? <Button size="sm" variant="outline" onClick={() => disable.mutate(row)}>{row.status === "disabled" ? (ar ? "تفعيل" : "Enable") : (ar ? "تعطيل" : "Disable")}</Button> : null}
+              </div>
+            </article>;
+          })}
+        </section>
+      )}
+
+      <section className="qs-card p-5">
+        <div className="flex items-start gap-3"><Activity className="mt-0.5 size-5 text-[#ff5a0a]" /><div><h2 className="font-bold">{ar ? "قاعدة أمان" : "Security rule"}</h2><p className="mt-1 text-sm text-muted-foreground">{ar ? "QuickServe لا يخزن مفاتيح المزود السرية في واجهة المتصفح. يتم حفظ مرجع اسم السر فقط، وتبقى القيمة داخل بيئة الخادم." : "QuickServe never stores provider secret values in the browser-facing configuration. Only the server-side secret name is referenced here."}</p></div></div>
+      </section>
+    </main>
+  </div>;
+}
