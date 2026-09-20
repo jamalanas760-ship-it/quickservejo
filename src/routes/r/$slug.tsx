@@ -54,6 +54,7 @@ import {
   callWaiter,
   loadDinerMenu,
   placePublicOrder,
+  placeFulfillmentOrder,
   type CartLine,
   type DinerItem,
   type PlacedOrder,
@@ -94,13 +95,24 @@ function DinerPage() {
   const [cartOpen, setCartOpen] = useState(false);
   const [detail, setDetail] = useState<DinerItem | null>(null);
   const [orderNotes, setOrderNotes] = useState("");
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [scheduledFor, setScheduledFor] = useState("");
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
   const [busy, setBusy] = useState(false);
 
   const restaurant = menu.data?.restaurant;
   const currency = restaurant?.currency ?? "JOD";
   const showPrices = menu.data?.settings?.show_prices ?? true;
-  const ordersEnabled = (menu.data?.settings?.enable_orders ?? true) && Boolean(menu.data?.table);
+  const onlineEnabled = Boolean(menu.data?.settings?.enable_pickup || menu.data?.settings?.enable_delivery);
+  const ordersEnabled = (menu.data?.settings?.enable_orders ?? true) && (Boolean(menu.data?.table) || onlineEnabled);
+  const dineIn = Boolean(menu.data?.table);
+  const effectiveFulfillment: "pickup" | "delivery" = menu.data?.settings?.enable_pickup
+    ? fulfillment
+    : "delivery";
 
   const tagsByItem = useMemo(() => {
     const map = new Map<string, DietTag[]>();
@@ -134,8 +146,9 @@ function DinerPage() {
   const filtering = query.trim().length > 0 || diets.length > 0;
   const subtotal = cart.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
   const tax = (subtotal * (restaurant?.tax_rate ?? 0)) / 100;
-  const service = (menu.data?.settings?.enable_service_charge ?? true) ? (subtotal * (restaurant?.service_charge ?? 0)) / 100 : 0;
-  const total = subtotal + tax + service;
+  const service = dineIn && (menu.data?.settings?.enable_service_charge ?? true) ? (subtotal * (restaurant?.service_charge ?? 0)) / 100 : 0;
+  const deliveryFee = !dineIn && effectiveFulfillment === "delivery" ? Number(menu.data?.settings?.delivery_fee ?? 0) : 0;
+  const total = subtotal + tax + service + deliveryFee;
   const cartCount = cart.reduce((sum, l) => sum + l.quantity, 0);
 
   function addLine(item: DinerItem, modifierIds: string[], notes: string, quantity: number) {
@@ -155,13 +168,34 @@ function DinerPage() {
   }
 
   async function submitOrder() {
-    if (!qrToken) return;
+    if (!ordersEnabled) return;
+    if (!dineIn && !guestPhone.trim()) {
+      toast.error(lang === "ar" ? "رقم الهاتف مطلوب لطلبات الاستلام والتوصيل." : "Phone number is required for pickup and delivery.");
+      return;
+    }
+    if (!dineIn && effectiveFulfillment === "delivery" && !deliveryAddress.trim()) {
+      toast.error(lang === "ar" ? "عنوان التوصيل مطلوب." : "Delivery address is required.");
+      return;
+    }
     setBusy(true);
     try {
-      const result = await placePublicOrder({ qrToken, lines: cart, notes: orderNotes });
+      const guest = { name: guestName, phone: guestPhone, email: guestEmail };
+      const result = dineIn && qrToken
+        ? await placePublicOrder({ qrToken, lines: cart, notes: orderNotes, guest })
+        : await placeFulfillmentOrder({
+            restaurantSlug: slug,
+            fulfillment: effectiveFulfillment,
+            lines: cart,
+            notes: orderNotes,
+            guest,
+            deliveryAddress: effectiveFulfillment === "delivery" ? deliveryAddress : undefined,
+            scheduledFor: scheduledFor ? new Date(scheduledFor).toISOString() : null,
+          });
       setPlaced(result);
       setCart([]);
       setOrderNotes("");
+      setDeliveryAddress("");
+      setScheduledFor("");
       setCartOpen(false);
     } catch (error) {
       toast.error(humanError(error, lang));
@@ -204,7 +238,7 @@ function DinerPage() {
       <div className="relative z-10">
         <header className="mx-auto max-w-3xl">
           <MenuHero theme={theme} name={restaurant.name} subtitle={pick(restaurant.description_en, restaurant.description_ar) || t("brand.tagline")} logoUrl={restaurant.logo_url} coverUrl={restaurant.cover_image_url} aside={<Button size="sm" variant="ghost" className="h-10 shrink-0 px-2" onClick={toggleLang} style={{ color: "var(--qs-muted)" }}>{t("common.language")}</Button>} />
-          <div className="mt-3 px-4"><span className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-bold tracking-wide uppercase shadow-sm" style={menu.data?.table ? { ...buttonStyleFor(theme), letterSpacing: "0.06em" } : { ...buttonStyleFor(theme, false), letterSpacing: "0.06em" }}>{menu.data?.table ? `${t("diner.table")} ${menu.data.table.table_name || menu.data.table.table_number}` : t("diner.browseOnly")}</span></div>
+          <div className="mt-3 px-4"><span className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-bold tracking-wide uppercase shadow-sm" style={menu.data?.table ? { ...buttonStyleFor(theme), letterSpacing: "0.06em" } : { ...buttonStyleFor(theme, false), letterSpacing: "0.06em" }}>{menu.data?.table ? `${t("diner.table")} ${menu.data.table.table_name || menu.data.table.table_number}` : onlineEnabled ? (lang === "ar" ? "استلام أو توصيل" : "Pickup or delivery") : t("diner.browseOnly")}</span></div>
         </header>
 
         <div className="sticky top-0 z-30 backdrop-blur-md" style={{ background: "color-mix(in oklab, var(--qs-bg) 88%, transparent)" }}>
@@ -229,7 +263,21 @@ function DinerPage() {
       {ordersEnabled && cartCount > 0 ? <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 p-3 backdrop-blur"><div className="mx-auto flex max-w-3xl items-center gap-3"><Button className="flex-1" onClick={() => setCartOpen(true)}><ShoppingBag className="size-4" />{t("diner.viewCart")} ({cartCount}) · {formatMoney(total, currency, lang)}</Button></div></div> : null}
 
       <ItemSheet item={detail} currency={currency} showPrices={showPrices} canOrder={ordersEnabled} allowNotes={menu.data?.settings?.allow_special_notes ?? true} onClose={() => setDetail(null)} onAdd={addLine} />
-      <Sheet open={cartOpen} onOpenChange={setCartOpen}><SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto"><SheetHeader><SheetTitle>{t("diner.yourOrder")}</SheetTitle></SheetHeader><div className="space-y-3 p-4">{cart.length === 0 ? <div className="py-8 text-center"><ShoppingBag className="mx-auto size-8 text-muted-foreground" /><p className="mt-3 font-semibold">{t("diner.emptyCart")}</p><p className="mt-1 text-sm text-muted-foreground">{t("diner.emptyCartHelp")}</p><Button className="mt-4" variant="outline" onClick={() => setCartOpen(false)}>{t("diner.browseMenu")}</Button></div> : null}{cart.map((line) => <div key={line.key} className="flex items-start gap-3 rounded-lg border p-3"><div className="min-w-0 flex-1"><p className="font-medium">{pick(line.name_en, line.name_ar)}</p>{line.modifiers.length > 0 ? <p className="text-xs text-muted-foreground">{line.modifiers.map((m) => pick(m.name_en, m.name_ar)).join(", ")}</p> : null}{line.notes ? <p className="text-xs text-muted-foreground">“{line.notes}”</p> : null}<p className="mt-1 text-sm font-semibold">{formatMoney(line.unitPrice * line.quantity, currency, lang)}</p></div><div className="flex items-center gap-1"><Button size="icon" variant="outline" onClick={() => changeQty(line.key, -1)}><Minus className="size-4" /></Button><span className="w-6 text-center text-sm">{line.quantity}</span><Button size="icon" variant="outline" onClick={() => changeQty(line.key, 1)}><Plus className="size-4" /></Button><Button size="icon" variant="ghost" onClick={() => setCart((prev) => prev.filter((l) => l.key !== line.key))}><Trash2 className="size-4" /></Button></div></div>)}{menu.data?.settings?.allow_special_notes ?? true ? <div className="space-y-1.5"><Label>{t("diner.orderNotes")}</Label><Textarea value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} rows={2} /></div> : null}{cart.length > 0 ? <><div className="space-y-1 rounded-lg bg-muted p-3 text-sm"><Row label={t("diner.subtotal")} value={formatMoney(subtotal, currency, lang)} />{tax > 0 ? <Row label={t("diner.tax")} value={formatMoney(tax, currency, lang)} /> : null}{service > 0 ? <Row label={t("diner.service")} value={formatMoney(service, currency, lang)} /> : null}<div className="flex justify-between border-t pt-1 font-semibold"><span>{t("diner.total")}</span><span>{formatMoney(total, currency, lang)}</span></div></div><Button className="w-full" disabled={busy || cart.length === 0} onClick={() => void submitOrder()}>{t("diner.sendToKitchen")}</Button></> : null}</div></SheetContent></Sheet>
+      <Sheet open={cartOpen} onOpenChange={setCartOpen}><SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto"><SheetHeader><SheetTitle>{t("diner.yourOrder")}</SheetTitle></SheetHeader><div className="space-y-3 p-4">{cart.length === 0 ? <div className="py-8 text-center"><ShoppingBag className="mx-auto size-8 text-muted-foreground" /><p className="mt-3 font-semibold">{t("diner.emptyCart")}</p><p className="mt-1 text-sm text-muted-foreground">{t("diner.emptyCartHelp")}</p><Button className="mt-4" variant="outline" onClick={() => setCartOpen(false)}>{t("diner.browseMenu")}</Button></div> : null}{cart.map((line) => <div key={line.key} className="flex items-start gap-3 rounded-lg border p-3"><div className="min-w-0 flex-1"><p className="font-medium">{pick(line.name_en, line.name_ar)}</p>{line.modifiers.length > 0 ? <p className="text-xs text-muted-foreground">{line.modifiers.map((m) => pick(m.name_en, m.name_ar)).join(", ")}</p> : null}{line.notes ? <p className="text-xs text-muted-foreground">“{line.notes}”</p> : null}<p className="mt-1 text-sm font-semibold">{formatMoney(line.unitPrice * line.quantity, currency, lang)}</p></div><div className="flex items-center gap-1"><Button size="icon" variant="outline" onClick={() => changeQty(line.key, -1)}><Minus className="size-4" /></Button><span className="w-6 text-center text-sm">{line.quantity}</span><Button size="icon" variant="outline" onClick={() => changeQty(line.key, 1)}><Plus className="size-4" /></Button><Button size="icon" variant="ghost" onClick={() => setCart((prev) => prev.filter((l) => l.key !== line.key))}><Trash2 className="size-4" /></Button></div></div>)}{!dineIn ? <div className="space-y-3 rounded-2xl border border-border p-3">
+  <div><p className="text-xs font-bold">{lang === "ar" ? "طريقة الاستلام" : "Fulfillment"}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{lang === "ar" ? "اختر الاستلام من المطعم أو التوصيل." : "Choose pickup or delivery."}</p></div>
+  <div className="grid grid-cols-2 gap-2">
+    {menu.data?.settings?.enable_pickup ? <Button type="button" variant={effectiveFulfillment === "pickup" ? "default" : "outline"} onClick={() => setFulfillment("pickup")}>{lang === "ar" ? "استلام" : "Pickup"}</Button> : null}
+    {menu.data?.settings?.enable_delivery ? <Button type="button" variant={effectiveFulfillment === "delivery" ? "default" : "outline"} onClick={() => setFulfillment("delivery")}>{lang === "ar" ? "توصيل" : "Delivery"}</Button> : null}
+  </div>
+  {effectiveFulfillment === "delivery" ? <div className="space-y-1.5"><Label>{lang === "ar" ? "عنوان التوصيل" : "Delivery address"}</Label><Textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={2} maxLength={500} /></div> : null}
+  <div className="space-y-1.5"><Label>{lang === "ar" ? "وقت مطلوب (اختياري)" : "Schedule for (optional)"}</Label><Input type="datetime-local" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} /></div>
+</div> : null}
+{(menu.data?.settings?.collect_guest_details || !dineIn) ? <div className="space-y-3 rounded-2xl border border-border p-3">
+  <div><p className="text-xs font-bold">{lang === "ar" ? "بيانات الضيف" : "Guest details"}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{!dineIn ? (lang === "ar" ? "الهاتف مطلوب للتواصل بخصوص الطلب." : "Phone is required so the restaurant can contact you about the order.") : (lang === "ar" ? "اختياري، ويساعد المطعم في الولاء وسجل الزيارات." : "Optional. Used for loyalty and visit history when enabled.")}</p></div>
+  <div className="grid gap-2 sm:grid-cols-2"><Input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder={lang === "ar" ? "الاسم" : "Name"} maxLength={120} /><Input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder={lang === "ar" ? "الهاتف" : "Phone"} maxLength={50} /></div>
+  <Input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder={lang === "ar" ? "البريد الإلكتروني (اختياري)" : "Email (optional)"} maxLength={180} />
+</div> : null}
+{menu.data?.settings?.allow_special_notes ?? true ? <div className="space-y-1.5"><Label>{t("diner.orderNotes")}</Label><Textarea value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} rows={2} /></div> : null}{cart.length > 0 ? <><div className="space-y-1 rounded-lg bg-muted p-3 text-sm"><Row label={t("diner.subtotal")} value={formatMoney(subtotal, currency, lang)} />{tax > 0 ? <Row label={t("diner.tax")} value={formatMoney(tax, currency, lang)} /> : null}{service > 0 ? <Row label={t("diner.service")} value={formatMoney(service, currency, lang)} /> : null}{deliveryFee > 0 ? <Row label={lang === "ar" ? "التوصيل" : "Delivery"} value={formatMoney(deliveryFee, currency, lang)} /> : null}<div className="flex justify-between border-t pt-1 font-semibold"><span>{t("diner.total")}</span><span>{formatMoney(total, currency, lang)}</span></div></div><Button className="w-full" disabled={busy || cart.length === 0} onClick={() => void submitOrder()}>{t("diner.sendToKitchen")}</Button></> : null}</div></SheetContent></Sheet>
 
       <Dialog open={placed !== null} onOpenChange={(o) => !o && setPlaced(null)}><DialogContent><DialogHeader><DialogTitle>{t("diner.confirmedTitle")}</DialogTitle><DialogDescription>{t("diner.confirmedBody")}</DialogDescription></DialogHeader><div className="rounded-lg bg-muted p-4 text-center"><p className="text-xs text-muted-foreground">{t("diner.orderNumber")}</p><p className="text-2xl font-bold">{placed?.order_number}</p><p className="mt-1 text-sm">{formatMoney(placed?.total ?? 0, placed?.currency ?? currency, lang)}</p></div><DialogFooter>{placed ? <Button asChild><Link to="/o/$token" params={{ token: placed.public_token }}>{t("diner.trackOrder")}</Link></Button> : null}<Button variant="outline" onClick={() => setPlaced(null)}>{t("common.close")}</Button></DialogFooter></DialogContent></Dialog>
     </div>
