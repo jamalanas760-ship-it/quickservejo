@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { BarChart3, ChefHat, Coins, FileText, LayoutDashboard, Package, PackageCheck, ShoppingCart, Truck } from "lucide-react";
+import { BarChart3, ChefHat, Coins, FileText, LayoutDashboard, Package, PackageCheck, Printer, ShoppingCart, Truck } from "lucide-react";
 
 import { FinancePanel } from "@/components/backoffice/FinancePanel";
+import { KitchenConfigPanel } from "@/components/manage/KitchenConfigPanel";
 import { InventoryPanel } from "@/components/backoffice/InventoryPanel";
 import { InvoicesPanel } from "@/components/backoffice/InvoicesPanel";
 import { OverviewPanel } from "@/components/backoffice/OverviewPanel";
@@ -21,7 +22,7 @@ import { useI18n } from "@/lib/i18n";
 import { membershipHasCapability } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
-type SectionKey = "overview" | "inventory" | "recipes" | "receiving" | "procurement" | "suppliers" | "invoices" | "finance" | "reports";
+type SectionKey = "overview" | "kitchen" | "inventory" | "recipes" | "receiving" | "procurement" | "suppliers" | "invoices" | "finance" | "reports";
 
 type Section = {
   key: SectionKey;
@@ -61,6 +62,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
 
   const allSections: Section[] = [
     { key: "overview", en: "Overview", ar: "نظرة عامة", icon: LayoutDashboard, show: true },
+    { key: "kitchen", en: "Kitchen Setup", ar: "إعداد المطبخ", icon: Printer, show: canApproveProcurement },
     { key: "inventory", en: "Inventory", ar: "المخزون", icon: Package, show: moduleAccess.inventory },
     { key: "recipes", en: "Recipes & Cost", ar: "الوصفات والتكلفة", icon: ChefHat, show: moduleAccess.inventory || canApproveProcurement },
     { key: "receiving", en: "Receiving", ar: "الاستلام", icon: PackageCheck, show: moduleAccess.inventory || moduleAccess.procurement },
@@ -100,6 +102,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
         {query.isError ? <div role="alert" className="qs-card space-y-3 p-6"><p className="text-sm text-destructive">{humanError(query.error, lang)}</p><Button variant="outline" onClick={() => void query.refetch()}>{ar ? "إعادة المحاولة" : "Try again"}</Button></div>
         : query.isPending ? <div className="space-y-3"><Skeleton className="h-28 rounded-2xl" /><Skeleton className="h-72 rounded-2xl" /></div>
         : safeSection === "overview" ? <OverviewPanel data={data} summary={summary} access={moduleAccess} currency={currency} onAction={setRequest} onNavigate={setSection} canApproveProcurement={canApproveProcurement} />
+        : safeSection === "kitchen" ? <KitchenConfigPanel restaurantId={restaurantId} />
         : safeSection === "inventory" ? <InventoryPanel restaurantId={restaurantId} data={data} currency={currency} onAction={setRequest} />
         : safeSection === "recipes" ? <RecipesPanel restaurantId={restaurantId} data={data} currency={currency} />
         : safeSection === "receiving" ? <ReceivingPanel data={data} currency={currency} onAction={setRequest} onGoProcurement={() => setSection("procurement")} />
