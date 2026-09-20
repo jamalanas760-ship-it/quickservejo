@@ -64,6 +64,7 @@ function ShiftsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [closingShift, setClosingShift] = useState<Shift | null>(null);
   const [deletingShift, setDeletingShift] = useState<Shift | null>(null);
+  const [detailShiftId, setDetailShiftId] = useState<string | null>(null);
 
   if (scope.isPending || access.isPending) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><Skeleton className="h-[620px] rounded-3xl" /></main></div>;
   if (!rid || !membership || !canView) return <Denied ar={ar} />;
@@ -75,6 +76,10 @@ function ShiftsPage() {
   const plannedToday = todayRows.filter((row) => row.status === "planned").length;
   const closedToday = todayRows.filter((row) => row.status === "closed").length;
   const pendingHandovers = (handovers.data ?? []).filter((row) => !row.acknowledged_at).length;
+  const detailShift = rows.find((row) => row.id === detailShiftId) ?? null;
+  const detailAssignments = detailShift ? (assignments.data ?? []).filter((row) => row.shift_id === detailShift.id) : [];
+  const detailHandover = detailShift ? (handovers.data ?? []).find((row) => row.shift_id === detailShift.id) ?? null : null;
+  const memberName = (staffId: string | null) => (staffId ? (members.data ?? []).find((row) => row.id === staffId)?.name ?? null : null);
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "الورديات والتسليم" : "Shifts & Handover"} />

@@ -10,11 +10,13 @@ import {
   ListTodo,
   Plus,
   ShieldCheck,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/nav/AppHeader";
+import { DetailRow, DetailSheet, formatStamp } from "@/components/operations/DetailSheet";
 import { ShiftHandoverPanel } from "@/components/operations/ShiftHandoverPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,6 +88,8 @@ export function WorkPage() {
   const canApprove = Boolean(membership && membershipHasCapability(membership.role, membership.permission_overrides, "approve_work"));
   const [tab, setTab] = useState<Tab>("mine");
   const [createOpen, setCreateOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<WorkTask | null>(null);
 
   const tasks = useQuery({
     queryKey: ["work", rid],
@@ -150,6 +154,29 @@ export function WorkPage() {
     onError: (error) => toast.error(humanError(error, lang)),
   });
 
+  // Manager-scoped removal. Until the soft-delete columns ship, the record is
+  // retired as `cancelled` so history/audit stays intact and it drops out of
+  // every active list. RLS still enforces the restaurant scope server-side.
+  const removeTask = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("work_tasks")
+        .update({ status: "cancelled", updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("restaurant_id", rid!);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      setPendingDelete(null);
+      setSelectedId(null);
+      await qc.invalidateQueries({ queryKey: ["work", rid] });
+      await qc.invalidateQueries({ queryKey: ["operational-counters", rid] });
+      toast.success(ar ? "تم حذف عنصر العمل" : "Work item removed");
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  const selected = (tasks.data ?? []).find((row) => row.id === selectedId) ?? null;
+
   if (scope.isPending || access.isPending) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><Skeleton className="h-[620px] rounded-3xl" /></main></div>;
 
   if (!rid || !membership || !canView) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><section className="qs-card p-8 text-center"><ShieldCheck className="mx-auto size-10 text-muted-foreground" /><h1 className="mt-4 text-xl font-bold">{ar ? "مساحة العمل غير متاحة" : "My Work is not available"}</h1><p className="mt-2 text-sm text-muted-foreground">{ar ? "لا يملك هذا الدور صلاحية مساحة العمل لهذا المطعم." : "This role does not have My Work access for this restaurant."}</p></section></main></div>;
@@ -186,9 +213,46 @@ export function WorkPage() {
       <section className="qs-card overflow-hidden">
         <div className="overflow-x-auto border-b border-border p-2"><div className="flex min-w-max gap-1">{tabs.filter((item) => item.show).map((item) => <button key={item.id} type="button" onClick={() => setTab(item.id)} className={cn("rounded-xl px-4 py-2.5 text-xs font-bold transition", tab === item.id ? "bg-[#ff5a0a] text-white shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>{ar ? item.ar : item.en}</button>)}</div></div>
         {tab === "handover" ? <ShiftHandoverPanel restaurantId={rid} currentStaffId={membership.id} currentRole={membership.role} /> : null}
-        {tasks.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : tasks.isError ? <p className="p-6 text-sm text-destructive">{humanError(tasks.error, lang)}</p> : visible.length === 0 ? <EmptyState ar={ar} /> : <div className="divide-y divide-border">{visible.map((task) => <TaskRow key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} />)}</div>}
+        {tasks.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : tasks.isError ? <p className="p-6 text-sm text-destructive">{humanError(tasks.error, lang)}</p> : visible.length === 0 ? <EmptyState ar={ar} /> : <div className="divide-y divide-border">{visible.map((task) => <TaskRow key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} onOpen={() => setSelectedId(task.id)} />)}</div>}
       </section>
     </main>
+
+    <DetailSheet
+      open={Boolean(selected)}
+      onOpenChange={(open) => { if (!open) setSelectedId(null); }}
+      title={selected?.title ?? ""}
+      description={selected ? `${ar ? "نوع" : "Type"}: ${selected.category} · ${selected.status.replaceAll("_", " ")}` : undefined}
+      footer={selected && canManage ? <Button variant="destructive" className="w-full gap-2" onClick={() => setPendingDelete(selected)}><Trash2 className="size-4" />{ar ? "حذف عنصر العمل" : "Delete work item"}</Button> : undefined}
+    >
+      {selected ? <div>
+        {selected.description ? <p className="mb-4 whitespace-pre-wrap rounded-2xl bg-muted/40 p-3 text-sm leading-6">{selected.description}</p> : null}
+        <DetailRow label={ar ? "النوع" : "Type"} value={<span className="capitalize">{selected.category}</span>} />
+        <DetailRow label={ar ? "الحالة" : "Status"} value={<span className="capitalize">{selected.status.replaceAll("_", " ")}</span>} />
+        <DetailRow label={ar ? "الأولوية" : "Priority"} value={<Badge className={cn("border-0 capitalize", priorityTone[selected.priority])}>{selected.priority}</Badge>} />
+        <DetailRow label={ar ? "المسؤول" : "Assigned to"} value={(selected.assigned_staff_id ? (staff.data ?? []).find((row) => row.id === selected.assigned_staff_id)?.name : null) ?? (selected.assigned_role ? roleLabel(selected.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))} />
+        <DetailRow label={ar ? "أنشأها" : "Created by"} value={(selected.created_by_staff_id ? (staff.data ?? []).find((row) => row.id === selected.created_by_staff_id)?.name : null) ?? (ar ? "النظام / الأتمتة" : "System / automation")} />
+        <DetailRow label={ar ? "الاستحقاق" : "Due"} value={formatStamp(selected.due_at, ar)} />
+        <DetailRow label={ar ? "الموافقة" : "Approval"} value={selected.requires_approval ? (selected.approval_role ? roleLabel(selected.approval_role, ar) : (ar ? "مطلوبة" : "Required")) : (ar ? "غير مطلوبة" : "Not required")} />
+        <DetailRow label={ar ? "المصدر" : "Source"} value={selected.source_type ? selected.source_type.replaceAll("_", " ") : (ar ? "يدوي" : "Manual")} />
+        <DetailRow label={ar ? "أُنشئت" : "Created"} value={formatStamp(selected.created_at, ar)} />
+        <DetailRow label={ar ? "آخر تحديث" : "Updated"} value={formatStamp(selected.updated_at, ar)} />
+        <DetailRow label={ar ? "أُكملت" : "Completed"} value={formatStamp(selected.completed_at, ar)} />
+        <DetailRow label={ar ? "ملاحظة الإنجاز" : "Completion note"} value={selected.completion_note} />
+      </div> : null}
+    </DetailSheet>
+
+    <Dialog open={Boolean(pendingDelete)} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
+      <DialogContent className="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>{ar ? "حذف عنصر العمل؟" : "Delete this work item?"}</DialogTitle>
+          <DialogDescription>{ar ? "سيختفي من قوائم العمل النشطة مع الحفاظ على سجله للمراجعة. لا يمكن التراجع من الواجهة." : "It disappears from active work lists while its record is kept for audit. This cannot be undone from the app."}</DialogDescription>
+        </DialogHeader>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setPendingDelete(null)}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button variant="destructive" disabled={removeTask.isPending} onClick={() => pendingDelete && removeTask.mutate(pendingDelete.id)}><Trash2 className="size-4" />{ar ? "حذف" : "Delete"}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   </div>;
 }
 
@@ -196,13 +260,20 @@ function Metric({ icon: Icon, label, value, tone }: { icon: typeof ListTodo; lab
   return <article className="qs-stat flex min-h-[112px] items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl", tone === "urgent" ? "bg-red-500/10 text-red-600" : "bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-5" /></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong></div></article>;
 }
 
-function TaskRow({ task, staff, ar, canApprove, busy, onStatus }: { task: WorkTask; staff: StaffOption[]; ar: boolean; canApprove: boolean; busy: boolean; onStatus: (status: WorkStatus) => void }) {
+function TaskRow({ task, staff, ar, canApprove, busy, onStatus, onOpen }: { task: WorkTask; staff: StaffOption[]; ar: boolean; canApprove: boolean; busy: boolean; onStatus: (status: WorkStatus) => void; onOpen: () => void }) {
   const assignee = task.assigned_staff_id ? staff.find((row) => row.id === task.assigned_staff_id)?.name : null;
   const overdue = task.due_at && new Date(task.due_at).getTime() < Date.now() && task.status !== "completed";
   const CategoryIcon = task.category === "approval" ? ShieldCheck : task.category === "handover" ? Handshake : task.category === "alert" ? AlertTriangle : ClipboardCheck;
-  return <article className="grid gap-4 p-4 transition hover:bg-muted/20 sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+  return <article
+    role="button"
+    tabIndex={0}
+    aria-label={task.title}
+    onClick={onOpen}
+    onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }}
+    className="grid cursor-pointer gap-4 p-4 outline-none transition hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-[#ff5a0a] sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+  >
     <div className="flex min-w-0 gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground"><CategoryIcon className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{task.title}</h3><Badge className={cn("border-0 capitalize", priorityTone[task.priority])}>{task.priority}</Badge>{overdue ? <Badge variant="destructive">{ar ? "متأخر" : "Overdue"}</Badge> : null}</div>{task.description ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{task.description}</p> : null}<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-semibold text-muted-foreground"><span className="inline-flex items-center gap-1"><UserRound className="size-3" />{assignee ?? (task.assigned_role ? roleLabel(task.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))}</span>{task.due_at ? <span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{new Date(task.due_at).toLocaleString(ar ? "ar-JO" : "en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span> : null}<span className="capitalize">{task.status.replaceAll("_", " ")}</span></div></div></div>
-    <div className="flex flex-wrap gap-2 lg:justify-end">{task.status === "open" ? <Button variant="outline" size="sm" disabled={busy} onClick={() => onStatus("in_progress")}>{ar ? "بدء" : "Start"}</Button> : null}{task.status === "in_progress" && task.requires_approval ? <Button variant="outline" size="sm" disabled={busy} onClick={() => onStatus("waiting_approval")}>{ar ? "إرسال للموافقة" : "Submit"}</Button> : null}{task.status === "in_progress" && !task.requires_approval ? <Button size="sm" disabled={busy} onClick={() => onStatus("completed")}>{ar ? "إكمال" : "Complete"}</Button> : null}{task.status === "waiting_approval" && canApprove ? <Button size="sm" disabled={busy} onClick={() => onStatus("completed")}><CheckCircle2 className="size-4" />{ar ? "اعتماد" : "Approve"}</Button> : null}</div>
+    <div className="flex flex-wrap gap-2 lg:justify-end" onClick={(event) => event.stopPropagation()}>{task.status === "open" ? <Button variant="outline" size="sm" disabled={busy} onClick={() => onStatus("in_progress")}>{ar ? "بدء" : "Start"}</Button> : null}{task.status === "in_progress" && task.requires_approval ? <Button variant="outline" size="sm" disabled={busy} onClick={() => onStatus("waiting_approval")}>{ar ? "إرسال للموافقة" : "Submit"}</Button> : null}{task.status === "in_progress" && !task.requires_approval ? <Button size="sm" disabled={busy} onClick={() => onStatus("completed")}>{ar ? "إكمال" : "Complete"}</Button> : null}{task.status === "waiting_approval" && canApprove ? <Button size="sm" disabled={busy} onClick={() => onStatus("completed")}><CheckCircle2 className="size-4" />{ar ? "اعتماد" : "Approve"}</Button> : null}</div>
   </article>;
 }
 
