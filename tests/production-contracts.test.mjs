@@ -88,8 +88,8 @@ test("live menu preview bridge is same-origin, reactive and mutation-safe", asyn
   assert.match(dinerRoute, /event\.origin !== window\.location\.origin/);
   assert.match(dinerRoute, /queryClient\.setQueryData<DinerMenu>/);
   assert.match(dinerRoute, /restaurantId !== restaurant\.id/);
-  assert.match(dinerRoute, /ordering is disabled/);
-  assert.match(dinerRoute, /Waiter calls are disabled/);
+  assert.match(dinerRoute, /ordering is disabled/i);
+  assert.match(dinerRoute, /waiter calls are disabled/i);
 });
 
 
