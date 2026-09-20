@@ -57,7 +57,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
   const data = query.data ?? { inventory: [], suppliers: [], movements: [], expenses: [], procurement: [] };
   const summary = backOfficeSummary(query.data);
 
-  const sections: Section[] = [
+  const allSections: Section[] = [
     { key: "overview", en: "Overview", ar: "نظرة عامة", icon: LayoutDashboard, show: true },
     { key: "inventory", en: "Inventory", ar: "المخزون", icon: Package, show: moduleAccess.inventory },
     { key: "receiving", en: "Receiving", ar: "الاستلام", icon: PackageCheck, show: moduleAccess.inventory || moduleAccess.procurement },
@@ -65,7 +65,8 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
     { key: "suppliers", en: "Suppliers", ar: "الموردون", icon: Truck, show: moduleAccess.procurement || moduleAccess.inventory || moduleAccess.finance },
     { key: "finance", en: "Finance", ar: "المالية", icon: Coins, show: moduleAccess.finance },
     { key: "reports", en: "Reports", ar: "التقارير", icon: BarChart3, show: true },
-  ].filter((item) => item.show);
+  ];
+  const sections = allSections.filter((item) => item.show);
 
   const safeSection = sections.some((item) => item.key === section) ? section : "overview";
   const attention = summary.lowStock.length + summary.pendingApproval + summary.pendingReceiving;
