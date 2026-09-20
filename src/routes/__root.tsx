@@ -15,6 +15,7 @@ import uxCss from "../ux-refinement.css?url";
 import modernCss from "../modern-pass.css?url";
 import approvedCss from "../approved-design.css?url";
 import rebrandCss from "../rebrand-2026.css?url";
+import masterUiCss from "../master-ui-2026.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider } from "@/lib/i18n";
 import { Toaster } from "@/components/ui/sonner";
@@ -127,6 +128,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: modernCss },
       { rel: "stylesheet", href: approvedCss },
       { rel: "stylesheet", href: rebrandCss },
+      { rel: "stylesheet", href: masterUiCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" },
