@@ -288,7 +288,7 @@ function WaiterFloor() {
       <DetailSheet
         open={Boolean(selected)}
         onOpenChange={(open) => { if (!open) setSelectedId(null); }}
-        title={selected ? (selected.table_name ?? `${ar ? "Table" : "Table"} ${selected.table_number}`) : ""}
+        title={selected ? (selected.table_name ?? `${ar ? "طاولة" : "Table"} ${selected.table_number}`) : ""}
         description={selected ? `#${selected.table_number} · ${tableStatusLabel(selected.service_status, ar)}` : undefined}
       >
         {selected ? <div>
@@ -326,8 +326,8 @@ function FloorTableCard({
   ar: boolean;
   currency: string;
   lang: "en" | "ar";
-  setCall: ReturnType<typeof useMutation<any, any, { id: string; status: "acknowledged" | "resolved" }>>;
-  setTableFree: ReturnType<typeof useMutation<any, any, string>>;
+  setCall: { isPending: boolean; mutate: (variables: { id: string; status: "acknowledged" | "resolved" }) => void };
+  setTableFree: { isPending: boolean; mutate: (tableId: string) => void };
   onOpen: () => void;
 }) {
   const calling = Boolean(table.calling);
