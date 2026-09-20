@@ -1,0 +1,542 @@
+/* QuickServe Master Product System — unified 2026 authenticated app language.
+ * This file is intentionally loaded last. It standardizes every shared workspace
+ * without destroying restaurant brand variables or feature-specific canvases.
+ */
+
+:root {
+  --qs-shell-sidebar: 248px;
+  --qs-shell-topbar: 72px;
+  --qs-page-max: 1680px;
+  --qs-space-page-x: 28px;
+  --qs-space-page-y: 26px;
+
+  --qs-radius-xs: 8px;
+  --qs-radius-sm: 10px;
+  --qs-radius-md: 14px;
+  --qs-radius-lg: 18px;
+  --qs-radius-xl: 24px;
+  --qs-radius-2xl: 30px;
+
+  --qs-page-bg: #f6f7f9;
+  --qs-surface: #ffffff;
+  --qs-surface-soft: #f9fafb;
+  --qs-surface-raised: #ffffff;
+  --qs-line: #e7e9ed;
+  --qs-line-strong: #d9dde3;
+  --qs-ink: #171a1f;
+  --qs-ink-soft: #586170;
+  --qs-brand: #ff5a0a;
+  --qs-brand-hover: #e94f00;
+  --qs-brand-soft: #fff2ea;
+
+  --background: #f6f7f9;
+  --foreground: #171a1f;
+  --card: #ffffff;
+  --card-foreground: #171a1f;
+  --popover: #ffffff;
+  --popover-foreground: #171a1f;
+  --primary: #ff5a0a;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f2f5;
+  --secondary-foreground: #252a31;
+  --muted: #f0f2f5;
+  --muted-foreground: #687181;
+  --accent: #ff5a0a;
+  --accent-foreground: #ffffff;
+  --border: #e4e7eb;
+  --input: #dce1e7;
+  --ring: #ff5a0a;
+  --surface: #f9fafb;
+  --surface-foreground: #252a31;
+
+  --qs-shadow-card: 0 1px 2px rgb(15 23 42 / .025), 0 7px 22px rgb(15 23 42 / .045);
+  --qs-shadow-hover: 0 2px 4px rgb(15 23 42 / .04), 0 18px 42px rgb(15 23 42 / .09);
+  --qs-shadow-float: 0 26px 90px rgb(15 23 42 / .18);
+  --qs-shadow-nav: 0 14px 44px rgb(15 23 42 / .12);
+}
+
+.dark {
+  --qs-page-bg: #101317;
+  --qs-surface: #171b20;
+  --qs-surface-soft: #1d2228;
+  --qs-surface-raised: #1b2026;
+  --qs-line: #2b3138;
+  --qs-line-strong: #3a424b;
+  --qs-ink: #f5f7f9;
+  --qs-ink-soft: #a3acb8;
+  --qs-brand-soft: rgb(255 90 10 / .12);
+
+  --background: #101317;
+  --foreground: #f5f7f9;
+  --card: #171b20;
+  --card-foreground: #f5f7f9;
+  --popover: #1b2026;
+  --popover-foreground: #f5f7f9;
+  --secondary: #222830;
+  --secondary-foreground: #edf0f3;
+  --muted: #222830;
+  --muted-foreground: #9ca6b2;
+  --border: #2c333b;
+  --input: #38414b;
+  --surface: #1b2026;
+  --surface-foreground: #f5f7f9;
+
+  --qs-shadow-card: 0 1px 2px rgb(0 0 0 / .24), 0 10px 28px rgb(0 0 0 / .16);
+  --qs-shadow-hover: 0 2px 4px rgb(0 0 0 / .28), 0 20px 48px rgb(0 0 0 / .24);
+  --qs-shadow-float: 0 28px 100px rgb(0 0 0 / .44);
+  --qs-shadow-nav: 0 18px 52px rgb(0 0 0 / .32);
+}
+
+html {
+  background: var(--background);
+  scroll-padding-top: calc(var(--qs-shell-topbar) + 16px);
+}
+
+body {
+  min-width: 320px;
+  background:
+    radial-gradient(circle at 92% -6%, color-mix(in srgb, var(--primary) 4%, transparent), transparent 24rem),
+    var(--background);
+  color: var(--foreground);
+  text-rendering: optimizeLegibility;
+}
+
+.qs-app {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--primary) 3.5%, transparent), transparent 30rem),
+    var(--background) !important;
+}
+
+.qs-route-frame {
+  min-width: 0;
+  min-height: calc(100dvh - var(--qs-shell-topbar));
+  animation: qs-master-route-in 180ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+@keyframes qs-master-route-in {
+  from { opacity: .72; transform: translate3d(0, 5px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/* ---------- Page geometry ---------- */
+.qs-page {
+  width: min(100%, var(--qs-page-max)) !important;
+  margin-inline: auto !important;
+  padding: var(--qs-space-page-y) var(--qs-space-page-x) 48px !important;
+}
+
+.qs-page > * {
+  min-width: 0;
+}
+
+.qs-page-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 2.1vw, 2.55rem) !important;
+  line-height: 1.06 !important;
+  font-weight: 720 !important;
+  letter-spacing: -.045em !important;
+  text-wrap: balance;
+}
+
+.qs-page-subtitle {
+  max-width: 760px;
+  margin-top: .5rem !important;
+  color: var(--muted-foreground);
+  font-size: .9rem !important;
+  line-height: 1.65 !important;
+  text-wrap: pretty;
+}
+
+.qs-section-title {
+  font-family: var(--font-display);
+  font-size: 1.03rem !important;
+  line-height: 1.25;
+  font-weight: 720 !important;
+  letter-spacing: -.02em !important;
+}
+
+[dir="rtl"] :is(.qs-page-title,.qs-section-title,h1,h2,h3,h4) {
+  letter-spacing: normal !important;
+}
+
+/* ---------- Surface language ---------- */
+.qs-card,
+.panel,
+.qs-stat,
+.qs-right-panel,
+.qs-settings-card {
+  border: 1px solid color-mix(in srgb, var(--border) 94%, transparent) !important;
+  border-radius: var(--qs-radius-lg) !important;
+  background: color-mix(in srgb, var(--card) 99%, var(--background) 1%) !important;
+  box-shadow: var(--qs-shadow-card) !important;
+}
+
+.qs-card,
+.panel,
+.qs-right-panel {
+  overflow-wrap: anywhere;
+}
+
+.qs-stat {
+  min-height: 108px;
+  padding: 17px !important;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.qs-soft-card {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--qs-radius-md) !important;
+  background: color-mix(in srgb, var(--muted) 58%, var(--card)) !important;
+  box-shadow: none !important;
+}
+
+.qs-panel-header {
+  padding: 18px 20px !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: color-mix(in srgb, var(--card) 98%, var(--muted) 2%) !important;
+}
+
+@media (hover:hover) {
+  a.qs-card:hover,
+  a.panel:hover,
+  .qs-quick-tile:hover {
+    border-color: color-mix(in srgb, var(--primary) 22%, var(--border)) !important;
+    box-shadow: var(--qs-shadow-hover) !important;
+    transform: translateY(-2px);
+  }
+  .qs-stat:hover {
+    border-color: color-mix(in srgb, var(--primary) 16%, var(--border)) !important;
+    box-shadow: 0 8px 26px rgb(15 23 42 / .06) !important;
+    transform: translateY(-1px);
+  }
+}
+
+/* ---------- Header ---------- */
+.qs-topbar {
+  min-height: var(--qs-shell-topbar) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 88%, transparent) !important;
+  background: color-mix(in srgb, var(--restaurant-topbar-bg, var(--card)) 88%, transparent) !important;
+  box-shadow: 0 1px 0 rgb(15 23 42 / .025), 0 8px 30px rgb(15 23 42 / .025) !important;
+  backdrop-filter: blur(22px) saturate(1.12) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.12) !important;
+}
+
+.qs-topbar > div {
+  min-height: var(--qs-shell-topbar);
+}
+
+.qs-topbar :is(a,button) {
+  border-radius: var(--qs-radius-sm) !important;
+}
+
+.qs-topbar-search {
+  height: 42px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--card) 96%, transparent) !important;
+  box-shadow: none !important;
+}
+
+.qs-topbar-search:hover {
+  border-color: var(--line-strong, var(--qs-line-strong)) !important;
+}
+
+/* ---------- Desktop sidebar ---------- */
+.qs-sidebar-shell {
+  width: var(--qs-shell-sidebar) !important;
+  border-inline-end: 1px solid color-mix(in srgb, var(--border) 92%, transparent) !important;
+  background: color-mix(in srgb, var(--restaurant-sidebar-bg, var(--card)) 99%, var(--background) 1%) !important;
+  color: var(--foreground) !important;
+  box-shadow: 8px 0 28px rgb(15 23 42 / .025) !important;
+}
+
+[dir="rtl"] .qs-sidebar-shell {
+  box-shadow: -8px 0 28px rgb(15 23 42 / .025) !important;
+}
+
+.qs-sidebar-shell > div:first-child {
+  min-height: var(--qs-shell-topbar) !important;
+  padding-inline: 18px !important;
+}
+
+.qs-sidebar-shell nav {
+  padding: 16px 12px 22px !important;
+}
+
+.qs-sidebar-item {
+  position: relative;
+  min-height: 44px !important;
+  gap: 11px !important;
+  border-radius: 11px !important;
+  padding: .64rem .78rem !important;
+  color: var(--restaurant-sidebar-text, var(--muted-foreground)) !important;
+  font-size: .815rem !important;
+  font-weight: 650 !important;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease !important;
+}
+
+.qs-sidebar-item:hover {
+  background: color-mix(in srgb, var(--foreground) 5%, transparent) !important;
+  color: var(--foreground) !important;
+  transform: none !important;
+}
+
+.qs-sidebar-item[data-active="true"] {
+  background: color-mix(in srgb, var(--restaurant-selected-nav, var(--primary)) 10%, var(--card)) !important;
+  color: var(--restaurant-selected-nav, var(--primary)) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--restaurant-selected-nav, var(--primary)) 17%, transparent),
+    0 4px 14px color-mix(in srgb, var(--restaurant-selected-nav, var(--primary)) 5%, transparent) !important;
+}
+
+.qs-sidebar-item[data-active="true"] svg {
+  color: currentColor !important;
+}
+
+.qs-sidebar-item[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  inset-block: 11px;
+  inset-inline-start: -12px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--restaurant-selected-nav, var(--primary));
+}
+
+[dir="rtl"] .qs-sidebar-item[data-active="true"]::after {
+  inset-inline-start: auto;
+  inset-inline-end: -12px;
+}
+
+/* ---------- Controls ---------- */
+.qs-control,
+.qs-chip {
+  font-family: var(--font-sans);
+}
+
+.qs-control {
+  min-height: 44px !important;
+  border: 1px solid var(--input) !important;
+  border-radius: 12px !important;
+  background: var(--card) !important;
+  box-shadow: 0 1px 2px rgb(15 23 42 / .025) !important;
+}
+
+.qs-control:focus-within {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border)) !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 9%, transparent) !important;
+}
+
+.qs-chip {
+  min-height: 38px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 999px !important;
+  background: var(--card) !important;
+  padding-inline: .82rem !important;
+  font-size: .76rem !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 2px rgb(15 23 42 / .02);
+}
+
+.qs-chip[data-active="true"] {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border)) !important;
+  background: color-mix(in srgb, var(--primary) 8%, var(--card)) !important;
+  color: var(--primary) !important;
+}
+
+/* ---------- Tables ---------- */
+.qs-table {
+  width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.qs-table thead th {
+  height: 46px !important;
+  padding: .72rem .95rem !important;
+  background: color-mix(in srgb, var(--muted) 74%, var(--card)) !important;
+  color: var(--muted-foreground) !important;
+  font-size: .68rem !important;
+  font-weight: 760 !important;
+  letter-spacing: .015em;
+  white-space: nowrap;
+}
+
+.qs-table td {
+  padding: .86rem .95rem !important;
+  border-top: 1px solid color-mix(in srgb, var(--border) 90%, transparent) !important;
+  font-size: .79rem !important;
+  vertical-align: middle;
+}
+
+.qs-table tbody tr {
+  transition: background-color 120ms ease;
+}
+
+.qs-table tbody tr:hover {
+  background: color-mix(in srgb, var(--primary) 3%, var(--card)) !important;
+}
+
+/* ---------- Dialogs / sheets ---------- */
+.qs-app [role="dialog"] {
+  border-radius: var(--qs-radius-xl) !important;
+  border-color: color-mix(in srgb, var(--border) 90%, transparent) !important;
+  box-shadow: var(--qs-shadow-float) !important;
+}
+
+.qs-side-dialog {
+  box-shadow: -18px 0 58px rgb(15 23 42 / .14) !important;
+}
+
+[dir="rtl"] .qs-side-dialog {
+  box-shadow: 18px 0 58px rgb(15 23 42 / .14) !important;
+}
+
+/* ---------- Statuses ---------- */
+.qs-status {
+  min-height: 26px !important;
+  border-radius: 999px !important;
+  padding: .3rem .6rem !important;
+  font-size: .66rem !important;
+  font-weight: 760 !important;
+}
+
+.qs-stat-icon,
+.qs-quick-icon {
+  border-radius: 13px !important;
+}
+
+/* ---------- Shared grid behavior ---------- */
+.qs-page :is(.grid,.flex) {
+  min-width: 0;
+}
+
+.qs-page :is(.overflow-x-auto,.overflow-auto) {
+  overscroll-behavior-inline: contain;
+}
+
+/* ---------- Mobile / tablet ---------- */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  :root {
+    --qs-shell-sidebar: 220px;
+    --qs-space-page-x: 22px;
+  }
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --qs-shell-topbar: 64px;
+    --qs-space-page-x: 16px;
+    --qs-space-page-y: 18px;
+  }
+
+  .qs-page {
+    padding: var(--qs-space-page-y) var(--qs-space-page-x) calc(102px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .qs-page-title {
+    font-size: clamp(1.68rem, 6vw, 2.1rem) !important;
+  }
+
+  .qs-page-subtitle {
+    font-size: .84rem !important;
+  }
+
+  .qs-card,
+  .panel,
+  .qs-stat,
+  .qs-right-panel {
+    border-radius: 16px !important;
+  }
+
+  .qs-app nav.safe-bottom {
+    inset-inline: 10px !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .qs-app nav.safe-bottom > div {
+    border: 1px solid color-mix(in srgb, var(--border) 90%, transparent) !important;
+    border-radius: 21px !important;
+    background: color-mix(in srgb, var(--card) 92%, transparent) !important;
+    box-shadow: var(--qs-shadow-nav) !important;
+    backdrop-filter: blur(24px) saturate(1.14);
+    -webkit-backdrop-filter: blur(24px) saturate(1.14);
+  }
+
+  .qs-app nav.safe-bottom a {
+    min-height: 66px !important;
+    border-radius: 15px !important;
+  }
+
+  .qs-table thead th {
+    position: static !important;
+  }
+
+  .qs-side-dialog {
+    width: min(100vw, 560px) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --qs-space-page-x: 12px;
+  }
+
+  .qs-page {
+    padding-top: 14px !important;
+  }
+
+  .qs-card,
+  .panel,
+  .qs-stat,
+  .qs-right-panel {
+    border-radius: 15px !important;
+  }
+
+  .qs-panel-header {
+    padding: 15px 16px !important;
+  }
+
+  .qs-app [role="dialog"] {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
+    border-radius: 20px !important;
+  }
+
+  .qs-app [role="dialog"] :is(input,textarea,[role="combobox"]) {
+    font-size: 16px !important;
+  }
+
+  .qs-table td,
+  .qs-table th {
+    padding-inline: .72rem !important;
+  }
+}
+
+/* ---------- Interaction / accessibility ---------- */
+.qs-app :where(a,button,input,textarea,select,[role="button"],[role="tab"],[role="combobox"]):focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent) !important;
+}
+
+@media (pointer: coarse) {
+  .qs-app :where(button,[role="button"],[role="tab"],.qs-chip,.qs-sidebar-item) {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qs-route-frame,
+  .qs-stat,
+  .qs-card,
+  .qs-sidebar-item,
+  .qs-chip,
+  .qs-app * {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
