@@ -624,7 +624,8 @@ function NewRestaurantPage() {
             </p>
           </div>
         )}
-      </div>
+        </div>
+      </section>
 
       <div className="safe-bottom sticky bottom-0 z-20 -mx-1 flex items-center justify-between gap-3 border-t bg-background/95 px-1 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
         <Button variant="ghost" className="h-11" disabled={step === 0 || busy} onClick={() => setStep(step - 1)}>
