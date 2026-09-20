@@ -1,212 +1,111 @@
-import { AlertTriangle, Coins, PackageSearch, Receipt, TrendingDown } from "lucide-react";
+import { AlertTriangle, Coins, Package, PackageCheck, Receipt, ShoppingCart, Truck } from "lucide-react";
 
+import type { RecordRequest } from "@/components/backoffice/RecordDialog";
 import { Button } from "@/components/ui/button";
-import type { BackOfficeData } from "@/hooks/useBackOffice";
+import type { BackOfficeAccess, BackOfficeData } from "@/hooks/useBackOffice";
 import { backOfficeSummary } from "@/hooks/useBackOffice";
 import { expenseCategoryLabel } from "@/lib/erp";
 import { formatDateTime, formatMoney, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
-import type { RecordRequest } from "@/components/backoffice/RecordDialog";
+import { cn } from "@/lib/utils";
 
 type Summary = ReturnType<typeof backOfficeSummary>;
-
-function Kpi({
-  icon: Icon,
-  label,
-  value,
-  hint,
-}: {
-  icon: typeof Coins;
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <div className="panel p-5">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Icon className="size-4 shrink-0" aria-hidden />
-        <p className="text-xs font-medium">{label}</p>
-      </div>
-      <p className="mt-3 text-2xl font-semibold tabular-nums">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
-    </div>
-  );
-}
+type NavTarget = "overview" | "inventory" | "receiving" | "procurement" | "suppliers" | "finance" | "reports";
 
 export function OverviewPanel({
   data,
   summary,
+  access,
   currency,
   onAction,
+  onNavigate,
+  canApproveProcurement,
 }: {
   data: BackOfficeData;
   summary: Summary;
+  access: BackOfficeAccess;
   currency: string;
   onAction: (request: RecordRequest) => void;
+  onNavigate: (section: NavTarget) => void;
+  canApproveProcurement: boolean;
 }) {
-  const { t, lang } = useI18n();
+  const { lang } = useI18n();
+  const ar = lang === "ar";
 
+  const receiptPendingFinance = data.movements.filter((row) => row.movement_type === "receipt" && !row.finance_expense_id).length;
   const activity = [
-    ...data.movements.slice(0, 12).map((m) => ({
-      id: `m-${m.id}`,
-      at: m.created_at,
-      title: data.inventory.find((i) => i.id === m.item_id)?.name ?? m.item_id,
-      detail: m.reason,
-      amount: `${Number(m.quantity) > 0 ? "+" : ""}${formatNumber(Number(m.quantity), lang)}`,
+    ...data.procurement.slice(0, 12).map((row) => ({
+      id: "p-" + row.id,
+      at: row.updated_at,
+      title: row.item_name_snapshot,
+      detail: (ar ? "مشتريات" : "Procurement") + " · " + row.status,
+      amount: formatMoney(Number(row.quantity) * Number(row.actual_unit_cost ?? row.estimated_unit_cost), currency, lang),
     })),
-    ...data.expenses.slice(0, 12).map((e) => ({
-      id: `e-${e.id}`,
-      at: e.created_at,
-      title: e.description,
-      detail: expenseCategoryLabel(e.category, lang),
-      amount: formatMoney(Number(e.amount), currency, lang),
+    ...data.movements.slice(0, 12).map((row) => ({
+      id: "m-" + row.id,
+      at: row.created_at,
+      title: data.inventory.find((item) => item.id === row.item_id)?.name ?? (ar ? "حركة مخزون" : "Stock movement"),
+      detail: row.reason,
+      amount: (Number(row.quantity) > 0 ? "+" : "") + formatNumber(Number(row.quantity), lang),
     })),
-  ]
-    .sort((a, b) => b.at.localeCompare(a.at))
-    .slice(0, 8);
+    ...data.expenses.slice(0, 12).map((row) => ({
+      id: "e-" + row.id,
+      at: row.created_at,
+      title: row.description,
+      detail: expenseCategoryLabel(row.category, lang) + " · " + (row.source_type ? "AUTO" : "MANUAL"),
+      amount: formatMoney(Number(row.amount), currency, lang),
+    })),
+  ].sort((a,b)=>b.at.localeCompare(a.at)).slice(0,8);
 
-  if (summary.isEmpty) {
-    return (
-      <div className="panel space-y-4 p-8 text-center">
-        <PackageSearch className="mx-auto size-8 text-primary" aria-hidden />
-        <h3 className="text-lg font-semibold">{t("bo.overview.startTitle")}</h3>
-        <p className="mx-auto max-w-md text-sm text-muted-foreground">{t("bo.overview.startBody")}</p>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button className="min-h-11" onClick={() => onAction({ kind: "item" })}>
-            {t("bo.inv.addItem")}
-          </Button>
-          <Button variant="outline" className="min-h-11" onClick={() => onAction({ kind: "supplier" })}>
-            {t("bo.sup.add")}
-          </Button>
-          <Button variant="outline" className="min-h-11" onClick={() => onAction({ kind: "expense" })}>
-            {t("bo.fin.record")}
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const attention = [
+    ...(access.inventory && summary.lowStock.length ? [{
+      id:"low", icon:AlertTriangle, title: ar ? "مخزون منخفض" : "Low stock", detail: ar ? summary.lowStock.length + " مادة عند أو تحت حد إعادة الطلب" : summary.lowStock.length + " items are at or below reorder level", action:()=>onNavigate("inventory"), tone:"danger" as const,
+    }] : []),
+    ...((access.procurement || canApproveProcurement) && summary.pendingApproval ? [{
+      id:"approval", icon:ShoppingCart, title: ar ? "طلبات شراء بانتظار الاعتماد" : "Procurement awaiting approval", detail: ar ? summary.pendingApproval + " طلب يحتاج قراراً" : summary.pendingApproval + " requests need a decision", action:()=>onNavigate("procurement"), tone:"warning" as const,
+    }] : []),
+    ...((access.procurement || access.inventory) && summary.pendingReceiving ? [{
+      id:"receiving", icon:PackageCheck, title: ar ? "توريدات بانتظار الاستلام" : "Supplies waiting to be received", detail: ar ? summary.pendingReceiving + " طلب معتمد أو تم طلبه" : summary.pendingReceiving + " approved or ordered requests", action:()=>onNavigate("receiving"), tone:"warning" as const,
+    }] : []),
+    ...(access.finance && receiptPendingFinance ? [{
+      id:"finance", icon:Coins, title: ar ? "استلام غير مرحّل للمالية" : "Receipt missing Finance posting", detail: ar ? receiptPendingFinance + " حركة استلام تحتاج مراجعة" : receiptPendingFinance + " receipt movements need review", action:()=>onNavigate("finance"), tone:"danger" as const,
+    }] : []),
+  ];
 
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={PackageSearch} label={t("bo.kpi.items")} value={formatNumber(summary.itemCount, lang)} />
-        <Kpi icon={AlertTriangle} label={t("bo.kpi.low")} value={formatNumber(summary.lowStock.length, lang)} />
-        <Kpi
-          icon={Coins}
-          label={t("bo.kpi.value")}
-          value={formatMoney(summary.valuation.value, currency, lang)}
-          hint={
-            summary.valuation.itemsWithoutCost > 0
-              ? `${formatNumber(summary.valuation.itemsWithoutCost, lang)} ${t("bo.value.missing")}`
-              : t("bo.value.basis")
-          }
-        />
-        <Kpi
-          icon={Receipt}
-          label={t("bo.kpi.monthExpenses")}
-          value={formatMoney(summary.monthTotal, currency, lang)}
-          hint={`${formatNumber(summary.monthCount, lang)} · ${t("bo.fin.count")}`}
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="panel p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="font-semibold">{t("bo.overview.lowTitle")}</h3>
-            {data.inventory.length > 0 ? (
-              <Button size="sm" variant="outline" className="min-h-10" onClick={() => onAction({ kind: "receive" })}>
-                {t("bo.inv.receive")}
-              </Button>
-            ) : null}
-          </div>
-          {summary.lowStock.length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">{t("bo.overview.lowEmpty")}</p>
-          ) : (
-            <ul className="mt-4 divide-y">
-              {summary.lowStock.slice(0, 8).map((item) => (
-                <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatNumber(Number(item.quantity), lang)} {item.unit} · {t("bo.inv.reorder")}{" "}
-                      {formatNumber(Number(item.reorder_level), lang)} {item.unit}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      className="min-h-10"
-                      onClick={() => onAction({ kind: "receive", itemId: item.id })}
-                    >
-                      {t("bo.inv.receive")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="min-h-10"
-                      disabled={Number(item.quantity) <= 0}
-                      onClick={() => onAction({ kind: "issue", itemId: item.id })}
-                    >
-                      {t("bo.inv.issue")}
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <div className="space-y-4">
-          <section className="panel p-5">
-            <h3 className="font-semibold">{t("bo.overview.categorySplit")}</h3>
-            {summary.monthByCategory.length === 0 ? (
-              <p className="mt-4 text-sm text-muted-foreground">{t("bo.fin.noMatch")}</p>
-            ) : (
-              <ul className="mt-4 space-y-3">
-                {summary.monthByCategory.map(([category, amount]) => {
-                  const share = summary.monthTotal > 0 ? Math.round((amount / summary.monthTotal) * 100) : 0;
-                  return (
-                    <li key={category}>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span>{expenseCategoryLabel(category, lang)}</span>
-                        <span className="font-medium tabular-nums">
-                          {formatMoney(amount, currency, lang)}
-                        </span>
-                      </div>
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full bg-primary" style={{ width: `${share}%` }} />
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-
-          <section className="panel p-5">
-            <div className="flex items-center gap-2">
-              <TrendingDown className="size-4 text-muted-foreground" aria-hidden />
-              <h3 className="font-semibold">{t("bo.overview.activity")}</h3>
-            </div>
-            {activity.length === 0 ? (
-              <p className="mt-4 text-sm text-muted-foreground">{t("bo.overview.activityEmpty")}</p>
-            ) : (
-              <ul className="mt-4 divide-y">
-                {activity.map((entry) => (
-                  <li key={entry.id} className="flex items-start justify-between gap-4 py-3 text-sm">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{entry.title}</p>
-                      <p className="truncate text-xs text-muted-foreground">{entry.detail}</p>
-                      <time className="text-xs text-muted-foreground">{formatDateTime(entry.at, lang)}</time>
-                    </div>
-                    <span className="whitespace-nowrap font-semibold tabular-nums">{entry.amount}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-      </div>
+  return <div className="space-y-5">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {access.inventory ? <OverviewKpi icon={Coins} label={ar ? "قيمة المخزون" : "Inventory value"} value={formatMoney(summary.valuation.value,currency,lang)} hint={summary.valuation.itemsWithoutCost ? (ar ? summary.valuation.itemsWithoutCost + " بدون تكلفة" : summary.valuation.itemsWithoutCost + " without cost") : (ar ? "حسب آخر سعر استلام" : "Latest receipt cost")} /> : null}
+      {access.inventory ? <OverviewKpi icon={AlertTriangle} label={ar ? "مخزون منخفض" : "Low stock"} value={formatNumber(summary.lowStock.length,lang)} tone={summary.lowStock.length ? "danger" : undefined} /> : null}
+      {access.procurement || canApproveProcurement ? <OverviewKpi icon={ShoppingCart} label={ar ? "طلبات شراء مفتوحة" : "Open procurement"} value={formatNumber(summary.pendingApproval+summary.pendingReceiving,lang)} hint={formatMoney(summary.openProcurementValue,currency,lang)} /> : null}
+      {access.finance ? <OverviewKpi icon={Receipt} label={ar ? "مصروفات الشهر" : "Month expenses"} value={formatMoney(summary.monthTotal,currency,lang)} hint={formatNumber(summary.monthCount,lang) + " " + (ar ? "قيد" : "entries")} /> : null}
+      {!access.inventory && !access.procurement && !access.finance ? <OverviewKpi icon={Package} label={ar ? "الوحدات" : "Modules"} value="ERP" /> : null}
     </div>
-  );
+
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,.75fr)]">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="border-b border-border p-5"><h3 className="font-display text-lg font-bold">{ar ? "تحتاج انتباه" : "Attention needed"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "الاستثناءات التي تستحق الإجراء الآن فقط." : "Only exceptions that need action now."}</p></div>
+        {attention.length ? <div className="divide-y divide-border">{attention.map((item)=><button key={item.id} type="button" onClick={item.action} className="flex w-full items-center gap-3 p-4 text-start transition hover:bg-muted/30"><span className={cn("grid size-10 shrink-0 place-items-center rounded-xl",item.tone==="danger"?"bg-red-500/10 text-red-600":"bg-amber-500/10 text-amber-700")}><item.icon className="size-4"/></span><span className="min-w-0 flex-1"><strong className="block text-sm">{item.title}</strong><span className="mt-0.5 block text-xs text-muted-foreground">{item.detail}</span></span><span className="text-xs font-bold text-[#ff5a0a]">{ar ? "فتح" : "Open"}</span></button>)}</div> : <div className="grid min-h-[220px] place-items-center p-8 text-center"><div><PackageCheck className="mx-auto size-9 text-emerald-600"/><h4 className="mt-3 font-bold">{ar ? "كل شيء تحت السيطرة" : "Everything looks under control"}</h4><p className="mt-1 text-xs text-muted-foreground">{ar ? "لا توجد استثناءات تحتاج تدخلاً الآن." : "No operational exceptions need action right now."}</p></div></div>}
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <h3 className="font-display text-lg font-bold">{ar ? "إجراءات سريعة" : "Quick actions"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "اختصارات لأكثر الإجراءات استخداماً حسب صلاحياتك." : "Shortcuts to the actions allowed for your account."}</p>
+        <div className="mt-4 grid gap-2">
+          {access.inventory ? <Button variant="outline" className="justify-start" onClick={()=>onAction({kind:"receive"})}><PackageCheck className="size-4"/>{ar ? "استلام توريد" : "Receive supplies"}</Button> : null}
+          {access.procurement ? <Button variant="outline" className="justify-start" onClick={()=>onAction({kind:"procurement"})}><ShoppingCart className="size-4"/>{ar ? "طلب شراء" : "Create procurement request"}</Button> : null}
+          {access.finance ? <Button variant="outline" className="justify-start" onClick={()=>onAction({kind:"expense"})}><Receipt className="size-4"/>{ar ? "مصروف يدوي" : "Record manual expense"}</Button> : null}
+          {access.procurement ? <Button variant="outline" className="justify-start" onClick={()=>onAction({kind:"supplier"})}><Truck className="size-4"/>{ar ? "إضافة مورد" : "Add supplier"}</Button> : null}
+          {access.inventory ? <Button variant="outline" className="justify-start" onClick={()=>onAction({kind:"item"})}><Package className="size-4"/>{ar ? "إضافة مادة مخزون" : "Add inventory item"}</Button> : null}
+        </div>
+      </section>
+    </div>
+
+    <section className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="flex items-center justify-between gap-3 border-b border-border p-5"><div><h3 className="font-display text-lg font-bold">{ar ? "آخر النشاطات" : "Recent activity"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "حركات مرتبطة بالمخزون والمشتريات والمالية." : "Recent inventory, procurement and Finance events."}</p></div><Button variant="ghost" size="sm" onClick={()=>onNavigate("reports")}>{ar ? "التقارير" : "Reports"}</Button></div>
+      {activity.length ? <div className="divide-y divide-border">{activity.map((entry)=><div key={entry.id} className="flex items-start justify-between gap-4 p-4"><div className="min-w-0"><strong className="block truncate text-sm">{entry.title}</strong><p className="mt-1 truncate text-xs text-muted-foreground">{entry.detail}</p><time className="mt-1 block text-[10px] text-muted-foreground">{formatDateTime(entry.at,lang)}</time></div><span className="shrink-0 text-xs font-bold tabular-nums">{entry.amount}</span></div>)}</div> : <div className="p-8 text-center text-xs text-muted-foreground">{ar ? "لا يوجد نشاط مسجل بعد." : "No ERP activity recorded yet."}</div>}
+    </section>
+  </div>;
+}
+
+function OverviewKpi({icon:Icon,label,value,hint,tone}:{icon:typeof Coins;label:string;value:string;hint?:string;tone?:"danger"|undefined}) {
+  return <article className="qs-stat min-h-[116px] p-4"><div className="flex items-center gap-2"><span className={cn("grid size-9 place-items-center rounded-xl",tone==="danger"?"bg-red-500/10 text-red-600":"bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-4"/></span><p className="text-[11px] font-semibold text-muted-foreground">{label}</p></div><strong className="mt-3 block font-display text-2xl tracking-[-.04em]">{value}</strong>{hint?<p className="mt-1 text-[10px] text-muted-foreground">{hint}</p>:null}</article>;
 }
