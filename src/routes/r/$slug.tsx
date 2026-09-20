@@ -62,7 +62,7 @@ import {
 } from "@/lib/diner";
 
 const DIET_FILTERS: DietTag[] = ["vegetarian", "vegan", "spicy", "gluten", "nuts", "seafood"];
-const searchSchema = z.object({ t: z.string().optional(), preview: z.enum(["1"]).optional() });
+const searchSchema = z.object({ t: z.string().optional(), preview: z.enum(["1"]).optional(), mode: z.enum(["kiosk"]).optional() });
 
 export const Route = createFileRoute("/r/$slug")({
   validateSearch: searchSchema,
@@ -81,10 +81,11 @@ export const Route = createFileRoute("/r/$slug")({
 
 function DinerPage() {
   const { slug } = Route.useParams();
-  const { t: qrToken, preview } = Route.useSearch();
+  const { t: qrToken, preview, mode } = Route.useSearch();
   const { t, lang, pick, toggleLang } = useI18n();
   const queryClient = useQueryClient();
   const previewMode = preview === "1";
+  const kioskMode = mode === "kiosk";
   const menu = useQuery({
     queryKey: ["diner", slug, qrToken ?? null],
     queryFn: () => loadDinerMenu(slug, qrToken ?? null),
@@ -108,6 +109,36 @@ function DinerPage() {
   const [busy, setBusy] = useState(false);
 
   const restaurant = menu.data?.restaurant;
+
+  useEffect(() => {
+    if (!kioskMode) return;
+    let timer = 0;
+    const reset = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        setCart([]);
+        setCartOpen(false);
+        setDetail(null);
+        setOrderNotes("");
+        setGuestName("");
+        setGuestPhone("");
+        setGuestEmail("");
+        setDeliveryAddress("");
+        setScheduledFor("");
+        setPlaced(null);
+        setQuery("");
+        setDiets([]);
+        setActiveCategory("all");
+      }, 90_000);
+    };
+    const events = ["pointerdown", "touchstart", "keydown"] as const;
+    events.forEach((event) => window.addEventListener(event, reset, { passive: true }));
+    reset();
+    return () => {
+      window.clearTimeout(timer);
+      events.forEach((event) => window.removeEventListener(event, reset));
+    };
+  }, [kioskMode]);
 
   useEffect(() => {
     if (!restaurant?.id) return;
@@ -142,10 +173,10 @@ function DinerPage() {
 
   const currency = restaurant?.currency ?? "JOD";
   const showPrices = menu.data?.settings?.show_prices ?? true;
-  const onlineEnabled = Boolean(menu.data?.settings?.enable_pickup || menu.data?.settings?.enable_delivery);
-  const ordersEnabled = !previewMode && (menu.data?.settings?.enable_orders ?? true) && (Boolean(menu.data?.table) || onlineEnabled);
+  const onlineEnabled = Boolean(menu.data?.settings?.enable_pickup || menu.data?.settings?.enable_delivery || kioskMode);
+  const ordersEnabled = !previewMode && (menu.data?.settings?.enable_orders ?? true) && (Boolean(menu.data?.table) || (kioskMode ? Boolean(menu.data?.settings?.enable_pickup) : onlineEnabled));
   const dineIn = Boolean(menu.data?.table);
-  const effectiveFulfillment: "pickup" | "delivery" = menu.data?.settings?.enable_pickup
+  const effectiveFulfillment: "pickup" | "delivery" = kioskMode ? "pickup" : menu.data?.settings?.enable_pickup
     ? fulfillment
     : "delivery";
 
@@ -208,11 +239,11 @@ function DinerPage() {
       return;
     }
     if (!ordersEnabled) return;
-    if (!dineIn && !guestPhone.trim()) {
+    if (!dineIn && !kioskMode && !guestPhone.trim()) {
       toast.error(lang === "ar" ? "رقم الهاتف مطلوب لطلبات الاستلام والتوصيل." : "Phone number is required for pickup and delivery.");
       return;
     }
-    if (!dineIn && effectiveFulfillment === "delivery" && !deliveryAddress.trim()) {
+    if (!dineIn && !kioskMode && effectiveFulfillment === "delivery" && !deliveryAddress.trim()) {
       toast.error(lang === "ar" ? "عنوان التوصيل مطلوب." : "Delivery address is required.");
       return;
     }
@@ -223,7 +254,7 @@ function DinerPage() {
         ? await placePublicOrder({ qrToken, lines: cart, notes: orderNotes, guest })
         : await placeFulfillmentOrder({
             restaurantSlug: slug,
-            fulfillment: effectiveFulfillment,
+            fulfillment: kioskMode ? "pickup" : effectiveFulfillment,
             lines: cart,
             notes: orderNotes,
             guest,
@@ -279,6 +310,7 @@ function DinerPage() {
     <div className="relative min-h-screen pb-28" style={{ ...themeVars(theme), ...pageBackground(theme), color: "var(--qs-text)", fontFamily: "var(--qs-body-font)" }}>
       <TextureLayer theme={theme} />
       {previewMode ? <div className="sticky top-0 z-50 border-b border-amber-300 bg-amber-100/95 px-4 py-2 text-center text-xs font-bold text-amber-900 backdrop-blur">{lang === "ar" ? "معاينة مباشرة — الطلبات ونداءات النادل معطلة" : "LIVE PREVIEW — ordering and waiter calls are disabled"}</div> : null}
+      {kioskMode ? <div className="sticky top-0 z-40 border-b border-orange-200 bg-white/95 px-4 py-2 text-center text-xs font-black uppercase tracking-[.16em] text-[#ff5a0a] backdrop-blur">{lang === "ar" ? "وضع الطلب الذاتي" : "Self-order kiosk"}</div> : null}
       <div className="relative z-10">
         <header className="mx-auto max-w-3xl">
           <MenuHero theme={theme} name={restaurant.name} subtitle={pick(restaurant.description_en, restaurant.description_ar) || t("brand.tagline")} logoUrl={restaurant.logo_url} coverUrl={restaurant.cover_image_url} aside={<Button size="sm" variant="ghost" className="h-10 shrink-0 px-2" onClick={toggleLang} style={{ color: "var(--qs-muted)" }}>{t("common.language")}</Button>} />
@@ -307,7 +339,7 @@ function DinerPage() {
       {ordersEnabled && cartCount > 0 ? <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 p-3 backdrop-blur"><div className="mx-auto flex max-w-3xl items-center gap-3"><Button className="flex-1" onClick={() => setCartOpen(true)}><ShoppingBag className="size-4" />{t("diner.viewCart")} ({cartCount}) · {formatMoney(total, currency, lang)}</Button></div></div> : null}
 
       <ItemSheet item={detail} currency={currency} showPrices={showPrices} canOrder={ordersEnabled} allowNotes={menu.data?.settings?.allow_special_notes ?? true} onClose={() => setDetail(null)} onAdd={addLine} />
-      <Sheet open={cartOpen} onOpenChange={setCartOpen}><SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto"><SheetHeader><SheetTitle>{t("diner.yourOrder")}</SheetTitle></SheetHeader><div className="space-y-3 p-4">{cart.length === 0 ? <div className="py-8 text-center"><ShoppingBag className="mx-auto size-8 text-muted-foreground" /><p className="mt-3 font-semibold">{t("diner.emptyCart")}</p><p className="mt-1 text-sm text-muted-foreground">{t("diner.emptyCartHelp")}</p><Button className="mt-4" variant="outline" onClick={() => setCartOpen(false)}>{t("diner.browseMenu")}</Button></div> : null}{cart.map((line) => <div key={line.key} className="flex items-start gap-3 rounded-lg border p-3"><div className="min-w-0 flex-1"><p className="font-medium">{pick(line.name_en, line.name_ar)}</p>{line.modifiers.length > 0 ? <p className="text-xs text-muted-foreground">{line.modifiers.map((m) => pick(m.name_en, m.name_ar)).join(", ")}</p> : null}{line.notes ? <p className="text-xs text-muted-foreground">“{line.notes}”</p> : null}<p className="mt-1 text-sm font-semibold">{formatMoney(line.unitPrice * line.quantity, currency, lang)}</p></div><div className="flex items-center gap-1"><Button size="icon" variant="outline" onClick={() => changeQty(line.key, -1)}><Minus className="size-4" /></Button><span className="w-6 text-center text-sm">{line.quantity}</span><Button size="icon" variant="outline" onClick={() => changeQty(line.key, 1)}><Plus className="size-4" /></Button><Button size="icon" variant="ghost" onClick={() => setCart((prev) => prev.filter((l) => l.key !== line.key))}><Trash2 className="size-4" /></Button></div></div>)}{!dineIn ? <div className="space-y-3 rounded-2xl border border-border p-3">
+      <Sheet open={cartOpen} onOpenChange={setCartOpen}><SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto"><SheetHeader><SheetTitle>{t("diner.yourOrder")}</SheetTitle></SheetHeader><div className="space-y-3 p-4">{cart.length === 0 ? <div className="py-8 text-center"><ShoppingBag className="mx-auto size-8 text-muted-foreground" /><p className="mt-3 font-semibold">{t("diner.emptyCart")}</p><p className="mt-1 text-sm text-muted-foreground">{t("diner.emptyCartHelp")}</p><Button className="mt-4" variant="outline" onClick={() => setCartOpen(false)}>{t("diner.browseMenu")}</Button></div> : null}{cart.map((line) => <div key={line.key} className="flex items-start gap-3 rounded-lg border p-3"><div className="min-w-0 flex-1"><p className="font-medium">{pick(line.name_en, line.name_ar)}</p>{line.modifiers.length > 0 ? <p className="text-xs text-muted-foreground">{line.modifiers.map((m) => pick(m.name_en, m.name_ar)).join(", ")}</p> : null}{line.notes ? <p className="text-xs text-muted-foreground">“{line.notes}”</p> : null}<p className="mt-1 text-sm font-semibold">{formatMoney(line.unitPrice * line.quantity, currency, lang)}</p></div><div className="flex items-center gap-1"><Button size="icon" variant="outline" onClick={() => changeQty(line.key, -1)}><Minus className="size-4" /></Button><span className="w-6 text-center text-sm">{line.quantity}</span><Button size="icon" variant="outline" onClick={() => changeQty(line.key, 1)}><Plus className="size-4" /></Button><Button size="icon" variant="ghost" onClick={() => setCart((prev) => prev.filter((l) => l.key !== line.key))}><Trash2 className="size-4" /></Button></div></div>)}{!dineIn && !kioskMode ? <div className="space-y-3 rounded-2xl border border-border p-3">
   <div><p className="text-xs font-bold">{lang === "ar" ? "طريقة الاستلام" : "Fulfillment"}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{lang === "ar" ? "اختر الاستلام من المطعم أو التوصيل." : "Choose pickup or delivery."}</p></div>
   <div className="grid grid-cols-2 gap-2">
     {menu.data?.settings?.enable_pickup ? <Button type="button" variant={effectiveFulfillment === "pickup" ? "default" : "outline"} onClick={() => setFulfillment("pickup")}>{lang === "ar" ? "استلام" : "Pickup"}</Button> : null}
@@ -316,7 +348,7 @@ function DinerPage() {
   {effectiveFulfillment === "delivery" ? <div className="space-y-1.5"><Label>{lang === "ar" ? "عنوان التوصيل" : "Delivery address"}</Label><Textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={2} maxLength={500} /></div> : null}
   <div className="space-y-1.5"><Label>{lang === "ar" ? "وقت مطلوب (اختياري)" : "Schedule for (optional)"}</Label><Input type="datetime-local" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} /></div>
 </div> : null}
-{(menu.data?.settings?.collect_guest_details || !dineIn) ? <div className="space-y-3 rounded-2xl border border-border p-3">
+{(menu.data?.settings?.collect_guest_details || (!dineIn && !kioskMode)) ? <div className="space-y-3 rounded-2xl border border-border p-3">
   <div><p className="text-xs font-bold">{lang === "ar" ? "بيانات الضيف" : "Guest details"}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{!dineIn ? (lang === "ar" ? "الهاتف مطلوب للتواصل بخصوص الطلب." : "Phone is required so the restaurant can contact you about the order.") : (lang === "ar" ? "اختياري، ويساعد المطعم في الولاء وسجل الزيارات." : "Optional. Used for loyalty and visit history when enabled.")}</p></div>
   <div className="grid gap-2 sm:grid-cols-2"><Input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder={lang === "ar" ? "الاسم" : "Name"} maxLength={120} /><Input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder={lang === "ar" ? "الهاتف" : "Phone"} maxLength={50} /></div>
   <Input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder={lang === "ar" ? "البريد الإلكتروني (اختياري)" : "Email (optional)"} maxLength={180} />

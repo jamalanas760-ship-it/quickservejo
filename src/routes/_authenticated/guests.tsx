@@ -63,6 +63,7 @@ function GuestsPage() {
   ));
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [segment, setSegment] = useState<"all" | "vip" | "repeat" | "inactive30" | "inactive60" | "inactive90">("all");
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftValue, setGiftValue] = useState("");
   const [giftGuest, setGiftGuest] = useState<string>("");
@@ -129,9 +130,19 @@ function GuestsPage() {
   const guests = data?.guests ?? [];
   const loyalty = new Map((data?.loyalty ?? []).map((row) => [row.guest_id, row]));
   const q = search.trim().toLowerCase();
+  const now = Date.now();
+  const daysSince = (value: string | null) => value ? Math.floor((now - new Date(value).getTime()) / 86_400_000) : Number.POSITIVE_INFINITY;
+  const segmentFiltered = guests.filter((guest) => {
+    if (segment === "vip") return Number(guest.lifetime_spend) >= 100 || guest.visits >= 10;
+    if (segment === "repeat") return guest.visits >= 2;
+    if (segment === "inactive30") return daysSince(guest.last_visit_at) >= 30;
+    if (segment === "inactive60") return daysSince(guest.last_visit_at) >= 60;
+    if (segment === "inactive90") return daysSince(guest.last_visit_at) >= 90;
+    return true;
+  });
   const filtered = q
-    ? guests.filter((guest) => [guest.name, guest.phone, guest.email].some((value) => value?.toLowerCase().includes(q)))
-    : guests;
+    ? segmentFiltered.filter((guest) => [guest.name, guest.phone, guest.email].some((value) => value?.toLowerCase().includes(q)))
+    : segmentFiltered;
 
   const repeat = guests.filter((guest) => guest.visits >= 2).length;
   const lifetime = guests.reduce((sum, guest) => sum + Number(guest.lifetime_spend), 0);
@@ -203,6 +214,20 @@ function GuestsPage() {
           </div>
         </div>
       </section> : null}
+
+      <section className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          {([
+            ["all", ar ? "الكل" : "All guests"],
+            ["vip", ar ? "VIP / إنفاق مرتفع" : "VIP / high spend"],
+            ["repeat", ar ? "متكررون" : "Repeat"],
+            ["inactive30", ar ? "غير نشط 30+" : "Inactive 30+"],
+            ["inactive60", ar ? "غير نشط 60+" : "Inactive 60+"],
+            ["inactive90", ar ? "غير نشط 90+" : "Inactive 90+"],
+          ] as const).map(([key, label]) => <button key={key} type="button" onClick={() => setSegment(key)} className={segment === key ? "rounded-full bg-foreground px-3 py-2 text-xs font-bold text-background" : "rounded-full border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted"}>{label}</button>)}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">{ar ? "تُحسب الشرائح مباشرة من بيانات الزيارات والإنفاق، ويمكن استخدامها للاستهداف بعد ربط مزود رسائل." : "Segments are computed from visit/spend history and are ready for campaign targeting once a messaging provider is connected."}</p>
+      </section>
 
       <section className="overflow-hidden rounded-2xl border border-border bg-card">
         <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">

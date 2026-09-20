@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { TablesManagerModern } from "@/components/manage/TablesManagerModern";
+import { TablesManagerPro } from "@/components/manage/TablesManagerPro";
 
 export const Route = createFileRoute("/_authenticated/manage/$restaurantId/tables")({
   head: () => ({
@@ -16,5 +16,5 @@ export const Route = createFileRoute("/_authenticated/manage/$restaurantId/table
 
 function Page() {
   const { restaurantId } = Route.useParams();
-  return <TablesManagerModern restaurantId={restaurantId} />;
+  return <TablesManagerPro restaurantId={restaurantId} />;
 }
