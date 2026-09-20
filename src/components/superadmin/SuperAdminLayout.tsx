@@ -68,9 +68,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: (() => void) | undefined 
   const { lang } = useI18n();
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-[64px] items-center border-b border-white/5 px-5"><Link to={"/super-admin" as never} onClick={onNavigate} className="text-white" aria-label="QuickServe admin"><BrandLogo className="size-9" accentClassName="text-white" textClassName="text-[20px] text-white" /></Link></div>
+      <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-5"><Link to={"/super-admin" as never} onClick={onNavigate} className="text-foreground" aria-label="QuickServe admin"><BrandLogo className="size-9" accentClassName="text-[#ff5a0a]" textClassName="text-[20px] text-foreground" /></Link></div>
       <div className="qs-scroll flex-1 overflow-y-auto px-3 py-4"><NavLinks onNavigate={onNavigate} /></div>
-      <div className="border-t border-white/6 px-4 py-4 text-white"><p className="text-[13px] font-bold">QuickServe</p><p className="text-[10px] text-white/55">{lang === "ar" ? "إدارة المنصة" : "Platform admin"}</p></div>
+      <div className="border-t border-border/80 px-4 py-4"><p className="text-[13px] font-bold text-foreground">QuickServe</p><p className="text-[10px] text-muted-foreground">{lang === "ar" ? "إدارة المنصة" : "Platform admin"}</p></div>
     </div>
   );
 }
@@ -105,11 +105,11 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
   async function signOut() { await queryClient.cancelQueries(); queryClient.clear(); await supabase.auth.signOut(); navigate({ to: "/auth", replace: true }); }
 
   return (
-    <div className="min-h-dvh bg-background lg:ps-[236px]">
-      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden w-[236px] lg:block"><SidebarContent /></aside>
+    <div className="min-h-dvh bg-background lg:ps-[var(--qs-shell-sidebar)]">
+      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden lg:block"><SidebarContent /></aside>
       <header className="qs-topbar safe-top sticky top-0 z-40">
-        <div className="mx-auto flex h-[64px] w-full max-w-[1600px] items-center gap-3 px-3 sm:px-5 lg:px-7">
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}><SheetTrigger asChild><Button variant="ghost" size="icon" className="size-10 lg:hidden"><MenuIcon className="size-5" /></Button></SheetTrigger><SheetContent side="left" className="w-[86vw] max-w-[260px] bg-[#151a1e] p-0 text-white"><SheetTitle className="sr-only">QuickServe</SheetTitle><SidebarContent onNavigate={() => setMobileOpen(false)} /></SheetContent></Sheet>
+        <div className="mx-auto flex h-[var(--qs-shell-topbar)] w-full max-w-[1680px] items-center gap-3 px-3 sm:px-5 lg:px-7">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}><SheetTrigger asChild><Button variant="ghost" size="icon" className="size-10 lg:hidden"><MenuIcon className="size-5" /></Button></SheetTrigger><SheetContent side="left" className="w-[86vw] max-w-[280px] border-e border-border bg-card p-0 text-foreground"><SheetTitle className="sr-only">QuickServe</SheetTitle><SidebarContent onNavigate={() => setMobileOpen(false)} /></SheetContent></Sheet>
           <Link to={"/super-admin" as never} className="lg:hidden"><BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="hidden sm:inline" /></Link>
           <button type="button" onClick={() => setSearchOpen(true)} className="qs-topbar-search hidden min-w-0 max-w-[440px] flex-1 items-center gap-3 px-4 text-start text-[13px] text-muted-foreground md:flex"><Search className="size-4" /><span className="min-w-0 flex-1 truncate">{lang === "ar" ? "بحث" : "Search"}</span><kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px]">⌘K</kbd></button>
           <div className="ms-auto flex items-center gap-1 sm:gap-1.5">
@@ -129,7 +129,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main className={cn("mx-auto min-h-[calc(100dvh-64px)] w-full max-w-[1600px] px-4 py-5 sm:px-6 lg:px-7")}>{children}</main>
+      <main className={cn("qs-page min-h-[calc(100dvh-var(--qs-shell-topbar))]")}>{children}</main>
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
   );
