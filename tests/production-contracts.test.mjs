@@ -106,7 +106,7 @@ test("kitchen workflow uses guarded transitions, station routing and printable r
   assert.match(stations, /menu_items/);
   assert.match(printer, /58/);
   assert.match(printer, /80/);
-  assert.match(printer, /window\\.print/);
+  assert.match(printer, /window[.]print/);
   assert.match(migration, /valid_order_transition/);
   assert.match(migration, /Manager approval is required for late-stage cancellation/);
   assert.match(migration, /snapshot_order_item_station/);
