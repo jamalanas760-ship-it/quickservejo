@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarCheck2, Clock3, TimerReset, UsersRound, XCircle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { PublicGuestShell, PublicInfoCard } from "@/components/public/PublicGuestShell";
@@ -110,12 +110,13 @@ function WaitlistOfferPage() {
   const active = Boolean(waitlist.offer_active && remainingMs > 0);
   const converted = waitlist.status === "converted" && booking?.public_token;
 
-  const status = useMemo(() => {
-    if (converted) return { label: ar ? "تم تأكيد الحجز" : "Reservation confirmed", tone: "green" as const };
-    if (active) return { label: ar ? "عرض طاولة متاح الآن" : "Table offer available now", tone: "orange" as const };
-    if (waitlist.status === "waiting") return { label: ar ? "على قائمة الانتظار" : "On the waitlist", tone: "blue" as const };
-    return { label: ar ? "تم إغلاق الطلب" : "Request closed", tone: "red" as const };
-  }, [active, ar, converted, waitlist.status]);
+  const status = converted
+    ? { label: ar ? "تم تأكيد الحجز" : "Reservation confirmed", tone: "green" as const }
+    : active
+      ? { label: ar ? "عرض طاولة متاح الآن" : "Table offer available now", tone: "orange" as const }
+      : waitlist.status === "waiting"
+        ? { label: ar ? "على قائمة الانتظار" : "On the waitlist", tone: "blue" as const }
+        : { label: ar ? "تم إغلاق الطلب" : "Request closed", tone: "red" as const };
 
   return (
     <PublicGuestShell
