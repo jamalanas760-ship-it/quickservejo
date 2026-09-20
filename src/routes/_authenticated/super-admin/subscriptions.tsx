@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,20 @@ function SubscriptionsPage() {
   const queryClient = useQueryClient();
   const plans = useSubscriptionPlans();
   const restaurants = useRestaurantsWithStats();
+  const usage = useQuery({
+    queryKey: ["platform", "saas-usage", new Date().toLocaleDateString("en-CA")],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("saas_usage_daily")
+        .select("restaurant_id,orders_count,active_staff,tables_count,menu_items_count")
+        .eq("usage_date", new Date().toLocaleDateString("en-CA"));
+      if (error) throw error;
+      return (data ?? []) as Array<{ restaurant_id: string; orders_count: number; active_staff: number; tables_count: number; menu_items_count: number }>;
+    },
+    staleTime: 60_000,
+  });
+  const usageByRestaurant = new Map((usage.data ?? []).map((row) => [row.restaurant_id, row]));
+  const planByName = new Map((plans.data ?? []).map((plan) => [plan.plan, plan]));
 
   async function update(
     id: string,
@@ -156,10 +170,16 @@ function SubscriptionsPage() {
                   <p className="text-xs text-muted-foreground">
                     {formatDate(r.subscription_start, lang)} → {formatDate(r.subscription_end, lang)}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatNumber(r.productCount, lang)} · {formatNumber(r.tableCount, lang)} ·{" "}
-                    {formatNumber(r.staffCount, lang)}
-                  </p>
+                  {(() => {
+                    const u = usageByRestaurant.get(r.id);
+                    const p = planByName.get(r.subscription_plan);
+                    return <div className="space-y-2">
+                      <UsageBar label={t("sa.stat.activeTables")} value={u?.tables_count ?? r.tableCount} limit={p?.max_tables ?? null} lang={lang} />
+                      <UsageBar label={t("sa.stat.menuItems")} value={u?.menu_items_count ?? r.productCount} limit={p?.max_products ?? null} lang={lang} />
+                      <UsageBar label={t("sa.stat.staff")} value={u?.active_staff ?? r.staffCount} limit={p?.max_staff ?? null} lang={lang} />
+                      <UsageBar label={t("sa.stat.ordersMonth")} value={u?.orders_count ?? 0} limit={p?.max_monthly_orders ?? null} lang={lang} />
+                    </div>;
+                  })()}
                 </div>
               ))}
             </div>
@@ -221,9 +241,16 @@ function SubscriptionsPage() {
                     <td className="whitespace-nowrap p-3 text-muted-foreground">
                       {formatDate(r.subscription_end, lang)}
                     </td>
-                    <td className="whitespace-nowrap p-3 text-xs text-muted-foreground">
-                      {formatNumber(r.productCount, lang)} · {formatNumber(r.tableCount, lang)} ·{" "}
-                      {formatNumber(r.staffCount, lang)}
+                    <td className="min-w-[250px] p-3 text-xs">
+                      {(() => {
+                        const u = usageByRestaurant.get(r.id);
+                        const p = planByName.get(r.subscription_plan);
+                        return <div className="space-y-1.5">
+                          <UsageBar label={t("sa.stat.activeTables")} value={u?.tables_count ?? r.tableCount} limit={p?.max_tables ?? null} lang={lang} compact />
+                          <UsageBar label={t("sa.stat.staff")} value={u?.active_staff ?? r.staffCount} limit={p?.max_staff ?? null} lang={lang} compact />
+                          <UsageBar label={t("sa.stat.ordersMonth")} value={u?.orders_count ?? 0} limit={p?.max_monthly_orders ?? null} lang={lang} compact />
+                        </div>;
+                      })()}
                     </td>
                   </tr>
                 ))}
@@ -235,4 +262,17 @@ function SubscriptionsPage() {
       </section>
     </div>
   );
+}
+
+
+function UsageBar({ label, value, limit, lang, compact = false }: { label: string; value: number; limit: number | null | undefined; lang: "en" | "ar"; compact?: boolean }) {
+  const capped = limit === null || limit === undefined ? 0 : Math.min(100, Math.round((value / Math.max(1, Number(limit))) * 100));
+  const near = limit !== null && limit !== undefined && capped >= 80;
+  return <div>
+    <div className="flex items-center justify-between gap-3 text-[10px]">
+      <span className="text-muted-foreground">{label}</span>
+      <strong className={near ? "text-amber-700" : ""}>{formatNumber(value, lang)} / {limit === null || limit === undefined ? "∞" : formatNumber(Number(limit), lang)}</strong>
+    </div>
+    {!compact || (limit !== null && limit !== undefined) ? <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted"><div className={near ? "h-full rounded-full bg-amber-500" : "h-full rounded-full bg-[#ff5a0a]"} style={{ width: (limit === null || limit === undefined ? 4 : Math.max(2, capped)) + "%" }} /></div> : null}
+  </div>;
 }

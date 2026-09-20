@@ -37,7 +37,7 @@ export function HomeMetricDetail({ metric, restaurantId, restaurantName, currenc
       let events: StatusEvent[] = [];
       let timingEventsAvailable = metric !== "order-time";
       if (metric === "order-time") {
-        const eventResult = await supabase.from("order_status_events").select("order_id,to_status,created_at").eq("restaurant_id", restaurantId).gte("created_at", todayStart.toISOString()).order("created_at", { ascending: true });
+        const eventResult = await (supabase as any).from("order_status_events").select("order_id,to_status,created_at").eq("restaurant_id", restaurantId).gte("created_at", todayStart.toISOString()).order("created_at", { ascending: true });
         if (eventResult.error) {
           if (eventResult.error.code === "PGRST205") {
             timingEventsAvailable = false;

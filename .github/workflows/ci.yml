@@ -22,6 +22,8 @@ jobs:
         run: bun run build
       - name: Typecheck
         run: bunx tsc --noEmit
+      - name: Production contract tests
+        run: bun run test:contracts
       - name: Lint
         run: bun run lint
       - name: Production build

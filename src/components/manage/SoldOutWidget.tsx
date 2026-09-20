@@ -28,7 +28,7 @@ export function SoldOutWidget({ restaurantId }: { restaurantId: string }) {
     queryKey: ["stock", "unavailable", restaurantId],
     staleTime: 20_000,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("menu_items")
         .select("id, name_en, name_ar, is_available, sold_out_until, sold_out_note")
         .eq("restaurant_id", restaurantId)
@@ -36,13 +36,13 @@ export function SoldOutWidget({ restaurantId }: { restaurantId: string }) {
         .order("name_en", { ascending: true })
         .limit(50);
       if (error) throw error;
-      return (data ?? []) as StockRow[];
+      return (data ?? []) as unknown as StockRow[];
     },
   });
 
   const restore = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("menu_items")
         .update({ is_available: true, sold_out_until: null, sold_out_note: null })
         .eq("id", id);

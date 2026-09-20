@@ -5,10 +5,12 @@ import {
   BellRing,
   Boxes,
   BriefcaseBusiness,
+  Building2,
   CalendarClock,
   ChefHat,
   ClipboardList,
   Home,
+  HeartHandshake,
   Settings,
   Store,
   Table2,
@@ -56,11 +58,13 @@ export function BottomNav() {
   const appearance = readAppearance(restaurant?.menu_theme);
   const useRestaurantLogo = Boolean(restaurant?.logo_url && !appearance.useQuickServeLogo);
   const managerial = role === "restaurant_admin" || role === "operations_manager" || role === "manager";
+  const multiLocation = new Set((access.data ?? []).map((row) => row.restaurant_id).filter(Boolean)).size > 1;
   const erpSpecialist = role === "inventory" || role === "procurement" || role === "accountant";
   const homeTo = role === "operations_manager" || role === "manager" ? "/manager" : erpSpecialist ? "/work" : "/dashboard";
 
   const managementItems: Item[] = restaurantId ? ([
     { to: homeTo, icon: role === "operations_manager" || role === "manager" ? UserRoundCog : Home, en: role === "operations_manager" ? "Operations" : role === "manager" ? "Shift" : "Home", ar: role === "operations_manager" ? "العمليات" : role === "manager" ? "الوردية" : "الرئيسية", exact: true },
+    { to: "/hq", icon: Building2, en: "HQ", ar: "المجموعة" },
     { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي", capability: "view_work", badge: "tasks" },
     { to: "/shifts", icon: CalendarClock, en: "Shifts", ar: "الورديات", capability: "view_work", badge: "shifts" },
     { to: "/automations", icon: Workflow, en: "Automation", ar: "الأتمتة", capability: "manage_work" },
@@ -69,9 +73,10 @@ export function BottomNav() {
     { to: `/manage/${restaurantId}/tables`, icon: Table2, en: "Tables", ar: "الطاولات", capability: "manage_tables" },
     { to: `/manage/${restaurantId}/operations`, icon: Boxes, en: "ERP", ar: "ERP", capability: "view_erp" },
     { to: `/manage/${restaurantId}/analytics`, icon: BarChart3, en: "Analytics", ar: "التحليلات", capability: "view_analytics" },
+    { to: "/guests", icon: HeartHandshake, en: "Guests", ar: "الضيوف", capability: "view_analytics" },
     { to: `/manage/${restaurantId}/staff`, icon: Users, en: "Team", ar: "الفريق", capability: "manage_staff" },
     { to: "/profile", icon: User, en: "Profile", ar: "الحساب", exact: true },
-  ] satisfies Item[]).filter((item) => !item.capability || can(item.capability)) : [];
+  ] satisfies Item[]).filter((item) => (item.to !== "/hq" || multiLocation) && (!item.capability || can(item.capability))) : [];
 
   const frontlineItem = role ? FRONTLINE_ITEMS[role] : undefined;
   const workItem: Item | null = can("view_work") ? { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي", badge: "tasks" } : null;

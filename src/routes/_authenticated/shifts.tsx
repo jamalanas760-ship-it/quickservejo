@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, CalendarClock, CheckCircle2, Clock3, Handshake, List, PlayCircle, Plus, Rows3, StopCircle, Trash2, UserPlus, UsersRound } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, Handshake, List, PlayCircle, Plus, Rows3, StopCircle, TimerReset, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/nav/AppHeader";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
 import {
   acknowledgeShiftHandover,
@@ -105,6 +106,8 @@ function ShiftsPage() {
         <Metric icon={CheckCircle2} label={ar ? "مكتملة اليوم" : "Completed today"} value={closedToday} />
       </section>
 
+      <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} ar={ar} lang={lang} />
+
       {openShiftRow ? <CurrentShift shift={openShiftRow} assignments={(assignments.data ?? []).filter((row) => row.shift_id === openShiftRow.id)} members={members.data ?? []} canManage={canManage} currentStaffId={membership.id} ar={ar} lang={lang} onClose={() => setClosingShift(openShiftRow)} /> : <section className="qs-card flex items-center gap-4 p-5"><span className="grid size-11 place-items-center rounded-2xl bg-muted text-muted-foreground"><CalendarClock className="size-5" /></span><div><h2 className="font-bold">{ar ? "لا توجد وردية مفتوحة" : "No shift is open"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكن لمدير الوردية فتح وردية مخططة عندما يبدأ التشغيل." : "A shift manager can open a planned shift when service starts."}</p></div></section>}
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,.8fr)]">
@@ -149,6 +152,103 @@ function ShiftsPage() {
     {canManage && closingShift ? <CloseShiftDialog shift={closingShift} openWorkCount={openWork.data ?? 0} restaurantId={rid} currentStaffId={membership.id} onClose={() => setClosingShift(null)} ar={ar} lang={lang} /> : null}
     {canDelete && deletingShift ? <DeleteShiftDialog shift={deletingShift} restaurantId={rid} onClose={() => setDeletingShift(null)} ar={ar} lang={lang} /> : null}
   </div>;
+}
+
+type TimeEntry = { id: string; staff_id: string; clock_in: string; clock_out: string | null; break_minutes: number };
+type LeaveRequest = { id: string; staff_id: string; start_date: string; end_date: string; reason: string; status: "pending" | "approved" | "rejected" | "cancelled"; created_at: string };
+
+function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, ar, lang }: { restaurantId: string; currentStaffId: string; canManage: boolean; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; ar: boolean; lang: "en" | "ar" }) {
+  const qc = useQueryClient();
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaveStart, setLeaveStart] = useState(new Date().toISOString().slice(0, 10));
+  const [leaveEnd, setLeaveEnd] = useState(new Date().toISOString().slice(0, 10));
+  const [leaveReason, setLeaveReason] = useState("");
+
+  const workforce = useQuery({
+    queryKey: ["workforce", restaurantId],
+    refetchInterval: 20_000,
+    queryFn: async () => {
+      const since = new Date(Date.now() - 14 * 86400000).toISOString();
+      const [timeRes, leaveRes] = await Promise.all([
+        supabase.from("staff_time_entries" as any).select("id,staff_id,clock_in,clock_out,break_minutes").eq("restaurant_id", restaurantId).gte("clock_in", since).order("clock_in", { ascending: false }).limit(500),
+        supabase.from("staff_leave_requests" as any).select("id,staff_id,start_date,end_date,reason,status,created_at").eq("restaurant_id", restaurantId).order("created_at", { ascending: false }).limit(300),
+      ]);
+      if (timeRes.error) throw timeRes.error;
+      if (leaveRes.error) throw leaveRes.error;
+      return { time: (timeRes.data ?? []) as unknown as TimeEntry[], leave: (leaveRes.data ?? []) as unknown as LeaveRequest[] };
+    },
+  });
+
+  const openEntry = (workforce.data?.time ?? []).find((entry) => entry.staff_id === currentStaffId && !entry.clock_out) ?? null;
+  const clockedIn = (workforce.data?.time ?? []).filter((entry) => !entry.clock_out);
+  const pendingLeave = (workforce.data?.leave ?? []).filter((request) => request.status === "pending");
+  const todayKey = new Date().toLocaleDateString("en-CA");
+  const todayMinutes = (workforce.data?.time ?? []).filter((entry) => entry.clock_in.slice(0,10) === todayKey).reduce((sum, entry) => {
+    const end = entry.clock_out ? new Date(entry.clock_out).getTime() : Date.now();
+    return sum + Math.max(0, (end - new Date(entry.clock_in).getTime()) / 60000 - Number(entry.break_minutes || 0));
+  }, 0);
+
+  const toggleClock = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (supabase as any).rpc("toggle_time_clock", { _restaurant_id: restaurantId });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["workforce", restaurantId] });
+      toast.success(openEntry ? (ar ? "تم تسجيل الانصراف" : "Clocked out") : (ar ? "تم تسجيل الحضور" : "Clocked in"));
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  const submitLeave = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase as any).rpc("submit_leave_request", { _restaurant_id: restaurantId, _start: leaveStart, _end: leaveEnd, _reason: leaveReason.trim() });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      setLeaveOpen(false); setLeaveReason("");
+      await qc.invalidateQueries({ queryKey: ["workforce", restaurantId] });
+      toast.success(ar ? "تم إرسال طلب الإجازة" : "Leave request submitted");
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  const reviewLeave = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "approved" | "rejected" }) => {
+      const { error } = await (supabase as any).rpc("review_leave_request", { _request_id: id, _status: status });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["workforce", restaurantId] });
+      toast.success(ar ? "تم تحديث طلب الإجازة" : "Leave request updated");
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  const memberName = (id: string) => members.find((row) => row.id === id)?.name ?? (ar ? "عضو فريق" : "Team member");
+
+  return <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]">
+    <div className="qs-card overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5">
+        <div><h2 className="qs-section-title">{ar ? "الحضور والوقت" : "Attendance & time"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "ساعة حضور فعلية مرتبطة بحساب كل موظف." : "A real time clock tied to each staff account."}</p></div>
+        <div className="flex gap-2"><Button variant="outline" onClick={() => setLeaveOpen(true)}><CalendarDays className="size-4"/>{ar ? "طلب إجازة" : "Request leave"}</Button><Button onClick={() => toggleClock.mutate()} disabled={toggleClock.isPending}>{openEntry ? <StopCircle className="size-4"/> : <TimerReset className="size-4"/>}{openEntry ? (ar ? "انصراف" : "Clock out") : (ar ? "حضور" : "Clock in")}</Button></div>
+      </div>
+      <div className="grid gap-3 p-4 sm:grid-cols-3">
+        <div className="rounded-xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حالتي" : "My status"}</p><strong className="mt-1 block text-sm">{openEntry ? (ar ? "على رأس العمل" : "Clocked in") : (ar ? "خارج الوردية" : "Clocked out")}</strong>{openEntry ? <p className="mt-1 text-[10px] text-muted-foreground">{formatStamp(openEntry.clock_in, ar)}</p> : null}</div>
+        <div className="rounded-xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "ساعات اليوم" : "Hours today"}</p><strong className="mt-1 block text-sm">{(todayMinutes/60).toFixed(1)}h</strong></div>
+        <div className="rounded-xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حاضرون الآن" : "Clocked in now"}</p><strong className="mt-1 block text-sm">{clockedIn.length}</strong></div>
+      </div>
+      {canManage && clockedIn.length ? <div className="border-t border-border p-4"><p className="mb-2 text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "الفريق الموجود الآن" : "Team on the clock"}</p><div className="flex flex-wrap gap-2">{clockedIn.slice(0,12).map(entry=><span key={entry.id} className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold">{memberName(entry.staff_id)} · {new Date(entry.clock_in).toLocaleTimeString(ar?"ar-JO":"en-JO",{hour:"2-digit",minute:"2-digit"})}</span>)}</div></div> : null}
+    </div>
+
+    <div className="qs-card overflow-hidden">
+      <div className="border-b border-border p-5"><div className="flex items-center justify-between gap-3"><div><h2 className="qs-section-title">{ar ? "طلبات الإجازة" : "Leave requests"}</h2><p className="mt-1 text-xs text-muted-foreground">{canManage ? (ar ? "راجع الطلبات المعلقة." : "Review pending requests.") : (ar ? "آخر طلباتك." : "Your recent requests.")}</p></div>{pendingLeave.length ? <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-700">{pendingLeave.length}</span> : null}</div></div>
+      <div className="max-h-[260px] divide-y divide-border overflow-y-auto">{(workforce.data?.leave ?? []).filter(request => canManage || request.staff_id===currentStaffId).slice(0,8).map(request=><div key={request.id} className="p-4"><div className="flex items-start justify-between gap-3"><div><strong className="text-sm">{memberName(request.staff_id)}</strong><p className="mt-1 text-xs text-muted-foreground">{request.start_date} → {request.end_date}</p>{request.reason?<p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{request.reason}</p>:null}</div><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold capitalize",request.status==="approved"?"bg-emerald-500/10 text-emerald-700":request.status==="rejected"?"bg-red-500/10 text-red-700":"bg-amber-500/10 text-amber-700")}>{request.status}</span></div>{canManage&&request.status==="pending"?<div className="mt-3 flex gap-2"><Button size="sm" disabled={reviewLeave.isPending} onClick={()=>reviewLeave.mutate({id:request.id,status:"approved"})}>{ar?"اعتماد":"Approve"}</Button><Button size="sm" variant="outline" disabled={reviewLeave.isPending} onClick={()=>reviewLeave.mutate({id:request.id,status:"rejected"})}>{ar?"رفض":"Reject"}</Button></div>:null}</div>)}{!(workforce.data?.leave ?? []).length?<p className="p-6 text-center text-xs text-muted-foreground">{ar ? "لا توجد طلبات إجازة." : "No leave requests yet."}</p>:null}</div>
+    </div>
+
+    <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>{ar ? "طلب إجازة" : "Request leave"}</DialogTitle><DialogDescription>{ar ? "أرسل الفترة والسبب لمدير الوردية للمراجعة." : "Send the dates and reason to shift management for review."}</DialogDescription></DialogHeader><div className="grid gap-4 sm:grid-cols-2"><Field label={ar?"من":"From"}><Input type="date" value={leaveStart} onChange={e=>setLeaveStart(e.target.value)}/></Field><Field label={ar?"إلى":"To"}><Input type="date" value={leaveEnd} onChange={e=>setLeaveEnd(e.target.value)}/></Field><Field label={ar?"السبب":"Reason"} className="sm:col-span-2"><Textarea rows={3} value={leaveReason} onChange={e=>setLeaveReason(e.target.value)} /></Field></div><DialogFooter><Button variant="outline" onClick={()=>setLeaveOpen(false)}>{ar?"إلغاء":"Cancel"}</Button><Button disabled={submitLeave.isPending||!leaveStart||!leaveEnd||leaveEnd<leaveStart} onClick={()=>submitLeave.mutate()}>{ar?"إرسال":"Submit"}</Button></DialogFooter></DialogContent></Dialog>
+  </section>;
 }
 
 function CurrentShift({ shift, assignments, members, canManage, currentStaffId, ar, lang, onClose }: { shift: Shift; assignments: ShiftAssignment[]; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; canManage: boolean; currentStaffId: string; ar: boolean; lang: "en" | "ar"; onClose: () => void }) {

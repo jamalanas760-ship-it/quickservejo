@@ -10,7 +10,20 @@ export type DinerPdfLink = { id: string; page_number: number; x: number; y: numb
 export type DinerMenu = {
   menuMode: "pdf" | "products";
   restaurant: { id: string; name: string; slug: string; logo_url: string | null; cover_image_url: string | null; description_en: string | null; description_ar: string | null; currency: string; tax_rate: number; service_charge: number; primary_color: string; accent_color: string; menu_theme: MenuTheme };
-  settings: { enable_orders: boolean; enable_waiter_calls: boolean; show_prices: boolean; allow_special_notes: boolean; minimum_order: number; enable_service_charge: boolean; estimated_preparation_time: number } | null;
+  settings: {
+    enable_orders: boolean;
+    enable_waiter_calls: boolean;
+    show_prices: boolean;
+    allow_special_notes: boolean;
+    minimum_order: number;
+    enable_service_charge: boolean;
+    estimated_preparation_time: number;
+    enable_pickup: boolean;
+    enable_delivery: boolean;
+    delivery_fee: number;
+    collect_guest_details: boolean;
+    enable_loyalty: boolean;
+  } | null;
   table: { id: string; table_number: string; table_name: string | null } | null;
   categories: { id: string; name_en: string; name_ar: string }[];
   items: DinerItem[];
@@ -29,7 +42,7 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
   if (!restaurant) throw new Error("Restaurant not found");
 
   const [settingsRes, tableRes, categoriesRes, itemsRes, groupsRes, modifiersRes, pdfDocumentRes] = await Promise.all([
-    supabase.from("restaurant_settings").select("enable_orders, enable_waiter_calls, show_prices, allow_special_notes, minimum_order, enable_service_charge, estimated_preparation_time").eq("restaurant_id", restaurant.id).maybeSingle(),
+    (supabase as any).from("restaurant_settings").select("enable_orders, enable_waiter_calls, show_prices, allow_special_notes, minimum_order, enable_service_charge, estimated_preparation_time, enable_pickup, enable_delivery, delivery_fee, collect_guest_details, enable_loyalty").eq("restaurant_id", restaurant.id).maybeSingle(),
     qrToken ? supabase.from("restaurant_tables").select("id, table_number, table_name").eq("restaurant_id", restaurant.id).eq("qr_token", qrToken).eq("is_active", true).maybeSingle() : Promise.resolve({ data: null, error: null }),
     supabase.from("menu_categories").select("id, name_en, name_ar").eq("restaurant_id", restaurant.id).eq("is_active", true).order("display_order", { ascending: true }),
     supabase.from("menu_items").select("id, category_id, name_en, name_ar, description_en, description_ar, price, compare_at_price, image_url, is_featured, preparation_time, is_available").eq("restaurant_id", restaurant.id).eq("is_available", true).order("display_order", { ascending: true }),
@@ -82,7 +95,11 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
   return {
     menuMode: appearance.menuMode,
     restaurant: { ...restaurant, logo_url: appearance.menuLogo || restaurant.logo_url, tax_rate: Number(restaurant.tax_rate), service_charge: Number(restaurant.service_charge), menu_theme: menuTheme },
-    settings: settingsRes.data ? { ...settingsRes.data, minimum_order: Number(settingsRes.data.minimum_order) } : null,
+    settings: settingsRes.data ? {
+      ...settingsRes.data,
+      minimum_order: Number(settingsRes.data.minimum_order),
+      delivery_fee: Number(settingsRes.data.delivery_fee ?? 0),
+    } : null,
     table: tableRes.data ?? null,
     categories: categoriesRes.data ?? [],
     items,
@@ -105,11 +122,42 @@ export type PublicOrderReceipt = {
   created_at: string;
 };
 
-export async function placePublicOrder(input: { qrToken: string; lines: CartLine[]; notes: string }): Promise<PlacedOrder> {
-  const { data, error } = await supabase.rpc("place_public_order", {
+export type GuestCheckout = { name?: string; phone?: string; email?: string };
+
+export async function placePublicOrder(input: { qrToken: string; lines: CartLine[]; notes: string; guest?: GuestCheckout }): Promise<PlacedOrder> {
+  const { data, error } = await (supabase as any).rpc("place_public_order_v2", {
     _qr_token: input.qrToken,
     _items: input.lines.map((line) => ({ menu_item_id: line.itemId, quantity: line.quantity, notes: line.notes || null, modifier_ids: line.modifiers.map((m) => m.id) })),
-    ...(input.notes ? { _notes: input.notes } : {}),
+    _notes: input.notes || null,
+    _guest_name: input.guest?.name?.trim() || null,
+    _guest_phone: input.guest?.phone?.trim() || null,
+    _guest_email: input.guest?.email?.trim() || null,
+  });
+  if (error) throw error;
+  const row = (data as PlacedOrder[] | null)?.[0];
+  if (!row) throw new Error("Order could not be placed");
+  return { ...row, total: Number(row.total) };
+}
+
+export async function placeFulfillmentOrder(input: {
+  restaurantSlug: string;
+  fulfillment: "pickup" | "delivery";
+  lines: CartLine[];
+  notes: string;
+  guest: GuestCheckout;
+  deliveryAddress?: string;
+  scheduledFor?: string | null;
+}): Promise<PlacedOrder> {
+  const { data, error } = await (supabase as any).rpc("place_public_fulfillment_order", {
+    _restaurant_slug: input.restaurantSlug,
+    _fulfillment: input.fulfillment,
+    _items: input.lines.map((line) => ({ menu_item_id: line.itemId, quantity: line.quantity, notes: line.notes || null, modifier_ids: line.modifiers.map((m) => m.id) })),
+    _notes: input.notes || null,
+    _guest_name: input.guest.name?.trim() || null,
+    _guest_phone: input.guest.phone?.trim() || null,
+    _guest_email: input.guest.email?.trim() || null,
+    _delivery_address: input.deliveryAddress?.trim() || null,
+    _scheduled_for: input.scheduledFor || null,
   });
   if (error) throw error;
   const row = (data as PlacedOrder[] | null)?.[0];

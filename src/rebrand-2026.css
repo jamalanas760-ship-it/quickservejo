@@ -344,3 +344,34 @@
     transform: none !important;
   }
 }
+
+
+/* Accessibility baseline */
+.qs-app :where(a, button, input, textarea, select, [role="button"], [tabindex]):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary) 72%, white) !important;
+  outline-offset: 2px !important;
+}
+
+.qs-app :where(button, [role="button"], a.qs-sidebar-item) {
+  touch-action: manipulation;
+}
+
+@media (pointer: coarse) {
+  .qs-app :where(button, [role="button"], .qs-chip, .qs-sidebar-item) {
+    min-height: 44px;
+  }
+}
+
+@media (forced-colors: active) {
+  .qs-card,
+  .panel,
+  .qs-stat,
+  .qs-right-panel,
+  .qs-sidebar-item[data-active="true"] {
+    border: 1px solid CanvasText !important;
+  }
+
+  .qs-app :focus-visible {
+    outline: 3px solid Highlight !important;
+  }
+}

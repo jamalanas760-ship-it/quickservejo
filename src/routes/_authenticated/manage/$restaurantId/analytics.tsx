@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AnalyticsManagerPro } from "@/components/manage/AnalyticsManagerPro";
+import { DecisionIntelligencePanel } from "@/components/manage/DecisionIntelligencePanel";
 
 export const Route = createFileRoute("/_authenticated/manage/$restaurantId/analytics")({
   head: () => ({
@@ -16,5 +17,5 @@ export const Route = createFileRoute("/_authenticated/manage/$restaurantId/analy
 
 function Page() {
   const { restaurantId } = Route.useParams();
-  return <AnalyticsManagerPro restaurantId={restaurantId} />;
+  return <div className="space-y-6"><DecisionIntelligencePanel restaurantId={restaurantId} /><AnalyticsManagerPro restaurantId={restaurantId} /></div>;
 }
