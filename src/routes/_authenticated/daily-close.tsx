@@ -209,6 +209,6 @@ function Metric({ icon:Icon, label, value, hint }:{ icon:typeof Receipt; label:s
   return <article className="qs-stat min-h-[112px] p-4"><div className="flex items-center gap-2 text-muted-foreground"><span className="grid size-9 place-items-center rounded-xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-4" /></span><p className="text-[11px] font-semibold">{label}</p></div><strong className="mt-3 block font-display text-xl tracking-[-.04em]">{value}</strong>{hint ? <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p> : null}</article>;
 }
 
-function CloseCard({ title, rows, tone }:{ title:string; rows:[string,string][]; tone?:"warning" }) {
+function CloseCard({ title, rows, tone }:{ title:string; rows:[string,string][]; tone?:"warning"|undefined }) {
   return <article className={cn("rounded-2xl border bg-card p-5", tone === "warning" && "border-amber-300")}><h3 className="font-display text-lg font-bold">{title}</h3><div className="mt-4 divide-y divide-border">{rows.map(([label,value]) => <div key={label} className="flex items-center justify-between gap-4 py-2.5 text-sm"><span className="text-muted-foreground">{label}</span><strong className="text-end tabular-nums">{value}</strong></div>)}</div></article>;
 }
