@@ -28,8 +28,8 @@ function AuthPage(){
   return <main dir="ltr" className="min-h-dvh bg-[#fbfbfa] p-0 lg:p-5 dark:bg-[#0f1418]">
     <div className="mx-auto min-h-dvh max-w-[1540px] overflow-hidden bg-card lg:min-h-[calc(100dvh-40px)] lg:rounded-[22px] lg:border lg:border-border lg:shadow-[0_24px_70px_rgba(15,23,42,.07)]">
       <header className="flex h-[74px] items-center justify-between border-b border-border px-5 sm:px-8"><Link to="/" aria-label="QuickServe home"><BrandLogo className="size-9" accentClassName="text-[#ff5a0a]" textClassName="text-[22px] text-foreground"/></Link><div className="flex items-center gap-2"><button type="button" onClick={toggleLang} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-semibold text-muted-foreground hover:bg-muted"><Globe2 className="size-4"/>{ar?"العربية":"English"}</button><ThemeToggle compact/></div></header>
-      <div className="grid min-h-[calc(100dvh-116px)] lg:grid-cols-[47%_53%]">
-        <section dir={ar?"rtl":"ltr"} className="flex flex-col justify-center px-6 py-10 sm:px-12 lg:px-[5vw]">
+      <div className="grid min-h-[calc(100dvh-116px)] lg:grid-cols-[52%_48%]">
+        <section dir={ar?"rtl":"ltr"} className="order-1 flex flex-col justify-center px-6 py-10 sm:px-12 lg:order-2 lg:px-[4.5vw]">
           <div className="mx-auto w-full max-w-[540px]">
             <p className="text-[10px] font-bold uppercase tracking-[.28em] text-muted-foreground">{ar?"مرحباً بك في QuickServe":"Welcome to QuickServe"}</p>
             <h1 className="mt-4 font-display text-[clamp(2.1rem,3.6vw,3.7rem)] font-bold leading-[1.02] tracking-[-.055em]">{mode==="signup"?(ar?"أنشئ حسابك":"Create your account"):(ar?"سجّل الدخول إلى حسابك":"Sign in to your account")}</h1>
@@ -48,14 +48,14 @@ function AuthPage(){
           </div>
         </section>
 
-        <section className="relative hidden overflow-hidden p-5 lg:block">
-          <img src="/signin-restaurant.webp" alt="" className="absolute inset-5 size-[calc(100%-40px)] rounded-[20px] object-cover" loading="eager"/>
-          <div className="absolute inset-5 rounded-[20px] bg-gradient-to-t from-black/75 via-black/25 to-black/10"/>
-          <div className="absolute inset-x-14 bottom-14 z-10 text-white"><div className="mb-8 ms-auto max-w-[270px] rotate-[-4deg] font-display text-[34px] font-semibold leading-[1.08]">Great Food<br/>Happier People<span className="mt-3 block h-1 w-24 rounded-full bg-[#ff5a0a]"/></div><div className="grid max-w-[470px] gap-3"><Benefit icon={<UtensilsCrossed className="size-5"/>} title="Run Smarter" text="Simplify daily operations"/><Benefit icon={<UsersRound className="size-5"/>} title="Grow Together" text="Empower your team"/><Benefit icon={<BarChart3 className="size-5"/>} title="Serve Better" text="Create memorable experiences"/></div><p className="mt-8 text-sm text-white/85">Good Food.<br/>A Brighter Tomorrow.</p></div>
+        <section className="relative order-2 hidden overflow-hidden p-5 lg:order-1 lg:block">
+          <img src="/signin-restaurant.webp" alt="" className="absolute inset-5 size-[calc(100%-40px)] rounded-[22px] object-cover" loading="eager"/>
+          <div className="absolute inset-5 rounded-[22px] bg-gradient-to-t from-black/78 via-black/24 to-black/5"/>
+          <div className="absolute inset-x-14 bottom-14 z-10 text-white"><div className="mb-8 max-w-[430px] font-display text-[clamp(2rem,3vw,3.35rem)] font-semibold leading-[1.04] tracking-[-.04em]">Run every service<br/>with clarity.<span className="mt-4 block h-1 w-20 rounded-full bg-[#ff5a0a]"/></div><div className="grid max-w-[470px] gap-3"><Benefit icon={<UtensilsCrossed className="size-5"/>} title="Run Smarter" text="Simplify daily operations"/><Benefit icon={<UsersRound className="size-5"/>} title="Grow Together" text="Empower your team"/><Benefit icon={<BarChart3 className="size-5"/>} title="Serve Better" text="Create memorable experiences"/></div><p className="mt-8 max-w-md text-sm leading-6 text-white/75">Orders, teams, tables, guests and insight—connected in one restaurant operating system.</p></div>
         </section>
       </div>
       <footer className="hidden h-[42px] items-center justify-between border-t border-border px-7 text-[10px] text-muted-foreground lg:flex"><span>QuickServe © 2026. Powering great restaurants.</span><span className="flex gap-5"><a href="#">Privacy</a><a href="#">Terms</a><a href="#">Support</a><a href="#">Contact</a></span></footer>
     </div>
   </main>;
 }
-function Benefit({icon,title,text}:{icon:React.ReactNode;title:string;text:string}){return <div className="flex items-center gap-3"><span className="grid size-12 place-items-center rounded-xl bg-black/40 text-[#ff6a22] backdrop-blur-md">{icon}</span><span><strong className="block text-base">{title}</strong><span className="text-xs text-white/75">{text}</span></span></div>}
+function Benefit({icon,title,text}:{icon:React.ReactNode;title:string;text:string}){return <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-xl border border-white/10 bg-black/35 text-[#ff6a22] backdrop-blur-md">{icon}</span><span><strong className="block text-base">{title}</strong><span className="text-xs text-white/75">{text}</span></span></div>}
