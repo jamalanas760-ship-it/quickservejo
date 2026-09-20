@@ -19,7 +19,7 @@ export function PublicGuestShell({
   eyebrow?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
-  status?: { label: ReactNode; tone?: "green" | "orange" | "red" | "blue" };
+  status?: { label: ReactNode; tone?: "green" | "orange" | "red" | "blue" | undefined };
   footer?: ReactNode;
 }) {
   return (
@@ -88,7 +88,7 @@ export function PublicStatus({
   tone = "blue",
 }: {
   label: ReactNode;
-  tone?: "green" | "orange" | "red" | "blue";
+  tone?: "green" | "orange" | "red" | "blue" | undefined;
 }) {
   const classes = {
     green: "bg-emerald-500/10 text-emerald-700",
