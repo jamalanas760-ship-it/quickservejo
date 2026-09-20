@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAccess } from "@/hooks/useSession";
 import { useWorkspaceScope } from "@/hooks/useWorkspace";
 import { humanError } from "@/lib/errors";
+import { testIntegrationRuntime } from "@/lib/connect.functions";
 import { useI18n } from "@/lib/i18n";
 import { membershipHasCapability } from "@/lib/permissions";
 
@@ -98,6 +99,35 @@ function IntegrationsPage() {
     onError: (error) => toast.error(humanError(error, lang)),
   });
 
+  const testConnection = useMutation({
+    mutationFn: async (preset: (typeof PRESETS)[number]) => {
+      const runtime = await testIntegrationRuntime({ data: { restaurantId: rid!, provider: preset.provider } });
+      const existing = byKey.get(`${preset.category}:${preset.provider}`);
+      const payload = {
+        restaurant_id: rid,
+        category: preset.category,
+        provider: preset.provider,
+        display_name: preset.name,
+        status: runtime.healthy ? "healthy" : "error",
+        credential_ref: preset.credential || null,
+        config: existing?.config ?? {},
+        capabilities: existing?.capabilities ?? [],
+        last_tested_at: new Date().toISOString(),
+        last_error: runtime.healthy ? null : runtime.detail,
+      };
+      const { error } = await (supabase as any)
+        .from("integration_connections")
+        .upsert(payload, { onConflict: "restaurant_id,category,provider" });
+      if (error) throw error;
+      return runtime;
+    },
+    onSuccess: async (runtime) => {
+      await qc.invalidateQueries({ queryKey: ["integrations", rid] });
+      toast.success(runtime.healthy ? (ar ? "الاتصال جاهز" : "Integration is ready") : (ar ? "يحتاج إعداداً على الخادم" : "Server credential is not configured"));
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
   const disable = useMutation({
     mutationFn: async (connection: Connection) => {
       const { error } = await (supabase as any)
@@ -141,6 +171,7 @@ function IntegrationsPage() {
               {row?.last_error ? <p className="mt-3 rounded-xl bg-red-500/10 p-2 text-xs text-red-700">{row.last_error}</p> : null}
               <div className="mt-4 flex gap-2">
                 <Button size="sm" onClick={() => configure.mutate(preset)} disabled={configure.isPending}>{row ? (ar ? "تحديث" : "Refresh config") : (ar ? "تهيئة" : "Configure")}</Button>
+                <Button size="sm" variant="outline" disabled={testConnection.isPending} onClick={() => testConnection.mutate(preset)}>{ar ? "اختبار" : "Test"}</Button>
                 {row ? <Button size="sm" variant="outline" onClick={() => disable.mutate(row)}>{row.status === "disabled" ? (ar ? "تفعيل" : "Enable") : (ar ? "تعطيل" : "Disable")}</Button> : null}
               </div>
             </article>;
