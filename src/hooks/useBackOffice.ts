@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 
 import {
+  archiveInventoryItem,
   erpInsert,
   erpSelect,
   isLowStock,
@@ -70,6 +71,7 @@ export function backOfficeSummary(data: BackOfficeData | undefined) {
 
 export type BackOfficeWrite =
   | { kind: "item"; name: string; unit: string; reorder_level: number }
+  | { kind: "delete_item"; item_id: string; name: string }
   | { kind: "supplier"; name: string; contact: string }
   | { kind: "procurement"; item_id: string | null; item_name_snapshot: string; quantity: number; unit: string; estimated_unit_cost: number; supplier_id: string | null; needed_by: string | null; notes: string }
   | { kind: "expense"; description: string; category: string; amount: number; expense_date: string; reference: string }
@@ -83,6 +85,10 @@ export function useBackOfficeWrite(restaurantId: string) {
       if (input.kind === "item") {
         await erpInsert("erp_inventory", restaurantId, { name: input.name, unit: input.unit, reorder_level: input.reorder_level });
         return { action: "erp.item_created" as const, entity: "erp_inventory", metadata: { name: input.name } };
+      }
+      if (input.kind === "delete_item") {
+        await archiveInventoryItem(input.item_id);
+        return { action: "erp.item_deleted" as const, entity: "erp_inventory", metadata: { itemId: input.item_id, name: input.name } };
       }
       if (input.kind === "supplier") {
         await erpInsert("erp_suppliers", restaurantId, { name: input.name, contact: input.contact });
