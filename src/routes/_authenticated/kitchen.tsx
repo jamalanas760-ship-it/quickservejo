@@ -49,6 +49,7 @@ import { humanError } from "@/lib/errors";
 import { formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { playOrderAlert, unlockAlertSound } from "@/lib/order-alert";
+import { setOrderStatusResilient } from "@/lib/offline-ops";
 import { detectTags, TAG_META, type DietTag } from "@/lib/kitchen-tags";
 import { anyRoleHasCapability, MANAGEMENT_ROLES, type AppRole } from "@/lib/permissions";
 import {
@@ -393,9 +394,20 @@ function KitchenPage() {
   }, [activeId]);
 
   async function advance(id: string, next: OrderStatus) {
+    if (!activeId) return;
     try {
-      const { error } = await supabase.from("orders").update({ status: next }).eq("id", id);
-      if (error) throw error;
+      const result = await setOrderStatusResilient({
+        restaurantId: activeId,
+        orderId: id,
+        status: next,
+      });
+      if (result.queued) {
+        queryClient.setQueryData<OrderRow[]>(["kitchen", "orders", activeId], (rows) =>
+          (rows ?? []).map((row) => row.id === id ? { ...row, status: next } : row),
+        );
+        toast.info(ar ? "تم حفظ التغيير على الجهاز وسيتم مزامنته عند عودة الاتصال" : "Change saved on this device and will sync when the connection returns");
+        return;
+      }
       await refreshKitchenOrders(true);
     } catch (error) {
       toast.error(humanError(error, lang));
