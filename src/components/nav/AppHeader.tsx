@@ -45,7 +45,7 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
   const displayName = meta?.full_name || meta?.name || membership?.name || user?.email?.split("@")[0] || "QuickServe";
   const role = access.isSuperAdmin ? "super_admin" : membership?.role;
   const roleLabel = role && role in ROLE_LABELS ? ROLE_LABELS[role as keyof typeof ROLE_LABELS][lang] : (lang === "ar" ? "عضو" : "Member");
-  const actionCount = counters.data.total;
+  const notificationCount = counters.data.unread;
   const homeTo = membership?.role === "manager" ? "/manager" : access.isSuperAdmin ? "/super-admin" : "/dashboard";
 
   return (
@@ -75,7 +75,7 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
           </button>
           <Link to="/notifications" className="relative grid size-10 place-items-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={lang === "ar" ? "الإشعارات" : "Notifications"}>
             <Bell className="size-[19px]" />
-            {actionCount > 0 ? <span className="absolute -end-0.5 -top-0.5 min-w-[19px] rounded-full bg-red-500 px-1 py-0.5 text-center text-[9px] font-black leading-4 text-white shadow-sm ring-2 ring-background">{actionCount > 99 ? "99+" : actionCount}</span> : null}
+            {notificationCount > 0 ? <span className="absolute -end-0.5 -top-0.5 min-w-[19px] rounded-full bg-red-500 px-1 py-0.5 text-center text-[9px] font-black leading-4 text-white shadow-sm ring-2 ring-background">{notificationCount > 99 ? "99+" : notificationCount}</span> : null}
           </Link>
           <Link to="/profile" aria-label={lang === "ar" ? "الملف الشخصي" : "Profile"} className="group flex min-h-11 items-center gap-2 rounded-xl px-1.5 transition hover:bg-muted sm:px-2">
             <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border group-hover:ring-primary/30">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : <RoleAvatarFallback role={membership?.role} superAdmin={access.isSuperAdmin} />}</span>
