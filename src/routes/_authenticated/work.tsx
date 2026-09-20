@@ -59,13 +59,18 @@ type WorkTask = {
   requires_approval: boolean;
   approval_role: string | null;
   source_type: string | null;
+  source_id: string | null;
   completion_note: string | null;
+  approval_status: string;
+  approval_note: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
 };
 
 type StaffOption = { id: string; name: string; role: AppRole; is_active: boolean };
+type WorkActivity = { id: string; actor_staff_id: string | null; action: string; note: string | null; created_at: string };
 
 const priorityTone: Record<WorkPriority, string> = {
   low: "bg-slate-500/10 text-slate-600",
@@ -85,6 +90,7 @@ export function WorkPage() {
   const canView = Boolean(membership && membershipHasCapability(membership.role, membership.permission_overrides, "view_work"));
   const canCreate = Boolean(membership && membershipHasCapability(membership.role, membership.permission_overrides, "create_work"));
   const canManage = Boolean(membership && membershipHasCapability(membership.role, membership.permission_overrides, "manage_work"));
+  const canDelete = membership?.role === "restaurant_admin";
   const canApprove = Boolean(membership && membershipHasCapability(membership.role, membership.permission_overrides, "approve_work"));
   const [tab, setTab] = useState<Tab>("mine");
   const [createOpen, setCreateOpen] = useState(false);
@@ -97,8 +103,9 @@ export function WorkPage() {
     staleTime: 10_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("work_tasks")
-        .select("id,restaurant_id,title,description,category,priority,status,assigned_staff_id,assigned_role,created_by_staff_id,due_at,requires_approval,approval_role,source_type,completion_note,created_at,updated_at,completed_at")
+        .select("id,restaurant_id,title,description,category,priority,status,assigned_staff_id,assigned_role,created_by_staff_id,due_at,requires_approval,approval_role,source_type,source_id,completion_note,approval_status,approval_note,deleted_at,created_at,updated_at,completed_at")
         .eq("restaurant_id", rid!)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(250);
       if (error) throw error;
@@ -108,7 +115,7 @@ export function WorkPage() {
 
   const staff = useQuery({
     queryKey: ["work", "staff", rid],
-    enabled: Boolean(rid && canManage),
+    enabled: Boolean(rid && canView),
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase.from("staff") as any)
@@ -154,15 +161,9 @@ export function WorkPage() {
     onError: (error) => toast.error(humanError(error, lang)),
   });
 
-  // Manager-scoped removal. Until the soft-delete columns ship, the record is
-  // retired as `cancelled` so history/audit stays intact and it drops out of
-  // every active list. RLS still enforces the restaurant scope server-side.
   const removeTask = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from("work_tasks")
-        .update({ status: "cancelled", updated_at: new Date().toISOString() })
-        .eq("id", id)
-        .eq("restaurant_id", rid!);
+      const { error } = await (supabase as any).rpc("archive_work_task", { _task_id: id });
       if (error) throw error;
     },
     onSuccess: async () => {
@@ -176,6 +177,20 @@ export function WorkPage() {
   });
 
   const selected = (tasks.data ?? []).find((row) => row.id === selectedId) ?? null;
+  const activity = useQuery({
+    queryKey: ["work", "activity", selectedId],
+    enabled: Boolean(selectedId),
+    staleTime: 10_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("work_task_activity")
+        .select("id,actor_staff_id,action,note,created_at")
+        .eq("task_id", selectedId!)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []) as WorkActivity[];
+    },
+  });
 
   if (scope.isPending || access.isPending) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><Skeleton className="h-[620px] rounded-3xl" /></main></div>;
 
@@ -222,7 +237,7 @@ export function WorkPage() {
       onOpenChange={(open) => { if (!open) setSelectedId(null); }}
       title={selected?.title ?? ""}
       description={selected ? `${ar ? "نوع" : "Type"}: ${selected.category} · ${selected.status.replaceAll("_", " ")}` : undefined}
-      footer={selected && canManage ? <Button variant="destructive" className="w-full gap-2" onClick={() => setPendingDelete(selected)}><Trash2 className="size-4" />{ar ? "حذف عنصر العمل" : "Delete work item"}</Button> : undefined}
+      footer={selected && canDelete ? <Button variant="destructive" className="w-full gap-2" onClick={() => setPendingDelete(selected)}><Trash2 className="size-4" />{ar ? "حذف عنصر العمل" : "Delete work item"}</Button> : undefined}
     >
       {selected ? <div>
         {selected.description ? <p className="mb-4 whitespace-pre-wrap rounded-2xl bg-muted/40 p-3 text-sm leading-6">{selected.description}</p> : null}
@@ -233,11 +248,15 @@ export function WorkPage() {
         <DetailRow label={ar ? "أنشأها" : "Created by"} value={(selected.created_by_staff_id ? (staff.data ?? []).find((row) => row.id === selected.created_by_staff_id)?.name : null) ?? (ar ? "النظام / الأتمتة" : "System / automation")} />
         <DetailRow label={ar ? "الاستحقاق" : "Due"} value={formatStamp(selected.due_at, ar)} />
         <DetailRow label={ar ? "الموافقة" : "Approval"} value={selected.requires_approval ? (selected.approval_role ? roleLabel(selected.approval_role, ar) : (ar ? "مطلوبة" : "Required")) : (ar ? "غير مطلوبة" : "Not required")} />
+        <DetailRow label={ar ? "حالة الموافقة" : "Approval status"} value={selected.approval_status?.replaceAll("_", " ")} />
+        <DetailRow label={ar ? "ملاحظة الموافقة" : "Approval note"} value={selected.approval_note} />
         <DetailRow label={ar ? "المصدر" : "Source"} value={selected.source_type ? selected.source_type.replaceAll("_", " ") : (ar ? "يدوي" : "Manual")} />
+        <DetailRow label={ar ? "مرجع المصدر" : "Source record"} value={selected.source_id} />
         <DetailRow label={ar ? "أُنشئت" : "Created"} value={formatStamp(selected.created_at, ar)} />
         <DetailRow label={ar ? "آخر تحديث" : "Updated"} value={formatStamp(selected.updated_at, ar)} />
         <DetailRow label={ar ? "أُكملت" : "Completed"} value={formatStamp(selected.completed_at, ar)} />
         <DetailRow label={ar ? "ملاحظة الإنجاز" : "Completion note"} value={selected.completion_note} />
+        {(activity.data ?? []).length ? <div className="mt-5"><h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "سجل النشاط" : "Activity history"}</h3><div className="mt-2 space-y-2">{(activity.data ?? []).map((item) => <div key={item.id} className="rounded-xl border border-border/70 p-3"><div className="flex items-center justify-between gap-3"><strong className="text-xs capitalize">{item.action.replaceAll("_", " ")}</strong><span className="text-[10px] text-muted-foreground">{formatStamp(item.created_at, ar)}</span></div>{item.note ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.note}</p> : null}<p className="mt-1 text-[10px] text-muted-foreground">{item.actor_staff_id ? ((staff.data ?? []).find((row) => row.id === item.actor_staff_id)?.name ?? (ar ? "عضو فريق" : "Team member")) : (ar ? "النظام" : "System")}</p></div>)}</div></div> : null}
       </div> : null}
     </DetailSheet>
 
