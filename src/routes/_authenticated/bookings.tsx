@@ -1,15 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, Plus, Settings2, Timer, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
+import { CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, Plus, Settings2, Timer, Trash2, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,6 +56,7 @@ function BookingsPage(){
   const canConfigure=Boolean(access.isSuperAdmin||(membership&&membershipHasCapability(membership.role,membership.permission_overrides,"manage_restaurant")));
   const [createOpen,setCreateOpen]=useState(false);
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [deleteTarget,setDeleteTarget]=useState<Booking|null>(null);
   const [search,setSearch]=useState("");
 
   const restaurant=useQuery({
@@ -116,6 +123,27 @@ function BookingsPage(){
     onError:(error)=>toast.error(humanError(error,lang)),
   });
 
+  const deleteReservation=useMutation({
+    mutationFn:async(booking:Booking)=>{
+      const {data,error}=await (supabase as any).rpc("delete_booking_reservation",{
+        _booking_id:booking.id,
+        _reason:ar?"تم الحذف من مكتب الحجوزات":"Deleted from Reservation Desk",
+      });
+      if(error)throw error;
+      if(!data)throw new Error(ar?"الحجز غير موجود":"Reservation not found");
+    },
+    onSuccess:async()=>{
+      setDeleteTarget(null);
+      await Promise.all([
+        qc.invalidateQueries({queryKey:["bookings",rid]}),
+        qc.invalidateQueries({queryKey:["bookings","tables",rid]}),
+        qc.invalidateQueries({queryKey:["booking-waitlist",rid]}),
+      ]);
+      toast.success(ar?"تم حذف الحجز":"Reservation deleted");
+    },
+    onError:(error)=>toast.error(humanError(error,lang)),
+  });
+
   if(scope.isPending||access.isPending)return <div className="min-h-dvh bg-background"><AppHeader/><main className="qs-page"><Skeleton className="h-[560px] rounded-3xl"/></main></div>;
   if(!rid||!membership||!canManage)return <div className="min-h-dvh bg-background"><AppHeader/><main className="qs-page"><section className="qs-card p-10 text-center"><h1 className="font-display text-xl font-bold">{ar?"الحجوزات غير متاحة لهذا الحساب":"Reservations are not available for this account"}</h1><p className="mt-2 text-sm text-muted-foreground">{ar?"تحتاج صلاحية إدارة الطاولات.":"Table-management access is required."}</p></section></main></div>;
 
@@ -163,11 +191,18 @@ function BookingsPage(){
 
       <section className="qs-card overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="qs-section-title">{ar?"جدول الحجوزات":"Reservation schedule"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"التأكيد لا يحجز الطاولة تشغيلياً إلا قرب الموعد؛ منع التعارض يتم دائماً من قاعدة البيانات.":"Future reservations do not block live floor status until arrival nears; time conflicts are always enforced in the database."}</p></div><Input className="sm:max-w-xs" value={search} onChange={e=>setSearch(e.target.value)} placeholder={ar?"بحث بالاسم، الهاتف أو الرمز":"Search guest, phone or code"}/></div>
-        {bookings.isPending||tables.isPending?<div className="p-5"><Skeleton className="h-72 rounded-2xl"/></div>:bookings.isError?<p className="p-6 text-sm text-destructive">{humanError(bookings.error,lang)}</p>:!rows.length?<div className="p-12 text-center"><CalendarCheck2 className="mx-auto size-8 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"لا توجد حجوزات":"No reservations found"}</h3></div>:<div className="divide-y divide-border">{rows.map(booking=><BookingRow key={booking.id} booking={booking} table={(tables.data??[]).find(row=>row.id===booking.table_id)??null} currency={restaurant.data?.currency??"JOD"} ar={ar} lang={lang} busy={transition.isPending} onStatus={(status,reason)=>transition.mutate({id:booking.id,status,reason})}/>)}</div>}
+        {bookings.isPending||tables.isPending?<div className="p-5"><Skeleton className="h-72 rounded-2xl"/></div>:bookings.isError?<p className="p-6 text-sm text-destructive">{humanError(bookings.error,lang)}</p>:!rows.length?<div className="p-12 text-center"><CalendarCheck2 className="mx-auto size-8 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"لا توجد حجوزات":"No reservations found"}</h3></div>:<div className="divide-y divide-border">{rows.map(booking=><BookingRow key={booking.id} booking={booking} table={(tables.data??[]).find(row=>row.id===booking.table_id)??null} currency={restaurant.data?.currency??"JOD"} ar={ar} lang={lang} busy={transition.isPending||deleteReservation.isPending} onStatus={(status,reason)=>transition.mutate({id:booking.id,status,reason})} onDelete={()=>setDeleteTarget(booking)}/>)}</div>}
       </section>
     </main>
     <CreateBookingDialog open={createOpen} onOpenChange={setCreateOpen} restaurantId={rid} tables={tables.data??[]} settings={settings.data} ar={ar} lang={lang}/>
     {canConfigure?<BookingSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} restaurantId={rid} settings={settings.data} ar={ar} lang={lang}/>:null}
+    <DeleteReservationDialog
+      booking={deleteTarget}
+      ar={ar}
+      busy={deleteReservation.isPending}
+      onOpenChange={open=>{if(!open&&!deleteReservation.isPending)setDeleteTarget(null);}}
+      onConfirm={()=>{if(deleteTarget)deleteReservation.mutate(deleteTarget);}}
+    />
   </div>;
 }
 
@@ -268,7 +303,12 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
             <SectionHeading number="2" title={ar?"الموعد وعدد الضيوف":"Date, time & party"} subtitle={ar?"التاريخ والوقت منفصلان لتكون عملية الاختيار واضحة وسهلة على جميع الأجهزة.":"Date and time are separated for a clearer, reliable picker on every device."}/>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Field label={ar?"التاريخ":"Date"}>
-                <div className="relative"><CalendarDays className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-12 rounded-xl ps-10" type="date" value={bookingDate} onChange={e=>{setBookingDate(e.target.value);setSelectedTable("auto");}} required/></div>
+                <ReservationDatePicker
+                  value={bookingDate}
+                  onChange={value=>{setBookingDate(value);setSelectedTable("auto");}}
+                  ar={ar}
+                  maxAdvanceDays={settings?.max_advance_days??365}
+                />
               </Field>
               <Field label={ar?"الوقت":"Time"}>
                 <div className="relative"><Clock3 className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-12 rounded-xl ps-10" type="time" step="900" value={bookingTime} onChange={e=>{setBookingTime(e.target.value);setSelectedTable("auto");}} required/></div>
@@ -405,14 +445,96 @@ function BookingSettingsDialog({open,onOpenChange,restaurantId,settings,ar,lang}
   </div><DialogFooter><Button variant="outline" onClick={()=>onOpenChange(false)}>{ar?"إلغاء":"Cancel"}</Button><Button disabled={save.isPending} onClick={()=>save.mutate()}>{ar?"حفظ":"Save settings"}</Button></DialogFooter></DialogContent></Dialog>;
 }
 
-function BookingRow({booking,table,currency,ar,lang,busy,onStatus}:{booking:Booking;table:FloorTable|null;currency:string;ar:boolean;lang:"ar"|"en";busy:boolean;onStatus:(status:BookingStatus,reason?:string)=>void}){
+function BookingRow({booking,table,currency,ar,lang,busy,onStatus,onDelete}:{booking:Booking;table:FloorTable|null;currency:string;ar:boolean;lang:"ar"|"en";busy:boolean;onStatus:(status:BookingStatus,reason?:string)=>void;onDelete:()=>void}){
   const date=new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{dateStyle:"medium",timeStyle:"short"}).format(new Date(booking.booking_at));
   return <article className="grid gap-4 p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{booking.customer_name}</h3><Badge variant={booking.status==="seated"?"default":booking.status==="cancelled"||booking.status==="no_show"?"destructive":"secondary"}>{statusLabel(booking.status,ar)}</Badge><span className="rounded-full bg-muted px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{booking.source}</span></div><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>{date}</span><span>{booking.duration_minutes} min</span><span className="inline-flex items-center gap-1"><UsersRound className="size-3.5"/>{booking.guest_count}</span><span>{table?(table.table_name??`#${table.table_number}`):(ar?"بدون طاولة":"No table")}</span>{booking.phone?<span>{booking.phone}</span>:null}{booking.email?<span>{booking.email}</span>:null}</div><div className="mt-2 flex flex-wrap gap-2 text-[10px] text-muted-foreground"><span>{ar?"رمز: ":"Code: "}<strong className="font-mono text-foreground">{booking.confirmation_code}</strong></span>{booking.occasion?<span>· {booking.occasion}</span>:null}{booking.deposit_amount>0?<span>· {ar?"عربون ":"Deposit "}{formatMoney(booking.deposit_amount,currency,lang)} ({booking.deposit_status})</span>:null}</div>{booking.notes?<p className="mt-2 text-xs leading-5 text-muted-foreground">{booking.notes}</p>:null}{booking.cancel_reason?<p className="mt-2 text-xs text-red-600">{ar?"سبب الإلغاء: ":"Cancellation: "}{booking.cancel_reason}</p>:null}</div><div className="flex flex-wrap gap-2 xl:justify-end">
     {booking.status==="pending"?<Button size="sm" disabled={busy} onClick={()=>onStatus("confirmed")}><CheckCircle2 className="size-4"/>{ar?"تأكيد":"Confirm"}</Button>:null}
     {booking.status==="confirmed"?<><Button size="sm" disabled={busy} onClick={()=>onStatus("seated")}><UserRoundCheck className="size-4"/>{ar?"تم الجلوس":"Seat guests"}</Button><Button size="sm" variant="outline" disabled={busy} onClick={()=>onStatus("no_show")}><XCircle className="size-4"/>{ar?"لم يحضر":"No-show"}</Button></>:null}
     {booking.status==="seated"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>onStatus("completed")}><CheckCircle2 className="size-4"/>{ar?"اكتمال":"Complete"}</Button>:null}
     {(booking.status==="pending"||booking.status==="confirmed")?<Button size="sm" variant="ghost" disabled={busy} onClick={()=>onStatus("cancelled",ar?"ألغاه الموظف":"Cancelled by staff")}><XCircle className="size-4"/>{ar?"إلغاء":"Cancel"}</Button>:null}
+    {booking.status!=="seated"&&booking.deposit_status!=="paid"?<Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-500/10 hover:text-red-700" disabled={busy} onClick={onDelete}><Trash2 className="size-4"/>{ar?"حذف":"Delete"}</Button>:null}
   </div></article>;
+}
+
+function ReservationDatePicker({value,onChange,ar,maxAdvanceDays}:{value:string;onChange:(value:string)=>void;ar:boolean;maxAdvanceDays:number}){
+  const selected=parseDateOnly(value);
+  const today=startOfLocalDay(new Date());
+  const maxDate=new Date(today);
+  maxDate.setDate(maxDate.getDate()+Math.max(1,maxAdvanceDays));
+
+  return <Popover>
+    <PopoverTrigger asChild>
+      <Button type="button" variant="outline" className="h-12 w-full justify-start rounded-xl px-3 text-start font-normal">
+        <CalendarDays className="me-2 size-4 shrink-0 text-muted-foreground"/>
+        <span className={cn("min-w-0 flex-1 truncate",!selected&&"text-muted-foreground")}>
+          {selected?new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{weekday:"short",year:"numeric",month:"short",day:"numeric"}).format(selected):(ar?"اختر التاريخ":"Choose date")}
+        </span>
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent className="w-auto overflow-hidden rounded-2xl p-0" align="start" sideOffset={8}>
+      <Calendar
+        mode="single"
+        selected={selected}
+        onSelect={date=>{if(date)onChange(formatDateOnly(date));}}
+        disabled={{before:today,after:maxDate}}
+        defaultMonth={selected??today}
+        startMonth={today}
+        endMonth={maxDate}
+        captionLayout="dropdown"
+        className="p-3 [--cell-size:2.35rem]"
+      />
+      <div className="flex items-center justify-between border-t border-border px-3 py-2">
+        <span className="text-[10px] text-muted-foreground">{ar?"اختيار موثوق بدون قص داخل الحقل":"Clear calendar selection"}</span>
+        <Button type="button" size="sm" variant="ghost" onClick={()=>onChange(formatDateOnly(today))}>{ar?"اليوم":"Today"}</Button>
+      </div>
+    </PopoverContent>
+  </Popover>;
+}
+
+function DeleteReservationDialog({booking,ar,busy,onOpenChange,onConfirm}:{booking:Booking|null;ar:boolean;busy:boolean;onOpenChange:(open:boolean)=>void;onConfirm:()=>void}){
+  const blocked=booking?.status==="seated"||booking?.deposit_status==="paid";
+  return <AlertDialog open={Boolean(booking)} onOpenChange={onOpenChange}>
+    <AlertDialogContent className="rounded-2xl">
+      <AlertDialogHeader>
+        <div className="mx-auto mb-2 grid size-12 place-items-center rounded-2xl bg-red-500/10 text-red-600 sm:mx-0"><Trash2 className="size-5"/></div>
+        <AlertDialogTitle>{ar?"حذف الحجز نهائياً؟":"Delete this reservation permanently?"}</AlertDialogTitle>
+        <AlertDialogDescription>
+          {blocked
+            ? (ar?"لا يمكن حذف حجز نشط على الطاولة أو حجز بعربون مدفوع. أنهِ سير العمل أو أعد العربون أولاً.":"An actively seated reservation or one with a paid deposit cannot be deleted. Complete the workflow or refund the deposit first.")
+            : (ar?`سيتم حذف حجز ${booking?.customer_name??""} وسجلات الإشعار/الدفع المرتبطة به. يتم الاحتفاظ بسجل تدقيق لعملية الحذف.`:`This will permanently delete ${booking?.customer_name??""}'s reservation and its booking-only notification/payment records. An audit record of the deletion is retained.`)}
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel disabled={busy}>{ar?"رجوع":"Keep reservation"}</AlertDialogCancel>
+        <AlertDialogAction
+          disabled={busy||blocked}
+          onClick={event=>{if(blocked){event.preventDefault();return;}onConfirm();}}
+          className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-500"
+        >
+          {busy?(ar?"جارٍ الحذف…":"Deleting…"):(ar?"حذف الحجز":"Delete reservation")}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>;
+}
+
+function parseDateOnly(value:string){
+  const parts=value.split("-").map(Number);
+  if(parts.length!==3||parts.some(Number.isNaN))return undefined;
+  const [year,month,day]=parts;
+  if(!year||!month||!day)return undefined;
+  return new Date(year,month-1,day);
+}
+function formatDateOnly(date:Date){
+  const year=date.getFullYear();
+  const month=String(date.getMonth()+1).padStart(2,"0");
+  const day=String(date.getDate()).padStart(2,"0");
+  return `${year}-${month}-${day}`;
+}
+function startOfLocalDay(date:Date){
+  const copy=new Date(date);
+  copy.setHours(0,0,0,0);
+  return copy;
 }
 
 function Metric({icon:Icon,label,value}:{icon:typeof CalendarCheck2;label:string;value:number}){return <article className="flex min-h-[105px] items-center gap-4 bg-card p-5"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong></div></article>;}
