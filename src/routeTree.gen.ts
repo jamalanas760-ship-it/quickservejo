@@ -47,6 +47,7 @@ import { Route as OTokenRouteImport } from './routes/o/$token'
 import { Route as PreviewSlugRouteImport } from './routes/preview/$slug'
 import { Route as RSlugRouteImport } from './routes/r/$slug'
 import { Route as StaffIndexRouteImport } from './routes/staff/index'
+import { Route as WaitlistTokenRouteImport } from './routes/waitlist/$token'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedDashboardMetricRouteImport } from './routes/_authenticated/dashboard_/$metric'
@@ -275,6 +276,11 @@ const RSlugRoute = RSlugRouteImport.update({
 const StaffIndexRoute = StaffIndexRouteImport.update({
   id: '/staff/',
   path: '/staff/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WaitlistTokenRoute = WaitlistTokenRouteImport.update({
+  id: '/waitlist/$token',
+  path: '/waitlist/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
@@ -520,6 +526,7 @@ export interface FileRoutesByFullPath {
   '/o/$token': typeof OTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/r/$slug': typeof RSlugRoute
+  '/waitlist/$token': typeof WaitlistTokenRoute
   '/staff/': typeof StaffIndexRoute
   '/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -590,6 +597,7 @@ export interface FileRoutesByTo {
   '/o/$token': typeof OTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/r/$slug': typeof RSlugRoute
+  '/waitlist/$token': typeof WaitlistTokenRoute
   '/staff': typeof StaffIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -662,6 +670,7 @@ export interface FileRoutesById {
   '/o/$token': typeof OTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/r/$slug': typeof RSlugRoute
+  '/waitlist/$token': typeof WaitlistTokenRoute
   '/staff/': typeof StaffIndexRoute
   '/_authenticated/manage/$restaurantId': typeof AuthenticatedManageRestaurantIdRouteRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -736,6 +745,7 @@ export interface FileRouteTypes {
     | '/o/$token'
     | '/preview/$slug'
     | '/r/$slug'
+    | '/waitlist/$token'
     | '/staff/'
     | '/manage/$restaurantId'
     | '/.lovable/oauth/consent'
@@ -806,6 +816,7 @@ export interface FileRouteTypes {
     | '/o/$token'
     | '/preview/$slug'
     | '/r/$slug'
+    | '/waitlist/$token'
     | '/staff'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -877,6 +888,7 @@ export interface FileRouteTypes {
     | '/o/$token'
     | '/preview/$slug'
     | '/r/$slug'
+    | '/waitlist/$token'
     | '/staff/'
     | '/_authenticated/manage/$restaurantId'
     | '/.lovable/oauth/consent'
@@ -930,6 +942,7 @@ export interface RootRouteChildren {
   OTokenRoute: typeof OTokenRoute
   PreviewSlugRoute: typeof PreviewSlugRoute
   RSlugRoute: typeof RSlugRoute
+  WaitlistTokenRoute: typeof WaitlistTokenRoute
   StaffIndexRoute: typeof StaffIndexRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -1202,6 +1215,13 @@ declare module '@tanstack/react-router' {
       path: '/staff'
       fullPath: '/staff/'
       preLoaderRoute: typeof StaffIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/waitlist/$token': {
+      id: '/waitlist/$token'
+      path: '/waitlist/$token'
+      fullPath: '/waitlist/$token'
+      preLoaderRoute: typeof WaitlistTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.lovable/oauth/consent': {
@@ -1639,6 +1659,7 @@ const rootRouteChildren: RootRouteChildren = {
   OTokenRoute: OTokenRoute,
   PreviewSlugRoute: PreviewSlugRoute,
   RSlugRoute: RSlugRoute,
+  WaitlistTokenRoute: WaitlistTokenRoute,
   StaffIndexRoute: StaffIndexRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
