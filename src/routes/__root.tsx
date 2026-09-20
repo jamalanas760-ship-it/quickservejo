@@ -21,6 +21,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SplashScreen } from "@/components/app/SplashScreen";
 import { NotificationPrompt } from "@/components/app/NotificationPrompt";
+import { AppRuntimeMonitor } from "@/components/app/AppRuntimeMonitor";
 import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-bridge";
 
 const RUNTIME_RECOVERY_PREFIX = "quickserve:runtime-recovery:";
@@ -228,8 +229,12 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
+        <a href="#main-content" className="sr-only fixed start-3 top-3 z-[200] rounded-lg bg-background px-3 py-2 text-sm font-bold text-foreground shadow-lg focus:not-sr-only">Skip to main content</a>
         <MenuThemeBridgeSync />
-        <Outlet />
+        <AppRuntimeMonitor />
+        <div id="main-content" tabIndex={-1}>
+          <Outlet />
+        </div>
         <SplashScreen />
         <NotificationPrompt />
         <Toaster />
