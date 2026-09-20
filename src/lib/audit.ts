@@ -44,6 +44,7 @@ export type AuditAction =
   | "plan.updated"
   | "erp.item_created"
   | "erp.supplier_created"
+  | "erp.procurement_requested"
   | "erp.stock_received"
   | "erp.stock_issued"
   | "erp.expense_recorded";
