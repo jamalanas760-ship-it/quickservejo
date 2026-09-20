@@ -4,6 +4,7 @@ import { CalendarClock, CheckCircle2, Mail, Megaphone, MessageSquareText, Send, 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { CrmAutomationPanel } from "@/components/crm/CrmAutomationPanel";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -158,6 +159,7 @@ function CampaignsPage() {
           {campaigns.isPending?<div className="p-5"><Skeleton className="h-80 rounded-xl"/></div>:(campaigns.data??[]).length===0?<div className="grid min-h-[320px] place-items-center p-8 text-center"><div><Megaphone className="mx-auto size-9 text-muted-foreground"/><p className="mt-3 text-sm text-muted-foreground">{ar?"لا توجد حملات بعد.":"No campaigns yet."}</p></div></div>:<div className="divide-y divide-border">{(campaigns.data??[]).map(row=><div key={row.id} className="p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><strong>{row.name}</strong><Status status={row.status}/></div><p className="mt-1 text-xs text-muted-foreground">{row.channel.toUpperCase()} · {row.segment_type.replaceAll("_"," ")} · {row.scheduled_at?new Date(row.scheduled_at).toLocaleString(ar?"ar-JO":"en-US"):"—"}</p></div>{["draft","scheduled","processing","blocked"].includes(row.status)?<Button size="sm" variant="outline" onClick={()=>cancel.mutate(row.id)}><XCircle className="size-3"/>{ar?"إلغاء":"Cancel"}</Button>:null}</div><div className="mt-3 grid grid-cols-4 gap-2 text-center text-[10px]"><Count label={ar?"الجمهور":"Audience"} value={row.recipient_count}/><Count label={ar?"أرسل":"Sent"} value={row.sent_count}/><Count label={ar?"فشل":"Failed"} value={row.failed_count}/><Count label={ar?"تخطي":"Skipped"} value={row.skipped_count}/></div>{row.last_error?<p className="mt-3 rounded-lg bg-amber-500/10 p-2 text-xs text-amber-800">{row.last_error}</p>:null}</div>)}</div>}
         </article>
       </section>
+      <CrmAutomationPanel restaurantId={rid}/>
     </main>
   </div>;
 }
