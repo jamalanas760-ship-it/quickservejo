@@ -22,6 +22,7 @@ import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAutomationsRouteImport } from './routes/_authenticated/automations'
 import { Route as AuthenticatedBookingsRouteImport } from './routes/_authenticated/bookings'
 import { Route as AuthenticatedCashierRouteImport } from './routes/_authenticated/cashier'
+import { Route as AuthenticatedDailyCloseRouteImport } from './routes/_authenticated/daily-close'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedGuestsRouteImport } from './routes/_authenticated/guests'
 import { Route as AuthenticatedHostRouteImport } from './routes/_authenticated/host'
@@ -141,6 +142,11 @@ const AuthenticatedBookingsRoute = AuthenticatedBookingsRouteImport.update({
 const AuthenticatedCashierRoute = AuthenticatedCashierRouteImport.update({
   id: '/cashier',
   path: '/cashier',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDailyCloseRoute = AuthenticatedDailyCloseRouteImport.update({
+  id: '/daily-close',
+  path: '/daily-close',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -468,6 +474,7 @@ export interface FileRoutesByFullPath {
   '/automations': typeof AuthenticatedAutomationsRoute
   '/bookings': typeof AuthenticatedBookingsRoute
   '/cashier': typeof AuthenticatedCashierRoute
+  '/daily-close': typeof AuthenticatedDailyCloseRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/guests': typeof AuthenticatedGuestsRoute
   '/host': typeof AuthenticatedHostRoute
@@ -533,6 +540,7 @@ export interface FileRoutesByTo {
   '/automations': typeof AuthenticatedAutomationsRoute
   '/bookings': typeof AuthenticatedBookingsRoute
   '/cashier': typeof AuthenticatedCashierRoute
+  '/daily-close': typeof AuthenticatedDailyCloseRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/guests': typeof AuthenticatedGuestsRoute
   '/host': typeof AuthenticatedHostRoute
@@ -600,6 +608,7 @@ export interface FileRoutesById {
   '/_authenticated/automations': typeof AuthenticatedAutomationsRoute
   '/_authenticated/bookings': typeof AuthenticatedBookingsRoute
   '/_authenticated/cashier': typeof AuthenticatedCashierRoute
+  '/_authenticated/daily-close': typeof AuthenticatedDailyCloseRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/guests': typeof AuthenticatedGuestsRoute
   '/_authenticated/host': typeof AuthenticatedHostRoute
@@ -669,6 +678,7 @@ export interface FileRouteTypes {
     | '/automations'
     | '/bookings'
     | '/cashier'
+    | '/daily-close'
     | '/dashboard'
     | '/guests'
     | '/host'
@@ -734,6 +744,7 @@ export interface FileRouteTypes {
     | '/automations'
     | '/bookings'
     | '/cashier'
+    | '/daily-close'
     | '/dashboard'
     | '/guests'
     | '/host'
@@ -800,6 +811,7 @@ export interface FileRouteTypes {
     | '/_authenticated/automations'
     | '/_authenticated/bookings'
     | '/_authenticated/cashier'
+    | '/_authenticated/daily-close'
     | '/_authenticated/dashboard'
     | '/_authenticated/guests'
     | '/_authenticated/host'
@@ -965,6 +977,13 @@ declare module '@tanstack/react-router' {
       path: '/cashier'
       fullPath: '/cashier'
       preLoaderRoute: typeof AuthenticatedCashierRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/daily-close': {
+      id: '/_authenticated/daily-close'
+      path: '/daily-close'
+      fullPath: '/daily-close'
+      preLoaderRoute: typeof AuthenticatedDailyCloseRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
@@ -1477,6 +1496,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAutomationsRoute: typeof AuthenticatedAutomationsRoute
   AuthenticatedBookingsRoute: typeof AuthenticatedBookingsRoute
   AuthenticatedCashierRoute: typeof AuthenticatedCashierRoute
+  AuthenticatedDailyCloseRoute: typeof AuthenticatedDailyCloseRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedGuestsRoute: typeof AuthenticatedGuestsRoute
   AuthenticatedHostRoute: typeof AuthenticatedHostRoute
@@ -1500,6 +1520,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAutomationsRoute: AuthenticatedAutomationsRoute,
   AuthenticatedBookingsRoute: AuthenticatedBookingsRoute,
   AuthenticatedCashierRoute: AuthenticatedCashierRoute,
+  AuthenticatedDailyCloseRoute: AuthenticatedDailyCloseRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedGuestsRoute: AuthenticatedGuestsRoute,
   AuthenticatedHostRoute: AuthenticatedHostRoute,
