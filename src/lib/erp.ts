@@ -107,6 +107,11 @@ export async function setProcurementStatus(id: string, status: Exclude<Procureme
   if (error) throw error;
 }
 
+export async function archiveInventoryItem(id: string): Promise<void> {
+  const { error } = await (supabase as any).rpc("erp_delete_inventory_item", { _item_id: id });
+  if (error) throw error;
+}
+
 export async function receiveProcurementRequest(id: string, unitCost?: number): Promise<string | null> {
   const { data, error } = await (supabase as any).rpc("erp_receive_procurement_request", {
     _request_id: id,
