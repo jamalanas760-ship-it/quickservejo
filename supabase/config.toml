@@ -2,3 +2,6 @@ project_id = "gtcmyaksmyiarokloyje"
 
 [functions.quickserve-api]
 verify_jwt = false
+
+[functions.quickserve-campaign-worker]
+verify_jwt = false
