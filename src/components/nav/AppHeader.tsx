@@ -50,7 +50,7 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
 
   return (
     <header className={cn("qs-topbar safe-top sticky top-0 z-40", className)}>
-      <div className="mx-auto flex h-[68px] w-full max-w-[1600px] items-center gap-3 px-3 sm:px-5 lg:px-6">
+      <div className="mx-auto flex h-[72px] w-full max-w-[1680px] items-center gap-3 px-3 sm:px-5 lg:px-6">
         {onMenu ? <button type="button" onClick={onMenu} aria-label="Menu" className="grid size-10 shrink-0 place-items-center rounded-xl border border-border bg-card lg:hidden"><MenuIcon className="size-5" /></button> : null}
 
         <Link to={homeTo as never} className="min-w-0 shrink-0 lg:hidden" aria-label={restaurant?.name || "QuickServe"}>
