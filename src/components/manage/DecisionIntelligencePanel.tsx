@@ -13,6 +13,20 @@ type Movement = { quantity:number; total_cost:number|null; unit_cost:number; mov
 type Inventory = { id:string; name:string; unit:string; reorder_level:number; quantity:number };
 type Procurement = { id:string; status:string; needed_by:string|null; item_name_snapshot:string; quantity:number; estimated_unit_cost:number };
 type TimeEntry = { staff_id:string; clock_in:string; clock_out:string|null; break_minutes:number };
+type Forecast = {
+  target_date:string;
+  method:string;
+  sample_days:number;
+  confidence:"low"|"medium"|"high";
+  data_sufficiency:"insufficient"|"limited"|"usable";
+  expected_sales:number;
+  expected_orders:number;
+  average_order_value:number;
+  hourly:Array<{hour:number;expected_orders:number;expected_sales:number}>;
+  top_items:Array<{menu_item_id:string;name:string;expected_quantity:number}>;
+  ingredients:Array<{inventory_item_id:string;name:string;unit:string;expected_quantity:number}>;
+  labor:{expected_hours:number;historical_orders_per_labor_hour:number|null;peak_hour:number|null;peak_hour_expected_orders:number};
+};
 
 export function DecisionIntelligencePanel({restaurantId}:{restaurantId:string}) {
   const {lang}=useI18n(); const ar=lang==="ar";
@@ -42,6 +56,17 @@ export function DecisionIntelligencePanel({restaurantId}:{restaurantId:string}) 
         tableCount:(tablesRes.data??[]).length,
         todayStart:sinceToday.getTime(),
       };
+    },
+  });
+
+  const forecast=useQuery<Forecast>({
+    queryKey:["operational-forecast",restaurantId],
+    refetchInterval:15*60_000,
+    queryFn:async()=>{
+      const target=new Date(Date.now()+86400000).toLocaleDateString("en-CA");
+      const {data,error}=await (supabase as any).rpc("get_operational_forecast",{_restaurant_id:restaurantId,_target_date:target});
+      if(error)throw error;
+      return data as Forecast;
     },
   });
 
@@ -82,7 +107,41 @@ export function DecisionIntelligencePanel({restaurantId}:{restaurantId:string}) 
       <Kpi icon={Package} label={ar?"تكلفة الطعام النظرية":"Theoretical food cost"} value={foodPct?foodPct.toFixed(1)+"%":"—"} tone={foodPct>35?"warning":undefined}/>
     </div>
     <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">{insights.slice(0,6).map((item,index)=><article key={index} className={cn("rounded-2xl border p-4",item.tone==="danger"?"border-red-200 bg-red-50/50 dark:border-red-900/50 dark:bg-red-950/10":item.tone==="warning"?"border-amber-200 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/10":"border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/10")}><div className="flex items-start gap-3"><span className={cn("grid size-9 shrink-0 place-items-center rounded-xl",item.tone==="danger"?"bg-red-500/10 text-red-600":item.tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-emerald-500/10 text-emerald-700")}><item.icon className="size-4"/></span><div><strong className="text-sm">{item.title}</strong><p className="mt-1 text-xs leading-5 text-muted-foreground">{item.body}</p></div></div></article>)}</div>
+
+    <ForecastPanel forecast={forecast.data} pending={forecast.isPending} error={forecast.isError} currency={d.currency} lang={lang} />
   </section>;
 }
 
 function Kpi({icon:Icon,label,value,tone}:{icon:typeof TrendingUp;label:string;value:string;tone?:"warning"|undefined}){return <article className="qs-stat min-h-[106px] p-4"><div className="flex items-center gap-2"><span className={cn("grid size-9 place-items-center rounded-xl",tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-4"/></span><p className="text-[10px] font-semibold text-muted-foreground">{label}</p></div><strong className="mt-3 block font-display text-lg tracking-[-.03em]">{value}</strong></article>}
+
+
+function ForecastPanel({forecast,pending,error,currency,lang}:{forecast:Forecast|undefined;pending:boolean;error:boolean;currency:string;lang:string}) {
+  const ar=lang==="ar";
+  if(pending)return <Skeleton className="h-52 rounded-2xl"/>;
+  if(error)return <article className="rounded-2xl border p-5"><h3 className="font-bold">{ar?"التوقع التشغيلي":"Operational forecast"}</h3><p className="mt-2 text-xs text-muted-foreground">{ar?"تعذر حساب التوقع الآن؛ لا يؤثر ذلك على بيانات التشغيل الحالية.":"Forecast could not be calculated right now; live operational data is unaffected."}</p></article>;
+  if(!forecast||forecast.data_sufficiency==="insufficient")return <article className="rounded-2xl border border-dashed p-5"><h3 className="font-bold">{ar?"توقع الغد":"Tomorrow forecast"}</h3><p className="mt-2 text-xs text-muted-foreground">{ar?"لا توجد أيام مدفوعة كافية بعد لبناء توقع مسؤول. سيظهر التوقع تلقائياً مع تراكم البيانات.":"There are not enough paid trading days yet for a responsible forecast. It will appear automatically as history builds."}</p></article>;
+
+  const peak=[...(forecast.hourly??[])].sort((a,b)=>b.expected_orders-a.expected_orders).slice(0,3);
+  const confidenceLabel=forecast.confidence==="high"?(ar?"ثقة عالية":"High confidence"):forecast.confidence==="medium"?(ar?"ثقة متوسطة":"Medium confidence"):(ar?"بيانات محدودة":"Limited data");
+  return <article className="rounded-2xl border bg-card p-5">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div><div className="inline-flex rounded-full bg-orange-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#ff5a0a]">{ar?"توقع تشغيلي":"Operational forecast"}</div><h3 className="mt-3 font-display text-xl font-bold">{ar?"تخطيط الغد من التاريخ الفعلي":"Tomorrow planning from actual history"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar?"متوسطات حتمية من آخر 28 يوماً، مع تفضيل نفس يوم الأسبوع. لا توجد ادعاءات ذكاء اصطناعي.":"Deterministic averages from the last 28 days, preferring the same weekday. No AI guesswork."}</p></div>
+      <span className={cn("rounded-full px-3 py-1 text-[10px] font-bold",forecast.confidence==="high"?"bg-emerald-500/10 text-emerald-700":forecast.confidence==="medium"?"bg-amber-500/10 text-amber-700":"bg-muted text-muted-foreground")}>{confidenceLabel} · {forecast.sample_days} {ar?"أيام عينة":"sample days"}</span>
+    </div>
+    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Kpi icon={TrendingUp} label={ar?"مبيعات متوقعة":"Expected sales"} value={formatMoney(Number(forecast.expected_sales),currency,lang)}/>
+      <Kpi icon={Receipt} label={ar?"طلبات متوقعة":"Expected orders"} value={Number(forecast.expected_orders).toFixed(1)}/>
+      <Kpi icon={UsersRound} label={ar?"ساعات عمل مرجعية":"Reference labor"} value={Number(forecast.labor?.expected_hours??0).toFixed(1)+"h"}/>
+      <Kpi icon={Clock3} label={ar?"ساعة الذروة":"Peak hour"} value={forecast.labor?.peak_hour===null||forecast.labor?.peak_hour===undefined?"—":String(forecast.labor.peak_hour).padStart(2,"0")+":00"}/>
+    </div>
+    <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      <ForecastList title={ar?"ساعات الذروة":"Peak hours"} rows={peak.map(x=>[`${String(x.hour).padStart(2,"0")}:00`,`${Number(x.expected_orders).toFixed(1)} ${ar?"طلب":"orders"}`])}/>
+      <ForecastList title={ar?"المنتجات الأعلى طلباً":"Expected top items"} rows={(forecast.top_items??[]).slice(0,5).map(x=>[x.name,`${Number(x.expected_quantity).toFixed(1)} ×`])}/>
+      <ForecastList title={ar?"احتياج المكونات":"Ingredient requirement"} rows={(forecast.ingredients??[]).slice(0,5).map(x=>[x.name,`${Number(x.expected_quantity).toFixed(2)} ${x.unit}`])} empty={ar?"أضف وصفات BOM للحصول على احتياج المكونات.":"Add recipe BOMs to forecast ingredient requirements."}/>
+    </div>
+  </article>;
+}
+
+function ForecastList({title,rows,empty}:{title:string;rows:[string,string][];empty?:string}) {
+  return <div className="rounded-xl bg-muted/35 p-4"><h4 className="text-xs font-bold">{title}</h4>{rows.length?<div className="mt-2 divide-y divide-border">{rows.map(([a,b])=><div key={a} className="flex justify-between gap-3 py-2 text-xs"><span className="truncate text-muted-foreground">{a}</span><strong className="shrink-0">{b}</strong></div>)}</div>:<p className="mt-2 text-xs text-muted-foreground">{empty??"—"}</p>}</div>;
+}
