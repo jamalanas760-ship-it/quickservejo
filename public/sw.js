@@ -1,5 +1,11 @@
-const CACHE = "quickserve-shell-v4";
+const CACHE = "quickserve-shell-v5";
 const SHELL = ["/", "/manifest.webmanifest", "/favicon.png", "/icon-192.png", "/icon-512.png"];
+const PUBLIC_NAVIGATION_PREFIXES = ["/r/", "/m/", "/o/", "/preview/"];
+const PUBLIC_NAVIGATION_PATHS = new Set(["/", "/contact", "/privacy", "/terms"]);
+
+function isPublicNavigation(pathname) {
+  return PUBLIC_NAVIGATION_PATHS.has(pathname) || PUBLIC_NAVIGATION_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).catch(() => undefined));
@@ -18,14 +24,19 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/auth") || url.pathname.includes("supabase")) return;
 
   if (request.mode === "navigate") {
+    // Authenticated/operational pages are always network-only. Caching their HTML
+    // can expose stale or user-specific state on shared restaurant devices.
+    if (!isPublicNavigation(url.pathname)) return;
+
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => undefined);
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => undefined);
+          }
           return response;
         })
         .catch(async () => (await caches.match(request)) || (await caches.match("/")) || Response.error()),
@@ -33,7 +44,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (["script", "style", "image", "font"].includes(request.destination)) {
+  // Only immutable/static browser assets use cache-first behavior.
+  if (["script", "style", "font"].includes(request.destination)) {
     event.respondWith(
       caches.match(request).then((cached) => {
         const network = fetch(request)
