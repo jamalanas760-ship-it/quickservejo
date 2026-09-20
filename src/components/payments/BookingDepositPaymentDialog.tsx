@@ -107,15 +107,18 @@ export function BookingDepositPaymentDialog({
 
   useEffect(()=>{
     if(!open||!intent?.clientSecret||!intent.publishableKey||!mountRef.current)return;
+    const clientSecret=intent.clientSecret;
+    const publishableKey=intent.publishableKey;
+    const stripeAccount=intent.stripeAccount??null;
     let cancelled=false;
     void (async()=>{
       try{
         await loadStripeJs();
         if(cancelled||!mountRef.current||!window.Stripe)return;
-        const stripe=intent.stripeAccount
-          ? window.Stripe(intent.publishableKey,{stripeAccount:intent.stripeAccount})
-          : window.Stripe(intent.publishableKey);
-        const elements=stripe.elements({clientSecret:intent.clientSecret,appearance:{theme:"stripe"}});
+        const stripe=stripeAccount
+          ? window.Stripe(publishableKey,{stripeAccount})
+          : window.Stripe(publishableKey);
+        const elements=stripe.elements({clientSecret,appearance:{theme:"stripe"}});
         const element=elements.create("payment",{layout:"tabs"});
         stripeRef.current=stripe;
         elementsRef.current=elements;
