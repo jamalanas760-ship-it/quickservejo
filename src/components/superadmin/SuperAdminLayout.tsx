@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  Activity,
   BarChart3,
   Bell,
   Building2,
@@ -38,6 +39,7 @@ const NAV: NavItem[] = [
   { to: "/super-admin/licenses", en: "Licenses", ar: "التراخيص", icon: KeyRound },
   { to: "/super-admin/orders", en: "Orders", ar: "الطلبات", icon: ClipboardList },
   { to: "/super-admin/analytics", en: "Analytics", ar: "التحليلات", icon: BarChart3 },
+  { to: "/super-admin/health", en: "Health", ar: "صحة المنصة", icon: Activity },
   { to: "/super-admin/subscriptions", en: "Billing", ar: "الفوترة", icon: CreditCard },
   { to: "/super-admin/audit-logs", en: "Audit", ar: "التدقيق", icon: FileClock },
   { to: "/super-admin/settings", en: "Settings", ar: "الإعدادات", icon: Settings },
