@@ -1,6 +1,7 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { BarChart3, Boxes, BriefcaseBusiness, CalendarClock, ChefHat, ClipboardList, Table2, UtensilsCrossed, Workflow } from "lucide-react";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { OperationsPulse } from "@/components/operations/OperationsPulse";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,27 +44,24 @@ function ManagerWorkspace() {
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "مساحة العمليات" : "Operations workspace"} />
     <main className="qs-page space-y-5">
-      <section className="qs-card overflow-hidden bg-gradient-to-br from-slate-950 to-slate-800 p-6 text-white sm:p-8">
-        <p className="text-[10px] font-bold uppercase tracking-[.22em] text-orange-300">{roleName}</p>
-        <h1 className="mt-3 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? `مرحباً، ${membership.name}` : `Welcome, ${membership.name}`}</h1>
-        <p className="mt-2 max-w-2xl text-sm text-white/70">{ar ? `إدارة تشغيل ${membership.restaurant?.name ?? "المطعم"} من مساحة مركزة على المسؤوليات والموافقات.` : `Run ${membership.restaurant?.name ?? "the restaurant"} from a focused workspace built around responsibilities and approvals.`}</p>
-      </section>
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={BriefcaseBusiness}>{roleName}</MasterEyebrow>}
+        title={ar ? `مرحباً، ${membership.name}` : `Welcome, ${membership.name}`}
+        description={ar ? `إدارة تشغيل ${membership.restaurant?.name ?? "المطعم"} من مساحة مركزة على الخدمة والمسؤوليات والموافقات.` : `Run ${membership.restaurant?.name ?? "the restaurant"} from a focused workspace built around service, responsibilities and approvals.`}
+      />
 
-      <section className="grid gap-3 sm:grid-cols-3">
-        <Metric label={ar ? "طلبات اليوم" : "Orders today"} value={String(report.data?.ordersToday ?? 0)} />
-        <Metric label={ar ? "المبيعات اليوم" : "Sales today"} value={formatMoney(report.data?.salesToday ?? 0, "JOD", lang)} />
-        <Metric label={ar ? "طلبات مفتوحة" : "Open orders"} value={String(report.data?.openOrders ?? 0)} />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MasterKpi icon={ClipboardList} label={ar?"طلبات اليوم":"Orders Today"} value={String(report.data?.ordersToday??0)} hint={ar?"الحركة اليومية":"Daily volume"} tone="blue"/>
+        <MasterKpi icon={BarChart3} label={ar?"المبيعات اليوم":"Sales Today"} value={formatMoney(report.data?.salesToday??0,"JOD",lang)} hint={ar?"إيراد اليوم":"Today's revenue"} tone="green"/>
+        <MasterKpi icon={ChefHat} label={ar?"طلبات مفتوحة":"Open Orders"} value={String(report.data?.openOrders??0)} hint={ar?"تحتاج متابعة":"Need attention"} tone="orange"/>
+        <MasterKpi icon={CalendarClock} label={ar?"متوسط الطلب":"Avg Ticket"} value={formatMoney(report.data?.averageOrder??0,"JOD",lang)} hint={ar?"متوسط 7 أيام":"7-day average"} tone="purple"/>
       </section>
 
       <OperationsPulse restaurantId={restaurantId} canManageRules={can("manage_work") || can("manage_shifts")} />
 
       <section><div className="mb-3"><h2 className="qs-section-title">{ar ? "مساحة العمل" : "Your workspace"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "تظهر الأدوات التي يسمح بها دورك فقط." : "Only tools inside your job profile and assigned permissions are shown."}</p></div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{links.map(({ to, icon: Icon, title, hint }) => <Link key={to} to={to as never} className="qs-card group flex min-h-36 items-start gap-4 p-5 transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-md"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><Icon className="size-5" /></span><span className="min-w-0"><strong className="block text-base">{title}</strong><span className="mt-2 block text-xs leading-5 text-muted-foreground">{hint}</span></span></Link>)}</div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{links.map(({ to, icon: Icon, title, hint }) => <Link key={to} to={to as never} className="group flex min-h-36 items-start gap-4 rounded-[18px] border border-border/85 bg-card p-5 shadow-[var(--qs-shadow-card)] transition hover:-translate-y-px hover:border-primary/20 hover:shadow-[var(--qs-shadow-hover)]"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><Icon className="size-5" /></span><span className="min-w-0"><strong className="block text-base">{title}</strong><span className="mt-2 block text-xs leading-5 text-muted-foreground">{hint}</span></span></Link>)}</div>
       </section>
     </main>
   </div>;
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return <article className="qs-stat p-5"><p className="text-xs font-semibold text-muted-foreground">{label}</p><p className="mt-2 font-display text-3xl font-bold tracking-[-.04em]">{value}</p></article>;
 }
