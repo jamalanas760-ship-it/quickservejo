@@ -1,9 +1,10 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { ArrowLeft, Building2, Store } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
+import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
+import { RestaurantSwitcher } from "@/components/manage/RestaurantSwitcher";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RestaurantSwitcher } from "@/components/manage/RestaurantSwitcher";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -36,43 +37,55 @@ function RestaurantShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: restaurant, isPending } = useRestaurant(restaurantId);
   const base = `/super-admin/restaurants/${restaurantId}`;
+  const ar = lang === "ar";
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="size-12 overflow-hidden rounded-lg border bg-muted">
-            {restaurant?.logo_url ? <img src={restaurant.logo_url} alt={restaurant.name} className="size-full object-contain" /> : null}
+    <div className="space-y-5">
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={Building2}>{ar ? "إدارة المستأجر" : "Tenant management"}</MasterEyebrow>}
+        title={isPending ? <Skeleton className="h-9 w-56" /> : restaurant?.name ?? t("common.notFound")}
+        description={restaurant ? `/${restaurant.slug} · ${restaurant.archived_at ? (ar ? "مؤرشف" : "Archived") : restaurant.is_active ? (ar ? "نشط" : "Active") : (ar ? "غير نشط" : "Inactive")}` : undefined}
+        actions={
+          <>
+            <RestaurantSwitcher restaurantId={restaurantId} />
+            <Button asChild variant="outline">
+              <Link to="/super-admin/restaurants"><ArrowLeft className={cn("size-4", ar && "rotate-180")} />{t("sa.rest.title")}</Link>
+            </Button>
+          </>
+        }
+        tabs={
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+            {TABS.map((tab) => {
+              const href = tab.to.replace("$restaurantId", restaurantId);
+              const active = tab.exact ? pathname === base || pathname === `${base}/` : pathname === href;
+              const label = tab.label ? (ar ? tab.label.ar : tab.label.en) : t(tab.labelKey ?? "");
+              return (
+                <Link
+                  key={tab.to}
+                  to={tab.to}
+                  params={{ restaurantId }}
+                  className={cn(
+                    "shrink-0 rounded-xl px-3.5 py-2 text-xs font-bold transition",
+                    active ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                  )}
+                >
+                  {label}
+                </Link>
+              );
+            })}
           </div>
-          <div>
-            {isPending ? <Skeleton className="h-7 w-48" /> : <h1 className="text-xl font-semibold">{restaurant?.name ?? t("common.notFound")}</h1>}
-            <p className="text-xs text-muted-foreground">{restaurant ? `/${restaurant.slug}` : ""}</p>
-          </div>
-          {restaurant ? (
-            <Badge variant={restaurant.archived_at ? "outline" : restaurant.is_active ? "secondary" : "destructive"}>
-              {restaurant.archived_at ? t("sa.status.archived") : restaurant.is_active ? t("sa.status.active") : t("sa.status.inactive")}
-            </Badge>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <RestaurantSwitcher restaurantId={restaurantId} />
-          <Button asChild variant="ghost" size="sm"><Link to="/super-admin/restaurants">← {t("sa.rest.title")}</Link></Button>
-        </div>
+        }
+      />
+
+      <div className="min-w-0">
+        <Outlet />
       </div>
 
-      <nav className="flex flex-wrap gap-1 border-b pb-2">
-        {TABS.map((tab) => {
-          const href = tab.to.replace("$restaurantId", restaurantId);
-          const active = tab.exact ? pathname === base || pathname === `${base}/` : pathname === href;
-          const label = tab.label ? (lang === "ar" ? tab.label.ar : tab.label.en) : t(tab.labelKey ?? "");
-          return (
-            <Link key={tab.to} to={tab.to} params={{ restaurantId }} className={cn("rounded-md px-3 py-1.5 text-sm font-medium transition-colors", active ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-muted")}>
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
-      <Outlet />
+      {!restaurant && !isPending ? (
+        <div className="grid min-h-52 place-items-center rounded-[18px] border border-dashed border-border bg-muted/20 text-center">
+          <div><Store className="mx-auto size-8 text-muted-foreground" /><p className="mt-2 text-sm text-muted-foreground">{ar ? "تعذر تحميل المطعم." : "Restaurant could not be loaded."}</p></div>
+        </div>
+      ) : null}
     </div>
   );
 }
