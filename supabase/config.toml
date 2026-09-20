@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.quickserve-booking-worker]
 verify_jwt = false
+
+[functions.quickserve-waitlist-worker]
+verify_jwt = false
