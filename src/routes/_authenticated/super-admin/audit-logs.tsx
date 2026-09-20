@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { History } from "lucide-react";
 import { useState } from "react";
 
+import { MasterEyebrow, MasterPageHeader, MasterSection } from "@/components/app/MasterPage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,11 +55,9 @@ function AuditLogsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">{t("sa.audit.title")}</h1>
-      </div>
+      <MasterPageHeader eyebrow={<MasterEyebrow icon={History}>{lang === "ar" ? "سجل المنصة" : "Platform history"}</MasterEyebrow>} title={t("sa.audit.title")} description={lang === "ar" ? "سجل تدقيق قابل للبحث لكل إجراء إداري مهم عبر QuickServe." : "A searchable, append-only trail of important administrative actions across QuickServe."} />
 
-      <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+      <div className="qs-card grid gap-2 p-3 sm:flex sm:flex-wrap sm:items-center sm:p-4">
         <Input
           className="w-full sm:max-w-xs"
           placeholder={t("common.search")}
@@ -136,8 +136,8 @@ function AuditLogsPage() {
             ))}
           </div>
 
-          <div className="panel hidden overflow-x-auto md:block">
-            <table className="w-full text-sm">
+          <div className="qs-card hidden overflow-x-auto md:block">
+            <table className="qs-table min-w-[760px]">
               <thead className="border-b text-start text-xs uppercase text-muted-foreground">
                 <tr>
                   <th className="p-3 text-start">{t("sa.audit.when")}</th>
