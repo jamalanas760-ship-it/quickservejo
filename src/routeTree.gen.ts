@@ -37,6 +37,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated/shifts'
 import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_authenticated/super-admin/route'
 import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
+import { Route as AuthenticatedWaitlistRouteImport } from './routes/_authenticated/waitlist'
 import { Route as AuthenticatedWorkRouteImport } from './routes/_authenticated/work'
 import { Route as BookSlugRouteImport } from './routes/book/$slug'
 import { Route as BookingTokenRouteImport } from './routes/booking/$token'
@@ -224,6 +225,11 @@ const AuthenticatedSuperAdminRouteRoute =
 const AuthenticatedWaiterRoute = AuthenticatedWaiterRouteImport.update({
   id: '/waiter',
   path: '/waiter',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedWaitlistRoute = AuthenticatedWaitlistRouteImport.update({
+  id: '/waitlist',
+  path: '/waitlist',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedWorkRoute = AuthenticatedWorkRouteImport.update({
@@ -505,6 +511,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/shifts': typeof AuthenticatedShiftsRoute
   '/waiter': typeof AuthenticatedWaiterRoute
+  '/waitlist': typeof AuthenticatedWaitlistRoute
   '/work': typeof AuthenticatedWorkRoute
   '/book/$slug': typeof BookSlugRoute
   '/booking/$token': typeof BookingTokenRoute
@@ -574,6 +581,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedProfileRoute
   '/shifts': typeof AuthenticatedShiftsRoute
   '/waiter': typeof AuthenticatedWaiterRoute
+  '/waitlist': typeof AuthenticatedWaitlistRoute
   '/work': typeof AuthenticatedWorkRoute
   '/book/$slug': typeof BookSlugRoute
   '/booking/$token': typeof BookingTokenRoute
@@ -645,6 +653,7 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
   '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
+  '/_authenticated/waitlist': typeof AuthenticatedWaitlistRoute
   '/_authenticated/work': typeof AuthenticatedWorkRoute
   '/book/$slug': typeof BookSlugRoute
   '/booking/$token': typeof BookingTokenRoute
@@ -718,6 +727,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/shifts'
     | '/waiter'
+    | '/waitlist'
     | '/work'
     | '/book/$slug'
     | '/booking/$token'
@@ -787,6 +797,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/shifts'
     | '/waiter'
+    | '/waitlist'
     | '/work'
     | '/book/$slug'
     | '/booking/$token'
@@ -857,6 +868,7 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/_authenticated/shifts'
     | '/_authenticated/waiter'
+    | '/_authenticated/waitlist'
     | '/_authenticated/work'
     | '/book/$slug'
     | '/booking/$token'
@@ -1120,6 +1132,13 @@ declare module '@tanstack/react-router' {
       path: '/waiter'
       fullPath: '/waiter'
       preLoaderRoute: typeof AuthenticatedWaiterRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/waitlist': {
+      id: '/_authenticated/waitlist'
+      path: '/waitlist'
+      fullPath: '/waitlist'
+      preLoaderRoute: typeof AuthenticatedWaitlistRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/work': {
@@ -1568,6 +1587,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedShiftsRoute: typeof AuthenticatedShiftsRoute
   AuthenticatedWaiterRoute: typeof AuthenticatedWaiterRoute
+  AuthenticatedWaitlistRoute: typeof AuthenticatedWaitlistRoute
   AuthenticatedWorkRoute: typeof AuthenticatedWorkRoute
   AuthenticatedDashboardMetricRoute: typeof AuthenticatedDashboardMetricRoute
 }
@@ -1593,6 +1613,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedShiftsRoute: AuthenticatedShiftsRoute,
   AuthenticatedWaiterRoute: AuthenticatedWaiterRoute,
+  AuthenticatedWaitlistRoute: AuthenticatedWaitlistRoute,
   AuthenticatedWorkRoute: AuthenticatedWorkRoute,
   AuthenticatedDashboardMetricRoute: AuthenticatedDashboardMetricRoute,
 }
