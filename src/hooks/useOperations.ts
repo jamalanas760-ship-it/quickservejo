@@ -119,6 +119,7 @@ export function useOperationalRules(restaurantId: string | null, enabled = true)
     queryKey: ["operations", "rules", restaurantId],
     enabled: Boolean(restaurantId && enabled),
     staleTime: 15_000,
+    refetchInterval: restaurantId && enabled ? 20_000 : false,
     queryFn: async () => {
       const result = await fromOperations("operational_rules")
         .select("*")
