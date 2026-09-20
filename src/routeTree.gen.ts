@@ -38,6 +38,8 @@ import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedSuperAdminRouteRouteImport } from './routes/_authenticated/super-admin/route'
 import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
 import { Route as AuthenticatedWorkRouteImport } from './routes/_authenticated/work'
+import { Route as BookSlugRouteImport } from './routes/book/$slug'
+import { Route as BookingTokenRouteImport } from './routes/booking/$token'
 import { Route as KioskSlugRouteImport } from './routes/kiosk/$slug'
 import { Route as MSlugRouteImport } from './routes/m/$slug'
 import { Route as OTokenRouteImport } from './routes/o/$token'
@@ -228,6 +230,16 @@ const AuthenticatedWorkRoute = AuthenticatedWorkRouteImport.update({
   id: '/work',
   path: '/work',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const BookSlugRoute = BookSlugRouteImport.update({
+  id: '/book/$slug',
+  path: '/book/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookingTokenRoute = BookingTokenRouteImport.update({
+  id: '/booking/$token',
+  path: '/booking/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const KioskSlugRoute = KioskSlugRouteImport.update({
   id: '/kiosk/$slug',
@@ -494,6 +506,8 @@ export interface FileRoutesByFullPath {
   '/shifts': typeof AuthenticatedShiftsRoute
   '/waiter': typeof AuthenticatedWaiterRoute
   '/work': typeof AuthenticatedWorkRoute
+  '/book/$slug': typeof BookSlugRoute
+  '/booking/$token': typeof BookingTokenRoute
   '/kiosk/$slug': typeof KioskSlugRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
@@ -561,6 +575,8 @@ export interface FileRoutesByTo {
   '/shifts': typeof AuthenticatedShiftsRoute
   '/waiter': typeof AuthenticatedWaiterRoute
   '/work': typeof AuthenticatedWorkRoute
+  '/book/$slug': typeof BookSlugRoute
+  '/booking/$token': typeof BookingTokenRoute
   '/kiosk/$slug': typeof KioskSlugRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
@@ -630,6 +646,8 @@ export interface FileRoutesById {
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
   '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
   '/_authenticated/work': typeof AuthenticatedWorkRoute
+  '/book/$slug': typeof BookSlugRoute
+  '/booking/$token': typeof BookingTokenRoute
   '/kiosk/$slug': typeof KioskSlugRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
@@ -701,6 +719,8 @@ export interface FileRouteTypes {
     | '/shifts'
     | '/waiter'
     | '/work'
+    | '/book/$slug'
+    | '/booking/$token'
     | '/kiosk/$slug'
     | '/m/$slug'
     | '/o/$token'
@@ -768,6 +788,8 @@ export interface FileRouteTypes {
     | '/shifts'
     | '/waiter'
     | '/work'
+    | '/book/$slug'
+    | '/booking/$token'
     | '/kiosk/$slug'
     | '/m/$slug'
     | '/o/$token'
@@ -836,6 +858,8 @@ export interface FileRouteTypes {
     | '/_authenticated/shifts'
     | '/_authenticated/waiter'
     | '/_authenticated/work'
+    | '/book/$slug'
+    | '/booking/$token'
     | '/kiosk/$slug'
     | '/m/$slug'
     | '/o/$token'
@@ -887,6 +911,8 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  BookSlugRoute: typeof BookSlugRoute
+  BookingTokenRoute: typeof BookingTokenRoute
   KioskSlugRoute: typeof KioskSlugRoute
   MSlugRoute: typeof MSlugRoute
   OTokenRoute: typeof OTokenRoute
@@ -1102,6 +1128,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/work'
       preLoaderRoute: typeof AuthenticatedWorkRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/book/$slug': {
+      id: '/book/$slug'
+      path: '/book/$slug'
+      fullPath: '/book/$slug'
+      preLoaderRoute: typeof BookSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/booking/$token': {
+      id: '/booking/$token'
+      path: '/booking/$token'
+      fullPath: '/booking/$token'
+      preLoaderRoute: typeof BookingTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/kiosk/$slug': {
       id: '/kiosk/$slug'
@@ -1571,6 +1611,8 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  BookSlugRoute: BookSlugRoute,
+  BookingTokenRoute: BookingTokenRoute,
   KioskSlugRoute: KioskSlugRoute,
   MSlugRoute: MSlugRoute,
   OTokenRoute: OTokenRoute,
