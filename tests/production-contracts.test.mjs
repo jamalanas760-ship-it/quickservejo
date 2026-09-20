@@ -79,3 +79,15 @@ test("delivery accounting persists the fee separately from order total", async (
   const migration = await file("supabase/migrations/20260920101000_phase4_delivery_accounting.sql");
   assert.match(migration, /delivery_amount=_delivery/);
 });
+
+
+test("live menu preview bridge is same-origin, reactive and mutation-safe", async () => {
+  const dinerRoute = await file("src/routes/r/$slug.tsx");
+  assert.match(dinerRoute, /isMenuThemeBridgeMessage/);
+  assert.match(dinerRoute, /MENU_THEME_CHANNEL/);
+  assert.match(dinerRoute, /event\.origin !== window\.location\.origin/);
+  assert.match(dinerRoute, /queryClient\.setQueryData<DinerMenu>/);
+  assert.match(dinerRoute, /restaurantId !== restaurant\.id/);
+  assert.match(dinerRoute, /ordering is disabled/);
+  assert.match(dinerRoute, /Waiter calls are disabled/);
+});
