@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarCheck2, CalendarClock, CheckCircle2, Clock3, ExternalLink, Plus, Settings2, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
+import { CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, Plus, Settings2, Timer, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/nav/AppHeader";
@@ -126,24 +126,39 @@ function BookingsPage(){
   const active=all.filter(row=>!["completed","cancelled","no_show"].includes(row.status));
   const today=active.filter(row=>new Date(row.booking_at).toDateString()===new Date().toDateString());
   const seated=active.filter(row=>row.status==="seated").length;
+  const pending=active.filter(row=>row.status==="pending").length;
   const upcoming=active.filter(row=>new Date(row.booking_at).getTime()>=now).length;
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"الحجوزات":"Reservations"}/>
     <main className="qs-page space-y-5">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div><span className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-[#ff5a0a]"><CalendarCheck2 className="size-3.5"/>{ar?"إدارة الحجوزات":"Reservation desk"}</span><h1 className="qs-page-title mt-3">{ar?"الحجوزات والجلوس":"Reservations & seating"}</h1><p className="qs-page-subtitle max-w-2xl">{ar?"توافر حي، منع الحجوزات المتعارضة، ربط CRM، ورمز تأكيد لكل ضيف.":"Live availability, conflict protection, CRM linking and a private confirmation code for every guest."}</p></div>
-        <div className="flex flex-wrap gap-2">
-          {restaurant.data?.slug?<Button asChild variant="outline"><Link to="/book/$slug" params={{slug:restaurant.data.slug}} target="_blank"><ExternalLink className="size-4"/>{ar?"رابط الحجز العام":"Public booking page"}</Link></Button>:null}
-          {canConfigure?<Button variant="outline" onClick={()=>setSettingsOpen(true)}><Settings2 className="size-4"/>{ar?"الإعدادات":"Settings"}</Button>:null}
-          <Button onClick={()=>setCreateOpen(true)}><Plus className="size-4"/>{ar?"حجز جديد":"New reservation"}</Button>
-        </div>
-      </header>
+      <section className="overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-[0_18px_50px_rgba(15,23,42,.06)]">
+        <div className="border-b border-border/70 bg-gradient-to-br from-orange-500/[.08] via-background to-background p-5 sm:p-7">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-3xl">
+              <span className="inline-flex items-center gap-2 rounded-full border border-orange-200/70 bg-orange-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.16em] text-[#e34d00] dark:border-orange-900/50 dark:bg-orange-950/20"><CalendarCheck2 className="size-3.5"/>{ar?"مكتب الحجوزات":"Reservation Desk"}</span>
+              <h1 className="mt-3 font-display text-3xl font-black tracking-[-.035em] sm:text-4xl">{ar?"الحجوزات، الوصول والجلوس":"Reservations, arrivals & seating"}</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{ar?"واجهة تشغيلية واحدة لإدارة الحجز من أول اتصال حتى جلوس الضيف، مع فحص توافر حي ومنع التعارض.":"One operational workspace from first contact to seating, with live availability and database-enforced conflict protection."}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {restaurant.data?.slug?<Button asChild variant="outline" className="rounded-xl bg-background/80"><Link to="/book/$slug" params={{slug:restaurant.data.slug}} target="_blank"><ExternalLink className="size-4"/>{ar?"صفحة الحجز العامة":"Public booking page"}</Link></Button>:null}
+              {canConfigure?<Button variant="outline" className="rounded-xl bg-background/80" onClick={()=>setSettingsOpen(true)}><Settings2 className="size-4"/>{ar?"الإعدادات":"Settings"}</Button>:null}
+              <Button className="rounded-xl px-5" onClick={()=>setCreateOpen(true)}><Plus className="size-4"/>{ar?"حجز جديد":"New reservation"}</Button>
+            </div>
+          </div>
 
-      <section className="grid gap-3 sm:grid-cols-3">
-        <Metric icon={CalendarClock} label={ar?"حجوزات اليوم":"Today"} value={today.length}/>
-        <Metric icon={Clock3} label={ar?"القادمة":"Upcoming"} value={upcoming}/>
-        <Metric icon={UserRoundCheck} label={ar?"تم الجلوس":"Seated"} value={seated}/>
+          <div className="mt-6 inline-flex rounded-2xl border border-border bg-background/90 p-1 shadow-sm">
+            <Link to="/bookings" className="rounded-xl bg-foreground px-4 py-2 text-xs font-bold text-background shadow-sm">{ar?"الحجوزات":"Reservations"}</Link>
+            <Link to="/waitlist" className="rounded-xl px-4 py-2 text-xs font-bold text-muted-foreground transition hover:bg-muted/60 hover:text-foreground">{ar?"قائمة الانتظار":"Waitlist"}</Link>
+          </div>
+        </div>
+
+        <div className="grid gap-px bg-border/70 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric icon={CalendarClock} label={ar?"حجوزات اليوم":"Today's reservations"} value={today.length}/>
+          <Metric icon={Clock3} label={ar?"قادمة":"Upcoming"} value={upcoming}/>
+          <Metric icon={CalendarCheck2} label={ar?"بانتظار التأكيد":"Pending confirmation"} value={pending}/>
+          <Metric icon={UserRoundCheck} label={ar?"جالسين الآن":"Currently seated"} value={seated}/>
+        </div>
       </section>
 
       <section className="qs-card overflow-hidden">
@@ -157,46 +172,187 @@ function BookingsPage(){
 }
 
 function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,lang}:{open:boolean;onOpenChange:(open:boolean)=>void;restaurantId:string;tables:FloorTable[];settings:BookingSettings|null|undefined;ar:boolean;lang:"ar"|"en"}){
-  const qc=useQueryClient(); const [busy,setBusy]=useState(false);
-  const [bookingAt,setBookingAt]=useState(()=>localInput(new Date(Date.now()+60*60_000)));
+  const qc=useQueryClient();
+  const [busy,setBusy]=useState(false);
+  const initial=bookingDateParts(new Date(Date.now()+60*60_000));
+  const [bookingDate,setBookingDate]=useState(initial.date);
+  const [bookingTime,setBookingTime]=useState(initial.time);
   const [guests,setGuests]=useState(2);
   const [duration,setDuration]=useState(settings?.default_duration_minutes??90);
+  const [selectedTable,setSelectedTable]=useState("auto");
+  const [status,setStatus]=useState("pending");
+  const [source,setSource]=useState("staff");
+  const bookingAt=bookingDate&&bookingTime?`${bookingDate}T${bookingTime}`:"";
+
   const available=useQuery<FloorTable[]>({
     queryKey:["booking-available-tables",restaurantId,bookingAt,guests,duration],
     enabled:open&&Boolean(bookingAt)&&guests>0,
     queryFn:async()=>{
-      const {data,error}=await (supabase as any).rpc("find_available_booking_tables",{_restaurant_id:restaurantId,_booking_at:new Date(bookingAt).toISOString(),_guest_count:guests,_duration_minutes:duration});
+      const at=new Date(bookingAt);
+      if(Number.isNaN(at.getTime()))throw new Error(ar?"اختر تاريخاً ووقتاً صحيحين":"Choose a valid date and time");
+      const {data,error}=await (supabase as any).rpc("find_available_booking_tables",{
+        _restaurant_id:restaurantId,_booking_at:at.toISOString(),_guest_count:guests,_duration_minutes:duration,
+      });
       if(error)throw error;
       return (data??[]) as FloorTable[];
     },
   });
 
+  const availableRows=available.data??[];
+  const bestFit=availableRows[0]??null;
+  const chosen=selectedTable==="auto"?bestFit:availableRows.find(row=>row.id===selectedTable)??null;
+  const canSubmit=Boolean(bookingAt)&&availableRows.length>0&&!busy;
+
   async function submit(event:React.FormEvent<HTMLFormElement>){
-    event.preventDefault(); const form=new FormData(event.currentTarget); setBusy(true);
+    event.preventDefault();
+    const form=new FormData(event.currentTarget);
+    setBusy(true);
     try{
-      const at=new Date(bookingAt); if(Number.isNaN(at.getTime()))throw new Error(ar?"اختر موعداً صحيحاً":"Choose a valid booking time");
-      const tableId=String(form.get("table_id")??"auto");
+      const at=new Date(bookingAt);
+      if(Number.isNaN(at.getTime()))throw new Error(ar?"اختر تاريخاً ووقتاً صحيحين":"Choose a valid date and time");
       const {error}=await (supabase as any).rpc("create_staff_booking",{
-        _restaurant_id:restaurantId,_customer_name:String(form.get("customer_name")??"").trim(),
-        _phone:String(form.get("phone")??"").trim(),_email:String(form.get("email")??"").trim(),
-        _guest_count:guests,_booking_at:at.toISOString(),_table_id:tableId==="auto"?null:tableId,
-        _duration_minutes:duration,_status:String(form.get("status")??"pending"),
-        _notes:String(form.get("notes")??"").trim()||null,_occasion:String(form.get("occasion")??"").trim()||null,_source:String(form.get("source")??"staff"),
+        _restaurant_id:restaurantId,
+        _customer_name:String(form.get("customer_name")??"").trim(),
+        _phone:String(form.get("phone")??"").trim(),
+        _email:String(form.get("email")??"").trim(),
+        _guest_count:guests,
+        _booking_at:at.toISOString(),
+        _table_id:selectedTable==="auto"?null:selectedTable,
+        _duration_minutes:duration,
+        _status:status,
+        _notes:String(form.get("notes")??"").trim()||null,
+        _occasion:String(form.get("occasion")??"").trim()||null,
+        _source:source,
       });
       if(error)throw error;
-      await Promise.all([qc.invalidateQueries({queryKey:["bookings",restaurantId]}),qc.invalidateQueries({queryKey:["bookings","tables",restaurantId]})]);
-      toast.success(ar?"تم إنشاء الحجز":"Reservation created");onOpenChange(false);
-    }catch(error){toast.error(humanError(error,lang));}finally{setBusy(false);}
+      await Promise.all([
+        qc.invalidateQueries({queryKey:["bookings",restaurantId]}),
+        qc.invalidateQueries({queryKey:["bookings","tables",restaurantId]}),
+      ]);
+      toast.success(ar?"تم إنشاء الحجز":"Reservation created");
+      onOpenChange(false);
+    }catch(error){
+      toast.error(humanError(error,lang));
+    }finally{
+      setBusy(false);
+    }
   }
 
-  const availableRows=available.data??[];
-  return <Dialog open={open} onOpenChange={value=>!busy&&onOpenChange(value)}><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>{ar?"حجز جديد":"New reservation"}</DialogTitle><DialogDescription>{ar?"يتم التحقق من التوفر مرة أخرى عند الحفظ لمنع أي تعارض متزامن.":"Availability is checked again at save time to prevent concurrent double-booking."}</DialogDescription></DialogHeader><form onSubmit={submit} className="space-y-4">
-    <div className="grid gap-4 sm:grid-cols-2"><Field label={ar?"اسم الضيف":"Guest name"}><Input name="customer_name" required maxLength={120}/></Field><Field label={ar?"الهاتف":"Phone"}><Input name="phone" inputMode="tel" maxLength={40}/></Field><Field label={ar?"البريد":"Email"}><Input name="email" type="email" maxLength={160}/></Field><Field label={ar?"المناسبة":"Occasion"}><Input name="occasion" maxLength={120} placeholder={ar?"عيد ميلاد، ذكرى...":"Birthday, anniversary..."}/></Field></div>
-    <div className="grid gap-4 sm:grid-cols-3"><Field label={ar?"الضيوف":"Guests"}><Input type="number" min="1" max="100" value={guests} onChange={e=>setGuests(Number(e.target.value)||1)} required/></Field><Field label={ar?"التاريخ والوقت":"Date & time"}><Input type="datetime-local" value={bookingAt} onChange={e=>setBookingAt(e.target.value)} required/></Field><Field label={ar?"المدة بالدقائق":"Duration"}><Input type="number" min="30" max="360" step="15" value={duration} onChange={e=>setDuration(Number(e.target.value)||90)}/></Field></div>
-    <div className="grid gap-4 sm:grid-cols-3"><Field label={ar?"الطاولة":"Table"}><Select name="table_id" defaultValue="auto"><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="auto">{ar?"اختيار تلقائي لأفضل طاولة":"Auto-assign best fit"}</SelectItem>{availableRows.map(table=><SelectItem key={table.id} value={table.id}>{table.table_name??`#${table.table_number}`} · {table.capacity} · {table.zone}</SelectItem>)}</SelectContent></Select>{available.isPending?<span className="text-[10px] text-muted-foreground">{ar?"جارٍ فحص التوفر…":"Checking availability…"}</span>:<span className="text-[10px] text-muted-foreground">{availableRows.length} {ar?"طاولة متاحة":"available tables"}</span>}</Field><Field label={ar?"الحالة":"Status"}><Select name="status" defaultValue="pending"><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="pending">{statusLabel("pending",ar)}</SelectItem><SelectItem value="confirmed">{statusLabel("confirmed",ar)}</SelectItem></SelectContent></Select></Field><Field label={ar?"المصدر":"Source"}><Select name="source" defaultValue="staff"><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="staff">{ar?"موظف":"Staff"}</SelectItem><SelectItem value="phone">{ar?"هاتف":"Phone"}</SelectItem><SelectItem value="walk_in">{ar?"حضور مباشر":"Walk-in"}</SelectItem></SelectContent></Select></Field></div>
-    <Field label={ar?"ملاحظات":"Notes"}><Textarea name="notes" maxLength={1000}/></Field>
-    <DialogFooter><Button type="button" variant="outline" onClick={()=>onOpenChange(false)} disabled={busy}>{ar?"إلغاء":"Cancel"}</Button><Button type="submit" disabled={busy||availableRows.length===0}>{busy?(ar?"جارٍ الحفظ…":"Saving…"):(ar?"إنشاء الحجز":"Create reservation")}</Button></DialogFooter>
-  </form></DialogContent></Dialog>;
+  return <Dialog open={open} onOpenChange={value=>!busy&&onOpenChange(value)}>
+    <DialogContent className="max-h-[94dvh] overflow-hidden p-0 sm:max-w-4xl">
+      <div className="border-b border-border bg-gradient-to-r from-orange-500/[.09] via-background to-background px-5 py-5 sm:px-7">
+        <DialogHeader>
+          <div className="flex items-start gap-3">
+            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-[#ff5a0a]"><CalendarCheck2 className="size-5"/></span>
+            <div>
+              <DialogTitle className="text-xl sm:text-2xl">{ar?"حجز جديد":"New reservation"}</DialogTitle>
+              <DialogDescription className="mt-1 max-w-2xl">{ar?"أدخل بيانات الضيف ثم اختر التاريخ والوقت بوضوح. يتم فحص التوفر مباشرة ومرة أخيرة عند الحفظ.":"Add the guest, choose date and time clearly, then QuickServe checks availability live and once again when saving."}</DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+      </div>
+
+      <form onSubmit={submit} className="grid max-h-[calc(94dvh-105px)] overflow-y-auto lg:grid-cols-[minmax(0,1fr)_290px]">
+        <div className="space-y-6 p-5 sm:p-7">
+          <section>
+            <SectionHeading number="1" title={ar?"بيانات الضيف":"Guest details"} subtitle={ar?"المعلومات الأساسية للحجز والتواصل.":"Core reservation and contact information."}/>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Field label={ar?"اسم الضيف":"Guest name"}><Input className="h-11 rounded-xl" name="customer_name" required maxLength={120} autoFocus/></Field>
+              <Field label={ar?"الهاتف":"Phone"}><Input className="h-11 rounded-xl" name="phone" inputMode="tel" maxLength={40}/></Field>
+              <Field label={ar?"البريد الإلكتروني":"Email"}><Input className="h-11 rounded-xl" name="email" type="email" maxLength={160}/></Field>
+              <Field label={ar?"المناسبة":"Occasion"}><Input className="h-11 rounded-xl" name="occasion" maxLength={120} placeholder={ar?"عيد ميلاد، ذكرى...":"Birthday, anniversary..."}/></Field>
+            </div>
+          </section>
+
+          <section className="border-t border-border pt-6">
+            <SectionHeading number="2" title={ar?"الموعد وعدد الضيوف":"Date, time & party"} subtitle={ar?"التاريخ والوقت منفصلان لتكون عملية الاختيار واضحة وسهلة على جميع الأجهزة.":"Date and time are separated for a clearer, reliable picker on every device."}/>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Field label={ar?"التاريخ":"Date"}>
+                <div className="relative"><CalendarDays className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-12 rounded-xl ps-10" type="date" value={bookingDate} onChange={e=>{setBookingDate(e.target.value);setSelectedTable("auto");}} required/></div>
+              </Field>
+              <Field label={ar?"الوقت":"Time"}>
+                <div className="relative"><Clock3 className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-12 rounded-xl ps-10" type="time" step="900" value={bookingTime} onChange={e=>{setBookingTime(e.target.value);setSelectedTable("auto");}} required/></div>
+              </Field>
+              <Field label={ar?"عدد الضيوف":"Guests"}>
+                <div className="relative"><UsersRound className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-12 rounded-xl ps-10" type="number" min="1" max="100" value={guests} onChange={e=>{setGuests(Number(e.target.value)||1);setSelectedTable("auto");}} required/></div>
+              </Field>
+            </div>
+
+            <div className="mt-4">
+              <Label className="text-xs font-bold">{ar?"مدة الحجز":"Reservation duration"}</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {[60,90,120,150,180].map(value=><button key={value} type="button" onClick={()=>{setDuration(value);setSelectedTable("auto");}} className={cn("rounded-xl border px-3.5 py-2 text-xs font-bold transition",duration===value?"border-[#ff5a0a] bg-orange-500/10 text-[#e34d00]":"border-border bg-background hover:bg-muted/50")}>{value<120?`${value} min`:`${value/60} hr`}</button>)}
+                <div className="relative w-28"><Timer className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-9 rounded-xl ps-9 text-xs" type="number" min="30" max="360" step="15" value={duration} onChange={e=>{setDuration(Number(e.target.value)||90);setSelectedTable("auto");}}/></div>
+              </div>
+            </div>
+          </section>
+
+          <section className="border-t border-border pt-6">
+            <SectionHeading number="3" title={ar?"الطاولة وسير العمل":"Table & workflow"} subtitle={ar?"QuickServe يختار أصغر طاولة مناسبة تلقائياً، أو يمكنك اختيار طاولة متاحة.":"QuickServe auto-selects the smallest suitable table, or you can choose an available table."}/>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <Field label={ar?"الطاولة":"Table"}>
+                <Select value={selectedTable} onValueChange={setSelectedTable}>
+                  <SelectTrigger className="h-11 rounded-xl"><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">{ar?"أفضل طاولة تلقائياً":"Auto-assign best fit"}</SelectItem>
+                    {availableRows.map(table=><SelectItem key={table.id} value={table.id}>{table.table_name??`#${table.table_number}`} · {table.capacity} · {table.zone}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label={ar?"الحالة":"Status"}>
+                <Select value={status} onValueChange={setStatus}><SelectTrigger className="h-11 rounded-xl"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="pending">{statusLabel("pending",ar)}</SelectItem><SelectItem value="confirmed">{statusLabel("confirmed",ar)}</SelectItem></SelectContent></Select>
+              </Field>
+              <Field label={ar?"المصدر":"Source"}>
+                <Select value={source} onValueChange={setSource}><SelectTrigger className="h-11 rounded-xl"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="staff">{ar?"موظف":"Staff"}</SelectItem><SelectItem value="phone">{ar?"هاتف":"Phone"}</SelectItem><SelectItem value="walk_in">{ar?"حضور مباشر":"Walk-in"}</SelectItem></SelectContent></Select>
+              </Field>
+            </div>
+            <Field label={ar?"ملاحظات":"Notes"}><Textarea className="mt-2 min-h-24 rounded-xl" name="notes" maxLength={1000} placeholder={ar?"طلبات خاصة، كرسي أطفال، ملاحظات الوصول...":"Special requests, high chair, arrival notes..."}/></Field>
+          </section>
+        </div>
+
+        <aside className="border-t border-border bg-muted/20 p-5 lg:border-s lg:border-t-0 sm:p-6">
+          <div className="sticky top-0 space-y-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[.15em] text-muted-foreground">{ar?"التوفر المباشر":"Live availability"}</p>
+              {available.isPending?<div className="mt-3 space-y-2"><Skeleton className="h-16 rounded-2xl"/><Skeleton className="h-10 rounded-xl"/></div>
+                :available.isError?<div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-700">{humanError(available.error,lang)}</div>
+                :availableRows.length>0?<div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="size-4"/><strong className="text-sm">{availableRows.length} {ar?"طاولة متاحة":"tables available"}</strong></div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">{chosen?(ar?`الاختيار: ${chosen.table_name??`#${chosen.table_number}`} · سعة ${chosen.capacity}`:`Selected: ${chosen.table_name??`#${chosen.table_number}`} · capacity ${chosen.capacity}`):(ar?"سيتم اختيار أفضل طاولة عند الحفظ.":"Best-fit table will be chosen at save time.")}</p>
+                </div>
+                :<div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/20"><strong className="text-sm text-amber-800 dark:text-amber-200">{ar?"لا توجد طاولة متاحة":"No table available"}</strong><p className="mt-2 text-xs leading-5 text-muted-foreground">{ar?"غيّر الوقت أو المدة أو عدد الضيوف، أو استخدم قائمة الانتظار.":"Try another time, duration or party size, or use the waitlist."}</p><Button asChild variant="outline" size="sm" className="mt-3 w-full rounded-xl"><Link to="/waitlist">{ar?"فتح قائمة الانتظار":"Open waitlist"}</Link></Button></div>}
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background p-4">
+              <p className="text-[10px] font-black uppercase tracking-[.15em] text-muted-foreground">{ar?"ملخص الحجز":"Reservation summary"}</p>
+              <div className="mt-3 space-y-3 text-sm">
+                <SummaryLine label={ar?"التاريخ":"Date"} value={bookingDate||"—"}/>
+                <SummaryLine label={ar?"الوقت":"Time"} value={bookingTime||"—"}/>
+                <SummaryLine label={ar?"الضيوف":"Guests"} value={String(guests)}/>
+                <SummaryLine label={ar?"المدة":"Duration"} value={`${duration} min`}/>
+                <SummaryLine label={ar?"الطاولة":"Table"} value={chosen?(chosen.table_name??`#${chosen.table_number}`):(selectedTable==="auto"?(ar?"تلقائي":"Auto"):"—")}/>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-dashed border-border p-4 text-[11px] leading-5 text-muted-foreground">{ar?"يتم إعادة فحص التوفر داخل قاعدة البيانات عند إنشاء الحجز، لذلك لا يمكن لحجزين متزامنين حجز نفس الطاولة لنفس الوقت.":"Availability is rechecked inside the database when creating the reservation, preventing concurrent double-booking."}</div>
+          </div>
+        </aside>
+
+        <DialogFooter className="sticky bottom-0 z-10 border-t border-border bg-background/95 px-5 py-4 backdrop-blur lg:col-span-2 sm:px-7">
+          <Button type="button" variant="outline" className="rounded-xl" onClick={()=>onOpenChange(false)} disabled={busy}>{ar?"إلغاء":"Cancel"}</Button>
+          <Button type="submit" className="min-w-40 rounded-xl" disabled={!canSubmit}>{busy?(ar?"جارٍ الحفظ…":"Saving…"):(ar?"إنشاء الحجز":"Create reservation")}</Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  </Dialog>;
+}
+
+function SectionHeading({number,title,subtitle}:{number:string;title:string;subtitle:string}){
+  return <div className="flex items-start gap-3"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-orange-500/10 text-xs font-black text-[#e34d00]">{number}</span><div><h3 className="text-sm font-black">{title}</h3><p className="mt-0.5 text-xs leading-5 text-muted-foreground">{subtitle}</p></div></div>;
+}
+
+function SummaryLine({label,value}:{label:string;value:string}){
+  return <div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">{label}</span><strong className="text-end text-xs">{value}</strong></div>;
 }
 
 function BookingSettingsDialog({open,onOpenChange,restaurantId,settings,ar,lang}:{open:boolean;onOpenChange:(open:boolean)=>void;restaurantId:string;settings:BookingSettings|null|undefined;ar:boolean;lang:"ar"|"en"}){
@@ -259,8 +415,8 @@ function BookingRow({booking,table,currency,ar,lang,busy,onStatus}:{booking:Book
   </div></article>;
 }
 
-function Metric({icon:Icon,label,value}:{icon:typeof CalendarCheck2;label:string;value:number}){return <article className="qs-stat flex min-h-[108px] items-center gap-4 p-4"><span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong></div></article>;}
+function Metric({icon:Icon,label,value}:{icon:typeof CalendarCheck2;label:string;value:number}){return <article className="flex min-h-[105px] items-center gap-4 bg-card p-5"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong></div></article>;}
 function Field({label,children}:{label:string;children:React.ReactNode}){return <div className="space-y-1.5"><Label className="text-xs font-bold">{label}</Label>{children}</div>;}
 function Toggle({label,value,onChange}:{label:string;value:boolean;onChange:(v:boolean)=>void}){return <button type="button" onClick={()=>onChange(!value)} className={cn("flex items-center justify-between rounded-xl border p-4 text-start",value?"border-[#ff5a0a] bg-orange-500/5":"border-border")}><span className="text-sm font-semibold">{label}</span><span className={cn("relative h-6 w-11 rounded-full transition",value?"bg-[#ff5a0a]":"bg-muted")}><span className={cn("absolute top-1 size-4 rounded-full bg-white shadow transition",value?"start-6":"start-1")}/></span></button>;}
-function localInput(d:Date){const local=new Date(d.getTime()-d.getTimezoneOffset()*60_000);local.setMinutes(Math.ceil(local.getMinutes()/15)*15,0,0);return local.toISOString().slice(0,16);}
+function bookingDateParts(d:Date){const local=new Date(d.getTime()-d.getTimezoneOffset()*60_000);local.setMinutes(Math.ceil(local.getMinutes()/15)*15,0,0);const value=local.toISOString();return {date:value.slice(0,10),time:value.slice(11,16)};}
 function statusLabel(status:string,ar:boolean){const labels:Record<string,[string,string]>={pending:["Pending","قيد الانتظار"],confirmed:["Confirmed","مؤكد"],seated:["Seated","تم الجلوس"],completed:["Completed","مكتمل"],cancelled:["Cancelled","ملغي"],no_show:["No-show","لم يحضر"],free:["Free","متاحة"],reserved:["Reserved","محجوزة"],active:["Active","نشطة"],cleaning:["Cleaning","تنظيف"],out_of_service:["Out of service","خارج الخدمة"]};return labels[status]?.[ar?1:0]??status;}
