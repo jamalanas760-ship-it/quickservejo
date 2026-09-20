@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from "react";
 import { ExternalLink, FileText, Image as ImageIcon, Layers3, Package, Tags, UtensilsCrossed } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
@@ -29,13 +30,15 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
 
   return (
     <section className="space-y-5">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div><h1 className="qs-page-title">{ar ? "إدارة القائمة" : "Menu Management"}</h1><p className="qs-page-subtitle">{ar ? "أنشئ وأدر طريقة ظهور قائمتك للضيوف." : "Create and manage how your menu appears to your guests."}</p></div>
-        {restaurant.data ? <Link to="/m/$slug" params={{ slug: restaurant.data.slug }} target="_blank" className="qs-button-secondary"><ExternalLink className="size-4" />{ar ? "عرض القائمة المباشرة" : "View Live Menu"}</Link> : null}
-      </header>
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={UtensilsCrossed}>{ar ? "استوديو القائمة" : "Menu Studio"}</MasterEyebrow>}
+        title={ar ? "إدارة القائمة" : "Menu Management"}
+        description={ar ? "أدر العناصر والفئات والأسعار والهوية من مساحة عمل واحدة واضحة." : "Manage items, categories, pricing and presentation from one focused workspace."}
+        actions={restaurant.data ? <Link to="/m/$slug" params={{ slug: restaurant.data.slug }} target="_blank" className="qs-button-secondary"><ExternalLink className="size-4" />{ar ? "معاينة القائمة" : "Preview Menu"}</Link> : null}
+      />
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <button type="button" onClick={() => setWorkflow("standard")} className={cn("flex min-h-[76px] items-center gap-4 rounded-2xl border bg-card p-4 text-start transition", workflow === "standard" ? "border-[#ff5a0a] bg-orange-500/[.035] shadow-[0_8px_24px_rgba(255,90,10,.08)]" : "border-border hover:bg-muted/30")}>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <button type="button" onClick={() => setWorkflow("standard")} className={cn("flex min-h-[76px] items-center gap-4 rounded-[18px] border bg-card p-4 text-start shadow-[var(--qs-shadow-card)] transition", workflow === "standard" ? "border-[#ff5a0a] bg-orange-500/[.035] shadow-[0_8px_24px_rgba(255,90,10,.08)]" : "border-border hover:bg-muted/30")}>
           <span className={cn("grid size-11 shrink-0 place-items-center rounded-full", workflow === "standard" ? "bg-orange-100 text-[#ff5a0a] dark:bg-orange-950/30" : "bg-muted text-muted-foreground")}><UtensilsCrossed className="size-5" /></span><span><strong className={cn("block text-sm", workflow === "standard" && "text-[#ff5a0a]")}>{ar ? "القائمة العادية" : "Standard Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "أنشئ وخصص قائمتك الإلكترونية" : "Build and customize your menu online"}</span></span>
         </button>
         <button type="button" onClick={() => setWorkflow("pdf")} className={cn("flex min-h-[76px] items-center gap-4 rounded-2xl border bg-card p-4 text-start transition", workflow === "pdf" ? "border-[#ff5a0a] bg-orange-500/[.035] shadow-[0_8px_24px_rgba(255,90,10,.08)]" : "border-border hover:bg-muted/30")}>
