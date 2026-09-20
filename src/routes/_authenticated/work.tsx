@@ -10,11 +10,13 @@ import {
   ListTodo,
   Plus,
   ShieldCheck,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/nav/AppHeader";
+import { DetailRow, DetailSheet, formatStamp } from "@/components/operations/DetailSheet";
 import { ShiftHandoverPanel } from "@/components/operations/ShiftHandoverPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
