@@ -22,7 +22,7 @@ function HQPage(){
   const {lang}=useI18n();const ar=lang==="ar";
   const access=useAccess();
   const locations=(access.data??[]).filter((row)=>row.restaurant_id&&row.restaurant).map((row)=>({
-    id:row.restaurant_id!,name:row.restaurant!.name,currency:row.restaurant!.currency??"JOD"
+    id:row.restaurant_id!,name:row.restaurant!.name
   }));
   const unique=[...new Map(locations.map(r=>[r.id,r])).values()];
   const ids=unique.map(r=>r.id);
@@ -33,17 +33,21 @@ function HQPage(){
     refetchInterval:60_000,
     queryFn:async()=>{
       const today=new Date();today.setHours(0,0,0,0);
-      const [ordersRes,inventoryRes]=await Promise.all([
+      const [restaurantsRes,ordersRes,inventoryRes]=await Promise.all([
+        supabase.from("restaurants").select("id,currency").in("id",ids),
         supabase.from("orders").select("restaurant_id,total,payment_status,status").in("restaurant_id",ids).gte("created_at",today.toISOString()).limit(10000),
         (supabase as any).from("erp_inventory_balances").select("restaurant_id,quantity,reorder_level").in("restaurant_id",ids).limit(10000),
       ]);
+      if(restaurantsRes.error)throw restaurantsRes.error;
       if(ordersRes.error)throw ordersRes.error;
       if(inventoryRes.error)throw inventoryRes.error;
       return unique.map(location=>{
         const orders=(ordersRes.data??[]).filter((row:any)=>row.restaurant_id===location.id);
         const stock=(inventoryRes.data??[]).filter((row:any)=>row.restaurant_id===location.id);
+        const currency=(restaurantsRes.data??[]).find((row)=>row.id===location.id)?.currency??"JOD";
         return {
           ...location,
+          currency,
           orders:orders.length,
           sales:orders.filter((row:any)=>row.payment_status==="paid").reduce((sum:number,row:any)=>sum+Number(row.total??0),0),
           unpaid:orders.filter((row:any)=>row.status==="served"&&row.payment_status==="unpaid").length,
