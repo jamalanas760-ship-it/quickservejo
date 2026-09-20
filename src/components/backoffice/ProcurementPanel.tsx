@@ -151,7 +151,7 @@ export function ProcurementPanel({
             <div className="flex flex-wrap gap-2 xl:justify-end">
               {row.status === "requested" && canApprove ? <><Button size="sm" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ id: row.id, status: "approved" })}>{ar ? "اعتماد" : "Approve"}</Button><Button size="sm" variant="outline" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ id: row.id, status: "rejected" })}><XCircle className="size-4" />{ar ? "رفض" : "Reject"}</Button></> : null}
               {row.status === "approved" && canProcure ? <Button size="sm" onClick={() => { setOrderTarget(row); setPoRef(row.po_reference); }}><Truck className="size-4" />{ar ? "تم الشراء" : "Mark ordered"}</Button> : null}
-              {(row.status === "ordered" || row.status === "approved") && canReceive ? <Button size="sm" variant="outline" onClick={() => { setReceiveTarget(row); setReceiveCost(String(row.actual_unit_cost ?? row.estimated_unit_cost || "")); }}><PackageCheck className="size-4" />{ar ? "استلام" : "Receive"}</Button> : null}
+              {(row.status === "ordered" || row.status === "approved") && canReceive ? <Button size="sm" variant="outline" onClick={() => { setReceiveTarget(row); setReceiveCost(String((row.actual_unit_cost ?? row.estimated_unit_cost) || "")); }}><PackageCheck className="size-4" />{ar ? "استلام" : "Receive"}</Button> : null}
               {["requested","approved","ordered"].includes(row.status) && canProcure ? <Button size="sm" variant="ghost" className="text-muted-foreground" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ id: row.id, status: "cancelled" })}>{ar ? "إلغاء" : "Cancel"}</Button> : null}
             </div>
           </div>
