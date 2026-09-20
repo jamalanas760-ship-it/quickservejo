@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { DetailRow, DetailSheet, formatStamp } from "@/components/operations/DetailSheet";
 import { ShiftHandoverPanel } from "@/components/operations/ShiftHandoverPanel";
@@ -249,22 +250,17 @@ export function WorkPage() {
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "عملي" : "My Work"} />
     <main className="qs-page space-y-5">
-      <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
-        <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-8">
-          <div className="min-w-0">
-            <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><ListTodo className="size-3.5" />{ar ? "مساحة العمل" : "My workspace"}</div>
-            <h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? "العمل المطلوب، بدون تشتيت" : "The work that needs attention"}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{ar ? `مرحباً ${membership.name}. راقب ما عليك اليوم، ما تأخر، وما يحتاج موافقة من مكان واحد.` : `Welcome, ${membership.name}. See what is due today, what is overdue, and what needs approval in one focused workspace.`}</p>
-          </div>
-          {canCreate ? <CreateTaskDialog open={createOpen} onOpenChange={setCreateOpen} restaurantId={rid} currentStaffId={membership.id} currentRole={membership.role} staff={staff.data ?? []} canManage={canManage} ar={ar} lang={lang} onCreated={async () => { setCreateOpen(false); await qc.invalidateQueries({ queryKey: ["work", rid] }); }} /> : null}
-        </div>
-      </section>
-
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={ListTodo}>{ar?"مساحة العمل":"My Workspace"}</MasterEyebrow>}
+        title={ar?"العمل المطلوب بدون تشتيت":"The Work That Needs Attention"}
+        description={ar?`مرحباً ${membership.name}. راقب ما عليك اليوم، ما تأخر وما يحتاج موافقة من مكان واحد.`:`Welcome, ${membership.name}. See what is due today, overdue, and waiting for approval from one focused workspace.`}
+        actions={canCreate?<CreateTaskDialog open={createOpen} onOpenChange={setCreateOpen} restaurantId={rid} currentStaffId={membership.id} currentRole={membership.role} staff={staff.data??[]} canManage={canManage} ar={ar} lang={lang} onCreated={async()=>{setCreateOpen(false);await qc.invalidateQueries({queryKey:["work",rid]});}}/>:null}
+      />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={ListTodo} label={ar ? "مفتوح" : "Open"} value={counts.open} active={quickFocus === "open"} onClick={() => setQuickFocus((value) => value === "open" ? "all" : "open")} />
-        <Metric icon={Clock3} label={ar ? "مستحق اليوم" : "Due today"} value={counts.dueToday} active={quickFocus === "due_today"} onClick={() => setQuickFocus((value) => value === "due_today" ? "all" : "due_today")} />
-        <Metric icon={AlertTriangle} label={ar ? "متأخر" : "Overdue"} value={counts.overdue} tone="urgent" active={quickFocus === "overdue"} onClick={() => setQuickFocus((value) => value === "overdue" ? "all" : "overdue")} />
-        <Metric icon={CheckCircle2} label={ar ? "مكتمل" : "Completed"} value={counts.completed} active={quickFocus === "completed"} onClick={() => setQuickFocus((value) => value === "completed" ? "all" : "completed")} />
+        <MasterKpi icon={ListTodo} label={ar?"مفتوح":"Open"} value={String(counts.open)} hint={ar?"عناصر نشطة":"Active items"} tone="orange"/>
+        <MasterKpi icon={Clock3} label={ar?"مستحق اليوم":"Due Today"} value={String(counts.dueToday)} hint={ar?"ينتهي اليوم":"Due by end of day"} tone="blue"/>
+        <MasterKpi icon={AlertTriangle} label={ar?"متأخر":"Overdue"} value={String(counts.overdue)} hint={ar?"تحتاج انتباه":"Need attention"} tone={counts.overdue>0?"red":"slate"}/>
+        <MasterKpi icon={CheckCircle2} label={ar?"مكتمل":"Completed"} value={String(counts.completed)} hint={ar?"مغلقة":"Closed items"} tone="green"/>
       </section>
 
       <section className="qs-card overflow-hidden">
