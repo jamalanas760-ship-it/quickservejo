@@ -1,1 +1,4 @@
 project_id = "gtcmyaksmyiarokloyje"
+
+[functions.quickserve-api]
+verify_jwt = false
