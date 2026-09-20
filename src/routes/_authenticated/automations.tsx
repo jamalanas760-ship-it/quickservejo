@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Activity, AlertTriangle, CalendarClock, CheckCircle2, CirclePlay, Clock3, Plus, Settings2, Trash2, Workflow, XCircle, Zap } from "lucide-react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -81,22 +82,17 @@ function AutomationControlCenter() {
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "مركز الأتمتة" : "Automation Control Center"} />
     <main className="qs-page space-y-5">
-      <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
-        <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-8">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><Zap className="size-3.5" />{ar ? "أتمتة من الخادم" : "Server-side automation"}</div>
-            <h1 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">{ar ? "حوّل الأحداث المتكررة إلى عمل قابل للمتابعة" : "Turn repeatable events into accountable work"}</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{ar ? "القواعد المجدولة تعمل من الخادم حتى لو كان التطبيق مغلقاً، وكل تشغيل يُسجّل بنتيجته وخطئه إن وجد." : "Scheduled rules run on the server even when QuickServe is closed, and every execution is recorded with its result or error."}</p>
-          </div>
-          <Button onClick={() => setCreateOpen(true)}><Plus className="size-4" />{ar ? "قاعدة جديدة" : "New rule"}</Button>
-        </div>
-      </section>
-
+      <MasterPageHeader
+        eyebrow={<MasterEyebrow icon={Zap}>{ar?"أتمتة من الخادم":"Server Automation"}</MasterEyebrow>}
+        title={ar?"مركز الأتمتة":"Automation Control Center"}
+        description={ar?"حوّل الأحداث المتكررة إلى عمل قابل للمتابعة، مع سجل حقيقي لكل تشغيل ونتيجته.":"Turn repeatable restaurant events into accountable work with a real server execution history."}
+        actions={<Button onClick={()=>setCreateOpen(true)}><Plus className="size-4"/>{ar?"قاعدة جديدة":"New Rule"}</Button>}
+      />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={Workflow} label={ar ? "قواعد فعّالة" : "Active rules"} value={active} />
-        <Metric icon={CalendarClock} label={ar ? "مجدولة" : "Scheduled"} value={scheduled} />
-        <Metric icon={XCircle} label={ar ? "تشغيلات فاشلة" : "Failed runs"} value={failed} tone={failed ? "danger" : undefined} />
-        <Metric icon={Activity} label={ar ? "نفذت اليوم" : "Executed today"} value={executedToday} tone="success" />
+        <MasterKpi icon={Workflow} label={ar?"قواعد فعالة":"Active Rules"} value={String(active)} hint={ar?"قواعد مفعلة":"Enabled"} tone="orange"/>
+        <MasterKpi icon={CalendarClock} label={ar?"مجدولة":"Scheduled"} value={String(scheduled)} hint={ar?"تعمل تلقائياً":"Run automatically"} tone="blue"/>
+        <MasterKpi icon={XCircle} label={ar?"تشغيلات فاشلة":"Failed Runs"} value={String(failed)} hint={ar?"تحتاج مراجعة":"Need review"} tone={failed>0?"red":"slate"}/>
+        <MasterKpi icon={Activity} label={ar?"نفذت اليوم":"Executed Today"} value={String(executedToday)} hint={ar?"سجل اليوم":"Today's run log"} tone="green"/>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(330px,.75fr)]">
