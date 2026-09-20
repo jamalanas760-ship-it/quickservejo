@@ -7,6 +7,7 @@ import { InvoicesPanel } from "@/components/backoffice/InvoicesPanel";
 import { OverviewPanel } from "@/components/backoffice/OverviewPanel";
 import { ProcurementPanel } from "@/components/backoffice/ProcurementPanel";
 import { RecipesPanel } from "@/components/backoffice/RecipesPanel";
+import { KitchenStationsPanel } from "@/components/backoffice/KitchenStationsPanel";
 import { ReceivingPanel } from "@/components/backoffice/ReceivingPanel";
 import { RecordDialog, type RecordRequest } from "@/components/backoffice/RecordDialog";
 import { ReportsPanel } from "@/components/backoffice/ReportsPanel";
@@ -21,7 +22,7 @@ import { useI18n } from "@/lib/i18n";
 import { membershipHasCapability } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
-type SectionKey = "overview" | "inventory" | "recipes" | "receiving" | "procurement" | "suppliers" | "invoices" | "finance" | "reports";
+type SectionKey = "overview" | "inventory" | "recipes" | "stations" | "receiving" | "procurement" | "suppliers" | "invoices" | "finance" | "reports";
 
 type Section = {
   key: SectionKey;
@@ -36,7 +37,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
   const ar = lang === "ar";
   const access = useAccess();
   const membership = access.membershipFor(restaurantId);
-  const can = (capability: "view_erp" | "manage_inventory" | "manage_procurement" | "manage_finance" | "manage_restaurant") =>
+  const can = (capability: "view_erp" | "manage_inventory" | "manage_procurement" | "manage_finance" | "manage_restaurant" | "manage_menu") =>
     access.isSuperAdmin || Boolean(membership && membershipHasCapability(membership.role, membership.permission_overrides, capability));
 
   const moduleAccess: BackOfficeAccess = {
@@ -45,6 +46,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
     finance: can("manage_finance"),
   };
   const canApproveProcurement = can("manage_restaurant");
+  const canManageKitchenStations = can("manage_menu") || can("manage_restaurant");
   const allowed = access.isSuperAdmin || can("view_erp") || Object.values(moduleAccess).some(Boolean);
   const restaurant = useRestaurant(restaurantId);
   const query = useBackOffice(restaurantId, moduleAccess, allowed);
@@ -63,6 +65,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
     { key: "overview", en: "Overview", ar: "نظرة عامة", icon: LayoutDashboard, show: true },
     { key: "inventory", en: "Inventory", ar: "المخزون", icon: Package, show: moduleAccess.inventory },
     { key: "recipes", en: "Recipes & Cost", ar: "الوصفات والتكلفة", icon: ChefHat, show: moduleAccess.inventory || canApproveProcurement },
+    { key: "stations", en: "Kitchen Stations", ar: "محطات المطبخ", icon: ChefHat, show: canManageKitchenStations },
     { key: "receiving", en: "Receiving", ar: "الاستلام", icon: PackageCheck, show: moduleAccess.inventory || moduleAccess.procurement },
     { key: "procurement", en: "Procurement", ar: "المشتريات", icon: ShoppingCart, show: moduleAccess.procurement || canApproveProcurement },
     { key: "suppliers", en: "Suppliers", ar: "الموردون", icon: Truck, show: moduleAccess.procurement || moduleAccess.inventory || moduleAccess.finance },
@@ -102,6 +105,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
         : safeSection === "overview" ? <OverviewPanel data={data} summary={summary} access={moduleAccess} currency={currency} onAction={setRequest} onNavigate={setSection} canApproveProcurement={canApproveProcurement} />
         : safeSection === "inventory" ? <InventoryPanel restaurantId={restaurantId} data={data} currency={currency} onAction={setRequest} />
         : safeSection === "recipes" ? <RecipesPanel restaurantId={restaurantId} data={data} currency={currency} />
+        : safeSection === "stations" ? <KitchenStationsPanel restaurantId={restaurantId} />
         : safeSection === "receiving" ? <ReceivingPanel data={data} currency={currency} onAction={setRequest} onGoProcurement={() => setSection("procurement")} />
         : safeSection === "procurement" ? <ProcurementPanel restaurantId={restaurantId} data={data} currency={currency} canApprove={canApproveProcurement} canProcure={moduleAccess.procurement || canApproveProcurement} canReceive={moduleAccess.inventory || moduleAccess.procurement || canApproveProcurement} onAction={setRequest} />
         : safeSection === "suppliers" ? <SuppliersPanel data={data} currency={currency} onAction={moduleAccess.procurement || canApproveProcurement ? setRequest : () => undefined} />

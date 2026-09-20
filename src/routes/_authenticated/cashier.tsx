@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Banknote, CircleDollarSign, CreditCard, Minus, Plus, Receipt, RotateCcw, Wallet, WalletCards } from "lucide-react";
+import { Banknote, CircleDollarSign, CreditCard, Minus, Plus, Printer, Receipt, RotateCcw, Wallet, WalletCards } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -18,6 +18,7 @@ import { humanError } from "@/lib/errors";
 import { formatDateTime, formatMoney, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { printOrderReceipt } from "@/lib/receipt-print";
 
 export const Route = createFileRoute("/_authenticated/cashier")({
   head: () => ({
@@ -290,7 +291,7 @@ function CashierPage() {
 
         <aside className="overflow-hidden rounded-2xl border border-border bg-card self-start xl:sticky xl:top-24">
           {!selected ? <div className="grid min-h-[420px] place-items-center p-8 text-center"><div><Receipt className="mx-auto size-9 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"اختر فاتورة":"Select a bill"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar?"تفاصيل الدفعات ستظهر هنا.":"Payment details will appear here."}</p></div></div> : <>
-            <div className="border-b border-border p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="font-display text-xl font-bold">{selected.order_number}</h2><p className="mt-1 text-xs text-muted-foreground">{selected.table?(ar?"طاولة ":"Table ")+selected.table:"Dine in"}</p></div><Badge variant={selectedDue<=.001?"secondary":"outline"}>{selectedDue<=.001?(ar?"مسدد":"Paid"):(ar?"مفتوح":"Open")}</Badge></div><div className="mt-4 grid grid-cols-3 gap-2 text-xs"><Summary label={ar?"الإجمالي":"Total"} value={formatMoney(selected.total,scope.currency,lang)}/><Summary label={ar?"مدفوع":"Paid"} value={formatMoney(selectedPaid,scope.currency,lang)}/><Summary label={ar?"المتبقي":"Due"} value={formatMoney(selectedDue,scope.currency,lang)}/></div></div>
+            <div className="border-b border-border p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="font-display text-xl font-bold">{selected.order_number}</h2><p className="mt-1 text-xs text-muted-foreground">{selected.table?(ar?"طاولة ":"Table ")+selected.table:"Dine in"}</p></div><div className="flex items-center gap-2"><Button size="sm" variant="outline" onClick={()=>void printOrderReceipt({orderId:selected.id,lang,includeTotals:true}).catch((error)=>toast.error(humanError(error,lang)))}><Printer className="size-3.5"/>{ar?"طباعة":"Print"}</Button><Badge variant={selectedDue<=.001?"secondary":"outline"}>{selectedDue<=.001?(ar?"مسدد":"Paid"):(ar?"مفتوح":"Open")}</Badge></div></div><div className="mt-4 grid grid-cols-3 gap-2 text-xs"><Summary label={ar?"الإجمالي":"Total"} value={formatMoney(selected.total,scope.currency,lang)}/><Summary label={ar?"مدفوع":"Paid"} value={formatMoney(selectedPaid,scope.currency,lang)}/><Summary label={ar?"المتبقي":"Due"} value={formatMoney(selectedDue,scope.currency,lang)}/></div></div>
             <div className="space-y-4 p-5">
               {selectedDue>.001 ? <>
                 <div className="grid grid-cols-2 gap-2"><Button type="button" variant="outline" onClick={()=>setAmount(String((selectedDue/Math.max(1,splitWays)).toFixed(3)))}><Minus className="size-4"/>{ar?"حصة":"Split"}</Button><div className="flex items-center justify-center gap-2 rounded-xl border border-border"><Button type="button" size="icon" variant="ghost" onClick={()=>setSplitWays(v=>Math.max(2,v-1))}><Minus className="size-3.5"/></Button><strong className="text-sm">{splitWays}</strong><Button type="button" size="icon" variant="ghost" onClick={()=>setSplitWays(v=>Math.min(20,v+1))}><Plus className="size-3.5"/></Button></div></div>

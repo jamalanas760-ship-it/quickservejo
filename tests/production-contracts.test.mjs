@@ -79,3 +79,35 @@ test("delivery accounting persists the fee separately from order total", async (
   const migration = await file("supabase/migrations/20260920101000_phase4_delivery_accounting.sql");
   assert.match(migration, /delivery_amount=_delivery/);
 });
+
+
+test("live menu preview bridge is same-origin, reactive and mutation-safe", async () => {
+  const dinerRoute = await file("src/routes/r/$slug.tsx");
+  assert.match(dinerRoute, /isMenuThemeBridgeMessage/);
+  assert.match(dinerRoute, /MENU_THEME_CHANNEL/);
+  assert.match(dinerRoute, /event\.origin !== window\.location\.origin/);
+  assert.match(dinerRoute, /queryClient\.setQueryData<DinerMenu>/);
+  assert.match(dinerRoute, /restaurantId !== restaurant\.id/);
+  assert.match(dinerRoute, /ordering is disabled/i);
+  assert.match(dinerRoute, /waiter calls are disabled/i);
+});
+
+
+test("kitchen workflow uses guarded transitions, station routing and printable receipts", async () => {
+  const kitchen = await file("src/routes/_authenticated/kitchen.tsx");
+  const stations = await file("src/components/backoffice/KitchenStationsPanel.tsx");
+  const printer = await file("src/lib/receipt-print.ts");
+  const migration = await file("supabase/migrations/20260920131500_kitchen_station_state_machine.sql");
+  assert.match(kitchen, /transition_order_status/);
+  assert.match(kitchen, /kitchen_station_id/);
+  assert.match(kitchen, /printOrderReceipt/);
+  assert.match(stations, /kitchen_stations/);
+  assert.match(stations, /menu_categories/);
+  assert.match(stations, /menu_items/);
+  assert.match(printer, /58/);
+  assert.match(printer, /80/);
+  assert.match(printer, /window[.]print/);
+  assert.match(migration, /valid_order_transition/);
+  assert.match(migration, /Manager approval is required for late-stage cancellation/);
+  assert.match(migration, /snapshot_order_item_station/);
+});
