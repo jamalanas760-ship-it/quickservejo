@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { History, IdCard, KeyRound, MoreHorizontal, Plus, Search, ShieldCheck, Trash2, UserRound, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -254,19 +255,18 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   }
 
   return <div className="space-y-5">
-    <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div>
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-[.24em] text-[#ff5a0a]">{ar ? "إدارة الفريق" : "Team Management"}</p>
-        <h1 className="qs-page-title">{ar ? "ابنِ فريقاً رائعاً" : "Build a great team"} 👥</h1>
-        <p className="qs-page-subtitle">{ar ? "أدر الموظفين والأدوار والصلاحيات من مكان واحد." : "Manage staff, roles and permissions from one clear workspace."}</p>
-      </div>
-      <button type="button" className="qs-button-primary" disabled={seats.isPending || seatsFull} onClick={() => setAddOpen(true)}><Plus className="size-4" />{seatsFull ? (ar ? "اكتمل الحد" : "Limit reached") : (ar ? "إضافة عضو" : "Add Team Member")}</button>
-    </header>
+    <MasterPageHeader
+      eyebrow={<MasterEyebrow icon={UsersRound}>{ar ? "الفريق والوصول" : "Team & access"}</MasterEyebrow>}
+      title={ar ? "الفريق والأدوار" : "Staff & Roles"}
+      description={ar ? "أدر الفريق، الصلاحيات، حالة الوصول والنشاط من مكان واحد واضح." : "Manage people, permissions, access state and activity from one organized workspace."}
+      actions={<Button disabled={seats.isPending||seatsFull} onClick={()=>setAddOpen(true)}><Plus className="size-4"/>{seatsFull?(ar?"اكتمل الحد":"Limit reached"):(ar?"إضافة عضو":"Invite Member")}</Button>}
+    />
 
-    <section className="grid gap-3 sm:grid-cols-3">
-      <Stat icon={<UsersRound className="size-5" />} value={(staff.data ?? []).length} label={ar ? "إجمالي الفريق" : "Total Staff"} detail={seatLimit == null ? (ar ? "غير محدود" : "Unlimited") : `${seatsUsed}/${seatLimit}`} tone="blue" />
-      <Stat icon={<ShieldCheck className="size-5" />} value={admins} label={ar ? "المدراء" : "Admins"} detail={ar ? "وصول إداري" : "Admin access"} tone="green" />
-      <Stat icon={<UserRound className="size-5" />} value={staffOnly} label={ar ? "الموظفون" : "Staff"} detail={ar ? "أدوار تشغيلية" : "Operational roles"} tone="cyan" />
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <MasterKpi icon={UsersRound} label={ar?"إجمالي الفريق":"Total Staff"} value={String((staff.data??[]).length)} hint={seatLimit==null?(ar?"غير محدود":"Unlimited"):`${seatsUsed}/${seatLimit} seats`} tone="blue"/>
+      <MasterKpi icon={ShieldCheck} label={ar?"المدراء":"Admins"} value={String(admins)} hint={ar?"وصول إداري":"Admin access"} tone="green"/>
+      <MasterKpi icon={UserRound} label={ar?"الموظفون":"Staff"} value={String(staffOnly)} hint={ar?"أدوار تشغيلية":"Operational roles"} tone="purple"/>
+      <MasterKpi icon={UserRound} label={ar?"نشطون الآن":"Active Access"} value={String((staff.data??[]).filter(member=>member.is_active).length)} hint={ar?"حسابات مفعلة":"Enabled accounts"} tone="orange"/>
     </section>
 
     <section className="qs-card min-w-0 overflow-hidden">
