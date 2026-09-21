@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, Plus, Settings2, Timer, Trash2, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
+import { CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, MessageSquareText, Plus, Send, Settings2, Timer, Trash2, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
@@ -58,6 +58,7 @@ function BookingsPage(){
   const [createOpen,setCreateOpen]=useState(false);
   const [settingsOpen,setSettingsOpen]=useState(false);
   const [deleteTarget,setDeleteTarget]=useState<Booking|null>(null);
+  const [messageTarget,setMessageTarget]=useState<Booking|null>(null);
   const [search,setSearch]=useState("");
 
   const restaurant=useQuery({
@@ -182,11 +183,18 @@ function BookingsPage(){
 
       <section className="qs-card overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="qs-section-title">{ar?"جدول الحجوزات":"Reservation schedule"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"التأكيد لا يحجز الطاولة تشغيلياً إلا قرب الموعد؛ منع التعارض يتم دائماً من قاعدة البيانات.":"Future reservations do not block live floor status until arrival nears; time conflicts are always enforced in the database."}</p></div><Input className="sm:max-w-xs" value={search} onChange={e=>setSearch(e.target.value)} placeholder={ar?"بحث بالاسم، الهاتف أو الرمز":"Search guest, phone or code"}/></div>
-        {bookings.isPending||tables.isPending?<div className="p-5"><Skeleton className="h-72 rounded-2xl"/></div>:bookings.isError?<p className="p-6 text-sm text-destructive">{humanError(bookings.error,lang)}</p>:!rows.length?<div className="p-12 text-center"><CalendarCheck2 className="mx-auto size-8 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"لا توجد حجوزات":"No reservations found"}</h3></div>:<div className="divide-y divide-border">{rows.map(booking=><BookingRow key={booking.id} booking={booking} table={(tables.data??[]).find(row=>row.id===booking.table_id)??null} currency={restaurant.data?.currency??"JOD"} ar={ar} lang={lang} busy={transition.isPending||deleteReservation.isPending} onStatus={(status,reason)=>transition.mutate({id:booking.id,status,reason})} onDelete={()=>setDeleteTarget(booking)}/>)}</div>}
+        {bookings.isPending||tables.isPending?<div className="p-5"><Skeleton className="h-72 rounded-2xl"/></div>:bookings.isError?<p className="p-6 text-sm text-destructive">{humanError(bookings.error,lang)}</p>:!rows.length?<div className="p-12 text-center"><CalendarCheck2 className="mx-auto size-8 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"لا توجد حجوزات":"No reservations found"}</h3></div>:<div className="divide-y divide-border">{rows.map(booking=><BookingRow key={booking.id} booking={booking} table={(tables.data??[]).find(row=>row.id===booking.table_id)??null} currency={restaurant.data?.currency??"JOD"} ar={ar} lang={lang} busy={transition.isPending||deleteReservation.isPending} onStatus={(status,reason)=>transition.mutate({id:booking.id,status,reason})} onMessage={()=>setMessageTarget(booking)} onDelete={()=>setDeleteTarget(booking)}/>)}</div>}
       </section>
     </main>
     <CreateBookingDialog open={createOpen} onOpenChange={setCreateOpen} restaurantId={rid} tables={tables.data??[]} settings={settings.data} ar={ar} lang={lang}/>
     {canConfigure?<BookingSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} restaurantId={rid} settings={settings.data} ar={ar} lang={lang}/>:null}
+    <ReservationMessageDialog
+      booking={messageTarget}
+      restaurantId={rid}
+      ar={ar}
+      lang={lang}
+      onOpenChange={open=>{if(!open)setMessageTarget(null);}}
+    />
     <DeleteReservationDialog
       booking={deleteTarget}
       ar={ar}
@@ -436,15 +444,88 @@ function BookingSettingsDialog({open,onOpenChange,restaurantId,settings,ar,lang}
   </div><DialogFooter><Button variant="outline" onClick={()=>onOpenChange(false)}>{ar?"إلغاء":"Cancel"}</Button><Button disabled={save.isPending} onClick={()=>save.mutate()}>{ar?"حفظ":"Save settings"}</Button></DialogFooter></DialogContent></Dialog>;
 }
 
-function BookingRow({booking,table,currency,ar,lang,busy,onStatus,onDelete}:{booking:Booking;table:FloorTable|null;currency:string;ar:boolean;lang:"ar"|"en";busy:boolean;onStatus:(status:BookingStatus,reason?:string)=>void;onDelete:()=>void}){
+function BookingRow({booking,table,currency,ar,lang,busy,onStatus,onMessage,onDelete}:{booking:Booking;table:FloorTable|null;currency:string;ar:boolean;lang:"ar"|"en";busy:boolean;onStatus:(status:BookingStatus,reason?:string)=>void;onMessage:()=>void;onDelete:()=>void}){
   const date=new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{dateStyle:"medium",timeStyle:"short"}).format(new Date(booking.booking_at));
   return <article className="grid gap-4 p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{booking.customer_name}</h3><Badge variant={booking.status==="seated"?"default":booking.status==="cancelled"||booking.status==="no_show"?"destructive":"secondary"}>{statusLabel(booking.status,ar)}</Badge><span className="rounded-full bg-muted px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{booking.source}</span></div><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>{date}</span><span>{booking.duration_minutes} min</span><span className="inline-flex items-center gap-1"><UsersRound className="size-3.5"/>{booking.guest_count}</span><span>{table?(table.table_name??`#${table.table_number}`):(ar?"بدون طاولة":"No table")}</span>{booking.phone?<span>{booking.phone}</span>:null}{booking.email?<span>{booking.email}</span>:null}</div><div className="mt-2 flex flex-wrap gap-2 text-[10px] text-muted-foreground"><span>{ar?"رمز: ":"Code: "}<strong className="font-mono text-foreground">{booking.confirmation_code}</strong></span>{booking.occasion?<span>· {booking.occasion}</span>:null}{booking.deposit_amount>0?<span>· {ar?"عربون ":"Deposit "}{formatMoney(booking.deposit_amount,currency,lang)} ({booking.deposit_status})</span>:null}</div>{booking.notes?<p className="mt-2 text-xs leading-5 text-muted-foreground">{booking.notes}</p>:null}{booking.cancel_reason?<p className="mt-2 text-xs text-red-600">{ar?"سبب الإلغاء: ":"Cancellation: "}{booking.cancel_reason}</p>:null}</div><div className="flex flex-wrap gap-2 xl:justify-end">
     {booking.status==="pending"?<Button size="sm" disabled={busy} onClick={()=>onStatus("confirmed")}><CheckCircle2 className="size-4"/>{ar?"تأكيد":"Confirm"}</Button>:null}
     {booking.status==="confirmed"?<><Button size="sm" disabled={busy} onClick={()=>onStatus("seated")}><UserRoundCheck className="size-4"/>{ar?"تم الجلوس":"Seat guests"}</Button><Button size="sm" variant="outline" disabled={busy} onClick={()=>onStatus("no_show")}><XCircle className="size-4"/>{ar?"لم يحضر":"No-show"}</Button></>:null}
     {booking.status==="seated"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>onStatus("completed")}><CheckCircle2 className="size-4"/>{ar?"اكتمال":"Complete"}</Button>:null}
+    {booking.phone?<Button size="sm" variant="outline" disabled={busy} onClick={onMessage}><MessageSquareText className="size-4"/>{ar?"رسالة":"Message"}</Button>:null}
     {(booking.status==="pending"||booking.status==="confirmed")?<Button size="sm" variant="ghost" disabled={busy} onClick={()=>onStatus("cancelled",ar?"ألغاه الموظف":"Cancelled by staff")}><XCircle className="size-4"/>{ar?"إلغاء":"Cancel"}</Button>:null}
     {booking.status!=="seated"&&booking.deposit_status!=="paid"?<Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-500/10 hover:text-red-700" disabled={busy} onClick={onDelete}><Trash2 className="size-4"/>{ar?"حذف":"Delete"}</Button>:null}
   </div></article>;
+}
+
+type BookingMessage={
+  id:string;direction:"inbound"|"outbound";channel:"sms"|"whatsapp";body:string;
+  provider_status:string;last_error:string|null;sent_at:string|null;received_at:string|null;created_at:string;
+};
+
+function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{booking:Booking|null;restaurantId:string;ar:boolean;lang:"ar"|"en";onOpenChange:(open:boolean)=>void}){
+  const qc=useQueryClient();
+  const [channel,setChannel]=useState<"sms"|"whatsapp">("sms");
+  const [body,setBody]=useState("");
+
+  const messages=useQuery<BookingMessage[]>({
+    queryKey:["booking-messages",booking?.id],
+    enabled:Boolean(booking?.id),
+    refetchInterval:8_000,
+    queryFn:async()=>{
+      const {data,error}=await (supabase as any).from("booking_messages")
+        .select("id,direction,channel,body,provider_status,last_error,sent_at,received_at,created_at")
+        .eq("restaurant_id",restaurantId)
+        .eq("booking_id",booking!.id)
+        .order("created_at",{ascending:true})
+        .limit(200);
+      if(error)throw error;
+      return (data??[]) as BookingMessage[];
+    },
+  });
+
+  const send=useMutation({
+    mutationFn:async()=>{
+      if(!booking)throw new Error("Reservation unavailable");
+      const {error}=await (supabase as any).rpc("prepare_booking_message",{
+        _booking_id:booking.id,_channel:channel,_body:body.trim(),
+      });
+      if(error)throw error;
+    },
+    onSuccess:async()=>{
+      setBody("");
+      await qc.invalidateQueries({queryKey:["booking-messages",booking?.id]});
+      toast.success(ar?"تم وضع الرسالة في طابور الإرسال":"Message queued for delivery");
+    },
+    onError:(error)=>toast.error(humanError(error,lang)),
+  });
+
+  return <Dialog open={Boolean(booking)} onOpenChange={onOpenChange}>
+    <DialogContent className="flex max-h-[88dvh] flex-col overflow-hidden p-0 sm:max-w-xl">
+      <div className="border-b border-border bg-muted/25 px-5 py-4 sm:px-6">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><MessageSquareText className="size-5 text-[#ff5a0a]"/>{ar?"محادثة الحجز":"Reservation conversation"}</DialogTitle>
+          <DialogDescription>{booking?.customer_name} · {booking?.phone??(ar?"بدون هاتف":"No phone")}</DialogDescription>
+        </DialogHeader>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto bg-muted/15 p-4 sm:p-5">
+        {messages.isPending?<Skeleton className="h-64 rounded-2xl"/>
+          :messages.isError?<div className="rounded-xl bg-red-500/10 p-3 text-sm text-red-700">{humanError(messages.error,lang)}</div>
+          :(messages.data??[]).length===0?<div className="grid min-h-52 place-items-center text-center"><div><MessageSquareText className="mx-auto size-8 text-muted-foreground"/><p className="mt-2 text-sm font-semibold">{ar?"ابدأ المحادثة مع الضيف":"Start the guest conversation"}</p><p className="mt-1 text-xs text-muted-foreground">{ar?"الردود الواردة من Twilio ستظهر هنا تلقائياً.":"Inbound Twilio replies appear here automatically."}</p></div></div>
+          :<div className="space-y-2">{(messages.data??[]).map(message=><div key={message.id} className={cn("flex",message.direction==="outbound"?"justify-end":"justify-start")}><div className={cn("max-w-[84%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm",message.direction==="outbound"?"rounded-ee-md bg-foreground text-background":"rounded-es-md border border-border bg-card text-foreground")}><p className="whitespace-pre-wrap leading-5">{message.body}</p><div className={cn("mt-1.5 flex flex-wrap items-center gap-2 text-[9px]",message.direction==="outbound"?"text-background/60":"text-muted-foreground")}><span>{message.channel.toUpperCase()}</span><span>{new Date(message.created_at).toLocaleString(ar?"ar-JO":"en-JO",{hour:"2-digit",minute:"2-digit",month:"short",day:"numeric"})}</span><span className="capitalize">{message.provider_status}</span>{message.last_error?<span className="text-red-500">{message.last_error}</span>:null}</div></div></div>)}</div>}
+      </div>
+
+      <div className="border-t border-border bg-card p-4 sm:p-5">
+        <div className="mb-3 flex gap-2">
+          {(["sms","whatsapp"] as const).map(value=><button type="button" key={value} onClick={()=>setChannel(value)} className={cn("rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide",channel===value?"border-[#ff5a0a] bg-orange-500/10 text-[#ff5a0a]":"border-border text-muted-foreground")}>{value}</button>)}
+        </div>
+        <Textarea rows={3} maxLength={2000} value={body} onChange={e=>setBody(e.target.value)} placeholder={ar?"اكتب رسالة للضيف…":"Write a message to the guest…"}/>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <p className="text-[10px] text-muted-foreground">{ar?"الإرسال الفعلي يتطلب إعداد Twilio على الخادم.":"Actual delivery requires Twilio server credentials."}</p>
+          <Button disabled={send.isPending||body.trim().length===0||!booking?.phone} onClick={()=>send.mutate()}><Send className="size-4"/>{ar?"إرسال":"Send"}</Button>
+        </div>
+      </div>
+    </DialogContent>
+  </Dialog>;
 }
 
 function ReservationDatePicker({value,onChange,ar,maxAdvanceDays}:{value:string;onChange:(value:string)=>void;ar:boolean;maxAdvanceDays:number}){
