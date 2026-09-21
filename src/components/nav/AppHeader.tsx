@@ -1,8 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BadgeDollarSign, Bell, ChefHat, ChevronDown, Globe2, HandPlatter, Menu as MenuIcon, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
+import { BadgeDollarSign, ChefHat, ChevronDown, Globe2, HandPlatter, Menu as MenuIcon, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { RestaurantSwitcher } from "@/components/manage/RestaurantSwitcher";
+import { NotificationBell } from "@/components/nav/NotificationBell";
 import { ThemeToggle } from "@/components/nav/ThemeToggle";
 import { useOperationalCounters } from "@/hooks/useOperationalCounters";
 import { useAccess, useSupabaseSession } from "@/hooks/useSession";
@@ -70,10 +71,7 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
             <span className="hidden text-xs font-semibold xl:inline">{lang === "ar" ? "العربية" : "English"}</span>
             <ChevronDown className="hidden size-3.5 xl:block" />
           </button>
-          <Link to="/notifications" className="relative grid size-10 place-items-center rounded-[11px] border border-transparent text-muted-foreground transition hover:border-border hover:bg-muted/55 hover:text-foreground" aria-label={lang === "ar" ? "الإشعارات" : "Notifications"}>
-            <Bell className="size-[19px]" />
-            {notificationCount > 0 ? <span className="absolute -end-0.5 -top-0.5 min-w-[19px] rounded-full bg-red-500 px-1 py-0.5 text-center text-[9px] font-black leading-4 text-white shadow-sm ring-2 ring-background">{notificationCount > 99 ? "99+" : notificationCount}</span> : null}
-          </Link>
+          <NotificationBell restaurantId={restaurantId} count={notificationCount} ar={lang === "ar"} />
           <Link to="/profile" aria-label={lang === "ar" ? "الملف الشخصي" : "Profile"} className="group flex min-h-11 items-center gap-2 rounded-[12px] border border-transparent px-1.5 transition hover:border-border hover:bg-muted/55 sm:px-2">
             <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border/90 shadow-sm group-hover:ring-primary/30">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : <RoleAvatarFallback role={membership?.role} superAdmin={access.isSuperAdmin} />}</span>
             <span className="hidden min-w-0 text-start xl:block"><span className="block max-w-28 truncate text-xs font-bold">{displayName}</span><span className="block text-[10px] text-muted-foreground">{roleLabel}</span></span>
