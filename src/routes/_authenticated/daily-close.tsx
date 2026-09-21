@@ -138,7 +138,7 @@ function DailyClosePage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "إقفال اليوم" : "Daily Close"} />
-    <main className="qs-page qs-compact-page space-y-4">
+    <main className="qs-page qs-compact-page qs-viewport-page">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={ClipboardCheck}>{ar ? "رقابة المدير" : "Manager control"}</MasterEyebrow>}
         title={ar ? "إقفال يومي موثق" : "Auditable daily close"}
@@ -155,7 +155,7 @@ function DailyClosePage() {
           <MasterKpi icon={Package} label={ar ? "حركات غير اعتيادية" : "Inventory exceptions"} value={formatNumber(summary.inventory.unusual_movements, lang)} hint={formatMoney(Number(summary.inventory.unusual_value), scope.currency, lang)} tone={summary.inventory.unusual_movements ? "orange" : "slate"} />
         </section>
 
-        <section className="grid gap-3 xl:grid-cols-3">
+        <section className="grid gap-2 xl:grid-cols-3">
           <CloseCard title={ar ? "الطلبات والمبيعات" : "Orders & sales"} rows={[
             [ar ? "عدد الطلبات" : "Orders", formatNumber(summary.orders.count, lang)],
             [ar ? "الملغاة" : "Cancelled", formatNumber(summary.orders.cancelled, lang)],
@@ -202,5 +202,5 @@ function DailyClosePage() {
 }
 
 function CloseCard({ title, rows, tone }:{ title:string; rows:[string,string][]; tone?:"warning"|undefined }) {
-  return <article className={cn("rounded-xl border bg-card p-3.5", tone === "warning" && "border-amber-300")}><h3 className="font-display text-lg font-bold">{title}</h3><div className="mt-2 divide-y divide-border">{rows.map(([label,value]) => <div key={label} className="flex items-center justify-between gap-3 py-1.5 text-xs"><span className="text-muted-foreground">{label}</span><strong className="text-end tabular-nums">{value}</strong></div>)}</div></article>;
+  return <article className={cn("rounded-[10px] border bg-card p-2.5", tone === "warning" && "border-amber-300")}><h3 className="font-display text-lg font-bold">{title}</h3><div className="mt-1.5 divide-y divide-border">{rows.map(([label,value]) => <div key={label} className="flex items-center justify-between gap-2 py-1 text-[10px]"><span className="text-muted-foreground">{label}</span><strong className="text-end tabular-nums">{value}</strong></div>)}</div></article>;
 }
