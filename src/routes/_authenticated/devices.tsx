@@ -154,7 +154,7 @@ function DevicesPage(){
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"الأجهزة والهاردوير":"Devices & Hardware"}/>
-    <main className="qs-page space-y-5">
+    <main className="qs-page qs-compact-page space-y-4">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={Cpu}>{ar?"صحة التشغيل":"Operational Health"}</MasterEyebrow>}
         title={ar?"مركز الأجهزة والهاردوير":"Devices & Hardware Center"}
