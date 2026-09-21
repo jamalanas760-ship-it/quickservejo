@@ -168,8 +168,8 @@ function DevicesPage(){
         <MasterKpi icon={Printer} label={ar?"طابعات مفعلة":"Active Printers"} value={String(printerRows.filter(row=>row.is_active).length)} hint={ar?`${printerRows.length} طابعة معرفة`:`${printerRows.length} configured`} tone="purple"/>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
-        <article className="qs-card p-5">
+      <section className="grid gap-3 xl:grid-cols-[330px_minmax(0,1fr)]">
+        <article className="qs-card p-4">
           <div className="flex items-start gap-3"><span className="grid size-10 place-items-center rounded-xl bg-orange-500/10 text-[#ff5a0a]"><TabletSmartphone className="size-4"/></span><div><h2 className="font-display text-lg font-bold">{ar?"تسجيل هذا الجهاز":"Register this device"}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar?"يسمح لـ QuickServe بإرسال نبضة صحة من هذا المتصفح ومراقبة توفره.":"Lets QuickServe heartbeat this browser and monitor its availability."}</p></div></div>
           <div className="mt-5 space-y-3">
             <Input value={name} onChange={e=>setName(e.target.value)} maxLength={120} placeholder={ar?"مثال: كاشير المدخل":"e.g. Front Cashier"}/>
@@ -190,8 +190,8 @@ function DevicesPage(){
         </article>
 
         <article className="qs-card overflow-hidden">
-          <div className="flex items-center justify-between gap-3 border-b border-border p-5"><div><h2 className="qs-section-title">{ar?"الأجهزة المسجلة":"Registered devices"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"Online = نبضة صحة حديثة.":"Online means a recent successful heartbeat."}</p></div><Button variant="outline" size="sm" onClick={()=>qc.invalidateQueries({queryKey:["restaurant-devices",rid]})}><RefreshCw className="size-3.5"/>{ar?"تحديث":"Refresh"}</Button></div>
-          {devices.isPending?<div className="p-5"><Skeleton className="h-72 rounded-xl"/></div>:rows.length===0?<div className="grid min-h-72 place-items-center text-center"><div><MonitorSmartphone className="mx-auto size-9 text-muted-foreground"/><p className="mt-3 text-sm text-muted-foreground">{ar?"لم يتم تسجيل أجهزة بعد.":"No devices registered yet."}</p></div></div>:<div className="divide-y divide-border">{rows.map(row=>{
+          <div className="flex items-center justify-between gap-3 border-b border-border p-4"><div><h2 className="qs-section-title">{ar?"الأجهزة المسجلة":"Registered devices"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"Online = نبضة صحة حديثة.":"Online means a recent successful heartbeat."}</p></div><Button variant="outline" size="sm" onClick={()=>qc.invalidateQueries({queryKey:["restaurant-devices",rid]})}><RefreshCw className="size-3.5"/>{ar?"تحديث":"Refresh"}</Button></div>
+          {devices.isPending?<div className="p-5"><Skeleton className="h-72 rounded-xl"/></div>:rows.length===0?<div className="grid min-h-56 place-items-center text-center"><div><MonitorSmartphone className="mx-auto size-9 text-muted-foreground"/><p className="mt-3 text-sm text-muted-foreground">{ar?"لم يتم تسجيل أجهزة بعد.":"No devices registered yet."}</p></div></div>:<div className="divide-y divide-border">{rows.map(row=>{
             const isOnline=Boolean(row.is_active&&row.last_seen_at&&now-new Date(row.last_seen_at).getTime()<150_000);
             const isCurrent=row.id===currentDeviceId||row.id===newDeviceId;
             return <div key={row.id} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -206,7 +206,7 @@ function DevicesPage(){
       </section>
 
       <article className="qs-card overflow-hidden">
-        <div className="border-b border-border p-5"><div className="flex items-center gap-2"><Printer className="size-5 text-[#ff5a0a]"/><h2 className="qs-section-title">{ar?"طابعات المطبخ":"Kitchen printers"}</h2></div><p className="mt-1 text-xs text-muted-foreground">{ar?"تعريفات الطباعة الحالية المرتبطة بمحطات KDS.":"Current printer definitions and KDS station mappings."}</p></div>
+        <div className="border-b border-border p-4"><div className="flex items-center gap-2"><Printer className="size-5 text-[#ff5a0a]"/><h2 className="qs-section-title">{ar?"طابعات المطبخ":"Kitchen printers"}</h2></div><p className="mt-1 text-xs text-muted-foreground">{ar?"تعريفات الطباعة الحالية المرتبطة بمحطات KDS.":"Current printer definitions and KDS station mappings."}</p></div>
         {printers.isPending?<div className="p-5"><Skeleton className="h-40 rounded-xl"/></div>:printerRows.length===0?<div className="p-8 text-center text-sm text-muted-foreground">{ar?"لا توجد طابعات معرفة.":"No printers configured."}</div>:<div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">{printerRows.map(row=><div key={row.id} className="rounded-2xl border border-border bg-muted/15 p-4"><div className="flex items-start justify-between gap-3"><span className="grid size-10 place-items-center rounded-xl bg-muted"><Printer className="size-4"/></span><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold",row.is_active?"bg-emerald-500/10 text-emerald-700":"bg-muted text-muted-foreground")}>{row.is_active?(ar?"مفعلة":"Active"):(ar?"معطلة":"Disabled")}</span></div><strong className="mt-3 block text-sm">{row.name}</strong><p className="mt-1 text-[10px] text-muted-foreground">{row.provider} · {row.purpose}{row.kitchen_station_id?` · ${stationMap.get(row.kitchen_station_id)??"Station"}`:""}</p>{row.endpoint?<p className="mt-1 truncate text-[10px] text-muted-foreground">{row.endpoint}</p>:null}</div>)}</div>}
       </article>
     </main>
