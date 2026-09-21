@@ -456,12 +456,7 @@
   .qs-app nav.safe-bottom a[aria-current="page"],
   .qs-app nav.safe-bottom a[data-active="true"] { color: var(--qs-brand) !important; }
 
-  /* Desktop shell spacing */
-  @media (min-width: 1024px) {
-    .tenant-app { padding-inline-start: var(--qs-shell-sidebar); }
-    .tenant-app .qs-topbar { inset-inline-start: var(--qs-shell-sidebar); }
-  }
-
+  /* Desktop route shells apply their own sidebar offset; keep this layer visual-only. */
   @media (max-width: 1279px) {
     :root { --qs-shell-sidebar: 212px; }
     .qs-page { padding-inline: 20px !important; }
@@ -473,7 +468,6 @@
       --qs-shell-sidebar: 0px;
     }
 
-    .tenant-app { padding-inline-start: 0 !important; }
     .qs-page { padding: 18px 16px calc(98px + env(safe-area-inset-bottom)) !important; }
 
     .qs-sidebar-shell {
