@@ -196,7 +196,7 @@ function WaitlistPage(){
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}/>
-    <main className="qs-page space-y-5">
+    <main className="qs-page qs-compact-page space-y-4">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={Clock3}>{ar?"إدارة الطلب":"Demand Control"}</MasterEyebrow>}
         title={ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}
