@@ -97,51 +97,45 @@ export function DecisionIntelligencePanel({restaurantId}:{restaurantId:string}) 
   if(foodPct>35)insights.push({title:ar?"تكلفة طعام مرتفعة":"Food cost is elevated",body:ar?"تكلفة الاستهلاك النظرية تقارب "+foodPct.toFixed(1)+"% من المبيعات المدفوعة.":"Theoretical ingredient issues are about "+foodPct.toFixed(1)+"% of paid sales.",tone:"warning",icon:Receipt});
   if(!insights.length)insights.push({title:ar?"لا توجد استثناءات كبيرة":"Operations look balanced",body:ar?"لا توجد حالات تشغيلية رئيسية تحتاج تدخلاً الآن حسب البيانات المتاحة.":"No major operational exceptions need intervention based on the available data.",tone:"good",icon:TrendingUp});
 
-  return <section className="space-y-3">
-    <div className="flex flex-wrap items-end justify-between gap-3"><div><div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-[#ff5a0a]"><Lightbulb className="size-3.5"/>{ar?"ذكاء إداري":"Decision intelligence"}</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">{ar?"ما الذي يحتاج قراراً؟":"What needs a management decision?"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"ملخص سبعة أيام يربط المبيعات والمخزون والمشتريات والعمل.":"A seven-day view connecting sales, inventory, procurement and workforce signals."}</p></div></div>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+  return <section className="qs-card overflow-hidden">
+    <div className="qs-workspace-titlebar flex flex-col gap-2 border-b border-border px-3 py-2.5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[.12em] text-[#ff5a0a]"><Lightbulb className="size-3"/>{ar?"ذكاء إداري":"Decision intelligence"}</span>
+          <h2 className="font-display text-sm font-bold tracking-[-.02em] sm:text-base">{ar?"ما الذي يحتاج قراراً الآن؟":"What needs a management decision now?"}</h2>
+        </div>
+        <p className="mt-1 text-[9.5px] text-muted-foreground">{ar?"إشارات سبعة أيام من المبيعات والمخزون والمشتريات والعمل.":"Seven-day signals across sales, inventory, procurement and labor."}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {insights.slice(0,3).map((item,index)=><span key={index} className={cn("inline-flex min-h-6 items-center gap-1.5 rounded-[8px] border px-2 text-[9px] font-bold",item.tone==="danger"?"border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300":item.tone==="warning"?"border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300":"border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-300")}><item.icon className="size-3"/>{item.title}</span>)}
+      </div>
+    </div>
+
+    <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-5">
       <Kpi icon={TrendingUp} label={ar?"مبيعات مدفوعة":"Paid sales"} value={formatMoney(sales,d.currency,lang)}/>
       <Kpi icon={Receipt} label={ar?"متوسط الفاتورة":"Average ticket"} value={formatMoney(avgTicket,d.currency,lang)}/>
-      <Kpi icon={Table2} label={ar?"دوران الطاولة / يوم":"Table turns/day"} value={turnsPerTable?turnsPerTable.toFixed(2):"—"}/>
-      <Kpi icon={UsersRound} label={ar?"ساعات عمل مسجلة":"Tracked labor hours"} value={hours?hours.toFixed(1)+"h":"—"}/>
-      <Kpi icon={Package} label={ar?"تكلفة الطعام النظرية":"Theoretical food cost"} value={foodPct?foodPct.toFixed(1)+"%":"—"} tone={foodPct>35?"warning":undefined}/>
+      <Kpi icon={Table2} label={ar?"دوران الطاولة":"Table turns/day"} value={turnsPerTable?turnsPerTable.toFixed(2):"—"}/>
+      <Kpi icon={UsersRound} label={ar?"ساعات العمل":"Labor hours"} value={hours?hours.toFixed(1)+"h":"—"}/>
+      <Kpi icon={Package} label={ar?"تكلفة الطعام":"Food cost"} value={foodPct?foodPct.toFixed(1)+"%":"—"} tone={foodPct>35?"warning":undefined}/>
     </div>
-    <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">{insights.slice(0,6).map((item,index)=><article key={index} className={cn("rounded-2xl border p-4",item.tone==="danger"?"border-red-200 bg-red-50/50 dark:border-red-900/50 dark:bg-red-950/10":item.tone==="warning"?"border-amber-200 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/10":"border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/10")}><div className="flex items-start gap-3"><span className={cn("grid size-9 shrink-0 place-items-center rounded-xl",item.tone==="danger"?"bg-red-500/10 text-red-600":item.tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-emerald-500/10 text-emerald-700")}><item.icon className="size-4"/></span><div><strong className="text-sm">{item.title}</strong><p className="mt-1 text-xs leading-5 text-muted-foreground">{item.body}</p></div></div></article>)}</div>
 
     <ForecastPanel forecast={forecast.data} pending={forecast.isPending} error={forecast.isError} currency={d.currency} lang={lang} />
   </section>;
 }
 
-function Kpi({icon:Icon,label,value,tone}:{icon:typeof TrendingUp;label:string;value:string;tone?:"warning"|undefined}){return <article className="qs-stat min-h-[92px] p-3.5"><div className="flex items-center gap-2"><span className={cn("grid size-9 place-items-center rounded-xl",tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-4"/></span><p className="text-[10px] font-semibold text-muted-foreground">{label}</p></div><strong className="mt-3 block font-display text-lg tracking-[-.03em]">{value}</strong></article>}
-
+function Kpi({icon:Icon,label,value,tone}:{icon:typeof TrendingUp;label:string;value:string;tone?:"warning"|undefined}){return <article className="flex min-h-[48px] items-center gap-2 bg-card px-2.5 py-2"><span className={cn("grid size-7 shrink-0 place-items-center rounded-[8px]",tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-3.5"/></span><div className="min-w-0"><p className="truncate text-[8.5px] font-bold uppercase tracking-[.03em] text-muted-foreground">{label}</p><strong className="mt-0.5 block truncate font-display text-[13px] tracking-[-.02em]">{value}</strong></div></article>}
 
 function ForecastPanel({forecast,pending,error,currency,lang}:{forecast:Forecast|undefined;pending:boolean;error:boolean;currency:string;lang:Language}) {
   const ar=lang==="ar";
-  if(pending)return <Skeleton className="h-52 rounded-2xl"/>;
-  if(error)return <article className="rounded-2xl border p-4"><h3 className="font-bold">{ar?"التوقع التشغيلي":"Operational forecast"}</h3><p className="mt-2 text-xs text-muted-foreground">{ar?"تعذر حساب التوقع الآن؛ لا يؤثر ذلك على بيانات التشغيل الحالية.":"Forecast could not be calculated right now; live operational data is unaffected."}</p></article>;
-  if(!forecast||forecast.data_sufficiency==="insufficient")return <article className="rounded-2xl border border-dashed p-4"><h3 className="font-bold">{ar?"توقع الغد":"Tomorrow forecast"}</h3><p className="mt-2 text-xs text-muted-foreground">{ar?"لا توجد أيام مدفوعة كافية بعد لبناء توقع مسؤول. سيظهر التوقع تلقائياً مع تراكم البيانات.":"There are not enough paid trading days yet for a responsible forecast. It will appear automatically as history builds."}</p></article>;
+  if(pending)return <div className="border-t border-border p-2.5"><Skeleton className="h-10 rounded-lg"/></div>;
+  if(error)return <div className="border-t border-border px-3 py-2 text-[10px] text-muted-foreground">{ar?"تعذر حساب توقع الغد الآن.":"Tomorrow forecast is temporarily unavailable."}</div>;
+  if(!forecast||forecast.data_sufficiency==="insufficient")return <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2"><div><strong className="text-[10px]">{ar?"توقع الغد":"Tomorrow forecast"}</strong><p className="mt-0.5 text-[9px] text-muted-foreground">{ar?"سيظهر تلقائياً عند توفر تاريخ تداول كافٍ.":"Appears automatically when enough paid trading history is available."}</p></div><span className="rounded-full bg-muted px-2 py-1 text-[8px] font-bold text-muted-foreground">{ar?"بيانات غير كافية":"Building history"}</span></div>;
 
-  const peak=[...(forecast.hourly??[])].sort((a,b)=>b.expected_orders-a.expected_orders).slice(0,3);
-  const confidenceLabel=forecast.confidence==="high"?(ar?"ثقة عالية":"High confidence"):forecast.confidence==="medium"?(ar?"ثقة متوسطة":"Medium confidence"):(ar?"بيانات محدودة":"Limited data");
-  return <article className="rounded-2xl border bg-card p-4">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><div className="inline-flex rounded-full bg-orange-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#ff5a0a]">{ar?"توقع تشغيلي":"Operational forecast"}</div><h3 className="mt-3 font-display text-xl font-bold">{ar?"تخطيط الغد من التاريخ الفعلي":"Tomorrow planning from actual history"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar?"متوسطات حتمية من آخر 28 يوماً، مع تفضيل نفس يوم الأسبوع. لا توجد ادعاءات ذكاء اصطناعي.":"Deterministic averages from the last 28 days, preferring the same weekday. No AI guesswork."}</p></div>
-      <span className={cn("rounded-full px-3 py-1 text-[10px] font-bold",forecast.confidence==="high"?"bg-emerald-500/10 text-emerald-700":forecast.confidence==="medium"?"bg-amber-500/10 text-amber-700":"bg-muted text-muted-foreground")}>{confidenceLabel} · {forecast.sample_days} {ar?"أيام عينة":"sample days"}</span>
-    </div>
-    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <Kpi icon={TrendingUp} label={ar?"مبيعات متوقعة":"Expected sales"} value={formatMoney(Number(forecast.expected_sales),currency,lang)}/>
-      <Kpi icon={Receipt} label={ar?"طلبات متوقعة":"Expected orders"} value={Number(forecast.expected_orders).toFixed(1)}/>
-      <Kpi icon={UsersRound} label={ar?"ساعات عمل مرجعية":"Reference labor"} value={Number(forecast.labor?.expected_hours??0).toFixed(1)+"h"}/>
-      <Kpi icon={Clock3} label={ar?"ساعة الذروة":"Peak hour"} value={forecast.labor?.peak_hour===null||forecast.labor?.peak_hour===undefined?"—":String(forecast.labor.peak_hour).padStart(2,"0")+":00"}/>
-    </div>
-    <div className="mt-4 grid gap-4 lg:grid-cols-3">
-      <ForecastList title={ar?"ساعات الذروة":"Peak hours"} rows={peak.map(x=>[`${String(x.hour).padStart(2,"0")}:00`,`${Number(x.expected_orders).toFixed(1)} ${ar?"طلب":"orders"}`])}/>
-      <ForecastList title={ar?"المنتجات الأعلى طلباً":"Expected top items"} rows={(forecast.top_items??[]).slice(0,5).map(x=>[x.name,`${Number(x.expected_quantity).toFixed(1)} ×`])}/>
-      <ForecastList title={ar?"احتياج المكونات":"Ingredient requirement"} rows={(forecast.ingredients??[]).slice(0,5).map(x=>[x.name,`${Number(x.expected_quantity).toFixed(2)} ${x.unit}`])} empty={ar?"أضف وصفات BOM للحصول على احتياج المكونات.":"Add recipe BOMs to forecast ingredient requirements."}/>
-    </div>
-  </article>;
-}
-
-function ForecastList({title,rows,empty}:{title:string;rows:[string,string][];empty?:string}) {
-  return <div className="rounded-xl bg-muted/35 p-4"><h4 className="text-xs font-bold">{title}</h4>{rows.length?<div className="mt-2 divide-y divide-border">{rows.map(([a,b])=><div key={a} className="flex justify-between gap-3 py-2 text-xs"><span className="truncate text-muted-foreground">{a}</span><strong className="shrink-0">{b}</strong></div>)}</div>:<p className="mt-2 text-xs text-muted-foreground">{empty??"—"}</p>}</div>;
+  const peak=[...(forecast.hourly??[])].sort((a,b)=>b.expected_orders-a.expected_orders)[0];
+  return <div className="grid gap-px border-t border-border bg-border sm:grid-cols-4">
+    <div className="bg-card px-3 py-2"><p className="text-[8px] font-bold uppercase text-muted-foreground">{ar?"مبيعات الغد":"Tomorrow sales"}</p><strong className="mt-0.5 block text-xs">{formatMoney(Number(forecast.expected_sales),currency,lang)}</strong></div>
+    <div className="bg-card px-3 py-2"><p className="text-[8px] font-bold uppercase text-muted-foreground">{ar?"طلبات الغد":"Orders"}</p><strong className="mt-0.5 block text-xs">{Number(forecast.expected_orders).toFixed(1)}</strong></div>
+    <div className="bg-card px-3 py-2"><p className="text-[8px] font-bold uppercase text-muted-foreground">{ar?"ساعة الذروة":"Peak hour"}</p><strong className="mt-0.5 block text-xs">{peak?String(peak.hour).padStart(2,"0")+":00":"—"}</strong></div>
+    <div className="bg-card px-3 py-2"><p className="text-[8px] font-bold uppercase text-muted-foreground">{ar?"ثقة التوقع":"Confidence"}</p><strong className="mt-0.5 block text-xs capitalize">{forecast.confidence}</strong></div>
+  </div>;
 }
