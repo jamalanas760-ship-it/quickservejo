@@ -9,18 +9,38 @@ export type OfflineOrderStatus =
   | "paid"
   | "cancelled";
 
-type OrderStatusCommand = {
+export type OfflineTableStatus = "free" | "reserved" | "active" | "cleaning" | "out_of_service";
+export type OfflineWaiterCallStatus = "acknowledged" | "resolved";
+
+type CommandBase = {
   id: string;
-  kind: "order_status";
   restaurantId: string;
-  orderId: string;
-  status: OfflineOrderStatus;
   createdAt: string;
 };
 
-type OfflineCommand = OrderStatusCommand;
+type OrderStatusCommand = CommandBase & {
+  kind: "order_status";
+  orderId: string;
+  status: OfflineOrderStatus;
+};
 
-const KEY = "quickserve.offline.commands.v1";
+type WaiterCallCommand = CommandBase & {
+  kind: "waiter_call_status";
+  callId: string;
+  status: OfflineWaiterCallStatus;
+  changedAt: string;
+};
+
+type TableStatusCommand = CommandBase & {
+  kind: "table_service_status";
+  tableId: string;
+  status: OfflineTableStatus;
+};
+
+type OfflineCommand = OrderStatusCommand | WaiterCallCommand | TableStatusCommand;
+
+const KEY = "quickserve.offline.commands.v2";
+const LEGACY_KEY = "quickserve.offline.commands.v1";
 const EVENT = "quickserve:offline-queue-changed";
 let flushing: Promise<{ flushed: number; remaining: number }> | null = null;
 
@@ -28,21 +48,33 @@ function storageAvailable() {
   return typeof window !== "undefined" && Boolean(window.localStorage);
 }
 
+function isCommand(entry: unknown): entry is OfflineCommand {
+  if (!entry || typeof entry !== "object") return false;
+  const row = entry as Record<string, unknown>;
+  if (typeof row.id !== "string" || typeof row.restaurantId !== "string" || typeof row.createdAt !== "string") return false;
+  if (row.kind === "order_status") return typeof row.orderId === "string" && typeof row.status === "string";
+  if (row.kind === "waiter_call_status") return typeof row.callId === "string" && typeof row.status === "string" && typeof row.changedAt === "string";
+  if (row.kind === "table_service_status") return typeof row.tableId === "string" && typeof row.status === "string";
+  return false;
+}
+
 function readQueue(): OfflineCommand[] {
   if (!storageAvailable()) return [];
   try {
     const raw = window.localStorage.getItem(KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((entry): entry is OfflineCommand => (
-      entry
-      && entry.kind === "order_status"
-      && typeof entry.id === "string"
-      && typeof entry.restaurantId === "string"
-      && typeof entry.orderId === "string"
-      && typeof entry.status === "string"
-      && typeof entry.createdAt === "string"
-    ));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(isCommand) : [];
+    }
+
+    // One-time compatibility import for the original KDS-only queue.
+    const legacy = window.localStorage.getItem(LEGACY_KEY);
+    if (!legacy) return [];
+    const parsed = JSON.parse(legacy);
+    const imported = Array.isArray(parsed) ? parsed.filter(isCommand) : [];
+    if (imported.length) writeQueue(imported);
+    window.localStorage.removeItem(LEGACY_KEY);
+    return imported;
   } catch {
     return [];
   }
@@ -51,12 +83,12 @@ function readQueue(): OfflineCommand[] {
 function writeQueue(queue: OfflineCommand[]) {
   if (!storageAvailable()) return;
   try {
-    if (queue.length) window.localStorage.setItem(KEY, JSON.stringify(queue.slice(-200)));
+    if (queue.length) window.localStorage.setItem(KEY, JSON.stringify(queue.slice(-300)));
     else window.localStorage.removeItem(KEY);
     window.dispatchEvent(new CustomEvent(EVENT, { detail: { count: queue.length } }));
   } catch {
-    // A hardened/private browser can disable local storage. The caller still
-    // receives the original network error rather than pretending the action saved.
+    // Hardened/private browsers can disable storage. Callers still receive
+    // the original network error rather than a false "saved" state.
   }
 }
 
@@ -84,42 +116,18 @@ export function subscribeOfflineQueue(listener: () => void) {
 
 function enqueue(command: OfflineCommand) {
   const queue = readQueue();
-  queue.push(command);
-  writeQueue(queue);
-}
 
-export async function setOrderStatusResilient(input: {
-  restaurantId: string;
-  orderId: string;
-  status: OfflineOrderStatus;
-}): Promise<{ queued: boolean }> {
-  const command: OrderStatusCommand = {
-    id: crypto.randomUUID(),
-    kind: "order_status",
-    restaurantId: input.restaurantId,
-    orderId: input.orderId,
-    status: input.status,
-    createdAt: new Date().toISOString(),
-  };
-
-  if (typeof navigator !== "undefined" && !navigator.onLine) {
-    enqueue(command);
-    return { queued: true };
-  }
-
-  try {
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: input.status })
-      .eq("id", input.orderId)
-      .eq("restaurant_id", input.restaurantId);
-    if (error) throw error;
-    return { queued: false };
-  } catch (error) {
-    if (!looksLikeNetworkFailure(error)) throw error;
-    enqueue(command);
-    return { queued: true };
-  }
+  // Collapse superseded commands for the same entity. A waiter resolving a
+  // call after acknowledging it, for example, only needs the latest state.
+  const filtered = queue.filter((entry) => {
+    if (entry.restaurantId !== command.restaurantId || entry.kind !== command.kind) return true;
+    if (entry.kind === "order_status" && command.kind === "order_status") return entry.orderId !== command.orderId;
+    if (entry.kind === "waiter_call_status" && command.kind === "waiter_call_status") return entry.callId !== command.callId;
+    if (entry.kind === "table_service_status" && command.kind === "table_service_status") return entry.tableId !== command.tableId;
+    return true;
+  });
+  filtered.push(command);
+  writeQueue(filtered);
 }
 
 async function execute(command: OfflineCommand) {
@@ -130,7 +138,89 @@ async function execute(command: OfflineCommand) {
       .eq("id", command.orderId)
       .eq("restaurant_id", command.restaurantId);
     if (error) throw error;
+    return;
   }
+
+  if (command.kind === "waiter_call_status") {
+    const patch = command.status === "acknowledged"
+      ? { status: command.status, acknowledged_at: command.changedAt }
+      : { status: command.status, resolved_at: command.changedAt };
+    const { error } = await supabase
+      .from("waiter_calls")
+      .update(patch)
+      .eq("id", command.callId)
+      .eq("restaurant_id", command.restaurantId);
+    if (error) throw error;
+    return;
+  }
+
+  const { error } = await (supabase as any).rpc("set_table_service_status", {
+    _table_id: command.tableId,
+    _status: command.status,
+  });
+  if (error) throw error;
+}
+
+async function executeOrQueue(command: OfflineCommand): Promise<{ queued: boolean }> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    enqueue(command);
+    return { queued: true };
+  }
+  try {
+    await execute(command);
+    return { queued: false };
+  } catch (error) {
+    if (!looksLikeNetworkFailure(error)) throw error;
+    enqueue(command);
+    return { queued: true };
+  }
+}
+
+export function setOrderStatusResilient(input: {
+  restaurantId: string;
+  orderId: string;
+  status: OfflineOrderStatus;
+}) {
+  return executeOrQueue({
+    id: crypto.randomUUID(),
+    kind: "order_status",
+    restaurantId: input.restaurantId,
+    orderId: input.orderId,
+    status: input.status,
+    createdAt: new Date().toISOString(),
+  });
+}
+
+export function setWaiterCallStatusResilient(input: {
+  restaurantId: string;
+  callId: string;
+  status: OfflineWaiterCallStatus;
+}) {
+  const now = new Date().toISOString();
+  return executeOrQueue({
+    id: crypto.randomUUID(),
+    kind: "waiter_call_status",
+    restaurantId: input.restaurantId,
+    callId: input.callId,
+    status: input.status,
+    changedAt: now,
+    createdAt: now,
+  });
+}
+
+export function setTableServiceStatusResilient(input: {
+  restaurantId: string;
+  tableId: string;
+  status: OfflineTableStatus;
+}) {
+  return executeOrQueue({
+    id: crypto.randomUUID(),
+    kind: "table_service_status",
+    restaurantId: input.restaurantId,
+    tableId: input.tableId,
+    status: input.status,
+    createdAt: new Date().toISOString(),
+  });
 }
 
 export async function flushOfflineOperations() {
@@ -149,14 +239,10 @@ export async function flushOfflineOperations() {
       try {
         await execute(command);
         flushed += 1;
-      } catch (error) {
-        // Preserve this command and every later command in order. Replaying
-        // sequential order-stage changes out of order would be unsafe.
+      } catch {
+        // Keep this command and all later commands in original sequence. This
+        // protects restaurant state from out-of-order replay after reconnect.
         remaining.push(command, ...queue.slice(index + 1));
-        if (!looksLikeNetworkFailure(error)) {
-          // A business-rule or permission error needs human attention; leave
-          // it queued instead of silently dropping the restaurant action.
-        }
         break;
       }
     }
