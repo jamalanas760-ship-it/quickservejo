@@ -139,7 +139,7 @@ function ProfilePage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader />
-    <main className="qs-page space-y-5 pb-10">
+    <main className="qs-page qs-compact-page space-y-4 pb-10">
       <section className="relative overflow-hidden rounded-[28px] border border-border bg-card">
         {accountCover ? <><img src={accountCover} alt="" className="pointer-events-none absolute inset-0 size-full object-cover opacity-30" style={{ objectPosition: `${accountCoverX}% ${accountCoverY}%`, transform: `scale(${accountCoverZoom / 100})` }} /><div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card/95 via-card/78 to-card/55" /></> : <div className="absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_18%_0%,rgba(255,90,10,.15),transparent_55%)]" />}
         <div className="relative flex flex-col gap-5 p-5 sm:p-7 lg:flex-row lg:items-end lg:justify-between">
