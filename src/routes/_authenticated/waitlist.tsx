@@ -213,7 +213,7 @@ function WaitlistPage(){
       </section>
 
       <section className="qs-card overflow-hidden">
-        <div className="flex flex-col gap-4 border-b border-border p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 border-b border-border p-3.5 lg:flex-row lg:items-center lg:justify-between">
           <div><h2 className="qs-section-title">{ar?"طابور الانتظار":"Waitlist queue"}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar?"رتّب الطلبات حسب الحالة، ثم اختر تاريخ ووقت التحويل بشكل واضح. يتم إعادة فحص التوفر عند الإنشاء.":"Filter by status, then choose a clear conversion date and time. Availability is checked again when the reservation is created."}</p></div>
           <div className="flex flex-wrap gap-2">
             <FilterChip active={filter==="active"} onClick={()=>setFilter("active")} label={ar?"نشطة":"Active"} count={active.length}/>
@@ -224,16 +224,16 @@ function WaitlistPage(){
         </div>
         {query.isPending?<div className="p-5"><Skeleton className="h-[420px] rounded-xl"/></div>
           :query.isError?<div className="p-5 text-sm text-destructive">{humanError(query.error,lang)}</div>
-          :rows.length===0?<div className="grid min-h-[320px] place-items-center p-8 text-center"><div><Clock3 className="mx-auto size-10 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"لا توجد طلبات بهذا الفلتر":"No waitlist requests in this view"}</h3><p className="mt-1 text-sm text-muted-foreground">{ar?"غيّر الفلتر أو ابحث عن ضيف آخر.":"Try another filter or search for another guest."}</p></div></div>
-          :<div className="divide-y divide-border">{rows.map(row=>{
+          :rows.length===0?<div className="grid min-h-[220px] place-items-center p-6 text-center"><div><Clock3 className="mx-auto size-10 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"لا توجد طلبات بهذا الفلتر":"No waitlist requests in this view"}</h3><p className="mt-1 text-sm text-muted-foreground">{ar?"غيّر الفلتر أو ابحث عن ضيف آخر.":"Try another filter or search for another guest."}</p></div></div>
+          :<div className="max-h-[calc(100dvh-405px)] divide-y divide-border overflow-y-auto">{rows.map(row=>{
             const live=row.status==="waiting"||row.status==="notified";
             const value=convertValues[row.id]??defaultConversion(row);
             const ageMinutes=Math.max(0,Math.floor((Date.now()-new Date(row.created_at).getTime())/60_000));
-            return <article key={row.id} className="p-3 sm:p-4">
-              <div className="grid gap-5 rounded-2xl border border-border/80 bg-card p-4 shadow-sm transition hover:shadow-md sm:p-5 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-start">
+            return <article key={row.id} className="p-2.5 sm:p-3">
+              <div className="grid gap-3 rounded-xl border border-border/80 bg-card p-3.5 shadow-sm transition hover:shadow-md sm:p-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
                 <div className="min-w-0">
                   <div className="flex items-start gap-3">
-                    <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-muted text-sm font-black">{initials(row.customer_name)}</span>
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-sm font-black">{initials(row.customer_name)}</span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2"><strong className="text-base">{row.customer_name}</strong><Status value={row.status}/></div>
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -289,7 +289,7 @@ function FilterChip({active,onClick,label,count}:{active:boolean;onClick:()=>voi
 }
 
 function Metric({icon:Icon,label,value,hint}:{icon:typeof UsersRound;label:string;value:number;hint?:string|undefined}){
-  return <article className="flex min-h-[105px] items-center gap-4 bg-card p-5"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-blue-500/10 text-blue-600"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong>{hint?<p className="mt-0.5 text-[9px] text-muted-foreground">{hint}</p>:null}</div></article>;
+  return <article className="flex min-h-[88px] items-center gap-3 bg-card p-3.5"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-blue-500/10 text-blue-600"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-2xl tracking-[-.04em]">{value}</strong>{hint?<p className="mt-0.5 text-[9px] text-muted-foreground">{hint}</p>:null}</div></article>;
 }
 
 function Meta({icon:Icon,text}:{icon:typeof UsersRound;text:string}){
