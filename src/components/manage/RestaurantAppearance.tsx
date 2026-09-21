@@ -210,9 +210,9 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
   const busy = saveDraft.isPending || publishNow.isPending || schedule.isPending || rollback.isPending || cancelSchedule.isPending || deleteVersion.isPending;
 
   return (
-    <form onSubmit={submitPublish} className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="min-w-0 space-y-5">
-        <section className="panel space-y-5 p-4 sm:p-6">
+    <form onSubmit={submitPublish} className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="min-w-0 space-y-3">
+        <section className="panel space-y-3 p-3.5 sm:p-4">
           <div>
             <h3 className="text-lg font-semibold">{ar ? "الرئيسية ولوحة التحكم" : "Home & dashboard"}</h3>
             <p className="mt-1 text-xs text-muted-foreground">{ar ? "عدّل الهوية واحفظها كمسودة قبل النشر." : "Edit the brand workspace and save a draft before publishing."}</p>
@@ -221,13 +221,13 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
           <label className="block space-y-2 text-sm"><span>{ar ? "عنوان لوحة التحكم" : "Dashboard heading"}</span><Input maxLength={100} value={brand.dashboardTitle} placeholder={restaurant.name} onChange={(e) => setBrand((p) => ({ ...p, dashboardTitle: e.target.value }))} /></label>
         </section>
 
-        <section className="panel p-4 sm:p-6">
+        <section className="panel p-3.5 sm:p-4">
           <div className="flex items-center gap-2"><History className="size-4 text-[#ff5a0a]" /><h3 className="text-lg font-semibold">{ar ? "سجل إصدارات التصميم" : "Design version history"}</h3></div>
           <p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكنك استعادة أي إصدار سابق بدون حذف التاريخ." : "Restore any prior version without deleting history."}</p>
           {versions.isPending ? <Skeleton className="mt-4 h-52 rounded-xl" /> : versions.isError ? <p className="mt-4 text-sm text-destructive">{humanError(versions.error, lang)}</p> : (
-            <div className="mt-4 divide-y divide-border">
+            <div className="mt-3 max-h-[260px] divide-y divide-border overflow-y-auto pe-1">
               {(versions.data ?? []).map((version) => (
-                <div key={version.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div key={version.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <strong className="text-sm">v{version.version_number}</strong>
@@ -262,24 +262,24 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
         </section>
       </div>
 
-      <aside className="min-w-0 space-y-4 2xl:sticky 2xl:top-24 2xl:self-start">
-        <section className="panel space-y-4 p-5">
+      <aside className="min-w-0 space-y-3 xl:sticky xl:top-20 xl:self-start">
+        <section className="panel space-y-3 p-4">
           <h3 className="font-semibold">{ar ? "نوع قائمة الضيف" : "Guest menu type"}</h3>
           <p className="text-sm leading-6 text-muted-foreground">{ar ? "اختر القائمة العادية أو PDF. تبقى البيانات منفصلة ومحفوظة." : "Choose Standard Menu or Clickable PDF. Both data sets remain separate and preserved."}</p>
-          {(["pdf","products"] as const).map((mode) => <label key={mode} className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm"><input type="radio" name="menuMode" checked={brand.menuMode === mode} onChange={() => setBrand((p) => ({ ...p, menuMode: mode }))} /><span>{mode === "pdf" ? (ar ? "قائمة PDF التفاعلية" : "Clickable PDF Menu") : (ar ? "القائمة العادية" : "Standard Menu")}</span></label>)}
+          {(["pdf","products"] as const).map((mode) => <label key={mode} className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-[10px] border p-2.5 text-sm"><input type="radio" name="menuMode" checked={brand.menuMode === mode} onChange={() => setBrand((p) => ({ ...p, menuMode: mode }))} /><span>{mode === "pdf" ? (ar ? "قائمة PDF التفاعلية" : "Clickable PDF Menu") : (ar ? "القائمة العادية" : "Standard Menu")}</span></label>)}
         </section>
 
-        <section className="panel space-y-4 p-5">
+        <section className="panel space-y-3 p-4">
           <h3 className="font-semibold">{ar ? "الضرائب والخدمة" : "Tax & service"}</h3>
           <label className="block space-y-2 text-sm"><span>{ar ? "الضريبة %" : "Tax %"}</span><Input required type="number" min="0" max="100" step="0.01" value={form.tax_rate} onChange={(e) => field("tax_rate", e.target.value)} /></label>
           <label className="block space-y-2 text-sm"><span>{ar ? "الخدمة %" : "Service %"}</span><Input required type="number" min="0" max="100" step="0.01" value={form.service_charge} onChange={(e) => field("service_charge", e.target.value)} /></label>
         </section>
 
-        <section className="panel space-y-3 p-5">
+        <section className="panel space-y-2.5 p-4">
           <h3 className="font-semibold">{ar ? "إدارة النشر" : "Publishing"}</h3>
           <Input maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} placeholder={ar ? "ملاحظة للإصدار (اختياري)" : "Version note (optional)"} />
           <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={() => saveDraft.mutate()}><Save className="size-4" />{ar ? "حفظ مسودة" : "Save Draft"}</Button>
-          <Button className="min-h-12 w-full bg-[#ff5a0a] text-white hover:bg-[#e94f00]" disabled={busy} type="submit"><Send className="size-4" />{publishNow.isPending ? (ar ? "جارٍ النشر…" : "Publishing…") : (ar ? "نشر الآن" : "Publish Now")}</Button>
+          <Button className="min-h-10 w-full bg-[#ff5a0a] text-white hover:bg-[#e94f00]" disabled={busy} type="submit"><Send className="size-4" />{publishNow.isPending ? (ar ? "جارٍ النشر…" : "Publishing…") : (ar ? "نشر الآن" : "Publish Now")}</Button>
           <div className="rounded-xl border border-dashed p-3">
             <label className="text-xs font-semibold">{ar ? "نشر مجدول" : "Scheduled publish"}<Input type="datetime-local" className="mt-2" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} /></label>
             <Button type="button" variant="outline" className="mt-2 w-full" disabled={busy} onClick={() => schedule.mutate()}><CalendarClock className="size-4" />{ar ? "جدولة النشر" : "Schedule Publish"}</Button>
