@@ -78,23 +78,25 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
   const attention = summary.lowStock.length + summary.pendingApproval + summary.pendingReceiving;
 
   return <section className="qs-viewport-fill flex h-full min-h-0 flex-col gap-2">
-    <section className="overflow-hidden rounded-[11px] border border-border bg-card shadow-sm">
-      <div className="grid gap-2 p-2.5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div>
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-2 py-1 text-[8px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><LayoutDashboard className="size-3.5" />ERP · {ar ? "مركز العمليات" : "Operations command center"}</div>
-          <h1 className="mt-1.5 font-display text-[1.15rem] font-bold tracking-[-.025em] sm:text-[1.3rem]">{ar ? "المخزون والمشتريات والمالية في مساحة واحدة" : "Inventory, purchasing and Finance in one workspace"}</h1>
-          <p className="mt-1 max-w-3xl truncate text-[9px] leading-4 text-muted-foreground">{ar ? "كل حساب يرى الوحدات والإجراءات المرتبطة بمسؤوليته فقط، مع ربط الاستلام بالمخزون والمالية بدون إدخال مزدوج." : "Each account sees only the modules and actions tied to its responsibility, with receiving linked to inventory and Finance without double entry."}</p>
+    <section className="qs-workspace-titlebar rounded-[11px] border border-border bg-card shadow-sm">
+      <div className="grid min-w-0 gap-2 px-3 py-2.5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-orange-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[.14em] text-[#ff5a0a]"><LayoutDashboard className="size-3" />ERP</span>
+            <h1 className="min-w-0 font-display text-[1.05rem] font-bold leading-tight tracking-[-.02em] sm:text-[1.2rem]">{ar ? "المخزون والمشتريات والمالية" : "Inventory, Purchasing & Finance"}</h1>
+          </div>
+          <p className="mt-1 max-w-4xl text-[9.5px] leading-4 text-muted-foreground">{ar ? "مساحة تشغيل موحدة للمخزون والاستلام والمشتريات والموردين والمالية والتقارير، مع صلاحيات حسب الدور." : "One operational workspace for inventory, receiving, procurement, suppliers, finance and reporting, scoped by role."}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {attention > 0 ? <span className="inline-flex min-h-8 items-center gap-1.5 rounded-[9px] border border-amber-200 bg-amber-50 px-3 text-xs font-bold text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/15"><span className="size-2 rounded-full bg-amber-500" />{attention} {ar ? "تحتاج انتباه" : "need attention"}</span> : <span className="inline-flex min-h-8 items-center gap-1.5 rounded-[9px] border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/15"><span className="size-2 rounded-full bg-emerald-500" />{ar ? "لا توجد حالات حرجة" : "No critical items"}</span>}
+        <div className="flex items-center justify-end">
+          {attention > 0 ? <span className="inline-flex min-h-7 items-center gap-1.5 rounded-[8px] border border-amber-200 bg-amber-50 px-2.5 text-[10px] font-bold text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/15"><span className="size-1.5 rounded-full bg-amber-500" />{attention} {ar ? "تحتاج انتباه" : "need attention"}</span> : <span className="inline-flex min-h-7 items-center gap-1.5 rounded-[8px] border border-emerald-200 bg-emerald-50 px-2.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/15"><span className="size-1.5 rounded-full bg-emerald-500" />{ar ? "مستقر" : "All clear"}</span>}
         </div>
       </div>
     </section>
 
-    <div className="qs-viewport-fill grid min-h-0 gap-2 xl:grid-cols-[158px_minmax(0,1fr)]">
+    <div className="qs-viewport-fill grid min-h-0 gap-2 xl:grid-cols-[168px_minmax(0,1fr)]">
       <nav aria-label={ar ? "وحدات ERP" : "ERP modules"} className="self-start overflow-x-auto xl:sticky xl:top-24 xl:overflow-visible">
         <div className="flex min-w-max gap-1 rounded-[10px] border border-border bg-card p-1 xl:min-w-0 xl:flex-col">
-          {sections.map(({ key, en, ar: arLabel, icon: Icon }) => <button key={key} type="button" onClick={() => setSection(key)} aria-current={safeSection === key ? "page" : undefined} className={cn("flex min-h-9 items-center gap-2 rounded-[10px] px-2.5 text-start text-[11px] font-semibold transition xl:w-full", safeSection === key ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}><Icon className="size-4 shrink-0" /><span>{ar ? arLabel : en}</span>{key === "procurement" && summary.pendingApproval > 0 ? <span className="ms-auto min-w-5 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[9px] font-black text-white">{summary.pendingApproval}</span> : null}{key === "inventory" && summary.lowStock.length > 0 ? <span className="ms-auto min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[9px] font-black text-white">{summary.lowStock.length}</span> : null}</button>)}
+          {sections.map(({ key, en, ar: arLabel, icon: Icon }) => <button key={key} type="button" onClick={() => setSection(key)} aria-current={safeSection === key ? "page" : undefined} className={cn("flex min-h-9 items-center gap-2 rounded-[9px] px-2.5 text-start text-[10.5px] font-semibold transition xl:w-full", safeSection === key ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}><Icon className="size-4 shrink-0" /><span>{ar ? arLabel : en}</span>{key === "procurement" && summary.pendingApproval > 0 ? <span className="ms-auto min-w-5 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[9px] font-black text-white">{summary.pendingApproval}</span> : null}{key === "inventory" && summary.lowStock.length > 0 ? <span className="ms-auto min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[9px] font-black text-white">{summary.lowStock.length}</span> : null}</button>)}
         </div>
       </nav>
 
