@@ -107,7 +107,7 @@ function ShiftsPage() {
         <MasterKpi icon={CheckCircle2} label={ar ? "مكتملة اليوم" : "Completed today"} value={closedToday} tone="purple" />
       </section>
 
-      <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} ar={ar} lang={lang} />
+      <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} shifts={rows} assignments={assignments.data ?? []} ar={ar} lang={lang} />
 
       {openShiftRow ? <CurrentShift shift={openShiftRow} assignments={(assignments.data ?? []).filter((row) => row.shift_id === openShiftRow.id)} members={members.data ?? []} canManage={canManage} currentStaffId={membership.id} ar={ar} lang={lang} onClose={() => setClosingShift(openShiftRow)} /> : <section className="qs-card flex items-center gap-4 p-5"><span className="grid size-11 place-items-center rounded-2xl bg-muted text-muted-foreground"><CalendarClock className="size-5" /></span><div><h2 className="font-bold">{ar ? "لا توجد وردية مفتوحة" : "No shift is open"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكن لمدير الوردية فتح وردية مخططة عندما يبدأ التشغيل." : "A shift manager can open a planned shift when service starts."}</p></div></section>}
 
@@ -158,7 +158,7 @@ function ShiftsPage() {
 type TimeEntry = { id: string; staff_id: string; clock_in: string; clock_out: string | null; break_minutes: number };
 type LeaveRequest = { id: string; staff_id: string; start_date: string; end_date: string; reason: string; status: "pending" | "approved" | "rejected" | "cancelled"; created_at: string };
 
-function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, ar, lang }: { restaurantId: string; currentStaffId: string; canManage: boolean; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; ar: boolean; lang: "en" | "ar" }) {
+function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shifts, assignments, ar, lang }: { restaurantId: string; currentStaffId: string; canManage: boolean; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; shifts: Shift[]; assignments: ShiftAssignment[]; ar: boolean; lang: "en" | "ar" }) {
   const qc = useQueryClient();
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaveStart, setLeaveStart] = useState(new Date().toISOString().slice(0, 10));
@@ -229,7 +229,73 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, ar, 
 
   const memberName = (id: string) => members.find((row) => row.id === id)?.name ?? (ar ? "عضو فريق" : "Team member");
 
-  return <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]">
+  const weekStart = startOfWeekMonday(new Date());
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+  const thisWeekEntries = (workforce.data?.time ?? []).filter((entry) => {
+    const clock = new Date(entry.clock_in).getTime();
+    return clock >= weekStart.getTime() && clock < weekEnd.getTime();
+  });
+  const staffLabor = members.filter((member) => member.is_active).map((member) => {
+    const actualHours = thisWeekEntries.filter((entry) => entry.staff_id === member.id).reduce((sum, entry) => {
+      const end = entry.clock_out ? Math.min(new Date(entry.clock_out).getTime(), weekEnd.getTime()) : Math.min(Date.now(), weekEnd.getTime());
+      const start = Math.max(new Date(entry.clock_in).getTime(), weekStart.getTime());
+      return sum + Math.max(0, (end - start) / 3_600_000 - Number(entry.break_minutes || 0) / 60);
+    }, 0);
+    const scheduledHours = assignments.filter((assignment) => {
+      if (assignment.staff_id !== member.id || !assignment.starts_at || !assignment.ends_at) return false;
+      const start = new Date(assignment.starts_at).getTime();
+      return start >= weekStart.getTime() && start < weekEnd.getTime();
+    }).reduce((sum, assignment) => {
+      const start = new Date(assignment.starts_at!).getTime();
+      const end = new Date(assignment.ends_at!).getTime();
+      return sum + Math.max(0, (end - start) / 3_600_000);
+    }, 0);
+    return { ...member, actualHours, scheduledHours, variance: actualHours - scheduledHours };
+  }).filter((member) => member.actualHours > 0 || member.scheduledHours > 0);
+
+  const actualWeekHours = staffLabor.reduce((sum, row) => sum + row.actualHours, 0);
+  const scheduledWeekHours = staffLabor.reduce((sum, row) => sum + row.scheduledHours, 0);
+  const overPlan = staffLabor.filter((row) => row.scheduledHours > 0 && row.actualHours > row.scheduledHours + 0.25);
+  const incompleteClocks = thisWeekEntries.filter((entry) => !entry.clock_out).length;
+
+  function exportPayrollCsv() {
+    const headers = ["Staff","Role","Week start","Scheduled hours","Worked hours","Variance hours"];
+    const lines = staffLabor.map((row) => [
+      row.name,
+      ROLE_LABELS[row.role]?.en ?? row.role,
+      weekStart.toLocaleDateString("en-CA"),
+      row.scheduledHours.toFixed(2),
+      row.actualHours.toFixed(2),
+      row.variance.toFixed(2),
+    ].map(csvCell).join(","));
+    const blob = new Blob(["\uFEFF" + [headers.map(csvCell).join(","), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `quickserve-payroll-${weekStart.toLocaleDateString("en-CA")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  return <section className="space-y-4">
+    {canManage ? <div className="qs-card overflow-hidden">
+      <div className="flex flex-col gap-4 border-b border-border p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div><div className="flex items-center gap-2"><CalendarClock className="size-4 text-[#ff5a0a]"/><h2 className="qs-section-title">{ar ? "العمالة هذا الأسبوع" : "Weekly labor control"}</h2></div><p className="mt-1 text-xs text-muted-foreground">{ar ? "مقارنة ساعات الجدول مع الحضور الفعلي من ساعة الدوام — بدون افتراض قانوني لساعات العمل." : "Scheduled hours versus actual time-clock hours, without assuming a legal overtime threshold."}</p></div>
+        <Button variant="outline" disabled={!staffLabor.length} onClick={exportPayrollCsv}><Download className="size-4"/>{ar ? "تصدير CSV للرواتب" : "Export payroll CSV"}</Button>
+      </div>
+      <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-4">
+        <LaborMetric label={ar ? "ساعات مخططة" : "Scheduled"} value={scheduledWeekHours.toFixed(1) + "h"} />
+        <LaborMetric label={ar ? "ساعات فعلية" : "Worked"} value={actualWeekHours.toFixed(1) + "h"} />
+        <LaborMetric label={ar ? "فوق الخطة" : "Over plan"} value={String(overPlan.length)} warning={overPlan.length > 0} />
+        <LaborMetric label={ar ? "دوام مفتوح" : "Open clocks"} value={String(incompleteClocks)} warning={incompleteClocks > 0} />
+      </div>
+      {staffLabor.length ? <div className="overflow-x-auto"><table className="qs-table min-w-[760px]"><thead><tr><th>{ar ? "الموظف" : "Staff"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "مخطط" : "Scheduled"}</th><th>{ar ? "فعلي" : "Worked"}</th><th>{ar ? "الفرق" : "Variance"}</th><th>{ar ? "الحالة" : "Status"}</th></tr></thead><tbody>{staffLabor.sort((a,b)=>b.actualHours-a.actualHours).map(row=><tr key={row.id}><td><strong>{row.name}</strong></td><td>{ROLE_LABELS[row.role]?.[lang] ?? row.role}</td><td>{row.scheduledHours.toFixed(1)}h</td><td>{row.actualHours.toFixed(1)}h</td><td className={cn(row.variance>0.25?"text-amber-700":row.variance<-0.25?"text-blue-700":"text-muted-foreground")}>{row.variance>=0?"+":""}{row.variance.toFixed(1)}h</td><td><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold",row.scheduledHours>0&&row.actualHours>row.scheduledHours+0.25?"bg-amber-500/10 text-amber-700":"bg-emerald-500/10 text-emerald-700")}>{row.scheduledHours>0&&row.actualHours>row.scheduledHours+0.25?(ar?"فوق الخطة":"Over plan"):(ar?"ضمن الخطة":"On plan")}</span></td></tr>)}</tbody></table></div> : <p className="p-6 text-center text-xs text-muted-foreground">{ar ? "لا توجد ساعات مجدولة أو مسجلة لهذا الأسبوع بعد." : "No scheduled or worked hours recorded for this week yet."}</p>}
+    </div> : null}
+
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]">
     <div className="qs-card overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5">
         <div><h2 className="qs-section-title">{ar ? "الحضور والوقت" : "Attendance & time"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "ساعة حضور فعلية مرتبطة بحساب كل موظف." : "A real time clock tied to each staff account."}</p></div>
@@ -249,7 +315,24 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, ar, 
     </div>
 
     <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>{ar ? "طلب إجازة" : "Request leave"}</DialogTitle><DialogDescription>{ar ? "أرسل الفترة والسبب لمدير الوردية للمراجعة." : "Send the dates and reason to shift management for review."}</DialogDescription></DialogHeader><div className="grid gap-4 sm:grid-cols-2"><Field label={ar?"من":"From"}><Input type="date" value={leaveStart} onChange={e=>setLeaveStart(e.target.value)}/></Field><Field label={ar?"إلى":"To"}><Input type="date" value={leaveEnd} onChange={e=>setLeaveEnd(e.target.value)}/></Field><Field label={ar?"السبب":"Reason"} className="sm:col-span-2"><Textarea rows={3} value={leaveReason} onChange={e=>setLeaveReason(e.target.value)} /></Field></div><DialogFooter><Button variant="outline" onClick={()=>setLeaveOpen(false)}>{ar?"إلغاء":"Cancel"}</Button><Button disabled={submitLeave.isPending||!leaveStart||!leaveEnd||leaveEnd<leaveStart} onClick={()=>submitLeave.mutate()}>{ar?"إرسال":"Submit"}</Button></DialogFooter></DialogContent></Dialog>
+    </div>
   </section>;
+}
+
+function LaborMetric({label,value,warning=false}:{label:string;value:string;warning?:boolean}){
+  return <div className="bg-card p-4"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{label}</p><strong className={cn("mt-1 block font-display text-2xl",warning&&"text-amber-700")}>{value}</strong></div>;
+}
+
+function startOfWeekMonday(date:Date){
+  const result=new Date(date);
+  result.setHours(0,0,0,0);
+  const day=result.getDay();
+  result.setDate(result.getDate()-(day===0?6:day-1));
+  return result;
+}
+
+function csvCell(value:unknown){
+  return `"${String(value??"").replaceAll('"','""')}"`;
 }
 
 function CurrentShift({ shift, assignments, members, canManage, currentStaffId, ar, lang, onClose }: { shift: Shift; assignments: ShiftAssignment[]; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; canManage: boolean; currentStaffId: string; ar: boolean; lang: "en" | "ar"; onClose: () => void }) {
