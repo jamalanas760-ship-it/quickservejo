@@ -1212,4 +1212,47 @@
       height: 25px !important;
     }
   }
+
+  /* Search fields: reserve space for the leading icon even inside ultra-compact pages. */
+  .qs-search-field {
+    position: relative;
+  }
+
+  .qs-search-field > svg {
+    pointer-events: none;
+    position: absolute;
+    inset-inline-start: 11px;
+    top: 50%;
+    z-index: 2;
+    width: 15px;
+    height: 15px;
+    transform: translateY(-50%);
+    color: var(--muted-foreground);
+  }
+
+  .qs-search-field input,
+  .qs-compact-page .qs-search-field input {
+    padding-inline-start: 36px !important;
+    padding-inline-end: 10px !important;
+  }
+
+  .qs-workspace-titlebar {
+    min-width: 0;
+    overflow: visible !important;
+  }
+
+  .qs-workspace-titlebar h1,
+  .qs-workspace-titlebar h2 {
+    min-width: 0;
+    overflow: visible;
+    line-height: 1.12 !important;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  @media (min-width: 1024px) {
+    .qs-workspace-titlebar {
+      padding-block: 8px !important;
+    }
+  }
 }
