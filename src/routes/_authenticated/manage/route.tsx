@@ -20,7 +20,7 @@ function ManageLayout() {
   return (
     <div className="min-h-screen bg-background">
       <StaffHeader title={t("sa.manage.title")} />
-      <main className="mx-auto max-w-7xl px-4 py-8">
+      <main className="qs-page">
         <Outlet />
       </main>
     </div>
