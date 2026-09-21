@@ -156,13 +156,15 @@ function ShiftsPage() {
 }
 
 type TimeEntry = { id: string; staff_id: string; clock_in: string; clock_out: string | null; break_minutes: number };
-type LeaveRequest = { id: string; staff_id: string; start_date: string; end_date: string; reason: string; status: "pending" | "approved" | "rejected" | "cancelled"; created_at: string };
+type LeaveRequest = { id: string; staff_id: string; start_date: string; end_date: string; start_time?: string | null; end_time?: string | null; reason: string; status: "pending" | "approved" | "rejected" | "cancelled"; created_at: string };
 
 function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shifts, assignments, ar, lang }: { restaurantId: string; currentStaffId: string; canManage: boolean; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; shifts: Shift[]; assignments: ShiftAssignment[]; ar: boolean; lang: "en" | "ar" }) {
   const qc = useQueryClient();
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaveStart, setLeaveStart] = useState(new Date().toISOString().slice(0, 10));
   const [leaveEnd, setLeaveEnd] = useState(new Date().toISOString().slice(0, 10));
+  const [leaveStartTime, setLeaveStartTime] = useState("09:00");
+  const [leaveEndTime, setLeaveEndTime] = useState("17:00");
   const [leaveReason, setLeaveReason] = useState("");
 
   const workforce = useQuery({
@@ -172,7 +174,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
       const since = new Date(Date.now() - 14 * 86400000).toISOString();
       const [timeRes, leaveRes] = await Promise.all([
         supabase.from("staff_time_entries" as any).select("id,staff_id,clock_in,clock_out,break_minutes").eq("restaurant_id", restaurantId).gte("clock_in", since).order("clock_in", { ascending: false }).limit(500),
-        supabase.from("staff_leave_requests" as any).select("id,staff_id,start_date,end_date,reason,status,created_at").eq("restaurant_id", restaurantId).order("created_at", { ascending: false }).limit(300),
+        supabase.from("staff_leave_requests" as any).select("id,staff_id,start_date,end_date,start_time,end_time,reason,status,created_at").eq("restaurant_id", restaurantId).order("created_at", { ascending: false }).limit(300),
       ]);
       if (timeRes.error) throw timeRes.error;
       if (leaveRes.error) throw leaveRes.error;
@@ -204,7 +206,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
 
   const submitLeave = useMutation({
     mutationFn: async () => {
-      const { error } = await (supabase as any).rpc("submit_leave_request", { _restaurant_id: restaurantId, _start: leaveStart, _end: leaveEnd, _reason: leaveReason.trim() });
+      const { error } = await (supabase as any).rpc("submit_leave_request", { _restaurant_id: restaurantId, _start: leaveStart, _end: leaveEnd, _start_time: leaveStartTime, _end_time: leaveEndTime, _reason: leaveReason.trim() });
       if (error) throw error;
     },
     onSuccess: async () => {
@@ -228,6 +230,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
   });
 
   const memberName = (id: string) => members.find((row) => row.id === id)?.name ?? (ar ? "عضو فريق" : "Team member");
+  const leaveWindowInvalid = !leaveStart || !leaveEnd || !leaveStartTime || !leaveEndTime || leaveEnd < leaveStart || (leaveEnd === leaveStart && leaveEndTime <= leaveStartTime);
 
   const weekStart = startOfWeekMonday(new Date());
   const weekEnd = new Date(weekStart);
@@ -311,13 +314,34 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
 
     <div className="qs-card overflow-hidden">
       <div className="border-b border-border p-5"><div className="flex items-center justify-between gap-3"><div><h2 className="qs-section-title">{ar ? "طلبات الإجازة" : "Leave requests"}</h2><p className="mt-1 text-xs text-muted-foreground">{canManage ? (ar ? "راجع الطلبات المعلقة." : "Review pending requests.") : (ar ? "آخر طلباتك." : "Your recent requests.")}</p></div>{pendingLeave.length ? <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-700">{pendingLeave.length}</span> : null}</div></div>
-      <div className="max-h-[260px] divide-y divide-border overflow-y-auto">{(workforce.data?.leave ?? []).filter(request => canManage || request.staff_id===currentStaffId).slice(0,8).map(request=><div key={request.id} className="p-4"><div className="flex items-start justify-between gap-3"><div><strong className="text-sm">{memberName(request.staff_id)}</strong><p className="mt-1 text-xs text-muted-foreground">{request.start_date} → {request.end_date}</p>{request.reason?<p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{request.reason}</p>:null}</div><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold capitalize",request.status==="approved"?"bg-emerald-500/10 text-emerald-700":request.status==="rejected"?"bg-red-500/10 text-red-700":"bg-amber-500/10 text-amber-700")}>{request.status}</span></div>{canManage&&request.status==="pending"?<div className="mt-3 flex gap-2"><Button size="sm" disabled={reviewLeave.isPending} onClick={()=>reviewLeave.mutate({id:request.id,status:"approved"})}>{ar?"اعتماد":"Approve"}</Button><Button size="sm" variant="outline" disabled={reviewLeave.isPending} onClick={()=>reviewLeave.mutate({id:request.id,status:"rejected"})}>{ar?"رفض":"Reject"}</Button></div>:null}</div>)}{!(workforce.data?.leave ?? []).length?<p className="p-6 text-center text-xs text-muted-foreground">{ar ? "لا توجد طلبات إجازة." : "No leave requests yet."}</p>:null}</div>
+      <div className="max-h-[260px] divide-y divide-border overflow-y-auto">{(workforce.data?.leave ?? []).filter(request => canManage || request.staff_id===currentStaffId).slice(0,8).map(request=><div key={request.id} className="p-4"><div className="flex items-start justify-between gap-3"><div><strong className="text-sm">{memberName(request.staff_id)}</strong><p className="mt-1 text-xs text-muted-foreground">{request.start_date} · {formatLeaveTime(request.start_time)} → {request.end_date} · {formatLeaveTime(request.end_time)}</p>{request.reason?<p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{request.reason}</p>:null}</div><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold capitalize",request.status==="approved"?"bg-emerald-500/10 text-emerald-700":request.status==="rejected"?"bg-red-500/10 text-red-700":"bg-amber-500/10 text-amber-700")}>{request.status}</span></div>{canManage&&request.status==="pending"?<div className="mt-3 flex gap-2"><Button size="sm" disabled={reviewLeave.isPending} onClick={()=>reviewLeave.mutate({id:request.id,status:"approved"})}>{ar?"اعتماد":"Approve"}</Button><Button size="sm" variant="outline" disabled={reviewLeave.isPending} onClick={()=>reviewLeave.mutate({id:request.id,status:"rejected"})}>{ar?"رفض":"Reject"}</Button></div>:null}</div>)}{!(workforce.data?.leave ?? []).length?<p className="p-6 text-center text-xs text-muted-foreground">{ar ? "لا توجد طلبات إجازة." : "No leave requests yet."}</p>:null}</div>
     </div>
 
-    <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>{ar ? "طلب إجازة" : "Request leave"}</DialogTitle><DialogDescription>{ar ? "أرسل الفترة والسبب لمدير الوردية للمراجعة." : "Send the dates and reason to shift management for review."}</DialogDescription></DialogHeader><div className="grid gap-4 sm:grid-cols-2"><Field label={ar?"من":"From"}><Input type="date" value={leaveStart} onChange={e=>setLeaveStart(e.target.value)}/></Field><Field label={ar?"إلى":"To"}><Input type="date" value={leaveEnd} onChange={e=>setLeaveEnd(e.target.value)}/></Field><Field label={ar?"السبب":"Reason"} className="sm:col-span-2"><Textarea rows={3} value={leaveReason} onChange={e=>setLeaveReason(e.target.value)} /></Field></div><DialogFooter><Button variant="outline" onClick={()=>setLeaveOpen(false)}>{ar?"إلغاء":"Cancel"}</Button><Button disabled={submitLeave.isPending||!leaveStart||!leaveEnd||leaveEnd<leaveStart} onClick={()=>submitLeave.mutate()}>{ar?"إرسال":"Submit"}</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}><DialogContent className="sm:max-w-[620px]"><DialogHeader><DialogTitle>{ar ? "طلب إجازة" : "Request leave"}</DialogTitle><DialogDescription>{ar ? "اختر التاريخ والوقت بدقة ثم أرسل السبب لمدير الوردية للمراجعة." : "Choose the exact dates and times, then send the reason to shift management for review."}</DialogDescription></DialogHeader><div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <section className="rounded-[16px] border border-border bg-muted/20 p-3.5">
+          <p className="mb-3 text-[10px] font-black uppercase tracking-[.1em] text-muted-foreground">{ar ? "من" : "From"}</p>
+          <div className="grid gap-3 sm:grid-cols-[1.2fr_.8fr]">
+            <Field label={ar?"التاريخ":"Date"}><Input type="date" value={leaveStart} onChange={e=>{const next=e.target.value;setLeaveStart(next);if(leaveEnd<next)setLeaveEnd(next);}} onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()} className="h-14 cursor-pointer rounded-[14px] px-4 text-[15px] font-semibold"/></Field>
+            <Field label={ar?"الوقت":"Time"}><Input type="time" value={leaveStartTime} onChange={e=>setLeaveStartTime(e.target.value)} onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()} className="h-14 cursor-pointer rounded-[14px] px-4 text-[15px] font-semibold"/></Field>
+          </div>
+        </section>
+        <section className="rounded-[16px] border border-border bg-muted/20 p-3.5">
+          <p className="mb-3 text-[10px] font-black uppercase tracking-[.1em] text-muted-foreground">{ar ? "إلى" : "To"}</p>
+          <div className="grid gap-3 sm:grid-cols-[1.2fr_.8fr]">
+            <Field label={ar?"التاريخ":"Date"}><Input type="date" min={leaveStart} value={leaveEnd} onChange={e=>setLeaveEnd(e.target.value)} onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()} className="h-14 cursor-pointer rounded-[14px] px-4 text-[15px] font-semibold"/></Field>
+            <Field label={ar?"الوقت":"Time"}><Input type="time" min={leaveEnd===leaveStart?leaveStartTime:undefined} value={leaveEndTime} onChange={e=>setLeaveEndTime(e.target.value)} onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()} className="h-14 cursor-pointer rounded-[14px] px-4 text-[15px] font-semibold"/></Field>
+          </div>
+        </section>
+      </div>
+      {leaveWindowInvalid && leaveStart && leaveEnd && leaveStartTime && leaveEndTime ? <p className="rounded-xl bg-red-500/8 px-3 py-2 text-xs font-semibold text-red-700">{ar ? "يجب أن يكون وقت النهاية بعد وقت البداية." : "End date and time must be after the start."}</p> : null}
+      <Field label={ar?"السبب":"Reason"}><Textarea rows={4} value={leaveReason} onChange={e=>setLeaveReason(e.target.value)} className="min-h-[120px] rounded-[16px]"/></Field>
+    </div><DialogFooter><Button variant="outline" onClick={()=>setLeaveOpen(false)}>{ar?"إلغاء":"Cancel"}</Button><Button disabled={submitLeave.isPending||leaveWindowInvalid} onClick={()=>submitLeave.mutate()}>{ar?"إرسال":"Submit"}</Button></DialogFooter></DialogContent></Dialog>
     </div>
   </section>;
 }
+
+function formatLeaveTime(value: string | null | undefined) { return value ? value.slice(0, 5) : "—"; }
 
 function LaborMetric({label,value,warning=false}:{label:string;value:string;warning?:boolean}){
   return <div className="bg-card p-4"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{label}</p><strong className={cn("mt-1 block font-display text-2xl",warning&&"text-amber-700")}>{value}</strong></div>;
