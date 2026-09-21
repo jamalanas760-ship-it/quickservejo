@@ -187,7 +187,7 @@ function GuestsPage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "الضيوف والولاء" : "Guests & Loyalty"} />
-    <main className="qs-page space-y-5">
+    <main className="qs-page qs-compact-page space-y-4">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={HeartHandshake}>{ar ? "علاقات الضيوف" : "Guest relationships"}</MasterEyebrow>}
         title={ar ? "العملاء وCRM" : "Customers & CRM"}
