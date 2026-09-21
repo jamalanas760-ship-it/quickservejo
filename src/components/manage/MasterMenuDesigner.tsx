@@ -29,7 +29,7 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
   ];
 
   return (
-    <section className="space-y-4">
+    <section className="qs-viewport-fill flex h-full min-h-0 flex-col gap-2">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={UtensilsCrossed}>{ar ? "استوديو القائمة" : "Menu Studio"}</MasterEyebrow>}
         title={ar ? "إدارة القائمة" : "Menu Management"}
@@ -38,18 +38,18 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
       />
 
       <div className="grid gap-2 lg:grid-cols-2">
-        <button type="button" onClick={() => setWorkflow("standard")} className={cn("flex min-h-[50px] items-center gap-2.5 rounded-[12px] border bg-card px-3 py-2.5 text-start shadow-[var(--qs-shadow-card)] transition", workflow === "standard" ? "border-[#ff5a0a] bg-orange-500/[.035] shadow-[0_8px_24px_rgba(255,90,10,.08)]" : "border-border hover:bg-muted/30")}>
-          <span className={cn("grid size-9 shrink-0 place-items-center rounded-[10px]", workflow === "standard" ? "bg-orange-100 text-[#ff5a0a] dark:bg-orange-950/30" : "bg-muted text-muted-foreground")}><UtensilsCrossed className="size-4" /></span><span><strong className={cn("block text-sm", workflow === "standard" && "text-[#ff5a0a]")}>{ar ? "القائمة العادية" : "Standard Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "أنشئ وخصص قائمتك الإلكترونية" : "Build and customize your menu online"}</span></span>
+        <button type="button" onClick={() => setWorkflow("standard")} className={cn("flex min-h-[42px] items-center gap-2 rounded-[12px] border bg-card px-3 py-2.5 text-start shadow-[var(--qs-shadow-card)] transition", workflow === "standard" ? "border-[#ff5a0a] bg-orange-500/[.035] shadow-[0_8px_24px_rgba(255,90,10,.08)]" : "border-border hover:bg-muted/30")}>
+          <span className={cn("grid size-8 shrink-0 place-items-center rounded-[10px]", workflow === "standard" ? "bg-orange-100 text-[#ff5a0a] dark:bg-orange-950/30" : "bg-muted text-muted-foreground")}><UtensilsCrossed className="size-4" /></span><span><strong className={cn("block text-sm", workflow === "standard" && "text-[#ff5a0a]")}>{ar ? "القائمة العادية" : "Standard Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "أنشئ وخصص قائمتك الإلكترونية" : "Build and customize your menu online"}</span></span>
         </button>
         <button type="button" onClick={() => setWorkflow("pdf")} className={cn("flex min-h-[50px] items-center gap-2.5 rounded-[12px] border bg-card px-3 py-2.5 text-start transition", workflow === "pdf" ? "border-[#ff5a0a] bg-orange-500/[.035] shadow-[0_8px_24px_rgba(255,90,10,.08)]" : "border-border hover:bg-muted/30")}>
           <span className={cn("grid size-9 shrink-0 place-items-center rounded-[10px]", workflow === "pdf" ? "bg-orange-100 text-[#ff5a0a] dark:bg-orange-950/30" : "bg-muted text-muted-foreground")}><FileText className="size-4" /></span><span><strong className={cn("block text-sm", workflow === "pdf" && "text-[#ff5a0a]")}>{ar ? "قائمة PDF" : "PDF Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "ارفع قائمة PDF تفاعلية" : "Upload a clickable PDF menu"}</span></span>
         </button>
       </div>
 
-      <Suspense fallback={<Skeleton className="h-[520px] rounded-2xl" />}>
+      <div className="qs-viewport-fill min-h-0 overflow-hidden"><Suspense fallback={<Skeleton className="h-full rounded-xl" />}>
         {workflow === "pdf" ? <PdfEditor restaurantId={restaurantId} /> : (
-          <div className="grid min-w-0 gap-3 xl:grid-cols-[170px_minmax(0,1fr)]">
-            <aside className="qs-card self-start overflow-hidden xl:sticky xl:top-24">
+          <div className="grid h-full min-h-0 min-w-0 gap-2 xl:grid-cols-[150px_minmax(0,1fr)]">
+            <aside className="qs-card h-full min-h-0 overflow-hidden">
               <nav className="grid gap-1 p-1.5 sm:grid-cols-2 xl:grid-cols-1">
                 {standardSections.map(({ id, icon: Icon, en, ar: arabic, hint }) => (
                   <button key={id} type="button" onClick={() => setSection(id)} aria-current={section === id ? "page" : undefined} className={cn("flex w-full items-start gap-2.5 rounded-[10px] px-2.5 py-2 text-start transition", section === id ? "bg-[#fff0e7] text-[#e34d00] dark:bg-orange-950/25" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")}>
@@ -59,7 +59,7 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
               </nav>
             </aside>
 
-            <main className="min-w-0">
+            <main className="qs-scroll-region min-h-0 min-w-0">
               {section === "design" ? <Appearance restaurantId={restaurantId} /> : (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2"><span className="grid size-9 place-items-center rounded-full bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><Layers3 className="size-4" /></span><div><h2 className="font-display text-lg font-bold">{ar ? standardSections.find((item) => item.id === section)?.ar : standardSections.find((item) => item.id === section)?.en}</h2><p className="text-xs text-muted-foreground">{ar ? "تعديل القائمة العادية فقط — منتجات PDF تبقى منفصلة." : "Standard Menu only — PDF hotspot products remain separate."}</p></div></div>
@@ -69,7 +69,7 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
             </main>
           </div>
         )}
-      </Suspense>
+      </Suspense></div>
     </section>
   );
 }
