@@ -106,7 +106,7 @@ function NotificationsPage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "الإشعارات" : "Notifications"} />
-    <main className="qs-page space-y-5">
+    <main className="qs-page qs-compact-page space-y-4">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={Bell}>{ar ? "مركز التنبيهات" : "Operational inbox"}</MasterEyebrow>}
         title={ar ? "ما يحتاج انتباهك الآن" : "What needs your attention"}
