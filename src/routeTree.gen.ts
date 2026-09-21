@@ -25,6 +25,7 @@ import { Route as AuthenticatedCampaignsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCashierRouteImport } from './routes/_authenticated/cashier'
 import { Route as AuthenticatedDailyCloseRouteImport } from './routes/_authenticated/daily-close'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedDevicesRouteImport } from './routes/_authenticated/devices'
 import { Route as AuthenticatedGuestsRouteImport } from './routes/_authenticated/guests'
 import { Route as AuthenticatedHostRouteImport } from './routes/_authenticated/host'
 import { Route as AuthenticatedHqRouteImport } from './routes/_authenticated/hq'
@@ -162,6 +163,11 @@ const AuthenticatedDailyCloseRoute = AuthenticatedDailyCloseRouteImport.update({
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDevicesRoute = AuthenticatedDevicesRouteImport.update({
+  id: '/devices',
+  path: '/devices',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedGuestsRoute = AuthenticatedGuestsRouteImport.update({
@@ -507,6 +513,7 @@ export interface FileRoutesByFullPath {
   '/cashier': typeof AuthenticatedCashierRoute
   '/daily-close': typeof AuthenticatedDailyCloseRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/devices': typeof AuthenticatedDevicesRoute
   '/guests': typeof AuthenticatedGuestsRoute
   '/host': typeof AuthenticatedHostRoute
   '/hq': typeof AuthenticatedHqRoute
@@ -578,6 +585,7 @@ export interface FileRoutesByTo {
   '/cashier': typeof AuthenticatedCashierRoute
   '/daily-close': typeof AuthenticatedDailyCloseRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/devices': typeof AuthenticatedDevicesRoute
   '/guests': typeof AuthenticatedGuestsRoute
   '/host': typeof AuthenticatedHostRoute
   '/hq': typeof AuthenticatedHqRoute
@@ -651,6 +659,7 @@ export interface FileRoutesById {
   '/_authenticated/cashier': typeof AuthenticatedCashierRoute
   '/_authenticated/daily-close': typeof AuthenticatedDailyCloseRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/devices': typeof AuthenticatedDevicesRoute
   '/_authenticated/guests': typeof AuthenticatedGuestsRoute
   '/_authenticated/host': typeof AuthenticatedHostRoute
   '/_authenticated/hq': typeof AuthenticatedHqRoute
@@ -726,6 +735,7 @@ export interface FileRouteTypes {
     | '/cashier'
     | '/daily-close'
     | '/dashboard'
+    | '/devices'
     | '/guests'
     | '/host'
     | '/hq'
@@ -797,6 +807,7 @@ export interface FileRouteTypes {
     | '/cashier'
     | '/daily-close'
     | '/dashboard'
+    | '/devices'
     | '/guests'
     | '/host'
     | '/hq'
@@ -869,6 +880,7 @@ export interface FileRouteTypes {
     | '/_authenticated/cashier'
     | '/_authenticated/daily-close'
     | '/_authenticated/dashboard'
+    | '/_authenticated/devices'
     | '/_authenticated/guests'
     | '/_authenticated/host'
     | '/_authenticated/hq'
@@ -1061,6 +1073,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/devices': {
+      id: '/_authenticated/devices'
+      path: '/devices'
+      fullPath: '/devices'
+      preLoaderRoute: typeof AuthenticatedDevicesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/guests': {
@@ -1597,6 +1616,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCashierRoute: typeof AuthenticatedCashierRoute
   AuthenticatedDailyCloseRoute: typeof AuthenticatedDailyCloseRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDevicesRoute: typeof AuthenticatedDevicesRoute
   AuthenticatedGuestsRoute: typeof AuthenticatedGuestsRoute
   AuthenticatedHostRoute: typeof AuthenticatedHostRoute
   AuthenticatedHqRoute: typeof AuthenticatedHqRoute
@@ -1623,6 +1643,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCashierRoute: AuthenticatedCashierRoute,
   AuthenticatedDailyCloseRoute: AuthenticatedDailyCloseRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDevicesRoute: AuthenticatedDevicesRoute,
   AuthenticatedGuestsRoute: AuthenticatedGuestsRoute,
   AuthenticatedHostRoute: AuthenticatedHostRoute,
   AuthenticatedHqRoute: AuthenticatedHqRoute,
