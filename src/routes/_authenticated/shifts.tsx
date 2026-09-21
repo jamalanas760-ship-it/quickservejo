@@ -92,7 +92,7 @@ function ShiftsPage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "الورديات والتسليم" : "Shifts & Handover"} />
-    <main className="qs-page space-y-5">
+    <main className="qs-page qs-compact-page qs-viewport-page">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={CalendarClock}>{ar ? "جدول الفريق" : "Team schedule"}</MasterEyebrow>}
         title={ar ? "الورديات والتسليم" : "Shifts & Handover"}
@@ -107,17 +107,17 @@ function ShiftsPage() {
         <MasterKpi icon={CheckCircle2} label={ar ? "مكتملة اليوم" : "Completed today"} value={closedToday} tone="purple" />
       </section>
 
-      <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} shifts={rows} assignments={assignments.data ?? []} ar={ar} lang={lang} />
+      <div className="max-h-[118px] shrink-0 overflow-y-auto"><WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} shifts={rows} assignments={assignments.data ?? []} ar={ar} lang={lang} /></div>
 
       {openShiftRow ? <CurrentShift shift={openShiftRow} assignments={(assignments.data ?? []).filter((row) => row.shift_id === openShiftRow.id)} members={members.data ?? []} canManage={canManage} currentStaffId={membership.id} ar={ar} lang={lang} onClose={() => setClosingShift(openShiftRow)} /> : <section className="qs-card flex items-center gap-4 p-5"><span className="grid size-11 place-items-center rounded-2xl bg-muted text-muted-foreground"><CalendarClock className="size-5" /></span><div><h2 className="font-bold">{ar ? "لا توجد وردية مفتوحة" : "No shift is open"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكن لمدير الوردية فتح وردية مخططة عندما يبدأ التشغيل." : "A shift manager can open a planned shift when service starts."}</p></div></section>}
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,.8fr)]">
-        <div className="qs-card overflow-hidden">
+      <section className="qs-viewport-fill grid min-h-0 gap-2 overflow-hidden xl:grid-cols-[minmax(0,1.65fr)_minmax(260px,.7fr)]">
+        <div className="qs-card flex min-h-0 flex-col overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5"><div><h2 className="qs-section-title">{ar ? "الورديات" : "Shift schedule"}</h2><p className="mt-1 text-xs text-muted-foreground">{viewMode === "timeline" ? (ar ? "مرتب حسب الوقت لتشاهد تغطية التشغيل بسرعة." : "Ordered by time so coverage is easy to scan.") : (ar ? "قائمة عملية لكل الورديات والإجراءات." : "A practical list of shifts and actions.")}</p></div><span className="rounded-full bg-muted px-3 py-1.5 text-[10px] font-bold text-muted-foreground">{rows.length} {ar ? "وردية" : "shifts"}</span></div>
-          {shifts.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : shifts.isError ? <p className="p-5 text-sm text-destructive">{humanError(shifts.error, lang)}</p> : !rows.length ? <EmptyShifts ar={ar} /> : viewMode === "timeline" ? <ShiftTimeline rows={rows.slice(0, 20)} assignments={assignments.data ?? []} canManage={canManage} canDelete={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpen={(shift) => setDetailShiftId(shift.id)} onClose={setClosingShift} onDelete={setDeletingShift} /> : <div className="divide-y divide-border">{rows.slice(0, 20).map((shift) => <ShiftRow key={shift.id} shift={shift} assignments={(assignments.data ?? []).filter((row) => row.shift_id === shift.id)} canManage={canManage} canDelete={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpen={() => setDetailShiftId(shift.id)} onClose={() => setClosingShift(shift)} onDelete={() => setDeletingShift(shift)} />)}</div>}
+          {shifts.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : shifts.isError ? <p className="p-5 text-sm text-destructive">{humanError(shifts.error, lang)}</p> : !rows.length ? <EmptyShifts ar={ar} /> : viewMode === "timeline" ? <div className="qs-scroll-region min-h-0 flex-1"><ShiftTimeline rows={rows.slice(0, 20)} assignments={assignments.data ?? []} canManage={canManage} canDelete={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpen={(shift) => setDetailShiftId(shift.id)} onClose={setClosingShift} onDelete={setDeletingShift} /></div> : <div className="qs-scroll-region min-h-0 flex-1 divide-y divide-border">{rows.slice(0, 20).map((shift) => <ShiftRow key={shift.id} shift={shift} assignments={(assignments.data ?? []).filter((row) => row.shift_id === shift.id)} canManage={canManage} canDelete={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpen={() => setDetailShiftId(shift.id)} onClose={() => setClosingShift(shift)} onDelete={() => setDeletingShift(shift)} />)}</div>}
         </div>
 
-        <div className="qs-card overflow-hidden self-start">
+        <div className="qs-card qs-scroll-region min-h-0 overflow-hidden">
           <div className="border-b border-border p-5"><h2 className="qs-section-title">{ar ? "آخر التسليمات" : "Recent handovers"}</h2></div>
           {handovers.isPending ? <div className="p-5"><Skeleton className="h-48 rounded-2xl" /></div> : !(handovers.data ?? []).length ? <div className="p-8 text-center text-xs text-muted-foreground">{ar ? "لا توجد تسليمات بعد." : "No handovers yet."}</div> : <div className="divide-y divide-border">{(handovers.data ?? []).slice(0, 8).map((handover) => <HandoverItem key={handover.id} handover={handover} currentStaffId={membership.id} restaurantId={rid} ar={ar} lang={lang} />)}</div>}
         </div>
@@ -318,22 +318,22 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
     </div>
 
     <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-none gap-0 overflow-hidden p-0 sm:max-w-[720px]">
-        <div className="border-b border-border bg-muted/15 px-5 py-5 sm:px-6">
+      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-none gap-0 overflow-hidden p-0 sm:max-w-[560px]">
+        <div className="border-b border-border bg-muted/15 px-4 py-3.5 sm:px-4">
           <DialogHeader className="space-y-1.5">
-            <DialogTitle className="font-display text-xl font-bold sm:text-2xl">{ar ? "طلب إجازة" : "Request leave"}</DialogTitle>
-            <DialogDescription className="max-w-2xl text-xs leading-5 sm:text-sm">
+            <DialogTitle className="font-display text-base font-bold sm:text-lg">{ar ? "طلب إجازة" : "Request leave"}</DialogTitle>
+            <DialogDescription className="max-w-2xl text-[10px] leading-4">
               {ar ? "حدد بداية ونهاية الإجازة بوضوح، ثم أضف السبب وأرسل الطلب للمراجعة." : "Set the leave start and end clearly, add the reason, then send it for review."}
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        <div className="space-y-5 px-5 py-5 sm:px-6">
+        <div className="space-y-3 px-4 py-3.5">
           <section className="overflow-hidden rounded-2xl border border-border bg-card">
             <div className="grid gap-0 divide-y divide-border">
-              <div className="grid min-w-0 gap-3 p-4 sm:grid-cols-[76px_minmax(0,1.15fr)_minmax(0,.85fr)] sm:items-end">
+              <div className="grid min-w-0 gap-2 p-3 sm:grid-cols-[58px_minmax(0,1.1fr)_minmax(0,.9fr)] sm:items-end">
                 <div className="flex items-center gap-2 self-center text-xs font-black uppercase tracking-[.08em] text-muted-foreground sm:pb-3">
-                  <span className="grid size-8 place-items-center rounded-lg bg-orange-500/10 text-[#ff5a0a]"><CalendarDays className="size-4"/></span>
+                  <span className="grid size-7 place-items-center rounded-[8px] bg-orange-500/10 text-[#ff5a0a]"><CalendarDays className="size-4"/></span>
                   <span>{ar ? "من" : "From"}</span>
                 </div>
                 <Field label={ar ? "التاريخ" : "Date"} className="min-w-0">
@@ -342,7 +342,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
                     value={leaveStart}
                     onChange={e=>{const next=e.target.value;setLeaveStart(next);if(leaveEnd<next)setLeaveEnd(next);}}
                     onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()}
-                    className="h-12 min-w-0 w-full cursor-pointer rounded-xl px-3 text-sm font-semibold"
+                    className="h-9 min-w-0 w-full cursor-pointer rounded-[9px] px-2.5 text-xs font-semibold"
                   />
                 </Field>
                 <Field label={ar ? "الوقت" : "Time"} className="min-w-0">
@@ -351,14 +351,14 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
                     value={leaveStartTime}
                     onChange={e=>setLeaveStartTime(e.target.value)}
                     onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()}
-                    className="h-12 min-w-0 w-full cursor-pointer rounded-xl px-3 text-sm font-semibold"
+                    className="h-9 min-w-0 w-full cursor-pointer rounded-[9px] px-2.5 text-xs font-semibold"
                   />
                 </Field>
               </div>
 
-              <div className="grid min-w-0 gap-3 p-4 sm:grid-cols-[76px_minmax(0,1.15fr)_minmax(0,.85fr)] sm:items-end">
+              <div className="grid min-w-0 gap-2 p-3 sm:grid-cols-[58px_minmax(0,1.1fr)_minmax(0,.9fr)] sm:items-end">
                 <div className="flex items-center gap-2 self-center text-xs font-black uppercase tracking-[.08em] text-muted-foreground sm:pb-3">
-                  <span className="grid size-8 place-items-center rounded-lg bg-blue-500/10 text-blue-600"><Clock3 className="size-4"/></span>
+                  <span className="grid size-7 place-items-center rounded-[8px] bg-blue-500/10 text-blue-600"><Clock3 className="size-4"/></span>
                   <span>{ar ? "إلى" : "To"}</span>
                 </div>
                 <Field label={ar ? "التاريخ" : "Date"} className="min-w-0">
@@ -368,7 +368,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
                     value={leaveEnd}
                     onChange={e=>setLeaveEnd(e.target.value)}
                     onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()}
-                    className="h-12 min-w-0 w-full cursor-pointer rounded-xl px-3 text-sm font-semibold"
+                    className="h-9 min-w-0 w-full cursor-pointer rounded-[9px] px-2.5 text-xs font-semibold"
                   />
                 </Field>
                 <Field label={ar ? "الوقت" : "Time"} className="min-w-0">
@@ -378,7 +378,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
                     value={leaveEndTime}
                     onChange={e=>setLeaveEndTime(e.target.value)}
                     onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()}
-                    className="h-12 min-w-0 w-full cursor-pointer rounded-xl px-3 text-sm font-semibold"
+                    className="h-9 min-w-0 w-full cursor-pointer rounded-[9px] px-2.5 text-xs font-semibold"
                   />
                 </Field>
               </div>
@@ -397,14 +397,14 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
               value={leaveReason}
               onChange={e=>setLeaveReason(e.target.value)}
               placeholder={ar ? "اكتب سبب الإجازة باختصار..." : "Briefly explain the reason for leave..."}
-              className="min-h-[116px] w-full resize-y rounded-xl"
+              className="min-h-[72px] w-full resize-y rounded-[9px]"
             />
           </Field>
         </div>
 
-        <DialogFooter className="border-t border-border bg-muted/10 px-5 py-4 sm:px-6">
-          <Button variant="outline" className="min-w-24" onClick={()=>setLeaveOpen(false)}>{ar ? "إلغاء" : "Cancel"}</Button>
-          <Button className="min-w-28" disabled={submitLeave.isPending||leaveWindowInvalid} onClick={()=>submitLeave.mutate()}>
+        <DialogFooter className="border-t border-border bg-muted/10 px-4 py-3">
+          <Button variant="outline" className="min-w-20" onClick={()=>setLeaveOpen(false)}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button className="min-w-24" disabled={submitLeave.isPending||leaveWindowInvalid} onClick={()=>submitLeave.mutate()}>
             {submitLeave.isPending ? (ar ? "جارٍ الإرسال…" : "Submitting…") : (ar ? "إرسال الطلب" : "Submit request")}
           </Button>
         </DialogFooter>
