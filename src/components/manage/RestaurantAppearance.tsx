@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, CheckCircle2, Clock3, History, RotateCcw, Save, Send } from "lucide-react";
+import { CalendarClock, CheckCircle2, Clock3, History, RotateCcw, Save, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useRestaurant, type RestaurantRow } from "@/hooks/useSuperAdmin";
@@ -176,6 +176,23 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
     onError: (error) => toast.error(humanError(error, lang)),
   });
 
+  const deleteVersion = useMutation({
+    mutationFn: async (version: DesignVersion) => {
+      if (version.status === "published") throw new Error("The live published version cannot be deleted.");
+      const confirmed = window.confirm(ar ? `حذف الإصدار v${version.version_number} نهائياً؟` : `Delete version v${version.version_number} permanently?`);
+      if (!confirmed) return "cancelled";
+      const { error } = await (supabase as any).rpc("delete_menu_design_version", { _version_id: version.id });
+      if (error) throw error;
+      return "deleted";
+    },
+    onSuccess: async (result) => {
+      if (result !== "deleted") return;
+      await refreshAfterLifecycleChange();
+      toast.success(ar ? "تم حذف الإصدار" : "Design version deleted");
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
   const cancelSchedule = useMutation({
     mutationFn: async (versionId: string) => {
       const { error } = await (supabase as any).rpc("cancel_scheduled_menu_design", { _version_id: versionId });
@@ -190,7 +207,7 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
     publishNow.mutate();
   }
 
-  const busy = saveDraft.isPending || publishNow.isPending || schedule.isPending || rollback.isPending || cancelSchedule.isPending;
+  const busy = saveDraft.isPending || publishNow.isPending || schedule.isPending || rollback.isPending || cancelSchedule.isPending || deleteVersion.isPending;
 
   return (
     <form onSubmit={submitPublish} className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -232,9 +249,10 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
                     </p>
                     {version.scheduled_for ? <p className="mt-1 text-[10px] text-blue-700">{ar ? "موعد النشر: " : "Publishes: "}{new Date(version.scheduled_for).toLocaleString(ar ? "ar-JO" : "en-US")}</p> : null}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {version.status === "scheduled" ? <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => cancelSchedule.mutate(version.id)}>{ar ? "إلغاء الجدولة" : "Unschedule"}</Button> : null}
                     {version.status === "archived" || version.status === "published" ? <Button type="button" size="sm" variant="outline" disabled={busy || version.status === "published"} onClick={() => rollback.mutate(version.id)}><RotateCcw className="size-3" />{ar ? "استعادة" : "Restore"}</Button> : null}
+                    {version.status !== "published" ? <Button type="button" size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" disabled={busy} onClick={() => deleteVersion.mutate(version)}><Trash2 className="size-3" />{ar ? "حذف" : "Delete"}</Button> : null}
                   </div>
                 </div>
               ))}
