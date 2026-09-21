@@ -16,24 +16,26 @@ export function MasterPageHeader({
   tabs?: ReactNode;
 }) {
   return (
-    <section className="qs-master-header overflow-hidden rounded-[16px] border border-border bg-card shadow-[var(--qs-shadow-1)]">
-      <div className="flex flex-col gap-3 p-4 sm:p-5 xl:flex-row xl:items-end xl:justify-between">
-        <div className="min-w-0 max-w-3xl">
-          {eyebrow ? <div className="mb-2">{eyebrow}</div> : null}
-          <h1 className="qs-page-title">{title}</h1>
-          {description ? <p className="qs-page-subtitle">{description}</p> : null}
+    <section className="qs-master-header overflow-hidden rounded-[11px] border border-border bg-card shadow-[var(--qs-shadow-1)]">
+      <div className="flex min-w-0 flex-col gap-2 px-3 py-2.5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            {eyebrow ? <div className="hidden shrink-0 2xl:block">{eyebrow}</div> : null}
+            <h1 className="qs-page-title truncate">{title}</h1>
+          </div>
+          {description ? <p className="qs-page-subtitle truncate">{description}</p> : null}
         </div>
-        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-1.5">{actions}</div> : null}
       </div>
-      {tabs ? <div className="border-t border-border/80 px-3 py-1.5 sm:px-4">{tabs}</div> : null}
+      {tabs ? <div className="border-t border-border/80 px-2.5 py-1">{tabs}</div> : null}
     </section>
   );
 }
 
 export function MasterEyebrow({ icon: Icon, children }: { icon?: ElementType; children: ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-200/70 bg-orange-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.15em] text-[#dc4c07] dark:border-orange-900/45 dark:bg-orange-950/20 dark:text-orange-300">
-      {Icon ? <Icon className="size-3" /> : null}
+    <span className="inline-flex items-center gap-1 rounded-full border border-orange-200/70 bg-orange-50 px-2 py-0.5 text-[8px] font-black uppercase tracking-[.12em] text-[#dc4c07] dark:border-orange-900/45 dark:bg-orange-950/20 dark:text-orange-300">
+      {Icon ? <Icon className="size-2.5" /> : null}
       {children}
     </span>
   );
@@ -64,18 +66,18 @@ export function MasterKpi({
   }[tone];
 
   return (
-    <article className="qs-kpi-card group min-w-0 rounded-[13px] border border-border bg-card p-3.5 shadow-[var(--qs-shadow-1)] transition duration-150 hover:border-orange-200 sm:p-4">
-      <div className="flex items-start justify-between gap-3">
-        <span className={cn("grid size-9 shrink-0 place-items-center rounded-[11px]", toneClass)}>
-          <Icon className="size-4" />
-        </span>
-        {action}
+    <article className="qs-kpi-card group flex min-h-[62px] min-w-0 items-center gap-2.5 rounded-[10px] border border-border bg-card px-2.5 py-2 shadow-[var(--qs-shadow-1)] transition duration-150 hover:border-orange-200">
+      <span className={cn("grid size-8 shrink-0 place-items-center rounded-[9px]", toneClass)}>
+        <Icon className="size-3.5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[9px] font-bold uppercase tracking-[.035em] text-muted-foreground">{label}</p>
+        <div className="mt-0.5 flex min-w-0 items-baseline gap-2">
+          <p className="truncate font-display text-[clamp(1.05rem,1.35vw,1.35rem)] font-bold tracking-[-.035em]">{value}</p>
+          {hint ? <p className="min-w-0 truncate text-[8.5px] text-muted-foreground">{hint}</p> : null}
+        </div>
       </div>
-      <div className="mt-3 min-w-0">
-        <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
-        <p className="mt-1 truncate font-display text-[clamp(1.35rem,1.65vw,1.75rem)] font-bold tracking-[-.04em]">{value}</p>
-        {hint ? <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{hint}</p> : null}
-      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
     </article>
   );
 }
@@ -96,17 +98,17 @@ export function MasterSection({
   contentClassName?: string;
 }) {
   return (
-    <section className={cn("overflow-hidden rounded-[16px] border border-border bg-card shadow-[var(--qs-shadow-1)]", className)}>
+    <section className={cn("overflow-hidden rounded-[11px] border border-border bg-card shadow-[var(--qs-shadow-1)]", className)}>
       {title || action ? (
-        <div className="flex flex-col gap-2.5 border-b border-border px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+        <div className="flex flex-col gap-2 border-b border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             {title ? <h2 className="qs-section-title">{title}</h2> : null}
-            {description ? <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{description}</p> : null}
+            {description ? <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">{description}</p> : null}
           </div>
           {action ? <div className="shrink-0">{action}</div> : null}
         </div>
       ) : null}
-      <div className={cn("p-3.5 sm:p-4", contentClassName)}>{children}</div>
+      <div className={cn("p-3", contentClassName)}>{children}</div>
     </section>
   );
 }
@@ -120,7 +122,7 @@ export function MasterTabs({
     <div className="flex flex-wrap gap-1.5">
       {items.map((item, index) => {
         const className = cn(
-          "inline-flex min-h-9 items-center rounded-[10px] px-3 text-xs font-bold transition",
+          "inline-flex min-h-8 items-center rounded-[8px] px-2.5 text-[11px] font-bold transition",
           item.active ? "bg-[#ff5a0a] text-white shadow-[0_3px_10px_rgba(255,90,10,.14)]" : "text-muted-foreground hover:bg-[#fff1e8] hover:text-[#e94d00]",
         );
         if (item.href) {
@@ -147,5 +149,5 @@ export function MasterStatus({
     purple: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
     slate: "bg-muted text-muted-foreground",
   }[tone];
-  return <span className={cn("inline-flex min-h-6 items-center rounded-full px-2.5 py-1 text-[10px] font-bold", className)}>{children}</span>;
+  return <span className={cn("inline-flex min-h-5 items-center rounded-full px-2 py-0.5 text-[9px] font-bold", className)}>{children}</span>;
 }
