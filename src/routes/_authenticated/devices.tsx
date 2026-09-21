@@ -154,7 +154,7 @@ function DevicesPage(){
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"الأجهزة والهاردوير":"Devices & Hardware"}/>
-    <main className="qs-page qs-compact-page space-y-4">
+    <main className="qs-page qs-compact-page qs-viewport-page">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={Cpu}>{ar?"صحة التشغيل":"Operational Health"}</MasterEyebrow>}
         title={ar?"مركز الأجهزة والهاردوير":"Devices & Hardware Center"}
@@ -168,7 +168,7 @@ function DevicesPage(){
         <MasterKpi icon={Printer} label={ar?"طابعات مفعلة":"Active Printers"} value={String(printerRows.filter(row=>row.is_active).length)} hint={ar?`${printerRows.length} طابعة معرفة`:`${printerRows.length} configured`} tone="purple"/>
       </section>
 
-      <section className="grid gap-3 xl:grid-cols-[300px_minmax(0,1fr)]">
+      <section className="qs-viewport-fill grid min-h-0 gap-3 overflow-hidden xl:grid-cols-[260px_minmax(0,1fr)]">
         <article className="qs-card p-4">
           <div className="flex items-start gap-3"><span className="grid size-9 place-items-center rounded-[10px] bg-orange-500/10 text-[#ff5a0a]"><TabletSmartphone className="size-4"/></span><div><h2 className="font-display text-lg font-bold">{ar?"تسجيل هذا الجهاز":"Register this device"}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar?"يسمح لـ QuickServe بإرسال نبضة صحة من هذا المتصفح ومراقبة توفره.":"Lets QuickServe heartbeat this browser and monitor its availability."}</p></div></div>
           <div className="mt-3 space-y-2.5">
@@ -189,9 +189,9 @@ function DevicesPage(){
           {newToken?<div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900/50 dark:bg-amber-950/10"><strong className="text-xs">{ar?"رمز الجهاز يظهر مرة واحدة":"Device token — shown once"}</strong><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{ar?"تم حفظه تلقائياً في هذا المتصفح. انسخه فقط إذا كنت تحتاجه للتشخيص.":"It is already saved in this browser. Copy it only if needed for diagnostics."}</p><div className="mt-2 flex gap-2"><code className="min-w-0 flex-1 break-all rounded-lg bg-background p-2 text-[10px]">{newToken}</code><Button size="sm" variant="outline" onClick={()=>void copyToken()}><Copy className="size-3"/></Button></div></div>:null}
         </article>
 
-        <article className="qs-card overflow-hidden">
+        <article className="qs-card flex min-h-0 flex-col overflow-hidden">
           <div className="flex items-center justify-between gap-3 border-b border-border p-4"><div><h2 className="qs-section-title">{ar?"الأجهزة المسجلة":"Registered devices"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"Online = نبضة صحة حديثة.":"Online means a recent successful heartbeat."}</p></div><Button variant="outline" size="sm" onClick={()=>qc.invalidateQueries({queryKey:["restaurant-devices",rid]})}><RefreshCw className="size-3.5"/>{ar?"تحديث":"Refresh"}</Button></div>
-          {devices.isPending?<div className="p-5"><Skeleton className="h-72 rounded-xl"/></div>:rows.length===0?<div className="grid min-h-56 place-items-center text-center"><div><MonitorSmartphone className="mx-auto size-9 text-muted-foreground"/><p className="mt-3 text-sm text-muted-foreground">{ar?"لم يتم تسجيل أجهزة بعد.":"No devices registered yet."}</p></div></div>:<div className="max-h-[calc(100dvh-430px)] divide-y divide-border overflow-y-auto">{rows.map(row=>{
+          {devices.isPending?<div className="p-5"><Skeleton className="h-72 rounded-xl"/></div>:rows.length===0?<div className="grid min-h-56 place-items-center text-center"><div><MonitorSmartphone className="mx-auto size-9 text-muted-foreground"/><p className="mt-3 text-sm text-muted-foreground">{ar?"لم يتم تسجيل أجهزة بعد.":"No devices registered yet."}</p></div></div>:<div className="qs-scroll-region min-h-0 flex-1 divide-y divide-border">{rows.map(row=>{
             const isOnline=Boolean(row.is_active&&row.last_seen_at&&now-new Date(row.last_seen_at).getTime()<150_000);
             const isCurrent=row.id===currentDeviceId||row.id===newDeviceId;
             return <div key={row.id} className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:justify-between">
@@ -205,8 +205,8 @@ function DevicesPage(){
         </article>
       </section>
 
-      <article className="qs-card overflow-hidden">
-        <div className="border-b border-border p-4"><div className="flex items-center gap-2"><Printer className="size-5 text-[#ff5a0a]"/><h2 className="qs-section-title">{ar?"طابعات المطبخ":"Kitchen printers"}</h2></div><p className="mt-1 text-xs text-muted-foreground">{ar?"تعريفات الطباعة الحالية المرتبطة بمحطات KDS.":"Current printer definitions and KDS station mappings."}</p></div>
+      <article className="qs-card shrink-0 overflow-hidden">
+        <div className="border-b border-border p-3"><div className="flex items-center gap-2"><Printer className="size-5 text-[#ff5a0a]"/><h2 className="qs-section-title">{ar?"طابعات المطبخ":"Kitchen printers"}</h2></div><p className="mt-1 text-xs text-muted-foreground">{ar?"تعريفات الطباعة الحالية المرتبطة بمحطات KDS.":"Current printer definitions and KDS station mappings."}</p></div>
         {printers.isPending?<div className="p-5"><Skeleton className="h-40 rounded-xl"/></div>:printerRows.length===0?<div className="p-8 text-center text-sm text-muted-foreground">{ar?"لا توجد طابعات معرفة.":"No printers configured."}</div>:<div className="grid gap-2.5 p-3.5 md:grid-cols-2 xl:grid-cols-3">{printerRows.map(row=><div key={row.id} className="rounded-2xl border border-border bg-muted/15 p-4"><div className="flex items-start justify-between gap-3"><span className="grid size-10 place-items-center rounded-xl bg-muted"><Printer className="size-4"/></span><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold",row.is_active?"bg-emerald-500/10 text-emerald-700":"bg-muted text-muted-foreground")}>{row.is_active?(ar?"مفعلة":"Active"):(ar?"معطلة":"Disabled")}</span></div><strong className="mt-3 block text-sm">{row.name}</strong><p className="mt-1 text-[10px] text-muted-foreground">{row.provider} · {row.purpose}{row.kitchen_station_id?` · ${stationMap.get(row.kitchen_station_id)??"Station"}`:""}</p>{row.endpoint?<p className="mt-1 truncate text-[10px] text-muted-foreground">{row.endpoint}</p>:null}</div>)}</div>}
       </article>
     </main>
