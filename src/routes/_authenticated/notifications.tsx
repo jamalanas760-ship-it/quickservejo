@@ -139,7 +139,7 @@ function NotificationsPage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "الإشعارات" : "Notifications"} />
-    <main className="qs-page qs-compact-page space-y-4">
+    <main className="qs-page qs-compact-page qs-viewport-page">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={Bell}>{ar ? "مركز التنبيهات" : "Operational inbox"}</MasterEyebrow>}
         title={ar ? "ما يحتاج انتباهك الآن" : "What needs your attention"}
@@ -156,7 +156,7 @@ function NotificationsPage() {
 
       {openOrders > 0 ? <section className="qs-card flex flex-col gap-4 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/50 dark:bg-amber-950/10 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-amber-500/10 text-amber-700"><ClipboardList className="size-4" /></span><div><strong className="text-sm">{ar ? "طلبات مفتوحة تحتاج متابعة" : "Open orders need attention"}</strong><p className="mt-1 text-xs text-muted-foreground">{ar ? `${openOrders} طلب مفتوح حالياً.` : `${openOrders} open order${openOrders === 1 ? "" : "s"} currently in service.`}</p></div></div><Button asChild size="sm" variant="outline"><Link to="/dashboard">{ar ? "عرض الطلبات" : "View orders"}</Link></Button></section> : null}
 
-      <section className="qs-card overflow-hidden">
+      <section className="qs-card qs-viewport-fill flex min-h-0 flex-col overflow-hidden">
         <div className="border-b border-border p-3.5 sm:p-4">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div><h2 className="qs-section-title">{ar ? "مركز الإشعارات" : "Notification center"}</h2><p className="mt-1 text-[11px] text-muted-foreground">{ar ? "ابحث وصنّف التنبيهات بدون مغادرة الصفحة." : "Search and filter alerts without leaving the workspace."}</p></div>
@@ -166,7 +166,7 @@ function NotificationsPage() {
             {filterItems.map((item)=><button key={item.id} type="button" onClick={()=>setFilter(item.id)} className={cn("shrink-0 rounded-lg px-2.5 py-1.5 text-[10px] font-bold transition",filter===item.id?"bg-foreground text-background":"bg-muted/55 text-muted-foreground hover:text-foreground")}>{ar?item.ar:item.en}</button>)}
           </div>
         </div>
-        {feed.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : feed.isError ? <div className="p-8 text-center"><Info className="mx-auto size-7 text-destructive" /><p className="mt-3 text-sm text-destructive">{humanError(feed.error, lang)}</p></div> : filteredRows.length === 0 ? <div className="grid min-h-[220px] place-items-center p-8 text-center"><div><span className="mx-auto grid size-11 place-items-center rounded-2xl bg-muted text-muted-foreground"><Bell className="size-5" /></span><h3 className="mt-3 font-bold">{rows.length ? (ar ? "لا توجد نتائج" : "No matching notifications") : (ar ? "صندوقك هادئ" : "Your inbox is clear")}</h3><p className="mt-1 text-xs text-muted-foreground">{rows.length ? (ar ? "غيّر الفلتر أو عبارة البحث." : "Try another filter or search phrase.") : (ar ? "ستظهر هنا المهام والتنبيهات الجديدة الموجهة لك." : "New tasks and alerts assigned to you will appear here.")}</p></div></div> : <div className="max-h-[min(56dvh,560px)] divide-y divide-border overflow-y-auto">{filteredRows.map((row) => <NotificationItem key={row.id} row={row} ar={ar} busy={markRead.isPending} onRead={() => markRead.mutate([row.id])} />)}</div>}
+        {feed.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : feed.isError ? <div className="p-8 text-center"><Info className="mx-auto size-7 text-destructive" /><p className="mt-3 text-sm text-destructive">{humanError(feed.error, lang)}</p></div> : filteredRows.length === 0 ? <div className="grid min-h-[220px] place-items-center p-8 text-center"><div><span className="mx-auto grid size-11 place-items-center rounded-2xl bg-muted text-muted-foreground"><Bell className="size-5" /></span><h3 className="mt-3 font-bold">{rows.length ? (ar ? "لا توجد نتائج" : "No matching notifications") : (ar ? "صندوقك هادئ" : "Your inbox is clear")}</h3><p className="mt-1 text-xs text-muted-foreground">{rows.length ? (ar ? "غيّر الفلتر أو عبارة البحث." : "Try another filter or search phrase.") : (ar ? "ستظهر هنا المهام والتنبيهات الجديدة الموجهة لك." : "New tasks and alerts assigned to you will appear here.")}</p></div></div> : <div className="qs-scroll-region min-h-0 flex-1 divide-y divide-border">{filteredRows.map((row) => <NotificationItem key={row.id} row={row} ar={ar} busy={markRead.isPending} onRead={() => markRead.mutate([row.id])} />)}</div>}
       </section>
     </main>
   </div>;
