@@ -27,9 +27,9 @@
   --qs-shadow-1: 0 1px 2px rgb(20 32 51 / .025), 0 6px 20px rgb(20 32 51 / .035);
   --qs-shadow-2: 0 2px 5px rgb(20 32 51 / .04), 0 14px 34px rgb(20 32 51 / .065);
   --qs-shadow-3: 0 18px 70px rgb(20 32 51 / .14);
-  --qs-shell-topbar: 66px;
-  --qs-shell-sidebar: 224px;
-  --qs-content-max: 1640px;
+  --qs-shell-topbar: 60px;
+  --qs-shell-sidebar: 208px;
+  --qs-content-max: 1760px;
 }
 
 .dark {
@@ -43,6 +43,7 @@
 }
 
 @layer base {
+  html, body { overflow-x: hidden; }
   body {
     background: var(--qs-canvas);
     color: var(--qs-ink);
@@ -65,6 +66,7 @@
   .qs-route-frame {
     min-width: 0;
     min-height: calc(100dvh - var(--qs-shell-topbar));
+    overflow-x: clip;
   }
 
   /* Shell */
@@ -110,15 +112,15 @@
 
   .qs-sidebar-item {
     display: flex;
-    min-height: 43px !important;
+    min-height: 39px !important;
     align-items: center;
-    gap: .7rem !important;
+    gap: .58rem !important;
     margin-block: 2px;
-    padding: .58rem .72rem !important;
+    padding: .48rem .65rem !important;
     border: 1px solid transparent !important;
     border-radius: 11px !important;
     color: #667085 !important;
-    font-size: .79rem !important;
+    font-size: .76rem !important;
     font-weight: 680 !important;
     transition: background-color .14s ease, color .14s ease, border-color .14s ease !important;
   }
@@ -152,14 +154,15 @@
   .qs-page {
     width: min(100%, var(--qs-content-max)) !important;
     margin-inline: auto !important;
-    padding: 24px 24px 104px !important;
+    padding: 16px 18px 72px !important;
   }
 
+  .qs-page { overflow-x: clip; }
   .qs-page > * { min-width: 0; }
 
   .qs-page-title {
     font-family: var(--font-display);
-    font-size: clamp(1.78rem, 2.25vw, 2.5rem) !important;
+    font-size: clamp(1.62rem, 1.9vw, 2.15rem) !important;
     line-height: 1.04 !important;
     font-weight: 800 !important;
     letter-spacing: -.045em !important;
@@ -172,10 +175,10 @@
 
   .qs-page-subtitle {
     max-width: 760px;
-    margin-top: .45rem;
+    margin-top: .3rem;
     color: #717986 !important;
-    font-size: .84rem !important;
-    line-height: 1.65 !important;
+    font-size: .78rem !important;
+    line-height: 1.5 !important;
   }
 
   .qs-section-title {
@@ -212,7 +215,7 @@
   }
 
   .qs-panel-header {
-    padding: 15px 17px !important;
+    padding: 11px 14px !important;
     border-bottom: 1px solid var(--qs-stroke) !important;
     background: var(--qs-surface) !important;
   }
@@ -238,12 +241,12 @@
   .qs-button-primary,
   .qs-button-secondary {
     display: inline-flex;
-    min-height: 42px;
+    min-height: 38px;
     align-items: center;
     justify-content: center;
     gap: .5rem;
     border-radius: 11px !important;
-    padding-inline: 15px;
+    padding-inline: 13px;
     font-size: 12px;
     font-weight: 760;
   }
@@ -319,10 +322,10 @@
 
   .qs-table thead th,
   .qs-app table thead th {
-    height: 42px;
+    height: 38px;
     border-bottom: 1px solid var(--qs-stroke) !important;
     background: #fbfaf8 !important;
-    padding: 10px 13px !important;
+    padding: 8px 11px !important;
     color: #7b8492 !important;
     font-size: 10px !important;
     font-weight: 760 !important;
@@ -333,7 +336,7 @@
   .qs-table tbody td,
   .qs-app table tbody td {
     border-bottom: 1px solid #f0ece7 !important;
-    padding: 12px 13px !important;
+    padding: 9px 11px !important;
     font-size: 12px;
   }
 
@@ -431,12 +434,12 @@
   .qs-empty,
   .qs-empty-state {
     display: grid;
-    min-height: 220px;
+    min-height: 170px;
     place-items: center;
     border: 1px dashed #d9d2c9;
     border-radius: 16px;
     background: #fbfaf8;
-    padding: 28px;
+    padding: 20px;
     text-align: center;
   }
 
@@ -458,13 +461,13 @@
 
   /* Desktop route shells apply their own sidebar offset; keep this layer visual-only. */
   @media (max-width: 1279px) {
-    :root { --qs-shell-sidebar: 212px; }
-    .qs-page { padding-inline: 20px !important; }
+    :root { --qs-shell-sidebar: 200px; }
+    .qs-page { padding-inline: 16px !important; }
   }
 
   @media (max-width: 1023px) {
     :root {
-      --qs-shell-topbar: 62px;
+      --qs-shell-topbar: 58px;
       --qs-shell-sidebar: 0px;
     }
 
@@ -674,20 +677,20 @@
 
   @media (min-width: 1024px) {
     .qs-page.qs-compact-page {
-      padding: 16px 18px 52px !important;
+      padding: 12px 14px 28px !important;
     }
 
     .qs-compact-page.space-y-5 > :not([hidden]) ~ :not([hidden]) {
-      margin-top: 14px !important;
+      margin-top: 10px !important;
     }
 
     .qs-compact-page .qs-master-header > div:first-child {
-      gap: 12px !important;
-      padding: 15px 18px !important;
+      gap: 10px !important;
+      padding: 11px 14px !important;
     }
 
     .qs-compact-page .qs-page-title {
-      font-size: clamp(1.55rem, 1.8vw, 2.05rem) !important;
+      font-size: clamp(1.5rem, 1.65vw, 1.95rem) !important;
       line-height: 1.02 !important;
     }
 
@@ -698,18 +701,18 @@
     }
 
     .qs-compact-page .qs-kpi-card {
-      min-height: 124px;
-      padding: 13px !important;
+      min-height: 96px;
+      padding: 11px !important;
     }
 
     .qs-compact-page .qs-kpi-card > div:first-child > span {
-      width: 36px !important;
-      height: 36px !important;
+      width: 32px !important;
+      height: 32px !important;
       border-radius: 11px !important;
     }
 
     .qs-compact-page .qs-kpi-card > div:last-child {
-      margin-top: 12px !important;
+      margin-top: 8px !important;
     }
 
     .qs-compact-page .qs-kpi-card p {
@@ -744,6 +747,89 @@
     .qs-compact-page :is(.p-5, .sm\:p-5) {
       /* keep component authors in control; compact pages are primarily reduced by shell/header/KPI rhythm */
     }
+  }
+
+  @media (min-width: 1024px) {
+    .qs-compact-page > .grid { gap: 10px !important; }
+    .qs-compact-page .qs-card,
+    .qs-compact-page .panel,
+    .qs-compact-page .qs-stat { border-radius: 13px !important; }
+
+    .qs-compact-page :is(input, textarea, select, [role="combobox"]) {
+      min-height: 40px !important;
+    }
+
+    .qs-compact-page button:not([role="switch"]) svg,
+    .qs-compact-page a svg {
+      max-width: 18px;
+      max-height: 18px;
+    }
+
+    .qs-compact-page .qs-table thead th,
+    .qs-compact-page table thead th {
+      height: 36px;
+      padding-block: 7px !important;
+    }
+
+    .qs-compact-page .qs-table tbody td,
+    .qs-compact-page table tbody td {
+      padding-block: 8px !important;
+    }
+
+    .qs-workflow-board {
+      max-height: calc(100dvh - 310px);
+      overflow: hidden;
+    }
+
+    .qs-workflow-board > section {
+      display: flex;
+      min-height: 0;
+      flex-direction: column;
+    }
+
+    .qs-workflow-board > section > div:last-child {
+      min-height: 0;
+      overflow-y: auto;
+      padding-inline-end: 2px;
+      scrollbar-width: thin;
+    }
+  }
+
+  .dark .qs-button-secondary,
+  .dark .qs-chip,
+  .dark [data-qs-chip],
+  .dark .qs-soft-card,
+  .dark .qs-empty,
+  .dark .qs-empty-state,
+  .dark .qs-live-photo,
+  .dark .qs-photo-banner {
+    background: var(--qs-surface-soft) !important;
+    color: var(--foreground) !important;
+    border-color: var(--qs-stroke) !important;
+  }
+
+  .dark .qs-button-secondary:hover {
+    background: #232a33 !important;
+  }
+
+  .dark .qs-live-badge {
+    background: rgb(32 167 100 / .12) !important;
+    color: #7dd8a8 !important;
+  }
+
+  .dark .qs-app nav.safe-bottom > div {
+    background: rgb(24 29 36 / .96) !important;
+    border-color: var(--qs-stroke) !important;
+    box-shadow: 0 10px 34px rgb(0 0 0 / .28) !important;
+  }
+
+  .dark .qs-app nav.safe-bottom a {
+    color: #a9b2bf;
+  }
+
+  .dark .qs-section-title,
+  .dark .qs-page-subtitle {
+    color: var(--qs-ink-soft) !important;
   }
 
   @media (min-width: 1280px) {
