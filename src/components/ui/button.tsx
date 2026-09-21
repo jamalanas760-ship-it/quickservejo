@@ -5,16 +5,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[13px] text-[13px] font-bold cursor-pointer transition-[transform,box-shadow,background-color,color,border-color] duration-150 active:scale-[.985] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-[12.5px] font-[750] cursor-pointer transition-[transform,box-shadow,background-color,color,border-color] duration-150 active:scale-[.985] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ff5a0a]/10 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "border border-[#ff5a0a] bg-[#ff5a0a] text-white shadow-[0_5px_14px_rgba(255,90,10,.14)] hover:-translate-y-px hover:border-[#e94d00] hover:bg-[#e94d00] hover:shadow-[0_8px_20px_rgba(255,90,10,.18)]",
+          "border border-[#ff5a0a] bg-[#ff5a0a] text-white shadow-[0_4px_12px_rgba(255,90,10,.12)] hover:-translate-y-px hover:border-[#e94d00] hover:bg-[#e94d00] hover:shadow-[0_7px_18px_rgba(255,90,10,.16)]",
         destructive:
           "border border-red-600 bg-red-600 text-white shadow-sm hover:-translate-y-px hover:border-red-700 hover:bg-red-700",
         outline:
-          "border border-border bg-card text-foreground shadow-[0_1px_2px_rgba(15,23,42,.02)] hover:-translate-y-px hover:border-foreground/15 hover:bg-muted/55",
+          "border border-border bg-card text-foreground shadow-[0_1px_2px_rgba(15,23,42,.025)] hover:-translate-y-px hover:border-foreground/15 hover:bg-muted/45",
         secondary:
           "border border-transparent bg-muted text-foreground hover:bg-muted/75",
         ghost:
@@ -23,9 +23,9 @@ const buttonVariants = cva(
           "h-auto rounded-none border-0 p-0 text-primary shadow-none underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-11 px-4",
-        sm: "h-9 rounded-xl px-3 text-xs",
-        lg: "h-12 rounded-[14px] px-5 text-sm",
+        default: "h-10.5 px-4",
+        sm: "h-9 rounded-[11px] px-3 text-[11.5px]",
+        lg: "h-12 rounded-[13px] px-5 text-[13px]",
         icon: "size-10",
       },
     },
