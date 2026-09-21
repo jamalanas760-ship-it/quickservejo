@@ -1,13 +1,14 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bell, CheckCheck, ClipboardList, Info, ShieldCheck, TimerReset, UsersRound } from "lucide-react";
+import { Bell, CheckCheck, ClipboardList, Info, Search, ShieldCheck, TimerReset, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceReport, useWorkspaceScope } from "@/hooks/useWorkspace";
 import { operationalCountersKey, type OperationalCounters } from "@/hooks/useOperationalCounters";
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/notifications")({
 });
 
 type NotificationKind = "task" | "approval" | "handover" | "shift" | "alert" | "system";
+type NotificationFilter = "all" | "unread" | "orders" | "reservations" | "team" | "approvals" | "system" | "finance";
 type NotificationRow = {
   id: string;
   restaurant_id: string;
@@ -52,6 +54,8 @@ function NotificationsPage() {
   const report = useWorkspaceReport(scope.restaurantId);
   const qc = useQueryClient();
   const rid = scope.restaurantId;
+  const [filter, setFilter] = useState<NotificationFilter>("all");
+  const [search, setSearch] = useState("");
 
   const feed = useQuery<NotificationRow[]>({
     queryKey: ["notifications", rid],
@@ -100,6 +104,35 @@ function NotificationsPage() {
     alerts: rows.filter((row) => row.kind === "alert" && !row.read_at).length,
   }), [rows, unreadRows.length]);
 
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((row) => {
+      const source = (row.source_type ?? "").toLowerCase();
+      const matchesFilter = filter === "all"
+        || (filter === "unread" && !row.read_at)
+        || (filter === "approvals" && row.kind === "approval")
+        || (filter === "team" && ["shift", "handover"].includes(row.kind))
+        || (filter === "system" && row.kind === "system")
+        || (filter === "orders" && source.includes("order"))
+        || (filter === "reservations" && ["booking", "reservation", "waitlist"].some((key) => source.includes(key)))
+        || (filter === "finance" && ["finance", "invoice", "expense", "procurement", "inventory"].some((key) => source.includes(key)));
+      if (!matchesFilter) return false;
+      if (!q) return true;
+      return [row.title, row.body, row.source_type, row.kind].some((value) => value?.toLowerCase().includes(q));
+    });
+  }, [rows, filter, search]);
+
+  const filterItems: Array<{ id: NotificationFilter; en: string; ar: string }> = [
+    { id: "all", en: "All", ar: "الكل" },
+    { id: "unread", en: "Unread", ar: "غير مقروء" },
+    { id: "orders", en: "Orders", ar: "الطلبات" },
+    { id: "reservations", en: "Reservations", ar: "الحجوزات" },
+    { id: "team", en: "Team", ar: "الفريق" },
+    { id: "approvals", en: "Approvals", ar: "الموافقات" },
+    { id: "system", en: "System", ar: "النظام" },
+    { id: "finance", en: "Finance / ERP", ar: "المالية / ERP" },
+  ];
+
   if (scope.isPending) {
     return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><Skeleton className="h-[560px] rounded-3xl" /></main></div>;
   }
@@ -121,11 +154,19 @@ function NotificationsPage() {
         <MasterKpi icon={TimerReset} label={ar ? "تنبيهات تشغيل" : "Operational alerts"} value={counts.alerts} tone={counts.alerts > 0 ? "red" : "slate"} />
       </section>
 
-      {openOrders > 0 ? <section className="qs-card flex flex-col gap-4 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/50 dark:bg-amber-950/10 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-700"><ClipboardList className="size-4" /></span><div><strong className="text-sm">{ar ? "طلبات مفتوحة تحتاج متابعة" : "Open orders need attention"}</strong><p className="mt-1 text-xs text-muted-foreground">{ar ? `${openOrders} طلب مفتوح حالياً.` : `${openOrders} open order${openOrders === 1 ? "" : "s"} currently in service.`}</p></div></div><Button asChild size="sm" variant="outline"><Link to="/dashboard">{ar ? "عرض الطلبات" : "View orders"}</Link></Button></section> : null}
+      {openOrders > 0 ? <section className="qs-card flex flex-col gap-4 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/50 dark:bg-amber-950/10 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-amber-500/10 text-amber-700"><ClipboardList className="size-4" /></span><div><strong className="text-sm">{ar ? "طلبات مفتوحة تحتاج متابعة" : "Open orders need attention"}</strong><p className="mt-1 text-xs text-muted-foreground">{ar ? `${openOrders} طلب مفتوح حالياً.` : `${openOrders} open order${openOrders === 1 ? "" : "s"} currently in service.`}</p></div></div><Button asChild size="sm" variant="outline"><Link to="/dashboard">{ar ? "عرض الطلبات" : "View orders"}</Link></Button></section> : null}
 
       <section className="qs-card overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border p-4 sm:p-5"><div><h2 className="qs-section-title">{ar ? "آخر التحديثات" : "Latest updates"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "يتم تحديث القائمة تلقائياً." : "The feed refreshes automatically."}</p></div><Badge variant={counts.unread ? "default" : "secondary"} className="rounded-full">{counts.unread} {ar ? "جديد" : "new"}</Badge></div>
-        {feed.isPending ? <div className="p-5"><Skeleton className="h-72 rounded-2xl" /></div> : feed.isError ? <div className="p-8 text-center"><Info className="mx-auto size-7 text-destructive" /><p className="mt-3 text-sm text-destructive">{humanError(feed.error, lang)}</p></div> : rows.length === 0 ? <div className="p-12 text-center"><span className="mx-auto grid size-12 place-items-center rounded-2xl bg-muted text-muted-foreground"><Bell className="size-5" /></span><h3 className="mt-4 font-bold">{ar ? "صندوقك هادئ" : "Your inbox is clear"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "ستظهر هنا المهام والتنبيهات الجديدة الموجهة لك." : "New tasks and alerts assigned to you will appear here."}</p></div> : <div className="divide-y divide-border">{rows.map((row) => <NotificationItem key={row.id} row={row} ar={ar} busy={markRead.isPending} onRead={() => markRead.mutate([row.id])} />)}</div>}
+        <div className="border-b border-border p-3.5 sm:p-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div><h2 className="qs-section-title">{ar ? "مركز الإشعارات" : "Notification center"}</h2><p className="mt-1 text-[11px] text-muted-foreground">{ar ? "ابحث وصنّف التنبيهات بدون مغادرة الصفحة." : "Search and filter alerts without leaving the workspace."}</p></div>
+            <div className="relative w-full xl:w-[300px]"><Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder={ar ? "بحث في الإشعارات..." : "Search notifications..."} className="h-10 ps-9"/></div>
+          </div>
+          <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+            {filterItems.map((item)=><button key={item.id} type="button" onClick={()=>setFilter(item.id)} className={cn("shrink-0 rounded-lg px-2.5 py-1.5 text-[10px] font-bold transition",filter===item.id?"bg-foreground text-background":"bg-muted/55 text-muted-foreground hover:text-foreground")}>{ar?item.ar:item.en}</button>)}
+          </div>
+        </div>
+        {feed.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : feed.isError ? <div className="p-8 text-center"><Info className="mx-auto size-7 text-destructive" /><p className="mt-3 text-sm text-destructive">{humanError(feed.error, lang)}</p></div> : filteredRows.length === 0 ? <div className="grid min-h-[220px] place-items-center p-8 text-center"><div><span className="mx-auto grid size-11 place-items-center rounded-2xl bg-muted text-muted-foreground"><Bell className="size-5" /></span><h3 className="mt-3 font-bold">{rows.length ? (ar ? "لا توجد نتائج" : "No matching notifications") : (ar ? "صندوقك هادئ" : "Your inbox is clear")}</h3><p className="mt-1 text-xs text-muted-foreground">{rows.length ? (ar ? "غيّر الفلتر أو عبارة البحث." : "Try another filter or search phrase.") : (ar ? "ستظهر هنا المهام والتنبيهات الجديدة الموجهة لك." : "New tasks and alerts assigned to you will appear here.")}</p></div></div> : <div className="max-h-[min(56dvh,560px)] divide-y divide-border overflow-y-auto">{filteredRows.map((row) => <NotificationItem key={row.id} row={row} ar={ar} busy={markRead.isPending} onRead={() => markRead.mutate([row.id])} />)}</div>}
       </section>
     </main>
   </div>;
@@ -136,7 +177,7 @@ function NotificationItem({ row, ar, busy, onRead }: { row: NotificationRow; ar:
   const config = kindConfig(row.kind, ar);
   const Icon = config.icon;
   const href = row.kind === "shift" || row.kind === "handover" ? "/shifts" : row.kind === "task" || row.kind === "approval" || row.kind === "alert" ? "/work" : "/dashboard";
-  return <article className={cn("grid gap-4 p-4 transition sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center", !read && "bg-orange-500/[.025]")}>
+  return <article className={cn("grid gap-3 p-3.5 transition sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center", !read && "bg-orange-500/[.025]")}>
     <div className="flex min-w-0 gap-3"><span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", config.tone)}><Icon className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{row.title}</h3>{!read ? <span className="size-2 rounded-full bg-[#ff5a0a]" /> : null}<Badge variant="outline" className="rounded-full text-[10px]">{config.label}</Badge></div>{row.body ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{row.body}</p> : null}<p className="mt-2 text-[10px] font-medium text-muted-foreground">{formatTime(row.created_at, ar)}</p></div></div>
     <div className="flex flex-wrap gap-2 lg:justify-end"><Button asChild size="sm" variant="outline"><Link to={href as any}>{ar ? "فتح" : "Open"}</Link></Button>{!read ? <Button size="sm" variant="ghost" disabled={busy} onClick={onRead}><CheckCheck className="size-4" />{ar ? "تمت القراءة" : "Mark read"}</Button> : null}</div>
   </article>;
