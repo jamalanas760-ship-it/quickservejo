@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Copy, Cpu, MonitorSmartphone, PlugZap, Printer, RefreshCw, TabletSmartphone, Unplug, Wifi, WifiOff } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { DEVICE_ID_KEY, DEVICE_TOKEN_KEY } from "@/components/app/DeviceHeartbeat";
@@ -144,7 +144,7 @@ function DevicesPage(){
   const stale=active.filter(row=>!row.last_seen_at||now-new Date(row.last_seen_at).getTime()>=150_000);
   const printerRows=printers.data??[];
   const currentDeviceId=typeof window!=="undefined"?window.localStorage.getItem(DEVICE_ID_KEY):null;
-  const stationMap=useMemo(()=>new Map((stations.data??[]).map(row=>[row.id,ar?(row.name_ar||row.name):row.name])),[ar,stations.data]);
+  const stationMap=new Map((stations.data??[]).map(row=>[row.id,ar?(row.name_ar||row.name):row.name]));
 
   async function copyToken(){
     if(!newToken)return;
