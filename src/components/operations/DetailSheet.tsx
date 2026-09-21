@@ -31,15 +31,15 @@ export function DetailSheet({
         side={isMobile ? "bottom" : "right"}
         className={cn(
           "flex flex-col gap-0 overflow-hidden p-0",
-          isMobile ? "h-[92dvh] rounded-t-3xl" : "w-full sm:max-w-md",
+          isMobile ? "h-[92dvh] rounded-t-3xl" : "w-full sm:max-w-[520px]",
         )}
       >
-        <SheetHeader className="border-b border-border p-5 text-start">
-          <SheetTitle className="pe-8 text-lg font-bold leading-6">{title}</SheetTitle>
-          {description ? <SheetDescription className="text-xs">{description}</SheetDescription> : null}
+        <SheetHeader className="border-b border-border bg-muted/15 px-4 py-3.5 text-start">
+          <SheetTitle className="pe-8 text-base font-bold leading-5">{title}</SheetTitle>
+          {description ? <SheetDescription className="text-[11px] leading-4">{description}</SheetDescription> : null}
         </SheetHeader>
-        <div className="qs-scroll flex-1 overflow-y-auto p-5">{children}</div>
-        {footer ? <div className="border-t border-border p-4">{footer}</div> : null}
+        <div className="qs-scroll flex-1 overflow-y-auto px-4 py-3">{children}</div>
+        {footer ? <div className="border-t border-border bg-muted/10 p-3">{footer}</div> : null}
       </SheetContent>
     </Sheet>
   );
@@ -49,9 +49,9 @@ export function DetailSheet({
 export function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   if (value === null || value === undefined || value === "") return null;
   return (
-    <div className="grid grid-cols-[minmax(96px,38%)_minmax(0,1fr)] gap-3 border-b border-border/60 py-2.5 last:border-0">
-      <span className="text-[11px] font-bold uppercase tracking-[.06em] text-muted-foreground">{label}</span>
-      <span className="min-w-0 break-words text-sm">{value}</span>
+    <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-b border-border/60 py-2 last:border-0 max-sm:grid-cols-[104px_minmax(0,1fr)]">
+      <span className="text-[10px] font-bold uppercase tracking-[.055em] text-muted-foreground">{label}</span>
+      <span className="min-w-0 break-words text-[13px] leading-5">{value}</span>
     </div>
   );
 }
