@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.quickserve-waitlist-worker]
 verify_jwt = false
+
+[functions.quickserve-booking-message-worker]
+verify_jwt = false
+
+[functions.quickserve-twilio-booking-webhook]
+verify_jwt = false
