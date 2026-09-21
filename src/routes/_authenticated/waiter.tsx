@@ -30,6 +30,7 @@ import { humanError } from "@/lib/errors";
 import { formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { playOrderAlert, unlockAlertSound } from "@/lib/order-alert";
+import { setTableServiceStatusResilient, setWaiterCallStatusResilient } from "@/lib/offline-ops";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/waiter")({
@@ -162,12 +163,19 @@ function WaiterFloor() {
 
   const setCall = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "acknowledged" | "resolved" }) => {
-      const now = new Date().toISOString();
-      const patch = status === "acknowledged" ? { status, acknowledged_at: now } : { status, resolved_at: now };
-      const { error } = await supabase.from("waiter_calls").update(patch).eq("id", id);
-      if (error) throw error;
+      if (!scope.restaurantId) throw new Error("Restaurant unavailable");
+      return setWaiterCallStatusResilient({ restaurantId: scope.restaurantId, callId: id, status });
     },
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (result, variables) => {
+      if (scope.restaurantId && result.queued) {
+        queryClient.setQueryData<FloorTable[]>(["waiter", "floor", scope.restaurantId], (current) =>
+          (current ?? []).map((table) => table.calling?.id === variables.id
+            ? { ...table, calling: variables.status === "resolved" ? null : { ...table.calling, status: variables.status } }
+            : table),
+        );
+        toast.info(ar ? "تم حفظ الإجراء بدون اتصال وسيتم مزامنته تلقائياً" : "Action saved offline and will sync automatically");
+        return;
+      }
       toast.success(variables.status === "resolved" ? t("waiter.resolve") : t("waiter.acknowledge"));
       await queryClient.invalidateQueries({ queryKey: ["waiter", "floor"] });
     },
@@ -176,13 +184,24 @@ function WaiterFloor() {
 
   const setTableFree = useMutation({
     mutationFn: async (tableId: string) => {
-      const { error } = await (supabase as any).rpc("set_table_service_status", {
-        _table_id: tableId,
-        _status: "free",
+      if (!scope.restaurantId) throw new Error("Restaurant unavailable");
+      const result = await setTableServiceStatusResilient({
+        restaurantId: scope.restaurantId,
+        tableId,
+        status: "free",
       });
-      if (error) throw error;
+      return { ...result, tableId };
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      if (scope.restaurantId && result.queued) {
+        queryClient.setQueryData<FloorTable[]>(["waiter", "floor", scope.restaurantId], (current) =>
+          (current ?? []).map((table) => table.id === result.tableId
+            ? { ...table, service_status: "free" as TableServiceStatus, activated_at: null }
+            : table),
+        );
+        toast.info(ar ? "تم تحرير الطاولة محلياً وستتم المزامنة عند عودة الاتصال" : "Table released locally and will sync when connection returns");
+        return;
+      }
       toast.success(ar ? "تم تحرير الطاولة وأصبحت متاحة" : "Table closed and marked Free");
       await queryClient.invalidateQueries({ queryKey: ["waiter", "floor"] });
     },
