@@ -184,11 +184,11 @@ function DailyClosePage() {
           ]} tone={Math.abs(Number(summary.cash.variance)) > 0.005 ? "warning" : undefined} />
         </section>
 
-        <section className={cn("rounded-2xl border p-5", close?.status === "finalized" ? "border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/50 dark:bg-emerald-950/10" : "bg-card")}>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <section className={cn("rounded-xl border p-3.5", close?.status === "finalized" ? "border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/50 dark:bg-emerald-950/10" : "bg-card")}>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <div className="flex items-center gap-2">{close?.status === "finalized" ? <CheckCircle2 className="size-5 text-emerald-600" /> : <AlertTriangle className="size-5 text-amber-600" />}<h2 className="font-display text-xl font-bold">{close?.status === "finalized" ? (ar ? "اليوم مقفل" : "Day finalized") : close?.status === "reopened" ? (ar ? "تمت إعادة الفتح" : "Close reopened") : (ar ? "جاهز للمراجعة" : "Ready for review")}</h2></div>
-              <p className="mt-2 text-sm text-muted-foreground">{close?.status === "finalized" ? (ar ? "الأرقام المعروضة من اللقطة المثبتة ولن تتغير مع البيانات اللاحقة." : "Displayed values come from the locked snapshot and will not change with later data.") : summary.cash.open_sessions > 0 ? (ar ? "أغلق كل جلسات الكاش قبل التثبيت." : "Close every cash drawer session before finalizing.") : (ar ? "بعد التثبيت تصبح لقطة اليوم غير قابلة للتعديل إلا بإعادة فتح موثقة." : "Finalizing creates an immutable snapshot; reopening requires an audited reason.")}</p>
+              <div className="flex items-center gap-2">{close?.status === "finalized" ? <CheckCircle2 className="size-5 text-emerald-600" /> : <AlertTriangle className="size-5 text-amber-600" />}<h2 className="font-display text-base font-bold">{close?.status === "finalized" ? (ar ? "اليوم مقفل" : "Day finalized") : close?.status === "reopened" ? (ar ? "تمت إعادة الفتح" : "Close reopened") : (ar ? "جاهز للمراجعة" : "Ready for review")}</h2></div>
+              <p className="mt-1.5 text-xs text-muted-foreground">{close?.status === "finalized" ? (ar ? "الأرقام المعروضة من اللقطة المثبتة ولن تتغير مع البيانات اللاحقة." : "Displayed values come from the locked snapshot and will not change with later data.") : summary.cash.open_sessions > 0 ? (ar ? "أغلق كل جلسات الكاش قبل التثبيت." : "Close every cash drawer session before finalizing.") : (ar ? "بعد التثبيت تصبح لقطة اليوم غير قابلة للتعديل إلا بإعادة فتح موثقة." : "Finalizing creates an immutable snapshot; reopening requires an audited reason.")}</p>
               {close?.finalized_at ? <p className="mt-1 text-xs text-muted-foreground">{ar ? "وقت الإقفال: " : "Finalized: "}{new Date(close.finalized_at).toLocaleString(ar ? "ar-JO" : "en-US")}</p> : null}
               {close?.reopen_reason ? <p className="mt-2 text-xs text-amber-700">{ar ? "سبب إعادة الفتح: " : "Reopen reason: "}{close.reopen_reason}</p> : null}
             </div>
@@ -202,5 +202,5 @@ function DailyClosePage() {
 }
 
 function CloseCard({ title, rows, tone }:{ title:string; rows:[string,string][]; tone?:"warning"|undefined }) {
-  return <article className={cn("rounded-2xl border bg-card p-4", tone === "warning" && "border-amber-300")}><h3 className="font-display text-lg font-bold">{title}</h3><div className="mt-3 divide-y divide-border">{rows.map(([label,value]) => <div key={label} className="flex items-center justify-between gap-4 py-2 text-sm"><span className="text-muted-foreground">{label}</span><strong className="text-end tabular-nums">{value}</strong></div>)}</div></article>;
+  return <article className={cn("rounded-xl border bg-card p-3.5", tone === "warning" && "border-amber-300")}><h3 className="font-display text-lg font-bold">{title}</h3><div className="mt-2 divide-y divide-border">{rows.map(([label,value]) => <div key={label} className="flex items-center justify-between gap-3 py-1.5 text-xs"><span className="text-muted-foreground">{label}</span><strong className="text-end tabular-nums">{value}</strong></div>)}</div></article>;
 }
