@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { DeviceHeartbeat } from "@/components/app/DeviceHeartbeat";
 import { OfflineOperationsBanner } from "@/components/app/OfflineOperationsBanner";
 import { BottomNav } from "@/components/nav/BottomNav";
 import { TenantBrandShell } from "@/components/tenant/TenantBrandShell";
@@ -68,6 +69,7 @@ function AuthenticatedShell() {
       <div className={cn("pb-24 lg:min-h-dvh lg:pb-0", !access.isSuperAdmin && "lg:ps-[var(--qs-shell-sidebar)]")}>
         {blocked ? null : <div key={pathname} className="qs-route-frame"><Outlet /></div>}
       </div>
+      <DeviceHeartbeat />
       <OfflineOperationsBanner />
       <BottomNav />
     </TenantBrandShell>
