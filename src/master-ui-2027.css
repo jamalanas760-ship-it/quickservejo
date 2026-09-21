@@ -720,6 +720,22 @@
     .qs-compact-page .panel {
       box-shadow: 0 1px 2px rgb(20 32 51 / .02), 0 4px 14px rgb(20 32 51 / .03) !important;
     }
+    .qs-compact-page .qs-table {
+      min-width: 0 !important;
+      width: 100% !important;
+      table-layout: auto;
+    }
+
+    .qs-compact-page .qs-table th,
+    .qs-compact-page .qs-table td {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .qs-compact-page .overflow-x-auto {
+      max-width: 100%;
+    }
+
 
     .qs-compact-page .qs-panel-header {
       padding: 12px 14px !important;
