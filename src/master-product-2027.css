@@ -223,6 +223,41 @@
   }
 }
 
+/* Keep tenant branding inside the product system: accent/logo may vary, shell usability does not. */
+.qs-app.tenant-theme-scope {
+  --background: var(--qs-bg) !important;
+  background: var(--qs-bg) !important;
+}
+
+.qs-app.tenant-theme-scope .qs-topbar {
+  background: color-mix(in srgb,var(--card) 91%,transparent) !important;
+  color: var(--foreground) !important;
+}
+
+@media (min-width:1024px) {
+  .qs-app.tenant-theme-scope .qs-sidebar-shell {
+    background:
+      radial-gradient(circle at 10% 0%, rgb(255 255 255 / .055), transparent 18rem),
+      linear-gradient(180deg,#151a20 0%,#11161c 100%) !important;
+    color:#fff !important;
+    border-color:rgb(255 255 255 / .055) !important;
+  }
+
+  .qs-app.tenant-theme-scope .qs-sidebar-shell .qs-sidebar-item {
+    color:rgb(255 255 255 / .62) !important;
+  }
+
+  .qs-app.tenant-theme-scope .qs-sidebar-shell .qs-sidebar-item:hover,
+  .qs-app.tenant-theme-scope .qs-sidebar-shell .qs-sidebar-item[data-active="true"] {
+    color:#fff !important;
+  }
+
+  .qs-app.tenant-theme-scope .qs-sidebar-shell .qs-sidebar-item[data-active="true"] {
+    background:linear-gradient(90deg,color-mix(in srgb,var(--restaurant-selected-nav,var(--primary)) 25%,transparent),color-mix(in srgb,var(--restaurant-selected-nav,var(--primary)) 8%,transparent)) !important;
+    border-color:color-mix(in srgb,var(--restaurant-selected-nav,var(--primary)) 20%,transparent) !important;
+  }
+}
+
 /* --- Top bar --- */
 .qs-topbar {
   min-height: var(--qs-shell-topbar) !important;
