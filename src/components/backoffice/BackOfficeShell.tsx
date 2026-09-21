@@ -77,13 +77,13 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
   const safeSection = sections.some((item) => item.key === section) ? section : "overview";
   const attention = summary.lowStock.length + summary.pendingApproval + summary.pendingReceiving;
 
-  return <section className="space-y-4">
-    <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
-      <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-5">
+  return <section className="space-y-3">
+    <section className="overflow-hidden rounded-[18px] border border-border bg-card shadow-sm">
+      <div className="grid gap-3 p-3.5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-4">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#ff5a0a]"><LayoutDashboard className="size-3.5" />ERP · {ar ? "مركز العمليات" : "Operations command center"}</div>
-          <h1 className="mt-3 font-display text-2xl font-bold tracking-[-.04em] sm:text-3xl">{ar ? "المخزون والمشتريات والمالية في مساحة واحدة" : "Inventory, purchasing and Finance in one workspace"}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{ar ? "كل حساب يرى الوحدات والإجراءات المرتبطة بمسؤوليته فقط، مع ربط الاستلام بالمخزون والمالية بدون إدخال مزدوج." : "Each account sees only the modules and actions tied to its responsibility, with receiving linked to inventory and Finance without double entry."}</p>
+          <h1 className="mt-2 font-display text-[1.65rem] font-bold tracking-[-.04em] sm:text-[1.9rem]">{ar ? "المخزون والمشتريات والمالية في مساحة واحدة" : "Inventory, purchasing and Finance in one workspace"}</h1>
+          <p className="mt-1.5 max-w-3xl text-xs leading-5 text-muted-foreground">{ar ? "كل حساب يرى الوحدات والإجراءات المرتبطة بمسؤوليته فقط، مع ربط الاستلام بالمخزون والمالية بدون إدخال مزدوج." : "Each account sees only the modules and actions tied to its responsibility, with receiving linked to inventory and Finance without double entry."}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {attention > 0 ? <span className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 text-xs font-bold text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/15"><span className="size-2 rounded-full bg-amber-500" />{attention} {ar ? "تحتاج انتباه" : "need attention"}</span> : <span className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/15"><span className="size-2 rounded-full bg-emerald-500" />{ar ? "لا توجد حالات حرجة" : "No critical items"}</span>}
@@ -91,14 +91,14 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
       </div>
     </section>
 
-    <div className="grid gap-3 xl:grid-cols-[190px_minmax(0,1fr)]">
+    <div className="grid gap-3 xl:grid-cols-[174px_minmax(0,1fr)]">
       <nav aria-label={ar ? "وحدات ERP" : "ERP modules"} className="self-start overflow-x-auto xl:sticky xl:top-24 xl:overflow-visible">
         <div className="flex min-w-max gap-1 rounded-2xl border border-border bg-card p-1.5 xl:min-w-0 xl:flex-col">
-          {sections.map(({ key, en, ar: arLabel, icon: Icon }) => <button key={key} type="button" onClick={() => setSection(key)} aria-current={safeSection === key ? "page" : undefined} className={cn("flex min-h-10 items-center gap-2.5 rounded-xl px-3 text-start text-xs font-semibold transition xl:w-full", safeSection === key ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}><Icon className="size-4 shrink-0" /><span>{ar ? arLabel : en}</span>{key === "procurement" && summary.pendingApproval > 0 ? <span className="ms-auto min-w-5 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[9px] font-black text-white">{summary.pendingApproval}</span> : null}{key === "inventory" && summary.lowStock.length > 0 ? <span className="ms-auto min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[9px] font-black text-white">{summary.lowStock.length}</span> : null}</button>)}
+          {sections.map(({ key, en, ar: arLabel, icon: Icon }) => <button key={key} type="button" onClick={() => setSection(key)} aria-current={safeSection === key ? "page" : undefined} className={cn("flex min-h-9 items-center gap-2 rounded-[10px] px-2.5 text-start text-[11px] font-semibold transition xl:w-full", safeSection === key ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}><Icon className="size-4 shrink-0" /><span>{ar ? arLabel : en}</span>{key === "procurement" && summary.pendingApproval > 0 ? <span className="ms-auto min-w-5 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[9px] font-black text-white">{summary.pendingApproval}</span> : null}{key === "inventory" && summary.lowStock.length > 0 ? <span className="ms-auto min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[9px] font-black text-white">{summary.lowStock.length}</span> : null}</button>)}
         </div>
       </nav>
 
-      <div className="min-w-0">
+      <div className="min-w-0 xl:max-h-[calc(100dvh-210px)] xl:overflow-y-auto xl:pe-1">
         {query.isError ? <div role="alert" className="qs-card space-y-3 p-6"><p className="text-sm text-destructive">{humanError(query.error, lang)}</p><Button variant="outline" onClick={() => void query.refetch()}>{ar ? "إعادة المحاولة" : "Try again"}</Button></div>
         : query.isPending ? <div className="space-y-3"><Skeleton className="h-28 rounded-2xl" /><Skeleton className="h-72 rounded-2xl" /></div>
         : safeSection === "overview" ? <OverviewPanel data={data} summary={summary} access={moduleAccess} currency={currency} onAction={setRequest} onNavigate={setSection} canApproveProcurement={canApproveProcurement} />
