@@ -317,26 +317,99 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
       <div className="max-h-[260px] divide-y divide-border overflow-y-auto">{(workforce.data?.leave ?? []).filter(request => canManage || request.staff_id===currentStaffId).slice(0,8).map(request=><div key={request.id} className="p-4"><div className="flex items-start justify-between gap-3"><div><strong className="text-sm">{memberName(request.staff_id)}</strong><p className="mt-1 text-xs text-muted-foreground">{request.start_date} · {formatLeaveTime(request.start_time)} → {request.end_date} · {formatLeaveTime(request.end_time)}</p>{request.reason?<p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{request.reason}</p>:null}</div><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold capitalize",request.status==="approved"?"bg-emerald-500/10 text-emerald-700":request.status==="rejected"?"bg-red-500/10 text-red-700":"bg-amber-500/10 text-amber-700")}>{request.status}</span></div>{canManage&&request.status==="pending"?<div className="mt-3 flex gap-2"><Button size="sm" disabled={reviewLeave.isPending} onClick={()=>reviewLeave.mutate({id:request.id,status:"approved"})}>{ar?"اعتماد":"Approve"}</Button><Button size="sm" variant="outline" disabled={reviewLeave.isPending} onClick={()=>reviewLeave.mutate({id:request.id,status:"rejected"})}>{ar?"رفض":"Reject"}</Button></div>:null}</div>)}{!(workforce.data?.leave ?? []).length?<p className="p-6 text-center text-xs text-muted-foreground">{ar ? "لا توجد طلبات إجازة." : "No leave requests yet."}</p>:null}</div>
     </div>
 
-    <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}><DialogContent className="sm:max-w-[620px]"><DialogHeader><DialogTitle>{ar ? "طلب إجازة" : "Request leave"}</DialogTitle><DialogDescription>{ar ? "اختر التاريخ والوقت بدقة ثم أرسل السبب لمدير الوردية للمراجعة." : "Choose the exact dates and times, then send the reason to shift management for review."}</DialogDescription></DialogHeader><div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <section className="rounded-[16px] border border-border bg-muted/20 p-3.5">
-          <p className="mb-3 text-[10px] font-black uppercase tracking-[.1em] text-muted-foreground">{ar ? "من" : "From"}</p>
-          <div className="grid gap-3 sm:grid-cols-[1.2fr_.8fr]">
-            <Field label={ar?"التاريخ":"Date"}><Input type="date" value={leaveStart} onChange={e=>{const next=e.target.value;setLeaveStart(next);if(leaveEnd<next)setLeaveEnd(next);}} onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()} className="h-14 cursor-pointer rounded-[14px] px-4 text-[15px] font-semibold"/></Field>
-            <Field label={ar?"الوقت":"Time"}><Input type="time" value={leaveStartTime} onChange={e=>setLeaveStartTime(e.target.value)} onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()} className="h-14 cursor-pointer rounded-[14px] px-4 text-[15px] font-semibold"/></Field>
-          </div>
-        </section>
-        <section className="rounded-[16px] border border-border bg-muted/20 p-3.5">
-          <p className="mb-3 text-[10px] font-black uppercase tracking-[.1em] text-muted-foreground">{ar ? "إلى" : "To"}</p>
-          <div className="grid gap-3 sm:grid-cols-[1.2fr_.8fr]">
-            <Field label={ar?"التاريخ":"Date"}><Input type="date" min={leaveStart} value={leaveEnd} onChange={e=>setLeaveEnd(e.target.value)} onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()} className="h-14 cursor-pointer rounded-[14px] px-4 text-[15px] font-semibold"/></Field>
-            <Field label={ar?"الوقت":"Time"}><Input type="time" min={leaveEnd===leaveStart?leaveStartTime:undefined} value={leaveEndTime} onChange={e=>setLeaveEndTime(e.target.value)} onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()} className="h-14 cursor-pointer rounded-[14px] px-4 text-[15px] font-semibold"/></Field>
-          </div>
-        </section>
-      </div>
-      {leaveWindowInvalid && leaveStart && leaveEnd && leaveStartTime && leaveEndTime ? <p className="rounded-xl bg-red-500/8 px-3 py-2 text-xs font-semibold text-red-700">{ar ? "يجب أن يكون وقت النهاية بعد وقت البداية." : "End date and time must be after the start."}</p> : null}
-      <Field label={ar?"السبب":"Reason"}><Textarea rows={4} value={leaveReason} onChange={e=>setLeaveReason(e.target.value)} className="min-h-[120px] rounded-[16px]"/></Field>
-    </div><DialogFooter><Button variant="outline" onClick={()=>setLeaveOpen(false)}>{ar?"إلغاء":"Cancel"}</Button><Button disabled={submitLeave.isPending||leaveWindowInvalid} onClick={()=>submitLeave.mutate()}>{ar?"إرسال":"Submit"}</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-none gap-0 overflow-hidden p-0 sm:max-w-[720px]">
+        <div className="border-b border-border bg-muted/15 px-5 py-5 sm:px-6">
+          <DialogHeader className="space-y-1.5">
+            <DialogTitle className="font-display text-xl font-bold sm:text-2xl">{ar ? "طلب إجازة" : "Request leave"}</DialogTitle>
+            <DialogDescription className="max-w-2xl text-xs leading-5 sm:text-sm">
+              {ar ? "حدد بداية ونهاية الإجازة بوضوح، ثم أضف السبب وأرسل الطلب للمراجعة." : "Set the leave start and end clearly, add the reason, then send it for review."}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        <div className="space-y-5 px-5 py-5 sm:px-6">
+          <section className="overflow-hidden rounded-2xl border border-border bg-card">
+            <div className="grid gap-0 divide-y divide-border">
+              <div className="grid min-w-0 gap-3 p-4 sm:grid-cols-[76px_minmax(0,1.15fr)_minmax(0,.85fr)] sm:items-end">
+                <div className="flex items-center gap-2 self-center text-xs font-black uppercase tracking-[.08em] text-muted-foreground sm:pb-3">
+                  <span className="grid size-8 place-items-center rounded-lg bg-orange-500/10 text-[#ff5a0a]"><CalendarDays className="size-4"/></span>
+                  <span>{ar ? "من" : "From"}</span>
+                </div>
+                <Field label={ar ? "التاريخ" : "Date"} className="min-w-0">
+                  <Input
+                    type="date"
+                    value={leaveStart}
+                    onChange={e=>{const next=e.target.value;setLeaveStart(next);if(leaveEnd<next)setLeaveEnd(next);}}
+                    onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()}
+                    className="h-12 min-w-0 w-full cursor-pointer rounded-xl px-3 text-sm font-semibold"
+                  />
+                </Field>
+                <Field label={ar ? "الوقت" : "Time"} className="min-w-0">
+                  <Input
+                    type="time"
+                    value={leaveStartTime}
+                    onChange={e=>setLeaveStartTime(e.target.value)}
+                    onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()}
+                    className="h-12 min-w-0 w-full cursor-pointer rounded-xl px-3 text-sm font-semibold"
+                  />
+                </Field>
+              </div>
+
+              <div className="grid min-w-0 gap-3 p-4 sm:grid-cols-[76px_minmax(0,1.15fr)_minmax(0,.85fr)] sm:items-end">
+                <div className="flex items-center gap-2 self-center text-xs font-black uppercase tracking-[.08em] text-muted-foreground sm:pb-3">
+                  <span className="grid size-8 place-items-center rounded-lg bg-blue-500/10 text-blue-600"><Clock3 className="size-4"/></span>
+                  <span>{ar ? "إلى" : "To"}</span>
+                </div>
+                <Field label={ar ? "التاريخ" : "Date"} className="min-w-0">
+                  <Input
+                    type="date"
+                    min={leaveStart}
+                    value={leaveEnd}
+                    onChange={e=>setLeaveEnd(e.target.value)}
+                    onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()}
+                    className="h-12 min-w-0 w-full cursor-pointer rounded-xl px-3 text-sm font-semibold"
+                  />
+                </Field>
+                <Field label={ar ? "الوقت" : "Time"} className="min-w-0">
+                  <Input
+                    type="time"
+                    min={leaveEnd===leaveStart?leaveStartTime:undefined}
+                    value={leaveEndTime}
+                    onChange={e=>setLeaveEndTime(e.target.value)}
+                    onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()}
+                    className="h-12 min-w-0 w-full cursor-pointer rounded-xl px-3 text-sm font-semibold"
+                  />
+                </Field>
+              </div>
+            </div>
+          </section>
+
+          {leaveWindowInvalid && leaveStart && leaveEnd && leaveStartTime && leaveEndTime ? (
+            <p className="rounded-xl border border-red-200 bg-red-500/8 px-3.5 py-2.5 text-xs font-semibold text-red-700 dark:border-red-900/50 dark:text-red-300">
+              {ar ? "يجب أن يكون وقت النهاية بعد وقت البداية." : "End date and time must be after the start."}
+            </p>
+          ) : null}
+
+          <Field label={ar ? "السبب" : "Reason"} className="min-w-0">
+            <Textarea
+              rows={4}
+              value={leaveReason}
+              onChange={e=>setLeaveReason(e.target.value)}
+              placeholder={ar ? "اكتب سبب الإجازة باختصار..." : "Briefly explain the reason for leave..."}
+              className="min-h-[116px] w-full resize-y rounded-xl"
+            />
+          </Field>
+        </div>
+
+        <DialogFooter className="border-t border-border bg-muted/10 px-5 py-4 sm:px-6">
+          <Button variant="outline" className="min-w-24" onClick={()=>setLeaveOpen(false)}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button className="min-w-28" disabled={submitLeave.isPending||leaveWindowInvalid} onClick={()=>submitLeave.mutate()}>
+            {submitLeave.isPending ? (ar ? "جارٍ الإرسال…" : "Submitting…") : (ar ? "إرسال الطلب" : "Submit request")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </div>
   </section>;
 }
