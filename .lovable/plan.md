@@ -1,74 +1,83 @@
-# QuickServe Redesign — Implementation Analysis
+# QuickServe Master Redesign — Full Application Implementation Plan
 
-Analysis only. Nothing was changed in this turn. Everything below reuses the current authentication, tenant isolation and access rules as-is.
+## Goal
 
-## What exists today (verified by reading the code)
+Apply the approved premium restaurant-operations design across every existing QuickServe route while preserving all current data, authentication, tenant isolation, permissions, mutations, realtime behavior, PDF/QR workflows, integrations, and bilingual English/Arabic support.
 
-- Home Quick Access is a 5-tile list in `src/routes/_authenticated/dashboard.tsx`: Dashboard, Orders, Menu, Tables, Analytics — already restaurant-scoped.
-- The floor designer lives in `src/components/manage/TablesManagerApproved.tsx` (568 lines, single file) and already supports floors, zones (name only), drag/resize/rotate, capacity, shapes, per-floor background upload, QR download/print. Table geometry is stored in `restaurant_tables.layout` (JSON); floors/zones are stored inside the restaurant's theme JSON (`workspace.tableFloors`). There is no zone geometry, no table material, no entrance objects, and no list view.
-- Team is `src/components/manage/StaffManager.tsx`: search, role/status filters, invite, role change, active toggle, seat limit, badge, password reset via existing server functions (`src/lib/staff.functions.ts`, `src/lib/staff-auth.functions.ts`). Permissions today are role-derived only, from `src/lib/permissions.ts` (`ROLE_CAPABILITIES`). No per-user overrides are stored anywhere.
-- Analytics is `src/components/manage/AnalyticsManager.tsx`: fixed layout, real 30-day order data, plus a few hardcoded placeholder values (`0 min`, `↗ 0%`, `100%` branch bar). Charts already use `recharts` — no new chart library needed.
-- Branding is `src/components/manage/RestaurantAppearance.tsx` + `src/lib/restaurant-appearance.ts` + `src/components/tenant/TenantBrandShell.tsx`. Tenant colours already come from restaurant columns and `menu_theme` JSON and are applied only inside the tenant shell.
-- Avatars: `ProfileAvatarEditor.tsx` calls the `update_own_avatar` RPC. The newest migration (`20260915090500`) added an `update auth.users ... set raw_user_meta_data` step to that function.
+## Assumptions
 
-## Avatar error — leading cause (must be confirmed first)
+- The existing route structure and backend contracts remain authoritative; this is a presentation and interaction refactor, not a data-model rewrite.
+- Existing restaurant photos, logos, menu photos, team portraits, and live records are used wherever available. Empty states replace unavailable data; no fabricated operational metrics or camera feeds are added.
+- Tenant branding remains restaurant-scoped, but the product shell follows the approved white-sidebar system. Super Admin keeps QuickServe platform branding.
+- The unfinished reliability work already present in My Work and Shifts will be preserved and completed only where required for coherent page interactions.
 
-The user-visible message comes from `src/lib/errors.ts`, which maps any `42501` / "permission denied" to "You don't have permission to do that." The most likely source is the `update auth.users` statement added in the newest migration: the function is owned by the migration role, which does not own the `auth.users` table, so the write raises `permission denied for table users` (42501) and rolls back the whole call — including the staff row update that used to work.
+## Implementation
 
-This is not yet proven (the hosted database was unreachable for live SQL in recent turns). Step 1 of implementation is to run the RPC/SQL against the live database and read the real error code. If confirmed, the fix is to drop the `auth.users` write from the function and keep only the `public.staff` update (the app already falls back to reading avatar from the staff membership), or to route metadata updates through the existing admin-side server function instead. A second candidate, also checked in the same step: users with no `staff` row for the selected restaurant, where the update matches zero rows.
+### 1. Establish one authoritative design system
 
-## Files and functions to touch
+- Replace the current stack of competing master/rebrand CSS imports with one final product layer on top of the Tailwind semantic tokens.
+- Define the approved warm canvas, white surfaces/sidebar, deep charcoal text, vivid orange actions, semantic status colors, 12–16px radii, restrained shadows, spacing, and responsive breakpoints.
+- Refactor the existing shared primitives into the canonical system: page header, KPI, status chip, tabs, filter bar, responsive data view, timeline, status/photo panel, detail sheet, chart shell, form section, and loading/empty/error states.
+- Normalize buttons, inputs, selects, dialogs, drawers, tables, calendars, charts, and touch targets without altering behavior.
 
-**Home**
-- `src/routes/_authenticated/dashboard.tsx` — reorder Quick Access to Analytics, Orders, Menu, Tables, Team; Team links to `/manage/$restaurantId/staff`.
+### 2. Rebuild the application shells
 
-**Tables & Floor Designer** (split the 568-line file rather than growing it)
-- `src/components/manage/TablesManagerApproved.tsx` — becomes the shell with the Layout / Table List mode switch.
-- New `src/components/manage/tables/FloorCanvas.tsx`, `TableInspector.tsx`, `TableListView.tsx`, `ZoneLayer.tsx`, `EntranceLayer.tsx`.
-- New `src/lib/floor-plan.ts` — parse/serialise floors, zone rectangles, entrances, materials; all defaults tolerant of old data.
-- Zone geometry, entrances and floor metadata persist in the existing restaurant theme JSON (`workspace.tableFloors`) — no new table. Table material persists in the existing `restaurant_tables.layout` JSON.
-- Design: white canvas, subtle grid, warm wood zone fills, orange selected border, right inspector, compact toolbar, no decorative circles.
+- Authenticated tenant shell: 220px white desktop sidebar, warm topbar, restaurant switcher/search/context/notifications/profile, tablet drawer, and role-aware mobile bottom navigation.
+- Super Admin shell: same visual family with platform-specific navigation and QuickServe identity.
+- Frontline composition: compact role-specific navigation and operational emphasis without exposing management modules.
+- Public guest shell: restaurant-branded, touch-first flow without authenticated chrome.
+- Preserve restaurant logo aspect ratio, tenant colors, route guards, role capability filtering, live counters, offline banners, and RTL direction.
 
-**Team / Roles & Permissions**
-- `src/components/manage/StaffManager.tsx` — split into a list plus a new `src/components/manage/staff/StaffDrawer.tsx` with Permissions / Profile / Access Log tabs; fixes mobile overflow and edit accessibility.
-- `src/lib/permissions.ts` — add capability groups (Orders, Menu, Tables & Floor, Analytics, People & Staff, System & Settings) and a resolver: role defaults merged with per-staff overrides.
-- `src/lib/staff.functions.ts` — server-side save of overrides and password change (min 8 chars, confirm, blank = unchanged), reusing the existing staff-admin path; keeps the current rule that a restaurant Admin cannot escalate another Admin, and keeps the seat limit under Super Admin control.
-- Access Log tab reads existing `audit_logs` only; empty state when there is nothing, no invented rows.
+### 3. Migrate core operational pages
 
-**Analytics**
-- `src/components/manage/AnalyticsManager.tsx` — becomes a widget host.
-- New `src/components/manage/analytics/` widgets: KPI row, Revenue Over Time, Orders by Day, Orders by Channel, Top Products, Peak Hours, Weekly Performance, Saved Reports; plus `CustomizeDashboardDialog.tsx`.
-- New `src/lib/analytics-dashboard.ts` — widget registry, layout/visibility/order/accent colour, persisted restaurant-scoped in the existing theme/workspace JSON.
-- Every metric comes from existing orders/order-items data; anything not derivable shows a truthful empty state, and the current hardcoded `0 min` / `0%` / `100%` placeholders are removed.
+- Auth: responsive photo-led split screen using the existing restaurant image, current providers, password tools, errors, and session behavior.
+- Dashboard/Home: restaurant media banner, real KPIs, operations status, activity, orders, reservations, team, revenue, and quick actions in a responsive 12-column composition.
+- Orders: status workflow, filters, responsive table/cards, elapsed-time treatment, and adaptive order detail panel while preserving read/write permissions.
+- Reservations, bookings, and waitlist: KPI summary, live schedule/timeline, waitlist, guest detail, deposits, messaging, and existing status actions.
+- Floor/Tables: live status KPIs, floor canvas, zones where stored, selected-table detail, touch interactions, and mobile list fallback.
+- Menu: categories, product list, availability, item editor, digital preview, and unchanged Standard/PDF/QR separation.
+- Kitchen/KDS: station-aware lanes, operational KPIs, urgency, elapsed time, product imagery where available, and current mutations.
+- Analytics: current filters and real calculations in responsive chart/table panels without clipping or invented insights.
+- Team/Staff: KPIs, responsive staff data views, schedules/attendance/permissions sections, staff detail, and all existing account actions.
 
-**Branding / Organization Settings**
-- `src/components/manage/RestaurantAppearance.tsx`, `src/lib/restaurant-appearance.ts`, `src/components/tenant/TenantBrandShell.tsx`, `src/components/nav/AppHeader.tsx`, `src/components/brand/BrandLogo.tsx`.
-- Adds sidebar background/text, active item, top bar background, accent, surface, and light/dark variants; logo mode = QuickServe / restaurant logo / restaurant + "Powered by QuickServe". Applied only within the tenant shell so Super Admin chrome and the guest menu theme are untouched; theme values are injected as CSS variables on first render to avoid a colour flash.
+### 4. Migrate management, ERP, and Super Admin
 
-**Shared polish**
-- `src/styles.css` / `src/ux-refinement.css` — 12–16px radii, subtle borders, 120–180ms transitions, `prefers-reduced-motion`, 44px touch targets, no drawer clipping or horizontal overflow.
+- Restyle Back Office overview, inventory, procurement, receiving, suppliers, recipes, invoices, finance, and reports using shared filters, tables/cards, forms, status treatment, and detail panels.
+- Restyle all Super Admin dashboard, restaurant management, tenant detail tabs, subscriptions, licenses, platform orders, analytics, audit, health, and settings routes.
+- Keep all current queries, exports, forms, audit behavior, and restaurant scoping intact.
 
-## Schema migration
+### 5. Migrate frontline, secondary, and public routes
 
-One small migration, only if the avatar diagnosis requires it:
-- Replace `public.update_own_avatar` so it no longer writes to `auth.users` (keep the `public.staff` update, keep `security definer`, keep grants to `authenticated` only).
-- Add `staff.permission_overrides jsonb not null default '{}'::jsonb` (plus a comment). Chosen over a new table: it is tenant-scoped by the existing `staff` row and inherits current RLS with no new policy surface.
-- No changes to RLS helpers, role-hierarchy triggers, seat limits, or any `erp_*` / order / menu table.
+- Frontline: manager, waiter, host, cashier, work, approvals, shifts, daily close, notifications, and devices receive role-specific compact layouts and large operational actions.
+- Secondary authenticated routes: profile, integrations, campaigns, automations, HQ, guests, and all remaining management views inherit the same system.
+- Public routes: restaurant menu, booking, waitlist, kiosk, order status, staff badge entry, contact, privacy, and terms become consistent, fast, touch-friendly branded experiences.
 
-## Risks
+### 6. Responsive and accessibility pass
 
-- Floor-plan data shape changes are additive and version-tolerant; old rows without zone geometry/material/entrances must keep rendering. Regression risk is the highest here — the file is dense and drag maths is easy to break.
-- Permission overrides must not become the only gate. Role/DB checks stay authoritative; overrides narrow UI and are re-checked server-side on sensitive actions. They can never grant a capability the role does not have.
-- Branding tokens leaking outside the tenant shell would touch Super Admin chrome or the guest menu — scoping stays inside `tenant-theme-scope`.
-- Theme JSON is now carrying floors, zones, entrances, dashboard layout and branding. Writes must merge, never overwrite, or one feature will erase another's settings.
-- Live database verification has been blocked by the paused backend in recent turns; the avatar fix and any SQL check depend on it being reachable.
+- Verify intentional desktop, tablet, and mobile compositions at 1440×900, 1280×800, 1024×768, 768×1024, 430×932, 390×844, and 360×800.
+- Remove horizontal overflow; adapt tables to cards; check charts, calendars, menus, drawers, sheets, sticky controls, bottom navigation, safe areas, keyboard focus, labels, contrast, and RTL.
+- Keep transitions restrained and honor reduced-motion preferences.
 
-## Implementation order
+### 7. Validation and completion criteria
 
-1. Verify and fix the avatar permission error (diagnose live, then migrate + frontend), plus the illustrated role avatar set.
-2. Home Quick Access reorder (smallest, isolated).
-3. Team drawer: permissions groups, overrides, password, Profile/Access Log, mobile fixes.
-4. Tables: split components, Table List mode, zone geometry, materials, entrances, design pass.
-5. Analytics customizable dashboard.
-6. Branding / organization settings.
-7. Responsive + QA pass, then route generation, TypeScript, lint and production build; report any remaining blockers honestly.
+- Inspect every content route and add any missing unique title, description, Open Graph title/description, `og:type`, and Twitter card metadata without changing route behavior.
+- Run route generation through the normal build pipeline, strict TypeScript, ESLint, contract tests, and production build; fix all regressions introduced by this redesign.
+- Exercise representative authenticated tenant, frontline, Super Admin, and public flows in the browser at desktop/tablet/mobile widths, including English and Arabic.
+- Final audit must show every route using the authoritative shells/tokens and no legacy dark sidebar or unmigrated visual layer remaining.
+
+## Technical details
+
+- Primary files: `src/styles.css`, the final master CSS layer, `src/routes/__root.tsx`, `src/routes/_authenticated/route.tsx`, `src/components/nav/AppHeader.tsx`, `src/components/nav/BottomNav.tsx`, `src/components/superadmin/SuperAdminLayout.tsx`, `src/components/tenant/TenantBrandShell.tsx`, `src/components/public/PublicGuestShell.tsx`, and `src/components/app/MasterPage.tsx`.
+- Existing page components are refactored in place so their hooks, query keys, mutations, guards, and route URLs remain unchanged.
+- New shared responsive data-view and shell primitives are introduced only where they reduce duplication across multiple existing pages.
+- No database migration is planned for this visual redesign. If an existing page exposes a backend defect during verification, it will be reported separately rather than hidden with mock data.
+
+## Delivery order
+
+1. Design tokens and shells.
+2. Core shared primitives.
+3. Dashboard, Orders, Reservations, Tables, Menu, Kitchen, Analytics, Team.
+4. ERP and Super Admin.
+5. Frontline and secondary authenticated routes.
+6. Public/guest routes.
+7. Full responsive, RTL, metadata, and regression verification.
