@@ -16,7 +16,7 @@ export function MasterPageHeader({
   tabs?: ReactNode;
 }) {
   return (
-    <section className="qs-master-header overflow-hidden rounded-[20px] border border-border/80 bg-card shadow-[var(--qs-shadow-card)]">
+    <section className="qs-master-header overflow-hidden rounded-[20px] border border-border bg-card shadow-[var(--qs-shadow-1)]">
       <div className="flex flex-col gap-5 p-5 sm:p-6 xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0 max-w-3xl">
           {eyebrow ? <div className="mb-3">{eyebrow}</div> : null}
@@ -32,7 +32,7 @@ export function MasterPageHeader({
 
 export function MasterEyebrow({ icon: Icon, children }: { icon?: ElementType; children: ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-orange-200/80 bg-orange-50 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.14em] text-[#e34d00] dark:border-orange-900/50 dark:bg-orange-950/20 dark:text-orange-300">
+    <span className="inline-flex items-center gap-2 rounded-full border border-orange-200/70 bg-orange-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.15em] text-[#dc4c07] dark:border-orange-900/45 dark:bg-orange-950/20 dark:text-orange-300">
       {Icon ? <Icon className="size-3.5" /> : null}
       {children}
     </span>
@@ -64,7 +64,7 @@ export function MasterKpi({
   }[tone];
 
   return (
-    <article className="group min-w-0 rounded-[18px] border border-border/85 bg-card p-4 shadow-[var(--qs-shadow-card)] transition duration-150 hover:-translate-y-px hover:border-foreground/10 hover:shadow-[var(--qs-shadow-hover)] sm:p-5">
+    <article className="group min-w-0 rounded-[16px] border border-border bg-card p-4 shadow-[var(--qs-shadow-1)] transition duration-150 hover:-translate-y-px hover:border-primary/15 hover:shadow-[var(--qs-shadow-2)] sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <span className={cn("grid size-10 shrink-0 place-items-center rounded-[13px]", toneClass)}>
           <Icon className="size-4.5" />
@@ -96,9 +96,9 @@ export function MasterSection({
   contentClassName?: string;
 }) {
   return (
-    <section className={cn("overflow-hidden rounded-[18px] border border-border/85 bg-card shadow-[var(--qs-shadow-card)]", className)}>
+    <section className={cn("overflow-hidden rounded-[20px] border border-border bg-card shadow-[var(--qs-shadow-1)]", className)}>
       {title || action ? (
-        <div className="flex flex-col gap-3 border-b border-border/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="min-w-0">
             {title ? <h2 className="qs-section-title">{title}</h2> : null}
             {description ? <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{description}</p> : null}
