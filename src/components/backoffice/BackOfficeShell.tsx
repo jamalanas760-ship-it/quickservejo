@@ -77,7 +77,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
   const safeSection = sections.some((item) => item.key === section) ? section : "overview";
   const attention = summary.lowStock.length + summary.pendingApproval + summary.pendingReceiving;
 
-  return <section className="space-y-3">
+  return <section className="qs-viewport-fill flex h-full min-h-0 flex-col gap-2">
     <section className="overflow-hidden rounded-[18px] border border-border bg-card shadow-sm">
       <div className="grid gap-3 p-3.5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-4">
         <div>
@@ -91,14 +91,14 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
       </div>
     </section>
 
-    <div className="grid gap-3 xl:grid-cols-[174px_minmax(0,1fr)]">
+    <div className="qs-viewport-fill grid min-h-0 gap-2 xl:grid-cols-[158px_minmax(0,1fr)]">
       <nav aria-label={ar ? "وحدات ERP" : "ERP modules"} className="self-start overflow-x-auto xl:sticky xl:top-24 xl:overflow-visible">
         <div className="flex min-w-max gap-1 rounded-2xl border border-border bg-card p-1.5 xl:min-w-0 xl:flex-col">
           {sections.map(({ key, en, ar: arLabel, icon: Icon }) => <button key={key} type="button" onClick={() => setSection(key)} aria-current={safeSection === key ? "page" : undefined} className={cn("flex min-h-9 items-center gap-2 rounded-[10px] px-2.5 text-start text-[11px] font-semibold transition xl:w-full", safeSection === key ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}><Icon className="size-4 shrink-0" /><span>{ar ? arLabel : en}</span>{key === "procurement" && summary.pendingApproval > 0 ? <span className="ms-auto min-w-5 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[9px] font-black text-white">{summary.pendingApproval}</span> : null}{key === "inventory" && summary.lowStock.length > 0 ? <span className="ms-auto min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[9px] font-black text-white">{summary.lowStock.length}</span> : null}</button>)}
         </div>
       </nav>
 
-      <div className="min-w-0 xl:max-h-[calc(100dvh-210px)] xl:overflow-y-auto xl:pe-1">
+      <div className="qs-scroll-region min-h-0 min-w-0 xl:pe-1">
         {query.isError ? <div role="alert" className="qs-card space-y-3 p-6"><p className="text-sm text-destructive">{humanError(query.error, lang)}</p><Button variant="outline" onClick={() => void query.refetch()}>{ar ? "إعادة المحاولة" : "Try again"}</Button></div>
         : query.isPending ? <div className="space-y-3"><Skeleton className="h-28 rounded-2xl" /><Skeleton className="h-72 rounded-2xl" /></div>
         : safeSection === "overview" ? <OverviewPanel data={data} summary={summary} access={moduleAccess} currency={currency} onAction={setRequest} onNavigate={setSection} canApproveProcurement={canApproveProcurement} />
