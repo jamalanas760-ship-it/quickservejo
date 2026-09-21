@@ -291,7 +291,7 @@ export function WorkPage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "عملي" : "My Work"} />
-    <main className="qs-page space-y-5">
+    <main className="qs-page qs-compact-page space-y-4">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={ListTodo}>{ar?"مساحة العمل":"My Workspace"}</MasterEyebrow>}
         title={ar?"العمل المطلوب بدون تشتيت":"The Work That Needs Attention"}
