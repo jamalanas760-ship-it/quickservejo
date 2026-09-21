@@ -17,5 +17,5 @@ export const Route = createFileRoute("/_authenticated/manage/$restaurantId/analy
 
 function Page() {
   const { restaurantId } = Route.useParams();
-  return <div className="space-y-6"><DecisionIntelligencePanel restaurantId={restaurantId} /><AnalyticsManagerPro restaurantId={restaurantId} /></div>;
+  return <div className="space-y-3"><DecisionIntelligencePanel restaurantId={restaurantId} /><AnalyticsManagerPro restaurantId={restaurantId} /></div>;
 }
