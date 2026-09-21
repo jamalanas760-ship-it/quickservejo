@@ -161,7 +161,7 @@ function BookingsPage(){
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"الحجوزات":"Reservations"}/>
-    <main className="qs-page qs-compact-page space-y-4">
+    <main className="qs-page qs-compact-page qs-viewport-page">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={CalendarCheck2}>{ar?"مكتب الحجوزات":"Reservation Desk"}</MasterEyebrow>}
         title={ar?"الحجوزات والوصول والجلوس":"Reservations, Arrivals & Seating"}
@@ -181,9 +181,9 @@ function BookingsPage(){
         <MasterKpi icon={UserRoundCheck} label={ar?"جالسين الآن":"Seated Now"} value={String(seated)} hint={ar?"في الخدمة":"In service"} tone="green"/>
       </section>
 
-      <section className="qs-card overflow-hidden">
+      <section className="qs-card qs-viewport-fill flex min-h-0 flex-col overflow-hidden">
         <div className="flex flex-col gap-2 border-b border-border p-3.5 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="qs-section-title">{ar?"جدول الحجوزات":"Reservation schedule"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"التأكيد لا يحجز الطاولة تشغيلياً إلا قرب الموعد؛ منع التعارض يتم دائماً من قاعدة البيانات.":"Future reservations do not block live floor status until arrival nears; time conflicts are always enforced in the database."}</p></div><Input className="sm:max-w-xs" value={search} onChange={e=>setSearch(e.target.value)} placeholder={ar?"بحث بالاسم، الهاتف أو الرمز":"Search guest, phone or code"}/></div>
-        {bookings.isPending||tables.isPending?<div className="p-5"><Skeleton className="h-72 rounded-2xl"/></div>:bookings.isError?<p className="p-6 text-sm text-destructive">{humanError(bookings.error,lang)}</p>:!rows.length?<div className="p-8 text-center"><CalendarCheck2 className="mx-auto size-8 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"لا توجد حجوزات":"No reservations found"}</h3></div>:<div className="max-h-[calc(100dvh-405px)] divide-y divide-border overflow-y-auto">{rows.map(booking=><BookingRow key={booking.id} booking={booking} table={(tables.data??[]).find(row=>row.id===booking.table_id)??null} currency={restaurant.data?.currency??"JOD"} ar={ar} lang={lang} busy={transition.isPending||deleteReservation.isPending} onStatus={(status,reason)=>transition.mutate({id:booking.id,status,reason})} onMessage={()=>setMessageTarget(booking)} onDelete={()=>setDeleteTarget(booking)}/>)}</div>}
+        {bookings.isPending||tables.isPending?<div className="p-5"><Skeleton className="h-72 rounded-2xl"/></div>:bookings.isError?<p className="p-6 text-sm text-destructive">{humanError(bookings.error,lang)}</p>:!rows.length?<div className="p-8 text-center"><CalendarCheck2 className="mx-auto size-8 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"لا توجد حجوزات":"No reservations found"}</h3></div>:<div className="qs-scroll-region min-h-0 flex-1 divide-y divide-border">{rows.map(booking=><BookingRow key={booking.id} booking={booking} table={(tables.data??[]).find(row=>row.id===booking.table_id)??null} currency={restaurant.data?.currency??"JOD"} ar={ar} lang={lang} busy={transition.isPending||deleteReservation.isPending} onStatus={(status,reason)=>transition.mutate({id:booking.id,status,reason})} onMessage={()=>setMessageTarget(booking)} onDelete={()=>setDeleteTarget(booking)}/>)}</div>}
       </section>
     </main>
     <CreateBookingDialog open={createOpen} onOpenChange={setCreateOpen} restaurantId={rid} tables={tables.data??[]} settings={settings.data} ar={ar} lang={lang}/>
