@@ -108,9 +108,13 @@ export function WorkPage() {
   const [editingTask, setEditingTask] = useState<WorkTask | null>(null);
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<"all" | WorkPriority>("all");
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | WorkStatus>("all");
+  const [creatorFilter, setCreatorFilter] = useState("all");
   const [sortMode, setSortMode] = useState<SortMode>("due");
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [quickFocus, setQuickFocus] = useState<QuickFocus>("all");
+  const [comment, setComment] = useState("");
 
   const tasks = useQuery({
     queryKey: ["work", rid],
@@ -170,6 +174,9 @@ export function WorkPage() {
     const q = search.trim().toLowerCase();
     if (q) next = next.filter((row) => [row.title, row.description, row.assigned_role, row.source_type].some((value) => value?.toLowerCase().includes(q)));
     if (priorityFilter !== "all") next = next.filter((row) => row.priority === priorityFilter);
+    if (assigneeFilter !== "all") next = next.filter((row) => row.assigned_staff_id === assigneeFilter);
+    if (statusFilter !== "all") next = next.filter((row) => row.status === statusFilter);
+    if (creatorFilter !== "all") next = next.filter((row) => row.created_by_staff_id === creatorFilter);
 
     const priorityRank: Record<WorkPriority, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
     return [...next].sort((a, b) => {
@@ -179,7 +186,7 @@ export function WorkPage() {
       const bd = b.due_at ? new Date(b.due_at).getTime() : Number.MAX_SAFE_INTEGER;
       return ad - bd || priorityRank[a.priority] - priorityRank[b.priority];
     });
-  }, [tasks.data, tab, canManage, membership?.id, membership?.role, quickFocus, search, priorityFilter, sortMode]);
+  }, [tasks.data, tab, canManage, membership?.id, membership?.role, quickFocus, search, priorityFilter, assigneeFilter, statusFilter, creatorFilter, sortMode]);
 
   const counts = useMemo(() => {
     const rows = tasks.data ?? [];
@@ -277,6 +284,27 @@ export function WorkPage() {
     },
   });
 
+  const addComment = useMutation({
+    mutationFn: async () => {
+      if (!selected || !membership || !comment.trim()) return;
+      const { error } = await (supabase as any).from("work_task_activity").insert({
+        task_id: selected.id,
+        restaurant_id: selected.restaurant_id,
+        actor_staff_id: membership.id,
+        action: "comment",
+        note: comment.trim(),
+        metadata: {},
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      setComment("");
+      await qc.invalidateQueries({ queryKey: ["work", "activity", selectedId] });
+      toast.success(ar ? "تمت إضافة التعليق" : "Comment added");
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
   if (scope.isPending || access.isPending) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><Skeleton className="h-[620px] rounded-3xl" /></main></div>;
 
   if (!rid || !membership || !canView) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><section className="qs-card p-8 text-center"><ShieldCheck className="mx-auto size-10 text-muted-foreground" /><h1 className="mt-4 text-xl font-bold">{ar ? "مساحة العمل غير متاحة" : "My Work is not available"}</h1><p className="mt-2 text-sm text-muted-foreground">{ar ? "لا يملك هذا الدور صلاحية مساحة العمل لهذا المطعم." : "This role does not have My Work access for this restaurant."}</p></section></main></div>;
@@ -309,11 +337,14 @@ export function WorkPage() {
         <div className="border-b border-border p-3 sm:p-4">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="overflow-x-auto"><div className="flex min-w-max gap-1">{tabs.filter((item) => item.show).map((item) => <button key={item.id} type="button" onClick={() => { setTab(item.id); setQuickFocus("all"); }} className={cn("rounded-xl px-4 py-2.5 text-xs font-bold transition", tab === item.id ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>{ar ? item.ar : item.en}</button>)}</div></div>
-            {tab !== "handover" ? <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <div className="relative min-w-0 sm:w-[220px]"><Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="ps-9" placeholder={ar ? "بحث بالعنوان أو الوصف" : "Search work"} /></div>
-              <Select value={priorityFilter} onValueChange={(value) => setPriorityFilter(value as "all" | WorkPriority)}><SelectTrigger className="sm:w-[135px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل الأولويات" : "All priority"}</SelectItem><SelectItem value="urgent">Urgent</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="low">Low</SelectItem></SelectContent></Select>
-              <Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}><SelectTrigger className="sm:w-[130px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="due">{ar ? "الاستحقاق" : "Due date"}</SelectItem><SelectItem value="priority">{ar ? "الأولوية" : "Priority"}</SelectItem><SelectItem value="newest">{ar ? "الأحدث" : "Newest"}</SelectItem></SelectContent></Select>
-              <div className="inline-grid grid-cols-2 rounded-xl border border-border p-1"><button type="button" onClick={() => setViewMode("cards")} aria-label={ar ? "عرض بطاقات" : "Card view"} className={cn("grid size-9 place-items-center rounded-lg", viewMode === "cards" ? "bg-muted text-foreground" : "text-muted-foreground")}><LayoutGrid className="size-4" /></button><button type="button" onClick={() => setViewMode("list")} aria-label={ar ? "عرض قائمة" : "List view"} className={cn("grid size-9 place-items-center rounded-lg", viewMode === "list" ? "bg-muted text-foreground" : "text-muted-foreground")}><Rows3 className="size-4" /></button></div>
+            {tab !== "handover" ? <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+              <div className="relative min-w-[190px] flex-1 xl:max-w-[240px]"><Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="h-9 ps-9" placeholder={ar ? "بحث بالعنوان أو الوصف" : "Search work"} /></div>
+              <Select value={priorityFilter} onValueChange={(value) => setPriorityFilter(value as "all" | WorkPriority)}><SelectTrigger className="h-9 w-[118px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "الأولوية" : "Priority"}</SelectItem><SelectItem value="urgent">Urgent</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="low">Low</SelectItem></SelectContent></Select>
+              <Select value={assigneeFilter} onValueChange={setAssigneeFilter}><SelectTrigger className="h-9 w-[138px]"><SelectValue placeholder={ar ? "المسؤول" : "Assignee"} /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل المسؤولين" : "All assignees"}</SelectItem>{(staff.data ?? []).map((row)=><SelectItem key={row.id} value={row.id}>{row.name}</SelectItem>)}</SelectContent></Select>
+              <Select value={statusFilter} onValueChange={(value)=>setStatusFilter(value as "all" | WorkStatus)}><SelectTrigger className="h-9 w-[126px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل الحالات" : "All status"}</SelectItem><SelectItem value="open">{ar ? "مفتوح" : "To do"}</SelectItem><SelectItem value="in_progress">{ar ? "قيد التنفيذ" : "In progress"}</SelectItem><SelectItem value="waiting_approval">{ar ? "مراجعة" : "Review"}</SelectItem><SelectItem value="completed">{ar ? "مكتمل" : "Done"}</SelectItem></SelectContent></Select>
+              <Select value={creatorFilter} onValueChange={setCreatorFilter}><SelectTrigger className="h-9 w-[132px]"><SelectValue placeholder={ar ? "المنشئ" : "Created by"} /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل المنشئين" : "All creators"}</SelectItem>{(staff.data ?? []).map((row)=><SelectItem key={row.id} value={row.id}>{row.name}</SelectItem>)}</SelectContent></Select>
+              <Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}><SelectTrigger className="h-9 w-[112px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="due">{ar ? "الاستحقاق" : "Due date"}</SelectItem><SelectItem value="priority">{ar ? "الأولوية" : "Priority"}</SelectItem><SelectItem value="newest">{ar ? "الأحدث" : "Newest"}</SelectItem></SelectContent></Select>
+              <div className="inline-grid grid-cols-2 rounded-[10px] border border-border p-0.5"><button type="button" onClick={() => setViewMode("cards")} aria-label={ar ? "عرض بطاقات" : "Card view"} className={cn("grid size-8 place-items-center rounded-lg", viewMode === "cards" ? "bg-muted text-foreground" : "text-muted-foreground")}><LayoutGrid className="size-4" /></button><button type="button" onClick={() => setViewMode("list")} aria-label={ar ? "عرض قائمة" : "List view"} className={cn("grid size-8 place-items-center rounded-lg", viewMode === "list" ? "bg-muted text-foreground" : "text-muted-foreground")}><Rows3 className="size-4" /></button></div>
             </div> : null}
           </div>
         </div>
@@ -347,7 +378,11 @@ export function WorkPage() {
         <DetailRow label={ar ? "آخر تحديث" : "Updated"} value={formatStamp(selected.updated_at, ar)} />
         <DetailRow label={ar ? "أُكملت" : "Completed"} value={formatStamp(selected.completed_at, ar)} />
         <DetailRow label={ar ? "ملاحظة الإنجاز" : "Completion note"} value={selected.completion_note} />
-        {(activity.data ?? []).length ? <div className="mt-5"><h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "سجل النشاط" : "Activity history"}</h3><div className="mt-2 space-y-2">{(activity.data ?? []).map((item) => <div key={item.id} className="rounded-xl border border-border/70 p-3"><div className="flex items-center justify-between gap-3"><strong className="text-xs capitalize">{item.action.replaceAll("_", " ")}</strong><span className="text-[10px] text-muted-foreground">{formatStamp(item.created_at, ar)}</span></div>{item.note ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.note}</p> : null}<p className="mt-1 text-[10px] text-muted-foreground">{item.actor_staff_id ? ((staff.data ?? []).find((row) => row.id === item.actor_staff_id)?.name ?? (ar ? "عضو فريق" : "Team member")) : (ar ? "النظام" : "System")}</p></div>)}</div></div> : null}
+        <div className="mt-4 rounded-xl border border-border bg-muted/20 p-3">
+          <Label className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "إضافة تعليق" : "Add comment"}</Label>
+          <div className="mt-2 flex gap-2"><Input value={comment} onChange={(event)=>setComment(event.target.value)} onKeyDown={(event)=>{if(event.key==="Enter"&&!event.shiftKey&&comment.trim()){event.preventDefault();addComment.mutate();}}} placeholder={ar ? "اكتب تحديثاً أو ملاحظة..." : "Write an update or note..."} className="h-9"/><Button size="sm" disabled={!comment.trim()||addComment.isPending} onClick={()=>addComment.mutate()}>{ar ? "إضافة" : "Add"}</Button></div>
+        </div>
+        {(activity.data ?? []).length ? <div className="mt-4"><h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "سجل النشاط" : "Activity history"}</h3><div className="mt-2 space-y-2">{(activity.data ?? []).map((item) => <div key={item.id} className={cn("rounded-xl border p-3",item.action==="comment"?"border-orange-200/70 bg-orange-500/[.035] dark:border-orange-900/40":"border-border/70")}><div className="flex items-center justify-between gap-3"><strong className="text-xs capitalize">{item.action==="comment"?(ar?"تعليق":"Comment"):item.action.replaceAll("_", " ")}</strong><span className="text-[10px] text-muted-foreground">{formatStamp(item.created_at, ar)}</span></div>{item.note ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.note}</p> : null}<p className="mt-1 text-[10px] text-muted-foreground">{item.actor_staff_id ? ((staff.data ?? []).find((row) => row.id === item.actor_staff_id)?.name ?? (ar ? "عضو فريق" : "Team member")) : (ar ? "النظام" : "System")}</p></div>)}</div></div> : null}
       </div> : null}
     </DetailSheet>
 
@@ -415,10 +450,10 @@ function WorkCard({ task, staff, ar, canApprove, busy, onStatus, onOpen }: { tas
   const assignee = task.assigned_staff_id ? staff.find((row) => row.id === task.assigned_staff_id)?.name : null;
   const overdue = task.due_at && new Date(task.due_at).getTime() < Date.now() && task.status !== "completed";
   const CategoryIcon = task.category === "approval" ? ShieldCheck : task.category === "handover" ? Handshake : task.category === "alert" ? AlertTriangle : ClipboardCheck;
-  return <article role="button" tabIndex={0} onClick={onOpen} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }} className="group flex min-h-[220px] cursor-pointer flex-col rounded-2xl border border-border bg-card p-4 text-start outline-none transition hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-[#ff5a0a]">
-    <div className="flex items-start justify-between gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground"><CategoryIcon className="size-4" /></span><div className="flex flex-wrap justify-end gap-1.5"><Badge className={cn("border-0 capitalize", priorityTone[task.priority])}>{task.priority}</Badge>{overdue ? <Badge variant="destructive">{ar ? "متأخر" : "Overdue"}</Badge> : null}</div></div>
-    <div className="mt-4 min-w-0 flex-1"><h3 className="line-clamp-2 font-display text-base font-bold leading-6">{task.title}</h3>{task.description ? <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{task.description}</p> : <p className="mt-1.5 text-xs text-muted-foreground">{ar ? "لا يوجد وصف إضافي." : "No additional description."}</p>}</div>
-    <div className="mt-4 grid gap-1.5 border-t border-border/70 pt-3 text-[10px] font-semibold text-muted-foreground"><span className="inline-flex min-w-0 items-center gap-1.5"><UserRound className="size-3.5 shrink-0" /><span className="truncate">{assignee ?? (task.assigned_role ? roleLabel(task.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))}</span></span>{task.due_at ? <span className="inline-flex items-center gap-1.5"><Clock3 className="size-3.5" />{formatStamp(task.due_at, ar)}</span> : null}</div>
+  return <article role="button" tabIndex={0} onClick={onOpen} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }} className="group flex min-h-[184px] cursor-pointer flex-col rounded-xl border border-border bg-card p-3.5 text-start outline-none transition hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-[#ff5a0a]">
+    <div className="flex items-start justify-between gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-muted text-muted-foreground"><CategoryIcon className="size-4" /></span><div className="flex flex-wrap justify-end gap-1.5"><Badge className={cn("border-0 capitalize", priorityTone[task.priority])}>{task.priority}</Badge>{overdue ? <Badge variant="destructive">{ar ? "متأخر" : "Overdue"}</Badge> : null}</div></div>
+    <div className="mt-3 min-w-0 flex-1"><h3 className="line-clamp-2 font-display text-base font-bold leading-6">{task.title}</h3>{task.description ? <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{task.description}</p> : <p className="mt-1.5 text-xs text-muted-foreground">{ar ? "لا يوجد وصف إضافي." : "No additional description."}</p>}</div>
+    <div className="mt-3 grid gap-1.5 border-t border-border/70 pt-3 text-[10px] font-semibold text-muted-foreground"><span className="inline-flex min-w-0 items-center gap-1.5"><UserRound className="size-3.5 shrink-0" /><span className="truncate">{assignee ?? (task.assigned_role ? roleLabel(task.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))}</span></span>{task.due_at ? <span className="inline-flex items-center gap-1.5"><Clock3 className="size-3.5" />{formatStamp(task.due_at, ar)}</span> : null}</div>
     <div className="mt-3 flex items-center gap-2" onClick={(event) => event.stopPropagation()}>{task.status === "open" ? <Button variant="outline" size="sm" className="flex-1" disabled={busy} onClick={() => onStatus("in_progress")}>{ar ? "بدء" : "Start"}</Button> : null}{task.status === "in_progress" && task.requires_approval ? <Button variant="outline" size="sm" className="flex-1" disabled={busy} onClick={() => onStatus("waiting_approval")}>{ar ? "إرسال للموافقة" : "Submit"}</Button> : null}{task.status === "in_progress" && !task.requires_approval ? <Button size="sm" className="flex-1" disabled={busy} onClick={() => onStatus("completed")}>{ar ? "إكمال" : "Complete"}</Button> : null}{task.status === "waiting_approval" && canApprove ? <Button size="sm" className="flex-1" disabled={busy} onClick={() => onStatus("completed")}><CheckCircle2 className="size-4" />{ar ? "اعتماد" : "Approve"}</Button> : <span className="capitalize text-xs text-muted-foreground">{task.status.replaceAll("_", " ")}</span>}</div>
   </article>;
 }
