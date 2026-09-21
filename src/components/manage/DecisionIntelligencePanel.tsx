@@ -97,8 +97,8 @@ export function DecisionIntelligencePanel({restaurantId}:{restaurantId:string}) 
   if(foodPct>35)insights.push({title:ar?"تكلفة طعام مرتفعة":"Food cost is elevated",body:ar?"تكلفة الاستهلاك النظرية تقارب "+foodPct.toFixed(1)+"% من المبيعات المدفوعة.":"Theoretical ingredient issues are about "+foodPct.toFixed(1)+"% of paid sales.",tone:"warning",icon:Receipt});
   if(!insights.length)insights.push({title:ar?"لا توجد استثناءات كبيرة":"Operations look balanced",body:ar?"لا توجد حالات تشغيلية رئيسية تحتاج تدخلاً الآن حسب البيانات المتاحة.":"No major operational exceptions need intervention based on the available data.",tone:"good",icon:TrendingUp});
 
-  return <section className="space-y-4">
-    <div className="flex flex-wrap items-end justify-between gap-3"><div><div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-[#ff5a0a]"><Lightbulb className="size-3.5"/>{ar?"ذكاء إداري":"Decision intelligence"}</div><h2 className="mt-3 font-display text-2xl font-bold tracking-[-.04em]">{ar?"ما الذي يحتاج قراراً؟":"What needs a management decision?"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"ملخص سبعة أيام يربط المبيعات والمخزون والمشتريات والعمل.":"A seven-day view connecting sales, inventory, procurement and workforce signals."}</p></div></div>
+  return <section className="space-y-3">
+    <div className="flex flex-wrap items-end justify-between gap-3"><div><div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-[#ff5a0a]"><Lightbulb className="size-3.5"/>{ar?"ذكاء إداري":"Decision intelligence"}</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">{ar?"ما الذي يحتاج قراراً؟":"What needs a management decision?"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"ملخص سبعة أيام يربط المبيعات والمخزون والمشتريات والعمل.":"A seven-day view connecting sales, inventory, procurement and workforce signals."}</p></div></div>
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       <Kpi icon={TrendingUp} label={ar?"مبيعات مدفوعة":"Paid sales"} value={formatMoney(sales,d.currency,lang)}/>
       <Kpi icon={Receipt} label={ar?"متوسط الفاتورة":"Average ticket"} value={formatMoney(avgTicket,d.currency,lang)}/>
@@ -112,23 +112,23 @@ export function DecisionIntelligencePanel({restaurantId}:{restaurantId:string}) 
   </section>;
 }
 
-function Kpi({icon:Icon,label,value,tone}:{icon:typeof TrendingUp;label:string;value:string;tone?:"warning"|undefined}){return <article className="qs-stat min-h-[106px] p-4"><div className="flex items-center gap-2"><span className={cn("grid size-9 place-items-center rounded-xl",tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-4"/></span><p className="text-[10px] font-semibold text-muted-foreground">{label}</p></div><strong className="mt-3 block font-display text-lg tracking-[-.03em]">{value}</strong></article>}
+function Kpi({icon:Icon,label,value,tone}:{icon:typeof TrendingUp;label:string;value:string;tone?:"warning"|undefined}){return <article className="qs-stat min-h-[92px] p-3.5"><div className="flex items-center gap-2"><span className={cn("grid size-9 place-items-center rounded-xl",tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-4"/></span><p className="text-[10px] font-semibold text-muted-foreground">{label}</p></div><strong className="mt-3 block font-display text-lg tracking-[-.03em]">{value}</strong></article>}
 
 
 function ForecastPanel({forecast,pending,error,currency,lang}:{forecast:Forecast|undefined;pending:boolean;error:boolean;currency:string;lang:Language}) {
   const ar=lang==="ar";
   if(pending)return <Skeleton className="h-52 rounded-2xl"/>;
-  if(error)return <article className="rounded-2xl border p-5"><h3 className="font-bold">{ar?"التوقع التشغيلي":"Operational forecast"}</h3><p className="mt-2 text-xs text-muted-foreground">{ar?"تعذر حساب التوقع الآن؛ لا يؤثر ذلك على بيانات التشغيل الحالية.":"Forecast could not be calculated right now; live operational data is unaffected."}</p></article>;
-  if(!forecast||forecast.data_sufficiency==="insufficient")return <article className="rounded-2xl border border-dashed p-5"><h3 className="font-bold">{ar?"توقع الغد":"Tomorrow forecast"}</h3><p className="mt-2 text-xs text-muted-foreground">{ar?"لا توجد أيام مدفوعة كافية بعد لبناء توقع مسؤول. سيظهر التوقع تلقائياً مع تراكم البيانات.":"There are not enough paid trading days yet for a responsible forecast. It will appear automatically as history builds."}</p></article>;
+  if(error)return <article className="rounded-2xl border p-4"><h3 className="font-bold">{ar?"التوقع التشغيلي":"Operational forecast"}</h3><p className="mt-2 text-xs text-muted-foreground">{ar?"تعذر حساب التوقع الآن؛ لا يؤثر ذلك على بيانات التشغيل الحالية.":"Forecast could not be calculated right now; live operational data is unaffected."}</p></article>;
+  if(!forecast||forecast.data_sufficiency==="insufficient")return <article className="rounded-2xl border border-dashed p-4"><h3 className="font-bold">{ar?"توقع الغد":"Tomorrow forecast"}</h3><p className="mt-2 text-xs text-muted-foreground">{ar?"لا توجد أيام مدفوعة كافية بعد لبناء توقع مسؤول. سيظهر التوقع تلقائياً مع تراكم البيانات.":"There are not enough paid trading days yet for a responsible forecast. It will appear automatically as history builds."}</p></article>;
 
   const peak=[...(forecast.hourly??[])].sort((a,b)=>b.expected_orders-a.expected_orders).slice(0,3);
   const confidenceLabel=forecast.confidence==="high"?(ar?"ثقة عالية":"High confidence"):forecast.confidence==="medium"?(ar?"ثقة متوسطة":"Medium confidence"):(ar?"بيانات محدودة":"Limited data");
-  return <article className="rounded-2xl border bg-card p-5">
+  return <article className="rounded-2xl border bg-card p-4">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><div className="inline-flex rounded-full bg-orange-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#ff5a0a]">{ar?"توقع تشغيلي":"Operational forecast"}</div><h3 className="mt-3 font-display text-xl font-bold">{ar?"تخطيط الغد من التاريخ الفعلي":"Tomorrow planning from actual history"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar?"متوسطات حتمية من آخر 28 يوماً، مع تفضيل نفس يوم الأسبوع. لا توجد ادعاءات ذكاء اصطناعي.":"Deterministic averages from the last 28 days, preferring the same weekday. No AI guesswork."}</p></div>
       <span className={cn("rounded-full px-3 py-1 text-[10px] font-bold",forecast.confidence==="high"?"bg-emerald-500/10 text-emerald-700":forecast.confidence==="medium"?"bg-amber-500/10 text-amber-700":"bg-muted text-muted-foreground")}>{confidenceLabel} · {forecast.sample_days} {ar?"أيام عينة":"sample days"}</span>
     </div>
-    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Kpi icon={TrendingUp} label={ar?"مبيعات متوقعة":"Expected sales"} value={formatMoney(Number(forecast.expected_sales),currency,lang)}/>
       <Kpi icon={Receipt} label={ar?"طلبات متوقعة":"Expected orders"} value={Number(forecast.expected_orders).toFixed(1)}/>
       <Kpi icon={UsersRound} label={ar?"ساعات عمل مرجعية":"Reference labor"} value={Number(forecast.labor?.expected_hours??0).toFixed(1)+"h"}/>
