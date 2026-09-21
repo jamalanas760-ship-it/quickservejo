@@ -1159,9 +1159,17 @@
 
     /* Opt-in viewport workspace utilities used by the heaviest operational pages. */
     .qs-viewport-page {
+      display: flex !important;
       height: calc(100dvh - var(--qs-shell-topbar));
       min-height: 0 !important;
+      flex-direction: column;
+      gap: 6px;
       overflow: hidden !important;
+    }
+
+    .qs-viewport-page > * {
+      min-width: 0;
+      flex-shrink: 0;
     }
 
     .qs-viewport-fill {
