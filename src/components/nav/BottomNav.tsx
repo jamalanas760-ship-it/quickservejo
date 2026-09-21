@@ -1,4 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useState } from "react";
 import {
   BarChart3,
   Banknote,
@@ -15,6 +16,7 @@ import {
   HeartHandshake,
   Megaphone,
   MonitorSmartphone,
+  MoreHorizontal,
   PlugZap,
   Settings,
   Store,
@@ -27,6 +29,7 @@ import {
 } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useOperationalCounters } from "@/hooks/useOperationalCounters";
 import { useAccess } from "@/hooks/useSession";
 import { useI18n } from "@/lib/i18n";
@@ -46,6 +49,7 @@ const FRONTLINE_ITEMS: Record<string, Item> = {
 
 export function BottomNav() {
   const { lang } = useI18n();
+  const [moreOpen, setMoreOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const access = useAccess();
   const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
@@ -108,10 +112,13 @@ export function BottomNav() {
               { to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات" },
             ];
 
-  const mobilePriority = [homeTo, "/work", "/shifts", `/manage/${restaurantId}/orders`, `/manage/${restaurantId}/operations`, "/profile"];
-  const mobileItems = desktopItems.length > 5
-    ? mobilePriority.flatMap((to) => desktopItems.find((item) => item.to === to) ?? []).slice(0, 5)
+  const mobilePriority = managerial
+    ? [homeTo, `/manage/${restaurantId}/orders`, "/bookings", "/work"]
+    : [homeTo, "/work", "/shifts", `/manage/${restaurantId}/operations`, "/profile"];
+  const mobilePrimary = desktopItems.length > 5
+    ? mobilePriority.flatMap((to) => desktopItems.find((item) => item.to === to) ?? []).filter((item, index, list) => list.findIndex(candidate => candidate.to === item.to) === index).slice(0, 4)
     : desktopItems;
+  const mobileHasMore = desktopItems.some(item => !mobilePrimary.some(primary => primary.to === item.to));
 
   function groupLabel(group: NavGroup) {
     const labels: Record<NavGroup, { en: string; ar: string }> = {
@@ -182,8 +189,8 @@ export function BottomNav() {
       </aside>
 
       <nav aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"} className="safe-bottom fixed inset-x-3 bottom-2 z-50 lg:hidden">
-        <div className="grid overflow-hidden rounded-[20px] border border-border bg-card/96 px-1 shadow-[0_14px_42px_rgba(15,23,42,.16)] backdrop-blur-xl" style={{ gridTemplateColumns: `repeat(${Math.max(1, mobileItems.length)}, minmax(0,1fr))` }}>
-          {mobileItems.map((item) => {
+        <div className="grid overflow-hidden rounded-[19px] border border-border bg-card/96 px-1 shadow-[0_14px_42px_rgba(15,23,42,.16)] backdrop-blur-xl" style={{ gridTemplateColumns: `repeat(${Math.max(1, mobilePrimary.length + (mobileHasMore ? 1 : 0))}, minmax(0,1fr))` }}>
+          {mobilePrimary.map((item) => {
             const active = activeFor(item);
             const Icon = item.icon;
             const count = countFor(item);
@@ -195,8 +202,44 @@ export function BottomNav() {
               </Link>
             );
           })}
+          {mobileHasMore ? (
+            <button type="button" onClick={() => setMoreOpen(true)} className={cn("relative flex min-h-[62px] flex-col items-center justify-center gap-1 text-[10px] font-semibold text-muted-foreground transition hover:text-foreground")}>
+              <MoreHorizontal className="size-5" />
+              <span>{lang === "ar" ? "المزيد" : "More"}</span>
+            </button>
+          ) : null}
         </div>
       </nav>
+
+      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+        <SheetContent side="bottom" className="max-h-[78dvh] overflow-y-auto rounded-t-[24px] border-x-0 border-b-0 p-0 lg:hidden">
+          <SheetHeader className="sticky top-0 z-10 border-b border-border bg-card/95 px-5 py-4 text-start backdrop-blur-xl">
+            <SheetTitle>{lang === "ar" ? "مساحة QuickServe" : "QuickServe workspace"}</SheetTitle>
+            <SheetDescription>{lang === "ar" ? "كل الأدوات التي يسمح بها دورك، مرتبة حسب العمل." : "All tools available to your role, organized by workflow."}</SheetDescription>
+          </SheetHeader>
+          <div className="space-y-5 p-4 pb-[calc(24px+env(safe-area-inset-bottom))]">
+            {(["overview","service","operations","growth","admin"] as NavGroup[]).map(group => {
+              const items = desktopItems.filter(item => item.group === group || (!item.group && group === "overview"));
+              if (items.length === 0) return null;
+              return <section key={group}>
+                <p className="mb-2 px-1 text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{groupLabel(group)}</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {items.map(item => {
+                    const Icon = item.icon;
+                    const active = activeFor(item);
+                    const count = countFor(item);
+                    return <Link key={`${item.to}-more`} to={item.to as never} onClick={() => setMoreOpen(false)} className={cn("flex min-h-14 items-center gap-3 rounded-[14px] border px-3.5 py-3 text-sm font-bold transition", active ? "border-primary/25 bg-primary/8 text-foreground" : "border-border bg-card text-foreground hover:bg-muted/50")}>
+                      <span className={cn("grid size-9 shrink-0 place-items-center rounded-[11px]", active ? "bg-primary/12 text-primary" : "bg-muted text-muted-foreground")}><Icon className="size-[17px]" /></span>
+                      <span className="min-w-0 flex-1 truncate text-start">{lang === "ar" ? item.ar : item.en}</span>
+                      {count > 0 ? <span className="min-w-6 rounded-full bg-red-500 px-1.5 py-1 text-center text-[9px] font-black text-white">{count > 99 ? "99+" : count}</span> : null}
+                    </Link>;
+                  })}
+                </div>
+              </section>;
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
