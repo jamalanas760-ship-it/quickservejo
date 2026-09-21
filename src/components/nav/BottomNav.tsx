@@ -14,6 +14,7 @@ import {
   Home,
   HeartHandshake,
   Megaphone,
+  MonitorSmartphone,
   PlugZap,
   Settings,
   Store,
@@ -84,6 +85,7 @@ export function BottomNav() {
     { to: "/guests", icon: HeartHandshake, en: "Guests", ar: "الضيوف", capability: "view_analytics", group: "growth" },
     { to: "/campaigns", icon: Megaphone, en: "Campaigns", ar: "الحملات", capability: "manage_restaurant", group: "growth" },
     { to: "/integrations", icon: PlugZap, en: "Connect", ar: "التكاملات", capability: "manage_restaurant", group: "admin" },
+    { to: "/devices", icon: MonitorSmartphone, en: "Devices", ar: "الأجهزة", capability: "manage_restaurant", group: "admin" },
     { to: `/manage/${restaurantId}/staff`, icon: Users, en: "Team", ar: "الفريق", capability: "manage_staff", group: "admin" },
     { to: "/profile", icon: User, en: "Profile", ar: "الحساب", exact: true, group: "admin" },
   ] satisfies Item[]).filter((item) => (item.to !== "/hq" || multiLocation) && (!item.capability || can(item.capability))) : [];
