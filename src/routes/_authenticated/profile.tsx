@@ -140,11 +140,11 @@ function ProfilePage() {
   return <div className="min-h-dvh bg-background">
     <AppHeader />
     <main className="qs-page qs-compact-page space-y-4 pb-10">
-      <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
+      <section className="relative overflow-hidden rounded-[18px] border border-border bg-card">
         {accountCover ? <><img src={accountCover} alt="" className="pointer-events-none absolute inset-0 size-full object-cover opacity-30" style={{ objectPosition: `${accountCoverX}% ${accountCoverY}%`, transform: `scale(${accountCoverZoom / 100})` }} /><div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card/95 via-card/78 to-card/55" /></> : <div className="absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_18%_0%,rgba(255,90,10,.15),transparent_55%)]" />}
-        <div className="relative flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative flex flex-col gap-3 p-3.5 sm:p-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-[20px] border border-border bg-background shadow-sm">
+            <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-[20px] border border-border bg-background shadow-sm">
               {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : <span className="font-display text-2xl font-black text-[#ff5a0a]">{displayName.slice(0, 1).toUpperCase()}</span>}
             </div>
             <div className="min-w-0">
@@ -164,7 +164,7 @@ function ProfilePage() {
         </div>
       </section>
 
-      <div className="grid gap-3 xl:grid-cols-[240px_minmax(0,1fr)] xl:items-start">
+      <div className="grid gap-3 xl:grid-cols-[210px_minmax(0,1fr)] xl:items-start">
         <aside className="xl:sticky xl:top-24">
           <div className="qs-card p-2.5">
             <div className="px-3 pb-2 pt-2">
@@ -174,8 +174,8 @@ function ProfilePage() {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = section === item.id;
-                return <button key={item.id} type="button" onClick={() => setSection(item.id)} className={cn("group flex min-h-[56px] items-center gap-2.5 rounded-xl px-3 py-2.5 text-start transition", active ? "bg-[#ff5a0a] text-white shadow-sm" : "hover:bg-muted/70")}>
-                  <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", active ? "bg-white/16 text-white" : "bg-muted text-muted-foreground group-hover:text-foreground")}><Icon className="size-4.5" /></span>
+                return <button key={item.id} type="button" onClick={() => setSection(item.id)} className={cn("group flex min-h-[48px] items-center gap-2 rounded-xl px-3 py-2.5 text-start transition", active ? "bg-[#ff5a0a] text-white shadow-sm" : "hover:bg-muted/70")}>
+                  <span className={cn("grid size-8 shrink-0 place-items-center rounded-[10px]", active ? "bg-white/16 text-white" : "bg-muted text-muted-foreground group-hover:text-foreground")}><Icon className="size-4.5" /></span>
                   <span className="min-w-0 flex-1"><strong className="block text-xs">{item.label}</strong><span className={cn("mt-0.5 hidden text-[10px] leading-4 sm:block xl:block", active ? "text-white/75" : "text-muted-foreground")}>{item.hint}</span></span>
                   <ChevronRight className={cn("size-4 shrink-0 transition", ar && "rotate-180", active ? "text-white/80" : "text-muted-foreground")} />
                 </button>;
@@ -220,7 +220,7 @@ function PersonalSection({ ar, lang, rid, displayName, email, roleLabel, restaur
 function NotificationsSection({ ar, notif, operationalRows, soundRows, toggle }: { ar: boolean; notif: Notifications; operationalRows: [keyof Notifications, string, string, string, string][]; soundRows: [keyof Notifications, string, string, string, string][]; toggle: (key: keyof Notifications, value: boolean) => void }) {
   return <div className="space-y-4">
     <SectionHeading icon={<Bell className="size-5" />} title={ar ? "الإشعارات والتنبيهات" : "Notifications & alerts"} description={ar ? "نظّم التنبيهات التشغيلية والأصوات بدون ازدحام. يتم حفظ كل تغيير تلقائياً." : "Organize operational alerts and sounds without clutter. Every change saves automatically."} />
-    <div className="grid gap-5 2xl:grid-cols-2">
+    <div className="grid gap-3 2xl:grid-cols-2">
       <PreferenceGroup title={ar ? "التنبيهات التشغيلية" : "Operational alerts"} subtitle={ar ? "ما الذي تريد أن يتم تنبيهك بشأنه؟" : "Choose what deserves your attention."} rows={operationalRows} notif={notif} ar={ar} toggle={toggle} />
       <PreferenceGroup title={ar ? "الصوت والسلوك" : "Sound & behavior"} subtitle={ar ? "تحكم في أصوات التنبيه حسب نوع الحدث." : "Control alert sounds by event type."} rows={soundRows} notif={notif} ar={ar} toggle={toggle} />
     </div>
@@ -246,8 +246,8 @@ function PreferenceGroup({ title, subtitle, rows, notif, ar, toggle }: { title: 
   return <section className="qs-card overflow-hidden">
     <div className="border-b border-border px-5 py-4"><h2 className="text-sm font-bold">{title}</h2><p className="mt-1 text-xs text-muted-foreground">{subtitle}</p></div>
     <div className="divide-y divide-border">
-      {rows.map(([key, en, arabic, hintEn, hintAr], index) => <div key={key} className="flex min-h-[82px] items-center gap-4 px-4 py-3.5 sm:px-5">
-        <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", index % 3 === 0 ? "bg-orange-500/10 text-[#ff5a0a]" : index % 3 === 1 ? "bg-emerald-500/10 text-emerald-600" : "bg-blue-500/10 text-blue-600")}><Bell className="size-4" /></span>
+      {rows.map(([key, en, arabic, hintEn, hintAr], index) => <div key={key} className="flex min-h-[64px] items-center gap-3 px-3.5 py-2.5 sm:px-4">
+        <span className={cn("grid size-8 shrink-0 place-items-center rounded-[10px]", index % 3 === 0 ? "bg-orange-500/10 text-[#ff5a0a]" : index % 3 === 1 ? "bg-emerald-500/10 text-emerald-600" : "bg-blue-500/10 text-blue-600")}><Bell className="size-4" /></span>
         <span className="min-w-0 flex-1"><strong className="block text-sm">{ar ? arabic : en}</strong><span className="mt-1 block text-xs leading-5 text-muted-foreground">{ar ? hintAr : hintEn}</span></span>
         <Switch checked={notif[key]} onCheckedChange={(value) => toggle(key, value)} aria-label={ar ? arabic : en} />
       </div>)}
@@ -263,7 +263,7 @@ function SectionHeading({ icon, title, description }: { icon: ReactNode; title: 
 }
 
 function InfoTile({ icon, label, value, accent }: { icon: ReactNode; label: string; value: string; accent?: boolean }) {
-  return <div className="flex min-h-[76px] items-center gap-3 bg-card p-3.5 sm:p-4">
+  return <div className="flex min-h-[64px] items-center gap-3 bg-card p-3 sm:p-3.5">
     <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted/70 text-muted-foreground">{icon}</span>
     <span className="min-w-0"><span className="block text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">{label}</span><strong className={cn("mt-1.5 block truncate text-sm", accent && "text-emerald-600")}>{value}</strong></span>
   </div>;
