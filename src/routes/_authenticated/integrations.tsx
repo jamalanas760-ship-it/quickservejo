@@ -156,13 +156,13 @@ function IntegrationsPage() {
         description={ar ? "أدر المدفوعات والرسائل والتوصيل والمحاسبة والطباعة وواجهات API من مكان واحد." : "Manage payments, messaging, delivery, accounting, printing and API connectivity from one place."}
       />
 
-      {query.isPending ? <Skeleton className="h-[480px] rounded-2xl" /> : query.isError ? <section className="qs-card p-5 text-sm text-destructive">{humanError(query.error, lang)}</section> : (
+      {query.isPending ? <Skeleton className="h-[400px] rounded-2xl" /> : query.isError ? <section className="qs-card p-5 text-sm text-destructive">{humanError(query.error, lang)}</section> : (
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {PRESETS.map((preset) => {
             const row = byKey.get(`${preset.category}:${preset.provider}`);
             const Icon = preset.icon;
             const status = row?.status ?? "not_configured";
-            return <article key={`${preset.category}:${preset.provider}`} className="group rounded-[18px] border border-border/85 bg-card p-5 shadow-[var(--qs-shadow-card)] transition hover:-translate-y-px hover:shadow-[var(--qs-shadow-hover)]">
+            return <article key={`${preset.category}:${preset.provider}`} className="group rounded-[16px] border border-border/85 bg-card p-4 shadow-[var(--qs-shadow-card)] transition hover:-translate-y-px hover:shadow-[var(--qs-shadow-hover)]">
               <div className="flex items-start justify-between gap-3">
                 <span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-5" /></span>
                 <MasterStatus tone={status === "healthy" ? "green" : status === "configured" ? "blue" : status === "disabled" ? "slate" : "orange"}>{status.replaceAll("_", " ")}</MasterStatus>
@@ -183,7 +183,7 @@ function IntegrationsPage() {
       <DeveloperConnectPanel restaurantId={rid} />
       <IntegrationOperationsPanel restaurantId={rid} />
 
-      <section className="qs-card p-5">
+      <section className="qs-card p-4">
         <div className="flex items-start gap-3"><Activity className="mt-0.5 size-5 text-[#ff5a0a]" /><div><h2 className="font-bold">{ar ? "قاعدة أمان" : "Security rule"}</h2><p className="mt-1 text-sm text-muted-foreground">{ar ? "أسرار Webhook محفوظة مشفرة داخل Supabase Vault، ومفاتيح API تحفظ كبصمات SHA-256 فقط. القيم الكاملة تظهر مرة واحدة عند الإنشاء." : "Webhook signing secrets are encrypted in Supabase Vault, while API keys are stored only as SHA-256 hashes. Full secret values are revealed once at creation."}</p></div></div>
       </section>
     </main>
