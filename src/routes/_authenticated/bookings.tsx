@@ -310,7 +310,7 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
                 />
               </Field>
               <Field label={ar?"الوقت":"Time"}>
-                <div className="relative"><Clock3 className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-12 rounded-xl ps-10" type="time" step="900" value={bookingTime} onChange={e=>{setBookingTime(e.target.value);setSelectedTable("auto");}} required/></div>
+                <div className="relative"><Clock3 className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-12 cursor-pointer rounded-xl ps-10" type="time" step="900" value={bookingTime} onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()} onChange={e=>{setBookingTime(e.target.value);setSelectedTable("auto");}} required/></div>
               </Field>
               <Field label={ar?"عدد الضيوف":"Guests"}>
                 <div className="relative"><UsersRound className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-12 rounded-xl ps-10" type="number" min="1" max="100" value={guests} onChange={e=>{setGuests(Number(e.target.value)||1);setSelectedTable("auto");}} required/></div>
