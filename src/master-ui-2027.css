@@ -866,6 +866,10 @@
       overflow-x: hidden !important;
     }
 
+    body:has(.qs-viewport-page) {
+      overflow-y: hidden !important;
+    }
+
     .qs-topbar {
       min-height: 48px !important;
     }
