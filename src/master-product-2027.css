@@ -471,3 +471,18 @@
     scroll-behavior:auto !important;
   }
 }
+
+
+/* Restaurant workspace routes keep the master canvas while tenant identity remains in logo/accent. */
+.qs-app .restaurant-theme-scope {
+  background: var(--qs-bg) !important;
+}
+.dark .qs-app .restaurant-theme-scope {
+  background: var(--qs-bg) !important;
+}
+
+/* Super-admin and legacy route containers align with the same content canvas. */
+.qs-app :is(.tenant-app,.restaurant-theme-scope) > main,
+.qs-app main {
+  min-width: 0;
+}
