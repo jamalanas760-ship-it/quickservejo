@@ -18,6 +18,7 @@ import rebrandCss from "../rebrand-2026.css?url";
 import masterUiCss from "../master-ui-2026.css?url";
 import productCss from "../master-product-2027.css?url";
 import master2027Css from "../master-ui-2027.css?url";
+import approvedMasterCss from "../approved-master.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider } from "@/lib/i18n";
 import { Toaster } from "@/components/ui/sonner";
@@ -133,6 +134,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: masterUiCss },
       { rel: "stylesheet", href: productCss },
       { rel: "stylesheet", href: master2027Css },
+      { rel: "stylesheet", href: approvedMasterCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" },

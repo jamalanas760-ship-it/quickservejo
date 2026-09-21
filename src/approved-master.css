@@ -1,0 +1,69 @@
+/* QuickServe approved page system: the final shared visual layer for every route. */
+:root {
+  --qs-shell-sidebar: 232px;
+  --qs-shell-topbar: 68px;
+  --qs-page-max: 1560px;
+  --qs-page-x: 28px;
+  --qs-page-y: 24px;
+  --qs-bg: #f7f7f4;
+  --qs-surface: #ffffff;
+  --qs-ink: #202322;
+  --qs-muted: #697178;
+  --qs-line: #e3e6e4;
+  --qs-orange: #ff5a0a;
+  --qs-orange-soft: #fff0e7;
+  --qs-sage: #1f8a61;
+  --qs-amber: #b36b08;
+  --qs-shadow: 0 1px 2px rgb(31 35 34 / .035), 0 8px 24px rgb(31 35 34 / .045);
+}
+
+html, body { background: var(--qs-bg); }
+body { color: var(--qs-ink); font-family: "Manrope", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif; }
+
+.qs-page { width: min(100%, var(--qs-page-max)) !important; padding: var(--qs-page-y) var(--qs-page-x) 48px !important; }
+.qs-page-title { font-size: clamp(1.75rem, 2.2vw, 2.35rem) !important; font-weight: 750 !important; letter-spacing: -.045em !important; }
+.qs-page-subtitle { color: var(--qs-muted) !important; font-size: .88rem !important; line-height: 1.6 !important; }
+.qs-section-title { font-size: 1rem !important; font-weight: 750 !important; letter-spacing: -.025em !important; }
+
+.qs-card, .panel, .qs-stat, .qs-right-panel, .qs-master-header, .qs-settings-card {
+  border: 1px solid var(--qs-line) !important; border-radius: 10px !important; background: var(--qs-surface) !important; box-shadow: var(--qs-shadow) !important;
+}
+.qs-stat { border-radius: 10px !important; }
+
+.qs-sidebar-shell { width: var(--qs-shell-sidebar) !important; background: #202322 !important; border-inline-end: 0 !important; box-shadow: none !important; }
+.qs-sidebar-shell > div:first-child { border-bottom-color: rgb(255 255 255 / .1) !important; }
+.qs-sidebar-item { min-height: 42px !important; border-radius: 8px !important; color: rgb(255 255 255 / .72) !important; font-size: .79rem !important; }
+.qs-sidebar-item:hover { background: rgb(255 255 255 / .07) !important; color: #fff !important; transform: none !important; }
+.qs-sidebar-item[data-active="true"] { background: rgb(255 90 10 / .18) !important; color: #fff !important; box-shadow: inset 3px 0 0 var(--qs-orange) !important; }
+[dir="rtl"] .qs-sidebar-item[data-active="true"] { box-shadow: inset -3px 0 0 var(--qs-orange) !important; }
+.qs-sidebar-item[data-active="true"] svg { color: var(--qs-orange) !important; }
+
+.qs-topbar { min-height: var(--qs-shell-topbar) !important; background: rgb(247 247 244 / .94) !important; border-bottom: 1px solid var(--qs-line) !important; box-shadow: none !important; }
+.qs-topbar-search { border-radius: 8px !important; background: #fff !important; }
+.qs-button-primary { background: var(--qs-orange) !important; border-radius: 8px !important; box-shadow: none !important; min-height: 42px !important; }
+.qs-button-primary:hover { background: #e94f00 !important; transform: none !important; box-shadow: none !important; }
+.qs-button-secondary { border-radius: 8px !important; min-height: 42px !important; box-shadow: none !important; }
+.qs-control { border-radius: 8px !important; min-height: 42px !important; }
+.qs-chip { border-radius: 8px !important; min-height: 38px !important; }
+
+.tenant-app { background: var(--qs-bg) !important; }
+.tenant-app > .min-h-dvh, .min-h-dvh.bg-background { background: var(--qs-bg) !important; }
+.tenant-app :is(input, textarea, select, [role="combobox"]) { border-radius: 8px !important; }
+
+/* Public pages share one restrained header and reading width. */
+main.min-h-screen.bg-background > header,
+main.min-h-screen.bg-muted\/40 > header { background: var(--qs-bg); }
+main.min-h-screen.bg-background > main, main.min-h-screen.bg-muted\/40 > div { max-width: 760px; }
+
+@media (max-width: 1023px) {
+  .qs-page { padding: 18px 14px calc(104px + env(safe-area-inset-bottom)) !important; }
+  .qs-sidebar-shell { width: 100% !important; }
+}
+@media (max-width: 640px) {
+  .qs-page { padding-inline: 12px !important; }
+  .qs-page-title { font-size: 1.65rem !important; }
+  .qs-card, .panel, .qs-stat { border-radius: 10px !important; }
+  .qs-button-primary, .qs-button-secondary { min-height: 46px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; } }
