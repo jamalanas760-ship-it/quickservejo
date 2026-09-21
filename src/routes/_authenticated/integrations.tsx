@@ -149,7 +149,7 @@ function IntegrationsPage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title="QuickServe Connect" />
-    <main className="qs-page qs-compact-page space-y-4">
+    <main className="qs-page qs-compact-page qs-viewport-page">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={PlugZap}>QuickServe Connect</MasterEyebrow>}
         title={ar ? "الإعدادات والتكاملات" : "Settings & Integrations"}
@@ -157,20 +157,20 @@ function IntegrationsPage() {
       />
 
       {query.isPending ? <Skeleton className="h-[320px] rounded-2xl" /> : query.isError ? <section className="qs-card p-5 text-sm text-destructive">{humanError(query.error, lang)}</section> : (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <section className="qs-viewport-fill grid min-h-0 gap-2 overflow-y-auto md:grid-cols-2 xl:grid-cols-3">
           {PRESETS.map((preset) => {
             const row = byKey.get(`${preset.category}:${preset.provider}`);
             const Icon = preset.icon;
             const status = row?.status ?? "not_configured";
-            return <article key={`${preset.category}:${preset.provider}`} className="group rounded-[14px] border border-border/85 bg-card p-3.5 shadow-[var(--qs-shadow-card)] transition hover:-translate-y-px hover:shadow-[var(--qs-shadow-hover)]">
+            return <article key={`${preset.category}:${preset.provider}`} className="group rounded-[10px] border border-border/85 bg-card p-2.5 shadow-[var(--qs-shadow-card)] transition hover:-translate-y-px hover:shadow-[var(--qs-shadow-hover)]">
               <div className="flex items-start justify-between gap-3">
-                <span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-5" /></span>
+                <span className="grid size-8 place-items-center rounded-[9px] bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-5" /></span>
                 <MasterStatus tone={status === "healthy" ? "green" : status === "configured" ? "blue" : status === "disabled" ? "slate" : "orange"}>{status.replaceAll("_", " ")}</MasterStatus>
               </div>
-              <h2 className="mt-4 font-bold">{preset.name}</h2>
+              <h2 className="mt-2 font-bold">{preset.name}</h2>
               <p className="mt-1 text-xs text-muted-foreground">{preset.credential ? (ar ? `مرجع السر: ${preset.credential}` : `Server secret: ${preset.credential}`) : (ar ? "لا يحتاج مفتاحاً خارجياً" : "No external credential required")}</p>
               {row?.last_error ? <p className="mt-3 rounded-xl bg-red-500/10 p-2 text-xs text-red-700">{row.last_error}</p> : null}
-              <div className="mt-4 flex gap-2">
+              <div className="mt-2 flex gap-1.5">
                 <Button size="sm" onClick={() => configure.mutate(preset)} disabled={configure.isPending}>{row ? (ar ? "تحديث" : "Refresh config") : (ar ? "تهيئة" : "Configure")}</Button>
                 <Button size="sm" variant="outline" disabled={testConnection.isPending} onClick={() => testConnection.mutate(preset)}>{ar ? "اختبار" : "Test"}</Button>
                 {row ? <Button size="sm" variant="outline" onClick={() => disable.mutate(row)}>{row.status === "disabled" ? (ar ? "تفعيل" : "Enable") : (ar ? "تعطيل" : "Disable")}</Button> : null}
@@ -180,10 +180,10 @@ function IntegrationsPage() {
         </section>
       )}
 
-      <DeveloperConnectPanel restaurantId={rid} />
-      <IntegrationOperationsPanel restaurantId={rid} />
+      <div className="max-h-[130px] shrink-0 overflow-y-auto"><DeveloperConnectPanel restaurantId={rid} /></div>
+      <div className="max-h-[130px] shrink-0 overflow-y-auto"><IntegrationOperationsPanel restaurantId={rid} /></div>
 
-      <section className="qs-card p-3.5">
+      <section className="qs-card shrink-0 p-2.5">
         <div className="flex items-start gap-3"><Activity className="mt-0.5 size-5 text-[#ff5a0a]" /><div><h2 className="font-bold">{ar ? "قاعدة أمان" : "Security rule"}</h2><p className="mt-1 text-sm text-muted-foreground">{ar ? "أسرار Webhook محفوظة مشفرة داخل Supabase Vault، ومفاتيح API تحفظ كبصمات SHA-256 فقط. القيم الكاملة تظهر مرة واحدة عند الإنشاء." : "Webhook signing secrets are encrypted in Supabase Vault, while API keys are stored only as SHA-256 hashes. Full secret values are revealed once at creation."}</p></div></div>
       </section>
     </main>
