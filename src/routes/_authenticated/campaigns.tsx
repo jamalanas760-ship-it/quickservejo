@@ -128,7 +128,7 @@ function CampaignsPage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"حملات العملاء":"CRM Campaigns"}/>
-    <main className="qs-page space-y-5">
+    <main className="qs-page qs-compact-page space-y-4">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={Megaphone}>{ar?"احتفاظ العملاء":"Retention"}</MasterEyebrow>}
         title={ar?"حملات العملاء":"CRM Campaigns"}
