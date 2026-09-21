@@ -319,7 +319,7 @@ export function WorkPage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "عملي" : "My Work"} />
-    <main className="qs-page qs-compact-page space-y-4">
+    <main className="qs-page qs-compact-page qs-viewport-page">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={ListTodo}>{ar?"مساحة العمل":"My Workspace"}</MasterEyebrow>}
         title={ar?"العمل المطلوب بدون تشتيت":"The Work That Needs Attention"}
@@ -333,7 +333,7 @@ export function WorkPage() {
         <MasterKpi icon={CheckCircle2} label={ar?"مكتمل":"Completed"} value={String(counts.completed)} hint={ar?"مغلقة":"Closed items"} tone="green"/>
       </section>
 
-      <section className="qs-card overflow-hidden">
+      <section className="qs-card qs-viewport-fill flex min-h-0 flex-col overflow-hidden">
         <div className="border-b border-border p-3 sm:p-4">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="overflow-x-auto"><div className="flex min-w-max gap-1">{tabs.filter((item) => item.show).map((item) => <button key={item.id} type="button" onClick={() => { setTab(item.id); setQuickFocus("all"); }} className={cn("rounded-xl px-4 py-2.5 text-xs font-bold transition", tab === item.id ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>{ar ? item.ar : item.en}</button>)}</div></div>
@@ -349,7 +349,7 @@ export function WorkPage() {
           </div>
         </div>
         {tab === "handover" ? <ShiftHandoverPanel restaurantId={rid} currentStaffId={membership.id} currentRole={membership.role} /> : null}
-        {tab !== "handover" ? tasks.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : tasks.isError ? <p className="p-6 text-sm text-destructive">{humanError(tasks.error, lang)}</p> : visible.length === 0 ? <EmptyState ar={ar} /> : viewMode === "cards" ? <WorkflowBoard tasks={visible} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(task, status) => updateTask.mutate({ id: task.id, status })} onOpen={(task) => setSelectedId(task.id)} /> : <div className="divide-y divide-border">{visible.map((task) => <TaskRow key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} onOpen={() => setSelectedId(task.id)} />)}</div> : null}
+        {tab !== "handover" ? tasks.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : tasks.isError ? <p className="p-6 text-sm text-destructive">{humanError(tasks.error, lang)}</p> : visible.length === 0 ? <EmptyState ar={ar} /> : viewMode === "cards" ? <WorkflowBoard tasks={visible} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(task, status) => updateTask.mutate({ id: task.id, status })} onOpen={(task) => setSelectedId(task.id)} /> : <div className="qs-scroll-region min-h-0 flex-1 divide-y divide-border">{visible.map((task) => <TaskRow key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} onOpen={() => setSelectedId(task.id)} />)}</div> : null}
       </section>
     </main>
 
