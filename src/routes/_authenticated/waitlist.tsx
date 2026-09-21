@@ -196,7 +196,7 @@ function WaitlistPage(){
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}/>
-    <main className="qs-page qs-compact-page space-y-4">
+    <main className="qs-page qs-compact-page qs-viewport-page">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={Clock3}>{ar?"إدارة الطلب":"Demand Control"}</MasterEyebrow>}
         title={ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}
@@ -212,7 +212,7 @@ function WaitlistPage(){
         <MasterKpi icon={CalendarCheck2} label={ar?"طلبات اليوم":"Today"} value={String(todayCount)} hint={active.length?(ar?"أقدم "+formatAge(oldestMinutes,ar):"Oldest "+formatAge(oldestMinutes,ar)):undefined} tone="green"/>
       </section>
 
-      <section className="qs-card overflow-hidden">
+      <section className="qs-card qs-viewport-fill flex min-h-0 flex-col overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-border p-3.5 lg:flex-row lg:items-center lg:justify-between">
           <div><h2 className="qs-section-title">{ar?"طابور الانتظار":"Waitlist queue"}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar?"رتّب الطلبات حسب الحالة، ثم اختر تاريخ ووقت التحويل بشكل واضح. يتم إعادة فحص التوفر عند الإنشاء.":"Filter by status, then choose a clear conversion date and time. Availability is checked again when the reservation is created."}</p></div>
           <div className="flex flex-wrap gap-2">
@@ -225,7 +225,7 @@ function WaitlistPage(){
         {query.isPending?<div className="p-5"><Skeleton className="h-[420px] rounded-xl"/></div>
           :query.isError?<div className="p-5 text-sm text-destructive">{humanError(query.error,lang)}</div>
           :rows.length===0?<div className="grid min-h-[220px] place-items-center p-6 text-center"><div><Clock3 className="mx-auto size-10 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"لا توجد طلبات بهذا الفلتر":"No waitlist requests in this view"}</h3><p className="mt-1 text-sm text-muted-foreground">{ar?"غيّر الفلتر أو ابحث عن ضيف آخر.":"Try another filter or search for another guest."}</p></div></div>
-          :<div className="max-h-[calc(100dvh-405px)] divide-y divide-border overflow-y-auto">{rows.map(row=>{
+          :<div className="qs-scroll-region min-h-0 flex-1 divide-y divide-border">{rows.map(row=>{
             const live=row.status==="waiting"||row.status==="notified";
             const value=convertValues[row.id]??defaultConversion(row);
             const ageMinutes=Math.max(0,Math.floor((Date.now()-new Date(row.created_at).getTime())/60_000));
