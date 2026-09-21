@@ -108,14 +108,14 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
     <div className="min-h-dvh bg-background lg:ps-[var(--qs-shell-sidebar)]">
       <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden lg:block"><SidebarContent /></aside>
       <header className="qs-topbar safe-top sticky top-0 z-40">
-        <div className="mx-auto flex h-[var(--qs-shell-topbar)] w-full max-w-[1680px] items-center gap-3 px-3 sm:px-5 lg:px-7">
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}><SheetTrigger asChild><Button variant="ghost" size="icon" className="size-10 lg:hidden"><MenuIcon className="size-5" /></Button></SheetTrigger><SheetContent side="left" className="w-[86vw] max-w-[280px] border-e border-border bg-card p-0 text-foreground"><SheetTitle className="sr-only">QuickServe</SheetTitle><SidebarContent onNavigate={() => setMobileOpen(false)} /></SheetContent></Sheet>
+        <div className="mx-auto flex h-[var(--qs-shell-topbar)] w-full max-w-[1640px] items-center gap-3 px-3 sm:px-5 lg:px-7">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}><SheetTrigger asChild><Button variant="ghost" size="icon" className="size-10 lg:hidden"><MenuIcon className="size-5" /></Button></SheetTrigger><SheetContent side="left" className="w-[88vw] max-w-[300px] border-e border-white/10 bg-[#151a20] p-0 text-white"><SheetTitle className="sr-only">QuickServe</SheetTitle><SidebarContent onNavigate={() => setMobileOpen(false)} /></SheetContent></Sheet>
           <Link to={"/super-admin" as never} className="lg:hidden"><BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="hidden sm:inline" /></Link>
           <button type="button" onClick={() => setSearchOpen(true)} className="qs-topbar-search hidden min-w-0 max-w-[440px] flex-1 items-center gap-3 px-4 text-start text-[13px] text-muted-foreground md:flex"><Search className="size-4" /><span className="min-w-0 flex-1 truncate">{lang === "ar" ? "بحث" : "Search"}</span><kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px]">⌘K</kbd></button>
           <div className="ms-auto flex items-center gap-1 sm:gap-1.5">
             <ThemeToggle compact />
             <Notifications />
-            <button type="button" onClick={toggleLang} className="grid size-10 place-items-center rounded-xl text-xs font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground">{lang === "ar" ? "EN" : "ع"}</button>
+            <button type="button" onClick={toggleLang} className="grid size-10 place-items-center rounded-[11px] text-xs font-bold text-muted-foreground transition hover:bg-muted/60 hover:text-foreground">{lang === "ar" ? "EN" : "ع"}</button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild><button type="button" className="grid size-10 place-items-center rounded-full bg-muted ring-1 ring-border"><Users className="size-4" /></button></DropdownMenuTrigger>
               <DropdownMenuContent align="end">
