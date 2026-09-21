@@ -16,8 +16,8 @@ export function MasterPageHeader({
   tabs?: ReactNode;
 }) {
   return (
-    <section className="qs-master-header overflow-hidden rounded-[20px] border border-border bg-card shadow-[var(--qs-shadow-1)]">
-      <div className="flex flex-col gap-5 p-5 sm:p-6 xl:flex-row xl:items-end xl:justify-between">
+    <section className="qs-master-header overflow-hidden rounded-[16px] border border-border bg-card shadow-[var(--qs-shadow-1)]">
+      <div className="flex flex-col gap-4 p-5 sm:p-6 xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0 max-w-3xl">
           {eyebrow ? <div className="mb-3">{eyebrow}</div> : null}
           <h1 className="qs-page-title">{title}</h1>
@@ -64,7 +64,7 @@ export function MasterKpi({
   }[tone];
 
   return (
-    <article className="group min-w-0 rounded-[16px] border border-border bg-card p-4 shadow-[var(--qs-shadow-1)] transition duration-150 hover:-translate-y-px hover:border-primary/15 hover:shadow-[var(--qs-shadow-2)] sm:p-5">
+    <article className="group min-w-0 rounded-[14px] border border-border bg-card p-4 shadow-[var(--qs-shadow-1)] transition duration-150 hover:border-orange-200 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <span className={cn("grid size-10 shrink-0 place-items-center rounded-[13px]", toneClass)}>
           <Icon className="size-4.5" />
@@ -96,7 +96,7 @@ export function MasterSection({
   contentClassName?: string;
 }) {
   return (
-    <section className={cn("overflow-hidden rounded-[20px] border border-border bg-card shadow-[var(--qs-shadow-1)]", className)}>
+    <section className={cn("overflow-hidden rounded-[16px] border border-border bg-card shadow-[var(--qs-shadow-1)]", className)}>
       {title || action ? (
         <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="min-w-0">
@@ -121,7 +121,7 @@ export function MasterTabs({
       {items.map((item, index) => {
         const className = cn(
           "inline-flex min-h-9 items-center rounded-[10px] px-3 text-xs font-bold transition",
-          item.active ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+          item.active ? "bg-[#ff5a0a] text-white shadow-[0_3px_10px_rgba(255,90,10,.14)]" : "text-muted-foreground hover:bg-[#fff1e8] hover:text-[#e94d00]",
         );
         if (item.href) {
           return <a key={index} href={item.href} className={className}>{item.label}</a>;
