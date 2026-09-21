@@ -51,11 +51,11 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
 
   return (
     <header className={cn("qs-topbar safe-top sticky top-0 z-40", className)}>
-      <div className="mx-auto flex h-[var(--qs-shell-topbar)] w-full max-w-[1640px] items-center gap-3 px-3 sm:px-5 lg:px-8">
-        {onMenu ? <button type="button" onClick={onMenu} aria-label="Menu" className="grid size-10 shrink-0 place-items-center rounded-[11px] border border-border bg-card text-foreground shadow-[0_1px_2px_rgba(15,23,42,.03)] transition hover:bg-muted/60 lg:hidden"><MenuIcon className="size-5" /></button> : null}
+      <div className="mx-auto flex h-[var(--qs-shell-topbar)] w-full max-w-[1640px] items-center gap-2 px-2.5 sm:px-4 lg:px-5">
+        {onMenu ? <button type="button" onClick={onMenu} aria-label="Menu" className="grid size-8.5 shrink-0 place-items-center rounded-[9px] border border-border bg-card text-foreground shadow-[0_1px_2px_rgba(15,23,42,.03)] transition hover:bg-muted/60 lg:hidden"><MenuIcon className="size-4" /></button> : null}
 
         <Link to={homeTo as never} className="min-w-0 shrink-0 lg:hidden" aria-label={restaurant?.name || "QuickServe"}>
-          {customLogo ? <span className="inline-flex h-10 max-w-[132px] items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-white px-2 shadow-sm"><img src={restaurant!.logo_url!} alt={restaurant?.name ?? "Restaurant"} className="h-8 w-auto max-w-full object-contain" /></span> : <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-lg text-foreground" />}
+          {customLogo ? <span className="inline-flex h-8 max-w-[118px] items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-white px-2 shadow-sm"><img src={restaurant!.logo_url!} alt={restaurant?.name ?? "Restaurant"} className="h-6 w-auto max-w-full object-contain" /></span> : <BrandLogo className="size-7" accentClassName="text-[#ff5a0a]" textClassName="text-base text-foreground" />}
         </Link>
 
         <div className="hidden min-w-0 items-center gap-3 lg:flex">
@@ -66,15 +66,15 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
 
         <div className="ms-auto flex items-center gap-1 sm:gap-1.5">
           <ThemeToggle compact />
-          <button type="button" onClick={toggleLang} className="inline-flex min-h-10 items-center gap-2 rounded-[11px] border border-transparent px-2.5 text-muted-foreground transition hover:border-border hover:bg-muted/55 hover:text-foreground" aria-label={lang === "ar" ? "Switch to English" : "التبديل إلى العربية"}>
-            <Globe2 className="size-[18px]" />
+          <button type="button" onClick={toggleLang} className="inline-flex min-h-8 items-center gap-1.5 rounded-[9px] border border-transparent px-2.5 text-muted-foreground transition hover:border-border hover:bg-muted/55 hover:text-foreground" aria-label={lang === "ar" ? "Switch to English" : "التبديل إلى العربية"}>
+            <Globe2 className="size-4" />
             <span className="hidden text-xs font-semibold xl:inline">{lang === "ar" ? "العربية" : "English"}</span>
             <ChevronDown className="hidden size-3.5 xl:block" />
           </button>
           <NotificationBell restaurantId={restaurantId} count={notificationCount} ar={lang === "ar"} />
-          <Link to="/profile" aria-label={lang === "ar" ? "الملف الشخصي" : "Profile"} className="group flex min-h-11 items-center gap-2 rounded-[12px] border border-transparent px-1.5 transition hover:border-border hover:bg-muted/55 sm:px-2">
-            <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border/90 shadow-sm group-hover:ring-primary/30">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : <RoleAvatarFallback role={membership?.role} superAdmin={access.isSuperAdmin} />}</span>
-            <span className="hidden min-w-0 text-start xl:block"><span className="block max-w-28 truncate text-xs font-bold">{displayName}</span><span className="block text-[10px] text-muted-foreground">{roleLabel}</span></span>
+          <Link to="/profile" aria-label={lang === "ar" ? "الملف الشخصي" : "Profile"} className="group flex min-h-8 items-center gap-1.5 rounded-[9px] border border-transparent px-1.5 transition hover:border-border hover:bg-muted/55 sm:px-2">
+            <span className="grid size-7.5 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border/90 shadow-sm group-hover:ring-primary/30">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : <RoleAvatarFallback role={membership?.role} superAdmin={access.isSuperAdmin} />}</span>
+            <span className="hidden min-w-0 text-start xl:block"><span className="block max-w-24 truncate text-[11px] font-bold">{displayName}</span><span className="block text-[9px] text-muted-foreground">{roleLabel}</span></span>
             <ChevronDown className="hidden size-3.5 text-muted-foreground xl:block" />
           </Link>
         </div>
