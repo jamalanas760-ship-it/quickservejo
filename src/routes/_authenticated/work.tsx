@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
@@ -7,8 +7,10 @@ import {
   ClipboardCheck,
   Clock3,
   Handshake,
+  GripVertical,
   LayoutGrid,
   ListTodo,
+  Pencil,
   Plus,
   Rows3,
   Search,
@@ -103,6 +105,7 @@ export function WorkPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<WorkTask | null>(null);
+  const [editingTask, setEditingTask] = useState<WorkTask | null>(null);
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<"all" | WorkPriority>("all");
   const [sortMode, setSortMode] = useState<SortMode>("due");
@@ -204,6 +207,45 @@ export function WorkPage() {
     onError: (error) => toast.error(humanError(error, lang)),
   });
 
+  const assignTask = useMutation({
+    mutationFn: async ({ id, assignedStaffId }: { id: string; assignedStaffId: string }) => {
+      if (!canManage) throw new Error("Assignment permission is required.");
+      const { error } = await (supabase as any).from("work_tasks")
+        .update({ assigned_staff_id: assignedStaffId, assigned_role: null, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("restaurant_id", rid!);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["work", rid] }),
+        qc.invalidateQueries({ queryKey: ["operational-counters", rid] }),
+      ]);
+      toast.success(ar ? "تم تحديث المسؤول" : "Assignee updated");
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  const editTaskDetails = useMutation({
+    mutationFn: async ({ task, title, description, priority, dueAt }: { task: WorkTask; title: string; description: string; priority: WorkPriority; dueAt: string }) => {
+      if (task.created_by_staff_id !== membership?.id) throw new Error("Only the creator can edit this work item.");
+      const { error } = await (supabase as any).rpc("update_own_work_task_details", {
+        _task_id: task.id,
+        _title: title.trim(),
+        _description: description.trim() || null,
+        _priority: priority,
+        _due_at: dueAt ? new Date(dueAt).toISOString() : null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      setEditingTask(null);
+      await qc.invalidateQueries({ queryKey: ["work", rid] });
+      toast.success(ar ? "تم تحديث المهمة" : "Work item updated");
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
   const removeTask = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await (supabase as any).rpc("archive_work_task", { _task_id: id });
@@ -276,7 +318,7 @@ export function WorkPage() {
           </div>
         </div>
         {tab === "handover" ? <ShiftHandoverPanel restaurantId={rid} currentStaffId={membership.id} currentRole={membership.role} /> : null}
-        {tab !== "handover" ? tasks.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : tasks.isError ? <p className="p-6 text-sm text-destructive">{humanError(tasks.error, lang)}</p> : visible.length === 0 ? <EmptyState ar={ar} /> : viewMode === "cards" ? <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-4 xl:grid-cols-3">{visible.map((task) => <WorkCard key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} onOpen={() => setSelectedId(task.id)} />)}</div> : <div className="divide-y divide-border">{visible.map((task) => <TaskRow key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} onOpen={() => setSelectedId(task.id)} />)}</div> : null}
+        {tab !== "handover" ? tasks.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : tasks.isError ? <p className="p-6 text-sm text-destructive">{humanError(tasks.error, lang)}</p> : visible.length === 0 ? <EmptyState ar={ar} /> : viewMode === "cards" ? <WorkflowBoard tasks={visible} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(task, status) => updateTask.mutate({ id: task.id, status })} onOpen={(task) => setSelectedId(task.id)} /> : <div className="divide-y divide-border">{visible.map((task) => <TaskRow key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} onOpen={() => setSelectedId(task.id)} />)}</div> : null}
       </section>
     </main>
 
@@ -285,7 +327,7 @@ export function WorkPage() {
       onOpenChange={(open) => { if (!open) setSelectedId(null); }}
       title={selected?.title ?? ""}
       description={selected ? `${ar ? "نوع" : "Type"}: ${selected.category} · ${selected.status.replaceAll("_", " ")}` : undefined}
-      footer={selected && canDelete ? <Button variant="destructive" className="w-full gap-2" onClick={() => setPendingDelete(selected)}><Trash2 className="size-4" />{ar ? "حذف عنصر العمل" : "Delete work item"}</Button> : undefined}
+      footer={selected ? <div className="grid w-full gap-2 sm:grid-cols-2">{selected.created_by_staff_id === membership.id ? <Button variant="outline" className="gap-2" onClick={() => setEditingTask(selected)}><Pencil className="size-4" />{ar ? "تعديل المهمة" : "Edit work item"}</Button> : <div className="rounded-xl bg-muted/50 px-3 py-2 text-center text-[10px] font-semibold text-muted-foreground">{ar ? "التعديل متاح لمنشئ المهمة فقط" : "Only the creator can edit core details"}</div>}{canDelete ? <Button variant="destructive" className="gap-2" onClick={() => setPendingDelete(selected)}><Trash2 className="size-4" />{ar ? "حذف عنصر العمل" : "Delete work item"}</Button> : null}</div> : undefined}
     >
       {selected ? <div>
         {selected.description ? <p className="mb-4 whitespace-pre-wrap rounded-2xl bg-muted/40 p-3 text-sm leading-6">{selected.description}</p> : null}
@@ -293,6 +335,7 @@ export function WorkPage() {
         <DetailRow label={ar ? "الحالة" : "Status"} value={<span className="capitalize">{selected.status.replaceAll("_", " ")}</span>} />
         <DetailRow label={ar ? "الأولوية" : "Priority"} value={<Badge className={cn("border-0 capitalize", priorityTone[selected.priority])}>{selected.priority}</Badge>} />
         <DetailRow label={ar ? "المسؤول" : "Assigned to"} value={(selected.assigned_staff_id ? (staff.data ?? []).find((row) => row.id === selected.assigned_staff_id)?.name : null) ?? (selected.assigned_role ? roleLabel(selected.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))} />
+        {canManage ? <div className="mb-4 rounded-2xl border border-border bg-muted/20 p-3"><Label className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "إعادة تعيين المسؤول" : "Reassign"}</Label><Select value={selected.assigned_staff_id ?? ""} onValueChange={(value) => assignTask.mutate({ id: selected.id, assignedStaffId: value })}><SelectTrigger className="mt-2"><SelectValue placeholder={ar ? "اختر موظفاً" : "Choose a team member"} /></SelectTrigger><SelectContent>{(staff.data ?? []).map((row) => <SelectItem key={row.id} value={row.id}>{row.name} · {ROLE_LABELS[row.role]?.[lang] ?? row.role}</SelectItem>)}</SelectContent></Select></div> : null}
         <DetailRow label={ar ? "أنشأها" : "Created by"} value={(selected.created_by_staff_id ? (staff.data ?? []).find((row) => row.id === selected.created_by_staff_id)?.name : null) ?? (ar ? "النظام / الأتمتة" : "System / automation")} />
         <DetailRow label={ar ? "الاستحقاق" : "Due"} value={formatStamp(selected.due_at, ar)} />
         <DetailRow label={ar ? "الموافقة" : "Approval"} value={selected.requires_approval ? (selected.approval_role ? roleLabel(selected.approval_role, ar) : (ar ? "مطلوبة" : "Required")) : (ar ? "غير مطلوبة" : "Not required")} />
@@ -307,6 +350,15 @@ export function WorkPage() {
         {(activity.data ?? []).length ? <div className="mt-5"><h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "سجل النشاط" : "Activity history"}</h3><div className="mt-2 space-y-2">{(activity.data ?? []).map((item) => <div key={item.id} className="rounded-xl border border-border/70 p-3"><div className="flex items-center justify-between gap-3"><strong className="text-xs capitalize">{item.action.replaceAll("_", " ")}</strong><span className="text-[10px] text-muted-foreground">{formatStamp(item.created_at, ar)}</span></div>{item.note ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.note}</p> : null}<p className="mt-1 text-[10px] text-muted-foreground">{item.actor_staff_id ? ((staff.data ?? []).find((row) => row.id === item.actor_staff_id)?.name ?? (ar ? "عضو فريق" : "Team member")) : (ar ? "النظام" : "System")}</p></div>)}</div></div> : null}
       </div> : null}
     </DetailSheet>
+
+    <EditTaskDialog
+      task={editingTask}
+      open={Boolean(editingTask)}
+      onOpenChange={(open) => { if (!open) setEditingTask(null); }}
+      ar={ar}
+      busy={editTaskDetails.isPending}
+      onSave={(values) => editingTask && editTaskDetails.mutate({ task: editingTask, ...values })}
+    />
 
     <Dialog open={Boolean(pendingDelete)} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
       <DialogContent className="sm:max-w-[460px]">
@@ -325,6 +377,38 @@ export function WorkPage() {
 
 function Metric({ icon: Icon, label, value, tone, active, onClick }: { icon: typeof ListTodo; label: string; value: number; tone?: "urgent"; active?: boolean; onClick?: () => void }) {
   return <button type="button" onClick={onClick} className={cn("qs-stat flex min-h-[112px] w-full items-center gap-4 p-4 text-start transition hover:-translate-y-0.5 hover:shadow-sm", active && "ring-2 ring-[#ff5a0a]/50")}><span className={cn("grid size-11 place-items-center rounded-2xl", tone === "urgent" ? "bg-red-500/10 text-red-600" : "bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-5" /></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong></div></button>;
+}
+
+function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }: { tasks: WorkTask[]; staff: StaffOption[]; ar: boolean; canApprove: boolean; busy: boolean; onStatus: (task: WorkTask, status: WorkStatus) => void; onOpen: (task: WorkTask) => void }) {
+  const columns: Array<{ status: WorkStatus; en: string; ar: string; tone: string }> = [
+    { status: "open", en: "To do", ar: "للعمل", tone: "bg-slate-400" },
+    { status: "in_progress", en: "In progress", ar: "قيد التنفيذ", tone: "bg-blue-500" },
+    { status: "waiting_approval", en: "Review", ar: "مراجعة", tone: "bg-violet-500" },
+    { status: "completed", en: "Done", ar: "مكتمل", tone: "bg-emerald-500" },
+  ];
+  return <div className="qs-workflow-board grid gap-3 p-3 lg:grid-cols-2 xl:grid-cols-4 sm:p-4">
+    {columns.map((column) => {
+      const rows = tasks.filter((task) => task.status === column.status);
+      return <section key={column.status} onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
+        event.preventDefault();
+        const id = event.dataTransfer.getData("text/work-task-id");
+        const task = tasks.find((item) => item.id === id);
+        if (task && task.status !== column.status) onStatus(task, column.status);
+      }} className="min-w-0 rounded-2xl border border-border bg-muted/20 p-2.5">
+        <div className="mb-2 flex items-center justify-between gap-2 px-1 py-1">
+          <div className="flex items-center gap-2"><span className={cn("size-2 rounded-full", column.tone)} /><h3 className="text-xs font-black uppercase tracking-[.08em]">{ar ? column.ar : column.en}</h3></div>
+          <span className="rounded-full bg-card px-2 py-1 text-[10px] font-bold text-muted-foreground">{rows.length}</span>
+        </div>
+        <div className="space-y-2.5">
+          {rows.map((task) => <div key={task.id} draggable={!busy} onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/work-task-id", task.id); }} className="group relative cursor-grab active:cursor-grabbing">
+            <span className="pointer-events-none absolute end-3 top-3 z-10 grid size-7 place-items-center rounded-lg bg-card/85 text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100"><GripVertical className="size-4" /></span>
+            <WorkCard task={task} staff={staff} ar={ar} canApprove={canApprove} busy={busy} onStatus={(status) => onStatus(task, status)} onOpen={() => onOpen(task)} />
+          </div>)}
+          {rows.length === 0 ? <div className="grid min-h-28 place-items-center rounded-xl border border-dashed border-border bg-card/45 p-3 text-center text-[10px] font-semibold text-muted-foreground">{ar ? "اسحب بطاقة إلى هنا" : "Drag a card here"}</div> : null}
+        </div>
+      </section>;
+    })}
+  </div>;
 }
 
 function WorkCard({ task, staff, ar, canApprove, busy, onStatus, onOpen }: { task: WorkTask; staff: StaffOption[]; ar: boolean; canApprove: boolean; busy: boolean; onStatus: (status: WorkStatus) => void; onOpen: () => void }) {
@@ -354,6 +438,21 @@ function TaskRow({ task, staff, ar, canApprove, busy, onStatus, onOpen }: { task
     <div className="flex min-w-0 gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground"><CategoryIcon className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{task.title}</h3><Badge className={cn("border-0 capitalize", priorityTone[task.priority])}>{task.priority}</Badge>{overdue ? <Badge variant="destructive">{ar ? "متأخر" : "Overdue"}</Badge> : null}</div>{task.description ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{task.description}</p> : null}<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-semibold text-muted-foreground"><span className="inline-flex items-center gap-1"><UserRound className="size-3" />{assignee ?? (task.assigned_role ? roleLabel(task.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))}</span>{task.due_at ? <span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{new Date(task.due_at).toLocaleString(ar ? "ar-JO" : "en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span> : null}<span className="capitalize">{task.status.replaceAll("_", " ")}</span></div></div></div>
     <div className="flex flex-wrap gap-2 lg:justify-end" onClick={(event) => event.stopPropagation()}>{task.status === "open" ? <Button variant="outline" size="sm" disabled={busy} onClick={() => onStatus("in_progress")}>{ar ? "بدء" : "Start"}</Button> : null}{task.status === "in_progress" && task.requires_approval ? <Button variant="outline" size="sm" disabled={busy} onClick={() => onStatus("waiting_approval")}>{ar ? "إرسال للموافقة" : "Submit"}</Button> : null}{task.status === "in_progress" && !task.requires_approval ? <Button size="sm" disabled={busy} onClick={() => onStatus("completed")}>{ar ? "إكمال" : "Complete"}</Button> : null}{task.status === "waiting_approval" && canApprove ? <Button size="sm" disabled={busy} onClick={() => onStatus("completed")}><CheckCircle2 className="size-4" />{ar ? "اعتماد" : "Approve"}</Button> : null}</div>
   </article>;
+}
+
+function EditTaskDialog({ task, open, onOpenChange, ar, busy, onSave }: { task: WorkTask | null; open: boolean; onOpenChange: (open: boolean) => void; ar: boolean; busy: boolean; onSave: (values: { title: string; description: string; priority: WorkPriority; dueAt: string }) => void }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<WorkPriority>("normal");
+  const [dueAt, setDueAt] = useState("");
+  useEffect(() => {
+    if (!task) return;
+    setTitle(task.title);
+    setDescription(task.description ?? "");
+    setPriority(task.priority);
+    setDueAt(task.due_at ? new Date(new Date(task.due_at).getTime() - new Date(task.due_at).getTimezoneOffset() * 60000).toISOString().slice(0,16) : "");
+  }, [task]);
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="sm:max-w-xl"><DialogHeader><DialogTitle>{ar ? "تعديل المهمة" : "Edit work item"}</DialogTitle><DialogDescription>{ar ? "يمكن لمنشئ المهمة فقط تعديل العنوان والوصف والأولوية والاستحقاق." : "Only the creator can edit title, description, priority and due date."}</DialogDescription></DialogHeader><div className="space-y-4"><Field label={ar ? "العنوان" : "Title"}><Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} /></Field><Field label={ar ? "الوصف" : "Description"}><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} /></Field><div className="grid gap-3 sm:grid-cols-2"><Field label={ar ? "الأولوية" : "Priority"}><Select value={priority} onValueChange={(value) => setPriority(value as WorkPriority)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="low">Low</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="urgent">Urgent</SelectItem></SelectContent></Select></Field><Field label={ar ? "موعد الاستحقاق" : "Due date"}><Input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} /></Field></div><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => onOpenChange(false)}>{ar ? "إلغاء" : "Cancel"}</Button><Button disabled={busy || title.trim().length < 1} onClick={() => onSave({ title, description, priority, dueAt })}><Pencil className="size-4" />{ar ? "حفظ التعديلات" : "Save changes"}</Button></div></div></DialogContent></Dialog>;
 }
 
 function CreateTaskDialog({ open, onOpenChange, restaurantId, currentStaffId, currentRole, staff, canManage, ar, lang, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; restaurantId: string; currentStaffId: string; currentRole: AppRole; staff: StaffOption[]; canManage: boolean; ar: boolean; lang: "ar" | "en"; onCreated: () => Promise<void> }) {
