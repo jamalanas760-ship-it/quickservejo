@@ -138,7 +138,7 @@ function DailyClosePage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "إقفال اليوم" : "Daily Close"} />
-    <main className="qs-page space-y-5">
+    <main className="qs-page qs-compact-page space-y-4">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={ClipboardCheck}>{ar ? "رقابة المدير" : "Manager control"}</MasterEyebrow>}
         title={ar ? "إقفال يومي موثق" : "Auditable daily close"}
