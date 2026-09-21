@@ -16,12 +16,12 @@ export function MasterPageHeader({
   tabs?: ReactNode;
 }) {
   return (
-    <section className="qs-master-header overflow-hidden rounded-[11px] border border-border bg-card shadow-[var(--qs-shadow-1)]">
+    <section className="qs-master-header qs-workspace-titlebar overflow-hidden rounded-[11px] border border-border bg-card shadow-[var(--qs-shadow-1)]">
       <div className="flex min-w-0 flex-col gap-2 px-3 py-2.5 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             {eyebrow ? <div className="hidden shrink-0 2xl:block">{eyebrow}</div> : null}
-            <h1 className="qs-page-title truncate">{title}</h1>
+            <h1 className="qs-page-title min-w-0 whitespace-normal leading-tight">{title}</h1>
           </div>
           {description ? <p className="qs-page-subtitle truncate">{description}</p> : null}
         </div>
