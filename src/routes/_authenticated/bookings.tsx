@@ -161,7 +161,7 @@ function BookingsPage(){
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"الحجوزات":"Reservations"}/>
-    <main className="qs-page space-y-5">
+    <main className="qs-page qs-compact-page space-y-4">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={CalendarCheck2}>{ar?"مكتب الحجوزات":"Reservation Desk"}</MasterEyebrow>}
         title={ar?"الحجوزات والوصول والجلوس":"Reservations, Arrivals & Seating"}
