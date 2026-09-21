@@ -64,7 +64,7 @@ export function MasterKpi({
   }[tone];
 
   return (
-    <article className="group min-w-0 rounded-[14px] border border-border bg-card p-4 shadow-[var(--qs-shadow-1)] transition duration-150 hover:border-orange-200 sm:p-5">
+    <article className="qs-kpi-card group min-w-0 rounded-[14px] border border-border bg-card p-4 shadow-[var(--qs-shadow-1)] transition duration-150 hover:border-orange-200 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <span className={cn("grid size-10 shrink-0 place-items-center rounded-[13px]", toneClass)}>
           <Icon className="size-4.5" />
