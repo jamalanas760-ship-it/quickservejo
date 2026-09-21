@@ -59,7 +59,7 @@ function ManageShell() {
       <style>{`.restaurant-theme-scope{background:var(--restaurant-light-bg)}.dark .restaurant-theme-scope{background:var(--restaurant-dark-bg)}`}</style>
       <div className="restaurant-theme-scope min-h-dvh transition-colors" style={restaurantTheme}>
         <AppHeader title={restaurant.data?.name ?? (lang === "ar" ? "مساحة عمل المطعم" : "Restaurant workspace")} />
-        <main className="qs-page min-w-0"><Outlet /></main>
+        <main className="qs-page qs-compact-page min-w-0"><Outlet /></main>
       </div>
     </>
   );
