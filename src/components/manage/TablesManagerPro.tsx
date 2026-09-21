@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Columns3, Download, DoorOpen, Grid3X3, ImagePlus, List, Minus, Pencil, Plus, Printer, RotateCw, Save, Square, Table2, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Building2, CalendarCheck2, Columns3, Download, DoorOpen, Grid3X3, ImagePlus, List, Minus, Pencil, Plus, Printer, RotateCw, Save, Square, Table2, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
