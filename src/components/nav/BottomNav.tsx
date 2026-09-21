@@ -146,14 +146,14 @@ export function BottomNav() {
       <span className="truncate text-sm font-bold">{restaurant?.name}</span>
     </span>
   ) : (
-    <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-[18px] text-white" />
+    <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-[18px] text-foreground" />
   );
 
   return (
     <>
       <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden flex-col lg:flex">
         <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-4">
-          <Link to={homeTo as never} className="min-w-0 text-white" aria-label={restaurant?.name || "QuickServe dashboard"}>{brand}</Link>
+          <Link to={homeTo as never} className="min-w-0 text-foreground" aria-label={restaurant?.name || "QuickServe dashboard"}>{brand}</Link>
         </div>
 
         <nav className="qs-scroll flex-1 overflow-y-auto px-3 py-4" aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"}>
@@ -166,7 +166,7 @@ export function BottomNav() {
               const showGroup = managerial && item.group && item.group !== previousGroup;
               return (
                 <li key={`${item.to}-${item.en}`} className={showGroup && index > 0 ? "mt-5" : ""}>
-                  {showGroup ? <p className="mb-2 px-3 text-[9px] font-extrabold uppercase tracking-[.14em] text-white/40">{groupLabel(item.group!)}</p> : null}
+                  {showGroup ? <p className="mb-2 px-3 text-[9px] font-extrabold uppercase tracking-[.14em] text-muted-foreground">{groupLabel(item.group!)}</p> : null}
                   <Link to={item.to as never} data-active={active} className="qs-sidebar-item" aria-current={active ? "page" : undefined}>
                     <Icon className="size-[18px] shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{lang === "ar" ? item.ar : item.en}</span>
