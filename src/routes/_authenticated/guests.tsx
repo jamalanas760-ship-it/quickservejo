@@ -202,7 +202,7 @@ function GuestsPage() {
         <MasterKpi icon={Sparkles} label={ar?"نقاط قائمة":"Outstanding Points"} value={formatNumber(points,lang)} hint={activeCards?(ar?activeCards+" بطاقات فعالة":activeCards+" active gift cards"):undefined} tone="purple"/>
       </section>
 
-      {canManage && data ? <section className="rounded-2xl border border-border bg-card p-5">
+      {canManage && data ? <section className="rounded-2xl border border-border bg-card p-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div><h2 className="font-bold">{ar ? "برنامج الضيوف" : "Guest program"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "اجمع بيانات الضيوف باختيارهم وفعّل نقاط الولاء على الطلبات المدفوعة." : "Collect guest details voluntarily and award loyalty points on paid orders."}</p></div>
           <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[520px]">
@@ -234,7 +234,7 @@ function GuestsPage() {
             <div className="relative sm:w-[280px]"><Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="ps-9" placeholder={ar ? "بحث بالاسم أو الهاتف" : "Search name, phone or email"} /></div>
           </div>
         </div>
-        {query.isPending ? <div className="p-5"><Skeleton className="h-72 rounded-2xl" /></div> : query.isError ? <p className="p-6 text-sm text-destructive">{humanError(query.error, lang)}</p> : filtered.length === 0 ? <div className="grid min-h-[260px] place-items-center p-8 text-center"><div><UsersRound className="mx-auto size-9 text-muted-foreground" /><h3 className="mt-3 font-bold">{ar ? "لا يوجد ضيوف بعد" : "No guests yet"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "عندما يشارك الضيف بياناته في الطلب سيظهر هنا." : "Guests appear here after they voluntarily share contact details at checkout."}</p></div></div> : <div className="divide-y divide-border">{filtered.map((guest) => {
+        {query.isPending ? <div className="p-5"><Skeleton className="h-72 rounded-2xl" /></div> : query.isError ? <p className="p-6 text-sm text-destructive">{humanError(query.error, lang)}</p> : filtered.length === 0 ? <div className="grid min-h-[220px] place-items-center p-6 text-center"><div><UsersRound className="mx-auto size-9 text-muted-foreground" /><h3 className="mt-3 font-bold">{ar ? "لا يوجد ضيوف بعد" : "No guests yet"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "عندما يشارك الضيف بياناته في الطلب سيظهر هنا." : "Guests appear here after they voluntarily share contact details at checkout."}</p></div></div> : <div className="divide-y divide-border">{filtered.map((guest) => {
           const account = loyalty.get(guest.id);
           return <article key={guest.id} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1.2fr)_auto_auto_auto] sm:items-center">
             <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="truncate">{guest.name || guest.phone || guest.email || (ar ? "ضيف" : "Guest")}</strong>{guest.visits >= 2 ? <Badge variant="secondary">{ar ? "متكرر" : "Repeat"}</Badge> : null}</div><p className="mt-1 truncate text-xs text-muted-foreground">{[guest.phone, guest.email].filter(Boolean).join(" · ") || "—"}</p></div>
@@ -260,5 +260,5 @@ function GuestsPage() {
 }
 
 function Metric({ icon: Icon, label, value, hint }: { icon: typeof UsersRound; label: string; value: string; hint?: string | undefined }) {
-  return <article className="qs-stat min-h-[112px] p-4"><div className="flex items-center gap-2 text-muted-foreground"><span className="grid size-9 place-items-center rounded-xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-4" /></span><p className="text-[11px] font-semibold">{label}</p></div><strong className="mt-3 block font-display text-2xl tracking-[-.04em]">{value}</strong>{hint ? <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p> : null}</article>;
+  return <article className="qs-stat min-h-[96px] p-3.5"><div className="flex items-center gap-2 text-muted-foreground"><span className="grid size-9 place-items-center rounded-xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-4" /></span><p className="text-[11px] font-semibold">{label}</p></div><strong className="mt-3 block font-display text-2xl tracking-[-.04em]">{value}</strong>{hint ? <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p> : null}</article>;
 }
