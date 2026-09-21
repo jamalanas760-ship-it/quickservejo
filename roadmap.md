@@ -32,3 +32,8 @@
 - [ ] `bunx tsgo --noEmit -p tsconfig.json`, `bun run lint`, `bun run build`.
 - [ ] Browser-verify `/r/:slug` + designer bridge together.
 - [ ] Publish to lovable.app and report the production URL.
+
+## Approved master redesign
+- [ ] Consolidate global visual layers into the authoritative white-sidebar system.
+- [ ] Apply shared shells and primitives across tenant, frontline, ERP, Super Admin, auth, and public routes.
+- [ ] Verify responsive layouts, RTL, metadata, TypeScript, lint, tests, and production build.
