@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellRing, CalendarCheck2, CalendarDays, CheckCircle2, Clock3, RotateCcw, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
+import { BellRing, CalendarCheck2, CalendarDays, CheckCircle2, Clock3, RefreshCw, Send, TimerReset, RotateCcw, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -45,6 +45,13 @@ type WaitlistRow={
   notified_at:string|null;
   converted_booking_id:string|null;
   cancellation_reason:string|null;
+  estimated_wait_minutes:number|null;
+  offer_booking_at:string|null;
+  offer_expires_at:string|null;
+  offer_sent_at:string|null;
+  offer_count:number;
+  last_message_at:string|null;
+  last_message_channel:string|null;
   created_at:string;
 };
 
@@ -85,7 +92,7 @@ function WaitlistPage(){
     refetchInterval:15_000,
     queryFn:async()=>{
       const {data,error}=await (supabase as any).from("booking_waitlist")
-        .select("id,customer_name,phone,email,guest_count,desired_date,preferred_time,occasion,notes,source,status,notified_at,converted_booking_id,cancellation_reason,created_at")
+        .select("id,customer_name,phone,email,guest_count,desired_date,preferred_time,occasion,notes,source,status,notified_at,converted_booking_id,cancellation_reason,estimated_wait_minutes,offer_booking_at,offer_expires_at,offer_sent_at,offer_count,last_message_at,last_message_channel,created_at")
         .eq("restaurant_id",rid!)
         .order("desired_date",{ascending:true})
         .order("created_at",{ascending:true})
@@ -105,6 +112,40 @@ function WaitlistPage(){
     onSuccess:async()=>{
       await qc.invalidateQueries({queryKey:["booking-waitlist",rid]});
       toast.success(ar?"تم تحديث قائمة الانتظار":"Waitlist updated");
+    },
+    onError:(error)=>toast.error(humanError(error,lang)),
+  });
+
+  const refreshEstimate=useMutation({
+    mutationFn:async(row:WaitlistRow)=>{
+      const {data,error}=await (supabase as any).rpc("refresh_waitlist_estimate",{_waitlist_id:row.id});
+      if(error)throw error;
+      return Number(data);
+    },
+    onSuccess:async(value)=>{
+      await qc.invalidateQueries({queryKey:["booking-waitlist",rid]});
+      toast.success(ar?`تم تحديث الانتظار التقديري إلى ${value} دقيقة`:`Estimated wait refreshed to ${value} minutes`);
+    },
+    onError:(error)=>toast.error(humanError(error,lang)),
+  });
+
+  const offer=useMutation({
+    mutationFn:async(row:WaitlistRow)=>{
+      const value=convertValues[row.id]??defaultConversion(row);
+      const date=new Date(`${value.date}T${value.time}`);
+      if(!Number.isFinite(date.getTime()))throw new Error(ar?"اختر تاريخاً ووقتاً صحيحين":"Choose a valid offer date and time");
+      const {data,error}=await (supabase as any).rpc("offer_waitlist_entry",{
+        _waitlist_id:row.id,
+        _booking_at:date.toISOString(),
+        _table_id:null,
+        _hold_minutes:10,
+      });
+      if(error)throw error;
+      return data as {expires_at?:string;channel?:string};
+    },
+    onSuccess:async(data)=>{
+      await qc.invalidateQueries({queryKey:["booking-waitlist",rid]});
+      toast.success(ar?"تم إرسال عرض الطاولة للضيف لمدة 10 دقائق":`Table offer queued via ${data.channel??"configured channel"} for a 10-minute hold`);
     },
     onError:(error)=>toast.error(humanError(error,lang)),
   });
@@ -199,6 +240,7 @@ function WaitlistPage(){
                         <Meta icon={UsersRound} text={String(row.guest_count)+" "+(ar?"ضيوف":"guests")}/>
                         <Meta icon={CalendarDays} text={row.desired_date}/>
                         {row.preferred_time?<Meta icon={Clock3} text={row.preferred_time}/>:null}
+                        {row.estimated_wait_minutes!=null&&live?<Meta icon={TimerReset} text={ar?`≈ ${row.estimated_wait_minutes} دقيقة`:`≈ ${row.estimated_wait_minutes} min`}/>:null}
                         {live?<span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold",ageMinutes>=120?"bg-red-500/10 text-red-700":ageMinutes>=45?"bg-amber-500/10 text-amber-700":"bg-muted text-muted-foreground")}>{ar?"منذ ":"Waiting "}{formatAge(ageMinutes,ar)}</span>:null}
                       </div>
                       <div className="mt-3 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
@@ -214,13 +256,19 @@ function WaitlistPage(){
                 </div>
 
                 {live?<div className="rounded-2xl border border-border bg-muted/20 p-4">
-                  <div className="flex items-center gap-2"><UserRoundCheck className="size-4 text-[#ff5a0a]"/><strong className="text-sm">{ar?"تحويل إلى حجز":"Convert to reservation"}</strong></div>
-                  <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{ar?"اختر الموعد المقترح. يتم تعيين أفضل طاولة متاحة تلقائياً عند التحويل.":"Choose the proposed slot. The best-fit available table is assigned automatically during conversion."}</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div><div className="flex items-center gap-2"><UserRoundCheck className="size-4 text-[#ff5a0a]"/><strong className="text-sm">{ar?"إدارة فرصة الطاولة":"Manage table opportunity"}</strong></div><p className="mt-1 text-[11px] leading-5 text-muted-foreground">{ar?"أرسل عرضاً مؤقتاً للضيف أو حوّله مباشرة إلى حجز مؤكد.":"Send a timed table offer to the guest or convert directly to a confirmed reservation."}</p></div>
+                    <Button type="button" size="sm" variant="ghost" disabled={refreshEstimate.isPending} onClick={()=>refreshEstimate.mutate(row)} aria-label={ar?"تحديث وقت الانتظار":"Refresh wait estimate"}><RefreshCw className={cn("size-3.5",refreshEstimate.isPending&&"animate-spin")}/></Button>
+                  </div>
+                  {row.status==="notified"&&row.offer_expires_at&&new Date(row.offer_expires_at).getTime()>Date.now()?<div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs dark:border-blue-900/50 dark:bg-blue-950/20"><div className="flex items-center gap-2 font-bold text-blue-700 dark:text-blue-300"><BellRing className="size-3.5"/>{ar?"عرض طاولة نشط":"Active table offer"}</div><p className="mt-1 text-muted-foreground">{ar?"ينتهي: ":"Expires: "}{new Date(row.offer_expires_at).toLocaleTimeString(ar?"ar-JO":"en-JO",{hour:"2-digit",minute:"2-digit"})}{row.last_message_channel?` · ${row.last_message_channel.toUpperCase()}`:""}</p></div>:null}
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <label className="space-y-1.5"><span className="text-[10px] font-bold text-muted-foreground">{ar?"التاريخ":"Date"}</span><Input className="h-10 rounded-xl bg-background" type="date" value={value.date} onChange={e=>setConvertValues(prev=>({...prev,[row.id]:{...value,date:e.target.value}}))}/></label>
                     <label className="space-y-1.5"><span className="text-[10px] font-bold text-muted-foreground">{ar?"الوقت":"Time"}</span><Input className="h-10 rounded-xl bg-background" type="time" step="900" value={value.time} onChange={e=>setConvertValues(prev=>({...prev,[row.id]:{...value,time:e.target.value}}))}/></label>
                   </div>
-                  <Button className="mt-3 w-full rounded-xl" disabled={convert.isPending} onClick={()=>convert.mutate(row)}><UserRoundCheck className="size-4"/>{convert.isPending?(ar?"جارٍ فحص التوفر…":"Checking availability…"):(ar?"إنشاء حجز مؤكد":"Create confirmed reservation")}</Button>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <Button variant="outline" className="rounded-xl" disabled={offer.isPending||Boolean(row.offer_expires_at&&new Date(row.offer_expires_at).getTime()>Date.now())} onClick={()=>offer.mutate(row)}><Send className="size-4"/>{offer.isPending?(ar?"جارٍ إرسال العرض…":"Sending offer…"):(ar?"إرسال عرض 10 دقائق":"Send 10-min offer")}</Button>
+                    <Button className="rounded-xl" disabled={convert.isPending} onClick={()=>convert.mutate(row)}><UserRoundCheck className="size-4"/>{convert.isPending?(ar?"جارٍ فحص التوفر…":"Checking availability…"):(ar?"حجز مباشر":"Book directly")}</Button>
+                  </div>
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
                     {row.status==="waiting"?<Button size="sm" variant="outline" className="rounded-xl" disabled={transition.isPending} onClick={()=>transition.mutate({id:row.id,next:"notified"})}><BellRing className="size-3"/>{ar?"تم التواصل":"Mark notified"}</Button>:<Button size="sm" variant="outline" className="rounded-xl" disabled={transition.isPending} onClick={()=>transition.mutate({id:row.id,next:"waiting"})}><RotateCcw className="size-3"/>{ar?"إرجاع للانتظار":"Back to waiting"}</Button>}
                     <Button size="sm" variant="ghost" className="rounded-xl text-muted-foreground" disabled={transition.isPending} onClick={()=>transition.mutate({id:row.id,next:"cancelled",reason:"Cancelled by restaurant"})}><XCircle className="size-3"/>{ar?"إلغاء الطلب":"Cancel request"}</Button>
