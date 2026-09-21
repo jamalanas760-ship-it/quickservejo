@@ -143,7 +143,7 @@ function DailyClosePage() {
         eyebrow={<MasterEyebrow icon={ClipboardCheck}>{ar ? "رقابة المدير" : "Manager control"}</MasterEyebrow>}
         title={ar ? "إقفال يومي موثق" : "Auditable daily close"}
         description={ar ? "راجع المبيعات، المدفوعات، الصندوق، ساعات العمل وحركات المخزون قبل تثبيت لقطة اليوم." : "Review sales, payments, cash reconciliation, labor and inventory exceptions before locking the day."}
-        actions={<label className="text-xs font-bold text-muted-foreground">{ar ? "التاريخ" : "Close date"}<Input type="date" value={date} onChange={(event) => setDate(event.target.value)} max={today()} className="mt-1.5 min-w-[190px] bg-card" /></label>}
+        actions={<label className="text-xs font-bold text-muted-foreground">{ar ? "التاريخ" : "Close date"}<Input type="date" value={date} onClick={event => (event.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()} onChange={(event) => setDate(event.target.value)} max={today()} className="mt-1.5 min-w-[170px] cursor-pointer bg-card" /></label>}
       />
 
       {query.isPending ? <Skeleton className="h-[460px] rounded-3xl" /> : query.isError ? <section className="qs-card p-6 text-sm text-destructive" role="alert">{humanError(query.error, lang)}</section> : summary ? <>
@@ -155,7 +155,7 @@ function DailyClosePage() {
           <MasterKpi icon={Package} label={ar ? "حركات غير اعتيادية" : "Inventory exceptions"} value={formatNumber(summary.inventory.unusual_movements, lang)} hint={formatMoney(Number(summary.inventory.unusual_value), scope.currency, lang)} tone={summary.inventory.unusual_movements ? "orange" : "slate"} />
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-3">
+        <section className="grid gap-3 xl:grid-cols-3">
           <CloseCard title={ar ? "الطلبات والمبيعات" : "Orders & sales"} rows={[
             [ar ? "عدد الطلبات" : "Orders", formatNumber(summary.orders.count, lang)],
             [ar ? "الملغاة" : "Cancelled", formatNumber(summary.orders.cancelled, lang)],
@@ -202,5 +202,5 @@ function DailyClosePage() {
 }
 
 function CloseCard({ title, rows, tone }:{ title:string; rows:[string,string][]; tone?:"warning"|undefined }) {
-  return <article className={cn("rounded-2xl border bg-card p-5", tone === "warning" && "border-amber-300")}><h3 className="font-display text-lg font-bold">{title}</h3><div className="mt-4 divide-y divide-border">{rows.map(([label,value]) => <div key={label} className="flex items-center justify-between gap-4 py-2.5 text-sm"><span className="text-muted-foreground">{label}</span><strong className="text-end tabular-nums">{value}</strong></div>)}</div></article>;
+  return <article className={cn("rounded-2xl border bg-card p-4", tone === "warning" && "border-amber-300")}><h3 className="font-display text-lg font-bold">{title}</h3><div className="mt-3 divide-y divide-border">{rows.map(([label,value]) => <div key={label} className="flex items-center justify-between gap-4 py-2 text-sm"><span className="text-muted-foreground">{label}</span><strong className="text-end tabular-nums">{value}</strong></div>)}</div></article>;
 }
