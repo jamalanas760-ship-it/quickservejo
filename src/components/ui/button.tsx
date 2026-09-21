@@ -5,29 +5,31 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[13px] text-[13px] font-bold cursor-pointer transition-[transform,box-shadow,background-color,color,border-color] duration-150 active:translate-y-0 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10 disabled:pointer-events-none disabled:opacity-45 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[13px] text-[13px] font-bold cursor-pointer transition-[transform,box-shadow,background-color,color,border-color] duration-150 active:scale-[.985] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "border border-[#ff5a0a] bg-[#ff5a0a] text-white shadow-[0_6px_16px_rgba(255,90,10,.16)] hover:-translate-y-px hover:bg-[#eb4f00] hover:border-[#eb4f00] hover:shadow-[0_10px_24px_rgba(255,90,10,.20)]",
-        destructive: "border border-destructive bg-destructive text-destructive-foreground shadow-sm hover:-translate-y-px hover:bg-destructive/92",
+        default:
+          "border border-[#ff5a0a] bg-[#ff5a0a] text-white shadow-[0_5px_14px_rgba(255,90,10,.14)] hover:-translate-y-px hover:border-[#e94d00] hover:bg-[#e94d00] hover:shadow-[0_8px_20px_rgba(255,90,10,.18)]",
+        destructive:
+          "border border-red-600 bg-red-600 text-white shadow-sm hover:-translate-y-px hover:border-red-700 hover:bg-red-700",
         outline:
-          "border border-border/90 bg-card text-foreground shadow-[0_1px_2px_rgba(15,23,42,.025)] hover:-translate-y-px hover:border-foreground/15 hover:bg-muted/55",
-        secondary: "border border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/78",
-        ghost: "text-muted-foreground hover:bg-muted/75 hover:text-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border border-border bg-card text-foreground shadow-[0_1px_2px_rgba(15,23,42,.02)] hover:-translate-y-px hover:border-foreground/15 hover:bg-muted/55",
+        secondary:
+          "border border-transparent bg-muted text-foreground hover:bg-muted/75",
+        ghost:
+          "border border-transparent text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+        link:
+          "h-auto rounded-none border-0 p-0 text-primary shadow-none underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-11 px-4.5 py-2",
-        sm: "h-9.5 rounded-xl px-3 text-xs",
-        lg: "h-12.5 rounded-[15px] px-6 text-sm",
-        icon: "size-10.5",
+        default: "h-11 px-4",
+        sm: "h-9 rounded-xl px-3 text-xs",
+        lg: "h-12 rounded-[14px] px-5 text-sm",
+        icon: "size-10",
       },
     },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
+    defaultVariants: { variant: "default", size: "default" },
   },
 );
 
@@ -39,9 +41,7 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return (
-      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
-    );
+    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
   },
 );
 Button.displayName = "Button";
