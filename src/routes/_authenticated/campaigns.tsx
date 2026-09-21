@@ -128,7 +128,7 @@ function CampaignsPage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"حملات العملاء":"CRM Campaigns"}/>
-    <main className="qs-page qs-compact-page space-y-4">
+    <main className="qs-page qs-compact-page qs-viewport-page">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={Megaphone}>{ar?"احتفاظ العملاء":"Retention"}</MasterEyebrow>}
         title={ar?"حملات العملاء":"CRM Campaigns"}
@@ -142,8 +142,8 @@ function CampaignsPage() {
         <MasterKpi icon={XCircle} label={ar?"تحتاج تدخل":"Needs attention"} value={(campaigns.data??[]).filter(row=>row.status==="blocked"||row.failed_count>0).length} tone={(campaigns.data??[]).some(row=>row.status==="blocked"||row.failed_count>0)?"red":"slate"} />
       </section>
 
-      <section className="grid gap-3 xl:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)]">
-        <article className="qs-card p-4">
+      <section className="qs-viewport-fill grid min-h-0 gap-2 overflow-hidden xl:grid-cols-[minmax(0,.78fr)_minmax(0,1.22fr)]">
+        <article className="qs-card qs-scroll-region min-h-0 p-3">
           <h2 className="font-display text-lg font-bold">{ar?"إنشاء حملة":"Create campaign"}</h2>
           <div className="mt-3 space-y-3">
             <Input value={name} onChange={e=>setName(e.target.value)} placeholder={ar?"اسم الحملة":"Campaign name"}/>
@@ -160,12 +160,12 @@ function CampaignsPage() {
           </div>
         </article>
 
-        <article className="qs-card overflow-hidden">
+        <article className="qs-card flex min-h-0 flex-col overflow-hidden">
           <div className="border-b border-border p-4"><h2 className="font-display text-xl font-bold">{ar?"سجل الحملات":"Campaign history"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"الحالة والأرقام من طابور التسليم الحقيقي.":"Statuses and counts come from the real delivery queue."}</p></div>
-          {campaigns.isPending?<div className="p-5"><Skeleton className="h-80 rounded-xl"/></div>:(campaigns.data??[]).length===0?<div className="grid min-h-[240px] place-items-center p-6 text-center"><div><Megaphone className="mx-auto size-9 text-muted-foreground"/><p className="mt-3 text-sm text-muted-foreground">{ar?"لا توجد حملات بعد.":"No campaigns yet."}</p></div></div>:<div className="max-h-[calc(100dvh-420px)] divide-y divide-border overflow-y-auto">{(campaigns.data??[]).map(row=><div key={row.id} className="p-3.5"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><strong>{row.name}</strong><Status status={row.status}/></div><p className="mt-1 text-xs text-muted-foreground">{row.channel.toUpperCase()} · {row.segment_type.replaceAll("_"," ")} · {row.scheduled_at?new Date(row.scheduled_at).toLocaleString(ar?"ar-JO":"en-US"):"—"}</p></div>{["draft","scheduled","processing","blocked"].includes(row.status)?<Button size="sm" variant="outline" onClick={()=>cancel.mutate(row.id)}><XCircle className="size-3"/>{ar?"إلغاء":"Cancel"}</Button>:null}</div><div className="mt-3 grid grid-cols-4 gap-2 text-center text-[10px]"><Count label={ar?"الجمهور":"Audience"} value={row.recipient_count}/><Count label={ar?"أرسل":"Sent"} value={row.sent_count}/><Count label={ar?"فشل":"Failed"} value={row.failed_count}/><Count label={ar?"تخطي":"Skipped"} value={row.skipped_count}/></div>{row.last_error?<p className="mt-3 rounded-lg bg-amber-500/10 p-2 text-xs text-amber-800">{row.last_error}</p>:null}</div>)}</div>}
+          {campaigns.isPending?<div className="p-5"><Skeleton className="h-80 rounded-xl"/></div>:(campaigns.data??[]).length===0?<div className="grid min-h-[240px] place-items-center p-6 text-center"><div><Megaphone className="mx-auto size-9 text-muted-foreground"/><p className="mt-3 text-sm text-muted-foreground">{ar?"لا توجد حملات بعد.":"No campaigns yet."}</p></div></div>:<div className="qs-scroll-region min-h-0 flex-1 divide-y divide-border">{(campaigns.data??[]).map(row=><div key={row.id} className="p-3.5"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><strong>{row.name}</strong><Status status={row.status}/></div><p className="mt-1 text-xs text-muted-foreground">{row.channel.toUpperCase()} · {row.segment_type.replaceAll("_"," ")} · {row.scheduled_at?new Date(row.scheduled_at).toLocaleString(ar?"ar-JO":"en-US"):"—"}</p></div>{["draft","scheduled","processing","blocked"].includes(row.status)?<Button size="sm" variant="outline" onClick={()=>cancel.mutate(row.id)}><XCircle className="size-3"/>{ar?"إلغاء":"Cancel"}</Button>:null}</div><div className="mt-3 grid grid-cols-4 gap-2 text-center text-[10px]"><Count label={ar?"الجمهور":"Audience"} value={row.recipient_count}/><Count label={ar?"أرسل":"Sent"} value={row.sent_count}/><Count label={ar?"فشل":"Failed"} value={row.failed_count}/><Count label={ar?"تخطي":"Skipped"} value={row.skipped_count}/></div>{row.last_error?<p className="mt-3 rounded-lg bg-amber-500/10 p-2 text-xs text-amber-800">{row.last_error}</p>:null}</div>)}</div>}
         </article>
       </section>
-      <CrmAutomationPanel restaurantId={rid}/>
+      <div className="max-h-[92px] shrink-0 overflow-y-auto"><CrmAutomationPanel restaurantId={rid}/></div>
     </main>
   </div>;
 }
