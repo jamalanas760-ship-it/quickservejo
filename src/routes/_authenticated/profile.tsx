@@ -140,11 +140,11 @@ function ProfilePage() {
   return <div className="min-h-dvh bg-background">
     <AppHeader />
     <main className="qs-page qs-compact-page space-y-4 pb-10">
-      <section className="relative overflow-hidden rounded-[28px] border border-border bg-card">
+      <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
         {accountCover ? <><img src={accountCover} alt="" className="pointer-events-none absolute inset-0 size-full object-cover opacity-30" style={{ objectPosition: `${accountCoverX}% ${accountCoverY}%`, transform: `scale(${accountCoverZoom / 100})` }} /><div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card/95 via-card/78 to-card/55" /></> : <div className="absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_18%_0%,rgba(255,90,10,.15),transparent_55%)]" />}
-        <div className="relative flex flex-col gap-5 p-5 sm:p-7 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-[24px] border border-border bg-background shadow-sm">
+            <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-[20px] border border-border bg-background shadow-sm">
               {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : <span className="font-display text-2xl font-black text-[#ff5a0a]">{displayName.slice(0, 1).toUpperCase()}</span>}
             </div>
             <div className="min-w-0">
@@ -152,7 +152,7 @@ function ProfilePage() {
                 <span className="rounded-full bg-orange-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#ff5a0a]">{ar ? "مساحة الحساب" : "Account workspace"}</span>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-600"><CheckCircle2 className="size-3" />{ar ? "نشط" : "Active"}</span>
               </div>
-              <h1 className="truncate font-display text-[clamp(1.8rem,3vw,2.6rem)] font-bold tracking-[-.045em]">{displayName}</h1>
+              <h1 className="truncate font-display text-[clamp(1.65rem,2.5vw,2.2rem)] font-bold tracking-[-.045em]">{displayName}</h1>
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5"><Mail className="size-3.5" />{email}</span>
                 <span className="inline-flex items-center gap-1.5"><ShieldCheck className="size-3.5" />{roleLabel}</span>
@@ -164,7 +164,7 @@ function ProfilePage() {
         </div>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)] xl:items-start">
+      <div className="grid gap-3 xl:grid-cols-[240px_minmax(0,1fr)] xl:items-start">
         <aside className="xl:sticky xl:top-24">
           <div className="qs-card p-2.5">
             <div className="px-3 pb-2 pt-2">
@@ -174,7 +174,7 @@ function ProfilePage() {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = section === item.id;
-                return <button key={item.id} type="button" onClick={() => setSection(item.id)} className={cn("group flex min-h-[68px] items-center gap-3 rounded-2xl px-3.5 py-3 text-start transition", active ? "bg-[#ff5a0a] text-white shadow-sm" : "hover:bg-muted/70")}>
+                return <button key={item.id} type="button" onClick={() => setSection(item.id)} className={cn("group flex min-h-[56px] items-center gap-2.5 rounded-xl px-3 py-2.5 text-start transition", active ? "bg-[#ff5a0a] text-white shadow-sm" : "hover:bg-muted/70")}>
                   <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", active ? "bg-white/16 text-white" : "bg-muted text-muted-foreground group-hover:text-foreground")}><Icon className="size-4.5" /></span>
                   <span className="min-w-0 flex-1"><strong className="block text-xs">{item.label}</strong><span className={cn("mt-0.5 hidden text-[10px] leading-4 sm:block xl:block", active ? "text-white/75" : "text-muted-foreground")}>{item.hint}</span></span>
                   <ChevronRight className={cn("size-4 shrink-0 transition", ar && "rotate-180", active ? "text-white/80" : "text-muted-foreground")} />
@@ -200,9 +200,9 @@ function ProfilePage() {
 }
 
 function PersonalSection({ ar, lang, rid, displayName, email, roleLabel, restaurantName, createdAt }: { ar: boolean; lang: "ar" | "en"; rid: string | null; displayName: string; email: string; roleLabel: string; restaurantName: string; createdAt: string | undefined }) {
-  return <div className="space-y-5">
+  return <div className="space-y-4">
     <SectionHeading icon={<UserRound className="size-5" />} title={ar ? "الملف الشخصي" : "Personal profile"} description={ar ? "حدّث صورتك وراجع معلومات حسابك. يتم تعديل اسم مدير المطعم من صفحة الفريق." : "Update your profile image and review account details. Restaurant Manager names are managed from the Team page."} />
-    <section className="qs-card overflow-hidden"><div className="p-4 sm:p-6"><ProfileAvatarEditor restaurantId={rid} /></div></section>
+    <section className="qs-card overflow-hidden"><div className="p-3.5 sm:p-5"><ProfileAvatarEditor restaurantId={rid} /></div></section>
     <section className="qs-card overflow-hidden">
       <div className="border-b border-border px-5 py-4 sm:px-6"><h2 className="text-sm font-bold">{ar ? "تفاصيل الحساب" : "Account details"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "بيانات الهوية والدور هنا للعرض فقط. غيّر اسم مدير المطعم من صفحة الفريق." : "Identity and role details are read-only here. Change the Restaurant Manager name from Team."}</p></div>
       <div className="grid gap-px bg-border sm:grid-cols-2">
@@ -218,7 +218,7 @@ function PersonalSection({ ar, lang, rid, displayName, email, roleLabel, restaur
 }
 
 function NotificationsSection({ ar, notif, operationalRows, soundRows, toggle }: { ar: boolean; notif: Notifications; operationalRows: [keyof Notifications, string, string, string, string][]; soundRows: [keyof Notifications, string, string, string, string][]; toggle: (key: keyof Notifications, value: boolean) => void }) {
-  return <div className="space-y-5">
+  return <div className="space-y-4">
     <SectionHeading icon={<Bell className="size-5" />} title={ar ? "الإشعارات والتنبيهات" : "Notifications & alerts"} description={ar ? "نظّم التنبيهات التشغيلية والأصوات بدون ازدحام. يتم حفظ كل تغيير تلقائياً." : "Organize operational alerts and sounds without clutter. Every change saves automatically."} />
     <div className="grid gap-5 2xl:grid-cols-2">
       <PreferenceGroup title={ar ? "التنبيهات التشغيلية" : "Operational alerts"} subtitle={ar ? "ما الذي تريد أن يتم تنبيهك بشأنه؟" : "Choose what deserves your attention."} rows={operationalRows} notif={notif} ar={ar} toggle={toggle} />
@@ -228,7 +228,7 @@ function NotificationsSection({ ar, notif, operationalRows, soundRows, toggle }:
 }
 
 function OrganizationSection({ ar, restaurantId, canManageRestaurant, showAccountCover }: { ar: boolean; restaurantId: string; canManageRestaurant: boolean; showAccountCover: boolean }) {
-  return <div className="space-y-5">
+  return <div className="space-y-4">
     <SectionHeading icon={<Store className="size-5" />} title={ar ? "المؤسسة والمظهر" : "Organization & appearance"} description={canManageRestaurant ? (ar ? "إدارة هوية المطعم وإعدادات الحساب من مساحة واحدة منظمة." : "Manage restaurant identity and your account appearance from one organized workspace.") : (ar ? "خصص غلاف حسابك فقط بدون التأثير على هوية المطعم أو إعداداته." : "Customize only your account cover without changing restaurant branding or settings.")} />
     {showAccountCover ? <AccountCoverEditor restaurantId={restaurantId} /> : null}
     {canManageRestaurant ? <>
@@ -263,7 +263,7 @@ function SectionHeading({ icon, title, description }: { icon: ReactNode; title: 
 }
 
 function InfoTile({ icon, label, value, accent }: { icon: ReactNode; label: string; value: string; accent?: boolean }) {
-  return <div className="flex min-h-[92px] items-center gap-3 bg-card p-4 sm:p-5">
+  return <div className="flex min-h-[76px] items-center gap-3 bg-card p-3.5 sm:p-4">
     <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted/70 text-muted-foreground">{icon}</span>
     <span className="min-w-0"><span className="block text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">{label}</span><strong className={cn("mt-1.5 block truncate text-sm", accent && "text-emerald-600")}>{value}</strong></span>
   </div>;
