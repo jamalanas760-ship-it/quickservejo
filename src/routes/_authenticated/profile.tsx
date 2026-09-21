@@ -139,7 +139,7 @@ function ProfilePage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader />
-    <main className="qs-page qs-compact-page space-y-4 pb-10">
+    <main className="qs-page qs-compact-page qs-viewport-page">
       <section className="relative overflow-hidden rounded-[18px] border border-border bg-card">
         {accountCover ? <><img src={accountCover} alt="" className="pointer-events-none absolute inset-0 size-full object-cover opacity-30" style={{ objectPosition: `${accountCoverX}% ${accountCoverY}%`, transform: `scale(${accountCoverZoom / 100})` }} /><div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card/95 via-card/78 to-card/55" /></> : <div className="absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_18%_0%,rgba(255,90,10,.15),transparent_55%)]" />}
         <div className="relative flex flex-col gap-3 p-3.5 sm:p-4 lg:flex-row lg:items-end lg:justify-between">
@@ -164,8 +164,8 @@ function ProfilePage() {
         </div>
       </section>
 
-      <div className="grid gap-3 xl:grid-cols-[210px_minmax(0,1fr)] xl:items-start">
-        <aside className="xl:sticky xl:top-24">
+      <div className="qs-viewport-fill grid min-h-0 gap-2 xl:grid-cols-[178px_minmax(0,1fr)] xl:items-stretch">
+        <aside className="min-h-0">
           <div className="qs-card p-2.5">
             <div className="px-3 pb-2 pt-2">
               <p className="text-[10px] font-bold uppercase tracking-[.2em] text-muted-foreground">{ar ? "الإعدادات" : "Settings"}</p>
@@ -174,8 +174,8 @@ function ProfilePage() {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = section === item.id;
-                return <button key={item.id} type="button" onClick={() => setSection(item.id)} className={cn("group flex min-h-[48px] items-center gap-2 rounded-xl px-3 py-2.5 text-start transition", active ? "bg-[#ff5a0a] text-white shadow-sm" : "hover:bg-muted/70")}>
-                  <span className={cn("grid size-8 shrink-0 place-items-center rounded-[10px]", active ? "bg-white/16 text-white" : "bg-muted text-muted-foreground group-hover:text-foreground")}><Icon className="size-4.5" /></span>
+                return <button key={item.id} type="button" onClick={() => setSection(item.id)} className={cn("group flex min-h-[38px] items-center gap-1.5 rounded-[9px] px-2 py-1.5 text-start transition", active ? "bg-[#ff5a0a] text-white shadow-sm" : "hover:bg-muted/70")}>
+                  <span className={cn("grid size-7 shrink-0 place-items-center rounded-[8px]", active ? "bg-white/16 text-white" : "bg-muted text-muted-foreground group-hover:text-foreground")}><Icon className="size-4.5" /></span>
                   <span className="min-w-0 flex-1"><strong className="block text-xs">{item.label}</strong><span className={cn("mt-0.5 hidden text-[10px] leading-4 sm:block xl:block", active ? "text-white/75" : "text-muted-foreground")}>{item.hint}</span></span>
                   <ChevronRight className={cn("size-4 shrink-0 transition", ar && "rotate-180", active ? "text-white/80" : "text-muted-foreground")} />
                 </button>;
@@ -189,7 +189,7 @@ function ProfilePage() {
           </div>
         </aside>
 
-        <div className="min-w-0">
+        <div className="qs-scroll-region min-h-0 min-w-0">
           {section === "profile" ? <PersonalSection ar={ar} lang={lang} rid={rid} displayName={displayName} email={email} roleLabel={roleLabel} restaurantName={restaurantName} createdAt={user?.created_at} /> : null}
           {section === "notifications" ? <NotificationsSection ar={ar} notif={notif} operationalRows={operationalRows} soundRows={soundRows} toggle={toggle} /> : null}
           {section === "organization" && rid ? <OrganizationSection ar={ar} restaurantId={rid} canManageRestaurant={canManageRestaurant} showAccountCover={personalCoverEligible} /> : null}
