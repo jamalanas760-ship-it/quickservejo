@@ -83,8 +83,8 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
   const selected = rows.find((order) => order.id === selectedId) ?? rows[0] ?? null;
 
   return (
-    <div className="space-y-5">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="qs-viewport-fill flex h-full min-h-0 flex-col gap-2">
+      <header className="qs-workspace-titlebar flex shrink-0 flex-col gap-2 rounded-[11px] border border-border bg-card px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div><h1 className="qs-page-title">{ar ? "الطلبات المباشرة" : "Live Orders"}</h1><p className="qs-page-subtitle">{ar ? "تابع وراقب جميع الطلبات في الوقت الفعلي." : "Track and monitor all orders in real-time."}</p></div>
         <span className="text-end text-[11px] text-muted-foreground"><span className="flex items-center justify-end gap-2 font-semibold text-foreground"><i className="size-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,.10)]" />{ar ? "تحديث مباشر" : "Live updates"}</span><span>{ar ? "تتحدث تلقائياً" : "Updates automatically"}</span></span>
       </header>
@@ -99,9 +99,9 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
               </button>
             ))}
           </div>
-          <div className="relative w-full lg:max-w-[340px]">
-            <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ar ? "رقم الطلب أو العميل أو الطاولة..." : "Search by order #, customer name or table..."} className="qs-control h-11 ps-10" />
+          <div className="qs-search-field w-full lg:max-w-[360px]">
+            <Search />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ar ? "رقم الطلب أو العميل أو الطاولة..." : "Search by order #, customer name or table..."} className="qs-control qs-search-input h-10" />
           </div>
         </div>
       </section>
@@ -109,10 +109,10 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
       {orders.isPending ? <Skeleton className="h-[620px] rounded-2xl" /> : rows.length === 0 ? (
         <div className="qs-card p-12 text-center"><ShoppingBag className="mx-auto size-8 text-muted-foreground/60" /><p className="mt-3 text-sm font-semibold">{ar ? "لا توجد طلبات" : "No orders found"}</p></div>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.42fr)_minmax(330px,.72fr)]">
-          <section className="qs-card overflow-hidden">
-            <div className="hidden overflow-x-auto md:block">
-              <table className="qs-table min-w-[760px]">
+        <div className="qs-viewport-fill grid min-h-0 gap-2 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,.72fr)]">
+          <section className="qs-card flex min-h-0 flex-col overflow-hidden">
+            <div className="qs-scroll-region hidden min-h-0 flex-1 overflow-x-hidden md:block">
+              <table className="qs-table w-full table-fixed"><colgroup><col className="w-[18%]"/><col className="w-[12%]"/><col className="w-[24%]"/><col className="w-[9%]"/><col className="w-[14%]"/><col className="w-[17%]"/><col className="w-[6%]"/></colgroup>
                 <thead><tr><th>{ar ? "رقم الطلب" : "Order #"}</th><th>{ar ? "الوقت" : "Time"}</th><th>{ar ? "العميل / الطاولة" : "Customer / Table"}</th><th>{ar ? "العناصر" : "Items"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "المدة" : "Elapsed"}</th><th /></tr></thead>
                 <tbody>{rows.map((order) => { const active = selected?.id === order.id; return (
                   <tr key={order.id} onClick={() => selectOrder(order.id)} className={cn("cursor-pointer", active && "outline outline-1 -outline-offset-1 outline-[#ff5a0a] bg-orange-500/[.045]")}>
@@ -152,29 +152,51 @@ function OrderDetail({ order, currency }: { order: any; currency: string }) {
   const tax = Math.max(0, total - subtotal);
 
   return (
-    <aside className="qs-right-panel self-start xl:sticky xl:top-24">
-      <div className="qs-panel-header">
-        <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="font-display text-xl font-bold">{order.order_number}</h2><span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted")}>{order.status}</span></div><p className="mt-1 text-xs text-muted-foreground">{formatDateTime(order.created_at, lang)}</p></div>
-        <span className="text-end"><strong className="block text-sm">{elapsed(order.created_at)}</strong><span className="text-[10px] text-muted-foreground">{ar ? "المدة" : "Elapsed"}</span></span>
+    <aside className="qs-right-panel flex min-h-0 flex-col overflow-hidden">
+      <div className="qs-panel-header flex shrink-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="truncate font-display text-base font-bold">{order.order_number}</h2>
+            <span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted")}>{order.status}</span>
+          </div>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">{formatDateTime(order.created_at, lang)}</p>
+        </div>
+        <span className="shrink-0 text-end">
+          <strong className="block text-xs">{elapsed(order.created_at)}</strong>
+          <span className="text-[9px] text-muted-foreground">{ar ? "المدة" : "Elapsed"}</span>
+        </span>
       </div>
 
-      <div className="space-y-4 p-4 sm:p-5">
-        <Meta icon={<UtensilsCrossed className="size-4" />} label={ar ? "نوع الطلب" : "Dine In"} value={order.table?.table_number ? `${ar ? "طاولة" : "Table"} ${order.table.table_number}` : (ar ? "طلب خارجي" : "Takeaway")} />
-        <Meta icon={<UserRound className="size-4" />} label={ar ? "العميل" : "Customer"} value={ar ? "ضيف" : "Walk-in Guest"} />
-        <Meta icon={<FileText className="size-4" />} label={ar ? "العناصر" : "Items"} value={`${items.data?.length ?? 0} ${ar ? "عنصر" : "items"}`} />
+      <div className="qs-scroll-region min-h-0 flex-1 space-y-3 p-3">
+        <section className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+          <Meta icon={<UtensilsCrossed className="size-3.5" />} label={ar ? "الخدمة" : "Service"} value={order.table?.table_number ? ((ar ? "طاولة " : "Table ") + order.table.table_number) : (ar ? "طلب خارجي" : "Takeaway")} />
+          <Meta icon={<UserRound className="size-3.5" />} label={ar ? "العميل" : "Customer"} value={ar ? "ضيف" : "Walk-in Guest"} />
+          <Meta icon={<FileText className="size-3.5" />} label={ar ? "العناصر" : "Items"} value={String(items.data?.length ?? 0) + " " + (ar ? "عنصر" : "items")} />
+        </section>
 
-        <div className="border-t border-border pt-4"><h3 className="text-sm font-bold">{ar ? "عناصر الطلب" : "Order Items"}</h3>
-          {items.isPending ? <Skeleton className="mt-3 h-28 rounded-xl" /> : <div className="mt-2 divide-y divide-border">{(items.data ?? []).map((item) => (
-            <div key={item.id} className="flex items-center gap-3 py-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><UtensilsCrossed className="size-4" /></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{ar ? item.product_name_snapshot_ar || item.product_name_snapshot_en : item.product_name_snapshot_en || item.product_name_snapshot_ar}</p><p className="text-[10px] text-muted-foreground">{item.quantity} × {formatMoney(Number(item.unit_price ?? 0), currency, lang)}</p></div><strong className="text-sm">{formatMoney(item.total_price, currency, lang)}</strong></div>
+        <section className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="border-b border-border px-3 py-2"><h3 className="text-xs font-bold">{ar ? "عناصر الطلب" : "Order Items"}</h3></div>
+          {items.isPending ? <Skeleton className="m-3 h-28 rounded-xl" /> : <div className="divide-y divide-border">{(items.data ?? []).map((item) => (
+            <div key={item.id} className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5">
+              <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><UtensilsCrossed className="size-3.5" /></span>
+              <div className="min-w-0"><p className="truncate text-xs font-semibold">{ar ? item.product_name_snapshot_ar || item.product_name_snapshot_en : item.product_name_snapshot_en || item.product_name_snapshot_ar}</p><p className="text-[9px] text-muted-foreground">{item.quantity} × {formatMoney(Number(item.unit_price ?? 0), currency, lang)}</p></div>
+              <strong className="text-xs">{formatMoney(item.total_price, currency, lang)}</strong>
+            </div>
           ))}</div>}
-        </div>
+        </section>
+      </div>
 
-        <div className="space-y-2 border-t border-border pt-4 text-sm"><div className="flex justify-between text-muted-foreground"><span>{ar ? "المجموع الفرعي" : "Subtotal"}</span><span>{formatMoney(subtotal, currency, lang)}</span></div><div className="flex justify-between text-muted-foreground"><span>{ar ? "الضريبة" : "Tax"}</span><span>{formatMoney(tax, currency, lang)}</span></div><div className="flex justify-between pt-2 text-lg font-bold"><span>{ar ? "الإجمالي" : "Total"}</span><span>{formatMoney(total, currency, lang)}</span></div></div>
+      <div className="shrink-0 border-t border-border bg-muted/15 p-3">
+        <div className="space-y-1.5 text-xs">
+          <div className="flex justify-between text-muted-foreground"><span>{ar ? "المجموع الفرعي" : "Subtotal"}</span><span>{formatMoney(subtotal, currency, lang)}</span></div>
+          <div className="flex justify-between text-muted-foreground"><span>{ar ? "الضريبة" : "Tax"}</span><span>{formatMoney(tax, currency, lang)}</span></div>
+          <div className="flex justify-between pt-1.5 font-display text-base font-bold"><span>{ar ? "الإجمالي" : "Total"}</span><span>{formatMoney(total, currency, lang)}</span></div>
+        </div>
       </div>
     </aside>
   );
 }
 
 function Meta({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return <div className="flex items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">{icon}</span><div><p className="text-sm font-bold">{label}</p><p className="text-xs text-muted-foreground">{value}</p></div></div>;
+  return <div className="flex min-w-0 items-center gap-2 rounded-[10px] border border-border/70 bg-muted/20 p-2"><span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-card text-muted-foreground">{icon}</span><div className="min-w-0"><p className="truncate text-[9px] font-bold uppercase tracking-[.04em] text-muted-foreground">{label}</p><p className="truncate text-xs font-semibold text-foreground">{value}</p></div></div>;
 }
