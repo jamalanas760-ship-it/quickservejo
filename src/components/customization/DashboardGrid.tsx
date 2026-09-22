@@ -151,7 +151,7 @@ export function DashboardGrid<T extends string>({
         return (
           <div
             key={id}
-            className={cn("qs-custom-grid-item", customize && "relative rounded-2xl border border-dashed border-[#ff5a0a]/35 bg-[#ff5a0a]/[.025] p-2 pt-11 transition", dropTarget === id && "border-[#ff5a0a] bg-[#ff5a0a]/[.06]")}
+            className={cn("qs-custom-grid-item", customize && "relative rounded-2xl border border-dashed border-[#e85d2a]/35 bg-[#e85d2a]/[.025] p-2 pt-11 transition", dropTarget === id && "border-[#e85d2a] bg-[#e85d2a]/[.06]")}
             style={style}
             onDragOver={(event) => {
               if (!customize) return;
@@ -183,7 +183,7 @@ export function DashboardGrid<T extends string>({
               <button
                 type="button"
                 aria-label={`Resize ${labelFor?.(id) ?? id}`}
-                className="absolute -bottom-1.5 -end-1.5 z-30 grid size-8 min-h-0 touch-none cursor-nwse-resize place-items-center rounded-full border-2 border-background bg-[#ff5a0a] text-white shadow-lg"
+                className="absolute -bottom-1.5 -end-1.5 z-30 grid size-8 min-h-0 touch-none cursor-nwse-resize place-items-center rounded-full border-2 border-background bg-[#e85d2a] text-white shadow-lg"
                 onPointerDown={(event) => beginResize(event, id)}
                 onPointerMove={resize}
                 onPointerUp={endResize}
@@ -201,7 +201,7 @@ export function DashboardGrid<T extends string>({
           aria-hidden="true"
           style={{ width: dragPreview.width, height: dragPreview.height, transform: `translate3d(${dragPreview.x - dragPreview.offsetX}px,${dragPreview.y - dragPreview.offsetY}px,0)` }}
         >
-          <div className="h-full min-h-0 overflow-hidden rounded-2xl border border-[#ff5a0a]/50 bg-card shadow-2xl">{renderItem(dragPreview.id)}</div>
+          <div className="h-full min-h-0 overflow-hidden rounded-2xl border border-[#e85d2a]/50 bg-card shadow-2xl">{renderItem(dragPreview.id)}</div>
         </div>,
         document.body,
       ) : null}

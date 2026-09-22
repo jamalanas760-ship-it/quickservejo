@@ -77,7 +77,7 @@ export function CrmAutomationPanel({restaurantId}:{restaurantId:string}){
 
   return <section className="grid gap-5 xl:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)]">
     <article className="qs-card p-5">
-      <div className="flex items-start gap-3"><span className="grid size-10 place-items-center rounded-xl bg-orange-500/10 text-[#ff5a0a]"><Bot className="size-4"/></span><div><h2 className="font-display text-xl font-bold">{ar?"أتمتة دورة العميل":"Lifecycle automation"}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar?"يتم فحص الشروط كل ساعة، مع احترام الموافقة وفترة التهدئة لكل عميل.":"Rules run hourly with consent checks and a per-guest cooldown."}</p></div></div>
+      <div className="flex items-start gap-3"><span className="grid size-10 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><Bot className="size-4"/></span><div><h2 className="font-display text-xl font-bold">{ar?"أتمتة دورة العميل":"Lifecycle automation"}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar?"يتم فحص الشروط كل ساعة، مع احترام الموافقة وفترة التهدئة لكل عميل.":"Rules run hourly with consent checks and a per-guest cooldown."}</p></div></div>
       <div className="mt-4 space-y-3">
         <Input value={name} onChange={e=>setName(e.target.value)} placeholder={ar?"اسم الأتمتة":"Automation name"}/>
         <div className="grid gap-3 sm:grid-cols-2">

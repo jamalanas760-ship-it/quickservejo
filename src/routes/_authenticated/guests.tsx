@@ -260,5 +260,5 @@ function GuestsPage() {
 }
 
 function Metric({ icon: Icon, label, value, hint }: { icon: typeof UsersRound; label: string; value: string; hint?: string | undefined }) {
-  return <article className="qs-stat min-h-[88px] p-3"><div className="flex items-center gap-2 text-muted-foreground"><span className="grid size-9 place-items-center rounded-xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-4" /></span><p className="text-[11px] font-semibold">{label}</p></div><strong className="mt-3 block font-display text-2xl tracking-[-.04em]">{value}</strong>{hint ? <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p> : null}</article>;
+  return <article className="qs-stat min-h-[88px] p-3"><div className="flex items-center gap-2 text-muted-foreground"><span className="grid size-9 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><Icon className="size-4" /></span><p className="text-[11px] font-semibold">{label}</p></div><strong className="mt-3 block font-display text-2xl tracking-[-.04em]">{value}</strong>{hint ? <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p> : null}</article>;
 }

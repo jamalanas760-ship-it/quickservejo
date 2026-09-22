@@ -30,7 +30,7 @@ export function ShiftHandoverPanel({ restaurantId, currentStaffId, currentRole }
   if (!rows.length) return null;
 
   return <div className="border-b border-border bg-muted/10 p-4 sm:p-5">
-    <div className="mb-3 flex items-center gap-2"><Handshake className="size-4 text-[#ff5a0a]" /><h3 className="text-sm font-bold">{ar ? "تسليم الورديات" : "Shift handovers"}</h3><span className="text-[10px] text-muted-foreground">{rows.length}</span></div>
+    <div className="mb-3 flex items-center gap-2"><Handshake className="size-4 text-[#e85d2a]" /><h3 className="text-sm font-bold">{ar ? "تسليم الورديات" : "Shift handovers"}</h3><span className="text-[10px] text-muted-foreground">{rows.length}</span></div>
     <div className="space-y-2">{rows.slice(0, 6).map((row) => {
       const relevantToRole = row.target_role === currentRole;
       const relevantToStaff = row.to_staff_id === currentStaffId;

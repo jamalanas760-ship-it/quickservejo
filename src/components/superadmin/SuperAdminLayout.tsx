@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu as MenuIcon,
+  MoreHorizontal,
   Search,
   Settings,
   UserRound,
@@ -44,13 +45,15 @@ const NAV: NavItem[] = [
   { to: "/super-admin/audit-logs", en: "Audit", ar: "التدقيق", icon: FileClock },
   { to: "/super-admin/settings", en: "Settings", ar: "الإعدادات", icon: Settings },
 ];
+const PRIMARY_NAV = NAV.filter((item) => ["/super-admin", "/super-admin/restaurants", "/super-admin/orders", "/super-admin/analytics", "/super-admin/health", "/super-admin/subscriptions"].includes(item.to));
+const SECONDARY_NAV = NAV.filter((item) => !PRIMARY_NAV.includes(item));
 
-function NavLinks({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
+function NavLinks({ onNavigate, items = NAV }: { onNavigate?: (() => void) | undefined; items?: NavItem[] }) {
   const { lang } = useI18n();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   return (
     <nav className="space-y-1">
-      {NAV.map((item) => {
+      {items.map((item) => {
         const active = item.exact ? pathname === item.to || pathname === `${item.to}/` : pathname.startsWith(item.to);
         const Icon = item.icon;
         return (
@@ -64,12 +67,13 @@ function NavLinks({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   );
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
+function SidebarContent({ onNavigate, compact = false, onMore }: { onNavigate?: (() => void) | undefined; compact?: boolean; onMore?: () => void }) {
   const { lang } = useI18n();
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-5"><Link to={"/super-admin" as never} onClick={onNavigate} className="text-foreground" aria-label="QuickServe admin"><BrandLogo className="size-9" accentClassName="text-[#ff5a0a]" textClassName="text-[20px] text-foreground" /></Link></div>
-      <div className="qs-scroll flex-1 overflow-y-auto px-3 py-4"><NavLinks onNavigate={onNavigate} /></div>
+      <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-5"><Link to={"/super-admin" as never} onClick={onNavigate} className="text-foreground" aria-label="QuickServe admin"><BrandLogo className="size-9" accentClassName="text-[#e85d2a]" textClassName="text-[20px] text-foreground" /></Link></div>
+      <div className="qs-scroll flex-1 overflow-y-auto px-3 py-4"><NavLinks onNavigate={onNavigate} items={compact ? PRIMARY_NAV : NAV} /></div>
+      {compact ? <div className="border-t border-border px-3 py-3"><button type="button" className="qs-sidebar-item w-full" onClick={onMore}><MoreHorizontal className="size-[18px] shrink-0"/><span className="min-w-0 flex-1 text-start">{lang === "ar" ? "المزيد" : "More"}</span><span className="text-xs text-muted-foreground">{SECONDARY_NAV.length}</span></button></div> : null}
       <div className="border-t border-border px-4 py-4"><p className="text-[13px] font-bold text-foreground">QuickServe</p><p className="text-[10px] text-muted-foreground">{lang === "ar" ? "إدارة المنصة" : "Platform admin"}</p></div>
     </div>
   );
@@ -92,6 +96,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   useEffect(() => { void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null)); }, []);
@@ -106,18 +111,18 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-dvh bg-background lg:ps-[var(--qs-shell-sidebar)]">
-      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden lg:block"><SidebarContent /></aside>
+      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden lg:block"><SidebarContent compact onMore={() => setMoreOpen(true)} /></aside>
       <header className="qs-topbar safe-top sticky top-0 z-40">
         <div className="mx-auto flex h-[var(--qs-shell-topbar)] w-full max-w-[1640px] items-center gap-3 px-3 sm:px-5 lg:px-7">
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}><SheetTrigger asChild><Button variant="ghost" size="icon" className="size-10 lg:hidden"><MenuIcon className="size-5" /></Button></SheetTrigger><SheetContent side="left" className="w-[88vw] max-w-[320px] border-e border-border bg-card p-0 text-foreground"><SheetTitle className="sr-only">QuickServe</SheetTitle><SidebarContent onNavigate={() => setMobileOpen(false)} /></SheetContent></Sheet>
-          <Link to={"/super-admin" as never} className="lg:hidden"><BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="hidden sm:inline" /></Link>
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}><SheetTrigger asChild><Button variant="ghost" size="icon" className="size-10 lg:hidden" aria-label={lang === "ar" ? "فتح التنقل" : "Open navigation"}><MenuIcon className="size-5" /></Button></SheetTrigger><SheetContent side="left" className="w-[88vw] max-w-[320px] border-e border-border bg-card p-0 text-foreground"><SheetTitle className="sr-only">QuickServe</SheetTitle><SidebarContent onNavigate={() => setMobileOpen(false)} /></SheetContent></Sheet>
+          <Link to={"/super-admin" as never} className="lg:hidden"><BrandLogo className="size-8" accentClassName="text-[#e85d2a]" textClassName="hidden sm:inline" /></Link>
           <button type="button" onClick={() => setSearchOpen(true)} className="qs-topbar-search hidden min-w-0 max-w-[440px] flex-1 items-center gap-3 px-4 text-start text-[13px] text-muted-foreground md:flex"><Search className="size-4" /><span className="min-w-0 flex-1 truncate">{lang === "ar" ? "بحث" : "Search"}</span><kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px]">⌘K</kbd></button>
           <div className="ms-auto flex items-center gap-1 sm:gap-1.5">
             <ThemeToggle compact />
             <Notifications />
             <button type="button" onClick={toggleLang} className="grid size-10 place-items-center rounded-[11px] text-xs font-bold text-muted-foreground transition hover:bg-muted/60 hover:text-foreground">{lang === "ar" ? "EN" : "ع"}</button>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild><button type="button" className="grid size-10 place-items-center rounded-full bg-muted ring-1 ring-border"><Users className="size-4" /></button></DropdownMenuTrigger>
+              <DropdownMenuTrigger asChild><button type="button" className="grid size-10 place-items-center rounded-full bg-muted ring-1 ring-border" aria-label={lang === "ar" ? "قائمة الحساب" : "Account menu"}><Users className="size-4" /></button></DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel className="max-w-56 truncate">{email ?? "QuickServe Owner"}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -131,6 +136,12 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
       </header>
       <main className={cn("qs-page min-h-[calc(100dvh-var(--qs-shell-topbar))]")}>{children}</main>
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+        <SheetContent side={lang === "ar" ? "left" : "right"} className="w-[min(380px,92vw)] border-border bg-card p-0 text-foreground">
+          <div className="border-b border-border px-5 py-5"><SheetTitle>{lang === "ar" ? "أدوات المنصة" : "Platform tools"}</SheetTitle><p className="mt-1 text-sm text-muted-foreground">{lang === "ar" ? "الإعدادات والتراخيص وسجل التدقيق." : "Settings, licensing and audit history."}</p></div>
+          <div className="p-4"><NavLinks items={SECONDARY_NAV} onNavigate={() => setMoreOpen(false)} /></div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

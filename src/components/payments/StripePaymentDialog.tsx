@@ -111,7 +111,7 @@ export function StripePaymentDialog({
     finally{setPaying(false);}
   }
 
-  return <Dialog open={open} onOpenChange={value=>!paying&&onOpenChange(value)}><DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle className="flex items-center gap-2"><CreditCard className="size-5 text-[#ff5a0a]"/>{ar?"دفع إلكتروني آمن":"Secure provider payment"}</DialogTitle><DialogDescription>{orderNumber} · {formatMoney(amount+tip,currency,lang)}{tip>0?` (${ar?"يشمل إكرامية":"includes tip"} ${formatMoney(tip,currency,lang)})`:""}</DialogDescription></DialogHeader>
+  return <Dialog open={open} onOpenChange={value=>!paying&&onOpenChange(value)}><DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle className="flex items-center gap-2"><CreditCard className="size-5 text-[#e85d2a]"/>{ar?"دفع إلكتروني آمن":"Secure provider payment"}</DialogTitle><DialogDescription>{orderNumber} · {formatMoney(amount+tip,currency,lang)}{tip>0?` (${ar?"يشمل إكرامية":"includes tip"} ${formatMoney(tip,currency,lang)})`:""}</DialogDescription></DialogHeader>
     <div className="rounded-xl border bg-muted/20 p-4">
       {loading?<div className="flex min-h-28 items-center justify-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/>{ar?"جارٍ فتح مزود الدفع…":"Opening payment provider…"}</div>:error?<div className="rounded-xl bg-red-500/10 p-3 text-sm text-red-700">{error}</div>:<div ref={mountRef} className="min-h-24"/>}
     </div>

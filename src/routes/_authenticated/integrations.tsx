@@ -166,7 +166,7 @@ function IntegrationsPage() {
                 const status = row?.status ?? "not_configured";
                 return <article key={`${preset.category}:${preset.provider}`} className="group rounded-[10px] border border-border/85 bg-card p-3 shadow-[var(--qs-shadow-card)] transition hover:border-orange-200 hover:shadow-[var(--qs-shadow-hover)]">
                   <div className="flex items-start justify-between gap-3">
-                    <span className="grid size-8 place-items-center rounded-[9px] bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-4" /></span>
+                    <span className="grid size-8 place-items-center rounded-[9px] bg-orange-500/10 text-[#e85d2a]"><Icon className="size-4" /></span>
                     <MasterStatus tone={status === "healthy" ? "green" : status === "configured" ? "blue" : status === "disabled" ? "slate" : "orange"}>{status.replaceAll("_", " ")}</MasterStatus>
                   </div>
                   <h2 className="mt-2 text-sm font-bold">{preset.name}</h2>
@@ -187,7 +187,7 @@ function IntegrationsPage() {
           <DeveloperConnectPanel restaurantId={rid} />
           <IntegrationOperationsPanel restaurantId={rid} />
           <section className="qs-card p-3">
-            <div className="flex items-start gap-2"><Activity className="mt-0.5 size-4 text-[#ff5a0a]" /><div><h2 className="text-sm font-bold">{ar ? "قاعدة أمان" : "Security rule"}</h2><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{ar ? "أسرار Webhook محفوظة مشفرة داخل Supabase Vault، ومفاتيح API تحفظ كبصمات SHA-256 فقط. القيم الكاملة تظهر مرة واحدة عند الإنشاء." : "Webhook signing secrets are encrypted in Supabase Vault, while API keys are stored only as SHA-256 hashes. Full secret values are revealed once at creation."}</p></div></div>
+            <div className="flex items-start gap-2"><Activity className="mt-0.5 size-4 text-[#e85d2a]" /><div><h2 className="text-sm font-bold">{ar ? "قاعدة أمان" : "Security rule"}</h2><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{ar ? "أسرار Webhook محفوظة مشفرة داخل Supabase Vault، ومفاتيح API تحفظ كبصمات SHA-256 فقط. القيم الكاملة تظهر مرة واحدة عند الإنشاء." : "Webhook signing secrets are encrypted in Supabase Vault, while API keys are stored only as SHA-256 hashes. Full secret values are revealed once at creation."}</p></div></div>
           </section>
         </aside>
       </section>

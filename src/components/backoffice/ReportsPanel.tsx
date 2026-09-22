@@ -62,7 +62,7 @@ export function ReportsPanel({
       {access.procurement ? <section className="rounded-2xl border border-border bg-card p-5"><h4 className="font-bold">{ar ? "مسار المشتريات" : "Procurement status"}</h4><div className="mt-4 space-y-3">{procStatus.map((entry) => {
         const total=Math.max(1,data.procurement.length);
         const share=Math.round(entry.count/total*100);
-        return <div key={entry.status}><div className="flex items-center justify-between gap-3 text-xs"><span className="capitalize">{entry.status}</span><strong>{formatNumber(entry.count,lang)}</strong></div><div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-[#ff5a0a]" style={{width:`${share}%`}}/></div></div>;
+        return <div key={entry.status}><div className="flex items-center justify-between gap-3 text-xs"><span className="capitalize">{entry.status}</span><strong>{formatNumber(entry.count,lang)}</strong></div><div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-[#e85d2a]" style={{width:`${share}%`}}/></div></div>;
       })}</div></section> : null}
 
       {access.finance ? <section className="rounded-2xl border border-border bg-card p-5"><div className="flex items-center gap-2"><TrendingDown className="size-4 text-muted-foreground"/><h4 className="font-bold">{ar ? "المصروف حسب الفئة" : "Spend by category"}</h4></div>{summary.monthByCategory.length ? <div className="mt-4 space-y-3">{summary.monthByCategory.map(([category,amount])=>{

@@ -34,6 +34,6 @@
 - [ ] Publish to lovable.app and report the production URL.
 
 ## Approved master redesign
-- [ ] Consolidate global visual layers into the authoritative white-sidebar system.
-- [ ] Apply shared shells and primitives across tenant, frontline, ERP, Super Admin, auth, and public routes.
-- [ ] Verify responsive layouts, RTL, metadata, TypeScript, lint, tests, and production build.
+- [x] Consolidate global visual layers into the authoritative white-sidebar system.
+- [x] Apply shared shells and primitives across tenant, frontline, ERP, Super Admin, auth, and public routes.
+- [x] Verify responsive layouts, RTL, metadata, TypeScript, lint, tests, and production build.

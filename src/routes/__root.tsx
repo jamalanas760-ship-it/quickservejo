@@ -83,7 +83,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <h1 className="text-xl font-semibold tracking-tight text-foreground">This page didn't load</h1>
         <p className="mt-2 text-sm text-muted-foreground">Something went wrong on our end. You can try refreshing or head back home.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
+          <button type="button"
             onClick={() => {
               if (recoverable && typeof window !== "undefined") {
                 window.location.reload();
@@ -112,7 +112,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "QuickServe is a multi-tenant QR ordering platform: table QR menus, live kitchen display, waiter calls and cashier tools for every restaurant you run." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "theme-color", content: "#ff5a0a" },
+      { name: "theme-color", content: "#e85d2a" },
       { name: "apple-mobile-web-app-title", content: "QuickServe" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
     ],

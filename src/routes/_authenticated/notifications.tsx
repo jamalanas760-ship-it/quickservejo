@@ -178,7 +178,7 @@ function NotificationItem({ row, ar, busy, onRead }: { row: NotificationRow; ar:
   const Icon = config.icon;
   const href = row.kind === "shift" || row.kind === "handover" ? "/shifts" : row.kind === "task" || row.kind === "approval" || row.kind === "alert" ? "/work" : "/dashboard";
   return <article className={cn("grid gap-3 p-3.5 transition sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center", !read && "bg-orange-500/[.025]")}>
-    <div className="flex min-w-0 gap-3"><span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", config.tone)}><Icon className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{row.title}</h3>{!read ? <span className="size-2 rounded-full bg-[#ff5a0a]" /> : null}<Badge variant="outline" className="rounded-full text-[10px]">{config.label}</Badge></div>{row.body ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{row.body}</p> : null}<p className="mt-2 text-[10px] font-medium text-muted-foreground">{formatTime(row.created_at, ar)}</p></div></div>
+    <div className="flex min-w-0 gap-3"><span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", config.tone)}><Icon className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{row.title}</h3>{!read ? <span className="size-2 rounded-full bg-[#e85d2a]" /> : null}<Badge variant="outline" className="rounded-full text-[10px]">{config.label}</Badge></div>{row.body ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{row.body}</p> : null}<p className="mt-2 text-[10px] font-medium text-muted-foreground">{formatTime(row.created_at, ar)}</p></div></div>
     <div className="flex flex-wrap gap-2 lg:justify-end"><Button asChild size="sm" variant="outline"><Link to={href as any}>{ar ? "فتح" : "Open"}</Link></Button>{!read ? <Button size="sm" variant="ghost" disabled={busy} onClick={onRead}><CheckCheck className="size-4" />{ar ? "تمت القراءة" : "Mark read"}</Button> : null}</div>
   </article>;
 }
@@ -188,7 +188,7 @@ function kindConfig(kind: NotificationKind, ar: boolean) {
   if (kind === "handover") return { icon: UsersRound, label: ar ? "تسليم" : "Handover", tone: "bg-cyan-500/10 text-cyan-700" };
   if (kind === "shift") return { icon: TimerReset, label: ar ? "وردية" : "Shift", tone: "bg-blue-500/10 text-blue-600" };
   if (kind === "alert") return { icon: Info, label: ar ? "تنبيه" : "Alert", tone: "bg-red-500/10 text-red-600" };
-  if (kind === "task") return { icon: ClipboardList, label: ar ? "مهمة" : "Task", tone: "bg-orange-500/10 text-[#ff5a0a]" };
+  if (kind === "task") return { icon: ClipboardList, label: ar ? "مهمة" : "Task", tone: "bg-orange-500/10 text-[#e85d2a]" };
   return { icon: Info, label: ar ? "نظام" : "System", tone: "bg-muted text-muted-foreground" };
 }
 

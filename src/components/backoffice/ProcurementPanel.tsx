@@ -175,7 +175,7 @@ export function ProcurementPanel({
 }
 
 function ProcMetric({ icon: Icon, label, value, tone }: { icon: typeof Clock3; label: string; value: number; tone?: "warning" | "success" }) {
-  return <article className="qs-stat flex min-h-[105px] items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl", tone === "warning" ? "bg-amber-500/10 text-amber-700" : tone === "success" ? "bg-emerald-500/10 text-emerald-700" : "bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-5" /></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong></div></article>;
+  return <article className="qs-stat flex min-h-[105px] items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl", tone === "warning" ? "bg-amber-500/10 text-amber-700" : tone === "success" ? "bg-emerald-500/10 text-emerald-700" : "bg-orange-500/10 text-[#e85d2a]")}><Icon className="size-5" /></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong></div></article>;
 }
 
 function StatusBadge({ status }: { status: ProcurementStatus }) {
@@ -193,7 +193,7 @@ function StatusBadge({ status }: { status: ProcurementStatus }) {
 function WorkflowProgress({ status, ar }: { status: ProcurementStatus; ar: boolean }) {
   if (status === "rejected" || status === "cancelled") return <p className="text-xs font-semibold text-muted-foreground">{statusLabel(status, ar)}</p>;
   const index = STEPS.indexOf(status);
-  return <div className="min-w-0"><div className="flex items-center gap-1">{STEPS.map((step, i) => <span key={step} className={cn("h-1.5 flex-1 rounded-full", i <= index ? "bg-[#ff5a0a]" : "bg-muted")} />)}</div><div className="mt-2 flex justify-between gap-1 text-[9px] font-semibold text-muted-foreground">{STEPS.map((step) => <span key={step}>{statusLabel(step, ar)}</span>)}</div></div>;
+  return <div className="min-w-0"><div className="flex items-center gap-1">{STEPS.map((step, i) => <span key={step} className={cn("h-1.5 flex-1 rounded-full", i <= index ? "bg-[#e85d2a]" : "bg-muted")} />)}</div><div className="mt-2 flex justify-between gap-1 text-[9px] font-semibold text-muted-foreground">{STEPS.map((step) => <span key={step}>{statusLabel(step, ar)}</span>)}</div></div>;
 }
 
 function statusLabel(status: ProcurementStatus, ar: boolean) {

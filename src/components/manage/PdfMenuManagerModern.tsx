@@ -14,7 +14,7 @@ export function PdfMenuManagerModern({ restaurantId }: { restaurantId: string })
     <div className={cn("qs-pdf-modern space-y-3", !editAreas && "qs-pdf-browse") }>
       <div className="qs-selection-mode flex flex-col gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", editAreas ? "bg-orange-500/12 text-[#ff5a0a]" : "bg-muted text-muted-foreground")}>
+          <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", editAreas ? "bg-orange-500/12 text-[#e85d2a]" : "bg-muted text-muted-foreground")}>
             {editAreas ? <MousePointer2 className="size-[18px]" /> : <Hand className="size-[18px]" />}
           </span>
           <div className="min-w-0">
@@ -41,7 +41,7 @@ export function PdfMenuManagerModern({ restaurantId }: { restaurantId: string })
             type="button"
             aria-pressed={editAreas}
             onClick={() => setEditAreas(true)}
-            className={cn("inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-lg px-3 text-xs font-bold transition", editAreas ? "bg-[#ff5a0a] text-white shadow-sm" : "text-muted-foreground hover:text-foreground")}
+            className={cn("inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-lg px-3 text-xs font-bold transition", editAreas ? "bg-[#e85d2a] text-white shadow-sm" : "text-muted-foreground hover:text-foreground")}
           >
             <MousePointer2 className="size-4 shrink-0" />
             <span className="whitespace-nowrap">{ar ? "تعديل المناطق" : "Edit areas"}</span>

@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BellRing,
   BellOff,
-  Volume2,
-  VolumeX,
   Timer,
   StickyNote,
   Search,
@@ -544,27 +542,10 @@ function KitchenPage() {
                   </>
                 )}
               </span>
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !prefs.soundOn;
-                  setPref("soundOn", next);
-                  if (next) void unlockAlertSound().then(() => playOrderAlert());
-                }}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors",
-                  prefs.soundOn ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
-                )}
-              >
-                {prefs.soundOn ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
-                {ar ? "الصوت" : "Sound"}
-              </button>
-
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="size-9 rounded-full">
+                  <Button variant="outline" size="icon" className="size-11 rounded-[10px]" aria-label={ar ? "إعدادات شاشة المطبخ" : "Kitchen display settings"}>
                     <Settings2 className="size-4" />
-                    <span className="sr-only">{ar ? "إعدادات العرض" : "Display settings"}</span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-72 space-y-4">
@@ -652,6 +633,7 @@ function KitchenPage() {
                   key={v.key}
                   type="button"
                   onClick={() => setPref("view", v.key)}
+                  aria-pressed={prefs.view === v.key}
                   className={cn(
                     "flex items-center gap-1.5 rounded-[9px] px-3 py-1.5 text-xs font-bold transition-colors",
                     prefs.view === v.key
@@ -679,6 +661,7 @@ function KitchenPage() {
                 <button
                   type="button"
                   onClick={() => setSearch("")}
+                  aria-label={ar ? "مسح البحث" : "Clear search"}
                   className="absolute inset-y-0 end-2 my-auto grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-muted"
                 >
                   <X className="size-3.5" />
@@ -874,8 +857,8 @@ function KitchenBootSkeleton({ ar }: { ar: boolean }) {
   return <div className="min-h-screen bg-background">
     <header className="border-b border-border bg-card px-4 py-4">
       <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-4">
-        <div><div className="flex items-center gap-2"><ChefHat className="size-5 text-[#ff5a0a]" /><strong className="text-lg">{ar ? "شاشة المطبخ" : "Kitchen display"}</strong></div><p className="mt-1 text-xs text-muted-foreground">{ar ? "جارٍ فتح الطلبات النشطة…" : "Opening active tickets…"}</p></div>
-        <span className="h-2 w-16 overflow-hidden rounded-full bg-muted"><i className="block h-full w-1/2 animate-pulse rounded-full bg-[#ff5a0a]" /></span>
+        <div><div className="flex items-center gap-2"><ChefHat className="size-5 text-[#e85d2a]" /><strong className="text-lg">{ar ? "شاشة المطبخ" : "Kitchen display"}</strong></div><p className="mt-1 text-xs text-muted-foreground">{ar ? "جارٍ فتح الطلبات النشطة…" : "Opening active tickets…"}</p></div>
+        <span className="h-2 w-16 overflow-hidden rounded-full bg-muted"><i className="block h-full w-1/2 animate-pulse rounded-full bg-[#e85d2a]" /></span>
       </div>
     </header>
     <main className="mx-auto max-w-[1800px] px-4 py-6">

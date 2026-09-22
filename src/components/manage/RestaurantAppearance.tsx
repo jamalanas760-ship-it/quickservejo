@@ -222,7 +222,7 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
         </section>
 
         <section className="panel p-3.5 sm:p-4">
-          <div className="flex items-center gap-2"><History className="size-4 text-[#ff5a0a]" /><h3 className="text-lg font-semibold">{ar ? "سجل إصدارات التصميم" : "Design version history"}</h3></div>
+          <div className="flex items-center gap-2"><History className="size-4 text-[#e85d2a]" /><h3 className="text-lg font-semibold">{ar ? "سجل إصدارات التصميم" : "Design version history"}</h3></div>
           <p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكنك استعادة أي إصدار سابق بدون حذف التاريخ." : "Restore any prior version without deleting history."}</p>
           {versions.isPending ? <Skeleton className="mt-4 h-52 rounded-xl" /> : versions.isError ? <p className="mt-4 text-sm text-destructive">{humanError(versions.error, lang)}</p> : (
             <div className="mt-3 max-h-[260px] divide-y divide-border overflow-y-auto pe-1">
@@ -279,7 +279,7 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
           <h3 className="font-semibold">{ar ? "إدارة النشر" : "Publishing"}</h3>
           <Input maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} placeholder={ar ? "ملاحظة للإصدار (اختياري)" : "Version note (optional)"} />
           <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={() => saveDraft.mutate()}><Save className="size-4" />{ar ? "حفظ مسودة" : "Save Draft"}</Button>
-          <Button className="min-h-10 w-full bg-[#ff5a0a] text-white hover:bg-[#e94f00]" disabled={busy} type="submit"><Send className="size-4" />{publishNow.isPending ? (ar ? "جارٍ النشر…" : "Publishing…") : (ar ? "نشر الآن" : "Publish Now")}</Button>
+          <Button className="min-h-10 w-full bg-[#e85d2a] text-white hover:bg-[#e94f00]" disabled={busy} type="submit"><Send className="size-4" />{publishNow.isPending ? (ar ? "جارٍ النشر…" : "Publishing…") : (ar ? "نشر الآن" : "Publish Now")}</Button>
           <div className="rounded-xl border border-dashed p-3">
             <label className="text-xs font-semibold">{ar ? "نشر مجدول" : "Scheduled publish"}<Input type="datetime-local" className="mt-2" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} /></label>
             <Button type="button" variant="outline" className="mt-2 w-full" disabled={busy} onClick={() => schedule.mutate()}><CalendarClock className="size-4" />{ar ? "جدولة النشر" : "Schedule Publish"}</Button>

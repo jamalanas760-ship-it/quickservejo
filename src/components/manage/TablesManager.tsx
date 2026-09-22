@@ -535,7 +535,7 @@ export function TablesManager({ restaurantId }: { restaurantId: string }) {
             <button type="button" className="qs-floor-icon-control" aria-label={ar ? "توسيط المخطط" : "Center floor"} onClick={() => { setActiveZone("main"); setZoom(1); }}><MapPin className="size-4" /></button>
             <button type="button" className={cn("qs-floor-control", threeD && "border-slate-500 bg-[#132431]")} onClick={() => setThreeD((value) => !value)}><Move3d className="size-4" />{ar ? "عرض 3D" : "3D View"}</button>
             <button type="button" className="qs-floor-control" onClick={() => setZoom(1)}><RotateCcw className="size-4" />{ar ? "إعادة" : "Reset"}</button>
-            <button type="button" className="col-span-2 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#ff5a0a] px-5 text-sm font-bold text-white shadow-[0_12px_30px_rgba(255,90,10,.23)] transition hover:bg-[#e94f00] sm:col-auto" onClick={openCreate}><Plus className="size-5" />{ar ? "إضافة طاولة" : "Add Table"}</button>
+            <button type="button" className="col-span-2 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#e85d2a] px-5 text-sm font-bold text-white shadow-[0_12px_30px_rgba(232,93,42,.23)] transition hover:bg-[#e94f00] sm:col-auto" onClick={openCreate}><Plus className="size-5" />{ar ? "إضافة طاولة" : "Add Table"}</button>
           </div>
         </header>
 
@@ -549,7 +549,7 @@ export function TablesManager({ restaurantId }: { restaurantId: string }) {
                   onClick={() => { setActiveZone(entry.id); setSelectedId(null); setMobileInspectorOpen(false); }}
                   className={cn(
                     "min-h-11 shrink-0 rounded-lg px-5 text-xs font-semibold text-slate-400 transition sm:text-sm",
-                    activeZone === entry.id && "bg-[#7d2d0d] text-white shadow-[inset_0_0_0_1px_#ff5a0a,0_8px_18px_rgba(255,90,10,.12)]",
+                    activeZone === entry.id && "bg-[#7d2d0d] text-white shadow-[inset_0_0_0_1px_#e85d2a,0_8px_18px_rgba(232,93,42,.12)]",
                   )}
                 >
                   {ar ? entry.ar : entry.en}
@@ -610,7 +610,7 @@ export function TablesManager({ restaurantId }: { restaurantId: string }) {
                       <div className="rounded-2xl border border-white/10 bg-black/35 p-6 backdrop-blur">
                         <Table2 className="mx-auto size-9 text-slate-400" />
                         <p className="mt-3 text-sm font-semibold">{ar ? "لا توجد طاولات في هذه المنطقة" : "No tables in this zone"}</p>
-                        <button type="button" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#ff5a0a] px-4 text-sm font-bold text-white" onClick={openCreate}><Plus className="size-4" />{ar ? "إضافة طاولة" : "Add Table"}</button>
+                        <button type="button" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#e85d2a] px-4 text-sm font-bold text-white" onClick={openCreate}><Plus className="size-4" />{ar ? "إضافة طاولة" : "Add Table"}</button>
                       </div>
                     </div>
                   ) : null}
@@ -657,9 +657,9 @@ export function TablesManager({ restaurantId }: { restaurantId: string }) {
 
                     <div className="mt-4 grid grid-cols-4 text-center text-xs font-semibold text-slate-400">
                       {(["details", "style", "qr", "more"] as InspectorTab[]).map((tab) => (
-                        <button key={tab} type="button" onClick={() => setInspectorTab(tab)} className={cn("relative min-h-11 px-2 capitalize transition hover:text-white", inspectorTab === tab && "text-[#ff5a0a]")}>
+                        <button key={tab} type="button" onClick={() => setInspectorTab(tab)} className={cn("relative min-h-11 px-2 capitalize transition hover:text-white", inspectorTab === tab && "text-[#e85d2a]")}>
                           {tab === "details" ? (ar ? "التفاصيل" : "Details") : tab === "style" ? (ar ? "النمط" : "Style") : tab === "qr" ? "QR Code" : (ar ? "المزيد" : "More")}
-                          {inspectorTab === tab ? <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-[#ff5a0a]" /> : null}
+                          {inspectorTab === tab ? <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-[#e85d2a]" /> : null}
                         </button>
                       ))}
                     </div>
@@ -726,7 +726,7 @@ export function TablesManager({ restaurantId }: { restaurantId: string }) {
                             ["marble", ar ? "رخام" : "Marble"],
                             ["neutral", ar ? "محايد" : "Neutral"],
                           ] as Array<[TableMaterial, string]>).map(([value, label]) => (
-                            <button key={value} type="button" onClick={() => setSelectedLayout({ material: value })} className={cn("min-h-16 rounded-xl border px-3 text-sm font-semibold", currentLayout.material === value ? "border-[#ff5a0a] bg-orange-500/10 text-white" : "border-[#304654] bg-[#112431] text-slate-300 hover:bg-[#162b39]")}><span className="mx-auto mb-2 block h-3 w-12 rounded-full" style={materialSwatch(value)} />{label}</button>
+                            <button key={value} type="button" onClick={() => setSelectedLayout({ material: value })} className={cn("min-h-16 rounded-xl border px-3 text-sm font-semibold", currentLayout.material === value ? "border-[#e85d2a] bg-orange-500/10 text-white" : "border-[#304654] bg-[#112431] text-slate-300 hover:bg-[#162b39]")}><span className="mx-auto mb-2 block h-3 w-12 rounded-full" style={materialSwatch(value)} />{label}</button>
                           ))}
                         </div>
                       </DarkField>
@@ -767,7 +767,7 @@ export function TablesManager({ restaurantId }: { restaurantId: string }) {
                     ) : (
                       <button type="button" className="qs-floor-control justify-center" onClick={closeInspector}>{t("common.cancel")}</button>
                     )}
-                    <button type="button" disabled={busy || !number.trim()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#ff5a0a] px-4 text-sm font-bold text-white shadow-[0_10px_28px_rgba(255,90,10,.2)] hover:bg-[#e94f00] disabled:opacity-50" onClick={() => void saveCurrent()}><Save className="size-4" />{busy ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ التغييرات" : "Save Changes")}</button>
+                    <button type="button" disabled={busy || !number.trim()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#e85d2a] px-4 text-sm font-bold text-white shadow-[0_10px_28px_rgba(232,93,42,.2)] hover:bg-[#e94f00] disabled:opacity-50" onClick={() => void saveCurrent()}><Save className="size-4" />{busy ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ التغييرات" : "Save Changes")}</button>
                   </div>
                 </aside>
               </>
@@ -789,7 +789,7 @@ export function TablesManager({ restaurantId }: { restaurantId: string }) {
       </AlertDialog>
 
       <style>{`
-        .qs-floor-control{display:inline-flex;min-height:44px;align-items:center;gap:.55rem;border:1px solid #2b4050;border-radius:11px;background:#0d1c27;padding:.65rem .9rem;color:#eef3f6;font-size:.78rem;font-weight:650;transition:background .15s,border-color .15s,transform .15s}.qs-floor-control:hover{background:#132633;border-color:#405564}.qs-floor-icon-control{display:grid;min-width:44px;min-height:44px;place-items:center;border:1px solid #2b4050;border-radius:11px;background:#0d1c27;color:#eef3f6}.qs-floor-icon-control:hover{background:#132633}.qs-table-piece{touch-action:none;user-select:none;-webkit-user-select:none}.qs-table-piece:focus-visible{outline:2px solid #ff5a0a;outline-offset:3px}@media(max-width:1279px){.qs-table-piece{cursor:pointer}}@media(prefers-reduced-motion:reduce){.qs-table-piece,.qs-floor-control{transition:none!important}}
+        .qs-floor-control{display:inline-flex;min-height:44px;align-items:center;gap:.55rem;border:1px solid #2b4050;border-radius:11px;background:#0d1c27;padding:.65rem .9rem;color:#eef3f6;font-size:.78rem;font-weight:650;transition:background .15s,border-color .15s,transform .15s}.qs-floor-control:hover{background:#132633;border-color:#405564}.qs-floor-icon-control{display:grid;min-width:44px;min-height:44px;place-items:center;border:1px solid #2b4050;border-radius:11px;background:#0d1c27;color:#eef3f6}.qs-floor-icon-control:hover{background:#132633}.qs-table-piece{touch-action:none;user-select:none;-webkit-user-select:none}.qs-table-piece:focus-visible{outline:2px solid #e85d2a;outline-offset:3px}@media(max-width:1279px){.qs-table-piece{cursor:pointer}}@media(prefers-reduced-motion:reduce){.qs-table-piece,.qs-floor-control{transition:none!important}}
       `}</style>
     </div>
   );
@@ -920,7 +920,7 @@ function DarkField({ label, children }: { label: string; children: ReactNode }) 
 }
 
 function ShapeButton({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
-  return <button type="button" onClick={onClick} className={cn("inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-2 text-xs font-semibold transition", active ? "border-[#ff5a0a] bg-orange-500/10 text-white shadow-[inset_0_0_0_1px_rgba(255,90,10,.12)]" : "border-[#304654] bg-[#112431] text-slate-300 hover:bg-[#162b39]")}>{icon}{label}</button>;
+  return <button type="button" onClick={onClick} className={cn("inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-2 text-xs font-semibold transition", active ? "border-[#e85d2a] bg-orange-500/10 text-white shadow-[inset_0_0_0_1px_rgba(232,93,42,.12)]" : "border-[#304654] bg-[#112431] text-slate-300 hover:bg-[#162b39]")}>{icon}{label}</button>;
 }
 
 function CompactNumber({ label, value, suffix, onChange }: { label: string; value: number; suffix?: string; onChange: (value: number) => void }) {

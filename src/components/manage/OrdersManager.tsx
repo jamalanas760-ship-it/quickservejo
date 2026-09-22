@@ -9,6 +9,7 @@ import {
   UserRound,
   UtensilsCrossed,
 } from "lucide-react";
+import { MasterPageHeader } from "@/components/app/MasterPage";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePlatformOrders, useOrderItems, useRestaurant } from "@/hooks/useSuperAdmin";
@@ -21,7 +22,7 @@ import { operationalCountersKey } from "@/hooks/useOperationalCounters";
 const TABS = [
   { id: "all", en: "All", ar: "الكل", dot: "bg-slate-400" },
   { id: "new", en: "New", ar: "جديد", dot: "bg-blue-500" },
-  { id: "preparing", en: "Preparing", ar: "تحضير", dot: "bg-[#ff5a0a]" },
+  { id: "preparing", en: "Preparing", ar: "تحضير", dot: "bg-[#e85d2a]" },
   { id: "ready", en: "Ready", ar: "جاهز", dot: "bg-emerald-500" },
 ] as const;
 
@@ -83,17 +84,18 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
   const selected = rows.find((order) => order.id === selectedId) ?? rows[0] ?? null;
 
   return (
-    <div className="qs-viewport-fill flex h-full min-h-0 flex-col gap-2">
-      <header className="qs-workspace-titlebar flex shrink-0 flex-col gap-2 rounded-[11px] border border-border bg-card px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-        <div><h1 className="qs-page-title">{ar ? "الطلبات المباشرة" : "Live Orders"}</h1><p className="qs-page-subtitle">{ar ? "تابع وراقب جميع الطلبات في الوقت الفعلي." : "Track and monitor all orders in real-time."}</p></div>
-        <span className="text-end text-[11px] text-muted-foreground"><span className="flex items-center justify-end gap-2 font-semibold text-foreground"><i className="size-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,.10)]" />{ar ? "تحديث مباشر" : "Live updates"}</span><span>{ar ? "تتحدث تلقائياً" : "Updates automatically"}</span></span>
-      </header>
+    <div className="qs-viewport-fill flex h-full min-h-0 flex-col gap-4">
+      <MasterPageHeader
+        title={ar ? "الطلبات المباشرة" : "Live Orders"}
+        description={ar ? "تابع وراقب جميع الطلبات في الوقت الفعلي." : "Track and monitor all orders in real-time."}
+        actions={<span className="qs-live-badge">{ar ? "تحديث مباشر" : "Live updates"}</span>}
+      />
 
       <section className="qs-card p-3 sm:p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="no-scrollbar flex gap-2 overflow-x-auto pb-0.5 lg:pb-0">
             {TABS.map((item) => (
-              <button key={item.id} type="button" onClick={() => setTab(item.id)} className="qs-chip shrink-0" data-active={tab === item.id}>
+              <button key={item.id} type="button" onClick={() => setTab(item.id)} aria-pressed={tab === item.id} className={cn("qs-chip shrink-0", tab === item.id && "border-foreground bg-foreground text-background")}>
                 <i className={cn("size-2 rounded-full", item.dot)} />{ar ? item.ar : item.en}
                 <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{counts[item.id] ?? 0}</span>
               </button>
@@ -115,7 +117,7 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
               <table className="qs-table w-full table-fixed"><colgroup><col className="w-[18%]"/><col className="w-[12%]"/><col className="w-[24%]"/><col className="w-[9%]"/><col className="w-[14%]"/><col className="w-[17%]"/><col className="w-[6%]"/></colgroup>
                 <thead><tr><th>{ar ? "رقم الطلب" : "Order #"}</th><th>{ar ? "الوقت" : "Time"}</th><th>{ar ? "العميل / الطاولة" : "Customer / Table"}</th><th>{ar ? "العناصر" : "Items"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "المدة" : "Elapsed"}</th><th /></tr></thead>
                 <tbody>{rows.map((order) => { const active = selected?.id === order.id; return (
-                  <tr key={order.id} onClick={() => selectOrder(order.id)} className={cn("cursor-pointer", active && "outline outline-1 -outline-offset-1 outline-[#ff5a0a] bg-orange-500/[.045]")}>
+                  <tr key={order.id} onClick={() => selectOrder(order.id)} className={cn("cursor-pointer", active && "outline outline-1 -outline-offset-1 outline-[#e85d2a] bg-orange-500/[.045]")}>
                     <td><strong className="tabular-nums">{order.order_number}</strong></td>
                     <td>{new Date(order.created_at).toLocaleTimeString(ar ? "ar-JO" : "en-US", { hour: "2-digit", minute: "2-digit" })}</td>
                     <td><strong className="block text-xs">{order.table?.table_number ? (ar ? "داخل المطعم" : "Dine In") : (ar ? "خارجي" : "Takeaway")}</strong><span className="text-[10px] text-muted-foreground">{order.table?.table_number ? `${ar ? "طاولة" : "Table"} ${order.table.table_number}` : "—"}</span></td>
@@ -178,7 +180,7 @@ function OrderDetail({ order, currency }: { order: any; currency: string }) {
           <div className="border-b border-border px-3 py-2"><h3 className="text-xs font-bold">{ar ? "عناصر الطلب" : "Order Items"}</h3></div>
           {items.isPending ? <Skeleton className="m-3 h-28 rounded-xl" /> : <div className="divide-y divide-border">{(items.data ?? []).map((item) => (
             <div key={item.id} className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5">
-              <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><UtensilsCrossed className="size-3.5" /></span>
+              <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-orange-50 text-[#e85d2a] dark:bg-orange-950/30"><UtensilsCrossed className="size-3.5" /></span>
               <div className="min-w-0"><p className="truncate text-xs font-semibold">{ar ? item.product_name_snapshot_ar || item.product_name_snapshot_en : item.product_name_snapshot_en || item.product_name_snapshot_ar}</p><p className="text-[9px] text-muted-foreground">{item.quantity} × {formatMoney(Number(item.unit_price ?? 0), currency, lang)}</p></div>
               <strong className="text-xs">{formatMoney(item.total_price, currency, lang)}</strong>
             </div>

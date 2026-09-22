@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { Activity, ChefHat, ScanLine, ShieldCheck } from "lucide-react";
 
 import { useI18n } from "@/lib/i18n";
 import { useAccess, useSupabaseSession } from "@/hooks/useSession";
@@ -153,16 +154,17 @@ function Landing() {
       </header>
 
       <main>
-        <section className="mx-auto max-w-6xl px-4 py-20">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        <section className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1fr)_minmax(420px,.86fr)] lg:items-center lg:py-20">
+          <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#e34d00]">
             {lang === "ar" ? "منصة SaaS متعددة المطاعم" : "Multi-tenant restaurant SaaS"}
           </p>
-          <h1 className="mt-4 max-w-3xl text-4xl font-bold leading-tight sm:text-5xl">
+          <h1 className="mt-4 max-w-3xl font-display text-[clamp(2.6rem,6vw,5.2rem)] font-bold leading-[.98] tracking-[-.055em]">
             {lang === "ar"
               ? "طلبات QR، مطبخ مباشر، وإدارة كاملة لكل مطعم تديره"
               : "QR ordering, a live kitchen and full control for every restaurant you run"}
           </h1>
-          <p className="mt-5 max-w-2xl text-base text-muted-foreground">
+          <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground">
             {lang === "ar"
               ? "QuickServe منصة واحدة تُشغّل عدة مطاعم بهويات وقوائم وطاولات وفِرق مختلفة، مع عزل بيانات مفروض من قاعدة البيانات."
               : "QuickServe runs many restaurants from one codebase — each with its own branding, menu, tables and team, isolated by database-enforced security."}
@@ -177,6 +179,22 @@ function Landing() {
                 <Link to="/auth">{lang === "ar" ? "تسجيل الدخول" : "Sign in"}</Link>
               </Button>
             )}
+          </div>
+          <div className="mt-8 grid max-w-xl grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+            <span className="qs-soft-card flex items-center gap-2 px-3 py-2.5"><ScanLine className="size-4 text-[#e85d2a]" />{lang === "ar" ? "طلب QR" : "QR ordering"}</span>
+            <span className="qs-soft-card flex items-center gap-2 px-3 py-2.5"><ChefHat className="size-4 text-[#e85d2a]" />{lang === "ar" ? "مطبخ مباشر" : "Live KDS"}</span>
+            <span className="qs-soft-card flex items-center gap-2 px-3 py-2.5"><Activity className="size-4 text-emerald-600" />{lang === "ar" ? "فوري" : "Realtime"}</span>
+            <span className="qs-soft-card flex items-center gap-2 px-3 py-2.5"><ShieldCheck className="size-4 text-blue-600" />{lang === "ar" ? "عزل آمن" : "Tenant safe"}</span>
+          </div>
+          </div>
+
+          <div className="relative min-h-[360px] overflow-hidden rounded-[26px] border border-border bg-muted shadow-[var(--qs-shadow-float)] sm:min-h-[460px]">
+            <img src="/signin-restaurant.webp" alt="Restaurant service managed with QuickServe" className="absolute inset-0 size-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+            <div className="absolute inset-x-4 bottom-4 grid grid-cols-2 gap-2 sm:inset-x-5 sm:bottom-5">
+              <div className="rounded-2xl border border-white/15 bg-black/45 p-4 text-white backdrop-blur-xl"><span className="qs-live-badge">{lang === "ar" ? "تشغيل مباشر" : "Live operations"}</span><strong className="mt-3 block font-display text-xl">{lang === "ar" ? "صورة خدمة واحدة وواضحة" : "One clear service view"}</strong><span className="mt-1 block text-xs text-white/70">{lang === "ar" ? "الطلبات والصالة والمطبخ معاً." : "Orders, floor and kitchen together."}</span></div>
+              <div className="rounded-2xl border border-white/15 bg-white/90 p-4 text-slate-900 backdrop-blur-xl"><span className="text-[10px] font-extrabold uppercase tracking-[.12em] text-[#e34d00]">{lang === "ar" ? "اليوم" : "Today"}</span><strong className="mt-3 block font-display text-xl">{lang === "ar" ? "جاهز للخدمة" : "Ready for service"}</strong><span className="mt-1 block text-xs text-slate-500">{lang === "ar" ? "مصمم للمطاعم الأردنية." : "Built for Jordanian restaurants."}</span></div>
+            </div>
           </div>
         </section>
 

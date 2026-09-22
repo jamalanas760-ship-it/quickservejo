@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { PublicSiteShell } from "@/components/public/PublicSiteShell";
 import { supabase } from "@/integrations/supabase/client";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
@@ -53,8 +54,9 @@ function BadgePage() {
   }, [code, lang, navigate, signIn]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 text-center">
-      <div className="space-y-3">
+    <PublicSiteShell showSignIn={false} contentClassName="grid min-h-[calc(100dvh-130px)] max-w-xl place-items-center">
+      <div className="qs-card w-full space-y-4 p-7 text-center sm:p-10">
+        <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-orange-500/10 font-display text-xl font-bold text-[#e34d00]">QS</span>
         <h1 className="text-lg font-semibold">
           {error ? t("staffAuth.badgeFailed") : t("staffAuth.badgeSigningIn")}
         </h1>
@@ -65,6 +67,6 @@ function BadgePage() {
           </Button>
         ) : null}
       </div>
-    </main>
+    </PublicSiteShell>
   );
 }

@@ -140,18 +140,15 @@ function ProfilePage() {
   return <div className="min-h-dvh bg-background">
     <AppHeader />
     <main className="qs-page qs-compact-page qs-viewport-page">
-      <section className="relative overflow-hidden rounded-[18px] border border-border bg-card">
-        {accountCover ? <><img src={accountCover} alt="" className="pointer-events-none absolute inset-0 size-full object-cover opacity-30" style={{ objectPosition: `${accountCoverX}% ${accountCoverY}%`, transform: `scale(${accountCoverZoom / 100})` }} /><div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card/95 via-card/78 to-card/55" /></> : <div className="absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_18%_0%,rgba(255,90,10,.15),transparent_55%)]" />}
-        <div className="relative flex flex-col gap-3 p-3.5 sm:p-4 lg:flex-row lg:items-end lg:justify-between">
+      <section className="relative overflow-hidden rounded-[14px] border border-border bg-card">
+        {accountCover ? <><img src={accountCover} alt="" className="pointer-events-none absolute inset-0 size-full object-cover opacity-20" style={{ objectPosition: `${accountCoverX}% ${accountCoverY}%`, transform: `scale(${accountCoverZoom / 100})` }} /><div className="pointer-events-none absolute inset-0 bg-white/85" /></> : null}
+        <div className="relative flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
             <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-[20px] border border-border bg-background shadow-sm">
-              {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : <span className="font-display text-2xl font-black text-[#ff5a0a]">{displayName.slice(0, 1).toUpperCase()}</span>}
+              {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : <span className="font-display text-2xl font-black text-[#e85d2a]">{displayName.slice(0, 1).toUpperCase()}</span>}
             </div>
             <div className="min-w-0">
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-orange-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#ff5a0a]">{ar ? "مساحة الحساب" : "Account workspace"}</span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-600"><CheckCircle2 className="size-3" />{ar ? "نشط" : "Active"}</span>
-              </div>
+              <span className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700"><CheckCircle2 className="size-3.5" />{ar ? "حساب نشط" : "Active account"}</span>
               <h1 className="truncate font-display text-[clamp(1.65rem,2.5vw,2.2rem)] font-bold tracking-[-.045em]">{displayName}</h1>
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5"><Mail className="size-3.5" />{email}</span>
@@ -164,7 +161,7 @@ function ProfilePage() {
         </div>
       </section>
 
-      <div className="qs-viewport-fill grid min-h-0 gap-2 xl:grid-cols-[178px_minmax(0,1fr)] xl:items-stretch">
+      <div className="qs-viewport-fill grid min-h-0 gap-4 xl:grid-cols-[210px_minmax(0,1fr)] xl:items-stretch">
         <aside className="min-h-0">
           <div className="qs-card p-2.5">
             <div className="px-3 pb-2 pt-2">
@@ -174,7 +171,7 @@ function ProfilePage() {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = section === item.id;
-                return <button key={item.id} type="button" onClick={() => setSection(item.id)} className={cn("group flex min-h-[38px] items-center gap-1.5 rounded-[9px] px-2 py-1.5 text-start transition", active ? "bg-[#ff5a0a] text-white shadow-sm" : "hover:bg-muted/70")}>
+                return <button key={item.id} type="button" onClick={() => setSection(item.id)} aria-current={active ? "page" : undefined} className={cn("group flex min-h-14 items-center gap-2.5 rounded-[9px] px-3 py-2 text-start transition", active ? "bg-foreground text-background shadow-sm" : "hover:bg-muted/70")}>
                   <span className={cn("grid size-7 shrink-0 place-items-center rounded-[8px]", active ? "bg-white/16 text-white" : "bg-muted text-muted-foreground group-hover:text-foreground")}><Icon className="size-4.5" /></span>
                   <span className="min-w-0 flex-1"><strong className="block text-xs">{item.label}</strong><span className={cn("mt-0.5 hidden text-[10px] leading-4 sm:block xl:block", active ? "text-white/75" : "text-muted-foreground")}>{item.hint}</span></span>
                   <ChevronRight className={cn("size-4 shrink-0 transition", ar && "rotate-180", active ? "text-white/80" : "text-muted-foreground")} />
@@ -247,7 +244,7 @@ function PreferenceGroup({ title, subtitle, rows, notif, ar, toggle }: { title: 
     <div className="border-b border-border px-5 py-4"><h2 className="text-sm font-bold">{title}</h2><p className="mt-1 text-xs text-muted-foreground">{subtitle}</p></div>
     <div className="divide-y divide-border">
       {rows.map(([key, en, arabic, hintEn, hintAr], index) => <div key={key} className="flex min-h-[64px] items-center gap-3 px-3.5 py-2.5 sm:px-4">
-        <span className={cn("grid size-8 shrink-0 place-items-center rounded-[10px]", index % 3 === 0 ? "bg-orange-500/10 text-[#ff5a0a]" : index % 3 === 1 ? "bg-emerald-500/10 text-emerald-600" : "bg-blue-500/10 text-blue-600")}><Bell className="size-4" /></span>
+        <span className={cn("grid size-8 shrink-0 place-items-center rounded-[10px]", index % 3 === 0 ? "bg-orange-500/10 text-[#e85d2a]" : index % 3 === 1 ? "bg-emerald-500/10 text-emerald-600" : "bg-blue-500/10 text-blue-600")}><Bell className="size-4" /></span>
         <span className="min-w-0 flex-1"><strong className="block text-sm">{ar ? arabic : en}</strong><span className="mt-1 block text-xs leading-5 text-muted-foreground">{ar ? hintAr : hintEn}</span></span>
         <Switch checked={notif[key]} onCheckedChange={(value) => toggle(key, value)} aria-label={ar ? arabic : en} />
       </div>)}
@@ -257,7 +254,7 @@ function PreferenceGroup({ title, subtitle, rows, notif, ar, toggle }: { title: 
 
 function SectionHeading({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
   return <header className="flex items-start gap-3">
-    <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-[#ff5a0a]">{icon}</span>
+    <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]">{icon}</span>
     <div><h2 className="font-display text-xl font-bold tracking-[-.025em]">{title}</h2><p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">{description}</p></div>
   </header>;
 }

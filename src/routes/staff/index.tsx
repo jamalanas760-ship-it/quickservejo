@@ -7,10 +7,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PublicSiteShell } from "@/components/public/PublicSiteShell";
 import { supabase } from "@/integrations/supabase/client";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
-import { BrandLogo } from "@/components/brand/BrandLogo";
 import { roleDestination } from "@/lib/post-signin";
 import { staffPinSignIn } from "@/lib/staff-auth.functions";
 
@@ -35,7 +35,7 @@ export const Route = createFileRoute("/staff/")({
 });
 
 function StaffPinPage() {
-  const { t, lang, toggleLang } = useI18n();
+  const { t, lang } = useI18n();
   const navigate = useNavigate();
   const signIn = useServerFn(staffPinSignIn);
   const [code, setCode] = useState("");
@@ -77,18 +77,28 @@ function StaffPinPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-10">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="flex items-center justify-between">
-          <Link to="/" className="font-display text-lg font-bold">
-            <BrandLogo className="size-8" />
-          </Link>
-          <Button variant="ghost" size="sm" onClick={toggleLang} type="button">
-            {t("common.language")}
-          </Button>
-        </div>
+    <PublicSiteShell showSignIn={false} contentClassName="max-w-5xl py-5 sm:py-8">
+      <div className="grid overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--qs-shadow-float)] lg:grid-cols-[minmax(0,1fr)_410px]">
+        <section className="relative hidden min-h-[660px] overflow-hidden lg:block">
+          <img src="/signin-restaurant.webp" alt="" className="absolute inset-0 size-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/82 via-black/28 to-black/10" />
+          <div className="absolute inset-x-9 bottom-9 text-white">
+            <p className="text-[10px] font-extrabold uppercase tracking-[.2em] text-orange-300">QuickServe Frontline</p>
+            <h1 className="mt-3 max-w-md font-display text-4xl font-bold leading-tight tracking-[-.045em]">{lang === "ar" ? "ابدأ ورديتك بثوانٍ" : "Start your shift in seconds"}</h1>
+            <p className="mt-3 max-w-md text-sm leading-6 text-white/75">{lang === "ar" ? "وصول آمن وسريع للمطبخ والكاشير وخدمة الطاولات." : "Fast, secure access to kitchen, cashier and table service."}</p>
+          </div>
+        </section>
 
-        <div className="panel space-y-5 p-6">
+        <section className="p-4 sm:p-7 lg:flex lg:flex-col lg:justify-center lg:p-8">
+          <div className="mb-5 overflow-hidden rounded-xl lg:hidden">
+            <div className="relative h-32">
+              <img src="/signin-restaurant.webp" alt="" className="size-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-black/10" />
+              <p className="absolute inset-x-4 bottom-4 font-display text-xl font-bold text-white">{lang === "ar" ? "ابدأ ورديتك" : "Start your shift"}</p>
+            </div>
+          </div>
+
+        <div className="space-y-5 rounded-2xl border border-border bg-background p-5 sm:p-6">
           <div className="space-y-1 text-center">
             <h1 className="text-xl font-semibold">{t("staffAuth.title")}</h1>
             <p className="text-sm text-muted-foreground">{t("staffAuth.subtitle")}</p>
@@ -177,7 +187,8 @@ function StaffPinPage() {
             </Link>
           </p>
         </div>
+        </section>
       </div>
-    </main>
+    </PublicSiteShell>
   );
 }

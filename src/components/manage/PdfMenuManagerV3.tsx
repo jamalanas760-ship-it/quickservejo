@@ -216,8 +216,8 @@ function EditableHotspot({
         className={cn(
           "absolute inset-0 touch-none rounded-[5px] border-2 transition-[border-color,background-color,box-shadow] focus-visible:outline-none",
           active
-            ? "cursor-move border-[#ff5a0a] bg-orange-500/[.12] shadow-[0_0_0_2px_white,0_0_0_5px_rgba(255,90,10,.28),0_8px_28px_rgba(0,0,0,.18)]"
-            : "cursor-pointer border-[#ff5a0a]/60 bg-orange-500/[.045] hover:border-[#ff5a0a] hover:bg-orange-500/[.09]",
+            ? "cursor-move border-[#e85d2a] bg-orange-500/[.12] shadow-[0_0_0_2px_white,0_0_0_5px_rgba(232,93,42,.28),0_8px_28px_rgba(0,0,0,.18)]"
+            : "cursor-pointer border-[#e85d2a]/60 bg-orange-500/[.045] hover:border-[#e85d2a] hover:bg-orange-500/[.09]",
           !enabled && "border-dashed opacity-60",
         )}
       >
@@ -238,7 +238,7 @@ function EditableHotspot({
           onPointerUp={end}
           onPointerCancel={end}
           onLostPointerCapture={end}
-          className="qs-pdf-handle absolute z-50 touch-none rounded-[4px] border-2 border-[#ff5a0a] bg-white shadow-[0_2px_8px_rgba(0,0,0,.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a0a]/40"
+          className="qs-pdf-handle absolute z-50 touch-none rounded-[4px] border-2 border-[#e85d2a] bg-white shadow-[0_2px_8px_rgba(0,0,0,.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d2a]/40"
           style={{
             left: `${left}%`,
             top: `${top}%`,
@@ -743,7 +743,7 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
       <section className="qs-card p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <div className="flex items-center gap-2"><FileText className="size-5 text-[#ff5a0a]" /><h2 className="font-display text-lg font-bold">Clickable PDF</h2></div>
+            <div className="flex items-center gap-2"><FileText className="size-5 text-[#e85d2a]" /><h2 className="font-display text-lg font-bold">Clickable PDF</h2></div>
             {documentRow ? <p className="mt-1 truncate text-xs text-muted-foreground">{documentRow.file_name} · {documentRow.page_count} pages · {savedCount} areas</p> : <p className="mt-1 text-xs text-muted-foreground">Upload the original menu PDF and mark clickable products.</p>}
           </div>
           <div className="flex shrink-0 gap-2">
@@ -799,7 +799,7 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
                         stageRef={stageRef}
                       />
                     ))}
-                    {dragRect ? <div className="pointer-events-none absolute z-40 rounded-md border-2 border-dashed border-[#ff5a0a] bg-orange-500/10" style={{ left: `${dragRect.x * 100}%`, top: `${dragRect.y * 100}%`, width: `${dragRect.width * 100}%`, height: `${dragRect.height * 100}%` }} /> : null}
+                    {dragRect ? <div className="pointer-events-none absolute z-40 rounded-md border-2 border-dashed border-[#e85d2a] bg-orange-500/10" style={{ left: `${dragRect.x * 100}%`, top: `${dragRect.y * 100}%`, width: `${dragRect.width * 100}%`, height: `${dragRect.height * 100}%` }} /> : null}
                   </div>
                 </div>
               </div>
@@ -837,7 +837,7 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
                   </div>
 
                   <div className="qs-card p-4">
-                    <div className="mb-3 flex items-center justify-between"><h3 className="font-bold">Product</h3>{reading ? <Loader2 className="size-4 animate-spin text-[#ff5a0a]" /> : null}</div>
+                    <div className="mb-3 flex items-center justify-between"><h3 className="font-bold">Product</h3>{reading ? <Loader2 className="size-4 animate-spin text-[#e85d2a]" /> : null}</div>
                     <div className="space-y-3">
                       <Input placeholder="Name (English)" value={active.name_en} onChange={(event) => updateDraft({ name_en: event.target.value })} />
                       <Input placeholder="Name (Arabic)" value={active.name_ar} onChange={(event) => updateDraft({ name_ar: event.target.value })} />
@@ -854,7 +854,7 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
               ) : (
                 <aside className="md:sticky md:top-24 md:self-start">
                   <div className="qs-card p-4">
-                    <MousePointer2 className="size-5 text-[#ff5a0a]" />
+                    <MousePointer2 className="size-5 text-[#e85d2a]" />
                     <p className="mt-2 text-sm font-bold">{selecting ? "Draw a product area" : "Select an area"}</p>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">Select any orange area, then drag it to move or resize it directly.</p>
                   </div>
@@ -864,7 +864,7 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
           </section>
 
           <section className="qs-card p-4 sm:p-5">
-            <div className="flex items-center gap-2"><Settings2 className="size-4 text-[#ff5a0a]" /><h3 className="font-bold">Charges</h3></div>
+            <div className="flex items-center gap-2"><Settings2 className="size-4 text-[#e85d2a]" /><h3 className="font-bold">Charges</h3></div>
             <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
               <label className="space-y-1.5 text-xs font-semibold text-muted-foreground"><span>Tax %</span><Input type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(Number(event.target.value))} /></label>
               <label className="space-y-1.5 text-xs font-semibold text-muted-foreground"><span>Service %</span><Input type="number" min="0" max="100" step="0.01" value={serviceRate} onChange={(event) => setServiceRate(Number(event.target.value))} /></label>

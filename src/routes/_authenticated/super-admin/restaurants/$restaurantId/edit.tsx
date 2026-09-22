@@ -212,7 +212,7 @@ function EditRestaurantPage() {
 
       <section className="panel space-y-5 p-4 sm:p-6">
         <div>
-          <h2 className="flex items-center gap-2 font-semibold"><MapPin className="size-4 text-[#ff5a0a]" />{lang === "ar" ? "موقع الفرع" : "Branch Location"}</h2>
+          <h2 className="flex items-center gap-2 font-semibold"><MapPin className="size-4 text-[#e85d2a]" />{lang === "ar" ? "موقع الفرع" : "Branch Location"}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{lang === "ar" ? "أضف العنوان ورابط Google Maps. ستظهر المعاينة تلقائياً." : "Add the address and Google Maps link. The map preview updates automatically."}</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">

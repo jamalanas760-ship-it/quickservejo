@@ -1,6 +1,6 @@
 /* Approved QuickServe product design system — source of truth for the accepted full-app concepts. */
 :root {
-  --qs-approved-orange: #ff5a0a;
+  --qs-approved-orange: #e85d2a;
   --qs-approved-orange-hover: #e94f00;
   --qs-approved-ink: #121826;
   --qs-approved-muted: #6f7b8b;
@@ -87,7 +87,7 @@ body { overflow-x: hidden; }
   background: #fff1e9;
   color: var(--qs-approved-orange);
 }
-.dark .qs-stat-icon { background: rgba(255,90,10,.13); }
+.dark .qs-stat-icon { background: rgba(232,93,42,.13); }
 
 .qs-button-primary {
   display: inline-flex;
@@ -101,10 +101,10 @@ body { overflow-x: hidden; }
   padding: .66rem 1rem;
   font-size: .84rem;
   font-weight: 750;
-  box-shadow: 0 8px 20px rgba(255,90,10,.15);
+  box-shadow: 0 8px 20px rgba(232,93,42,.15);
   transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
 }
-.qs-button-primary:hover { background: var(--qs-approved-orange-hover); transform: translateY(-1px); box-shadow: 0 10px 24px rgba(255,90,10,.21); }
+.qs-button-primary:hover { background: var(--qs-approved-orange-hover); transform: translateY(-1px); box-shadow: 0 10px 24px rgba(232,93,42,.21); }
 .qs-button-primary:active { transform: translateY(0) scale(.985); }
 .qs-button-secondary {
   display: inline-flex;
@@ -129,7 +129,7 @@ body { overflow-x: hidden; }
   background: var(--card);
   color: var(--foreground);
 }
-.qs-control:focus-within { border-color: rgba(255,90,10,.55); box-shadow: 0 0 0 3px rgba(255,90,10,.08); }
+.qs-control:focus-within { border-color: rgba(232,93,42,.55); box-shadow: 0 0 0 3px rgba(232,93,42,.08); }
 .qs-chip {
   display: inline-flex;
   min-height: 40px;
@@ -143,8 +143,8 @@ body { overflow-x: hidden; }
   font-weight: 700;
   white-space: nowrap;
 }
-.qs-chip[data-active="true"] { border-color: rgba(255,90,10,.45); background: #fff2ea; color: #e64f00; }
-.dark .qs-chip[data-active="true"] { background: rgba(255,90,10,.12); color: #ff8a4d; }
+.qs-chip[data-active="true"] { border-color: rgba(232,93,42,.45); background: #fff2ea; color: #e64f00; }
+.dark .qs-chip[data-active="true"] { background: rgba(232,93,42,.12); color: #ff8a4d; }
 .qs-status { display:inline-flex; align-items:center; gap:.35rem; border-radius:999px; padding:.32rem .58rem; font-size:.68rem; font-weight:750; }
 
 /* Header */
@@ -181,7 +181,7 @@ body { overflow-x: hidden; }
   box-shadow: inset 3px 0 0 var(--qs-approved-orange) !important;
 }
 [dir="rtl"] .qs-sidebar-item[data-active="true"] { box-shadow: inset -3px 0 0 var(--qs-approved-orange) !important; }
-.dark .qs-sidebar-item[data-active="true"] { background: rgba(255,90,10,.13) !important; color: #ff8c52 !important; }
+.dark .qs-sidebar-item[data-active="true"] { background: rgba(232,93,42,.13) !important; color: #ff8c52 !important; }
 .qs-sidebar-item[data-active="true"] svg { color: var(--qs-approved-orange) !important; }
 
 /* Tables */
@@ -205,14 +205,14 @@ body { overflow-x: hidden; }
 .qs-hero-overlay { position:absolute; inset:0; background:linear-gradient(90deg,rgba(12,18,24,.78) 0%,rgba(12,18,24,.45) 52%,rgba(12,18,24,.18) 100%); }
 [dir="rtl"] .qs-hero-overlay { background:linear-gradient(-90deg,rgba(12,18,24,.78) 0%,rgba(12,18,24,.45) 52%,rgba(12,18,24,.18) 100%); }
 .qs-quick-tile { display:flex; min-height:132px; flex-direction:column; justify-content:space-between; border:1px solid var(--border); border-radius:14px; background:var(--card); padding:16px; box-shadow:var(--qs-approved-shadow); transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
-.qs-quick-tile:hover { transform:translateY(-2px); box-shadow:var(--qs-approved-shadow-lift); border-color:rgba(255,90,10,.22); }
+.qs-quick-tile:hover { transform:translateY(-2px); box-shadow:var(--qs-approved-shadow-lift); border-color:rgba(232,93,42,.22); }
 .qs-quick-icon { display:grid; width:44px; height:44px; place-items:center; border-radius:999px; background:#fff1e9; color:var(--qs-approved-orange); }
-.dark .qs-quick-icon { background:rgba(255,90,10,.13); }
+.dark .qs-quick-icon { background:rgba(232,93,42,.13); }
 
 .qs-split-toolbar { display:flex; align-items:center; gap:8px; border:1px solid var(--border); border-radius:12px; background:var(--card); padding:5px; box-shadow:var(--qs-approved-shadow); }
 .qs-split-toolbar button { min-height:40px; border-radius:9px; padding:.48rem .72rem; font-size:.76rem; font-weight:700; color:var(--muted-foreground); }
 .qs-split-toolbar button[data-active="true"] { background:#fff0e7; color:#e34d00; }
-.dark .qs-split-toolbar button[data-active="true"] { background:rgba(255,90,10,.13); color:#ff8c52; }
+.dark .qs-split-toolbar button[data-active="true"] { background:rgba(232,93,42,.13); color:#ff8c52; }
 
 .qs-right-panel { border:1px solid var(--border); border-radius:14px; background:var(--card); box-shadow:var(--qs-approved-shadow); overflow:hidden; }
 .qs-panel-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:16px 18px; border-bottom:1px solid var(--border); }
@@ -255,7 +255,7 @@ body { overflow-x: hidden; }
   --qs-master-muted: #667085;
   --qs-master-line: #e7ebf0;
   --qs-master-soft: #f8fafc;
-  --qs-master-orange: #ff5a0a;
+  --qs-master-orange: #e85d2a;
   --qs-master-orange-strong: #eb4f00;
   --qs-master-radius: 18px;
   --qs-master-radius-sm: 13px;
@@ -276,7 +276,7 @@ body { overflow-x: hidden; }
 
 body {
   background:
-    radial-gradient(circle at 12% -10%, rgba(255,90,10,.055), transparent 28rem),
+    radial-gradient(circle at 12% -10%, rgba(232,93,42,.055), transparent 28rem),
     var(--qs-master-page);
 }
 
@@ -340,7 +340,7 @@ body {
   width: 42px;
   height: 42px;
   border-radius: 13px;
-  background: rgba(255,90,10,.095);
+  background: rgba(232,93,42,.095);
   color: var(--qs-master-orange);
 }
 
@@ -389,7 +389,7 @@ body {
 }
 
 .qs-sidebar-item[data-active="true"] {
-  background: linear-gradient(90deg, rgba(255,90,10,.20), rgba(255,90,10,.085)) !important;
+  background: linear-gradient(90deg, rgba(232,93,42,.20), rgba(232,93,42,.085)) !important;
   color: #fff !important;
   border-color: rgba(255,127,65,.22) !important;
   box-shadow: inset 3px 0 0 var(--qs-master-orange) !important;
@@ -462,12 +462,12 @@ body {
 .qs-button-primary {
   min-height: 44px;
   background: var(--qs-master-orange);
-  box-shadow: 0 8px 22px rgba(255,90,10,.15);
+  box-shadow: 0 8px 22px rgba(232,93,42,.15);
 }
 
 .qs-button-primary:hover {
   background: var(--qs-master-orange-strong);
-  box-shadow: 0 12px 28px rgba(255,90,10,.20);
+  box-shadow: 0 12px 28px rgba(232,93,42,.20);
 }
 
 /* Mobile/tablet shell */

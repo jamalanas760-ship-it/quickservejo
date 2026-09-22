@@ -175,6 +175,6 @@ function UsageBar({ label, value, limit, lang, compact = false }: { label: strin
   const near = limit !== null && limit !== undefined && capped >= 80;
   return <div>
     <div className="flex items-center justify-between gap-3 text-[10px]"><span className="text-muted-foreground">{label}</span><strong className={near ? "text-amber-700" : ""}>{formatNumber(value, lang)} / {limit === null || limit === undefined ? "∞" : formatNumber(Number(limit), lang)}</strong></div>
-    {!compact || (limit !== null && limit !== undefined) ? <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"><div className={near ? "h-full rounded-full bg-amber-500" : "h-full rounded-full bg-[#ff5a0a]"} style={{ width: (limit === null || limit === undefined ? 4 : Math.max(2, capped)) + "%" }} /></div> : null}
+    {!compact || (limit !== null && limit !== undefined) ? <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"><div className={near ? "h-full rounded-full bg-amber-500" : "h-full rounded-full bg-[#e85d2a]"} style={{ width: (limit === null || limit === undefined ? 4 : Math.max(2, capped)) + "%" }} /></div> : null}
   </div>;
 }

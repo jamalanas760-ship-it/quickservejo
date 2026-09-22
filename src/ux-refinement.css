@@ -37,9 +37,9 @@ a[class*="rounded-xl"] {
 .qs-button-primary {
   min-height: 42px;
   border-radius: 11px;
-  box-shadow: 0 3px 10px rgba(255,90,10,.12);
+  box-shadow: 0 3px 10px rgba(232,93,42,.12);
 }
-.qs-button-primary:hover { box-shadow: 0 5px 14px rgba(255,90,10,.16); }
+.qs-button-primary:hover { box-shadow: 0 5px 14px rgba(232,93,42,.16); }
 .qs-button-secondary {
   min-height: 40px;
   border-radius: 11px;

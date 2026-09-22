@@ -310,7 +310,7 @@ function DinerPage() {
     <div className="relative min-h-screen pb-28" style={{ ...themeVars(theme), ...pageBackground(theme), color: "var(--qs-text)", fontFamily: "var(--qs-body-font)" }}>
       <TextureLayer theme={theme} />
       {previewMode ? <div className="sticky top-0 z-50 border-b border-amber-300 bg-amber-100/95 px-4 py-2 text-center text-xs font-bold text-amber-900 backdrop-blur">{lang === "ar" ? "معاينة مباشرة — الطلبات ونداءات النادل معطلة" : "LIVE PREVIEW — ordering and waiter calls are disabled"}</div> : null}
-      {kioskMode ? <div className="sticky top-0 z-40 border-b border-orange-200 bg-white/95 px-4 py-2 text-center text-xs font-black uppercase tracking-[.16em] text-[#ff5a0a] backdrop-blur">{lang === "ar" ? "وضع الطلب الذاتي" : "Self-order kiosk"}</div> : null}
+      {kioskMode ? <div className="sticky top-0 z-40 border-b border-orange-200 bg-white/95 px-4 py-2 text-center text-xs font-black uppercase tracking-[.16em] text-[#e85d2a] backdrop-blur">{lang === "ar" ? "وضع الطلب الذاتي" : "Self-order kiosk"}</div> : null}
       <div className="relative z-10">
         <header className="mx-auto max-w-3xl">
           <MenuHero theme={theme} name={restaurant.name} subtitle={pick(restaurant.description_en, restaurant.description_ar) || t("brand.tagline")} logoUrl={restaurant.logo_url} coverUrl={restaurant.cover_image_url} aside={<Button size="sm" variant="ghost" className="h-10 shrink-0 px-2" onClick={toggleLang} style={{ color: "var(--qs-muted)" }}>{t("common.language")}</Button>} />

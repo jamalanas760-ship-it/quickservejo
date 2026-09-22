@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { BarChart3, ChefHat, Coins, FileText, LayoutDashboard, Package, PackageCheck, Printer, ShoppingCart, Truck } from "lucide-react";
+import { BarChart3, ChefHat, Coins, FileText, LayoutDashboard, MoreHorizontal, Package, PackageCheck, Printer, ShoppingCart, Truck } from "lucide-react";
 
+import { MasterPageHeader } from "@/components/app/MasterPage";
 import { FinancePanel } from "@/components/backoffice/FinancePanel";
 import { KitchenConfigPanel } from "@/components/manage/KitchenConfigPanel";
 import { InventoryPanel } from "@/components/backoffice/InventoryPanel";
@@ -13,6 +14,7 @@ import { RecordDialog, type RecordRequest } from "@/components/backoffice/Record
 import { ReportsPanel } from "@/components/backoffice/ReportsPanel";
 import { SuppliersPanel } from "@/components/backoffice/SuppliersPanel";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { backOfficeSummary, useBackOffice, type BackOfficeAccess } from "@/hooks/useBackOffice";
 import { useAccess } from "@/hooks/useSession";
@@ -76,27 +78,22 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
 
   const safeSection = sections.some((item) => item.key === section) ? section : "overview";
   const attention = summary.lowStock.length + summary.pendingApproval + summary.pendingReceiving;
+  const priorityKeys: SectionKey[] = ["overview", "inventory", "procurement", "finance", "reports"];
+  const primarySections = priorityKeys.flatMap((key) => sections.find((item) => item.key === key) ?? []);
+  const secondarySections = sections.filter((item) => !primarySections.some((primary) => primary.key === item.key));
 
-  return <section className="qs-viewport-fill flex h-full min-h-0 flex-col gap-2">
-    <section className="qs-workspace-titlebar rounded-[11px] border border-border bg-card shadow-sm">
-      <div className="grid min-w-0 gap-2 px-3 py-2.5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div className="min-w-0">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-orange-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[.14em] text-[#ff5a0a]"><LayoutDashboard className="size-3" />ERP</span>
-            <h1 className="min-w-0 font-display text-[1.05rem] font-bold leading-tight tracking-[-.02em] sm:text-[1.2rem]">{ar ? "المخزون والمشتريات والمالية" : "Inventory, Purchasing & Finance"}</h1>
-          </div>
-          <p className="mt-1 max-w-4xl text-[9.5px] leading-4 text-muted-foreground">{ar ? "مساحة تشغيل موحدة للمخزون والاستلام والمشتريات والموردين والمالية والتقارير، مع صلاحيات حسب الدور." : "One operational workspace for inventory, receiving, procurement, suppliers, finance and reporting, scoped by role."}</p>
-        </div>
-        <div className="flex items-center justify-end">
-          {attention > 0 ? <span className="inline-flex min-h-7 items-center gap-1.5 rounded-[8px] border border-amber-200 bg-amber-50 px-2.5 text-[10px] font-bold text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/15"><span className="size-1.5 rounded-full bg-amber-500" />{attention} {ar ? "تحتاج انتباه" : "need attention"}</span> : <span className="inline-flex min-h-7 items-center gap-1.5 rounded-[8px] border border-emerald-200 bg-emerald-50 px-2.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/15"><span className="size-1.5 rounded-full bg-emerald-500" />{ar ? "مستقر" : "All clear"}</span>}
-        </div>
-      </div>
-    </section>
+  return <section className="qs-viewport-fill flex h-full min-h-0 flex-col gap-4">
+    <MasterPageHeader
+      title={ar ? "المخزون والمشتريات والمالية" : "Inventory, Purchasing & Finance"}
+      description={ar ? "مساحة تشغيل موحدة للمخزون والاستلام والمشتريات والموردين والمالية والتقارير، مع صلاحيات حسب الدور." : "One operational workspace for inventory, receiving, procurement, suppliers, finance and reporting, scoped by role."}
+      actions={attention > 0 ? <span className="qs-status border-amber-200 bg-amber-50 text-amber-700"><span className="size-1.5 rounded-full bg-amber-500" />{attention} {ar ? "تحتاج انتباه" : "need attention"}</span> : <span className="qs-status border-emerald-200 bg-emerald-50 text-emerald-700"><span className="size-1.5 rounded-full bg-emerald-500" />{ar ? "مستقر" : "All clear"}</span>}
+    />
 
-    <div className="qs-viewport-fill grid min-h-0 gap-2 xl:grid-cols-[168px_minmax(0,1fr)]">
+    <div className="qs-viewport-fill grid min-h-0 gap-4 xl:grid-cols-[196px_minmax(0,1fr)]">
       <nav aria-label={ar ? "وحدات ERP" : "ERP modules"} className="self-start overflow-x-auto xl:sticky xl:top-24 xl:overflow-visible">
-        <div className="flex min-w-max gap-1 rounded-[10px] border border-border bg-card p-1 xl:min-w-0 xl:flex-col">
-          {sections.map(({ key, en, ar: arLabel, icon: Icon }) => <button key={key} type="button" onClick={() => setSection(key)} aria-current={safeSection === key ? "page" : undefined} className={cn("flex min-h-9 items-center gap-2 rounded-[9px] px-2.5 text-start text-[10.5px] font-semibold transition xl:w-full", safeSection === key ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}><Icon className="size-4 shrink-0" /><span>{ar ? arLabel : en}</span>{key === "procurement" && summary.pendingApproval > 0 ? <span className="ms-auto min-w-5 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[9px] font-black text-white">{summary.pendingApproval}</span> : null}{key === "inventory" && summary.lowStock.length > 0 ? <span className="ms-auto min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[9px] font-black text-white">{summary.lowStock.length}</span> : null}</button>)}
+        <div className="flex min-w-max gap-1 rounded-[12px] border border-border bg-card p-1.5 xl:min-w-0 xl:flex-col">
+          {primarySections.map(({ key, en, ar: arLabel, icon: Icon }) => <button key={key} type="button" onClick={() => setSection(key)} aria-current={safeSection === key ? "page" : undefined} className={cn("flex min-h-11 items-center gap-2.5 rounded-[9px] px-3 text-start text-sm font-semibold transition xl:w-full", safeSection === key ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}><Icon className="size-4 shrink-0" /><span>{ar ? arLabel : en}</span>{key === "procurement" && summary.pendingApproval > 0 ? <span className="ms-auto min-w-5 rounded-full bg-[#e85d2a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{summary.pendingApproval}</span> : null}{key === "inventory" && summary.lowStock.length > 0 ? <span className="ms-auto min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{summary.lowStock.length}</span> : null}</button>)}
+          {secondarySections.length ? <DropdownMenu><DropdownMenuTrigger asChild><button type="button" aria-current={secondarySections.some((item) => item.key === safeSection) ? "page" : undefined} className={cn("flex min-h-11 items-center gap-2.5 rounded-[9px] px-3 text-start text-sm font-semibold transition xl:w-full", secondarySections.some((item) => item.key === safeSection) ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground")}><MoreHorizontal className="size-4"/><span>{ar ? "المزيد" : "More"}</span><span className="ms-auto text-xs opacity-70">{secondarySections.length}</span></button></DropdownMenuTrigger><DropdownMenuContent align="start" className="min-w-60">{secondarySections.map(({key,en,ar:arLabel,icon:Icon}) => <DropdownMenuItem key={key} onSelect={() => setSection(key)}><Icon className="size-4"/>{ar ? arLabel : en}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu> : null}
         </div>
       </nav>
 

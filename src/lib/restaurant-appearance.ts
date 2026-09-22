@@ -37,7 +37,7 @@ export type RestaurantAppearance = {
 };
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
-const LIGHT_DEFAULTS: GuestMenuPalette = { bg: "#f7f8fa", surface: "#ffffff", text: "#14181c", muted: "#6b7280", primary: "#ff5a0a", primaryText: "#ffffff", accent: "#ff8a3d" };
+const LIGHT_DEFAULTS: GuestMenuPalette = { bg: "#f7f8fa", surface: "#ffffff", text: "#14181c", muted: "#6b7280", primary: "#e85d2a", primaryText: "#ffffff", accent: "#ff8a3d" };
 const DARK_DEFAULTS: GuestMenuPalette = { bg: "#101418", surface: "#181e23", text: "#f7f8f9", muted: "#9aa4ad", primary: "#ff6a1a", primaryText: "#ffffff", accent: "#ff9a5b" };
 
 function numberInRange(value: unknown, fallback: number, min: number, max: number) {
@@ -65,7 +65,7 @@ export function readAppearance(theme: unknown): RestaurantAppearance {
     topNavText: color(value.topNavText, "#171a18"),
     sidebarBackground: color(value.sidebarBackground, "#ffffff"),
     sidebarText: color(value.sidebarText, "#64748b"),
-    selectedNavColor: color(value.selectedNavColor, "#ff5a0a"),
+    selectedNavColor: color(value.selectedNavColor, "#e85d2a"),
     darkPrimaryColor: color(value.darkPrimaryColor, "#ff6a1a"),
     darkAccentColor: color(value.darkAccentColor, "#ff9a5b"),
     darkTopNavBackground: color(value.darkTopNavBackground, "#15191f"),

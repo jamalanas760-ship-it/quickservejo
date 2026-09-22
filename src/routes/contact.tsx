@@ -1,8 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Mail, MessageCircle, Phone } from "lucide-react";
 
-import { BrandLogo } from "@/components/brand/BrandLogo";
-import { Button } from "@/components/ui/button";
+import { PublicSiteShell } from "@/components/public/PublicSiteShell";
 import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/contact")({
@@ -47,33 +46,26 @@ function ContactPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="safe-top border-b border-border">
-        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
-          <Link to="/">
-            <BrandLogo className="size-8" />
-          </Link>
-          <Button asChild size="sm" variant="outline" className="h-9">
-            <Link to="/auth">{ar ? "دخول الإدارة" : "Admin sign in"}</Link>
-          </Button>
-        </div>
-      </header>
-      <main className="mx-auto max-w-3xl px-4 py-12">
-        <h1 className="text-3xl font-bold">{ar ? "تواصل معنا" : "Contact us"}</h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+    <PublicSiteShell contentClassName="max-w-4xl">
+      <section className="qs-card overflow-hidden">
+        <div className="border-b border-border bg-[linear-gradient(135deg,#fff7f1,#fff)] px-5 py-8 sm:px-8 sm:py-10">
+          <p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#e34d00]">QuickServe Jordan</p>
+          <h1 className="mt-3 font-display text-[clamp(2rem,6vw,3.4rem)] font-bold tracking-[-.045em]">{ar ? "تواصل معنا" : "Let’s talk about your restaurant"}</h1>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
           {ar
             ? "أخبرنا بعدد المطاعم والطاولات وعدد الموظفين، وسنجهّز مساحة عمل ونساعدك في إعداد القائمة ورموز QR."
             : "Tell us how many restaurants, tables and staff you have — we'll provision a workspace and help you set up the menu and QR codes."}
-        </p>
+          </p>
+        </div>
 
-        <div className="mt-8 grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 p-4 sm:grid-cols-3 sm:p-8">
           {channels.map((c) => {
             const Icon = c.icon;
             return (
               <a
                 key={c.label}
                 href={c.href}
-                className="panel flex flex-col gap-2 p-5 transition-colors hover:bg-muted/60"
+                className="qs-soft-card flex min-h-40 flex-col gap-2 p-5 transition hover:-translate-y-0.5 hover:border-primary/30 hover:bg-orange-50/40"
               >
                 <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
                   <Icon className="size-5" />
@@ -86,7 +78,7 @@ function ContactPage() {
             );
           })}
         </div>
-      </main>
-    </div>
+      </section>
+    </PublicSiteShell>
   );
 }

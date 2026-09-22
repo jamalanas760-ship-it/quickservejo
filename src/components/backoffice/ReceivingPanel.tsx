@@ -62,5 +62,5 @@ export function ReceivingPanel({
 }
 
 function ReceiveMetric({icon:Icon,label,value,tone}:{icon:typeof PackageCheck;label:string;value:string;tone?:"success"|"warning"|undefined}) {
-  return <article className="qs-stat flex min-h-[105px] items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl",tone==="success"?"bg-emerald-500/10 text-emerald-700":tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-xl tracking-[-.03em]">{value}</strong></div></article>;
+  return <article className="qs-stat flex min-h-[105px] items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl",tone==="success"?"bg-emerald-500/10 text-emerald-700":tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-orange-500/10 text-[#e85d2a]")}><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-xl tracking-[-.03em]">{value}</strong></div></article>;
 }

@@ -183,7 +183,7 @@ function Tracking({ status, lang }: { status: string; lang: "en" | "ar" }) {
           const label = lang === "ar" ? ({ new: "جديد", preparing: "تحضير", ready: "جاهز", served: "مُقدَّم", paid: "مدفوع" } as const)[step] : step;
           return (
             <div key={step} className="qs-tracking-step text-center" data-complete={complete}>
-              <span className={cn("qs-tracking-node mx-auto grid size-8 place-items-center rounded-full border", complete ? "border-[#ff5a0a] bg-[#ff5a0a] text-white" : "border-border bg-background text-muted-foreground", active && "ring-4 ring-orange-500/10")}>{complete && !active ? <Check className="size-3.5" /> : <CircleDot className="size-3.5" />}</span>
+              <span className={cn("qs-tracking-node mx-auto grid size-8 place-items-center rounded-full border", complete ? "border-[#e85d2a] bg-[#e85d2a] text-white" : "border-border bg-background text-muted-foreground", active && "ring-4 ring-orange-500/10")}>{complete && !active ? <Check className="size-3.5" /> : <CircleDot className="size-3.5" />}</span>
               <span className="mt-2 block truncate text-[9px] font-semibold text-muted-foreground sm:text-[10px]">{label}</span>
             </div>
           );

@@ -13,6 +13,7 @@ import {
   ClipboardList,
   Clock3,
   Home,
+  Globe2,
   HeartHandshake,
   Megaphone,
   MonitorSmartphone,
@@ -30,6 +31,7 @@ import {
 } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { ThemeToggle } from "@/components/nav/ThemeToggle";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useOperationalCounters } from "@/hooks/useOperationalCounters";
@@ -50,7 +52,7 @@ const FRONTLINE_ITEMS: Record<string, Item> = {
 };
 
 export function BottomNav() {
-  const { lang } = useI18n();
+  const { lang, toggleLang } = useI18n();
   const [moreOpen, setMoreOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const access = useAccess();
@@ -117,6 +119,16 @@ export function BottomNav() {
   const mobilePriority = managerial
     ? [homeTo, `/manage/${restaurantId}/orders`, "/bookings", "/work"]
     : [homeTo, "/work", "/shifts", `/manage/${restaurantId}/operations`, "/profile"];
+  const desktopPriority = managerial
+    ? [homeTo, `/manage/${restaurantId}/orders`, "/bookings", `/manage/${restaurantId}`, `/manage/${restaurantId}/staff`, `/manage/${restaurantId}/analytics`]
+    : [homeTo, "/work", "/shifts", `/manage/${restaurantId}/operations`, "/notifications", "/profile"];
+  const desktopPrimary = desktopItems.length > 6
+    ? desktopPriority
+        .flatMap((to) => desktopItems.find((item) => item.to === to) ?? [])
+        .filter((item, index, list) => list.findIndex((candidate) => candidate.to === item.to) === index)
+        .slice(0, 6)
+    : desktopItems;
+  const desktopHasMore = desktopItems.some((item) => !desktopPrimary.some((primary) => primary.to === item.to));
   const mobilePrimary = desktopItems.length > 5
     ? mobilePriority.flatMap((to) => desktopItems.find((item) => item.to === to) ?? []).filter((item, index, list) => list.findIndex(candidate => candidate.to === item.to) === index).slice(0, 4)
     : desktopItems;
@@ -148,7 +160,7 @@ export function BottomNav() {
       <span className="truncate text-sm font-bold">{restaurant?.name}</span>
     </span>
   ) : (
-    <BrandLogo className="size-8" accentClassName="text-[#ff5a0a]" textClassName="text-[18px] text-foreground" />
+    <BrandLogo className="size-8" accentClassName="text-[#e85d2a]" textClassName="text-[18px] text-foreground" />
   );
 
   return (
@@ -170,19 +182,16 @@ export function BottomNav() {
 
         <nav className="qs-scroll flex-1 overflow-y-auto px-3 py-4" aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"}>
           <ul className="space-y-1">
-            {desktopItems.map((item, index) => {
+            {desktopPrimary.map((item) => {
               const active = activeFor(item);
               const Icon = item.icon;
               const count = countFor(item);
-              const previousGroup = index > 0 ? desktopItems[index - 1]?.group : undefined;
-              const showGroup = managerial && item.group && item.group !== previousGroup;
               return (
-                <li key={`${item.to}-${item.en}`} className={showGroup && index > 0 ? "mt-5" : ""}>
-                  {showGroup ? <p className="mb-2 px-3 text-[9px] font-extrabold uppercase tracking-[.14em] text-muted-foreground">{groupLabel(item.group!)}</p> : null}
+                <li key={`${item.to}-${item.en}`}>
                   <Link to={item.to as never} data-active={active} className="qs-sidebar-item" aria-current={active ? "page" : undefined}>
                     <Icon className="size-[18px] shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{lang === "ar" ? item.ar : item.en}</span>
-                    {count > 0 ? <span className="min-w-6 rounded-full bg-[#ff5a0a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white shadow-sm">{count > 99 ? "99+" : count}</span> : null}
+                    {count > 0 ? <span className="min-w-6 rounded-full bg-[#e85d2a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white shadow-sm">{count > 99 ? "99+" : count}</span> : null}
                   </Link>
                 </li>
               );
@@ -190,14 +199,19 @@ export function BottomNav() {
           </ul>
         </nav>
 
-        {managerial ? (
-          <div className="p-3">
-            <div className="qs-sidebar-support rounded-[18px] border p-4">
-              <span className="grid size-8 place-items-center rounded-full bg-orange-50 text-[#ff5a0a] dark:bg-orange-950/30"><BriefcaseBusiness className="size-4" /></span>
-              <p className="mt-3 text-[12px] font-medium leading-5">{lang === "ar" ? "المهام والموافقات وERP حسب مسؤولياتك." : "Tasks, approvals and ERP are scoped to your responsibilities."}</p>
-            </div>
-          </div>
-        ) : null}
+        <div className="border-t border-border/80 p-3">
+          {desktopHasMore ? (
+            <button type="button" className="qs-sidebar-item w-full" onClick={() => setMoreOpen(true)} aria-expanded={moreOpen}>
+              <MoreHorizontal className="size-[18px] shrink-0" />
+              <span className="min-w-0 flex-1 text-start">{lang === "ar" ? "المزيد" : "More"}</span>
+              <span className="text-xs text-muted-foreground">{desktopItems.length - desktopPrimary.length}</span>
+            </button>
+          ) : null}
+          {!desktopPrimary.some((item)=>item.to==="/profile")?<Link to="/profile" data-active={activeFor({ to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات", exact: true })} className="qs-sidebar-item mt-1">
+            <Settings className="size-[18px] shrink-0" />
+            <span className="min-w-0 flex-1 truncate">{lang === "ar" ? "الإعدادات" : "Settings"}</span>
+          </Link>:null}
+        </div>
       </aside>
 
       <nav aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"} className="safe-bottom fixed inset-x-3 bottom-2 z-50 lg:hidden">
@@ -207,15 +221,15 @@ export function BottomNav() {
             const Icon = item.icon;
             const count = countFor(item);
             return (
-              <Link key={`${item.to}-${item.en}`} to={item.to as never} className={cn("relative flex min-h-[66px] flex-col items-center justify-center gap-1 text-[10px] font-semibold transition", active ? "text-[var(--restaurant-selected-nav,#ff5a0a)]" : "text-muted-foreground")}>
+              <Link key={`${item.to}-${item.en}`} to={item.to as never} aria-current={active?"page":undefined} className={cn("relative flex min-h-[66px] flex-col items-center justify-center gap-1 text-[10px] font-semibold transition", active ? "text-[var(--restaurant-selected-nav,#e85d2a)]" : "text-muted-foreground")}>
                 <span className="relative"><Icon className="size-5" />{count > 0 ? <span className="absolute -end-2.5 -top-2 min-w-[17px] rounded-full bg-red-500 px-1 text-center text-[8px] font-black leading-[17px] text-white">{count > 99 ? "99+" : count}</span> : null}</span>
                 <span className="max-w-20 truncate">{lang === "ar" ? item.ar : item.en}</span>
-                {active ? <span className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-[var(--restaurant-selected-nav,#ff5a0a)]" /> : null}
+                {active ? <span className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-[var(--restaurant-selected-nav,#e85d2a)]" /> : null}
               </Link>
             );
           })}
           {mobileHasMore ? (
-            <button type="button" onClick={() => setMoreOpen(true)} className={cn("relative flex min-h-[62px] flex-col items-center justify-center gap-1 text-[10px] font-semibold text-muted-foreground transition hover:text-foreground")}>
+            <button type="button" onClick={() => setMoreOpen(true)} aria-expanded={moreOpen} className={cn("relative flex min-h-[62px] flex-col items-center justify-center gap-1 text-[10px] font-semibold text-muted-foreground transition hover:text-foreground")}>
               <MoreHorizontal className="size-5" />
               <span>{lang === "ar" ? "المزيد" : "More"}</span>
             </button>
@@ -224,7 +238,7 @@ export function BottomNav() {
       </nav>
 
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side="bottom" className="max-h-[82dvh] overflow-y-auto rounded-t-[20px] border-x-0 border-b-0 p-0 md:inset-y-0 md:start-0 md:end-auto md:h-dvh md:max-h-dvh md:w-[340px] md:max-w-[88vw] md:rounded-none md:border-e md:border-t-0 lg:hidden">
+        <SheetContent side="bottom" className="max-h-[82dvh] overflow-y-auto rounded-t-[20px] border-x-0 border-b-0 p-0 md:inset-y-0 md:start-0 md:end-auto md:h-dvh md:max-h-dvh md:w-[360px] md:max-w-[88vw] md:rounded-none md:border-e md:border-t-0">
           <SheetHeader className="sticky top-0 z-10 border-b border-border bg-card/95 px-5 py-4 text-start backdrop-blur-xl">
             <SheetTitle>{lang === "ar" ? "مساحة QuickServe" : "QuickServe workspace"}</SheetTitle>
             <SheetDescription>{lang === "ar" ? "كل الأدوات التي يسمح بها دورك، مرتبة حسب العمل." : "All tools available to your role, organized by workflow."}</SheetDescription>
@@ -249,6 +263,13 @@ export function BottomNav() {
                 </div>
               </section>;
             })}
+            <section className="border-t border-border pt-4 lg:hidden">
+              <p className="mb-2 px-1 text-xs font-bold text-muted-foreground">{lang === "ar" ? "التفضيلات" : "Preferences"}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={toggleLang} className="qs-button-secondary"><Globe2 className="size-4" />{lang === "ar" ? "English" : "العربية"}</button>
+                <ThemeToggle />
+              </div>
+            </section>
           </div>
         </SheetContent>
       </Sheet>

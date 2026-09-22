@@ -25,7 +25,7 @@
   --qs-line-strong: #d9dde3;
   --qs-ink: #171a1f;
   --qs-ink-soft: #586170;
-  --qs-brand: #ff5a0a;
+  --qs-brand: #e85d2a;
   --qs-brand-hover: #e94f00;
   --qs-brand-soft: #fff2ea;
 
@@ -35,17 +35,17 @@
   --card-foreground: #171a1f;
   --popover: #ffffff;
   --popover-foreground: #171a1f;
-  --primary: #ff5a0a;
+  --primary: #e85d2a;
   --primary-foreground: #ffffff;
   --secondary: #f0f2f5;
   --secondary-foreground: #252a31;
   --muted: #f0f2f5;
   --muted-foreground: #687181;
-  --accent: #ff5a0a;
+  --accent: #e85d2a;
   --accent-foreground: #ffffff;
   --border: #e4e7eb;
   --input: #dce1e7;
-  --ring: #ff5a0a;
+  --ring: #e85d2a;
   --surface: #f9fafb;
   --surface-foreground: #252a31;
 
@@ -577,7 +577,7 @@ body {
   --qs-sidebar-bg: #121820;
   --qs-sidebar-text: rgb(255 255 255 / .66);
   --qs-sidebar-text-strong: #ffffff;
-  --qs-brand: #ff5a0a;
+  --qs-brand: #e85d2a;
   --qs-brand-strong: #eb4f00;
 }
 

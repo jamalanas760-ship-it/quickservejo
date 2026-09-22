@@ -1,9 +1,10 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, Building2, Store } from "lucide-react";
+import { ArrowLeft, Building2, MoreHorizontal, Store } from "lucide-react";
 
 import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
 import { RestaurantSwitcher } from "@/components/manage/RestaurantSwitcher";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
@@ -30,6 +31,14 @@ const TABS: Tab[] = [
   { to: "/super-admin/restaurants/$restaurantId/analytics", labelKey: "sa.detail.analytics" },
   { to: "/super-admin/restaurants/$restaurantId/operations", labelKey: "bo.title" },
 ];
+const PRIMARY_TABS = TABS.filter((tab) => [
+  "/super-admin/restaurants/$restaurantId",
+  "/super-admin/restaurants/$restaurantId/design",
+  "/super-admin/restaurants/$restaurantId/orders",
+  "/super-admin/restaurants/$restaurantId/staff",
+  "/super-admin/restaurants/$restaurantId/operations",
+].includes(tab.to));
+const SECONDARY_TABS = TABS.filter((tab) => !PRIMARY_TABS.includes(tab));
 
 function RestaurantShell() {
   const { restaurantId } = Route.useParams();
@@ -55,7 +64,7 @@ function RestaurantShell() {
         }
         tabs={
           <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-            {TABS.map((tab) => {
+            {PRIMARY_TABS.map((tab) => {
               const href = tab.to.replace("$restaurantId", restaurantId);
               const active = tab.exact ? pathname === base || pathname === `${base}/` : pathname === href;
               const label = tab.label ? (ar ? tab.label.ar : tab.label.en) : t(tab.labelKey ?? "");
@@ -73,6 +82,10 @@ function RestaurantShell() {
                 </Link>
               );
             })}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild><button type="button" className={cn("inline-flex min-h-11 shrink-0 items-center gap-2 rounded-[9px] px-3 text-sm font-semibold transition", SECONDARY_TABS.some((tab) => pathname === tab.to.replace("$restaurantId", restaurantId)) ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground")}><MoreHorizontal className="size-4"/>{ar ? "المزيد" : "More"}</button></DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-52">{SECONDARY_TABS.map((tab) => { const label = tab.label ? (ar ? tab.label.ar : tab.label.en) : t(tab.labelKey ?? ""); return <DropdownMenuItem key={tab.to} asChild><Link to={tab.to} params={{restaurantId}}>{label}</Link></DropdownMenuItem>; })}</DropdownMenuContent>
+            </DropdownMenu>
           </div>
         }
       />

@@ -101,7 +101,7 @@ function AnalyticsPage() {
                 <div key={h.hour} className="group flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
                   <div className="relative flex h-[190px] w-full items-end overflow-hidden rounded-t-lg bg-muted/40">
                     <div
-                      className="w-full rounded-t-lg bg-[#ff5a0a] transition group-hover:bg-[#e94f00]"
+                      className="w-full rounded-t-lg bg-[#e85d2a] transition group-hover:bg-[#e94f00]"
                       style={{ height: `${Math.max(3, (h.orders / peak) * 100)}%` }}
                       title={`${h.hour}:00 — ${h.orders}`}
                     />
@@ -121,7 +121,7 @@ function AnalyticsPage() {
                 const pct = Math.round((count / total) * 100);
                 return <div key={status}>
                   <div className="flex items-center justify-between gap-3 text-xs"><span className="capitalize">{status}</span><strong className="tabular-nums">{formatNumber(count, lang)} · {pct}%</strong></div>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-[#ff5a0a]" style={{ width: `${pct}%` }} /></div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-[#e85d2a]" style={{ width: `${pct}%` }} /></div>
                 </div>;
               })}
             </div>

@@ -136,7 +136,7 @@ export function NotificationBell({
                     <span className="min-w-0 flex-1">
                       <span className="flex items-start gap-2">
                         <strong className="min-w-0 flex-1 text-xs leading-5">{row.title}</strong>
-                        {!row.read_at ? <i className="mt-1.5 size-2 shrink-0 rounded-full bg-[#ff5a0a]" /> : null}
+                        {!row.read_at ? <i className="mt-1.5 size-2 shrink-0 rounded-full bg-[#e85d2a]" /> : null}
                       </span>
                       {row.body ? <span className="mt-0.5 block line-clamp-2 text-[10px] leading-4 text-muted-foreground">{row.body}</span> : null}
                       <span className="mt-1 block text-[9px] font-medium text-muted-foreground">{formatTime(row.created_at, ar)}</span>
@@ -166,7 +166,7 @@ function kindConfig(kind: NotificationKind) {
   if (kind === "handover") return { icon: UsersRound, tone: "bg-cyan-500/10 text-cyan-700" };
   if (kind === "shift") return { icon: TimerReset, tone: "bg-blue-500/10 text-blue-600" };
   if (kind === "alert") return { icon: Info, tone: "bg-red-500/10 text-red-600" };
-  if (kind === "task") return { icon: ClipboardList, tone: "bg-orange-500/10 text-[#ff5a0a]" };
+  if (kind === "task") return { icon: ClipboardList, tone: "bg-orange-500/10 text-[#e85d2a]" };
   return { icon: Info, tone: "bg-muted text-muted-foreground" };
 }
 

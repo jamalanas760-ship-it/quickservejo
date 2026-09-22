@@ -342,7 +342,7 @@ function CashierPage() {
   </div>;
 }
 
-function Metric({icon:Icon,label,value}:{icon:typeof Receipt;label:string;value:string}) { return <article className="qs-stat flex min-h-[106px] items-center gap-4 p-4"><span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-xl tracking-[-.03em]">{value}</strong></div></article>; }
+function Metric({icon:Icon,label,value}:{icon:typeof Receipt;label:string;value:string}) { return <article className="qs-stat flex min-h-[106px] items-center gap-4 p-4"><span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-xl tracking-[-.03em]">{value}</strong></div></article>; }
 function Summary({label,value}:{label:string;value:string}) { return <div className="rounded-xl bg-muted/45 p-3"><p className="text-[10px] text-muted-foreground">{label}</p><strong className="mt-1 block text-sm">{value}</strong></div>; }
 function methodLabel(method:Payment["method"],ar:boolean){ const map:Record<Payment["method"],[string,string]>={cash:["Cash","نقدي"],card:["Card","بطاقة"],wallet:["Wallet","محفظة"],gift_card:["Gift card","بطاقة هدية"],other:["Other","أخرى"]}; return map[method][ar?1:0]; }
 function methodIcon(method:Payment["method"]){ return method==="cash"?<Banknote className="size-4"/>:method==="card"?<CreditCard className="size-4"/>:method==="gift_card"?<GiftIcon/>:<WalletCards className="size-4"/>; }

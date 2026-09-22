@@ -94,5 +94,5 @@ function HostWorkspace() {
 }
 
 function Metric({ icon: Icon, label, value, tone }: { icon: typeof Table2; label: string; value: number; tone: "green" | "blue" | "orange" }) {
-  return <article className="qs-stat flex min-h-28 items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl", tone === "green" ? "bg-emerald-500/10 text-emerald-600" : tone === "blue" ? "bg-blue-500/10 text-blue-600" : "bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-5" /></span><div><p className="text-xs font-semibold text-muted-foreground">{label}</p><p className="mt-1 font-display text-3xl font-bold tracking-[-.04em]">{value}</p></div></article>;
+  return <article className="qs-stat flex min-h-28 items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl", tone === "green" ? "bg-emerald-500/10 text-emerald-600" : tone === "blue" ? "bg-blue-500/10 text-blue-600" : "bg-orange-500/10 text-[#e85d2a]")}><Icon className="size-5" /></span><div><p className="text-xs font-semibold text-muted-foreground">{label}</p><p className="mt-1 font-display text-3xl font-bold tracking-[-.04em]">{value}</p></div></article>;
 }

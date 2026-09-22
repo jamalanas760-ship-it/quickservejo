@@ -84,7 +84,7 @@ function OrderStatusPage() {
                 return (
                   <li key={step} className="relative flex items-start gap-3">
                     {index < STEPS.length - 1 ? <span className={cn("absolute start-[15px] top-8 h-[calc(100%+2px)] w-px", done ? "bg-orange-300" : "bg-border")} /> : null}
-                    <span className={cn("relative z-10 grid size-8 shrink-0 place-items-center rounded-full border text-xs font-bold", done ? "border-[#ff5a0a] bg-[#ff5a0a] text-white" : "border-border bg-card text-muted-foreground")}>
+                    <span className={cn("relative z-10 grid size-8 shrink-0 place-items-center rounded-full border text-xs font-bold", done ? "border-[#e85d2a] bg-[#e85d2a] text-white" : "border-border bg-card text-muted-foreground")}>
                       {done ? <CheckCircle2 className="size-4" /> : index + 1}
                     </span>
                     <div className="min-w-0 pt-1">
@@ -99,7 +99,7 @@ function OrderStatusPage() {
         ) : null}
 
         <section className="rounded-[18px] border border-border/80 bg-background p-4 sm:p-5">
-          <div className="flex items-center gap-2"><Clock3 className="size-4 text-[#ff5a0a]" /><h2 className="text-sm font-bold">{ar ? "ملخص الفاتورة" : "Receipt summary"}</h2></div>
+          <div className="flex items-center gap-2"><Clock3 className="size-4 text-[#e85d2a]" /><h2 className="text-sm font-bold">{ar ? "ملخص الفاتورة" : "Receipt summary"}</h2></div>
           <div className="mt-4 space-y-2.5 text-sm">
             <ReceiptRow label={ar ? "المجموع الفرعي" : "Subtotal"} value={formatMoney(order.data.subtotal, order.data.currency, lang)} />
             {order.data.discount_amount > 0 ? <ReceiptRow label={ar ? "الخصم" : "Discount"} value={`-${formatMoney(order.data.discount_amount, order.data.currency, lang)}`} /> : null}

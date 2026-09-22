@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
-import { BrandLogo } from "@/components/brand/BrandLogo";
+import { PublicSiteShell } from "@/components/public/PublicSiteShell";
 import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/terms")({
@@ -70,28 +70,24 @@ function TermsPage() {
       ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="safe-top border-b border-border">
-        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
-          <Link to="/">
-            <BrandLogo className="size-8" />
-          </Link>
-        </div>
-      </header>
-      <main className="mx-auto max-w-3xl px-4 py-12">
-        <h1 className="text-3xl font-bold">{ar ? "شروط الخدمة" : "Terms of service"}</h1>
+    <PublicSiteShell contentClassName="max-w-4xl">
+      <article className="qs-card overflow-hidden">
+        <header className="border-b border-border bg-[linear-gradient(135deg,#fff7f1,#fff)] px-5 py-8 sm:px-8 sm:py-10">
+        <p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#e34d00]">QuickServe</p>
+        <h1 className="mt-3 font-display text-[clamp(2rem,6vw,3.4rem)] font-bold tracking-[-.045em]">{ar ? "شروط الخدمة" : "Terms of service"}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {ar ? "آخر تحديث: 2026" : "Last updated: 2026"}
         </p>
-        <div className="mt-8 space-y-7">
+        </header>
+        <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-8">
           {sections.map((s) => (
-            <section key={s.h}>
-              <h2 className="text-lg font-semibold">{s.h}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.p}</p>
+            <section key={s.h} className="qs-soft-card p-5 sm:p-6">
+              <h2 className="font-display text-lg font-bold">{s.h}</h2>
+              <p className="mt-2 text-sm leading-7 text-muted-foreground">{s.p}</p>
             </section>
           ))}
         </div>
-      </main>
-    </div>
+      </article>
+    </PublicSiteShell>
   );
 }

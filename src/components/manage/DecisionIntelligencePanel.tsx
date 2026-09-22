@@ -101,7 +101,7 @@ export function DecisionIntelligencePanel({restaurantId}:{restaurantId:string}) 
     <div className="qs-workspace-titlebar flex flex-col gap-2 border-b border-border px-3 py-2.5 lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[.12em] text-[#ff5a0a]"><Lightbulb className="size-3"/>{ar?"ذكاء إداري":"Decision intelligence"}</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[.12em] text-[#e85d2a]"><Lightbulb className="size-3"/>{ar?"ذكاء إداري":"Decision intelligence"}</span>
           <h2 className="font-display text-sm font-bold tracking-[-.02em] sm:text-base">{ar?"ما الذي يحتاج قراراً الآن؟":"What needs a management decision now?"}</h2>
         </div>
         <p className="mt-1 text-[9.5px] text-muted-foreground">{ar?"إشارات سبعة أيام من المبيعات والمخزون والمشتريات والعمل.":"Seven-day signals across sales, inventory, procurement and labor."}</p>
@@ -123,7 +123,7 @@ export function DecisionIntelligencePanel({restaurantId}:{restaurantId:string}) 
   </section>;
 }
 
-function Kpi({icon:Icon,label,value,tone}:{icon:typeof TrendingUp;label:string;value:string;tone?:"warning"|undefined}){return <article className="flex min-h-[48px] items-center gap-2 bg-card px-2.5 py-2"><span className={cn("grid size-7 shrink-0 place-items-center rounded-[8px]",tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-orange-500/10 text-[#ff5a0a]")}><Icon className="size-3.5"/></span><div className="min-w-0"><p className="truncate text-[8.5px] font-bold uppercase tracking-[.03em] text-muted-foreground">{label}</p><strong className="mt-0.5 block truncate font-display text-[13px] tracking-[-.02em]">{value}</strong></div></article>}
+function Kpi({icon:Icon,label,value,tone}:{icon:typeof TrendingUp;label:string;value:string;tone?:"warning"|undefined}){return <article className="flex min-h-[48px] items-center gap-2 bg-card px-2.5 py-2"><span className={cn("grid size-7 shrink-0 place-items-center rounded-[8px]",tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-orange-500/10 text-[#e85d2a]")}><Icon className="size-3.5"/></span><div className="min-w-0"><p className="truncate text-[8.5px] font-bold uppercase tracking-[.03em] text-muted-foreground">{label}</p><strong className="mt-0.5 block truncate font-display text-[13px] tracking-[-.02em]">{value}</strong></div></article>}
 
 function ForecastPanel({forecast,pending,error,currency,lang}:{forecast:Forecast|undefined;pending:boolean;error:boolean;currency:string;lang:Language}) {
   const ar=lang==="ar";

@@ -89,7 +89,7 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
         </div>
 
         <div className="space-y-4 border-t border-border pt-6">
-          <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-orange-500/10 text-[#ff5a0a]"><ImageIcon className="size-5" /></span><div><h3 className="text-sm font-bold">{ar ? "صورة الغلاف والرئيسية" : "Cover & home image"}</h3><p className="mt-0.5 text-[11px] text-muted-foreground">{ar ? "ارفع الصورة ثم اختر الجزء الظاهر وحجم التكبير." : "Upload the image, then choose the visible focal area and zoom."}</p></div></div>
+          <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><ImageIcon className="size-5" /></span><div><h3 className="text-sm font-bold">{ar ? "صورة الغلاف والرئيسية" : "Cover & home image"}</h3><p className="mt-0.5 text-[11px] text-muted-foreground">{ar ? "ارفع الصورة ثم اختر الجزء الظاهر وحجم التكبير." : "Upload the image, then choose the visible focal area and zoom."}</p></div></div>
           <ImageUploader restaurantId={restaurant.id} kind="cover" aspect="wide" value={form.cover_image_url} onChange={(value) => field("cover_image_url", value)} label={ar ? "صورة الغلاف" : "Cover image"} />
           {form.cover_image_url ? <CoverComposer ar={ar} url={form.cover_image_url} x={brand.coverPositionX} y={brand.coverPositionY} zoom={brand.coverZoom} onChange={(next) => setBrand((current) => ({ ...current, ...next }))} /> : null}
         </div>
@@ -100,7 +100,7 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
       <ApplicationColorStudio ar={ar} restaurantName={restaurant.name} brand={brand} setBrand={setBrand} primaryColor={form.primary_color} accentColor={form.accent_color} setPrimaryColor={(value) => field("primary_color", value)} setAccentColor={(value) => field("accent_color", value)} />
     </section>
 
-    <div className="flex justify-end"><Button type="submit" disabled={saving} className="min-h-11 bg-[#ff5a0a] px-5 text-white hover:bg-[#e94f00]"><Save className="size-4" />{saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ إعدادات المؤسسة" : "Save organization settings")}</Button></div>
+    <div className="flex justify-end"><Button type="submit" disabled={saving} className="min-h-11 bg-[#e85d2a] px-5 text-white hover:bg-[#e94f00]"><Save className="size-4" />{saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ إعدادات المؤسسة" : "Save organization settings")}</Button></div>
   </form>;
 }
 

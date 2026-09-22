@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, MessageSquareText, Plus, Send, Settings2, Timer, Trash2, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
+import { CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, MessageSquareText, MoreHorizontal, Plus, Send, Settings2, Timer, Trash2, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -166,11 +167,7 @@ function BookingsPage(){
         eyebrow={<MasterEyebrow icon={CalendarCheck2}>{ar?"مكتب الحجوزات":"Reservation Desk"}</MasterEyebrow>}
         title={ar?"الحجوزات والوصول والجلوس":"Reservations, Arrivals & Seating"}
         description={ar?"واجهة تشغيلية واحدة من أول اتصال حتى جلوس الضيف، مع توافر حي ومنع التعارض.":"One operational workspace from first contact to seating, with live availability and conflict protection."}
-        actions={<>
-          {restaurant.data?.slug?<Button asChild variant="outline"><Link to="/book/$slug" params={{slug:restaurant.data.slug}} target="_blank"><ExternalLink className="size-4"/>{ar?"صفحة الحجز العامة":"Public booking"}</Link></Button>:null}
-          {canConfigure?<Button variant="outline" onClick={()=>setSettingsOpen(true)}><Settings2 className="size-4"/>{ar?"الإعدادات":"Settings"}</Button>:null}
-          <Button onClick={()=>setCreateOpen(true)}><Plus className="size-4"/>{ar?"حجز جديد":"Add Booking"}</Button>
-        </>}
+        actions={<div className="flex items-center gap-2"><Button onClick={()=>setCreateOpen(true)}><Plus className="size-4"/>{ar?"حجز جديد":"Add Booking"}</Button>{restaurant.data?.slug||canConfigure?<DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline"><MoreHorizontal className="size-4"/>{ar?"المزيد":"More"}</Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-52">{restaurant.data?.slug?<DropdownMenuItem asChild><Link to="/book/$slug" params={{slug:restaurant.data.slug}} target="_blank" rel="noreferrer"><ExternalLink/>{ar?"صفحة الحجز العامة":"Public booking page"}</Link></DropdownMenuItem>:null}{canConfigure?<DropdownMenuItem onSelect={()=>setSettingsOpen(true)}><Settings2/>{ar?"إعدادات الحجز":"Booking settings"}</DropdownMenuItem>:null}</DropdownMenuContent></DropdownMenu>:null}</div>}
         tabs={<div className="flex gap-1"><Link to="/bookings" className="rounded-[9px] bg-foreground px-4 py-2 text-xs font-bold text-background">{ar?"الحجوزات":"Reservations"}</Link><Link to="/waitlist" className="rounded-[9px] px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-muted">{ar?"قائمة الانتظار":"Waitlist"}</Link></div>}
       />
 
@@ -277,7 +274,7 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
       <div className="border-b border-border bg-gradient-to-r from-orange-500/[.09] via-background to-background px-5 py-5 sm:px-7">
         <DialogHeader>
           <div className="flex items-start gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-orange-500/10 text-[#ff5a0a]"><CalendarCheck2 className="size-5"/></span>
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><CalendarCheck2 className="size-5"/></span>
             <div>
               <DialogTitle className="text-xl sm:text-2xl">{ar?"حجز جديد":"New reservation"}</DialogTitle>
               <DialogDescription className="mt-1 max-w-2xl">{ar?"أدخل بيانات الضيف ثم اختر التاريخ والوقت بوضوح. يتم فحص التوفر مباشرة ومرة أخيرة عند الحفظ.":"Add the guest, choose date and time clearly, then QuickServe checks availability live and once again when saving."}</DialogDescription>
@@ -320,7 +317,7 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
             <div className="mt-4">
               <Label className="text-xs font-bold">{ar?"مدة الحجز":"Reservation duration"}</Label>
               <div className="mt-2 flex flex-wrap gap-2">
-                {[60,90,120,150,180].map(value=><button key={value} type="button" onClick={()=>{setDuration(value);setSelectedTable("auto");}} className={cn("rounded-xl border px-3.5 py-2 text-xs font-bold transition",duration===value?"border-[#ff5a0a] bg-orange-500/10 text-[#e34d00]":"border-border bg-background hover:bg-muted/50")}>{value<120?`${value} min`:`${value/60} hr`}</button>)}
+                {[60,90,120,150,180].map(value=><button key={value} type="button" onClick={()=>{setDuration(value);setSelectedTable("auto");}} className={cn("rounded-xl border px-3.5 py-2 text-xs font-bold transition",duration===value?"border-[#e85d2a] bg-orange-500/10 text-[#e34d00]":"border-border bg-background hover:bg-muted/50")}>{value<120?`${value} min`:`${value/60} hr`}</button>)}
                 <div className="relative w-28"><Timer className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-9 rounded-xl ps-9 text-xs" type="number" min="30" max="360" step="15" value={duration} onChange={e=>{setDuration(Number(e.target.value)||90);setSelectedTable("auto");}}/></div>
               </div>
             </div>
@@ -502,7 +499,7 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{b
     <DialogContent className="flex max-h-[88dvh] flex-col overflow-hidden p-0 sm:max-w-xl">
       <div className="border-b border-border bg-muted/25 px-5 py-4 sm:px-6">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><MessageSquareText className="size-5 text-[#ff5a0a]"/>{ar?"محادثة الحجز":"Reservation conversation"}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><MessageSquareText className="size-5 text-[#e85d2a]"/>{ar?"محادثة الحجز":"Reservation conversation"}</DialogTitle>
           <DialogDescription>{booking?.customer_name} · {booking?.phone??(ar?"بدون هاتف":"No phone")}</DialogDescription>
         </DialogHeader>
       </div>
@@ -516,7 +513,7 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{b
 
       <div className="border-t border-border bg-card p-4 sm:p-5">
         <div className="mb-3 flex gap-2">
-          {(["sms","whatsapp"] as const).map(value=><button type="button" key={value} onClick={()=>setChannel(value)} className={cn("rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide",channel===value?"border-[#ff5a0a] bg-orange-500/10 text-[#ff5a0a]":"border-border text-muted-foreground")}>{value}</button>)}
+          {(["sms","whatsapp"] as const).map(value=><button type="button" key={value} onClick={()=>setChannel(value)} className={cn("rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide",channel===value?"border-[#e85d2a] bg-orange-500/10 text-[#e85d2a]":"border-border text-muted-foreground")}>{value}</button>)}
         </div>
         <Textarea rows={3} maxLength={2000} value={body} onChange={e=>setBody(e.target.value)} placeholder={ar?"اكتب رسالة للضيف…":"Write a message to the guest…"}/>
         <div className="mt-3 flex items-center justify-between gap-3">
@@ -609,8 +606,8 @@ function startOfLocalDay(date:Date){
   return copy;
 }
 
-function Metric({icon:Icon,label,value}:{icon:typeof CalendarCheck2;label:string;value:number}){return <article className="flex min-h-[88px] items-center gap-3 bg-card p-3.5"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-[#ff5a0a]"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-2xl tracking-[-.04em]">{value}</strong></div></article>;}
+function Metric({icon:Icon,label,value}:{icon:typeof CalendarCheck2;label:string;value:number}){return <article className="flex min-h-[88px] items-center gap-3 bg-card p-3.5"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-2xl tracking-[-.04em]">{value}</strong></div></article>;}
 function Field({label,children}:{label:string;children:React.ReactNode}){return <div className="space-y-1.5"><Label className="text-xs font-bold">{label}</Label>{children}</div>;}
-function Toggle({label,value,onChange}:{label:string;value:boolean;onChange:(v:boolean)=>void}){return <button type="button" onClick={()=>onChange(!value)} className={cn("flex items-center justify-between rounded-xl border p-4 text-start",value?"border-[#ff5a0a] bg-orange-500/5":"border-border")}><span className="text-sm font-semibold">{label}</span><span className={cn("relative h-6 w-11 rounded-full transition",value?"bg-[#ff5a0a]":"bg-muted")}><span className={cn("absolute top-1 size-4 rounded-full bg-white shadow transition",value?"start-6":"start-1")}/></span></button>;}
+function Toggle({label,value,onChange}:{label:string;value:boolean;onChange:(v:boolean)=>void}){return <button type="button" onClick={()=>onChange(!value)} className={cn("flex items-center justify-between rounded-xl border p-4 text-start",value?"border-[#e85d2a] bg-orange-500/5":"border-border")}><span className="text-sm font-semibold">{label}</span><span className={cn("relative h-6 w-11 rounded-full transition",value?"bg-[#e85d2a]":"bg-muted")}><span className={cn("absolute top-1 size-4 rounded-full bg-white shadow transition",value?"start-6":"start-1")}/></span></button>;}
 function bookingDateParts(d:Date){const local=new Date(d.getTime()-d.getTimezoneOffset()*60_000);local.setMinutes(Math.ceil(local.getMinutes()/15)*15,0,0);const value=local.toISOString();return {date:value.slice(0,10),time:value.slice(11,16)};}
 function statusLabel(status:string,ar:boolean){const labels:Record<string,[string,string]>={pending:["Pending","قيد الانتظار"],confirmed:["Confirmed","مؤكد"],seated:["Seated","تم الجلوس"],completed:["Completed","مكتمل"],cancelled:["Cancelled","ملغي"],no_show:["No-show","لم يحضر"],free:["Free","متاحة"],reserved:["Reserved","محجوزة"],active:["Active","نشطة"],cleaning:["Cleaning","تنظيف"],out_of_service:["Out of service","خارج الخدمة"]};return labels[status]?.[ar?1:0]??status;}

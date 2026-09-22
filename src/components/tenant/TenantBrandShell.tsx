@@ -19,14 +19,14 @@ export function TenantBrandShell({ children }: { children: ReactNode }) {
 
   const appearance = readAppearance(restaurant.menu_theme);
   const style: TenantStyle = {
-    "--restaurant-light-primary": restaurant.primary_color || "#ff5a0a",
+    "--restaurant-light-primary": restaurant.primary_color || "#e85d2a",
     "--restaurant-light-accent": restaurant.accent_color || "#ff8a4c",
     "--restaurant-light-bg": appearance.lightBackground || restaurant.background_color || "#fafbfc",
     "--restaurant-light-topbar-bg": appearance.topNavBackground || "#ffffff",
     "--restaurant-light-topbar-text": appearance.topNavText || "#171a18",
     "--restaurant-light-sidebar-bg": "#ffffff",
     "--restaurant-light-sidebar-text": "#667085",
-    "--restaurant-light-selected-nav": appearance.selectedNavColor || restaurant.primary_color || "#ff5a0a",
+    "--restaurant-light-selected-nav": appearance.selectedNavColor || restaurant.primary_color || "#e85d2a",
     "--restaurant-dark-primary": appearance.darkPrimaryColor,
     "--restaurant-dark-accent": appearance.darkAccentColor,
     "--restaurant-dark-bg": appearance.lightBackground || restaurant.background_color || "#fafbfc",

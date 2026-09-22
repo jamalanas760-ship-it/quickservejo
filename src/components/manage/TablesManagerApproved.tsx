@@ -481,15 +481,15 @@ export function TablesManagerApproved({ restaurantId }: { restaurantId: string }
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <button type="button" onClick={() => setActiveZone("all")} className={cn("shrink-0 rounded-full border px-3 py-2 text-xs font-bold transition", activeZone === "all" ? "border-[#ff5a0a] bg-orange-500/10 text-[#ff5a0a]" : "border-border bg-card text-muted-foreground hover:text-foreground")}>{ar ? "كل المناطق" : "All zones"}</button>
+          <button type="button" onClick={() => setActiveZone("all")} className={cn("shrink-0 rounded-full border px-3 py-2 text-xs font-bold transition", activeZone === "all" ? "border-[#e85d2a] bg-orange-500/10 text-[#e85d2a]" : "border-border bg-card text-muted-foreground hover:text-foreground")}>{ar ? "كل المناطق" : "All zones"}</button>
           {currentZones.map((zone) => {
             const count = floorTables.filter((table) => (table.zone || currentZones[0]?.id || "main") === zone.id).length;
-            return <div key={zone.id} className={cn("flex shrink-0 items-center rounded-full border transition", activeZone === zone.id ? "border-[#ff5a0a] bg-orange-500/10 text-[#ff5a0a]" : "border-border bg-card text-muted-foreground")}>
+            return <div key={zone.id} className={cn("flex shrink-0 items-center rounded-full border transition", activeZone === zone.id ? "border-[#e85d2a] bg-orange-500/10 text-[#e85d2a]" : "border-border bg-card text-muted-foreground")}>
               <button type="button" onClick={() => setActiveZone(zone.id)} className="min-h-9 px-3 text-xs font-bold">{ar ? zone.ar : zone.en} <span className="ms-1 opacity-60">{count}</span></button>
               <button type="button" onClick={() => void deleteZone(zone.id)} className="me-1 grid size-7 place-items-center rounded-full opacity-55 transition hover:bg-destructive/10 hover:text-destructive hover:opacity-100" aria-label={ar ? "حذف المنطقة" : "Delete zone"}><X className="size-3" /></button>
             </div>;
           })}
-          <button type="button" className="shrink-0 rounded-full border border-dashed border-border px-3 py-2 text-xs font-bold text-muted-foreground hover:border-[#ff5a0a]/40 hover:text-foreground" onClick={() => setZoneOpen(true)}><Plus className="me-1 inline size-3.5" />{ar ? "منطقة" : "Zone"}</button>
+          <button type="button" className="shrink-0 rounded-full border border-dashed border-border px-3 py-2 text-xs font-bold text-muted-foreground hover:border-[#e85d2a]/40 hover:text-foreground" onClick={() => setZoneOpen(true)}><Plus className="me-1 inline size-3.5" />{ar ? "منطقة" : "Zone"}</button>
         </div>
       </div>
 
@@ -501,7 +501,7 @@ export function TablesManagerApproved({ restaurantId }: { restaurantId: string }
             <div className="ms-auto hidden items-center rounded-xl border border-border bg-card p-1 sm:flex"><button type="button" className="grid size-9 place-items-center rounded-lg hover:bg-muted" onClick={() => setZoom((value) => clamp(value - 0.1, 0.7, 1.35))}><ZoomOut className="size-4" /></button><span className="grid min-w-14 place-items-center text-xs font-bold">{Math.round(zoom * 100)}%</span><button type="button" className="grid size-9 place-items-center rounded-lg hover:bg-muted" onClick={() => setZoom((value) => clamp(value + 0.1, 0.7, 1.35))}><ZoomIn className="size-4" /></button></div>
           </div>
 
-          {mobileMode === "list" ? <div className="space-y-2 p-3 md:hidden">{visibleTables.map((row) => <button key={row.id} type="button" onClick={() => { setSelectedId(row.id); setDetailsOpen(true); }} className="flex w-full items-center gap-3 rounded-xl border border-border p-3 text-start"><span className="grid size-10 place-items-center rounded-xl bg-orange-50 font-bold text-[#ff5a0a] dark:bg-orange-950/30">T{row.table_number}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{row.table_name || `${ar ? "طاولة" : "Table"} ${row.table_number}`}</strong><span className="text-xs text-muted-foreground">{row.capacity ?? 4} {ar ? "مقاعد" : "seats"} · {currentZones.find((zone) => zone.id === (row.zone || currentZones[0]?.id))?.[ar ? "ar" : "en"] ?? row.zone}</span></span><i className={cn("size-2 rounded-full", row.is_active ? "bg-emerald-500" : "bg-slate-400")} /></button>)}</div> : <div className="overflow-auto bg-[#f6f7f8] p-3 dark:bg-[#11171b]">
+          {mobileMode === "list" ? <div className="space-y-2 p-3 md:hidden">{visibleTables.map((row) => <button key={row.id} type="button" onClick={() => { setSelectedId(row.id); setDetailsOpen(true); }} className="flex w-full items-center gap-3 rounded-xl border border-border p-3 text-start"><span className="grid size-10 place-items-center rounded-xl bg-orange-50 font-bold text-[#e85d2a] dark:bg-orange-950/30">T{row.table_number}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{row.table_name || `${ar ? "طاولة" : "Table"} ${row.table_number}`}</strong><span className="text-xs text-muted-foreground">{row.capacity ?? 4} {ar ? "مقاعد" : "seats"} · {currentZones.find((zone) => zone.id === (row.zone || currentZones[0]?.id))?.[ar ? "ar" : "en"] ?? row.zone}</span></span><i className={cn("size-2 rounded-full", row.is_active ? "bg-emerald-500" : "bg-slate-400")} /></button>)}</div> : <div className="overflow-auto bg-[#f6f7f8] p-3 dark:bg-[#11171b]">
             <div
               ref={floorRef}
               className="relative mx-auto min-w-[690px] overflow-hidden rounded-2xl border border-border bg-[#ebe8e1] shadow-inner dark:bg-slate-900"
@@ -525,7 +525,7 @@ export function TablesManagerApproved({ restaurantId }: { restaurantId: string }
             </div>
           </div>}
 
-          <div className="flex flex-wrap items-center gap-4 border-t border-border px-4 py-3 text-[10px] text-muted-foreground"><Legend tone="bg-emerald-500" label={ar ? "متاح" : "Available"} /><Legend tone="bg-[#ff5a0a]" label={ar ? "نشط / مشغول" : "Active / Occupied"} /><Legend tone="bg-slate-400" label={ar ? "غير نشط" : "Inactive"} /><span className="ms-auto">{visibleTables.length} / {floorTables.length} {ar ? "طاولة" : "tables"}</span></div>
+          <div className="flex flex-wrap items-center gap-4 border-t border-border px-4 py-3 text-[10px] text-muted-foreground"><Legend tone="bg-emerald-500" label={ar ? "متاح" : "Available"} /><Legend tone="bg-[#e85d2a]" label={ar ? "نشط / مشغول" : "Active / Occupied"} /><Legend tone="bg-slate-400" label={ar ? "غير نشط" : "Inactive"} /><span className="ms-auto">{visibleTables.length} / {floorTables.length} {ar ? "طاولة" : "tables"}</span></div>
         </div>
 
         <aside className="bg-card">

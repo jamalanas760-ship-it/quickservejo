@@ -172,7 +172,7 @@ export function BookingDepositPaymentDialog({
   return <Dialog open={open} onOpenChange={value=>!paying&&onOpenChange(value)}>
     <DialogContent className="sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle className="flex items-center gap-2"><CreditCard className="size-5 text-[#ff5a0a]"/>{ar?"دفع عربون الحجز":"Pay reservation deposit"}</DialogTitle>
+        <DialogTitle className="flex items-center gap-2"><CreditCard className="size-5 text-[#e85d2a]"/>{ar?"دفع عربون الحجز":"Pay reservation deposit"}</DialogTitle>
         <DialogDescription>{confirmationCode} · {formatMoney(amount,currency,lang)}</DialogDescription>
       </DialogHeader>
 

@@ -17,5 +17,5 @@ export const Route = createFileRoute("/_authenticated/manage/$restaurantId/analy
 
 function Page() {
   const { restaurantId } = Route.useParams();
-  return <div className="qs-viewport-fill grid h-full min-h-0 gap-2 xl:grid-rows-[auto_minmax(0,1fr)]"><DecisionIntelligencePanel restaurantId={restaurantId} /><div className="min-h-0"><AnalyticsManagerPro restaurantId={restaurantId} /></div></div>;
+  return <div className="qs-viewport-fill grid h-full min-h-0 gap-4 xl:grid-rows-[auto_minmax(0,1fr)]"><DecisionIntelligencePanel restaurantId={restaurantId} /><div className="min-h-0"><AnalyticsManagerPro restaurantId={restaurantId} /></div></div>;
 }

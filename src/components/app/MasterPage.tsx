@@ -17,25 +17,23 @@ export function MasterPageHeader({
 }) {
   return (
     <section className="qs-master-header qs-workspace-titlebar">
-      <div className="flex min-w-0 flex-col gap-3 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex min-w-0 flex-col gap-4 py-2 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
-            {eyebrow ? <div className="shrink-0">{eyebrow}</div> : null}
-            <h1 className="qs-page-title min-w-0 whitespace-normal leading-tight">{title}</h1>
-          </div>
-          {description ? <p className="qs-page-subtitle">{description}</p> : null}
+          {eyebrow ? <div className="mb-2">{eyebrow}</div> : null}
+          <h1 className="qs-page-title min-w-0 whitespace-normal leading-tight">{title}</h1>
+          {description ? <p className="qs-page-subtitle mt-2">{description}</p> : null}
         </div>
-        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-1.5">{actions}</div> : null}
+        {actions ? <div className="qs-page-actions flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">{actions}</div> : null}
       </div>
-      {tabs ? <div className="no-scrollbar overflow-x-auto border-t border-border/80 px-4 py-2">{tabs}</div> : null}
+      {tabs ? <div className="no-scrollbar mt-2 overflow-x-auto border-t border-border/80 py-2">{tabs}</div> : null}
     </section>
   );
 }
 
 export function MasterEyebrow({ icon: Icon, children }: { icon?: ElementType; children: ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-primary">
-      {Icon ? <Icon className="size-2.5" /> : null}
+    <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[.08em] text-[#cf4818]">
+      {Icon ? <Icon className="size-3.5" /> : null}
       {children}
     </span>
   );
@@ -71,10 +69,10 @@ export function MasterKpi({
         <Icon className="size-4.5" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[10px] font-bold uppercase tracking-[.04em] text-muted-foreground">{label}</p>
+        <p className="truncate text-sm font-semibold text-muted-foreground">{label}</p>
         <div className="mt-0.5 flex min-w-0 items-baseline gap-2">
           <p className="truncate font-display text-[clamp(1.25rem,1.55vw,1.6rem)] font-bold tracking-[-.025em]">{value}</p>
-          {hint ? <p className="min-w-0 truncate text-[10px] text-muted-foreground">{hint}</p> : null}
+          {hint ? <p className="min-w-0 truncate text-xs text-muted-foreground">{hint}</p> : null}
         </div>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
@@ -103,7 +101,7 @@ export function MasterSection({
         <div className="flex flex-col gap-2 border-b border-border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             {title ? <h2 className="qs-section-title">{title}</h2> : null}
-            {description ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p> : null}
+            {description ? <p className="mt-1 text-sm leading-5 text-muted-foreground">{description}</p> : null}
           </div>
           {action ? <div className="shrink-0">{action}</div> : null}
         </div>
@@ -122,8 +120,8 @@ export function MasterTabs({
     <div className="flex flex-wrap gap-1.5">
       {items.map((item, index) => {
         const className = cn(
-          "inline-flex min-h-8 items-center rounded-[8px] px-2.5 text-[11px] font-bold transition",
-          item.active ? "bg-[#ff5a0a] text-white shadow-[0_3px_10px_rgba(255,90,10,.14)]" : "text-muted-foreground hover:bg-[#fff1e8] hover:text-[#e94d00]",
+          "inline-flex min-h-11 items-center rounded-[9px] px-3 text-sm font-semibold transition",
+          item.active ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground",
         );
         if (item.href) {
           return <a key={index} href={item.href} className={className}>{item.label}</a>;
@@ -149,5 +147,5 @@ export function MasterStatus({
     purple: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
     slate: "bg-muted text-muted-foreground",
   }[tone];
-  return <span className={cn("inline-flex min-h-5 items-center rounded-full px-2 py-0.5 text-[9px] font-bold", className)}>{children}</span>;
+  return <span className={cn("inline-flex min-h-7 items-center rounded-full px-2.5 py-1 text-xs font-semibold", className)}>{children}</span>;
 }

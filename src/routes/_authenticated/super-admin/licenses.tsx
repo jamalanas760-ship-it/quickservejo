@@ -130,7 +130,7 @@ function LicensesPage() {
                             <span className="text-muted-foreground">{ar ? "استخدام المستخدمين" : "Seat utilization"}</span>
                             <strong className={warning ? "text-amber-700" : ""}>{used} / {limit} · {percent}%</strong>
                           </div>
-                          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"><div className={warning ? "h-full rounded-full bg-amber-500 transition-all" : "h-full rounded-full bg-[#ff5a0a] transition-all"} style={{ width: `${Math.max(2, percent)}%` }} /></div>
+                          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"><div className={warning ? "h-full rounded-full bg-amber-500 transition-all" : "h-full rounded-full bg-[#e85d2a] transition-all"} style={{ width: `${Math.max(2, percent)}%` }} /></div>
                         </div>
                       </div>
                     </div>
