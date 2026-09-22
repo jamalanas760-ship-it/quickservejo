@@ -17,6 +17,7 @@ import {
   Megaphone,
   MonitorSmartphone,
   MoreHorizontal,
+  PanelLeftOpen,
   PlugZap,
   Settings,
   Store,
@@ -30,6 +31,7 @@ import {
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import { useOperationalCounters } from "@/hooks/useOperationalCounters";
 import { useAccess } from "@/hooks/useSession";
 import { useI18n } from "@/lib/i18n";
@@ -151,6 +153,16 @@ export function BottomNav() {
 
   return (
     <>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className="qs-tablet-nav-trigger fixed start-4 top-3 z-50 shadow-sm"
+        onClick={() => setMoreOpen(true)}
+        aria-label={lang === "ar" ? "فتح مساحة العمل" : "Open workspace navigation"}
+      >
+        <PanelLeftOpen className="size-5" />
+      </Button>
       <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden flex-col lg:flex">
         <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-4">
           <Link to={homeTo as never} className="min-w-0 text-foreground" aria-label={restaurant?.name || "QuickServe dashboard"}>{brand}</Link>
@@ -212,7 +224,7 @@ export function BottomNav() {
       </nav>
 
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side="bottom" className="max-h-[78dvh] overflow-y-auto rounded-t-[24px] border-x-0 border-b-0 p-0 lg:hidden">
+        <SheetContent side="bottom" className="max-h-[82dvh] overflow-y-auto rounded-t-[20px] border-x-0 border-b-0 p-0 md:inset-y-0 md:start-0 md:end-auto md:h-dvh md:max-h-dvh md:w-[340px] md:max-w-[88vw] md:rounded-none md:border-e md:border-t-0 lg:hidden">
           <SheetHeader className="sticky top-0 z-10 border-b border-border bg-card/95 px-5 py-4 text-start backdrop-blur-xl">
             <SheetTitle>{lang === "ar" ? "مساحة QuickServe" : "QuickServe workspace"}</SheetTitle>
             <SheetDescription>{lang === "ar" ? "كل الأدوات التي يسمح بها دورك، مرتبة حسب العمل." : "All tools available to your role, organized by workflow."}</SheetDescription>
