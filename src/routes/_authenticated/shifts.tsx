@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, Download, Handshake, List, PlayCircle, Plus, Rows3, StopCircle, TimerReset, Trash2, UserPlus, UsersRound } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, ChevronDown, Clock3, Download, Handshake, List, PlayCircle, Plus, Rows3, StopCircle, TimerReset, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
@@ -107,7 +107,7 @@ function ShiftsPage() {
         <MasterKpi icon={CheckCircle2} label={ar ? "مكتملة اليوم" : "Completed today"} value={closedToday} tone="purple" />
       </section>
 
-      <div className="max-h-[118px] shrink-0 overflow-y-auto"><WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} shifts={rows} assignments={assignments.data ?? []} ar={ar} lang={lang} /></div>
+      <div className="shrink-0"><WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} shifts={rows} assignments={assignments.data ?? []} ar={ar} lang={lang} /></div>
 
       {openShiftRow ? <CurrentShift shift={openShiftRow} assignments={(assignments.data ?? []).filter((row) => row.shift_id === openShiftRow.id)} members={members.data ?? []} canManage={canManage} currentStaffId={membership.id} ar={ar} lang={lang} onClose={() => setClosingShift(openShiftRow)} /> : <section className="qs-card flex items-center gap-4 p-5"><span className="grid size-11 place-items-center rounded-2xl bg-muted text-muted-foreground"><CalendarClock className="size-5" /></span><div><h2 className="font-bold">{ar ? "لا توجد وردية مفتوحة" : "No shift is open"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكن لمدير الوردية فتح وردية مخططة عندما يبدأ التشغيل." : "A shift manager can open a planned shift when service starts."}</p></div></section>}
 
@@ -166,6 +166,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
   const [leaveStartTime, setLeaveStartTime] = useState("09:00");
   const [leaveEndTime, setLeaveEndTime] = useState("17:00");
   const [leaveReason, setLeaveReason] = useState("");
+  const [laborOpen, setLaborOpen] = useState(false);
 
   const workforce = useQuery({
     queryKey: ["workforce", restaurantId],
@@ -173,7 +174,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
     queryFn: async () => {
       const since = new Date(Date.now() - 14 * 86400000).toISOString();
       const [timeRes, leaveRes] = await Promise.all([
-        supabase.from("staff_time_entries" as any).select("id,staff_id,clock_in,clock_out,break_minutes").eq("restaurant_id", restaurantId).gte("clock_in", since).order("clock_in", { ascending: false }).limit(500),
+        supabase.from("staff_time_entries" as any).select("id,staff_id,clock_in,clock_out,break_minutes").eq("restaurant_id", restaurantId).or(`clock_out.is.null,clock_in.gte.${since}`).order("clock_in", { ascending: false }).limit(500),
         supabase.from("staff_leave_requests" as any).select("id,staff_id,start_date,end_date,start_time,end_time,reason,status,created_at").eq("restaurant_id", restaurantId).order("created_at", { ascending: false }).limit(300),
       ]);
       if (timeRes.error) throw timeRes.error;
@@ -195,11 +196,12 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
     mutationFn: async () => {
       const { data, error } = await (supabase as any).rpc("toggle_time_clock", { _restaurant_id: restaurantId });
       if (error) throw error;
-      return data;
+      return Array.isArray(data) ? data[0] : data;
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await qc.invalidateQueries({ queryKey: ["workforce", restaurantId] });
-      toast.success(openEntry ? (ar ? "تم تسجيل الانصراف" : "Clocked out") : (ar ? "تم تسجيل الحضور" : "Clocked in"));
+      const clockedOut = result?.action === "clocked_out";
+      toast.success(clockedOut ? (ar ? "تم تسجيل الانصراف" : "Clocked out") : (ar ? "تم تسجيل الحضور" : "Clocked in"));
     },
     onError: (error) => toast.error(humanError(error, lang)),
   });
@@ -284,28 +286,14 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
   }
 
   return <section className="space-y-4">
-    {canManage ? <div className="qs-card overflow-hidden">
-      <div className="flex flex-col gap-4 border-b border-border p-5 lg:flex-row lg:items-center lg:justify-between">
-        <div><div className="flex items-center gap-2"><CalendarClock className="size-4 text-[#e85d2a]"/><h2 className="qs-section-title">{ar ? "العمالة هذا الأسبوع" : "Weekly labor control"}</h2></div><p className="mt-1 text-xs text-muted-foreground">{ar ? "مقارنة ساعات الجدول مع الحضور الفعلي من ساعة الدوام — بدون افتراض قانوني لساعات العمل." : "Scheduled hours versus actual time-clock hours, without assuming a legal overtime threshold."}</p></div>
-        <Button variant="outline" disabled={!staffLabor.length} onClick={exportPayrollCsv}><Download className="size-4"/>{ar ? "تصدير CSV للرواتب" : "Export payroll CSV"}</Button>
-      </div>
-      <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-4">
-        <LaborMetric label={ar ? "ساعات مخططة" : "Scheduled"} value={scheduledWeekHours.toFixed(1) + "h"} />
-        <LaborMetric label={ar ? "ساعات فعلية" : "Worked"} value={actualWeekHours.toFixed(1) + "h"} />
-        <LaborMetric label={ar ? "فوق الخطة" : "Over plan"} value={String(overPlan.length)} warning={overPlan.length > 0} />
-        <LaborMetric label={ar ? "دوام مفتوح" : "Open clocks"} value={String(incompleteClocks)} warning={incompleteClocks > 0} />
-      </div>
-      {staffLabor.length ? <div className="overflow-x-auto"><table className="qs-table min-w-[760px]"><thead><tr><th>{ar ? "الموظف" : "Staff"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "مخطط" : "Scheduled"}</th><th>{ar ? "فعلي" : "Worked"}</th><th>{ar ? "الفرق" : "Variance"}</th><th>{ar ? "الحالة" : "Status"}</th></tr></thead><tbody>{staffLabor.sort((a,b)=>b.actualHours-a.actualHours).map(row=><tr key={row.id}><td><strong>{row.name}</strong></td><td>{ROLE_LABELS[row.role]?.[lang] ?? row.role}</td><td>{row.scheduledHours.toFixed(1)}h</td><td>{row.actualHours.toFixed(1)}h</td><td className={cn(row.variance>0.25?"text-amber-700":row.variance<-0.25?"text-blue-700":"text-muted-foreground")}>{row.variance>=0?"+":""}{row.variance.toFixed(1)}h</td><td><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold",row.scheduledHours>0&&row.actualHours>row.scheduledHours+0.25?"bg-amber-500/10 text-amber-700":"bg-emerald-500/10 text-emerald-700")}>{row.scheduledHours>0&&row.actualHours>row.scheduledHours+0.25?(ar?"فوق الخطة":"Over plan"):(ar?"ضمن الخطة":"On plan")}</span></td></tr>)}</tbody></table></div> : <p className="p-6 text-center text-xs text-muted-foreground">{ar ? "لا توجد ساعات مجدولة أو مسجلة لهذا الأسبوع بعد." : "No scheduled or worked hours recorded for this week yet."}</p>}
-    </div> : null}
-
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]">
     <div className="qs-card overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5">
+      <div className="flex flex-col gap-4 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
         <div><h2 className="qs-section-title">{ar ? "الحضور والوقت" : "Attendance & time"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "ساعة حضور فعلية مرتبطة بحساب كل موظف." : "A real time clock tied to each staff account."}</p></div>
-        <div className="flex gap-2"><Button variant="outline" onClick={() => setLeaveOpen(true)}><CalendarDays className="size-4"/>{ar ? "طلب إجازة" : "Request leave"}</Button><Button onClick={() => toggleClock.mutate()} disabled={toggleClock.isPending}>{openEntry ? <StopCircle className="size-4"/> : <TimerReset className="size-4"/>}{openEntry ? (ar ? "انصراف" : "Clock out") : (ar ? "حضور" : "Clock in")}</Button></div>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto"><Button variant="outline" onClick={() => setLeaveOpen(true)}><CalendarDays className="size-4"/>{ar ? "طلب إجازة" : "Request leave"}</Button><Button className="min-w-[132px]" variant={openEntry ? "destructive" : "default"} aria-busy={toggleClock.isPending} aria-pressed={Boolean(openEntry)} onClick={() => toggleClock.mutate()} disabled={toggleClock.isPending}>{openEntry ? <StopCircle className="size-4"/> : <TimerReset className="size-4"/>}{toggleClock.isPending ? (ar ? "جارٍ التحديث…" : "Updating…") : openEntry ? (ar ? "انصراف" : "Clock out") : (ar ? "حضور" : "Clock in")}</Button></div>
       </div>
       <div className="grid gap-3 p-4 sm:grid-cols-3">
-        <div className="rounded-xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حالتي" : "My status"}</p><strong className="mt-1 block text-sm">{openEntry ? (ar ? "على رأس العمل" : "Clocked in") : (ar ? "خارج الوردية" : "Clocked out")}</strong>{openEntry ? <p className="mt-1 text-[10px] text-muted-foreground">{formatStamp(openEntry.clock_in, ar)}</p> : null}</div>
+        <div className="rounded-xl bg-muted/45 p-3" aria-live="polite"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حالتي" : "My status"}</p><strong className="mt-1 block text-sm">{openEntry ? (ar ? "على رأس العمل" : "Clocked in") : (ar ? "خارج الوردية" : "Clocked out")}</strong>{openEntry ? <p className="mt-1 text-[10px] text-muted-foreground">{formatStamp(openEntry.clock_in, ar)}</p> : null}</div>
         <div className="rounded-xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "ساعات اليوم" : "Hours today"}</p><strong className="mt-1 block text-sm">{(todayMinutes/60).toFixed(1)}h</strong></div>
         <div className="rounded-xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حاضرون الآن" : "Clocked in now"}</p><strong className="mt-1 block text-sm">{clockedIn.length}</strong></div>
       </div>
@@ -316,6 +304,18 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
       <div className="border-b border-border p-5"><div className="flex items-center justify-between gap-3"><div><h2 className="qs-section-title">{ar ? "طلبات الإجازة" : "Leave requests"}</h2><p className="mt-1 text-xs text-muted-foreground">{canManage ? (ar ? "راجع الطلبات المعلقة." : "Review pending requests.") : (ar ? "آخر طلباتك." : "Your recent requests.")}</p></div>{pendingLeave.length ? <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-700">{pendingLeave.length}</span> : null}</div></div>
       <div className="max-h-[260px] divide-y divide-border overflow-y-auto">{(workforce.data?.leave ?? []).filter(request => canManage || request.staff_id===currentStaffId).slice(0,8).map(request=><div key={request.id} className="p-4"><div className="flex items-start justify-between gap-3"><div><strong className="text-sm">{memberName(request.staff_id)}</strong><p className="mt-1 text-xs text-muted-foreground">{request.start_date} · {formatLeaveTime(request.start_time)} → {request.end_date} · {formatLeaveTime(request.end_time)}</p>{request.reason?<p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{request.reason}</p>:null}</div><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold capitalize",request.status==="approved"?"bg-emerald-500/10 text-emerald-700":request.status==="rejected"?"bg-red-500/10 text-red-700":"bg-amber-500/10 text-amber-700")}>{request.status}</span></div>{canManage&&request.status==="pending"?<div className="mt-3 flex gap-2"><Button size="sm" disabled={reviewLeave.isPending} onClick={()=>reviewLeave.mutate({id:request.id,status:"approved"})}>{ar?"اعتماد":"Approve"}</Button><Button size="sm" variant="outline" disabled={reviewLeave.isPending} onClick={()=>reviewLeave.mutate({id:request.id,status:"rejected"})}>{ar?"رفض":"Reject"}</Button></div>:null}</div>)}{!(workforce.data?.leave ?? []).length?<p className="p-6 text-center text-xs text-muted-foreground">{ar ? "لا توجد طلبات إجازة." : "No leave requests yet."}</p>:null}</div>
     </div>
+    </div>
+
+    {canManage ? <section className="qs-card overflow-hidden">
+      <button type="button" aria-expanded={laborOpen} onClick={() => setLaborOpen((open) => !open)} className="flex w-full flex-col gap-4 p-5 text-start lg:flex-row lg:items-center lg:justify-between">
+        <div><div className="flex items-center gap-2"><CalendarClock className="size-4 text-[#e85d2a]"/><h2 className="qs-section-title">{ar ? "العمالة هذا الأسبوع" : "Weekly labor control"}</h2></div><p className="mt-1 text-xs text-muted-foreground">{ar ? "مقارنة ساعات الجدول مع الحضور الفعلي. افتح التفاصيل عند الحاجة." : "Scheduled hours versus actual time-clock hours. Open details when needed."}</p></div>
+        <span className="flex items-center gap-3"><span className="grid grid-cols-2 gap-2 sm:grid-cols-4"><LaborMetric label={ar ? "مخطط" : "Scheduled"} value={scheduledWeekHours.toFixed(1) + "h"} /><LaborMetric label={ar ? "فعلي" : "Worked"} value={actualWeekHours.toFixed(1) + "h"} /><LaborMetric label={ar ? "فوق الخطة" : "Over plan"} value={String(overPlan.length)} warning={overPlan.length > 0} /><LaborMetric label={ar ? "دوام مفتوح" : "Open clocks"} value={String(incompleteClocks)} warning={incompleteClocks > 0} /></span><ChevronDown className={cn("size-5 shrink-0 text-muted-foreground transition-transform", laborOpen && "rotate-180")} /></span>
+      </button>
+      {laborOpen ? <div className="border-t border-border">
+        <div className="flex justify-end border-b border-border p-4"><Button variant="outline" disabled={!staffLabor.length} onClick={exportPayrollCsv}><Download className="size-4"/>{ar ? "تصدير CSV للرواتب" : "Export payroll CSV"}</Button></div>
+        {staffLabor.length ? <div className="overflow-x-auto"><table className="qs-table min-w-[760px]"><thead><tr><th>{ar ? "الموظف" : "Staff"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "مخطط" : "Scheduled"}</th><th>{ar ? "فعلي" : "Worked"}</th><th>{ar ? "الفرق" : "Variance"}</th><th>{ar ? "الحالة" : "Status"}</th></tr></thead><tbody>{[...staffLabor].sort((a,b)=>b.actualHours-a.actualHours).map(row=><tr key={row.id}><td><strong>{row.name}</strong></td><td>{ROLE_LABELS[row.role]?.[lang] ?? row.role}</td><td>{row.scheduledHours.toFixed(1)}h</td><td>{row.actualHours.toFixed(1)}h</td><td className={cn(row.variance>0.25?"text-amber-700":row.variance<-0.25?"text-blue-700":"text-muted-foreground")}>{row.variance>=0?"+":""}{row.variance.toFixed(1)}h</td><td><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold",row.scheduledHours>0&&row.actualHours>row.scheduledHours+0.25?"bg-amber-500/10 text-amber-700":"bg-emerald-500/10 text-emerald-700")}>{row.scheduledHours>0&&row.actualHours>row.scheduledHours+0.25?(ar?"فوق الخطة":"Over plan"):(ar?"ضمن الخطة":"On plan")}</span></td></tr>)}</tbody></table></div> : <p className="p-6 text-center text-xs text-muted-foreground">{ar ? "لا توجد ساعات مجدولة أو مسجلة لهذا الأسبوع بعد." : "No scheduled or worked hours recorded for this week yet."}</p>}
+      </div> : null}
+    </section> : null}
 
     <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
       <DialogContent className="w-[calc(100vw-1.5rem)] max-w-none gap-0 overflow-hidden p-0 sm:max-w-[560px]">
@@ -410,14 +410,13 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
         </DialogFooter>
       </DialogContent>
     </Dialog>
-    </div>
   </section>;
 }
 
 function formatLeaveTime(value: string | null | undefined) { return value ? value.slice(0, 5) : "—"; }
 
 function LaborMetric({label,value,warning=false}:{label:string;value:string;warning?:boolean}){
-  return <div className="bg-card p-4"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{label}</p><strong className={cn("mt-1 block font-display text-2xl",warning&&"text-amber-700")}>{value}</strong></div>;
+  return <span className="block min-w-20 rounded-xl bg-muted/45 p-3"><span className="block text-[9px] font-bold uppercase tracking-[.06em] text-muted-foreground">{label}</span><strong className={cn("mt-1 block font-display text-lg",warning&&"text-amber-700")}>{value}</strong></span>;
 }
 
 function startOfWeekMonday(date:Date){
