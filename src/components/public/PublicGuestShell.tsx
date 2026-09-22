@@ -23,11 +23,11 @@ export function PublicGuestShell({
   footer?: ReactNode;
 }) {
   return (
-    <main className="min-h-dvh bg-[#f7f5f1] px-3 py-4 text-[#142033] dark:bg-[#11151b] dark:text-[#f5f7f9] sm:px-6 sm:py-8">
+    <main className="min-h-dvh bg-background px-3 py-4 text-foreground sm:px-6 sm:py-8">
       <div className="mx-auto w-full max-w-2xl">
-        <section className="overflow-hidden rounded-[18px] border border-[#e8e3dc] bg-card shadow-[0_12px_40px_rgba(20,32,51,.07)]">
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-panel">
           <header className="relative overflow-hidden border-b border-border/80 px-5 py-6 sm:px-7 sm:py-7">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_0%,rgba(255,90,10,.08),transparent_34%),linear-gradient(to_bottom_right,rgba(255,255,255,.82),rgba(255,255,255,0))] dark:bg-[radial-gradient(circle_at_8%_0%,rgba(255,90,10,.12),transparent_34%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-muted/25" />
             <div className="relative flex items-start gap-4">
               {logoUrl ? (
                 <img src={logoUrl} alt="" className="size-14 shrink-0 rounded-2xl border border-border/80 bg-background object-contain p-1.5 shadow-sm sm:size-16" />
@@ -75,7 +75,7 @@ export function PublicInfoCard({
     slate: "bg-muted text-muted-foreground",
   }[tone];
   return (
-    <div className={cn("rounded-[14px] border border-[#e8e3dc] bg-background p-4 shadow-[0_1px_2px_rgba(15,23,42,.03)]", className)}>
+    <div className={cn("rounded-xl border border-border bg-background p-4 shadow-sm", className)}>
       <span className={cn("grid size-9 place-items-center rounded-xl", toneClass)}><Icon className="size-4" /></span>
       <p className="mt-3 text-[10px] font-semibold uppercase tracking-[.08em] text-muted-foreground">{label}</p>
       <strong className="mt-1 block text-sm leading-5">{value}</strong>
