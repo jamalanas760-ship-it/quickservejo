@@ -70,10 +70,8 @@ export function MasterKpi({
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-muted-foreground">{label}</p>
-        <div className="mt-0.5 flex min-w-0 items-baseline gap-2">
-          <p className="truncate font-display text-[clamp(1.25rem,1.55vw,1.6rem)] font-bold tracking-[-.025em]">{value}</p>
-          {hint ? <p className="min-w-0 truncate text-xs text-muted-foreground">{hint}</p> : null}
-        </div>
+        <p className="mt-1 break-words font-display text-[clamp(1.2rem,1.55vw,1.6rem)] font-bold leading-tight tracking-[-.025em]">{value}</p>
+        {hint ? <p className="mt-1 truncate text-xs text-muted-foreground">{hint}</p> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </article>

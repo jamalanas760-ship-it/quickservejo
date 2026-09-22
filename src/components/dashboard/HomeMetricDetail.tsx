@@ -9,8 +9,8 @@ import { humanError } from "@/lib/errors";
 import { formatDateTime, formatMoney, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 
-export type HomeMetricId = "sales" | "orders" | "tables" | "order-time";
-const HOME_METRICS: HomeMetricId[] = ["sales", "orders", "tables", "order-time"];
+export type HomeMetricId = "sales" | "orders" | "average-order" | "tables" | "order-time";
+const HOME_METRICS: HomeMetricId[] = ["sales", "orders", "average-order", "tables", "order-time"];
 export function isHomeMetricId(value: string | null): value is HomeMetricId { return Boolean(value && HOME_METRICS.includes(value as HomeMetricId)); }
 
 type OrderRow = { id: string; order_number: string; status: string; payment_status: string; total: number | string; table_id: string | null; created_at: string; updated_at: string };
@@ -75,16 +75,31 @@ export function HomeMetricDetail({ metric, restaurantId, restaurantName, currenc
   for (const event of detail.data.events) if ((event.to_status === "served" || event.to_status === "paid") && !completionByOrder.has(event.order_id)) completionByOrder.set(event.order_id, event);
   const durations = todayOrders.flatMap((order) => { const end = completionByOrder.get(order.id); if (!end) return []; const minutes = (new Date(end.created_at).getTime() - new Date(order.created_at).getTime()) / 60_000; return minutes >= 0 && minutes <= 720 ? [{ order, end, minutes }] : []; });
   const averageMinutes = durations.length ? durations.reduce((sum, row) => sum + row.minutes, 0) / durations.length : null;
-  const title = metric === "sales" ? (ar ? "مبيعات اليوم" : "Sales Today") : metric === "orders" ? (ar ? "طلبات اليوم" : "Total Orders") : metric === "tables" ? (ar ? "الطاولات النشطة" : "Open Tables") : (ar ? "متوسط وقت الطلب" : "Average Order Time");
-  const subtitle = metric === "tables" ? (ar ? "هذا المؤشر يعرض الطاولات المفعّلة في الإعدادات؛ لا يتم افتراض الإشغال بدون بيانات إشغال فعلية." : "This metric represents configured active tables; occupancy is not inferred without real occupancy data.") : metric === "order-time" ? (ar ? "يُحتسب الوقت فقط من الطلبات التي لديها حدث موثوق للوصول إلى Served أو Paid." : "Timing is calculated only for orders with a reliable Served or Paid status event.") : (ar ? `بيانات فعلية من ${restaurantName}.` : `Live operational data from ${restaurantName}.`);
+  const title = metric === "sales" ? (ar ? "مبيعات اليوم" : "Sales Today") : metric === "orders" ? (ar ? "طلبات اليوم" : "Total Orders") : metric === "average-order" ? (ar ? "متوسط الفاتورة" : "Average Ticket") : metric === "tables" ? (ar ? "الطاولات النشطة" : "Open Tables") : (ar ? "متوسط وقت الطلب" : "Average Order Time");
+  const subtitle = metric === "tables" ? (ar ? "هذا المؤشر يعرض الطاولات المفعّلة في الإعدادات؛ لا يتم افتراض الإشغال بدون بيانات إشغال فعلية." : "This metric represents configured active tables; occupancy is not inferred without real occupancy data.") : metric === "order-time" ? (ar ? "يُحتسب الوقت فقط من الطلبات التي لديها حدث موثوق للوصول إلى Served أو Paid." : "Timing is calculated only for orders with a reliable Served or Paid status event.") : metric === "average-order" ? (ar ? `متوسط قيمة الطلب الفعلي خلال آخر 7 أيام في ${restaurantName}.` : `Average order value from the last 7 days at ${restaurantName}.`) : (ar ? `بيانات فعلية من ${restaurantName}.` : `Live operational data from ${restaurantName}.`);
 
   return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page space-y-5">
     <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><a href="/dashboard" className="mb-3 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground transition hover:text-[#e85d2a]"><BackIcon className="size-4" />{ar ? "العودة للرئيسية" : "Back to Home"}</a><h1 className="qs-page-title">{title}</h1><p className="qs-page-subtitle max-w-3xl">{subtitle}</p></div><span className="inline-flex self-start items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold"><span className="size-2 rounded-full bg-emerald-500" />{ar ? "اليوم" : "Today"}</span></header>
     {metric === "sales" ? <SalesDetail ar={ar} lang={lang} currency={currency} sales={todaySales} orders={todayOrders} daily={daily} hourly={hourly} tableMap={tableMap} /> : null}
     {metric === "orders" ? <OrdersDetail ar={ar} lang={lang} currency={currency} orders={todayOrders} daily={daily} tableMap={tableMap} /> : null}
+    {metric === "average-order" ? <AverageOrderDetail ar={ar} lang={lang} currency={currency} orders={allOrders.filter((order) => order.status !== "cancelled")} todayOrders={todayOrders} daily={daily} tableMap={tableMap} /> : null}
     {metric === "tables" ? <TablesDetail ar={ar} tables={detail.data.tables} active={activeTables} /> : null}
     {metric === "order-time" ? <OrderTimeDetail ar={ar} lang={lang} durations={durations} average={averageMinutes} timingEventsAvailable={detail.data.timingEventsAvailable} /> : null}
   </main></div>;
+}
+
+function AverageOrderDetail({ ar, lang, currency, orders, todayOrders, daily, tableMap }: { ar:boolean;lang:"ar"|"en";currency:string;orders:OrderRow[];todayOrders:OrderRow[];daily:Array<{label:string;sales:number;orders:number}>;tableMap:Map<string,TableRow> }) {
+  const totalSales = orders.reduce((sum, order) => sum + Number(order.total ?? 0), 0);
+  const average = orders.length ? totalSales / orders.length : 0;
+  const todaySales = todayOrders.reduce((sum, order) => sum + Number(order.total ?? 0), 0);
+  const todayAverage = todayOrders.length ? todaySales / todayOrders.length : 0;
+  const chartRows = daily.map((row) => ({ ...row, average: row.orders ? row.sales / row.orders : 0 }));
+  const best = chartRows.reduce((highest, row) => row.average > highest.average ? row : highest, { label: "—", sales: 0, orders: 0, average: 0 });
+  return <>
+    <KpiGrid items={[{label:ar?"متوسط 7 أيام":"7-day average",value:formatMoney(average,currency,lang),icon:<TrendingUp/>},{label:ar?"متوسط اليوم":"Today’s average",value:formatMoney(todayAverage,currency,lang),icon:<Receipt/>},{label:ar?"الطلبات المحتسبة":"Included orders",value:formatNumber(orders.length,lang),icon:<ShoppingBag/>},{label:ar?"أفضل يوم":"Best day",value:best.orders?`${best.label} · ${formatMoney(best.average,currency,lang)}`:"—",icon:<CreditCard/>}]} />
+    <ChartCard title={ar?"متوسط قيمة الطلب خلال 7 أيام":"Average ticket over 7 days"}><ResponsiveContainer width="100%" height="100%"><LineChart data={chartRows}><CartesianGrid strokeDasharray="3 3" vertical={false} opacity={.18}/><XAxis dataKey="label" fontSize={10} tickLine={false} axisLine={false}/><YAxis fontSize={10} tickLine={false} axisLine={false}/><Tooltip formatter={(value)=>formatMoney(Number(value??0),currency,lang)}/><Line dataKey="average" stroke="#7656cf" strokeWidth={3} dot={{r:3}}/></LineChart></ResponsiveContainer></ChartCard>
+    <DetailCard title={ar?"الطلبات المحتسبة في المتوسط":"Orders included in the average"}><ModernTable headers={[ar?"الطلب":"Order",ar?"الحالة":"Status",ar?"القناة / الطاولة":"Channel / Table",ar?"القيمة":"Value",ar?"التاريخ":"Created"]} rows={orders.slice().reverse().map((row)=>[<strong>{row.order_number}</strong>,<Status value={row.status}/>,row.table_id?(tableMap.get(row.table_id)?.table_number?`${ar?"طاولة":"Table"} ${tableMap.get(row.table_id)?.table_number}`:(ar?"داخل المطعم":"Dine-in")):(ar?"خارجي":"Takeaway"),<strong>{formatMoney(Number(row.total??0),currency,lang)}</strong>,formatDateTime(row.created_at,lang)])} ar={ar}/></DetailCard>
+  </>;
 }
 
 function SalesDetail({ ar, lang, currency, sales, orders, daily, hourly, tableMap }: { ar: boolean; lang: "ar" | "en"; currency: string; sales: number; orders: OrderRow[]; daily: Array<{label:string;sales:number;orders:number}>; hourly: Array<{hour:string;sales:number;orders:number}>; tableMap: Map<string, TableRow> }) {

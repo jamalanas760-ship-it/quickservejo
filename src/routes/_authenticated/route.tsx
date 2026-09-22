@@ -67,7 +67,7 @@ function AuthenticatedShell() {
   return (
     <TenantBrandShell>
       <div className={cn("pb-24 lg:min-h-dvh lg:pb-0", !access.isSuperAdmin && "lg:ps-[var(--qs-shell-sidebar)]")}>
-        {blocked ? null : <div key={pathname} className="qs-route-frame"><Outlet /></div>}
+        {blocked ? null : <div className="qs-route-frame"><Outlet /></div>}
       </div>
       <DeviceHeartbeat />
       <OfflineOperationsBanner />

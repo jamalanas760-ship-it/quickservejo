@@ -1,18 +1,24 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { BadgeDollarSign, ChefHat, ChevronDown, Globe2, HandPlatter, Menu as MenuIcon, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useState } from "react";
+import { BadgeDollarSign, Check, ChefHat, ChevronDown, Globe2, HandPlatter, Languages, LogOut, Menu as MenuIcon, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
+import { toast } from "sonner";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { RestaurantSwitcher } from "@/components/manage/RestaurantSwitcher";
 import { NotificationBell } from "@/components/nav/NotificationBell";
 import { ThemeToggle } from "@/components/nav/ThemeToggle";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useOperationalCounters } from "@/hooks/useOperationalCounters";
 import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useWorkspaceScope } from "@/hooks/useWorkspace";
 import { avatarPresetUrl } from "@/lib/avatar-presets";
+import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
 import { ROLE_LABELS } from "@/lib/permissions";
 import { readAppearance } from "@/lib/restaurant-appearance";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 function RoleAvatarFallback({ role, superAdmin }: { role: string | null | undefined; superAdmin: boolean }) {
   const iconClass = "size-[18px]";
@@ -25,7 +31,10 @@ function RoleAvatarFallback({ role, superAdmin }: { role: string | null | undefi
 }
 
 export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; className?: string; title?: string | undefined }) {
-  const { lang, toggleLang } = useI18n();
+  const { lang, setLang } = useI18n();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [signingOut, setSigningOut] = useState(false);
   const scope = useWorkspaceScope();
   const access = useAccess();
   const pathname = useRouterState({ select: state => state.location.pathname });
@@ -49,6 +58,21 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
   const notificationCount = counters.data.unread;
   const homeTo = membership?.role === "manager" ? "/manager" : access.isSuperAdmin ? "/super-admin" : "/dashboard";
 
+  async function signOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await queryClient.cancelQueries();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      queryClient.clear();
+      await navigate({ to: "/auth", replace: true });
+    } catch (error) {
+      toast.error(humanError(error, lang));
+      setSigningOut(false);
+    }
+  }
+
   return (
     <header className={cn("qs-topbar safe-top sticky top-0 z-40", className)}>
       <div className="mx-auto flex h-[var(--qs-shell-topbar)] w-full max-w-[1640px] items-center gap-2 px-2.5 sm:px-4 lg:px-5">
@@ -66,17 +90,48 @@ export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; c
 
         <div className="ms-auto flex items-center gap-1 sm:gap-1.5">
           <ThemeToggle compact className="hidden lg:inline-flex" />
-          <button type="button" onClick={toggleLang} className="hidden min-h-10 items-center gap-1.5 rounded-[9px] border border-transparent px-2.5 text-muted-foreground transition hover:border-border hover:bg-muted/55 hover:text-foreground lg:inline-flex" aria-label={lang === "ar" ? "Switch to English" : "التبديل إلى العربية"}>
-            <Globe2 className="size-4" />
-            <span className="hidden text-xs font-semibold xl:inline">{lang === "ar" ? "العربية" : "English"}</span>
-            <ChevronDown className="hidden size-3.5 xl:block" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="hidden min-h-10 items-center gap-1.5 rounded-[9px] border border-transparent px-2.5 text-muted-foreground transition hover:border-border hover:bg-muted/55 hover:text-foreground lg:inline-flex" aria-label={lang === "ar" ? "اختيار اللغة" : "Choose language"}>
+                <Globe2 className="size-4" />
+                <span className="hidden text-xs font-semibold xl:inline">{lang === "ar" ? "العربية" : "English"}</span>
+                <ChevronDown className="hidden size-3.5 xl:block" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 p-2">
+              <DropdownMenuLabel className="flex items-center gap-2 text-xs text-muted-foreground"><Languages className="size-4" />{lang === "ar" ? "لغة الواجهة" : "Interface language"}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setLang("en")} className="min-h-11 cursor-pointer">
+                <span className="grid size-7 place-items-center rounded-lg bg-muted text-xs font-black">EN</span>
+                <span className="min-w-0 flex-1"><strong className="block text-sm">English</strong><span className="block text-[10px] text-muted-foreground">Left to right</span></span>
+                {lang === "en" ? <Check className="size-4 text-primary" /> : null}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setLang("ar")} className="min-h-11 cursor-pointer">
+                <span className="grid size-7 place-items-center rounded-lg bg-muted text-xs font-black">ع</span>
+                <span className="min-w-0 flex-1"><strong className="block text-sm">العربية</strong><span className="block text-[10px] text-muted-foreground">من اليمين إلى اليسار</span></span>
+                {lang === "ar" ? <Check className="size-4 text-primary" /> : null}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <NotificationBell restaurantId={restaurantId} count={notificationCount} ar={lang === "ar"} />
-          <Link to="/profile" aria-label={lang === "ar" ? "الملف الشخصي" : "Profile"} className="group flex min-h-8 items-center gap-1.5 rounded-[9px] border border-transparent px-1.5 transition hover:border-border hover:bg-muted/55 sm:px-2">
-            <span className="grid size-7.5 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border/90 shadow-sm group-hover:ring-primary/30">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : <RoleAvatarFallback role={membership?.role} superAdmin={access.isSuperAdmin} />}</span>
-            <span className="hidden min-w-0 text-start xl:block"><span className="block max-w-24 truncate text-[11px] font-bold">{displayName}</span><span className="block text-[9px] text-muted-foreground">{roleLabel}</span></span>
-            <ChevronDown className="hidden size-3.5 text-muted-foreground xl:block" />
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" aria-label={lang === "ar" ? "قائمة الحساب" : "Account menu"} className="group flex min-h-8 items-center gap-1.5 rounded-[9px] border border-transparent px-1.5 transition hover:border-border hover:bg-muted/55 sm:px-2">
+                <span className="grid size-7.5 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border/90 shadow-sm group-hover:ring-primary/30">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : <RoleAvatarFallback role={membership?.role} superAdmin={access.isSuperAdmin} />}</span>
+                <span className="hidden min-w-0 text-start xl:block"><span className="block max-w-24 truncate text-[11px] font-bold">{displayName}</span><span className="block text-[9px] text-muted-foreground">{roleLabel}</span></span>
+                <ChevronDown className="hidden size-3.5 text-muted-foreground xl:block" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 p-2">
+              <DropdownMenuLabel className="flex items-center gap-3 py-2">
+                <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : <RoleAvatarFallback role={membership?.role} superAdmin={access.isSuperAdmin} />}</span>
+                <span className="min-w-0"><strong className="block truncate text-sm text-foreground">{displayName}</strong><span className="block truncate text-[11px] font-medium text-muted-foreground">{roleLabel}</span></span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild className="min-h-11 cursor-pointer"><Link to="/profile"><UserRound className="size-4" /><span className="flex-1">{lang === "ar" ? "الملف الشخصي" : "View profile"}</span></Link></DropdownMenuItem>
+              <DropdownMenuItem disabled={signingOut} onSelect={() => void signOut()} className="min-h-11 cursor-pointer text-destructive focus:text-destructive"><LogOut className="size-4" />{signingOut ? (lang === "ar" ? "جارٍ تسجيل الخروج…" : "Signing out…") : (lang === "ar" ? "تسجيل الخروج" : "Sign out")}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

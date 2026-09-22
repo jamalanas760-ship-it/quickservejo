@@ -18,10 +18,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { SplashScreen } from "@/components/app/SplashScreen";
 import { NotificationPrompt } from "@/components/app/NotificationPrompt";
 import { AppRuntimeMonitor } from "@/components/app/AppRuntimeMonitor";
+import { RouteProgress } from "@/components/app/RouteProgress";
 import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-bridge";
 
 const RUNTIME_RECOVERY_PREFIX = "quickserve:runtime-recovery:";
 const RUNTIME_RECOVERY_WINDOW_MS = 60_000;
+const THEME_BOOTSTRAP = `(function(){try{var s=localStorage.getItem('quickserve-theme');var d=s==='dark'||(s!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light'}catch(e){}})();`;
 
 function runtimeErrorMessage(error: unknown) {
   if (error instanceof Response) return `Response ${error.status}`;
@@ -134,7 +136,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  return <html lang="en"><head><HeadContent /></head><body>{children}<Scripts /></body></html>;
+  return <html lang="en" suppressHydrationWarning><head><HeadContent /><script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} /></head><body>{children}<Scripts /></body></html>;
 }
 
 function MenuThemeBridgeSync() {
@@ -224,6 +226,7 @@ function RootComponent() {
         <a href="#main-content" className="sr-only fixed start-3 top-3 z-[200] rounded-lg bg-background px-3 py-2 text-sm font-bold text-foreground shadow-lg focus:not-sr-only">Skip to main content</a>
         <MenuThemeBridgeSync />
         <AppRuntimeMonitor />
+        <RouteProgress />
         <div id="main-content" tabIndex={-1}>
           <Outlet />
         </div>

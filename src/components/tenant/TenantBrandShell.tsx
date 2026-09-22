@@ -6,7 +6,7 @@ import { readAppearance } from "@/lib/restaurant-appearance";
 
 type TenantStyle = CSSProperties & Record<`--${string}`, string>;
 
-/** Restaurant-scoped brand shell. Product chrome stays light while restaurant accents remain tenant-owned. */
+/** Restaurant-scoped brand shell. Tenant accents are preserved in both light and dark mode. */
 export function TenantBrandShell({ children }: { children: ReactNode }) {
   const access = useAccess();
   const pathname = useRouterState({ select: state => state.location.pathname });
@@ -24,23 +24,18 @@ export function TenantBrandShell({ children }: { children: ReactNode }) {
     "--restaurant-light-bg": appearance.lightBackground || restaurant.background_color || "#fafbfc",
     "--restaurant-light-topbar-bg": appearance.topNavBackground || "#ffffff",
     "--restaurant-light-topbar-text": appearance.topNavText || "#171a18",
-    "--restaurant-light-sidebar-bg": "#ffffff",
-    "--restaurant-light-sidebar-text": "#667085",
+    "--restaurant-light-sidebar-bg": appearance.sidebarBackground,
+    "--restaurant-light-sidebar-text": appearance.sidebarText,
     "--restaurant-light-selected-nav": appearance.selectedNavColor || restaurant.primary_color || "#e85d2a",
     "--restaurant-dark-primary": appearance.darkPrimaryColor,
     "--restaurant-dark-accent": appearance.darkAccentColor,
-    "--restaurant-dark-bg": appearance.lightBackground || restaurant.background_color || "#fafbfc",
-    "--restaurant-dark-topbar-bg": appearance.topNavBackground || "#ffffff",
-    "--restaurant-dark-topbar-text": appearance.topNavText || "#171a18",
-    "--restaurant-dark-sidebar-bg": "#ffffff",
-    "--restaurant-dark-sidebar-text": "#667085",
+    "--restaurant-dark-bg": appearance.darkBackground,
+    "--restaurant-dark-topbar-bg": appearance.darkTopNavBackground,
+    "--restaurant-dark-topbar-text": appearance.darkTopNavText,
+    "--restaurant-dark-sidebar-bg": appearance.darkSidebarBackground,
+    "--restaurant-dark-sidebar-text": appearance.darkSidebarText,
     "--restaurant-dark-selected-nav": appearance.darkSelectedNavColor,
   };
 
-  return (
-    <>
-      <style>{`.tenant-theme-scope{--background:var(--restaurant-light-bg)!important;--primary:var(--restaurant-light-primary)!important;--accent:var(--restaurant-light-accent)!important;--restaurant-topbar-bg:var(--restaurant-light-topbar-bg);--restaurant-topbar-text:var(--restaurant-light-topbar-text);--restaurant-sidebar-bg:#fff;--restaurant-sidebar-text:#667085;--restaurant-selected-nav:var(--restaurant-light-selected-nav);background:var(--restaurant-light-bg);transition:background-color .18s ease}.dark .tenant-theme-scope{--background:var(--restaurant-light-bg)!important;--primary:var(--restaurant-light-primary)!important;--accent:var(--restaurant-light-accent)!important;--restaurant-topbar-bg:var(--restaurant-light-topbar-bg);--restaurant-topbar-text:var(--restaurant-light-topbar-text);--restaurant-sidebar-bg:#fff;--restaurant-sidebar-text:#667085;--restaurant-selected-nav:var(--restaurant-light-selected-nav);background:var(--restaurant-light-bg)!important}.tenant-theme-scope .bg-background{background-color:var(--background)!important}.tenant-theme-scope .qs-topbar{background:color-mix(in srgb,var(--restaurant-topbar-bg) 94%,transparent)!important;color:var(--restaurant-topbar-text)!important;border-color:var(--border)!important}.tenant-theme-scope .qs-sidebar-shell{background:#fff!important;color:#667085!important;border-color:var(--border)!important}.tenant-theme-scope .qs-sidebar-shell .qs-sidebar-item{color:#667085!important}.tenant-theme-scope .qs-sidebar-shell .qs-sidebar-item[data-active=true]{color:var(--restaurant-selected-nav)!important;background:color-mix(in oklab,var(--restaurant-selected-nav) 10%,white)!important}`}</style>
-      <div className="qs-app tenant-app tenant-theme-scope" style={style} data-tenant={restaurant.id}>{children}</div>
-    </>
-  );
+  return <div className="qs-app tenant-app tenant-theme-scope" style={style} data-tenant={restaurant.id}>{children}</div>;
 }

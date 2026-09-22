@@ -18,8 +18,9 @@ import {
   Megaphone,
   MonitorSmartphone,
   MoreHorizontal,
-  PanelLeftOpen,
+  LayoutGrid,
   PlugZap,
+  Search,
   Settings,
   Store,
   Table2,
@@ -32,8 +33,9 @@ import {
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { ThemeToggle } from "@/components/nav/ThemeToggle";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useOperationalCounters } from "@/hooks/useOperationalCounters";
 import { useAccess } from "@/hooks/useSession";
 import { useI18n } from "@/lib/i18n";
@@ -54,6 +56,7 @@ const FRONTLINE_ITEMS: Record<string, Item> = {
 export function BottomNav() {
   const { lang, toggleLang } = useI18n();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [toolSearch, setToolSearch] = useState("");
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const access = useAccess();
   const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
@@ -154,6 +157,16 @@ export function BottomNav() {
     return pathname === item.to || pathname.startsWith(`${item.to}/`);
   }
 
+  function changeMoreOpen(open: boolean) {
+    setMoreOpen(open);
+    if (!open) setToolSearch("");
+  }
+
+  const normalizedToolSearch = toolSearch.trim().toLocaleLowerCase(lang === "ar" ? "ar" : "en");
+  const visibleTools = normalizedToolSearch
+    ? desktopItems.filter((item) => `${item.en} ${item.ar}`.toLocaleLowerCase(lang === "ar" ? "ar" : "en").includes(normalizedToolSearch))
+    : desktopItems;
+
   const brand = useRestaurantLogo ? (
     <span className="flex min-w-0 items-center gap-2">
       <span className="flex h-10 max-w-[112px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-white px-2 shadow-sm"><img src={restaurant!.logo_url!} alt={restaurant?.name ?? "Restaurant"} className="h-7 w-auto max-w-full object-contain" /></span>
@@ -173,7 +186,7 @@ export function BottomNav() {
         onClick={() => setMoreOpen(true)}
         aria-label={lang === "ar" ? "فتح مساحة العمل" : "Open workspace navigation"}
       >
-        <PanelLeftOpen className="size-5" />
+        <LayoutGrid className="size-5" />
       </Button>
       <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden flex-col lg:flex">
         <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-4">
@@ -203,7 +216,7 @@ export function BottomNav() {
           {desktopHasMore ? (
             <button type="button" className="qs-sidebar-item w-full" onClick={() => setMoreOpen(true)} aria-expanded={moreOpen}>
               <MoreHorizontal className="size-[18px] shrink-0" />
-              <span className="min-w-0 flex-1 text-start">{lang === "ar" ? "المزيد" : "More"}</span>
+              <span className="min-w-0 flex-1 text-start">{lang === "ar" ? "كل الأدوات" : "All tools"}</span>
               <span className="text-xs text-muted-foreground">{desktopItems.length - desktopPrimary.length}</span>
             </button>
           ) : null}
@@ -237,42 +250,54 @@ export function BottomNav() {
         </div>
       </nav>
 
-      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side="bottom" className="max-h-[82dvh] overflow-y-auto rounded-t-[20px] border-x-0 border-b-0 p-0 md:inset-y-0 md:start-0 md:end-auto md:h-dvh md:max-h-dvh md:w-[360px] md:max-w-[88vw] md:rounded-none md:border-e md:border-t-0">
-          <SheetHeader className="sticky top-0 z-10 border-b border-border bg-card/95 px-5 py-4 text-start backdrop-blur-xl">
-            <SheetTitle>{lang === "ar" ? "مساحة QuickServe" : "QuickServe workspace"}</SheetTitle>
-            <SheetDescription>{lang === "ar" ? "كل الأدوات التي يسمح بها دورك، مرتبة حسب العمل." : "All tools available to your role, organized by workflow."}</SheetDescription>
-          </SheetHeader>
-          <div className="space-y-5 p-4 pb-[calc(24px+env(safe-area-inset-bottom))]">
+      <Dialog open={moreOpen} onOpenChange={changeMoreOpen}>
+        <DialogContent className="max-h-[min(90dvh,780px)] max-w-[920px] gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b border-border bg-card px-5 py-5 pe-14 text-start sm:px-6">
+            <div className="flex items-start gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><LayoutGrid className="size-5" /></span>
+              <div className="min-w-0">
+                <DialogTitle>{lang === "ar" ? "كل أدوات مساحة العمل" : "All workspace tools"}</DialogTitle>
+                <DialogDescription>{lang === "ar" ? "انتقل بسرعة إلى أي أداة متاحة لدورك." : "Find and open any tool available to your role."}</DialogDescription>
+              </div>
+            </div>
+            <div className="qs-search-field mt-4">
+              <Search />
+              <Input autoFocus value={toolSearch} onChange={(event) => setToolSearch(event.target.value)} placeholder={lang === "ar" ? "ابحث عن الطلبات، الفريق، التحليلات…" : "Search orders, team, analytics…"} aria-label={lang === "ar" ? "البحث في الأدوات" : "Search tools"} />
+            </div>
+          </DialogHeader>
+          <div className="qs-scroll max-h-[calc(90dvh-190px)] overflow-y-auto overscroll-contain p-4 pb-[calc(20px+env(safe-area-inset-bottom))] sm:p-6">
+            <div className="space-y-6">
             {(["overview","service","operations","growth","admin"] as NavGroup[]).map(group => {
-              const items = desktopItems.filter(item => item.group === group || (!item.group && group === "overview"));
+              const items = visibleTools.filter(item => item.group === group || (!item.group && group === "overview"));
               if (items.length === 0) return null;
               return <section key={group}>
-                <p className="mb-2 px-1 text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{groupLabel(group)}</p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <p className="mb-2.5 px-1 text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{groupLabel(group)}</p>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {items.map(item => {
                     const Icon = item.icon;
                     const active = activeFor(item);
                     const count = countFor(item);
-                    return <Link key={`${item.to}-more`} to={item.to as never} onClick={() => setMoreOpen(false)} className={cn("flex min-h-14 items-center gap-3 rounded-[14px] border px-3.5 py-3 text-sm font-bold transition", active ? "border-primary/25 bg-primary/8 text-foreground" : "border-border bg-card text-foreground hover:bg-muted/50")}>
-                      <span className={cn("grid size-9 shrink-0 place-items-center rounded-[11px]", active ? "bg-primary/12 text-primary" : "bg-muted text-muted-foreground")}><Icon className="size-[17px]" /></span>
-                      <span className="min-w-0 flex-1 truncate text-start">{lang === "ar" ? item.ar : item.en}</span>
+                    return <Link key={`${item.to}-more`} to={item.to as never} onClick={() => changeMoreOpen(false)} className={cn("group flex min-h-[58px] items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-bold transition", active ? "border-primary/30 bg-primary/8 text-foreground" : "border-border/80 bg-card text-foreground hover:border-primary/20 hover:bg-muted/45")}>
+                      <span className={cn("grid size-9 shrink-0 place-items-center rounded-[10px] transition", active ? "bg-primary/12 text-primary" : "bg-muted text-muted-foreground group-hover:text-foreground")}><Icon className="size-[17px]" /></span>
+                      <span className="min-w-0 flex-1 text-start leading-5">{lang === "ar" ? item.ar : item.en}</span>
                       {count > 0 ? <span className="min-w-6 rounded-full bg-red-500 px-1.5 py-1 text-center text-[9px] font-black text-white">{count > 99 ? "99+" : count}</span> : null}
                     </Link>;
                   })}
                 </div>
               </section>;
             })}
-            <section className="border-t border-border pt-4 lg:hidden">
-              <p className="mb-2 px-1 text-xs font-bold text-muted-foreground">{lang === "ar" ? "التفضيلات" : "Preferences"}</p>
+            {visibleTools.length === 0 ? <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center"><div><Search className="mx-auto size-6 text-muted-foreground"/><p className="mt-3 text-sm font-bold">{lang === "ar" ? "لم نعثر على أداة مطابقة" : "No matching tool"}</p><button type="button" onClick={() => setToolSearch("")} className="mt-2 text-xs font-bold text-primary">{lang === "ar" ? "مسح البحث" : "Clear search"}</button></div></div> : null}
+            <section className="border-t border-border pt-5 lg:hidden">
+              <p className="mb-3 px-1 text-xs font-bold text-muted-foreground">{lang === "ar" ? "التفضيلات" : "Preferences"}</p>
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={toggleLang} className="qs-button-secondary"><Globe2 className="size-4" />{lang === "ar" ? "English" : "العربية"}</button>
                 <ThemeToggle />
               </div>
             </section>
+            </div>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

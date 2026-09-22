@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronRight,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { MasterPageHeader } from "@/components/app/MasterPage";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePlatformOrders, useOrderItems, useRestaurant } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
@@ -35,10 +36,29 @@ const statusClass: Record<string, string> = {
   paid: "bg-slate-500/12 text-slate-600 dark:text-slate-300",
   cancelled: "bg-rose-500/12 text-rose-600 dark:text-rose-400",
 };
+const DESKTOP_ORDER_MEDIA = "(min-width: 1280px)";
 
-function elapsed(createdAt: string) {
-  const minutes = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60_000));
-  return `${minutes} min`;
+function elapsed(createdAt: string, ar: boolean) {
+  const timestamp = new Date(createdAt).getTime();
+  if (!Number.isFinite(timestamp)) return "—";
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
+  if (minutes < 60) return ar ? `${minutes} د` : `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return ar ? `${hours} س ${minutes % 60} د` : `${hours}h ${minutes % 60}m`;
+  const days = Math.floor(hours / 24);
+  return ar ? `${days} ي ${hours % 24} س` : `${days}d ${hours % 24}h`;
+}
+
+function subscribeDesktopOrderLayout(notify: () => void) {
+  const media = window.matchMedia(DESKTOP_ORDER_MEDIA);
+  media.addEventListener("change", notify);
+  return () => media.removeEventListener("change", notify);
+}
+function getDesktopOrderLayout() {
+  return window.matchMedia(DESKTOP_ORDER_MEDIA).matches;
+}
+function useDesktopOrderLayout() {
+  return useSyncExternalStore(subscribeDesktopOrderLayout, getDesktopOrderLayout, () => false);
 }
 
 export function OrdersManager({ restaurantId }: { restaurantId: string }) {
@@ -47,6 +67,7 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const desktopOrderLayout = useDesktopOrderLayout();
   const qc = useQueryClient();
   const { data: restaurant } = useRestaurant(restaurantId);
   const orders = usePlatformOrders({ restaurantId });
@@ -81,7 +102,7 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
     (orders.data ?? []).filter((order) => item.id === "all" || (order.status === "accepted" ? "new" : order.status) === item.id).length,
   ])), [orders.data]);
 
-  const selected = rows.find((order) => order.id === selectedId) ?? rows[0] ?? null;
+  const selected = rows.find((order) => order.id === selectedId) ?? (desktopOrderLayout ? rows[0] : null) ?? null;
 
   return (
     <div className="qs-viewport-fill flex h-full min-h-0 flex-col gap-4">
@@ -123,24 +144,34 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
                     <td><strong className="block text-xs">{order.table?.table_number ? (ar ? "داخل المطعم" : "Dine In") : (ar ? "خارجي" : "Takeaway")}</strong><span className="text-[10px] text-muted-foreground">{order.table?.table_number ? `${ar ? "طاولة" : "Table"} ${order.table.table_number}` : "—"}</span></td>
                     <td className="text-muted-foreground">—</td>
                     <td><span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted text-muted-foreground")}>{order.status}</span></td>
-                    <td className="text-muted-foreground">{elapsed(order.created_at)}</td>
+                    <td className="text-muted-foreground">{elapsed(order.created_at, ar)}</td>
                     <td><ChevronRight className="size-4 text-muted-foreground" /></td>
                   </tr>
                 ); })}</tbody>
               </table>
             </div>
 
-            <div className="divide-y divide-border md:hidden">
+            <div className="grid gap-2 bg-muted/20 p-2 md:hidden">
               {rows.map((order) => { const active = selected?.id === order.id; return (
-                <button key={order.id} type="button" onClick={() => selectOrder(order.id)} className={cn("grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 p-4 text-start", active && "bg-orange-500/[.055]")}>
-                  <span className="min-w-0"><span className="flex items-center gap-2"><strong className="truncate">{order.order_number}</strong><span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted")}>{order.status}</span></span><span className="mt-1 block truncate text-xs text-muted-foreground">{order.table?.table_number ? `${ar ? "طاولة" : "Table"} ${order.table.table_number}` : (ar ? "طلب خارجي" : "Takeaway")} · {elapsed(order.created_at)}</span></span><ChevronRight className="mt-2 size-4 text-muted-foreground" />
+                <button key={order.id} type="button" onClick={() => selectOrder(order.id)} className={cn("grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border bg-card p-3.5 text-start shadow-sm transition hover:border-primary/25", active && "border-primary/30 bg-orange-500/[.055]")}>
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2"><strong className="truncate text-sm">{order.order_number}</strong><span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted")}>{order.status}</span></span>
+                    <span className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"><span>{order.table?.table_number ? `${ar ? "طاولة" : "Table"} ${order.table.table_number}` : (ar ? "طلب خارجي" : "Takeaway")}</span><span aria-hidden="true">•</span><span>{new Date(order.created_at).toLocaleTimeString(ar ? "ar-JO" : "en-US", { hour: "2-digit", minute: "2-digit" })}</span><span aria-hidden="true">•</span><strong className="font-semibold text-foreground">{elapsed(order.created_at, ar)}</strong></span>
+                  </span><ChevronRight className="size-4 text-muted-foreground" />
                 </button>
               ); })}
             </div>
           </section>
-          {selected ? <OrderDetail order={selected} currency={currency} /> : null}
+          {desktopOrderLayout && selected ? <OrderDetail order={selected} currency={currency} /> : null}
         </div>
       )}
+
+      <Dialog open={!desktopOrderLayout && Boolean(selectedId)} onOpenChange={(open) => { if (!open) setSelectedId(null); }}>
+        <DialogContent className="max-h-[calc(100dvh-16px)] max-w-2xl gap-0 overflow-hidden p-0">
+          <DialogHeader className="sr-only"><DialogTitle>{ar ? "تفاصيل الطلب" : "Order details"}</DialogTitle><DialogDescription>{ar ? "تفاصيل الطلب المحدد" : "Details for the selected order"}</DialogDescription></DialogHeader>
+          {selected ? <OrderDetail order={selected} currency={currency} /> : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -154,23 +185,21 @@ function OrderDetail({ order, currency }: { order: any; currency: string }) {
   const tax = Math.max(0, total - subtotal);
 
   return (
-    <aside className="qs-right-panel flex min-h-0 flex-col overflow-hidden">
-      <div className="qs-panel-header flex shrink-0 items-start justify-between gap-3">
+    <aside className="qs-right-panel flex max-h-[calc(100dvh-24px)] min-h-0 flex-col overflow-hidden xl:max-h-none">
+      <div className="qs-panel-header flex shrink-0 items-start justify-between gap-4 p-4 pe-12 xl:pe-4">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="truncate font-display text-base font-bold">{order.order_number}</h2>
-            <span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted")}>{order.status}</span>
-          </div>
-          <p className="mt-0.5 text-[10px] text-muted-foreground">{formatDateTime(order.created_at, lang)}</p>
+          <p className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{ar ? "تفاصيل الطلب" : "Order details"}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2"><h2 className="break-all font-display text-lg font-bold">{order.order_number}</h2><span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted")}>{order.status}</span></div>
+          <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(order.created_at, lang)}</p>
         </div>
-        <span className="shrink-0 text-end">
-          <strong className="block text-xs">{elapsed(order.created_at)}</strong>
-          <span className="text-[9px] text-muted-foreground">{ar ? "المدة" : "Elapsed"}</span>
+        <span className="shrink-0 rounded-xl bg-muted px-3 py-2 text-end">
+          <strong className="block whitespace-nowrap text-sm">{elapsed(order.created_at, ar)}</strong>
+          <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{ar ? "المدة" : "Elapsed"}</span>
         </span>
       </div>
 
-      <div className="qs-scroll-region min-h-0 flex-1 space-y-3 p-3">
-        <section className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+      <div className="qs-scroll-region min-h-0 flex-1 space-y-3 p-3 sm:p-4">
+        <section className="grid grid-cols-3 divide-x divide-border overflow-hidden rounded-xl border border-border bg-card rtl:divide-x-reverse">
           <Meta icon={<UtensilsCrossed className="size-3.5" />} label={ar ? "الخدمة" : "Service"} value={order.table?.table_number ? ((ar ? "طاولة " : "Table ") + order.table.table_number) : (ar ? "طلب خارجي" : "Takeaway")} />
           <Meta icon={<UserRound className="size-3.5" />} label={ar ? "العميل" : "Customer"} value={ar ? "ضيف" : "Walk-in Guest"} />
           <Meta icon={<FileText className="size-3.5" />} label={ar ? "العناصر" : "Items"} value={String(items.data?.length ?? 0) + " " + (ar ? "عنصر" : "items")} />
@@ -200,5 +229,5 @@ function OrderDetail({ order, currency }: { order: any; currency: string }) {
 }
 
 function Meta({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return <div className="flex min-w-0 items-center gap-2 rounded-[10px] border border-border/70 bg-muted/20 p-2"><span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-card text-muted-foreground">{icon}</span><div className="min-w-0"><p className="truncate text-[9px] font-bold uppercase tracking-[.04em] text-muted-foreground">{label}</p><p className="truncate text-xs font-semibold text-foreground">{value}</p></div></div>;
+  return <div className="min-w-0 p-3 text-center"><span className="mx-auto grid size-7 place-items-center rounded-lg bg-muted text-muted-foreground">{icon}</span><p className="mt-2 truncate text-[9px] font-bold uppercase tracking-[.04em] text-muted-foreground">{label}</p><p className="mt-0.5 truncate text-xs font-semibold text-foreground" title={value}>{value}</p></div>;
 }
