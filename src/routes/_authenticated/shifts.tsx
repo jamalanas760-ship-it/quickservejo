@@ -157,6 +157,7 @@ function ShiftsPage() {
 
 type TimeEntry = { id: string; staff_id: string; clock_in: string; clock_out: string | null; break_minutes: number };
 type LeaveRequest = { id: string; staff_id: string; start_date: string; end_date: string; start_time?: string | null; end_time?: string | null; reason: string; status: "pending" | "approved" | "rejected" | "cancelled"; created_at: string };
+type ClockResult = { action?: string; entry_id?: string; at?: string } | null;
 
 function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shifts, assignments, ar, lang }: { restaurantId: string; currentStaffId: string; canManage: boolean; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; shifts: Shift[]; assignments: ShiftAssignment[]; ar: boolean; lang: "en" | "ar" }) {
   const qc = useQueryClient();
@@ -196,11 +197,32 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
     mutationFn: async () => {
       const { data, error } = await (supabase as any).rpc("toggle_time_clock", { _restaurant_id: restaurantId });
       if (error) throw error;
-      return Array.isArray(data) ? data[0] : data;
+      return (Array.isArray(data) ? data[0] : data) as ClockResult;
     },
     onSuccess: async (result) => {
+      // The RPC is authoritative, but the list query can take a moment to reflect
+      // the write. Apply its returned event to the active cache first so the
+      // control changes from Clock in to Clock out (and back) immediately.
+      const action = result?.action?.toLowerCase();
+      const at = result?.at ?? new Date().toISOString();
+      const entryId = result?.entry_id;
+      qc.setQueryData<{ time: TimeEntry[]; leave: LeaveRequest[] }>(["workforce", restaurantId], (current) => {
+        if (!current || !action) return current;
+        if (action === "clocked_in") {
+          if (!entryId || current.time.some((entry) => entry.id === entryId)) return current;
+          return { ...current, time: [{ id: entryId, staff_id: currentStaffId, clock_in: at, clock_out: null, break_minutes: 0 }, ...current.time] };
+        }
+        if (action === "clocked_out") {
+          const target = entryId
+            ? current.time.find((entry) => entry.id === entryId)
+            : current.time.find((entry) => entry.staff_id === currentStaffId && !entry.clock_out);
+          if (!target || target.clock_out) return current;
+          return { ...current, time: current.time.map((entry) => entry.id === target.id ? { ...entry, clock_out: at } : entry) };
+        }
+        return current;
+      });
       await qc.invalidateQueries({ queryKey: ["workforce", restaurantId] });
-      const clockedOut = result?.action === "clocked_out";
+      const clockedOut = result?.action === "clocked_out" || action === "clocked_out";
       toast.success(clockedOut ? (ar ? "تم تسجيل الانصراف" : "Clocked out") : (ar ? "تم تسجيل الحضور" : "Clocked in"));
     },
     onError: (error) => toast.error(humanError(error, lang)),
