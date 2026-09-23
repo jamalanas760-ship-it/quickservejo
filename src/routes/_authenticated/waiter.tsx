@@ -375,7 +375,7 @@ function FloorTableCard({
     onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }}
     className={cn(
       "group flex min-h-[220px] cursor-pointer flex-col rounded-2xl border bg-card p-4 text-start outline-none transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-[#e85d2a]",
-      calling ? "border-orange-400 ring-2 ring-orange-500/20" : "border-border",
+      calling ? "border-orange-400 ring-2 ring-orange-500/20" : isCleaning ? "border-purple-300 ring-2 ring-purple-500/15" : "border-border",
     )}
   >
     <div className="flex items-start justify-between gap-3">
