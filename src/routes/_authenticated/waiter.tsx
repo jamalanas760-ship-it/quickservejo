@@ -348,6 +348,7 @@ function FloorTableCard({
   ar,
   currency,
   lang,
+  nowMs,
   setCall,
   setTableFree,
   onOpen,
@@ -356,6 +357,7 @@ function FloorTableCard({
   ar: boolean;
   currency: string;
   lang: "en" | "ar";
+  nowMs: number | null;
   setCall: { isPending: boolean; mutate: (variables: { id: string; status: "acknowledged" | "resolved" }) => void };
   setTableFree: { isPending: boolean; mutate: (tableId: string) => void };
   onOpen: () => void;
@@ -363,6 +365,8 @@ function FloorTableCard({
   const calling = Boolean(table.calling);
   const busy = table.openOrders.length > 0;
   const canClose = table.service_status === "active" && !busy;
+  const isCleaning = table.service_status === "cleaning";
+  const cleaningRemaining = cleaningRemainingMs(table, nowMs);
 
   return <article
     role="button"
