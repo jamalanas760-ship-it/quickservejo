@@ -240,6 +240,7 @@ function WaiterFloor() {
     { id: "active", en: "Active", ar: "نشطة", count: active },
     { id: "free", en: "Free", ar: "متاحة", count: free },
     { id: "reserved", en: "Reserved", ar: "محجوزة" },
+    { id: "cleaning", en: "Cleaning", ar: "تنظيف", count: cleaning },
   ];
 
   return (
@@ -257,6 +258,7 @@ function WaiterFloor() {
           <MasterKpi icon={Table2} label={ar ? "متاحة" : "Free"} value={free} tone="green" />
           <MasterKpi icon={UsersRound} label={ar ? "نشطة" : "Active"} value={active} tone="blue" />
           <MasterKpi icon={BellRing} label={ar ? "تطلب خدمة" : "Calling"} value={pending} tone={pending > 0 ? "red" : "slate"} />
+          <MasterKpi icon={Sparkles} label={ar ? "تنظيف" : "Cleaning"} value={cleaning} tone="purple" />
           <MasterKpi icon={ReceiptText} label={ar ? "طلبات مفتوحة" : "Open orders"} value={openOrders} tone="orange" />
         </section>
 
@@ -305,6 +307,7 @@ function WaiterFloor() {
                   ar={ar}
                   currency={scope.currency}
                   lang={lang}
+                  nowMs={nowMs}
                   setCall={setCall}
                   setTableFree={setTableFree}
                   onOpen={() => setSelectedId(table.id)}
