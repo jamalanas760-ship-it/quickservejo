@@ -23,7 +23,7 @@ import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
-import { DetailRow, DetailSheet, formatStamp } from "@/components/operations/DetailSheet";
+import { DetailSheet, formatStamp } from "@/components/operations/DetailSheet";
 import { ShiftHandoverPanel } from "@/components/operations/ShiftHandoverPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -205,15 +205,30 @@ export function WorkPage() {
   const updateTask = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: WorkStatus }) => {
       const payload: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
-      if (status === "completed") payload.completed_at = new Date().toISOString();
-      const { error } = await (supabase as any).from("work_tasks").update(payload).eq("id", id);
+      payload.completed_at = status === "completed" ? new Date().toISOString() : null;
+      const { error } = await (supabase as any).from("work_tasks").update(payload).eq("id", id).eq("restaurant_id", rid!);
       if (error) throw error;
     },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["work", rid] });
+    onMutate: async ({ id, status }) => {
+      await qc.cancelQueries({ queryKey: ["work", rid] });
+      const previous = qc.getQueryData<WorkTask[]>(["work", rid]);
+      const now = new Date().toISOString();
+      qc.setQueryData<WorkTask[]>(["work", rid], (current = []) => current.map((task) => task.id === id ? {
+        ...task,
+        status,
+        updated_at: now,
+        completed_at: status === "completed" ? now : null,
+      } : task));
+      return { previous };
+    },
+    onSuccess: () => {
       toast.success(ar ? "تم تحديث المهمة" : "Task updated");
     },
-    onError: (error) => toast.error(humanError(error, lang)),
+    onError: (error, _variables, context) => {
+      if (context?.previous) qc.setQueryData(["work", rid], context.previous);
+      toast.error(humanError(error, lang));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["work", rid] }),
   });
 
   const assignTask = useMutation({
@@ -352,32 +367,54 @@ export function WorkPage() {
       open={Boolean(selected)}
       onOpenChange={(open) => { if (!open) setSelectedId(null); }}
       title={selected?.title ?? ""}
-      description={selected ? `${ar ? "نوع" : "Type"}: ${selected.category} · ${selected.status.replaceAll("_", " ")}` : undefined}
+      description={selected ? (ar ? "كل تفاصيل عنصر العمل وإجراءاته في مكان واحد" : "Everything about this work item, organized in one place") : undefined}
+      panelClassName="sm:max-w-[640px]"
+      bodyClassName="bg-muted/15 px-4 py-4 sm:px-5"
       footer={selected ? <div className="grid w-full gap-2 sm:grid-cols-2">{selected.created_by_staff_id === membership.id ? <Button variant="outline" className="gap-2" onClick={() => setEditingTask(selected)}><Pencil className="size-4" />{ar ? "تعديل المهمة" : "Edit work item"}</Button> : <div className="rounded-xl bg-muted/50 px-3 py-2 text-center text-[10px] font-semibold text-muted-foreground">{ar ? "التعديل متاح لمنشئ المهمة فقط" : "Only the creator can edit core details"}</div>}{canDelete ? <Button variant="destructive" className="gap-2" onClick={() => setPendingDelete(selected)}><Trash2 className="size-4" />{ar ? "حذف عنصر العمل" : "Delete work item"}</Button> : null}</div> : undefined}
     >
-      {selected ? <div>
-        {selected.description ? <p className="mb-4 whitespace-pre-wrap rounded-2xl bg-muted/40 p-3 text-sm leading-6">{selected.description}</p> : null}
-        <DetailRow label={ar ? "النوع" : "Type"} value={<span className="capitalize">{selected.category}</span>} />
-        <DetailRow label={ar ? "الحالة" : "Status"} value={<span className="capitalize">{selected.status.replaceAll("_", " ")}</span>} />
-        <DetailRow label={ar ? "الأولوية" : "Priority"} value={<Badge className={cn("border-0 capitalize", priorityTone[selected.priority])}>{selected.priority}</Badge>} />
-        <DetailRow label={ar ? "المسؤول" : "Assigned to"} value={(selected.assigned_staff_id ? (staff.data ?? []).find((row) => row.id === selected.assigned_staff_id)?.name : null) ?? (selected.assigned_role ? roleLabel(selected.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))} />
-        {canManage ? <section className="my-3 rounded-xl border border-border bg-muted/20 p-3"><div className="mb-2 flex items-center justify-between gap-3"><Label className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "إعادة تعيين المسؤول" : "Reassign"}</Label><span className="text-[9px] text-muted-foreground">{ar ? "تحديث فوري" : "Updates immediately"}</span></div><Select value={selected.assigned_staff_id ?? ""} onValueChange={(value) => assignTask.mutate({ id: selected.id, assignedStaffId: value })}><SelectTrigger className="h-10 rounded-[10px] bg-card"><SelectValue placeholder={ar ? "اختر موظفاً" : "Choose a team member"} /></SelectTrigger><SelectContent>{(staff.data ?? []).map((row) => <SelectItem key={row.id} value={row.id}>{row.name} · {ROLE_LABELS[row.role]?.[lang] ?? row.role}</SelectItem>)}</SelectContent></Select></section> : null}
-        <DetailRow label={ar ? "أنشأها" : "Created by"} value={(selected.created_by_staff_id ? (staff.data ?? []).find((row) => row.id === selected.created_by_staff_id)?.name : null) ?? (ar ? "النظام / الأتمتة" : "System / automation")} />
-        <DetailRow label={ar ? "الاستحقاق" : "Due"} value={formatStamp(selected.due_at, ar)} />
-        <DetailRow label={ar ? "الموافقة" : "Approval"} value={selected.requires_approval ? (selected.approval_role ? roleLabel(selected.approval_role, ar) : (ar ? "مطلوبة" : "Required")) : (ar ? "غير مطلوبة" : "Not required")} />
-        <DetailRow label={ar ? "حالة الموافقة" : "Approval status"} value={selected.approval_status?.replaceAll("_", " ")} />
-        <DetailRow label={ar ? "ملاحظة الموافقة" : "Approval note"} value={selected.approval_note} />
-        <DetailRow label={ar ? "المصدر" : "Source"} value={selected.source_type ? selected.source_type.replaceAll("_", " ") : (ar ? "يدوي" : "Manual")} />
-        <DetailRow label={ar ? "مرجع المصدر" : "Source record"} value={selected.source_id} />
-        <DetailRow label={ar ? "أُنشئت" : "Created"} value={formatStamp(selected.created_at, ar)} />
-        <DetailRow label={ar ? "آخر تحديث" : "Updated"} value={formatStamp(selected.updated_at, ar)} />
-        <DetailRow label={ar ? "أُكملت" : "Completed"} value={formatStamp(selected.completed_at, ar)} />
-        <DetailRow label={ar ? "ملاحظة الإنجاز" : "Completion note"} value={selected.completion_note} />
-        <div className="mt-4 rounded-xl border border-border bg-muted/20 p-3">
-          <Label className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "إضافة تعليق" : "Add comment"}</Label>
-          <div className="mt-2 flex gap-2"><Input value={comment} onChange={(event)=>setComment(event.target.value)} onKeyDown={(event)=>{if(event.key==="Enter"&&!event.shiftKey&&comment.trim()){event.preventDefault();addComment.mutate();}}} placeholder={ar ? "اكتب تحديثاً أو ملاحظة..." : "Write an update or note..."} className="h-9"/><Button size="sm" disabled={!comment.trim()||addComment.isPending} onClick={()=>addComment.mutate()}>{ar ? "إضافة" : "Add"}</Button></div>
-        </div>
-        {(activity.data ?? []).length ? <div className="mt-4"><h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "سجل النشاط" : "Activity history"}</h3><div className="mt-2 space-y-2">{(activity.data ?? []).map((item) => <div key={item.id} className={cn("rounded-xl border p-3",item.action==="comment"?"border-orange-200/70 bg-orange-500/[.035] dark:border-orange-900/40":"border-border/70")}><div className="flex items-center justify-between gap-3"><strong className="text-xs capitalize">{item.action==="comment"?(ar?"تعليق":"Comment"):item.action.replaceAll("_", " ")}</strong><span className="text-[10px] text-muted-foreground">{formatStamp(item.created_at, ar)}</span></div>{item.note ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.note}</p> : null}<p className="mt-1 text-[10px] text-muted-foreground">{item.actor_staff_id ? ((staff.data ?? []).find((row) => row.id === item.actor_staff_id)?.name ?? (ar ? "عضو فريق" : "Team member")) : (ar ? "النظام" : "System")}</p></div>)}</div></div> : null}
+      {selected ? <div className="space-y-4">
+        {selected.description ? <section className="rounded-2xl border border-border bg-card p-4"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "الوصف" : "Description"}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{selected.description}</p></section> : null}
+
+        <WorkDetailSection title={ar ? "نظرة عامة" : "Overview"} icon={ClipboardCheck}>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <WorkDetailTile label={ar ? "الحالة" : "Status"} value={<span className="capitalize">{selected.status.replaceAll("_", " ")}</span>} />
+            <WorkDetailTile label={ar ? "الأولوية" : "Priority"} value={<Badge className={cn("w-fit border-0 capitalize", priorityTone[selected.priority])}>{selected.priority}</Badge>} />
+            <WorkDetailTile label={ar ? "النوع" : "Type"} value={<span className="capitalize">{selected.category}</span>} />
+            <WorkDetailTile label={ar ? "الاستحقاق" : "Due"} value={formatStamp(selected.due_at, ar) ?? (ar ? "بدون موعد" : "No due date")} />
+          </div>
+        </WorkDetailSection>
+
+        <WorkDetailSection title={ar ? "المسؤولية" : "Ownership"} icon={UserRound}>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <WorkDetailTile label={ar ? "المسؤول" : "Assigned to"} value={(selected.assigned_staff_id ? (staff.data ?? []).find((row) => row.id === selected.assigned_staff_id)?.name : null) ?? (selected.assigned_role ? roleLabel(selected.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))} />
+            <WorkDetailTile label={ar ? "أنشأها" : "Created by"} value={(selected.created_by_staff_id ? (staff.data ?? []).find((row) => row.id === selected.created_by_staff_id)?.name : null) ?? (ar ? "النظام / الأتمتة" : "System / automation")} />
+          </div>
+          {canManage ? <div className="mt-3 border-t border-border pt-3"><div className="mb-2 flex items-center justify-between gap-3"><Label className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "إعادة تعيين المسؤول" : "Reassign"}</Label><span className="text-[10px] text-muted-foreground">{ar ? "يُحفظ فوراً" : "Saves instantly"}</span></div><Select value={selected.assigned_staff_id ?? ""} onValueChange={(value) => assignTask.mutate({ id: selected.id, assignedStaffId: value })}><SelectTrigger className="h-11 rounded-xl bg-background"><SelectValue placeholder={ar ? "اختر موظفاً" : "Choose a team member"} /></SelectTrigger><SelectContent>{(staff.data ?? []).map((row) => <SelectItem key={row.id} value={row.id}>{row.name} · {ROLE_LABELS[row.role]?.[lang] ?? row.role}</SelectItem>)}</SelectContent></Select></div> : null}
+        </WorkDetailSection>
+
+        <WorkDetailSection title={ar ? "الموافقة والمصدر" : "Approval & source"} icon={ShieldCheck}>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <WorkDetailTile label={ar ? "الموافقة" : "Approval"} value={selected.requires_approval ? (selected.approval_role ? roleLabel(selected.approval_role, ar) : (ar ? "مطلوبة" : "Required")) : (ar ? "غير مطلوبة" : "Not required")} />
+            <WorkDetailTile label={ar ? "حالة الموافقة" : "Approval status"} value={<span className="capitalize">{selected.approval_status?.replaceAll("_", " ") || (ar ? "غير مطلوبة" : "Not required")}</span>} />
+            <WorkDetailTile label={ar ? "المصدر" : "Source"} value={<span className="capitalize">{selected.source_type ? selected.source_type.replaceAll("_", " ") : (ar ? "يدوي" : "Manual")}</span>} />
+            {selected.source_id ? <WorkDetailTile label={ar ? "مرجع المصدر" : "Source record"} value={selected.source_id} /> : null}
+          </div>
+          {selected.approval_note ? <p className="mt-3 rounded-xl bg-muted/45 p-3 text-xs leading-5 text-muted-foreground">{selected.approval_note}</p> : null}
+        </WorkDetailSection>
+
+        <WorkDetailSection title={ar ? "الجدول الزمني" : "Timeline"} icon={Clock3}>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <WorkDetailTile label={ar ? "أُنشئت" : "Created"} value={formatStamp(selected.created_at, ar)} />
+            <WorkDetailTile label={ar ? "آخر تحديث" : "Updated"} value={formatStamp(selected.updated_at, ar)} />
+            {selected.completed_at ? <WorkDetailTile label={ar ? "أُكملت" : "Completed"} value={formatStamp(selected.completed_at, ar)} /> : null}
+            {selected.completion_note ? <WorkDetailTile label={ar ? "ملاحظة الإنجاز" : "Completion note"} value={selected.completion_note} /> : null}
+          </div>
+        </WorkDetailSection>
+
+        <WorkDetailSection title={ar ? "التعليقات" : "Comments"} icon={ListTodo}>
+          <div className="flex gap-2"><Input value={comment} onChange={(event)=>setComment(event.target.value)} onKeyDown={(event)=>{if(event.key==="Enter"&&!event.shiftKey&&comment.trim()){event.preventDefault();addComment.mutate();}}} placeholder={ar ? "اكتب تحديثاً أو ملاحظة..." : "Write an update or note..."} className="h-10"/><Button disabled={!comment.trim()||addComment.isPending} onClick={()=>addComment.mutate()}>{ar ? "إضافة" : "Add"}</Button></div>
+          {(activity.data ?? []).length ? <div className="mt-3 space-y-2 border-t border-border pt-3">{(activity.data ?? []).map((item) => <div key={item.id} className={cn("rounded-xl border p-3",item.action==="comment"?"border-orange-200/70 bg-orange-500/[.035] dark:border-orange-900/40":"border-border/70 bg-background")}><div className="flex items-center justify-between gap-3"><strong className="text-xs capitalize">{item.action==="comment"?(ar?"تعليق":"Comment"):item.action.replaceAll("_", " ")}</strong><span className="text-[10px] text-muted-foreground">{formatStamp(item.created_at, ar)}</span></div>{item.note ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.note}</p> : null}<p className="mt-1 text-[10px] text-muted-foreground">{item.actor_staff_id ? ((staff.data ?? []).find((row) => row.id === item.actor_staff_id)?.name ?? (ar ? "عضو فريق" : "Team member")) : (ar ? "النظام" : "System")}</p></div>)}</div> : <p className="mt-3 border-t border-border pt-3 text-center text-xs text-muted-foreground">{ar ? "لا يوجد نشاط بعد" : "No activity yet"}</p>}
+        </WorkDetailSection>
       </div> : null}
     </DetailSheet>
 
@@ -410,6 +447,8 @@ function Metric({ icon: Icon, label, value, tone, active, onClick }: { icon: typ
 }
 
 function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }: { tasks: WorkTask[]; staff: StaffOption[]; ar: boolean; canApprove: boolean; busy: boolean; onStatus: (task: WorkTask, status: WorkStatus) => void; onOpen: (task: WorkTask) => void }) {
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [overStatus, setOverStatus] = useState<WorkStatus | null>(null);
   const columns: Array<{ status: WorkStatus; en: string; ar: string; tone: string }> = [
     { status: "open", en: "To do", ar: "للعمل", tone: "bg-slate-400" },
     { status: "in_progress", en: "In progress", ar: "قيد التنفيذ", tone: "bg-blue-500" },
@@ -419,25 +458,56 @@ function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }:
   return <div className="qs-workflow-board grid gap-3 p-3 lg:grid-cols-2 xl:grid-cols-4 sm:p-4">
     {columns.map((column) => {
       const rows = tasks.filter((task) => task.status === column.status);
-      return <section key={column.status} onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
+      const isDropTarget = Boolean(draggingId && overStatus === column.status);
+      return <section key={column.status} onDragEnter={(event) => {
+        event.preventDefault();
+        if (draggingId) setOverStatus(column.status);
+      }} onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        if (draggingId && overStatus !== column.status) setOverStatus(column.status);
+      }} onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null) && overStatus === column.status) setOverStatus(null);
+      }} onDrop={(event) => {
         event.preventDefault();
         const id = event.dataTransfer.getData("text/work-task-id");
         const task = tasks.find((item) => item.id === id);
+        setDraggingId(null);
+        setOverStatus(null);
         if (task && task.status !== column.status) onStatus(task, column.status);
-      }} className="min-w-0 rounded-2xl border border-border bg-muted/20 p-2.5">
+      }} className={cn("relative min-w-0 rounded-2xl border border-border bg-muted/20 p-2.5 transition-[border-color,background-color,box-shadow] duration-200", isDropTarget && "border-[#e85d2a]/55 bg-orange-500/[.045] shadow-[inset_0_0_0_1px_rgb(232_93_42/0.14)]")}>
         <div className="mb-2 flex items-center justify-between gap-2 px-1 py-1">
           <div className="flex items-center gap-2"><span className={cn("size-2 rounded-full", column.tone)} /><h3 className="text-xs font-black uppercase tracking-[.08em]">{ar ? column.ar : column.en}</h3></div>
           <span className="rounded-full bg-card px-2 py-1 text-[10px] font-bold text-muted-foreground">{rows.length}</span>
         </div>
         <div className="space-y-2.5">
-          {rows.map((task) => <div key={task.id} draggable={!busy} onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/work-task-id", task.id); }} className="group relative cursor-grab active:cursor-grabbing">
-            <span className="pointer-events-none absolute end-3 top-3 z-10 grid size-7 place-items-center rounded-lg bg-card/85 text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100"><GripVertical className="size-4" /></span>
+          {rows.map((task) => <div key={task.id} draggable={!busy} aria-grabbed={draggingId === task.id} onDragStart={(event) => {
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/work-task-id", task.id);
+            setDraggingId(task.id);
+          }} onDragEnd={() => { setDraggingId(null); setOverStatus(null); }} className={cn("group relative cursor-grab transition-[opacity,transform,filter] duration-200 ease-out will-change-transform active:cursor-grabbing", draggingId === task.id && "scale-[.985] opacity-35 saturate-50")}>
+            <span className="pointer-events-none absolute end-3 top-3 z-10 grid size-7 place-items-center rounded-lg border border-border/70 bg-card/90 text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100 group-focus-within:opacity-100"><GripVertical className="size-4" /></span>
             <WorkCard task={task} staff={staff} ar={ar} canApprove={canApprove} busy={busy} onStatus={(status) => onStatus(task, status)} onOpen={() => onOpen(task)} />
           </div>)}
-          {rows.length === 0 ? <div className="grid min-h-28 place-items-center rounded-xl border border-dashed border-border bg-card/45 p-3 text-center text-[10px] font-semibold text-muted-foreground">{ar ? "اسحب بطاقة إلى هنا" : "Drag a card here"}</div> : null}
+          {rows.length === 0 ? <div className={cn("grid min-h-28 place-items-center rounded-xl border border-dashed border-border bg-card/45 p-3 text-center text-[10px] font-semibold text-muted-foreground transition-all duration-200", isDropTarget && "scale-[1.01] border-[#e85d2a]/60 bg-orange-500/[.06] text-[#cf4818]")}>{isDropTarget ? (ar ? "أفلت البطاقة لنقلها" : "Release to move the card") : (ar ? "اسحب بطاقة إلى هنا" : "Drag a card here")}</div> : null}
+          {rows.length > 0 && isDropTarget ? <div className="pointer-events-none grid min-h-10 place-items-center rounded-xl border border-dashed border-[#e85d2a]/55 bg-orange-500/[.055] text-[10px] font-bold text-[#cf4818] animate-in fade-in slide-in-from-top-1 duration-150">{ar ? "أفلت هنا" : "Release here"}</div> : null}
         </div>
       </section>;
     })}
+  </div>;
+}
+
+function WorkDetailSection({ title, icon: Icon, children }: { title: string; icon: typeof ListTodo; children: React.ReactNode }) {
+  return <section className="rounded-2xl border border-border bg-card p-4 shadow-[0_1px_2px_rgb(0_0_0/0.025)]">
+    <div className="mb-3 flex items-center gap-2.5"><span className="grid size-8 place-items-center rounded-lg bg-orange-500/10 text-[#e85d2a]"><Icon className="size-4" /></span><h3 className="text-sm font-bold">{title}</h3></div>
+    {children}
+  </section>;
+}
+
+function WorkDetailTile({ label, value }: { label: string; value: React.ReactNode }) {
+  return <div className="min-w-0 rounded-xl bg-muted/45 px-3 py-2.5">
+    <p className="text-[9px] font-bold uppercase tracking-[.07em] text-muted-foreground">{label}</p>
+    <div className="mt-1 min-w-0 break-words text-xs font-semibold leading-5">{value}</div>
   </div>;
 }
 

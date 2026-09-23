@@ -250,7 +250,10 @@ function DashboardPage() {
           <h1 className="qs-page-title">{ar ? `صباح الخير، ${displayName}` : `Good morning, ${displayName}`}</h1>
           <p className="qs-page-subtitle mt-2">{ar ? "إليك ما يحتاج إلى انتباهك اليوم." : "Here’s what needs your attention today."}</p>
         </div>
-        {rid ? <Link to="/manage/$restaurantId/orders" params={{restaurantId:rid}} className="qs-button-primary w-full sm:w-auto"><ClipboardList className="size-4" />{ar ? "عرض الطلبات" : "View orders"}</Link> : null}
+        {rid ? <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+          <Link to="/bookings" className="qs-button-primary"><CalendarCheck2 className="size-4" />{ar ? "حجز جديد" : "Add Booking"}</Link>
+          <Link to="/manage/$restaurantId/orders" params={{restaurantId:rid}} className="qs-button-secondary"><ClipboardList className="size-4" />{ar ? "عرض الطلبات" : "View orders"}</Link>
+        </div> : null}
       </header>
 
       {report.isPending || tableStats.isPending || reservationStats.isPending

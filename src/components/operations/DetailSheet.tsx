@@ -15,6 +15,9 @@ export function DetailSheet({
   title,
   description,
   footer,
+  panelClassName,
+  bodyClassName,
+  footerClassName,
   children,
 }: {
   open: boolean;
@@ -22,6 +25,9 @@ export function DetailSheet({
   title: ReactNode;
   description?: ReactNode;
   footer?: ReactNode;
+  panelClassName?: string;
+  bodyClassName?: string;
+  footerClassName?: string;
   children: ReactNode;
 }) {
   const isMobile = useIsMobile();
@@ -32,14 +38,15 @@ export function DetailSheet({
         className={cn(
           "flex flex-col gap-0 overflow-hidden p-0",
           isMobile ? "h-[92dvh] rounded-t-3xl" : "w-full sm:max-w-[520px]",
+          panelClassName,
         )}
       >
-        <SheetHeader className="border-b border-border bg-muted/15 px-4 py-3.5 text-start">
-          <SheetTitle className="pe-8 text-base font-bold leading-5">{title}</SheetTitle>
-          {description ? <SheetDescription className="text-[11px] leading-4">{description}</SheetDescription> : null}
+        <SheetHeader className="border-b border-border bg-card px-5 py-4 text-start">
+          <SheetTitle className="pe-9 text-lg font-bold leading-6">{title}</SheetTitle>
+          {description ? <SheetDescription className="text-xs leading-5">{description}</SheetDescription> : null}
         </SheetHeader>
-        <div className="qs-scroll flex-1 overflow-y-auto px-4 py-3">{children}</div>
-        {footer ? <div className="border-t border-border bg-muted/10 p-3">{footer}</div> : null}
+        <div className={cn("qs-scroll flex-1 overflow-y-auto px-4 py-3", bodyClassName)}>{children}</div>
+        {footer ? <div className={cn("border-t border-border bg-card p-3 shadow-[0_-8px_24px_rgb(0_0_0/0.04)]", footerClassName)}>{footer}</div> : null}
       </SheetContent>
     </Sheet>
   );

@@ -82,6 +82,7 @@ test("delivery accounting persists the fee separately from order total", async (
 
 test("shift clock stays visible and reflects the database action", async () => {
   const shifts = await file("src/routes/_authenticated/shifts.tsx");
+  assert.match(shifts, /import \{ useEffect, useMemo, useState \} from "react"/);
   assert.doesNotMatch(shifts, /max-h-\[118px\][^>]*overflow-y-auto/);
   assert.ok(shifts.indexOf("Attendance & time") < shifts.indexOf("Weekly labor control"));
   assert.match(shifts, /clock_out\.is\.null,clock_in\.gte/);
@@ -90,4 +91,21 @@ test("shift clock stays visible and reflects the database action", async () => {
   assert.match(shifts, /setClockOverride\(openEntry \? null :/);
   assert.match(shifts, /aria-busy=\{toggleClock\.isPending\}/);
   assert.match(shifts, /aria-live="polite"/);
+});
+
+test("operations navigation and work board retain the polished interaction contract", async () => {
+  const dashboard = await file("src/routes/_authenticated/dashboard.tsx");
+  const work = await file("src/routes/_authenticated/work.tsx");
+  const router = await file("src/router.tsx");
+  const normalStart = dashboard.indexOf("if (!customize)");
+  const normalDashboard = dashboard.slice(normalStart, dashboard.indexOf("\n\n  return <div", normalStart + 50));
+
+  assert.match(normalDashboard, /to="\/bookings"/);
+  assert.match(normalDashboard, /Add Booking/);
+  assert.match(work, /onMutate: async \(\{ id, status \}\)/);
+  assert.match(work, /Release to move the card/);
+  assert.match(work, /Approval & source/);
+  assert.match(work, /panelClassName="sm:max-w-\[640px\]"/);
+  assert.match(router, /defaultPendingMs: 450/);
+  assert.match(router, /defaultPendingMinMs: 0/);
 });

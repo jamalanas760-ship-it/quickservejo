@@ -405,7 +405,9 @@
 
   .qs-route-progress { pointer-events: none; opacity: 0; transition: opacity .12s ease; }
   .qs-route-progress > span { transform: scaleX(.08); transition: transform 8s cubic-bezier(.1,.7,.2,1); }
-  .qs-route-progress[data-active="true"] { opacity: 1; }
+  /* A short reveal delay prevents the progress bar from flashing on fast, preloaded routes. */
+  .qs-route-progress[data-active="true"] { opacity: 1; transition-delay: .14s; }
+  .qs-route-progress[data-active="false"] { transition-delay: 0s; }
   .qs-route-progress[data-active="true"] > span { transform: scaleX(.86); }
   .qs-app nav.safe-bottom a { color: var(--qs-muted); }
   .qs-app nav.safe-bottom a[aria-current="page"] { color: var(--qs-brand) !important; }

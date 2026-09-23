@@ -9,7 +9,7 @@ export const getRouter = () => {
         // Keep navigation responsive: cached data is reused briefly instead of
         // refetching every time a tab/route mounts. Mutations can still invalidate
         // individual queries immediately when fresh data is required.
-        staleTime: 30_000,
+        staleTime: 60_000,
         gcTime: 10 * 60_000,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
@@ -22,9 +22,11 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreload: "intent",
-    defaultPreloadStaleTime: 30_000,
-    defaultPendingMs: 180,
-    defaultPendingMinMs: 220,
+    defaultPreloadStaleTime: 60_000,
+    // Fast navigations keep the current shell in place. A pending state is only
+    // shown for genuinely slow routes, and it is never artificially prolonged.
+    defaultPendingMs: 450,
+    defaultPendingMinMs: 0,
   });
 
   return router;
