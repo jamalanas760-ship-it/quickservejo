@@ -110,29 +110,29 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-muted/20 p-4 sm:p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <span className="grid size-24 shrink-0 place-items-center overflow-hidden rounded-[28px] border border-border bg-card text-2xl font-black shadow-sm">
+    <div className="rounded-2xl border border-border bg-muted/20 p-3 sm:p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <span className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-border bg-card text-xl font-black shadow-sm">
           {preview ? <img src={preview} alt="" className="size-full object-cover" /> : <Camera className="size-7 text-muted-foreground" />}
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="font-bold">{lang === "ar" ? "الصورة الشخصية" : "Profile picture"}</h3>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{lang === "ar" ? "ارفع صورتك أو اختر شخصية احترافية حديثة حسب الدور. يُحفظ الاختيار مباشرة ويظهر في الحساب وشريط التطبيق والصفحة الرئيسية وقائمة الفريق." : "Upload your photo or choose a modern professional role portrait. Your selection saves immediately and appears in your account, app header, home page, and team identity."}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-2.5 flex flex-wrap gap-2">
             <Button type="button" variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}><Camera className="size-4" />{lang === "ar" ? "رفع صورة" : "Upload Photo"}</Button>
             {(avatarUrl || preset) ? <Button type="button" variant="ghost" disabled={busy} onClick={() => void persist(null, null)}><RotateCcw className="size-4" />{lang === "ar" ? "إزالة" : "Remove"}</Button> : null}
           </div>
         </div>
       </div>
 
-      <div className="mt-5 border-t border-border pt-5">
+      <div className="mt-4 border-t border-border pt-4">
         <div className="flex flex-wrap items-end justify-between gap-2"><div><p className="text-sm font-bold">{lang === "ar" ? "اختر شخصية" : "Choose an avatar"}</p><p className="mt-1 text-[11px] text-muted-foreground">{lang === "ar" ? "انقر مرة واحدة للاختيار والحفظ." : "Click once to select and save."}</p></div>{busy ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><Loader2 className="size-3.5 animate-spin" />{lang === "ar" ? "جارٍ الحفظ…" : "Saving…"}</span> : null}</div>
-        <div className="mt-4 flex flex-wrap gap-2" aria-label={lang === "ar" ? "فلاتر الصور" : "Avatar filters"}>
-          {(["all", "owner", "manager", "operations", "shift_manager", "chef", "cashier", "server", "kitchen", "host", "inventory", "procurement", "finance"] as const).map((role) => <button key={role} type="button" onClick={() => setRoleFilter(role)} className={cn("rounded-full border px-3 py-1.5 text-[11px] font-bold capitalize", roleFilter === role ? "border-[#e85d2a] bg-orange-500/10 text-[#e85d2a]" : "border-border text-muted-foreground hover:text-foreground")}>{role}</button>)}
-          <span className="mx-1 h-7 w-px bg-border" />
-          {(["all", "male", "female"] as const).map((gender) => <button key={gender} type="button" onClick={() => setGenderFilter(gender)} className={cn("rounded-full border px-3 py-1.5 text-[11px] font-bold capitalize", genderFilter === gender ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:text-foreground")}>{gender}</button>)}
+        <div className="mt-3 flex flex-nowrap gap-1.5 overflow-x-auto pb-1" aria-label={lang === "ar" ? "فلاتر الصور" : "Avatar filters"}>
+          {(["all", "owner", "manager", "operations", "shift_manager", "chef", "cashier", "server", "kitchen", "host", "inventory", "procurement", "finance"] as const).map((role) => <button key={role} type="button" onClick={() => setRoleFilter(role)} className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold capitalize", roleFilter === role ? "border-[#e85d2a] bg-orange-500/10 text-[#e85d2a]" : "border-border text-muted-foreground hover:text-foreground")}>{role}</button>)}
+          <span className="mx-0.5 h-6 w-px shrink-0 bg-border" />
+          {(["all", "male", "female"] as const).map((gender) => <button key={gender} type="button" onClick={() => setGenderFilter(gender)} className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold capitalize", genderFilter === gender ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:text-foreground")}>{gender}</button>)}
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 min-[480px]:grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6">
+        <div className="mt-3 grid grid-cols-2 gap-2 min-[480px]:grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(116px,1fr))]">
           {AVATAR_PRESETS.filter((item) => (roleFilter === "all" || item.role === roleFilter) && (genderFilter === "all" || item.gender === genderFilter)).map((item) => {
             const selected = preset === item.id && !avatarUrl;
             const saving = savingPreset === item.id;
@@ -144,13 +144,13 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
               aria-pressed={selected}
               aria-label={`${lang === "ar" ? "اختيار" : "Choose"} ${item.label}`}
               className={cn(
-                "group relative overflow-hidden rounded-2xl border bg-card p-2 text-start transition duration-150 hover:-translate-y-0.5 hover:border-[#e85d2a]/45 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d2a]/35 disabled:cursor-wait",
+                "group relative overflow-hidden rounded-xl border bg-card p-1.5 text-start transition duration-150 hover:-translate-y-0.5 hover:border-[#e85d2a]/45 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d2a]/35 disabled:cursor-wait",
                 selected ? "border-[#e85d2a] ring-2 ring-[#e85d2a]/15" : "border-border",
                 busy && !saving && "opacity-55",
               )}
             >
-              <div className="relative aspect-square overflow-hidden rounded-xl bg-muted"><img src={item.url} alt={item.label} width="480" height="480" loading="lazy" decoding="async" className="size-full object-cover" />{selected ? <span className="absolute end-2 top-2 grid size-6 place-items-center rounded-full bg-[#e85d2a] text-white shadow"><Check className="size-3.5" /></span> : null}{saving ? <span className="absolute inset-0 grid place-items-center bg-background/60 backdrop-blur-[1px]"><Loader2 className="size-5 animate-spin text-[#e85d2a]" /></span> : null}</div>
-              <span className="mt-2 block truncate px-0.5 text-[11px] font-bold text-foreground">{item.label}</span>
+              <div className="relative aspect-square overflow-hidden rounded-lg bg-muted"><img src={item.url} alt={item.label} width="320" height="320" loading="lazy" decoding="async" className="size-full object-cover" />{selected ? <span className="absolute end-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-[#e85d2a] text-white shadow"><Check className="size-3" /></span> : null}{saving ? <span className="absolute inset-0 grid place-items-center bg-background/60 backdrop-blur-[1px]"><Loader2 className="size-4 animate-spin text-[#e85d2a]" /></span> : null}</div>
+              <span className="mt-1.5 block truncate px-0.5 text-[10px] font-bold text-foreground">{item.label}</span>
               <span className="mt-0.5 block truncate px-0.5 text-[9px] font-medium capitalize text-muted-foreground">{item.role}</span>
             </button>;
           })}

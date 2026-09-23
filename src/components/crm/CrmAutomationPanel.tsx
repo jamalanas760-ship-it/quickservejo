@@ -23,7 +23,7 @@ const TRIGGERS=[
   ["high_value","High lifetime spend","إنفاق مرتفع"],
 ] as const;
 
-export function CrmAutomationPanel({restaurantId}:{restaurantId:string}){
+export function CrmAutomationPanel({restaurantId,compact=false}:{restaurantId:string;compact?:boolean}){
   const {lang}=useI18n();const ar=lang==="ar";const qc=useQueryClient();
   const [name,setName]=useState("");
   const [trigger,setTrigger]=useState<Automation["trigger_type"]>("birthday");
@@ -75,8 +75,8 @@ export function CrmAutomationPanel({restaurantId}:{restaurantId:string}){
     onError:(error)=>toast.error(humanError(error,lang)),
   });
 
-  return <section className="grid gap-5 xl:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)]">
-    <article className="qs-card p-5">
+  return <section className={cn("grid min-w-0 gap-5",compact?"grid-cols-1":"xl:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)]")}>
+    <article className="qs-card min-w-0 p-5">
       <div className="flex items-start gap-3"><span className="grid size-10 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><Bot className="size-4"/></span><div><h2 className="font-display text-xl font-bold">{ar?"أتمتة دورة العميل":"Lifecycle automation"}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar?"يتم فحص الشروط كل ساعة، مع احترام الموافقة وفترة التهدئة لكل عميل.":"Rules run hourly with consent checks and a per-guest cooldown."}</p></div></div>
       <div className="mt-4 space-y-3">
         <Input value={name} onChange={e=>setName(e.target.value)} placeholder={ar?"اسم الأتمتة":"Automation name"}/>
@@ -92,7 +92,7 @@ export function CrmAutomationPanel({restaurantId}:{restaurantId:string}){
       </div>
     </article>
 
-    <article className="qs-card overflow-hidden">
+    <article className="qs-card min-w-0 overflow-hidden">
       <div className="border-b border-border p-5"><h2 className="font-display text-xl font-bold">{ar?"القواعد النشطة":"Automation rules"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"الرسائل تمر عبر نفس عامل الحملات؛ إذا لم يكن مزود القناة مهيأ فلن يتم اعتبارها مرسلة.":"Messages use the same campaign worker; unconfigured providers never produce fake sends."}</p></div>
       <div className="divide-y divide-border">{(query.data??[]).map(row=><div key={row.id} className="p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><strong>{row.name}</strong><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold",row.enabled?"bg-emerald-500/10 text-emerald-700":"bg-muted text-muted-foreground")}>{row.enabled?(ar?"نشط":"Active"):(ar?"متوقف":"Paused")}</span></div><p className="mt-1 text-xs text-muted-foreground">{row.trigger_type.replaceAll("_"," ")} · {row.channel.toUpperCase()} · {row.cooldown_days}d cooldown</p>{row.last_run_at?<p className="mt-1 text-[10px] text-muted-foreground">{ar?"آخر فحص: ":"Last run: "}{new Date(row.last_run_at).toLocaleString(ar?"ar-JO":"en-US")}</p>:null}{row.last_error?<p className="mt-2 text-xs text-red-600">{row.last_error}</p>:null}</div><div className="flex gap-2"><Button size="sm" variant="outline" onClick={()=>toggle.mutate(row)}>{row.enabled?<Pause className="size-3"/>:<Play className="size-3"/>}{row.enabled?(ar?"إيقاف":"Pause"):(ar?"تشغيل":"Enable")}</Button><Button size="icon" variant="ghost" className="size-9 text-muted-foreground hover:text-destructive" onClick={()=>remove.mutate(row.id)}><Trash2 className="size-4"/></Button></div></div></div>)}</div>
       {(query.data??[]).length===0?<div className="p-10 text-center text-sm text-muted-foreground">{ar?"لا توجد قواعد تلقائية بعد.":"No lifecycle automations yet."}</div>:null}

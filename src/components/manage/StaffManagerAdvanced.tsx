@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { History, IdCard, KeyRound, MoreHorizontal, Plus, Search, ShieldCheck, Trash2, UserRound, UsersRound } from "lucide-react";
+import { CalendarClock, History, IdCard, KeyRound, MoreHorizontal, Plus, Search, ShieldCheck, Trash2, UserRound, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
@@ -57,6 +57,9 @@ type StaffRow = {
 };
 type Editing = StaffRow & { password: string; confirmPassword: string; permission_overrides: PermissionOverrides };
 type AuditRow = { id: string; action: string; entity: string | null; created_at: string; metadata: unknown };
+type StaffScheduleRow = { id: string; name: string; shift_date: string; planned_start: string | null; planned_end: string | null; status: string };
+type StaffAssignmentRow = { id: string; shift_id: string; staff_id: string; starts_at: string | null; ends_at: string | null; status: string };
+type StaffTimeRow = { staff_id: string; clock_in: string; clock_out: string | null };
 
 export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string }) {
   const { t, lang } = useI18n();
@@ -105,6 +108,23 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       return (data ?? []) as StaffRow[];
     },
   });
+  const schedule = useQuery<{ shifts: StaffScheduleRow[]; assignments: StaffAssignmentRow[]; time: StaffTimeRow[] }>({
+    queryKey: ["platform", "staff-schedule", restaurantId],
+    refetchInterval: 20_000,
+    queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const historyStart = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+      const horizon = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
+      const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+      const [shiftsResult, assignmentsResult, timeResult] = await Promise.all([
+        (supabase.from("shifts" as any) as any).select("id,name,shift_date,planned_start,planned_end,status").eq("restaurant_id", restaurantId).is("deleted_at", null).gte("shift_date", historyStart).lte("shift_date", horizon).order("shift_date", { ascending: true }),
+        (supabase.from("shift_assignments" as any) as any).select("id,shift_id,staff_id,starts_at,ends_at,status").eq("restaurant_id", restaurantId),
+        (supabase.from("staff_time_entries" as any) as any).select("staff_id,clock_in,clock_out").eq("restaurant_id", restaurantId).gte("clock_in", since),
+      ]);
+      for (const result of [shiftsResult, assignmentsResult, timeResult]) if (result.error) throw result.error;
+      return { shifts: (shiftsResult.data ?? []) as StaffScheduleRow[], assignments: (assignmentsResult.data ?? []) as StaffAssignmentRow[], time: (timeResult.data ?? []) as StaffTimeRow[] };
+    },
+  });
   useEffect(() => {
     const channel = supabase.channel(`team-presence:${restaurantId}`).on(
       "postgres_changes",
@@ -137,6 +157,27 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       return !q || `${row.name} ${row.email ?? ""} ${row.role}`.toLowerCase().includes(q);
     });
   }, [search, tab, roleFilter, statusFilter, staff.data]);
+  const scheduleByStaff = useMemo(() => {
+    const result = new Map<string, { name: string; start: string | null; end: string | null; status: string; count: number; distance: number; attendance: "on_time" | "late" | "left_early" | "overtime" | "not_clocked" }>();
+    const shiftsById = new Map((schedule.data?.shifts ?? []).map((shift) => [shift.id, shift]));
+    for (const assignment of schedule.data?.assignments ?? []) {
+      const shift = shiftsById.get(assignment.shift_id);
+      if (!shift) continue;
+      const existing = result.get(assignment.staff_id);
+      const start = assignment.starts_at ?? shift.planned_start;
+      const end = assignment.ends_at ?? shift.planned_end;
+      const entry = (schedule.data?.time ?? []).find((time) => time.staff_id === assignment.staff_id && new Date(time.clock_in).getTime() <= new Date(end ?? 0).getTime() && (!time.clock_out || new Date(time.clock_out).getTime() >= new Date(start ?? 0).getTime()));
+      const attendance = scheduleAttendance(start, end, entry);
+      const startMs = new Date(start ?? shift.shift_date).getTime();
+      const endMs = new Date(end ?? shift.shift_date).getTime();
+      const now = Date.now();
+      const distance = now < startMs ? startMs - now : now > endMs ? now - endMs : 0;
+      const count = (existing?.count ?? 0) + 1;
+      if (!existing || distance < existing.distance) result.set(assignment.staff_id, { name: shift.name, start, end, status: assignment.status, count, distance, attendance });
+      else result.set(assignment.staff_id, { ...existing, count });
+    }
+    return result;
+  }, [schedule.data]);
 
   async function refresh() {
     await Promise.all([
@@ -282,12 +323,14 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
         <div className="qs-scroll-region hidden min-h-0 flex-1 overflow-x-hidden md:block"><table className="qs-table w-full table-fixed"><colgroup><col className="w-[6%]"/><col className="w-[22%]"/><col className="w-[23%]"/><col className="w-[17%]"/><col className="w-[11%]"/><col className="w-[15%]"/><col className="w-[6%]"/></colgroup><thead><tr><th>#</th><th>{ar ? "الموظف" : "Staff Member"}</th><th>{ar ? "البريد" : "Email"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "آخر نشاط" : "Last Active"}</th><th>{ar ? "إجراءات" : "Actions"}</th></tr></thead><tbody>{rows.map((member, index) => {
           const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
           const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
-          return <tr key={member.id}><td className="text-muted-foreground">#{String(index + 1).padStart(3, "0")}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex items-center gap-2.5 text-start"><span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="font-bold">{member.name}</span></button></td><td className="text-muted-foreground">{member.email ?? "—"}</td><td><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span></td><td><span className={cn("qs-status", member.is_active ? "bg-emerald-500/12 text-emerald-600" : "bg-slate-500/12 text-slate-500")}><i className={cn("size-1.5 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} />{member.is_active ? t("common.active") : t("common.inactive")}</span></td><td className="text-muted-foreground">{formatLastSeen(member.last_seen_at, ar, presenceNow)}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="grid size-8 place-items-center rounded-lg bg-muted/40 hover:bg-muted" aria-label={ar ? "تعديل" : "Edit"}><MoreHorizontal className="size-4" /></button></td></tr>;
+          const scheduleInfo = scheduleByStaff.get(member.id);
+          return <tr key={member.id}><td className="text-muted-foreground">#{String(index + 1).padStart(3, "0")}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex items-center gap-2.5 text-start"><span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span><strong className="block font-bold">{member.name}</strong>{scheduleInfo ? <span className={cn("mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold", scheduleTone(scheduleInfo.attendance))}><CalendarClock className="size-3" />{scheduleInfo.name} · {scheduleLabel(scheduleInfo.attendance, ar)}</span> : <span className="mt-1 block text-[9px] text-muted-foreground">{ar ? "لا توجد وردية قادمة" : "No upcoming shift"}</span>}</span></button></td><td className="text-muted-foreground">{member.email ?? "—"}</td><td><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span></td><td><span className={cn("qs-status", member.is_active ? "bg-emerald-500/12 text-emerald-600" : "bg-slate-500/12 text-slate-500")}><i className={cn("size-1.5 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} />{member.is_active ? t("common.active") : t("common.inactive")}</span></td><td className="text-muted-foreground">{formatLastSeen(member.last_seen_at, ar, presenceNow)}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="grid size-8 place-items-center rounded-lg bg-muted/40 hover:bg-muted" aria-label={ar ? "تعديل" : "Edit"}><MoreHorizontal className="size-4" /></button></td></tr>;
         })}</tbody></table></div>
         <div className="space-y-2 p-3 md:hidden">{rows.map((member) => {
           const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
           const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
-          return <button key={member.id} type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-start"><span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{member.name}</strong><span className="mt-1 flex items-center gap-2"><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span><span className={cn("size-2 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} /></span></span><MoreHorizontal className="size-4 text-muted-foreground" /></button>;
+          const scheduleInfo = scheduleByStaff.get(member.id);
+          return <button key={member.id} type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-start"><span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{member.name}</strong><span className="mt-1 flex flex-wrap items-center gap-2"><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span>{scheduleInfo ? <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold", scheduleTone(scheduleInfo.attendance))}><CalendarClock className="size-3" />{scheduleLabel(scheduleInfo.attendance, ar)}</span> : null}<span className={cn("size-2 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} /></span></span><MoreHorizontal className="size-4 text-muted-foreground" /></button>;
         })}</div>
       </>}
     </section>
@@ -349,4 +392,26 @@ function formatLastSeen(value: string | null | undefined, ar: boolean, nowMs = D
   const now = new Date();
   if (date.toDateString() === now.toDateString()) return ar ? `اليوم ${date.toLocaleTimeString("ar-JO", { hour: "2-digit", minute: "2-digit" })}` : `Today ${date.toLocaleTimeString("en-JO", { hour: "2-digit", minute: "2-digit" })}`;
   return date.toLocaleString(ar ? "ar-JO" : "en-JO", { dateStyle: "medium", timeStyle: "short" });
+}
+
+type ScheduleAttendance = "on_time" | "late" | "left_early" | "overtime" | "not_clocked";
+
+function scheduleAttendance(start: string | null, end: string | null, entry: StaffTimeRow | undefined): ScheduleAttendance {
+  if (!start || !end || !entry) return "not_clocked";
+  const plannedStart = new Date(start).getTime();
+  const plannedEnd = new Date(end).getTime();
+  const actualStart = new Date(entry.clock_in).getTime();
+  const actualEnd = entry.clock_out ? new Date(entry.clock_out).getTime() : Date.now();
+  if (actualEnd - plannedEnd >= 30 * 60_000) return "overtime";
+  if (entry.clock_out && plannedEnd - actualEnd >= 15 * 60_000) return "left_early";
+  if (actualStart - plannedStart >= 15 * 60_000) return "late";
+  return "on_time";
+}
+
+function scheduleLabel(status: ScheduleAttendance, ar: boolean) {
+  return status === "overtime" ? (ar ? "وقت إضافي" : "Overtime") : status === "left_early" ? (ar ? "غادر مبكراً" : "Left early") : status === "late" ? (ar ? "متأخر" : "Late") : status === "on_time" ? (ar ? "ضمن الوقت" : "On time") : (ar ? "لم يسجل" : "Not clocked");
+}
+
+function scheduleTone(status: ScheduleAttendance) {
+  return status === "overtime" ? "bg-amber-500/10 text-amber-700" : status === "left_early" ? "bg-rose-500/10 text-rose-700" : status === "late" ? "bg-orange-500/10 text-orange-700" : status === "on_time" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-muted-foreground";
 }

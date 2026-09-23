@@ -168,6 +168,9 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
   const [leaveEndTime, setLeaveEndTime] = useState("17:00");
   const [leaveReason, setLeaveReason] = useState("");
   const [laborOpen, setLaborOpen] = useState(false);
+  // Keep the action state deterministic while the authoritative list query
+  // catches up with the RPC response.
+  const [clockOverride, setClockOverride] = useState<TimeEntry | null | undefined>(undefined);
 
   const workforce = useQuery({
     queryKey: ["workforce", restaurantId],
@@ -184,8 +187,14 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
     },
   });
 
-  const openEntry = (workforce.data?.time ?? []).find((entry) => entry.staff_id === currentStaffId && !entry.clock_out) ?? null;
-  const clockedIn = (workforce.data?.time ?? []).filter((entry) => !entry.clock_out);
+  const queryOpenEntry = (workforce.data?.time ?? []).find((entry) => entry.staff_id === currentStaffId && !entry.clock_out) ?? null;
+  const openEntry = clockOverride === undefined ? queryOpenEntry : clockOverride;
+  const clockedIn = (workforce.data?.time ?? []).filter((entry) => !entry.clock_out && (clockOverride !== null || entry.staff_id !== currentStaffId));
+  if (clockOverride && !clockedIn.some((entry) => entry.id === clockOverride.id)) clockedIn.unshift(clockOverride);
+  useEffect(() => {
+    if (clockOverride === null && queryOpenEntry === null) setClockOverride(undefined);
+    if (clockOverride && queryOpenEntry?.id === clockOverride.id) setClockOverride(undefined);
+  }, [clockOverride, queryOpenEntry]);
   const pendingLeave = (workforce.data?.leave ?? []).filter((request) => request.status === "pending");
   const todayKey = new Date().toLocaleDateString("en-CA");
   const todayMinutes = (workforce.data?.time ?? []).filter((entry) => entry.clock_in.slice(0,10) === todayKey).reduce((sum, entry) => {
@@ -194,6 +203,11 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
   }, 0);
 
   const toggleClock = useMutation({
+    onMutate: () => {
+      const previous = clockOverride;
+      setClockOverride(openEntry ? null : { id: `optimistic-${Date.now()}`, staff_id: currentStaffId, clock_in: new Date().toISOString(), clock_out: null, break_minutes: 0 });
+      return { previous };
+    },
     mutationFn: async () => {
       const { data, error } = await (supabase as any).rpc("toggle_time_clock", { _restaurant_id: restaurantId });
       if (error) throw error;
@@ -206,6 +220,11 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
       const action = result?.action?.toLowerCase();
       const at = result?.at ?? new Date().toISOString();
       const entryId = result?.entry_id;
+      if (action === "clocked_in" && entryId) {
+        setClockOverride({ id: entryId, staff_id: currentStaffId, clock_in: at, clock_out: null, break_minutes: 0 });
+      } else if (action === "clocked_out") {
+        setClockOverride(null);
+      }
       qc.setQueryData<{ time: TimeEntry[]; leave: LeaveRequest[] }>(["workforce", restaurantId], (current) => {
         if (!current || !action) return current;
         if (action === "clocked_in") {
@@ -225,7 +244,10 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
       const clockedOut = result?.action === "clocked_out" || action === "clocked_out";
       toast.success(clockedOut ? (ar ? "تم تسجيل الانصراف" : "Clocked out") : (ar ? "تم تسجيل الحضور" : "Clocked in"));
     },
-    onError: (error) => toast.error(humanError(error, lang)),
+    onError: (error, _variables, context) => {
+      setClockOverride(context?.previous);
+      toast.error(humanError(error, lang));
+    },
   });
 
   const submitLeave = useMutation({
@@ -264,6 +286,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
     return clock >= weekStart.getTime() && clock < weekEnd.getTime();
   });
   const staffLabor = members.filter((member) => member.is_active).map((member) => {
+    const memberAssignments = assignments.filter((assignment) => assignment.staff_id === member.id && assignment.starts_at && assignment.ends_at);
     const actualHours = thisWeekEntries.filter((entry) => entry.staff_id === member.id).reduce((sum, entry) => {
       const end = entry.clock_out ? Math.min(new Date(entry.clock_out).getTime(), weekEnd.getTime()) : Math.min(Date.now(), weekEnd.getTime());
       const start = Math.max(new Date(entry.clock_in).getTime(), weekStart.getTime());
@@ -278,7 +301,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
       const end = new Date(assignment.ends_at!).getTime();
       return sum + Math.max(0, (end - start) / 3_600_000);
     }, 0);
-    return { ...member, actualHours, scheduledHours, variance: actualHours - scheduledHours };
+    return { ...member, actualHours, scheduledHours, variance: actualHours - scheduledHours, attendanceStatus: deriveAttendanceStatus(memberAssignments, thisWeekEntries) };
   }).filter((member) => member.actualHours > 0 || member.scheduledHours > 0);
 
   const actualWeekHours = staffLabor.reduce((sum, row) => sum + row.actualHours, 0);
@@ -335,7 +358,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
       </button>
       {laborOpen ? <div className="border-t border-border">
         <div className="flex justify-end border-b border-border p-4"><Button variant="outline" disabled={!staffLabor.length} onClick={exportPayrollCsv}><Download className="size-4"/>{ar ? "تصدير CSV للرواتب" : "Export payroll CSV"}</Button></div>
-        {staffLabor.length ? <div className="overflow-x-auto"><table className="qs-table min-w-[760px]"><thead><tr><th>{ar ? "الموظف" : "Staff"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "مخطط" : "Scheduled"}</th><th>{ar ? "فعلي" : "Worked"}</th><th>{ar ? "الفرق" : "Variance"}</th><th>{ar ? "الحالة" : "Status"}</th></tr></thead><tbody>{[...staffLabor].sort((a,b)=>b.actualHours-a.actualHours).map(row=><tr key={row.id}><td><strong>{row.name}</strong></td><td>{ROLE_LABELS[row.role]?.[lang] ?? row.role}</td><td>{row.scheduledHours.toFixed(1)}h</td><td>{row.actualHours.toFixed(1)}h</td><td className={cn(row.variance>0.25?"text-amber-700":row.variance<-0.25?"text-blue-700":"text-muted-foreground")}>{row.variance>=0?"+":""}{row.variance.toFixed(1)}h</td><td><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold",row.scheduledHours>0&&row.actualHours>row.scheduledHours+0.25?"bg-amber-500/10 text-amber-700":"bg-emerald-500/10 text-emerald-700")}>{row.scheduledHours>0&&row.actualHours>row.scheduledHours+0.25?(ar?"فوق الخطة":"Over plan"):(ar?"ضمن الخطة":"On plan")}</span></td></tr>)}</tbody></table></div> : <p className="p-6 text-center text-xs text-muted-foreground">{ar ? "لا توجد ساعات مجدولة أو مسجلة لهذا الأسبوع بعد." : "No scheduled or worked hours recorded for this week yet."}</p>}
+        {staffLabor.length ? <div className="overflow-x-auto"><table className="qs-table min-w-[860px]"><thead><tr><th>{ar ? "الموظف" : "Staff"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "مخطط" : "Scheduled"}</th><th>{ar ? "فعلي" : "Worked"}</th><th>{ar ? "الفرق" : "Variance"}</th><th>{ar ? "الحضور الفعلي" : "Attendance"}</th></tr></thead><tbody>{[...staffLabor].sort((a,b)=>b.actualHours-a.actualHours).map(row=><tr key={row.id}><td><strong>{row.name}</strong></td><td>{ROLE_LABELS[row.role]?.[lang] ?? row.role}</td><td>{row.scheduledHours.toFixed(1)}h</td><td>{row.actualHours.toFixed(1)}h</td><td className={cn(row.variance>0.25?"text-amber-700":row.variance<-0.25?"text-blue-700":"text-muted-foreground")}>{row.variance>=0?"+":""}{row.variance.toFixed(1)}h</td><td><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold", attendanceTone(row.attendanceStatus))}>{attendanceStatusLabel(row.attendanceStatus, ar)}</span></td></tr>)}</tbody></table></div> : <p className="p-6 text-center text-xs text-muted-foreground">{ar ? "لا توجد ساعات مجدولة أو مسجلة لهذا الأسبوع بعد." : "No scheduled or worked hours recorded for this week yet."}</p>}
       </div> : null}
     </section> : null}
 
@@ -439,6 +462,38 @@ function formatLeaveTime(value: string | null | undefined) { return value ? valu
 
 function LaborMetric({label,value,warning=false}:{label:string;value:string;warning?:boolean}){
   return <span className="block min-w-20 rounded-xl bg-muted/45 p-3"><span className="block text-[9px] font-bold uppercase tracking-[.06em] text-muted-foreground">{label}</span><strong className={cn("mt-1 block font-display text-lg",warning&&"text-amber-700")}>{value}</strong></span>;
+}
+
+type AttendanceStatus = "on_time" | "late" | "left_early" | "overtime" | "not_clocked";
+
+function deriveAttendanceStatus(assignments: ShiftAssignment[], entries: TimeEntry[], now = Date.now()): AttendanceStatus {
+  const scheduled = assignments.filter((assignment) => assignment.starts_at && assignment.ends_at);
+  if (!scheduled.length) return "not_clocked";
+  let best: AttendanceStatus = "not_clocked";
+  for (const assignment of scheduled) {
+    const start = new Date(assignment.starts_at!).getTime();
+    const end = new Date(assignment.ends_at!).getTime();
+    const entry = entries
+      .filter((candidate) => candidate.staff_id === assignment.staff_id)
+      .find((candidate) => new Date(candidate.clock_in).getTime() <= end && (!candidate.clock_out || new Date(candidate.clock_out).getTime() >= start));
+    if (!entry) continue;
+    const actualStart = new Date(entry.clock_in).getTime();
+    const actualEnd = entry.clock_out ? new Date(entry.clock_out).getTime() : now;
+    const lateMinutes = Math.max(0, (actualStart - start) / 60_000);
+    const earlyMinutes = entry.clock_out ? Math.max(0, (end - actualEnd) / 60_000) : 0;
+    const overtimeMinutes = Math.max(0, (actualEnd - end) / 60_000);
+    const status: AttendanceStatus = overtimeMinutes >= 30 ? "overtime" : earlyMinutes >= 15 ? "left_early" : lateMinutes >= 15 ? "late" : "on_time";
+    if (status === "overtime" || (status === "left_early" && best !== "overtime") || (status === "late" && best === "not_clocked") || best === "not_clocked") best = status;
+  }
+  return best;
+}
+
+function attendanceStatusLabel(status: AttendanceStatus, ar: boolean) {
+  return status === "overtime" ? (ar ? "وقت إضافي" : "Overtime") : status === "left_early" ? (ar ? "غادر مبكراً" : "Left early") : status === "late" ? (ar ? "متأخر" : "Late") : status === "on_time" ? (ar ? "ضمن الوقت" : "On time") : (ar ? "لم يسجل" : "Not clocked");
+}
+
+function attendanceTone(status: AttendanceStatus) {
+  return status === "overtime" ? "bg-amber-500/10 text-amber-700" : status === "left_early" ? "bg-rose-500/10 text-rose-700" : status === "late" ? "bg-orange-500/10 text-orange-700" : status === "on_time" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-muted-foreground";
 }
 
 function startOfWeekMonday(date:Date){

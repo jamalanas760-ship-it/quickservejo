@@ -86,6 +86,8 @@ test("shift clock stays visible and reflects the database action", async () => {
   assert.ok(shifts.indexOf("Attendance & time") < shifts.indexOf("Weekly labor control"));
   assert.match(shifts, /clock_out\.is\.null,clock_in\.gte/);
   assert.match(shifts, /result\?\.action === "clocked_out"/);
+  assert.match(shifts, /onMutate:\s*\(\)\s*=>/);
+  assert.match(shifts, /setClockOverride\(openEntry \? null :/);
   assert.match(shifts, /aria-busy=\{toggleClock\.isPending\}/);
   assert.match(shifts, /aria-live="polite"/);
 });
