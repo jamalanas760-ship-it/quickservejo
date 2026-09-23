@@ -44,8 +44,9 @@ export const Route = createFileRoute("/_authenticated/waiter")({
 });
 
 const OPEN_STATUSES = ["new", "accepted", "preparing", "ready", "served"] as const;
+export const CLEANING_RELEASE_MS = 10 * 60 * 1000;
 type TableServiceStatus = "free" | "reserved" | "active" | "cleaning" | "out_of_service";
-type FloorFilter = "all" | "calling" | "active" | "free" | "reserved";
+type FloorFilter = "all" | "calling" | "active" | "free" | "reserved" | "cleaning";
 
 type FloorTable = {
   id: string;
@@ -53,9 +54,24 @@ type FloorTable = {
   table_name: string | null;
   service_status: TableServiceStatus;
   activated_at: string | null;
+  status_updated_at: string | null;
   calling: { id: string; note: string | null; status: string } | null;
   openOrders: { id: string; order_number: string; status: string; total: number }[];
 };
+
+function cleaningRemainingMs(table: FloorTable, now: number | null) {
+  if (table.service_status !== "cleaning" || !table.status_updated_at || now === null) return null;
+  const started = new Date(table.status_updated_at).getTime();
+  if (!Number.isFinite(started)) return null;
+  return Math.max(0, started + CLEANING_RELEASE_MS - now);
+}
+
+function formatCountdown(ms: number) {
+  const total = Math.ceil(ms / 1000);
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
 
 function useFloor(restaurantId: string | null) {
   return useQuery<FloorTable[]>({
@@ -66,7 +82,7 @@ function useFloor(restaurantId: string | null) {
     queryFn: async () => {
       const [tablesRes, callsRes, ordersRes] = await Promise.all([
         (supabase.from("restaurant_tables") as any)
-          .select("id,table_number,table_name,service_status,activated_at")
+          .select("id,table_number,table_name,service_status,activated_at,status_updated_at")
           .eq("restaurant_id", restaurantId!)
           .eq("is_active", true)
           .order("table_number", { ascending: true }),
@@ -92,6 +108,7 @@ function useFloor(restaurantId: string | null) {
         table_name: table.table_name,
         service_status: (table.service_status ?? "free") as TableServiceStatus,
         activated_at: table.activated_at ?? null,
+        status_updated_at: table.status_updated_at ?? null,
         calling:
           (callsRes.data ?? [])
             .filter((call) => call.table_id === table.id)
@@ -118,13 +135,16 @@ function WaiterFloor() {
   const [filter, setFilter] = useState<FloorFilter>("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState<number | null>(null);
 
   const rows = floor.data ?? [];
   const pending = rows.filter((table) => table.calling?.status === "pending").length;
   const active = rows.filter((table) => table.service_status === "active").length;
   const free = rows.filter((table) => table.service_status === "free").length;
+  const cleaning = rows.filter((table) => table.service_status === "cleaning").length;
   const openOrders = rows.reduce((total, table) => total + table.openOrders.length, 0);
   const selected = rows.find((table) => table.id === selectedId) ?? null;
+  const selectedCleaningRemaining = selected ? cleaningRemainingMs(selected, nowMs) : null;
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -134,7 +154,8 @@ function WaiterFloor() {
         || (filter === "calling" && Boolean(table.calling))
         || (filter === "active" && table.service_status === "active")
         || (filter === "free" && table.service_status === "free")
-        || (filter === "reserved" && table.service_status === "reserved");
+        || (filter === "reserved" && table.service_status === "reserved")
+        || (filter === "cleaning" && table.service_status === "cleaning");
       if (!matchesFilter) return false;
       if (!q) return true;
       return [table.table_number, table.table_name, table.service_status, ...table.openOrders.map((order) => order.order_number)]
@@ -145,6 +166,12 @@ function WaiterFloor() {
   useEffect(() => {
     if (pending > 0) playOrderAlert();
   }, [pending]);
+
+  useEffect(() => {
+    setNowMs(Date.now());
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!scope.restaurantId) return;
@@ -214,6 +241,7 @@ function WaiterFloor() {
     { id: "active", en: "Active", ar: "نشطة", count: active },
     { id: "free", en: "Free", ar: "متاحة", count: free },
     { id: "reserved", en: "Reserved", ar: "محجوزة" },
+    { id: "cleaning", en: "Cleaning", ar: "تنظيف", count: cleaning },
   ];
 
   return (
@@ -231,6 +259,7 @@ function WaiterFloor() {
           <MasterKpi icon={Table2} label={ar ? "متاحة" : "Free"} value={free} tone="green" />
           <MasterKpi icon={UsersRound} label={ar ? "نشطة" : "Active"} value={active} tone="blue" />
           <MasterKpi icon={BellRing} label={ar ? "تطلب خدمة" : "Calling"} value={pending} tone={pending > 0 ? "red" : "slate"} />
+          <MasterKpi icon={Sparkles} label={ar ? "تنظيف" : "Cleaning"} value={cleaning} tone="purple" />
           <MasterKpi icon={ReceiptText} label={ar ? "طلبات مفتوحة" : "Open orders"} value={openOrders} tone="orange" />
         </section>
 
@@ -279,6 +308,7 @@ function WaiterFloor() {
                   ar={ar}
                   currency={scope.currency}
                   lang={lang}
+                  nowMs={nowMs}
                   setCall={setCall}
                   setTableFree={setTableFree}
                   onOpen={() => setSelectedId(table.id)}
@@ -304,6 +334,7 @@ function WaiterFloor() {
           <DetailRow label={ar ? "الاسم" : "Name"} value={selected.table_name} />
           <DetailRow label={ar ? "تنشيط منذ" : "Activated"} value={formatStamp(selected.activated_at, ar)} />
           <DetailRow label={ar ? "طلبات مفتوحة" : "Open orders"} value={selected.openOrders.length} />
+          {selected.service_status === "cleaning" ? <DetailRow label={ar ? "متاحة خلال" : "Free in"} value={selectedCleaningRemaining === null ? "--:--" : formatCountdown(selectedCleaningRemaining)} /> : null}
           {selected.openOrders.length ? <div className="mt-5"><h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "الطلبات الحالية" : "Current orders"}</h3><div className="mt-2 space-y-2">{selected.openOrders.map((order) => <div key={order.id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"><div className="min-w-0"><strong className="block truncate text-sm">{order.order_number}</strong><span className="text-[10px] capitalize text-muted-foreground">{order.status}</span></div><strong className="shrink-0 text-xs">{formatMoney(order.total, scope.currency, lang)}</strong></div>)}</div></div> : null}
           {selected.calling ? <div className="mt-5 grid grid-cols-2 gap-2">{selected.calling.status === "pending" ? <Button disabled={setCall.isPending} onClick={() => setCall.mutate({ id: selected.calling!.id, status: "acknowledged" })}><BellRing className="size-4" />{t("waiter.acknowledge")}</Button> : <div /> }<Button variant="outline" disabled={setCall.isPending} onClick={() => setCall.mutate({ id: selected.calling!.id, status: "resolved" })}><Check className="size-4" />{t("waiter.resolve")}</Button></div> : null}
           {selected.service_status === "active" && selected.openOrders.length === 0 ? <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/10"><p className="text-sm font-bold">{ar ? "جاهزة للإغلاق" : "Ready to close"}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar ? "إذا غادر الضيوف وتم ترتيب الطاولة، حررها للضيف التالي." : "When the guests have left and the table is cleared, release it for the next party."}</p><Button variant="outline" className="mt-3 w-full" disabled={setTableFree.isPending} onClick={() => setTableFree.mutate(selected.id)}><CircleOff className="size-4" />{ar ? "اجعل الطاولة متاحة" : "Mark table Free"}</Button></div> : null}
@@ -319,6 +350,7 @@ function FloorTableCard({
   ar,
   currency,
   lang,
+  nowMs,
   setCall,
   setTableFree,
   onOpen,
@@ -327,6 +359,7 @@ function FloorTableCard({
   ar: boolean;
   currency: string;
   lang: "en" | "ar";
+  nowMs: number | null;
   setCall: { isPending: boolean; mutate: (variables: { id: string; status: "acknowledged" | "resolved" }) => void };
   setTableFree: { isPending: boolean; mutate: (tableId: string) => void };
   onOpen: () => void;
@@ -334,6 +367,8 @@ function FloorTableCard({
   const calling = Boolean(table.calling);
   const busy = table.openOrders.length > 0;
   const canClose = table.service_status === "active" && !busy;
+  const isCleaning = table.service_status === "cleaning";
+  const cleaningRemaining = cleaningRemainingMs(table, nowMs);
 
   return <article
     role="button"
@@ -342,16 +377,16 @@ function FloorTableCard({
     onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }}
     className={cn(
       "group flex min-h-[220px] cursor-pointer flex-col rounded-2xl border bg-card p-4 text-start outline-none transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-[#e85d2a]",
-      calling ? "border-orange-400 ring-2 ring-orange-500/20" : "border-border",
+      calling ? "border-orange-400 ring-2 ring-orange-500/20" : isCleaning ? "border-purple-300 ring-2 ring-purple-500/15" : "border-border",
     )}
   >
     <div className="flex items-start justify-between gap-3">
-      <div className="flex items-center gap-3"><span className={cn("grid size-12 shrink-0 place-items-center rounded-2xl font-display text-lg font-bold", calling ? "bg-orange-500 text-white" : table.service_status === "free" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-foreground")}>T{table.table_number}</span><div className="min-w-0"><h2 className="truncate text-sm font-bold">{table.table_name ?? `${ar ? "طاولة" : "Table"} ${table.table_number}`}</h2><p className="mt-0.5 text-[10px] text-muted-foreground">{busy ? `${table.openOrders.length} ${ar ? "طلبات مفتوحة" : "open orders"}` : ar ? "لا يوجد طلب مفتوح" : "No open orders"}</p></div></div>
-      <Badge variant="outline" className={cn("shrink-0", calling ? "border-orange-300 bg-orange-50 text-orange-700 dark:bg-orange-950/20" : table.service_status === "free" ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20" : "")}>{calling ? (ar ? "ينادي" : "Calling") : tableStatusLabel(table.service_status, ar)}</Badge>
+      <div className="flex items-center gap-3"><span className={cn("grid size-12 shrink-0 place-items-center rounded-2xl font-display text-lg font-bold", calling ? "bg-orange-500 text-white" : isCleaning ? "bg-purple-500/10 text-purple-700 dark:text-purple-300" : table.service_status === "free" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-foreground")}>T{table.table_number}</span><div className="min-w-0"><h2 className="truncate text-sm font-bold">{table.table_name ?? `${ar ? "طاولة" : "Table"} ${table.table_number}`}</h2><p className="mt-0.5 text-[10px] text-muted-foreground">{busy ? `${table.openOrders.length} ${ar ? "طلبات مفتوحة" : "open orders"}` : ar ? "لا يوجد طلب مفتوح" : "No open orders"}</p></div></div>
+      <Badge variant="outline" className={cn("shrink-0", calling ? "border-orange-300 bg-orange-50 text-orange-700 dark:bg-orange-950/20" : isCleaning ? "border-purple-200 bg-purple-50 text-purple-700 dark:bg-purple-950/20 dark:text-purple-300" : table.service_status === "free" ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20" : "")}>{calling ? (ar ? "ينادي" : "Calling") : tableStatusLabel(table.service_status, ar)}</Badge>
     </div>
 
     <div className="mt-4 flex-1">
-      {calling ? <div className="rounded-xl bg-orange-50/70 p-3 dark:bg-orange-950/15"><p className="inline-flex items-center gap-2 text-xs font-bold text-orange-700 dark:text-orange-300"><BellRing className="size-4" />{ar ? "ضيف ينتظر الخدمة" : "Guest is waiting"}</p>{table.calling?.note ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{table.calling.note}</p> : null}</div> : busy ? <div className="space-y-2">{table.openOrders.slice(0, 2).map((order) => <div key={order.id} className="flex items-center justify-between gap-2 rounded-xl bg-muted/45 px-3 py-2 text-[10px]"><span className="min-w-0 truncate font-bold">{order.order_number}</span><span className="shrink-0 capitalize text-muted-foreground">{order.status} · {formatMoney(order.total, currency, lang)}</span></div>)}{table.openOrders.length > 2 ? <p className="text-[10px] font-semibold text-muted-foreground">+{table.openOrders.length - 2} {ar ? "طلبات أخرى" : "more orders"}</p> : null}</div> : <div className="grid min-h-[72px] place-items-center rounded-xl border border-dashed border-border text-center"><div><Sparkles className="mx-auto size-4 text-muted-foreground" /><p className="mt-1 text-[10px] font-semibold text-muted-foreground">{table.service_status === "free" ? (ar ? "جاهزة للضيف التالي" : "Ready for the next party") : tableStatusLabel(table.service_status, ar)}</p></div></div>}
+      {calling ? <div className="rounded-xl bg-orange-50/70 p-3 dark:bg-orange-950/15"><p className="inline-flex items-center gap-2 text-xs font-bold text-orange-700 dark:text-orange-300"><BellRing className="size-4" />{ar ? "ضيف ينتظر الخدمة" : "Guest is waiting"}</p>{table.calling?.note ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{table.calling.note}</p> : null}</div> : isCleaning ? <div className="rounded-xl bg-purple-50/70 p-3 dark:bg-purple-950/15"><p className="inline-flex items-center gap-2 text-xs font-bold text-purple-700 dark:text-purple-300"><Sparkles className="size-4" />{ar ? "قيد التنظيف" : "Being cleaned"}</p><p className="mt-1 font-display text-lg font-bold tabular-nums text-purple-700 dark:text-purple-300">{cleaningRemaining === null ? "--:--" : formatCountdown(cleaningRemaining)}</p><p className="text-[10px] text-muted-foreground">{ar ? "ستصبح متاحة تلقائياً" : "Frees up automatically"}</p></div> : busy ? <div className="space-y-2">{table.openOrders.slice(0, 2).map((order) => <div key={order.id} className="flex items-center justify-between gap-2 rounded-xl bg-muted/45 px-3 py-2 text-[10px]"><span className="min-w-0 truncate font-bold">{order.order_number}</span><span className="shrink-0 capitalize text-muted-foreground">{order.status} · {formatMoney(order.total, currency, lang)}</span></div>)}{table.openOrders.length > 2 ? <p className="text-[10px] font-semibold text-muted-foreground">+{table.openOrders.length - 2} {ar ? "طلبات أخرى" : "more orders"}</p> : null}</div> : <div className="grid min-h-[72px] place-items-center rounded-xl border border-dashed border-border text-center"><div><Sparkles className="mx-auto size-4 text-muted-foreground" /><p className="mt-1 text-[10px] font-semibold text-muted-foreground">{table.service_status === "free" ? (ar ? "جاهزة للضيف التالي" : "Ready for the next party") : tableStatusLabel(table.service_status, ar)}</p></div></div>}
     </div>
 
     <div className="mt-4 flex gap-2 border-t border-border/70 pt-3" onClick={(event) => event.stopPropagation()}>
@@ -364,6 +399,7 @@ function FloorTableCard({
 }
 
 function ServiceIcon({ table }: { table: FloorTable }) {
+  if (table.service_status === "cleaning") return <span className="grid size-11 place-items-center rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-300"><Sparkles className="size-5" /></span>;
   if (table.calling) return <span className="grid size-11 place-items-center rounded-2xl bg-orange-500 text-white"><BellRing className="size-5" /></span>;
   if (table.openOrders.length) return <span className="grid size-11 place-items-center rounded-2xl bg-blue-500/10 text-blue-600"><ReceiptText className="size-5" /></span>;
   return <span className="grid size-11 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600"><LayoutGrid className="size-5" /></span>;
