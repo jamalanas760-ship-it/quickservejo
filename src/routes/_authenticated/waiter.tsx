@@ -82,7 +82,7 @@ function useFloor(restaurantId: string | null) {
     queryFn: async () => {
       const [tablesRes, callsRes, ordersRes] = await Promise.all([
         (supabase.from("restaurant_tables") as any)
-          .select("id,table_number,table_name,service_status,activated_at")
+          .select("id,table_number,table_name,service_status,activated_at,status_updated_at")
           .eq("restaurant_id", restaurantId!)
           .eq("is_active", true)
           .order("table_number", { ascending: true }),
@@ -108,6 +108,7 @@ function useFloor(restaurantId: string | null) {
         table_name: table.table_name,
         service_status: (table.service_status ?? "free") as TableServiceStatus,
         activated_at: table.activated_at ?? null,
+        status_updated_at: table.status_updated_at ?? null,
         calling:
           (callsRes.data ?? [])
             .filter((call) => call.table_id === table.id)
@@ -134,11 +135,13 @@ function WaiterFloor() {
   const [filter, setFilter] = useState<FloorFilter>("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState<number | null>(null);
 
   const rows = floor.data ?? [];
   const pending = rows.filter((table) => table.calling?.status === "pending").length;
   const active = rows.filter((table) => table.service_status === "active").length;
   const free = rows.filter((table) => table.service_status === "free").length;
+  const cleaning = rows.filter((table) => table.service_status === "cleaning").length;
   const openOrders = rows.reduce((total, table) => total + table.openOrders.length, 0);
   const selected = rows.find((table) => table.id === selectedId) ?? null;
 
@@ -150,7 +153,8 @@ function WaiterFloor() {
         || (filter === "calling" && Boolean(table.calling))
         || (filter === "active" && table.service_status === "active")
         || (filter === "free" && table.service_status === "free")
-        || (filter === "reserved" && table.service_status === "reserved");
+        || (filter === "reserved" && table.service_status === "reserved")
+        || (filter === "cleaning" && table.service_status === "cleaning");
       if (!matchesFilter) return false;
       if (!q) return true;
       return [table.table_number, table.table_name, table.service_status, ...table.openOrders.map((order) => order.order_number)]
@@ -161,6 +165,12 @@ function WaiterFloor() {
   useEffect(() => {
     if (pending > 0) playOrderAlert();
   }, [pending]);
+
+  useEffect(() => {
+    setNowMs(Date.now());
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!scope.restaurantId) return;
