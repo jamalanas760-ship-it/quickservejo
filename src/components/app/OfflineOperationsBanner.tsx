@@ -1,22 +1,26 @@
 import { CloudOff, RefreshCw, Wifi } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { flushOfflineOperations, offlineQueueCount, subscribeOfflineQueue } from "@/lib/offline-ops";
 import { useI18n } from "@/lib/i18n";
+import { useConnectivity } from "@/hooks/useConnectivity";
 
 export function OfflineOperationsBanner() {
   const { lang } = useI18n();
   const ar = lang === "ar";
   const qc = useQueryClient();
-  const [online, setOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const connectivity = useConnectivity();
+  const online = connectivity !== "offline";
   const [count, setCount] = useState(() => offlineQueueCount());
   const [syncing, setSyncing] = useState(false);
+  const syncingRef = useRef(false);
 
-  async function sync(showToast = true) {
-    if (syncing) return;
+  const sync = useCallback(async (showToast = true) => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
     setSyncing(true);
     try {
       const result = await flushOfflineOperations();
@@ -31,20 +35,19 @@ export function OfflineOperationsBanner() {
     } catch {
       if (showToast) toast.error(ar ? "تعذر إكمال المزامنة الآن" : "Could not finish syncing yet");
     } finally {
+      syncingRef.current = false;
       setSyncing(false);
     }
-  }
+  }, [ar, qc]);
 
   useEffect(() => subscribeOfflineQueue(() => {
-    const nextOnline = navigator.onLine;
-    setOnline(nextOnline);
     setCount(offlineQueueCount());
-    if (nextOnline && offlineQueueCount() > 0) void sync(false);
-  }), [ar]);
+    if (online && offlineQueueCount() > 0) void sync(false);
+  }), [online, sync]);
 
   useEffect(() => {
     if (online && count > 0) void sync(false);
-  }, []);
+  }, [online, count, sync]);
 
   if (online && count === 0) return null;
 

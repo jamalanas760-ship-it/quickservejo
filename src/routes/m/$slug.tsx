@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { humanError } from "@/lib/errors";
+import { useConnectivity } from "@/hooks/useConnectivity";
 import { formatMoney } from "@/lib/format";
 import type { Language } from "@/lib/i18n";
 import {
@@ -77,7 +78,7 @@ function PdfOrderPage() {
   const [notes, setNotes] = useState("");
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
   const [busy, setBusy] = useState(false);
-  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const isOnline = useConnectivity() !== "offline";
 
   if (menu.isPending) {
     return (

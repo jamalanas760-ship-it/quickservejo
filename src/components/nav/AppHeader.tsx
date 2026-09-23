@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { BadgeDollarSign, Check, ChefHat, ChevronDown, Globe2, HandPlatter, Languages, LogOut, Menu as MenuIcon, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,7 +30,24 @@ function RoleAvatarFallback({ role, superAdmin }: { role: string | null | undefi
   return <UserRound className={iconClass} />;
 }
 
-export function AppHeader({ onMenu, className, title }: { onMenu?: () => void; className?: string; title?: string | undefined }) {
+const NestedAppHeaderContext = createContext(false);
+type AppHeaderProps = {
+  onMenu?: (() => void) | undefined;
+  className?: string | undefined;
+  title?: string | undefined;
+};
+
+export function SuppressNestedAppHeader({ children }: { children: ReactNode }) {
+  return <NestedAppHeaderContext.Provider value>{children}</NestedAppHeaderContext.Provider>;
+}
+
+export function AppHeader({ onMenu, className, title }: AppHeaderProps) {
+  const suppressed = useContext(NestedAppHeaderContext);
+  if (suppressed) return null;
+  return <AppHeaderContent onMenu={onMenu} className={className} title={title} />;
+}
+
+function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
   const { lang, setLang } = useI18n();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

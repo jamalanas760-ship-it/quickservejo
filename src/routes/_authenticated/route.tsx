@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { DeviceHeartbeat } from "@/components/app/DeviceHeartbeat";
 import { OfflineOperationsBanner } from "@/components/app/OfflineOperationsBanner";
 import { BottomNav } from "@/components/nav/BottomNav";
-import { AppHeader } from "@/components/nav/AppHeader";
+import { AppHeader, SuppressNestedAppHeader } from "@/components/nav/AppHeader";
 import { TenantBrandShell } from "@/components/tenant/TenantBrandShell";
 import { useAccess } from "@/hooks/useSession";
 import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
@@ -80,7 +80,11 @@ function AuthenticatedShell() {
     <TenantBrandShell>
       <div className={cn("pb-24 lg:min-h-dvh lg:pb-0", !access.isSuperAdmin && "lg:ps-[var(--qs-shell-sidebar)]", !usesDedicatedChrome && "qs-persistent-chrome")}>
         {!usesDedicatedChrome ? <AppHeader title={persistentTitle} /> : null}
-        {blocked ? null : <div className="qs-route-frame"><Outlet /></div>}
+        {blocked ? null : (
+          <div className="qs-route-frame">
+            {usesDedicatedChrome ? <Outlet /> : <SuppressNestedAppHeader><Outlet /></SuppressNestedAppHeader>}
+          </div>
+        )}
       </div>
       <DeviceHeartbeat />
       <OfflineOperationsBanner />

@@ -15,10 +15,13 @@ test("authenticated shell has accessibility and runtime monitoring", async () =>
 
 test("PWA has a service worker and standalone manifest", async () => {
   const sw = await file("public/sw.js");
+  const offline = await file("public/offline.html");
   const manifest = JSON.parse(await file("public/manifest.webmanifest"));
   assert.match(sw, /addEventListener\("fetch"/);
-  assert.match(sw, /isPublicNavigation/);
-  assert.match(sw, /Authenticated\/operational pages are always network-only/);
+  assert.match(sw, /Never cache server-rendered HTML/);
+  assert.match(sw, /cacheableAsset/);
+  assert.match(sw, /quickserve-runtime-v6/);
+  assert.match(offline, /Connection interrupted/);
   assert.equal(manifest.display, "standalone");
   assert.ok(manifest.icons?.length >= 2);
 });
@@ -123,6 +126,7 @@ test("authenticated navigation keeps stable chrome without loading flashes", asy
   assert.match(shell, /staleTime: 5 \* 60_000/);
   assert.match(shell, /qs-persistent-chrome/);
   assert.match(shell, /<AppHeader title=\{persistentTitle\}/);
+  assert.match(shell, /SuppressNestedAppHeader/);
   assert.doesNotMatch(root, /<RouteProgress/);
   assert.doesNotMatch(root, /<SplashScreen/);
   assert.match(router, /defaultPendingMs: 1_200/);
@@ -132,6 +136,23 @@ test("authenticated navigation keeps stable chrome without loading flashes", asy
   assert.doesNotMatch(notifications, /animate-pulse/);
   assert.doesNotMatch(kitchen, /animate-pulse/);
   assert.doesNotMatch(analytics, /<a href=\{`\/manage/);
+});
+
+test("runtime hardening is hydration-safe and retries only transient reads", async () => {
+  const monitor = await file("src/components/app/AppRuntimeMonitor.tsx");
+  const connectivity = await file("src/hooks/useConnectivity.ts");
+  const reliability = await file("src/lib/query-reliability.ts");
+  const router = await file("src/router.tsx");
+  const offlineOps = await file("src/lib/offline-ops.ts");
+
+  assert.doesNotMatch(monitor, /useState\(\(\) => typeof navigator/);
+  assert.match(connectivity, /useSyncExternalStore/);
+  assert.match(connectivity, /getServerSnapshot/);
+  assert.match(connectivity, /probeOrigin/);
+  assert.match(reliability, /failureCount < 2/);
+  assert.match(router, /refetchOnReconnect: true/);
+  assert.match(router, /retry: shouldRetryQuery/);
+  assert.doesNotMatch(offlineOps, /if \(typeof navigator !== "undefined" && !navigator\.onLine\)/);
 });
 
 test("profile settings selection uses the brand accent instead of a black fill", async () => {

@@ -1,23 +1,29 @@
-const CACHE = "quickserve-shell-v5";
-const SHELL = ["/", "/manifest.webmanifest", "/favicon.png", "/icon-192.png", "/icon-512.png"];
-const PUBLIC_NAVIGATION_PREFIXES = ["/r/", "/m/", "/o/", "/preview/"];
-const PUBLIC_NAVIGATION_PATHS = new Set(["/", "/contact", "/privacy", "/terms"]);
-
-function isPublicNavigation(pathname) {
-  return PUBLIC_NAVIGATION_PATHS.has(pathname) || PUBLIC_NAVIGATION_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-}
+const CACHE = "quickserve-runtime-v6";
+const OFFLINE_PAGE = "/offline.html";
+const STATIC_SHELL = [OFFLINE_PAGE, "/manifest.webmanifest", "/favicon.png", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).catch(() => undefined));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(STATIC_SHELL)).catch(() => undefined));
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))),
+    Promise.all([
+      caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))),
+      self.clients.claim(),
+    ]),
   );
-  self.clients.claim();
 });
+
+function cacheableAsset(response, destination) {
+  if (!response.ok || response.type === "opaque") return false;
+  const contentType = response.headers.get("content-type") || "";
+  if (destination === "script") return /javascript|ecmascript/.test(contentType);
+  if (destination === "style") return /text\/css/.test(contentType);
+  if (destination === "font") return /font|application\/octet-stream/.test(contentType);
+  return false;
+}
 
 self.addEventListener("fetch", (event) => {
   const request = event.request;
@@ -26,37 +32,25 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
-    // Authenticated/operational pages are always network-only. Caching their HTML
-    // can expose stale or user-specific state on shared restaurant devices.
-    if (!isPublicNavigation(url.pathname)) return;
-
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => undefined);
-          }
-          return response;
-        })
-        .catch(async () => (await caches.match(request)) || (await caches.match("/")) || Response.error()),
-    );
+    // Never cache server-rendered HTML. A cached document can reference a route
+    // graph from an older deployment and cause hydration/chunk mismatches.
+    event.respondWith(fetch(request).catch(async () => (await caches.match(OFFLINE_PAGE)) || Response.error()));
     return;
   }
 
-  // Only immutable/static browser assets use cache-first behavior.
+  // Hashed application assets are immutable. Validate the content type before
+  // caching so a transient HTML error response can never be stored as JS/CSS.
   if (["script", "style", "font"].includes(request.destination)) {
     event.respondWith(
       caches.match(request).then((cached) => {
-        const network = fetch(request)
-          .then((response) => {
-            if (response.ok) {
-              caches.open(CACHE).then((cache) => cache.put(request, response.clone())).catch(() => undefined);
-            }
-            return response;
-          })
-          .catch(() => cached || Response.error());
-        return cached || network;
+        if (cached) return cached;
+        return fetch(request).then(async (response) => {
+          if (cacheableAsset(response, request.destination)) {
+            const cache = await caches.open(CACHE);
+            await cache.put(request, response.clone());
+          }
+          return response;
+        });
       }),
     );
   }

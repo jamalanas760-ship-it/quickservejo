@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#e85d2a" />
+    <title>QuickServe — Offline</title>
+    <style>
+      :root { color-scheme: light dark; font-family: Manrope, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: #faf9f7; color: #172033; }
+      main { width: min(100%, 440px); padding: 32px; border: 1px solid #e7e1db; border-radius: 24px; background: #fff; box-shadow: 0 18px 60px rgba(23,32,51,.08); text-align: center; }
+      .mark { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 18px; border-radius: 16px; background: #fff0e9; color: #e85d2a; font-size: 24px; font-weight: 800; }
+      h1 { margin: 0; font-size: 24px; letter-spacing: -.03em; }
+      p { margin: 10px 0 22px; color: #667085; font-size: 14px; line-height: 1.65; }
+      button { min-height: 44px; border: 0; border-radius: 12px; padding: 0 20px; background: #e85d2a; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+      @media (prefers-color-scheme: dark) { body { background: #10141d; color: #f8fafc; } main { background: #171d28; border-color: #2b3443; } p { color: #aab3c1; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark" aria-hidden="true">Q</div>
+      <h1>Connection interrupted</h1>
+      <p>QuickServe could not reach the server. Your saved operational actions remain on this device. Reconnect, then try again.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

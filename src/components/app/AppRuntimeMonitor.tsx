@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { WifiOff } from "lucide-react";
 
+import { useConnectivity } from "@/hooks/useConnectivity";
 import { supabase } from "@/integrations/supabase/client";
 
 type MetricName = "LCP" | "CLS" | "INP" | "TTFB" | "route_load";
@@ -48,19 +49,39 @@ async function recordMetric(metric: MetricName, value: number) {
 }
 
 export function AppRuntimeMonitor() {
-  const [online, setOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const connectivity = useConnectivity();
   const sent = useRef(new Set<string>());
 
   useEffect(() => {
-    const onOnline = () => setOnline(true);
-    const onOffline = () => setOnline(false);
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
-
+    const idleHandles = new Set<number>();
+    let loadHandler: (() => void) | null = null;
+    let visibilityHandler: (() => void) | null = null;
+    const scheduleTimeout = window.setTimeout.bind(window);
+    const cancelTimeout = window.clearTimeout.bind(window);
+    const runWhenIdle = (callback: () => void) => {
+      let handle = 0;
+      const run = () => {
+        idleHandles.delete(handle);
+        callback();
+      };
+      if ("requestIdleCallback" in window) {
+        handle = window.requestIdleCallback(run, { timeout: 2_000 });
+      } else {
+        handle = scheduleTimeout(run, 0);
+      }
+      idleHandles.add(handle);
+    };
+    const registerServiceWorker = () => runWhenIdle(() => {
+      void navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" })
+        .then((registration) => registration.update())
+        .catch(() => undefined);
+    });
     if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => undefined);
-      }, { once: true });
+      if (document.readyState === "complete") registerServiceWorker();
+      else {
+        loadHandler = registerServiceWorker;
+        window.addEventListener("load", loadHandler, { once: true });
+      }
     }
 
     const onError = (event: ErrorEvent) => {
@@ -77,11 +98,13 @@ export function AppRuntimeMonitor() {
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);
 
-    const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-    if (navigation) {
-      void recordMetric("TTFB", navigation.responseStart);
-      void recordMetric("route_load", navigation.loadEventEnd || navigation.domComplete || navigation.duration);
-    }
+    runWhenIdle(() => {
+      const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+      if (navigation) {
+        void recordMetric("TTFB", navigation.responseStart);
+        void recordMetric("route_load", navigation.loadEventEnd || navigation.domComplete || navigation.duration);
+      }
+    });
 
     const observers: PerformanceObserver[] = [];
     try {
@@ -112,9 +135,10 @@ export function AppRuntimeMonitor() {
           void recordMetric("CLS", cls);
         }
       };
-      document.addEventListener("visibilitychange", () => {
+      visibilityHandler = () => {
         if (document.visibilityState === "hidden") flush();
-      });
+      };
+      document.addEventListener("visibilitychange", visibilityHandler);
     } catch {}
 
     try {
@@ -131,15 +155,20 @@ export function AppRuntimeMonitor() {
     } catch {}
 
     return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
+      if (loadHandler) window.removeEventListener("load", loadHandler);
+      if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
+      idleHandles.forEach((handle) => {
+        if ("cancelIdleCallback" in window) window.cancelIdleCallback(handle);
+        else cancelTimeout(handle);
+      });
+      idleHandles.clear();
       window.removeEventListener("error", onError);
       window.removeEventListener("unhandledrejection", onRejection);
       observers.forEach((observer) => observer.disconnect());
     };
   }, []);
 
-  if (online) return null;
+  if (connectivity !== "offline") return null;
   return <div role="status" aria-live="polite" className="fixed inset-x-0 top-0 z-[100] flex min-h-10 items-center justify-center gap-2 bg-amber-500 px-3 py-2 text-center text-xs font-bold text-black shadow-sm">
     <WifiOff className="size-4" />
     <span>You’re offline. Read-only screens may remain available; orders and payments will resume when the connection returns.</span>

@@ -162,10 +162,6 @@ async function execute(command: OfflineCommand) {
 }
 
 async function executeOrQueue(command: OfflineCommand): Promise<{ queued: boolean }> {
-  if (typeof navigator !== "undefined" && !navigator.onLine) {
-    enqueue(command);
-    return { queued: true };
-  }
   try {
     await execute(command);
     return { queued: false };
@@ -226,10 +222,6 @@ export function setTableServiceStatusResilient(input: {
 export async function flushOfflineOperations() {
   if (flushing) return flushing;
   flushing = (async () => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      return { flushed: 0, remaining: offlineQueueCount() };
-    }
-
     const queue = readQueue();
     let flushed = 0;
     const remaining: OfflineCommand[] = [];
