@@ -1,15 +1,29 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
+
+const root = new URL("../", import.meta.url);
 
 async function file(path) {
-  return readFile(new URL("../" + path, import.meta.url), "utf8");
+  return readFile(new URL(path, root), "utf8");
 }
 
-const MIGRATION = "supabase/migrations/20260923103000_auto_release_cleaning_tables.sql";
+async function cleaningMigrationSql() {
+  for (const dir of ["supabase/migrations", "supabase/pending"]) {
+    let entries = [];
+    try {
+      entries = await readdir(new URL(dir + "/", root));
+    } catch {
+      continue;
+    }
+    const match = entries.find((name) => name.endsWith("_auto_release_cleaning_tables.sql"));
+    if (match) return file(`${dir}/${match}`);
+  }
+  throw new Error("auto_release_cleaning_tables migration not found");
+}
 
 test("cleaning auto-release migration keeps the verified contract", async () => {
-  const sql = await file(MIGRATION);
+  const sql = await cleaningMigrationSql();
   assert.match(sql, /service_status = 'cleaning'/);
   assert.match(sql, /interval '10 minutes'/);
   assert.match(sql, /service_status = 'free'/);
@@ -30,4 +44,5 @@ test("waiter floor exposes the cleaning countdown", async () => {
   assert.match(waiter, /status_updated_at/);
   assert.match(waiter, /CLEANING_RELEASE_MS/);
   assert.match(waiter, /filter === "cleaning"/);
+  assert.match(waiter, /useState<number \| null>\(null\)/);
 });
