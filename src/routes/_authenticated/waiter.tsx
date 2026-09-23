@@ -144,6 +144,7 @@ function WaiterFloor() {
   const cleaning = rows.filter((table) => table.service_status === "cleaning").length;
   const openOrders = rows.reduce((total, table) => total + table.openOrders.length, 0);
   const selected = rows.find((table) => table.id === selectedId) ?? null;
+  const selectedCleaningRemaining = selected ? cleaningRemainingMs(selected, nowMs) : null;
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -333,6 +334,7 @@ function WaiterFloor() {
           <DetailRow label={ar ? "الاسم" : "Name"} value={selected.table_name} />
           <DetailRow label={ar ? "تنشيط منذ" : "Activated"} value={formatStamp(selected.activated_at, ar)} />
           <DetailRow label={ar ? "طلبات مفتوحة" : "Open orders"} value={selected.openOrders.length} />
+          {selected.service_status === "cleaning" ? <DetailRow label={ar ? "متاحة خلال" : "Free in"} value={selectedCleaningRemaining === null ? "--:--" : formatCountdown(selectedCleaningRemaining)} /> : null}
           {selected.openOrders.length ? <div className="mt-5"><h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "الطلبات الحالية" : "Current orders"}</h3><div className="mt-2 space-y-2">{selected.openOrders.map((order) => <div key={order.id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"><div className="min-w-0"><strong className="block truncate text-sm">{order.order_number}</strong><span className="text-[10px] capitalize text-muted-foreground">{order.status}</span></div><strong className="shrink-0 text-xs">{formatMoney(order.total, scope.currency, lang)}</strong></div>)}</div></div> : null}
           {selected.calling ? <div className="mt-5 grid grid-cols-2 gap-2">{selected.calling.status === "pending" ? <Button disabled={setCall.isPending} onClick={() => setCall.mutate({ id: selected.calling!.id, status: "acknowledged" })}><BellRing className="size-4" />{t("waiter.acknowledge")}</Button> : <div /> }<Button variant="outline" disabled={setCall.isPending} onClick={() => setCall.mutate({ id: selected.calling!.id, status: "resolved" })}><Check className="size-4" />{t("waiter.resolve")}</Button></div> : null}
           {selected.service_status === "active" && selected.openOrders.length === 0 ? <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/10"><p className="text-sm font-bold">{ar ? "جاهزة للإغلاق" : "Ready to close"}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar ? "إذا غادر الضيوف وتم ترتيب الطاولة، حررها للضيف التالي." : "When the guests have left and the table is cleared, release it for the next party."}</p><Button variant="outline" className="mt-3 w-full" disabled={setTableFree.isPending} onClick={() => setTableFree.mutate(selected.id)}><CircleOff className="size-4" />{ar ? "اجعل الطاولة متاحة" : "Mark table Free"}</Button></div> : null}
@@ -397,6 +399,7 @@ function FloorTableCard({
 }
 
 function ServiceIcon({ table }: { table: FloorTable }) {
+  if (table.service_status === "cleaning") return <span className="grid size-11 place-items-center rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-300"><Sparkles className="size-5" /></span>;
   if (table.calling) return <span className="grid size-11 place-items-center rounded-2xl bg-orange-500 text-white"><BellRing className="size-5" /></span>;
   if (table.openOrders.length) return <span className="grid size-11 place-items-center rounded-2xl bg-blue-500/10 text-blue-600"><ReceiptText className="size-5" /></span>;
   return <span className="grid size-11 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600"><LayoutGrid className="size-5" /></span>;
