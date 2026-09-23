@@ -134,7 +134,20 @@
     min-width: 0;
     min-height: calc(100dvh - var(--qs-shell-topbar));
     overflow-x: clip;
+    background: var(--background);
   }
+
+  /* The authenticated top bar belongs to the stable shell. Route-level legacy
+     headers remain in place for compatibility but never remount visibly. */
+  .qs-persistent-chrome .qs-route-frame .qs-topbar { display: none !important; }
+  .qs-persistent-chrome .qs-route-frame > :is(.min-h-dvh, .min-h-screen, .restaurant-theme-scope) {
+    min-height: calc(100dvh - var(--qs-shell-topbar)) !important;
+  }
+
+  /* Loading placeholders reveal only when a request is genuinely slow and stay
+     visually static: no pulse, flash, or brightness animation. */
+  @keyframes qs-skeleton-reveal { from { opacity: 0; } to { opacity: 1; } }
+  .qs-skeleton { opacity: 0; animation: qs-skeleton-reveal 1ms linear .35s forwards; }
 
   .qs-public-site {
     background:

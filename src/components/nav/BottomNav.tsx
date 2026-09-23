@@ -201,7 +201,7 @@ export function BottomNav() {
               const count = countFor(item);
               return (
                 <li key={`${item.to}-${item.en}`}>
-                  <Link to={item.to as never} data-active={active} className="qs-sidebar-item" aria-current={active ? "page" : undefined}>
+                  <Link to={item.to as never} preload="render" data-active={active} className="qs-sidebar-item" aria-current={active ? "page" : undefined}>
                     <Icon className="size-[18px] shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{lang === "ar" ? item.ar : item.en}</span>
                     {count > 0 ? <span className="min-w-6 rounded-full bg-[#e85d2a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white shadow-sm">{count > 99 ? "99+" : count}</span> : null}
@@ -220,7 +220,7 @@ export function BottomNav() {
               <span className="text-xs text-muted-foreground">{desktopItems.length - desktopPrimary.length}</span>
             </button>
           ) : null}
-          {!desktopPrimary.some((item)=>item.to==="/profile")?<Link to="/profile" data-active={activeFor({ to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات", exact: true })} className="qs-sidebar-item mt-1">
+          {!desktopPrimary.some((item)=>item.to==="/profile")?<Link to="/profile" preload="render" data-active={activeFor({ to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات", exact: true })} className="qs-sidebar-item mt-1">
             <Settings className="size-[18px] shrink-0" />
             <span className="min-w-0 flex-1 truncate">{lang === "ar" ? "الإعدادات" : "Settings"}</span>
           </Link>:null}
@@ -234,7 +234,7 @@ export function BottomNav() {
             const Icon = item.icon;
             const count = countFor(item);
             return (
-              <Link key={`${item.to}-${item.en}`} to={item.to as never} aria-current={active?"page":undefined} className={cn("relative flex min-h-[66px] flex-col items-center justify-center gap-1 text-[10px] font-semibold transition", active ? "text-[var(--restaurant-selected-nav,#e85d2a)]" : "text-muted-foreground")}>
+              <Link key={`${item.to}-${item.en}`} to={item.to as never} preload="render" aria-current={active?"page":undefined} className={cn("relative flex min-h-[66px] flex-col items-center justify-center gap-1 text-[10px] font-semibold transition", active ? "text-[var(--restaurant-selected-nav,#e85d2a)]" : "text-muted-foreground")}>
                 <span className="relative"><Icon className="size-5" />{count > 0 ? <span className="absolute -end-2.5 -top-2 min-w-[17px] rounded-full bg-red-500 px-1 text-center text-[8px] font-black leading-[17px] text-white">{count > 99 ? "99+" : count}</span> : null}</span>
                 <span className="max-w-20 truncate">{lang === "ar" ? item.ar : item.en}</span>
                 {active ? <span className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-[var(--restaurant-selected-nav,#e85d2a)]" /> : null}

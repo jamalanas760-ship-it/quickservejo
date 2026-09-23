@@ -858,7 +858,7 @@ function KitchenBootSkeleton({ ar }: { ar: boolean }) {
     <header className="border-b border-border bg-card px-4 py-4">
       <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-4">
         <div><div className="flex items-center gap-2"><ChefHat className="size-5 text-[#e85d2a]" /><strong className="text-lg">{ar ? "شاشة المطبخ" : "Kitchen display"}</strong></div><p className="mt-1 text-xs text-muted-foreground">{ar ? "جارٍ فتح الطلبات النشطة…" : "Opening active tickets…"}</p></div>
-        <span className="h-2 w-16 overflow-hidden rounded-full bg-muted"><i className="block h-full w-1/2 animate-pulse rounded-full bg-[#e85d2a]" /></span>
+        <span className="h-2 w-16 overflow-hidden rounded-full bg-muted"><i className="block h-full w-1/2 rounded-full bg-[#e85d2a]" /></span>
       </div>
     </header>
     <main className="mx-auto max-w-[1800px] px-4 py-6">
@@ -1210,7 +1210,7 @@ function Ticket({
             className={cn(
               "shrink-0 rounded-2xl px-3 py-2 text-center",
               overdue
-                ? "animate-pulse bg-destructive text-destructive-foreground"
+                ? "bg-destructive text-destructive-foreground ring-4 ring-destructive/15"
                 : warn
                   ? "bg-warning/25 text-foreground"
                   : "bg-muted text-foreground",

@@ -111,7 +111,7 @@ export function NotificationBell({
 
         <div className="max-h-[420px] overflow-y-auto">
           {feed.isPending ? (
-            <div className="space-y-3 p-4">{[0,1,2].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />)}</div>
+            <div className="space-y-3 p-4">{[0,1,2].map((i) => <div key={i} aria-hidden="true" className="qs-skeleton h-16 rounded-xl bg-muted" />)}</div>
           ) : rows.length === 0 ? (
             <div className="grid min-h-44 place-items-center p-6 text-center">
               <div>

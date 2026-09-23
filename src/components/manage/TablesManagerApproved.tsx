@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import {
   Building2,
   Download,
@@ -592,4 +593,4 @@ function TablePiece({ row, layout, selected, onDown, onMove, onUp, onResizeDown 
 }
 function Legend({ tone, label }: { tone: string; label: string }) { return <span className="flex items-center gap-2"><i className={`size-2.5 rounded-full ${tone}`} />{label}</span>; }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div className="min-w-0 space-y-1.5"><Label className="text-xs font-bold">{label}</Label>{children}</div>; }
-function LinkOrders({ restaurantId, ar }: { restaurantId: string; ar: boolean }) { return <a href={`/manage/${restaurantId}/orders`} className="qs-button-secondary whitespace-nowrap"><Table2 className="size-4" />{ar ? "عرض الطلبات" : "View Orders"}</a>; }
+function LinkOrders({ restaurantId, ar }: { restaurantId: string; ar: boolean }) { return <Link to={`/manage/${restaurantId}/orders` as never} preload="intent" className="qs-button-secondary whitespace-nowrap"><Table2 className="size-4" />{ar ? "عرض الطلبات" : "View Orders"}</Link>; }

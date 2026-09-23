@@ -1,4 +1,5 @@
 import type { ElementType, ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
 
 import { cn } from "@/lib/utils";
 
@@ -122,7 +123,7 @@ export function MasterTabs({
           item.active ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground",
         );
         if (item.href) {
-          return <a key={index} href={item.href} className={className}>{item.label}</a>;
+          return <Link key={index} to={item.href as never} preload="intent" className={className}>{item.label}</Link>;
         }
         return <button key={index} type="button" className={className} onClick={item.onClick}>{item.label}</button>;
       })}

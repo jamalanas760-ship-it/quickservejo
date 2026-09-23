@@ -171,10 +171,10 @@ function ProfilePage() {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = section === item.id;
-                return <button key={item.id} type="button" onClick={() => setSection(item.id)} aria-current={active ? "page" : undefined} className={cn("group flex min-h-14 items-center gap-2.5 rounded-[9px] px-3 py-2 text-start transition", active ? "bg-foreground text-background shadow-sm" : "hover:bg-muted/70")}>
-                  <span className={cn("grid size-7 shrink-0 place-items-center rounded-[8px]", active ? "bg-white/16 text-white" : "bg-muted text-muted-foreground group-hover:text-foreground")}><Icon className="size-4.5" /></span>
-                  <span className="min-w-0 flex-1"><strong className="block text-xs">{item.label}</strong><span className={cn("mt-0.5 hidden text-[10px] leading-4 sm:block xl:block", active ? "text-white/75" : "text-muted-foreground")}>{item.hint}</span></span>
-                  <ChevronRight className={cn("size-4 shrink-0 transition", ar && "rotate-180", active ? "text-white/80" : "text-muted-foreground")} />
+                return <button key={item.id} type="button" onClick={() => setSection(item.id)} aria-current={active ? "page" : undefined} className={cn("group flex min-h-14 items-center gap-2.5 rounded-[9px] px-3 py-2 text-start transition", active ? "bg-[#fff3ed] text-foreground ring-1 ring-inset ring-[#e85d2a]/35 shadow-[0_4px_12px_rgba(232,93,42,.08)] dark:bg-[#e85d2a]/15 dark:ring-[#ff8a5b]/40" : "hover:bg-muted/70")}>
+                  <span className={cn("grid size-7 shrink-0 place-items-center rounded-[8px] transition-colors", active ? "bg-[#e85d2a] text-white shadow-sm" : "bg-muted text-muted-foreground group-hover:text-foreground")}><Icon className="size-4.5" /></span>
+                  <span className="min-w-0 flex-1"><strong className="block text-xs">{item.label}</strong><span className="mt-0.5 hidden text-[10px] leading-4 text-muted-foreground sm:block xl:block">{item.hint}</span></span>
+                  <ChevronRight className={cn("size-4 shrink-0 transition", ar && "rotate-180", active ? "text-[#e85d2a]" : "text-muted-foreground")} />
                 </button>;
               })}
             </nav>

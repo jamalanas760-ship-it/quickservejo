@@ -106,6 +106,37 @@ test("operations navigation and work board retain the polished interaction contr
   assert.match(work, /Release to move the card/);
   assert.match(work, /Approval & source/);
   assert.match(work, /panelClassName="sm:max-w-\[640px\]"/);
-  assert.match(router, /defaultPendingMs: 450/);
+  assert.match(router, /defaultPendingMs: 1_200/);
   assert.match(router, /defaultPendingMinMs: 0/);
+});
+
+test("authenticated navigation keeps stable chrome without loading flashes", async () => {
+  const shell = await file("src/routes/_authenticated/route.tsx");
+  const root = await file("src/routes/__root.tsx");
+  const router = await file("src/router.tsx");
+  const skeleton = await file("src/components/ui/skeleton.tsx");
+  const notifications = await file("src/components/nav/NotificationBell.tsx");
+  const analytics = await file("src/components/manage/AnalyticsManagerPro.tsx");
+  const kitchen = await file("src/routes/_authenticated/kitchen.tsx");
+
+  assert.match(shell, /queryKey: \["auth", "route-user"\]/);
+  assert.match(shell, /staleTime: 5 \* 60_000/);
+  assert.match(shell, /qs-persistent-chrome/);
+  assert.match(shell, /<AppHeader title=\{persistentTitle\}/);
+  assert.doesNotMatch(root, /<RouteProgress/);
+  assert.doesNotMatch(root, /<SplashScreen/);
+  assert.match(router, /defaultPendingMs: 1_200/);
+  assert.match(router, /defaultPreloadStaleTime: 5 \* 60_000/);
+  assert.doesNotMatch(skeleton, /animate-pulse/);
+  assert.match(skeleton, /qs-skeleton/);
+  assert.doesNotMatch(notifications, /animate-pulse/);
+  assert.doesNotMatch(kitchen, /animate-pulse/);
+  assert.doesNotMatch(analytics, /<a href=\{`\/manage/);
+});
+
+test("profile settings selection uses the brand accent instead of a black fill", async () => {
+  const profile = await file("src/routes/_authenticated/profile.tsx");
+  assert.match(profile, /active \? "bg-\[#fff3ed\]/);
+  assert.match(profile, /bg-\[#e85d2a\] text-white/);
+  assert.doesNotMatch(profile, /active \? "bg-foreground text-background/);
 });

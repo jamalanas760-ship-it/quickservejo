@@ -1,4 +1,5 @@
 import { ArrowLeft, ArrowRight, BarChart3, CalendarDays, CreditCard, FileText, Receipt, ShoppingBag, Table2, TrendingUp } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { formatDateTime, formatMoney, formatNumber } from "@/lib/format";
@@ -17,8 +18,8 @@ export function AnalyticsDetailPage({widget,restaurantId,labels,data,currency,la
  const ar=lang==="ar";const BackIcon=ar?ArrowRight:ArrowLeft;const base=`/manage/${restaurantId}/analytics`;
  const channels=buildChannels(data.orders,ar);const hours=buildHours(data.orders);const payments=buildPayments(data.orders);const title=labels[widget];
  return <div className="space-y-5">
-  <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><a href={base} className="mb-3 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground transition hover:text-[#e85d2a]"><BackIcon className="size-4"/>{ar?"العودة للتحليلات":"Back to Analytics"}</a><h1 className="qs-page-title">{title}</h1><p className="qs-page-subtitle">{ar?"صفحة مستقلة مبنية على بيانات هذا المطعم الفعلية لآخر 30 يوماً.":"Independent detail view powered by this restaurant’s real data from the last 30 days."}</p></div><span className="qs-button-secondary pointer-events-none"><CalendarDays className="size-4"/>{ar?"آخر 30 يوماً":"Last 30 days"}</span></header>
-  <nav className="overflow-x-auto rounded-2xl border border-border bg-card p-1.5"><div className="flex min-w-max gap-1">{IDS.map(id=><a key={id} href={`${base}/${id}`} className={`rounded-xl px-3 py-2.5 text-[11px] font-bold transition ${id===widget?"bg-[#e85d2a] text-white shadow-sm":"text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{labels[id]}</a>)}</div></nav>
+  <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><Link to={base as never} preload="intent" className="mb-3 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground transition hover:text-[#e85d2a]"><BackIcon className="size-4"/>{ar?"العودة للتحليلات":"Back to Analytics"}</Link><h1 className="qs-page-title">{title}</h1><p className="qs-page-subtitle">{ar?"صفحة مستقلة مبنية على بيانات هذا المطعم الفعلية لآخر 30 يوماً.":"Independent detail view powered by this restaurant’s real data from the last 30 days."}</p></div><span className="qs-button-secondary pointer-events-none"><CalendarDays className="size-4"/>{ar?"آخر 30 يوماً":"Last 30 days"}</span></header>
+  <nav className="overflow-x-auto rounded-2xl border border-border bg-card p-1.5"><div className="flex min-w-max gap-1">{IDS.map(id=><Link key={id} to={`${base}/${id}` as never} preload="intent" className={`rounded-xl px-3 py-2.5 text-[11px] font-bold transition ${id===widget?"bg-[#e85d2a] text-white shadow-sm":"text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{labels[id]}</Link>)}</div></nav>
   {widget==="revenue"?<Revenue ar={ar} lang={lang} currency={currency} data={data} channels={channels}/>:null}
   {widget==="orders"?<Orders ar={ar} lang={lang} currency={currency} data={data}/>:null}
   {widget==="channels"?<Channels ar={ar} lang={lang} currency={currency} rows={channels}/>:null}
