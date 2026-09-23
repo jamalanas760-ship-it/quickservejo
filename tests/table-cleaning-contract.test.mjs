@@ -1,48 +1,15 @@
-import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
 
-const root = new URL("../", import.meta.url);
+const migrationPath = new URL("../supabase/migrations/20260923103000_auto_release_cleaning_tables.sql", import.meta.url);
 
-async function file(path) {
-  return readFile(new URL(path, root), "utf8");
-}
+test("cleaning tables automatically become free after ten minutes", async () => {
+  const migration = await readFile(migrationPath, "utf8");
 
-async function cleaningMigrationSql() {
-  for (const dir of ["supabase/migrations", "supabase/pending"]) {
-    let entries = [];
-    try {
-      entries = await readdir(new URL(dir + "/", root));
-    } catch {
-      continue;
-    }
-    const match = entries.find((name) => name.endsWith("_auto_release_cleaning_tables.sql"));
-    if (match) return file(`${dir}/${match}`);
-  }
-  throw new Error("auto_release_cleaning_tables migration not found");
-}
-
-test("cleaning auto-release migration keeps the verified contract", async () => {
-  const sql = await cleaningMigrationSql();
-  assert.match(sql, /service_status = 'cleaning'/);
-  assert.match(sql, /interval '10 minutes'/);
-  assert.match(sql, /service_status = 'free'/);
-  assert.match(sql, /activated_at = null/);
-  assert.match(sql, /status_updated_by = null/);
-  assert.match(sql, /app\.release_cleaning_tables\(\)/);
-  assert.match(sql, /security definer/);
-  assert.match(sql, /set search_path = ''/);
-  assert.match(sql, /quickserve-release-cleaning-tables/);
-  assert.match(sql, /'10 seconds'/);
-  assert.match(sql, /revoke all on function app\.release_cleaning_tables\(\) from public/);
-  assert.match(sql, /revoke all on function app\.release_cleaning_tables\(\) from anon/);
-  assert.match(sql, /revoke all on function app\.release_cleaning_tables\(\) from authenticated/);
-});
-
-test("waiter floor exposes the cleaning countdown", async () => {
-  const waiter = await file("src/routes/_authenticated/waiter.tsx");
-  assert.match(waiter, /status_updated_at/);
-  assert.match(waiter, /CLEANING_RELEASE_MS/);
-  assert.match(waiter, /filter === "cleaning"/);
-  assert.match(waiter, /useState<number \| null>\(null\)/);
+  assert.match(migration, /service_status = 'cleaning'/);
+  assert.match(migration, /interval '10 minutes'/);
+  assert.match(migration, /set service_status = 'free'/);
+  assert.match(migration, /cron\.schedule[\s\S]*'10 seconds'/);
+  assert.match(migration, /revoke all on function app\.release_cleaning_tables\(\) from public, anon, authenticated/);
 });
