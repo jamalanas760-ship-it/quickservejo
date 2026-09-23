@@ -44,8 +44,9 @@ export const Route = createFileRoute("/_authenticated/waiter")({
 });
 
 const OPEN_STATUSES = ["new", "accepted", "preparing", "ready", "served"] as const;
+export const CLEANING_RELEASE_MS = 10 * 60 * 1000;
 type TableServiceStatus = "free" | "reserved" | "active" | "cleaning" | "out_of_service";
-type FloorFilter = "all" | "calling" | "active" | "free" | "reserved";
+type FloorFilter = "all" | "calling" | "active" | "free" | "reserved" | "cleaning";
 
 type FloorTable = {
   id: string;
@@ -53,9 +54,24 @@ type FloorTable = {
   table_name: string | null;
   service_status: TableServiceStatus;
   activated_at: string | null;
+  status_updated_at: string | null;
   calling: { id: string; note: string | null; status: string } | null;
   openOrders: { id: string; order_number: string; status: string; total: number }[];
 };
+
+function cleaningRemainingMs(table: FloorTable, now: number | null) {
+  if (table.service_status !== "cleaning" || !table.status_updated_at || now === null) return null;
+  const started = new Date(table.status_updated_at).getTime();
+  if (!Number.isFinite(started)) return null;
+  return Math.max(0, started + CLEANING_RELEASE_MS - now);
+}
+
+function formatCountdown(ms: number) {
+  const total = Math.ceil(ms / 1000);
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
 
 function useFloor(restaurantId: string | null) {
   return useQuery<FloorTable[]>({
