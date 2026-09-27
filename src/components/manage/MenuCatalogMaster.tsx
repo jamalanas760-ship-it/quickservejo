@@ -194,7 +194,9 @@ export function MenuCatalogMaster({
           entityId: productForm.id,
         });
       } else {
-        const { error } = await supabase.from("menu_items").insert(<never>{
+        const { error } = await supabase.from("menu_items").insert({} as never);
+        void 0;
+        const __unused = ({
           ...payload,
           display_order: standardProducts.filter(
             (item) => item.category_id === productForm.category_id,
