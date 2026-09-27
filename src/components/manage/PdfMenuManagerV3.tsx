@@ -24,7 +24,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { humanError } from "@/lib/errors";
-import { fetchPdfBytes, openPdf, renderPdfPage, type PdfMenuAnalysis, type PdfMenuCandidate } from "@/lib/pdf-menu";
+import {
+  fetchPdfBytes,
+  openPdf,
+  renderPdfPage,
+  type PdfMenuAnalysis,
+  type PdfMenuCandidate,
+} from "@/lib/pdf-menu";
 import { extractPdfVisualProducts } from "@/lib/pdf-menu-vision.server";
 import { MAX_PDF_BYTES, uploadRestaurantPdf } from "@/lib/storage";
 import { cn } from "@/lib/utils";
@@ -68,11 +74,25 @@ const ZOOM_STEP = 0.05;
 const MIN_AREA_SIZE = 0.008;
 
 function emptyProduct(id: string): Product {
-  return { candidate_id: id, name_en: "", name_ar: "", description_en: null, description_ar: null, price: null, currency: JOD, confidence: 1 };
+  return {
+    candidate_id: id,
+    name_en: "",
+    name_ar: "",
+    description_en: null,
+    description_ar: null,
+    price: null,
+    currency: JOD,
+    confidence: 1,
+  };
 }
 
 function onlyManual(analysis: PdfMenuAnalysis | null | undefined): PdfMenuAnalysis {
-  return { ...(analysis ?? EMPTY), candidates: (analysis?.candidates ?? []).filter((candidate) => candidate.id.startsWith("manual-")) };
+  return {
+    ...(analysis ?? EMPTY),
+    candidates: (analysis?.candidates ?? []).filter((candidate) =>
+      candidate.id.startsWith("manual-"),
+    ),
+  };
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -127,7 +147,13 @@ function EditableHotspot({
     event.stopPropagation();
     if (!active) onSelect();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    drag.current = { kind: "move", pointerX: event.clientX, pointerY: event.clientY, rect, latest: rect };
+    drag.current = {
+      kind: "move",
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      rect,
+      latest: rect,
+    };
   }
 
   function beginResize(event: React.PointerEvent<HTMLButtonElement>, handle: string) {
@@ -135,7 +161,14 @@ function EditableHotspot({
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    drag.current = { kind: "resize", handle, pointerX: event.clientX, pointerY: event.clientY, rect, latest: rect };
+    drag.current = {
+      kind: "resize",
+      handle,
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      rect,
+      latest: rect,
+    };
   }
 
   function move(event: React.PointerEvent<HTMLButtonElement>) {
@@ -154,9 +187,15 @@ function EditableHotspot({
       next.y = clamp(next.y + dy, 0, 1 - next.height);
     } else {
       const handle = state.handle ?? "se";
-      if (handle.includes("w")) { next.x += dx; next.width -= dx; }
+      if (handle.includes("w")) {
+        next.x += dx;
+        next.width -= dx;
+      }
       if (handle.includes("e")) next.width += dx;
-      if (handle.includes("n")) { next.y += dy; next.height -= dy; }
+      if (handle.includes("n")) {
+        next.y += dy;
+        next.height -= dy;
+      }
       if (handle.includes("s")) next.height += dy;
       next = normalizeRect(next);
     }
@@ -201,7 +240,12 @@ function EditableHotspot({
     <div
       className="qs-pdf-hotspot absolute z-30"
       data-active={active}
-      style={{ left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.width * 100}%`, height: `${rect.height * 100}%` }}
+      style={{
+        left: `${rect.x * 100}%`,
+        top: `${rect.y * 100}%`,
+        width: `${rect.width * 100}%`,
+        height: `${rect.height * 100}%`,
+      }}
     >
       <button
         type="button"
@@ -212,7 +256,10 @@ function EditableHotspot({
         onPointerCancel={end}
         onLostPointerCapture={end}
         onKeyDown={nudge}
-        onClick={(event) => { event.stopPropagation(); onSelect(); }}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelect();
+        }}
         className={cn(
           "absolute inset-0 touch-none rounded-[5px] border-2 transition-[border-color,background-color,box-shadow] focus-visible:outline-none",
           active
@@ -228,32 +275,42 @@ function EditableHotspot({
         ) : null}
       </button>
 
-      {active ? handles.map(([handle, left, top, cursor]) => (
-        <button
-          key={handle}
-          type="button"
-          aria-label={`Resize selected area ${handle}`}
-          onPointerDown={(event) => beginResize(event, handle)}
-          onPointerMove={move}
-          onPointerUp={end}
-          onPointerCancel={end}
-          onLostPointerCapture={end}
-          className="qs-pdf-handle absolute z-50 touch-none rounded-[4px] border-2 border-[#e85d2a] bg-white shadow-[0_2px_8px_rgba(0,0,0,.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d2a]/40"
-          style={{
-            left: `${left}%`,
-            top: `${top}%`,
-            width: `${handleSize}px`,
-            height: `${handleSize}px`,
-            cursor,
-            transform: "translate(-50%, -50%)",
-          }}
-        />
-      )) : null}
+      {active
+        ? handles.map(([handle, left, top, cursor]) => (
+            <button
+              key={handle}
+              type="button"
+              aria-label={`Resize selected area ${handle}`}
+              onPointerDown={(event) => beginResize(event, handle)}
+              onPointerMove={move}
+              onPointerUp={end}
+              onPointerCancel={end}
+              onLostPointerCapture={end}
+              className="qs-pdf-handle absolute z-50 touch-none rounded-[4px] border-2 border-[#e85d2a] bg-white shadow-[0_2px_8px_rgba(0,0,0,.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d2a]/40"
+              style={{
+                left: `${left}%`,
+                top: `${top}%`,
+                width: `${handleSize}px`,
+                height: `${handleSize}px`,
+                cursor,
+                transform: "translate(-50%, -50%)",
+              }}
+            />
+          ))
+        : null}
     </div>
   );
 }
 
-function AreaNumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+function AreaNumberField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
   return (
     <label className="space-y-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
       <span>{label}</span>
@@ -267,7 +324,9 @@ function AreaNumberField({ label, value, onChange }: { label: string; value: num
           onChange={(event) => onChange(Number(event.target.value))}
           className="h-10 pe-7 text-xs font-semibold tabular-nums"
         />
-        <span className="pointer-events-none absolute end-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground">%</span>
+        <span className="pointer-events-none absolute end-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground">
+          %
+        </span>
       </div>
     </label>
   );
@@ -316,8 +375,16 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
     queryKey: ["platform", "restaurant-menu-charges", restaurantId],
     queryFn: async () => {
       const [restaurant, settings] = await Promise.all([
-        supabase.from("restaurants").select("tax_rate,service_charge").eq("id", restaurantId).single(),
-        supabase.from("restaurant_settings").select("enable_service_charge").eq("restaurant_id", restaurantId).maybeSingle(),
+        supabase
+          .from("restaurants")
+          .select("tax_rate,service_charge")
+          .eq("id", restaurantId)
+          .single(),
+        supabase
+          .from("restaurant_settings")
+          .select("enable_service_charge")
+          .eq("restaurant_id", restaurantId)
+          .maybeSingle(),
       ]);
       if (restaurant.error) throw restaurant.error;
       if (settings.error) throw settings.error;
@@ -354,13 +421,24 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
         .select("candidate_id,menu_item_id,is_active")
         .eq("document_id", existing.data.id)
         .eq("restaurant_id", restaurantId);
-      const rows = (links ?? []).filter((row: any) => typeof row.candidate_id === "string" && row.candidate_id.startsWith("manual-"));
-      setEnabledMap(Object.fromEntries(rows.map((row: any) => [row.candidate_id, Boolean(row.is_active)])));
-      if (!rows.length) { setDrafts({}); return; }
+      const rows = (links ?? []).filter(
+        (row: any) =>
+          typeof row.candidate_id === "string" && row.candidate_id.startsWith("manual-"),
+      );
+      setEnabledMap(
+        Object.fromEntries(rows.map((row: any) => [row.candidate_id, Boolean(row.is_active)])),
+      );
+      if (!rows.length) {
+        setDrafts({});
+        return;
+      }
       const { data: items } = await supabase
         .from("menu_items")
         .select("id,name_en,name_ar,description_en,description_ar,price")
-        .in("id", rows.map((row: any) => row.menu_item_id));
+        .in(
+          "id",
+          rows.map((row: any) => row.menu_item_id),
+        );
       const map = new Map((items ?? []).map((item: any) => [item.id, item]));
       const next: Record<string, Product> = {};
       for (const row of rows) {
@@ -380,7 +458,9 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
       if (!cancelled) setDrafts(next);
     }
     void loadSaved();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [existing.data, restaurantId, file]);
 
   useEffect(() => {
@@ -395,12 +475,19 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
       }
     }
     void draw();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [fileUrl, fileParts, page, analysis.page_count]);
 
-  const pageCandidates = useMemo(() => analysis.candidates.filter((candidate) => candidate.page_number === page), [analysis.candidates, page]);
+  const pageCandidates = useMemo(
+    () => analysis.candidates.filter((candidate) => candidate.page_number === page),
+    [analysis.candidates, page],
+  );
   const active = activeId ? drafts[activeId] : null;
-  const activeCandidate = activeId ? analysis.candidates.find((candidate) => candidate.id === activeId) ?? null : null;
+  const activeCandidate = activeId
+    ? (analysis.candidates.find((candidate) => candidate.id === activeId) ?? null)
+    : null;
   const savedCount = Object.keys(drafts).length;
 
   function fitPage() {
@@ -443,7 +530,11 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
   function finishSelection(event: React.PointerEvent<HTMLDivElement>) {
     if (!dragStart || !dragRect) return;
     event.preventDefault();
-    try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* no-op */ }
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      /* no-op */
+    }
     const rect = dragRect;
     setDragStart(null);
     setDragRect(null);
@@ -459,7 +550,12 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
       height: rect.height,
       confidence: 1,
     };
-    setAnalysis((current) => ({ ...current, candidates: [...current.candidates, candidate].sort((a, b) => a.page_number - b.page_number || a.y - b.y || a.x - b.x) }));
+    setAnalysis((current) => ({
+      ...current,
+      candidates: [...current.candidates, candidate].sort(
+        (a, b) => a.page_number - b.page_number || a.y - b.y || a.x - b.x,
+      ),
+    }));
     setDrafts((current) => ({ ...current, [id]: emptyProduct(id) }));
     setEnabledMap((current) => ({ ...current, [id]: true }));
     setActiveId(id);
@@ -485,7 +581,18 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
       const nextAnalysis: PdfMenuAnalysis = { page_count: pdf.numPages, pages: [], candidates: [] };
       const { data, error } = await (supabase as any)
         .from("menu_pdf_documents")
-        .upsert({ restaurant_id: restaurantId, file_url: uploaded.url, file_parts: uploaded.parts, file_name: nextFile.name, page_count: pdf.numPages, analysis: nextAnalysis, is_active: true }, { onConflict: "restaurant_id" })
+        .upsert(
+          {
+            restaurant_id: restaurantId,
+            file_url: uploaded.url,
+            file_parts: uploaded.parts,
+            file_name: nextFile.name,
+            page_count: pdf.numPages,
+            analysis: nextAnalysis,
+            is_active: true,
+          },
+          { onConflict: "restaurant_id" },
+        )
         .select("id,file_url,file_parts,file_name,page_count,analysis,is_active")
         .single();
       if (error) throw error;
@@ -544,25 +651,38 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
       cropCtx.drawImage(full, sx, sy, sw, sh, 0, 0, crop.width, crop.height);
 
       const textItems = await pdfPage.getTextContent();
-      const selectedText = textItems.items.map((item: any) => {
-        if (!item?.str || !Array.isArray(item.transform)) return null;
-        const x = Number(item.transform[4]) || 0;
-        const baseline = Number(item.transform[5]) || 0;
-        const h = Math.max(5, Math.abs(Number(item.transform[3]) || Number(item.height) || 10));
-        const y = base.height - baseline - h;
-        const w = Math.max(3, Number(item.width) || item.str.length * h * 0.45);
-        return x < (rect.x + rect.width) * base.width && x + w > rect.x * base.width && y < (rect.y + rect.height) * base.height && y + h > rect.y * base.height ? String(item.str).trim() : null;
-      }).filter(Boolean).join(" ").replace(/\s+/g, " ").trim().slice(0, 10000);
+      const selectedText = textItems.items
+        .map((item: any) => {
+          if (!item?.str || !Array.isArray(item.transform)) return null;
+          const x = Number(item.transform[4]) || 0;
+          const baseline = Number(item.transform[5]) || 0;
+          const h = Math.max(5, Math.abs(Number(item.transform[3]) || Number(item.height) || 10));
+          const y = base.height - baseline - h;
+          const w = Math.max(3, Number(item.width) || item.str.length * h * 0.45);
+          return x < (rect.x + rect.width) * base.width &&
+            x + w > rect.x * base.width &&
+            y < (rect.y + rect.height) * base.height &&
+            y + h > rect.y * base.height
+            ? String(item.str).trim()
+            : null;
+        })
+        .filter(Boolean)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 10000);
 
-      const result = await runVision({ data: {
-        restaurantId,
-        pageNumber: candidate.page_number,
-        pageWidth: crop.width,
-        pageHeight: crop.height,
-        imageDataUrl: crop.toDataURL("image/jpeg", 0.96),
-        selectionOnly: true,
-        selectedText,
-      } });
+      const result = await runVision({
+        data: {
+          restaurantId,
+          pageNumber: candidate.page_number,
+          pageWidth: crop.width,
+          pageHeight: crop.height,
+          imageDataUrl: crop.toDataURL("image/jpeg", 0.96),
+          selectionOnly: true,
+          selectedText,
+        },
+      });
       const product = result.products?.[0]?.product;
       if (!product) throw new Error("No product could be read from this area");
       setDrafts((current) => ({
@@ -589,12 +709,20 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
 
   function updateDraft(patch: Partial<Product>) {
     if (!activeId) return;
-    setDrafts((current) => ({ ...current, [activeId]: { ...(current[activeId] ?? emptyProduct(activeId)), ...patch } }));
+    setDrafts((current) => ({
+      ...current,
+      [activeId]: { ...(current[activeId] ?? emptyProduct(activeId)), ...patch },
+    }));
   }
 
   function updateCandidate(id: string, rect: Rect) {
     const safe = normalizeRect(rect);
-    setAnalysis((current) => ({ ...current, candidates: current.candidates.map((candidate) => candidate.id === id ? { ...candidate, ...safe } : candidate) }));
+    setAnalysis((current) => ({
+      ...current,
+      candidates: current.candidates.map((candidate) =>
+        candidate.id === id ? { ...candidate, ...safe } : candidate,
+      ),
+    }));
   }
 
   function updateActiveGeometry(field: keyof Rect, percentValue: number) {
@@ -619,8 +747,14 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
     const product = drafts[activeId] ?? emptyProduct(activeId);
     const nameEn = product.name_en.trim() || product.name_ar.trim();
     const nameAr = product.name_ar.trim() || product.name_en.trim();
-    if (!nameEn) { toast.error("Add a product name before saving."); return; }
-    if (product.price == null || !Number.isFinite(product.price)) { toast.error("Add the product price before saving."); return; }
+    if (!nameEn) {
+      toast.error("Add a product name before saving.");
+      return;
+    }
+    if (product.price == null || !Number.isFinite(product.price)) {
+      toast.error("Add the product price before saving.");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -631,6 +765,7 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
         description_ar: product.description_ar?.trim() || null,
         price: product.price,
         is_available: true,
+        menu_origin: "pdf",
       };
       const { data: existingLink } = await (supabase as any)
         .from("menu_pdf_item_links")
@@ -640,16 +775,23 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
         .maybeSingle();
       let menuItemId = existingLink?.menu_item_id as string | undefined;
       if (menuItemId) {
-        const { error } = await supabase.from("menu_items").update(payload).eq("id", menuItemId).eq("restaurant_id", restaurantId);
+        const { error } = await supabase
+          .from("menu_items")
+          .update(payload)
+          .eq("id", menuItemId)
+          .eq("restaurant_id", restaurantId);
         if (error) throw error;
       } else {
-        const { data: item, error } = await supabase.from("menu_items").insert(payload).select("id").single();
+        const { data: item, error } = await supabase
+          .from("menu_items")
+          .insert(payload)
+          .select("id")
+          .single();
         if (error) throw error;
         menuItemId = item.id;
       }
-      const { error: linkError } = await (supabase as any)
-        .from("menu_pdf_item_links")
-        .upsert({
+      const { error: linkError } = await (supabase as any).from("menu_pdf_item_links").upsert(
+        {
           document_id: documentRow.id,
           restaurant_id: restaurantId,
           menu_item_id: menuItemId,
@@ -662,7 +804,9 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
           source: "manual-selection",
           is_active: enabledMap[activeId] ?? true,
           candidate_id: activeId,
-        }, { onConflict: "document_id,candidate_id" });
+        },
+        { onConflict: "document_id,candidate_id" },
+      );
       if (linkError) throw linkError;
       const clean = onlyManual(analysis);
       const { error: analysisError } = await (supabase as any)
@@ -672,7 +816,7 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
         .eq("restaurant_id", restaurantId);
       if (analysisError) throw analysisError;
       setAnalysis(clean);
-      setDocumentRow((current) => current ? { ...current, analysis: clean } : current);
+      setDocumentRow((current) => (current ? { ...current, analysis: clean } : current));
       setActiveId(null);
       setSelecting(true);
       await queryClient.invalidateQueries({ queryKey: ["platform", "pdf-document", restaurantId] });
@@ -695,12 +839,32 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
         .eq("candidate_id", candidateId)
         .maybeSingle();
       if (link?.id) await (supabase as any).from("menu_pdf_item_links").delete().eq("id", link.id);
-      if (link?.menu_item_id) await supabase.from("menu_items").delete().eq("id", link.menu_item_id).eq("restaurant_id", restaurantId);
-      const clean = { ...analysis, candidates: analysis.candidates.filter((candidate) => candidate.id !== candidateId) };
-      await (supabase as any).from("menu_pdf_documents").update({ analysis: clean }).eq("id", documentRow.id).eq("restaurant_id", restaurantId);
+      if (link?.menu_item_id)
+        await supabase
+          .from("menu_items")
+          .delete()
+          .eq("id", link.menu_item_id)
+          .eq("restaurant_id", restaurantId);
+      const clean = {
+        ...analysis,
+        candidates: analysis.candidates.filter((candidate) => candidate.id !== candidateId),
+      };
+      await (supabase as any)
+        .from("menu_pdf_documents")
+        .update({ analysis: clean })
+        .eq("id", documentRow.id)
+        .eq("restaurant_id", restaurantId);
       setAnalysis(clean);
-      setDrafts((current) => { const next = { ...current }; delete next[candidateId]; return next; });
-      setEnabledMap((current) => { const next = { ...current }; delete next[candidateId]; return next; });
+      setDrafts((current) => {
+        const next = { ...current };
+        delete next[candidateId];
+        return next;
+      });
+      setEnabledMap((current) => {
+        const next = { ...current };
+        delete next[candidateId];
+        return next;
+      });
       setActiveId(null);
       setSelecting(true);
       toast.success("Area removed.");
@@ -716,18 +880,32 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
     const service = clamp(Number(serviceRate) || 0, 0, 100);
     setChargesSaving(true);
     try {
-      const { error: restaurantError } = await supabase.from("restaurants").update({ tax_rate: tax, service_charge: service }).eq("id", restaurantId);
+      const { error: restaurantError } = await supabase
+        .from("restaurants")
+        .update({ tax_rate: tax, service_charge: service })
+        .eq("id", restaurantId);
       if (restaurantError) throw restaurantError;
-      const { data: settings, error: settingsError } = await supabase.from("restaurant_settings").select("id").eq("restaurant_id", restaurantId).maybeSingle();
+      const { data: settings, error: settingsError } = await supabase
+        .from("restaurant_settings")
+        .select("id")
+        .eq("restaurant_id", restaurantId)
+        .maybeSingle();
       if (settingsError) throw settingsError;
       if (settings?.id) {
-        const { error } = await supabase.from("restaurant_settings").update({ enable_service_charge: serviceEnabled }).eq("id", settings.id);
+        const { error } = await supabase
+          .from("restaurant_settings")
+          .update({ enable_service_charge: serviceEnabled })
+          .eq("id", settings.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("restaurant_settings").insert({ restaurant_id: restaurantId, enable_service_charge: serviceEnabled });
+        const { error } = await supabase
+          .from("restaurant_settings")
+          .insert({ restaurant_id: restaurantId, enable_service_charge: serviceEnabled });
         if (error) throw error;
       }
-      await queryClient.invalidateQueries({ queryKey: ["platform", "restaurant-menu-charges", restaurantId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["platform", "restaurant-menu-charges", restaurantId],
+      });
       toast.success("Menu charges saved.");
     } catch (error) {
       toast.error(humanError(error));
@@ -736,41 +914,121 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
     }
   }
 
-  if (existing.isPending) return <Skeleton className="mx-auto h-[68vh] max-w-[1600px] rounded-2xl" />;
+  if (existing.isPending)
+    return <Skeleton className="mx-auto h-[68vh] max-w-[1600px] rounded-2xl" />;
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-4 pb-24">
       <section className="qs-card p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <div className="flex items-center gap-2"><FileText className="size-5 text-[#e85d2a]" /><h2 className="font-display text-lg font-bold">Clickable PDF</h2></div>
-            {documentRow ? <p className="mt-1 truncate text-xs text-muted-foreground">{documentRow.file_name} · {documentRow.page_count} pages · {savedCount} areas</p> : <p className="mt-1 text-xs text-muted-foreground">Upload the original menu PDF and mark clickable products.</p>}
+            <div className="flex items-center gap-2">
+              <FileText className="size-5 text-[#e85d2a]" />
+              <h2 className="font-display text-lg font-bold">Clickable PDF</h2>
+            </div>
+            {documentRow ? (
+              <p className="mt-1 truncate text-xs text-muted-foreground">
+                {documentRow.file_name} · {documentRow.page_count} pages · {savedCount} areas
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Upload the original menu PDF and mark clickable products.
+              </p>
+            )}
           </div>
           <div className="flex shrink-0 gap-2">
-            <input ref={inputRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => void handleFile(event.target.files?.[0])} />
-            <Button size="sm" onClick={() => inputRef.current?.click()} disabled={saving}><Upload className="size-4" />{documentRow ? "Replace" : "Upload PDF"}</Button>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="hidden"
+              onChange={(event) => void handleFile(event.target.files?.[0])}
+            />
+            <Button size="sm" onClick={() => inputRef.current?.click()} disabled={saving}>
+              <Upload className="size-4" />
+              {documentRow ? "Replace" : "Upload PDF"}
+            </Button>
           </div>
         </div>
       </section>
 
       {!documentRow ? (
-        <button type="button" onClick={() => inputRef.current?.click()} className="qs-card flex min-h-64 w-full items-center justify-center gap-3 border-dashed text-sm font-semibold text-muted-foreground hover:bg-muted/30"><Upload className="size-5" />Upload PDF</button>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="qs-card flex min-h-64 w-full items-center justify-center gap-3 border-dashed text-sm font-semibold text-muted-foreground hover:bg-muted/30"
+        >
+          <Upload className="size-5" />
+          Upload PDF
+        </button>
       ) : (
         <>
           <section className="qs-card overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
               <div className="flex items-center rounded-xl border border-border bg-background p-1">
-                <Button size="icon" variant="ghost" disabled={page <= 1} onClick={() => { setPage((current) => Math.max(1, current - 1)); setActiveId(null); }}><ChevronLeft className="size-4" /></Button>
-                <span className="min-w-20 text-center text-xs font-bold tabular-nums">{page} / {analysis.page_count}</span>
-                <Button size="icon" variant="ghost" disabled={page >= analysis.page_count} onClick={() => { setPage((current) => Math.min(analysis.page_count, current + 1)); setActiveId(null); }}><ChevronRight className="size-4" /></Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  disabled={page <= 1}
+                  onClick={() => {
+                    setPage((current) => Math.max(1, current - 1));
+                    setActiveId(null);
+                  }}
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <span className="min-w-20 text-center text-xs font-bold tabular-nums">
+                  {page} / {analysis.page_count}
+                </span>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  disabled={page >= analysis.page_count}
+                  onClick={() => {
+                    setPage((current) => Math.min(analysis.page_count, current + 1));
+                    setActiveId(null);
+                  }}
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
               </div>
-              <Button size="sm" variant="outline" onClick={fitPage}><Maximize2 className="size-4" />Fit</Button>
+              <Button size="sm" variant="outline" onClick={fitPage}>
+                <Maximize2 className="size-4" />
+                Fit
+              </Button>
               <div className="flex items-center rounded-xl border border-border bg-background p-1">
-                <Button size="icon" variant="ghost" disabled={zoom <= MIN_ZOOM} onClick={() => setZoom((current) => clampZoom(current - ZOOM_STEP))}><ZoomOut className="size-4" /></Button>
-                <span className="min-w-12 text-center text-xs font-bold tabular-nums">{Math.round(zoom * 100)}%</span>
-                <Button size="icon" variant="ghost" disabled={zoom >= MAX_ZOOM} onClick={() => setZoom((current) => clampZoom(current + ZOOM_STEP))}><ZoomIn className="size-4" /></Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  disabled={zoom <= MIN_ZOOM}
+                  onClick={() => setZoom((current) => clampZoom(current - ZOOM_STEP))}
+                >
+                  <ZoomOut className="size-4" />
+                </Button>
+                <span className="min-w-12 text-center text-xs font-bold tabular-nums">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  disabled={zoom >= MAX_ZOOM}
+                  onClick={() => setZoom((current) => clampZoom(current + ZOOM_STEP))}
+                >
+                  <ZoomIn className="size-4" />
+                </Button>
               </div>
-              <Button className="ms-auto" size="sm" variant={selecting ? "default" : "outline"} onClick={() => { setActiveId(null); setSelecting(true); }}><MousePointer2 className="size-4" />{selecting ? "Draw area" : "New area"}</Button>
+              <Button
+                className="ms-auto"
+                size="sm"
+                variant={selecting ? "default" : "outline"}
+                onClick={() => {
+                  setActiveId(null);
+                  setSelecting(true);
+                }}
+              >
+                <MousePointer2 className="size-4" />
+                {selecting ? "Draw area" : "New area"}
+              </Button>
             </div>
 
             <div className="grid min-w-0 gap-3 p-2 sm:p-3 md:grid-cols-[minmax(0,2.2fr)_minmax(260px,320px)]">
@@ -778,76 +1036,190 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
                 <div className="flex min-h-[65vh] min-w-0 items-start justify-center py-2 sm:py-4">
                   <div
                     ref={stageRef}
-                    className={cn("relative w-fit touch-none select-none", selecting && !activeId && "cursor-crosshair")}
+                    className={cn(
+                      "relative w-fit touch-none select-none",
+                      selecting && !activeId && "cursor-crosshair",
+                    )}
                     style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
                     onPointerDown={startSelection}
                     onPointerMove={moveSelection}
                     onPointerUp={finishSelection}
                     onPointerCancel={finishSelection}
                   >
-                    <canvas ref={canvasRef} className="block max-w-none rounded-md bg-white shadow-xl ring-1 ring-black/5" />
+                    <canvas
+                      ref={canvasRef}
+                      className="block max-w-none rounded-md bg-white shadow-xl ring-1 ring-black/5"
+                    />
                     {pageCandidates.map((candidate) => (
                       <EditableHotspot
                         key={candidate.id}
                         candidate={candidate}
                         active={activeId === candidate.id}
                         enabled={enabledMap[candidate.id] ?? true}
-                        label={drafts[candidate.id]?.name_en || drafts[candidate.id]?.name_ar || "Selected area"}
+                        label={
+                          drafts[candidate.id]?.name_en ||
+                          drafts[candidate.id]?.name_ar ||
+                          "Selected area"
+                        }
                         zoom={zoom}
-                        onSelect={() => { setActiveId(candidate.id); setSelecting(false); }}
+                        onSelect={() => {
+                          setActiveId(candidate.id);
+                          setSelecting(false);
+                        }}
                         onChange={(rect) => updateCandidate(candidate.id, rect)}
                         stageRef={stageRef}
                       />
                     ))}
-                    {dragRect ? <div className="pointer-events-none absolute z-40 rounded-md border-2 border-dashed border-[#e85d2a] bg-orange-500/10" style={{ left: `${dragRect.x * 100}%`, top: `${dragRect.y * 100}%`, width: `${dragRect.width * 100}%`, height: `${dragRect.height * 100}%` }} /> : null}
+                    {dragRect ? (
+                      <div
+                        className="pointer-events-none absolute z-40 rounded-md border-2 border-dashed border-[#e85d2a] bg-orange-500/10"
+                        style={{
+                          left: `${dragRect.x * 100}%`,
+                          top: `${dragRect.y * 100}%`,
+                          width: `${dragRect.width * 100}%`,
+                          height: `${dragRect.height * 100}%`,
+                        }}
+                      />
+                    ) : null}
                   </div>
                 </div>
               </div>
 
               {activeId && activeCandidate && active ? (
-                <aside className={cn(
-                  "space-y-3",
-                  "fixed inset-x-2 bottom-[calc(78px+env(safe-area-inset-bottom))] z-50 max-h-[58dvh] overflow-y-auto rounded-2xl border border-border bg-background p-3 shadow-2xl",
-                  "md:sticky md:inset-x-auto md:bottom-auto md:top-24 md:z-auto md:max-h-[calc(100dvh-120px)] md:self-start md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none",
-                )}>
+                <aside
+                  className={cn(
+                    "space-y-3",
+                    "fixed inset-x-2 bottom-[calc(78px+env(safe-area-inset-bottom))] z-50 max-h-[58dvh] overflow-y-auto rounded-2xl border border-border bg-background p-3 shadow-2xl",
+                    "md:sticky md:inset-x-auto md:bottom-auto md:top-24 md:z-auto md:max-h-[calc(100dvh-120px)] md:self-start md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none",
+                  )}
+                >
                   <div className="qs-card p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Selected area</p><h3 className="mt-1 truncate font-bold">{active.name_en || active.name_ar || "New product"}</h3></div>
-                      <button type="button" className="grid size-9 place-items-center rounded-lg text-muted-foreground hover:bg-muted" onClick={() => setActiveId(null)}><X className="size-4" /></button>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                          Selected area
+                        </p>
+                        <h3 className="mt-1 truncate font-bold">
+                          {active.name_en || active.name_ar || "New product"}
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        className="grid size-9 place-items-center rounded-lg text-muted-foreground hover:bg-muted"
+                        onClick={() => setActiveId(null)}
+                      >
+                        <X className="size-4" />
+                      </button>
                     </div>
-                    <p className="mt-3 rounded-xl bg-muted/50 p-3 text-xs leading-5 text-muted-foreground">Drag inside the orange box to move it. Drag any white handle to resize it.</p>
+                    <p className="mt-3 rounded-xl bg-muted/50 p-3 text-xs leading-5 text-muted-foreground">
+                      Drag inside the orange box to move it. Drag any white handle to resize it.
+                    </p>
 
                     <div className="mt-4">
                       <p className="mb-2 text-xs font-bold">Position &amp; size</p>
                       <div className="grid grid-cols-2 gap-2">
-                        <AreaNumberField label="X" value={activeCandidate.x} onChange={(value) => updateActiveGeometry("x", value)} />
-                        <AreaNumberField label="Y" value={activeCandidate.y} onChange={(value) => updateActiveGeometry("y", value)} />
-                        <AreaNumberField label="Width" value={activeCandidate.width} onChange={(value) => updateActiveGeometry("width", value)} />
-                        <AreaNumberField label="Height" value={activeCandidate.height} onChange={(value) => updateActiveGeometry("height", value)} />
+                        <AreaNumberField
+                          label="X"
+                          value={activeCandidate.x}
+                          onChange={(value) => updateActiveGeometry("x", value)}
+                        />
+                        <AreaNumberField
+                          label="Y"
+                          value={activeCandidate.y}
+                          onChange={(value) => updateActiveGeometry("y", value)}
+                        />
+                        <AreaNumberField
+                          label="Width"
+                          value={activeCandidate.width}
+                          onChange={(value) => updateActiveGeometry("width", value)}
+                        />
+                        <AreaNumberField
+                          label="Height"
+                          value={activeCandidate.height}
+                          onChange={(value) => updateActiveGeometry("height", value)}
+                        />
                       </div>
                     </div>
 
                     <button
                       type="button"
-                      className={cn("mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold", (enabledMap[activeId] ?? true) ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-border text-muted-foreground")}
-                      onClick={() => setEnabledMap((current) => ({ ...current, [activeId]: !(current[activeId] ?? true) }))}
+                      className={cn(
+                        "mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold",
+                        (enabledMap[activeId] ?? true)
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                          : "border-border text-muted-foreground",
+                      )}
+                      onClick={() =>
+                        setEnabledMap((current) => ({
+                          ...current,
+                          [activeId]: !(current[activeId] ?? true),
+                        }))
+                      }
                     >
-                      <Check className="size-3.5" />{(enabledMap[activeId] ?? true) ? "Clickable" : "Disabled"}
+                      <Check className="size-3.5" />
+                      {(enabledMap[activeId] ?? true) ? "Clickable" : "Disabled"}
                     </button>
                   </div>
 
                   <div className="qs-card p-4">
-                    <div className="mb-3 flex items-center justify-between"><h3 className="font-bold">Product</h3>{reading ? <Loader2 className="size-4 animate-spin text-[#e85d2a]" /> : null}</div>
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="font-bold">Product</h3>
+                      {reading ? <Loader2 className="size-4 animate-spin text-[#e85d2a]" /> : null}
+                    </div>
                     <div className="space-y-3">
-                      <Input placeholder="Name (English)" value={active.name_en} onChange={(event) => updateDraft({ name_en: event.target.value })} />
-                      <Input placeholder="Name (Arabic)" value={active.name_ar} onChange={(event) => updateDraft({ name_ar: event.target.value })} />
-                      <Textarea rows={2} placeholder="Description (English)" value={active.description_en ?? ""} onChange={(event) => updateDraft({ description_en: event.target.value })} />
-                      <Textarea rows={2} placeholder="Description (Arabic)" value={active.description_ar ?? ""} onChange={(event) => updateDraft({ description_ar: event.target.value })} />
-                      <Input type="number" min="0" step="0.01" placeholder="Price" value={active.price ?? ""} onChange={(event) => updateDraft({ price: event.target.value === "" ? null : Number(event.target.value) })} />
+                      <Input
+                        placeholder="Name (English)"
+                        value={active.name_en}
+                        onChange={(event) => updateDraft({ name_en: event.target.value })}
+                      />
+                      <Input
+                        placeholder="Name (Arabic)"
+                        value={active.name_ar}
+                        onChange={(event) => updateDraft({ name_ar: event.target.value })}
+                      />
+                      <Textarea
+                        rows={2}
+                        placeholder="Description (English)"
+                        value={active.description_en ?? ""}
+                        onChange={(event) => updateDraft({ description_en: event.target.value })}
+                      />
+                      <Textarea
+                        rows={2}
+                        placeholder="Description (Arabic)"
+                        value={active.description_ar ?? ""}
+                        onChange={(event) => updateDraft({ description_ar: event.target.value })}
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Price"
+                        value={active.price ?? ""}
+                        onChange={(event) =>
+                          updateDraft({
+                            price: event.target.value === "" ? null : Number(event.target.value),
+                          })
+                        }
+                      />
                     </div>
                     <div className="safe-bottom sticky bottom-0 mt-4 flex gap-2 border-t border-border bg-background/96 pt-3 backdrop-blur">
-                      <Button className="flex-1" onClick={() => void saveProduct()} disabled={saving || reading}><Save className="size-4" />Save changes</Button>
-                      <Button size="icon" variant="outline" onClick={() => void deleteProduct(activeId)} disabled={saving} aria-label="Delete area"><Trash2 className="size-4" /></Button>
+                      <Button
+                        className="flex-1"
+                        onClick={() => void saveProduct()}
+                        disabled={saving || reading}
+                      >
+                        <Save className="size-4" />
+                        Save changes
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={() => void deleteProduct(activeId)}
+                        disabled={saving}
+                        aria-label="Delete area"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
                     </div>
                   </div>
                 </aside>
@@ -855,8 +1227,12 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
                 <aside className="md:sticky md:top-24 md:self-start">
                   <div className="qs-card p-4">
                     <MousePointer2 className="size-5 text-[#e85d2a]" />
-                    <p className="mt-2 text-sm font-bold">{selecting ? "Draw a product area" : "Select an area"}</p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">Select any orange area, then drag it to move or resize it directly.</p>
+                    <p className="mt-2 text-sm font-bold">
+                      {selecting ? "Draw a product area" : "Select an area"}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Select any orange area, then drag it to move or resize it directly.
+                    </p>
                   </div>
                 </aside>
               )}
@@ -864,12 +1240,42 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
           </section>
 
           <section className="qs-card p-4 sm:p-5">
-            <div className="flex items-center gap-2"><Settings2 className="size-4 text-[#e85d2a]" /><h3 className="font-bold">Charges</h3></div>
+            <div className="flex items-center gap-2">
+              <Settings2 className="size-4 text-[#e85d2a]" />
+              <h3 className="font-bold">Charges</h3>
+            </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
-              <label className="space-y-1.5 text-xs font-semibold text-muted-foreground"><span>Tax %</span><Input type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(Number(event.target.value))} /></label>
-              <label className="space-y-1.5 text-xs font-semibold text-muted-foreground"><span>Service %</span><Input type="number" min="0" max="100" step="0.01" value={serviceRate} onChange={(event) => setServiceRate(Number(event.target.value))} /></label>
-              <Button variant={serviceEnabled ? "secondary" : "outline"} onClick={() => setServiceEnabled((current) => !current)}>{serviceEnabled ? "Service on" : "Service off"}</Button>
-              <Button onClick={() => void saveCharges()} disabled={chargesSaving}>{chargesSaving ? <Loader2 className="size-4 animate-spin" /> : "Save"}</Button>
+              <label className="space-y-1.5 text-xs font-semibold text-muted-foreground">
+                <span>Tax %</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={taxRate}
+                  onChange={(event) => setTaxRate(Number(event.target.value))}
+                />
+              </label>
+              <label className="space-y-1.5 text-xs font-semibold text-muted-foreground">
+                <span>Service %</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={serviceRate}
+                  onChange={(event) => setServiceRate(Number(event.target.value))}
+                />
+              </label>
+              <Button
+                variant={serviceEnabled ? "secondary" : "outline"}
+                onClick={() => setServiceEnabled((current) => !current)}
+              >
+                {serviceEnabled ? "Service on" : "Service off"}
+              </Button>
+              <Button onClick={() => void saveCharges()} disabled={chargesSaving}>
+                {chargesSaving ? <Loader2 className="size-4 animate-spin" /> : "Save"}
+              </Button>
             </div>
           </section>
         </>

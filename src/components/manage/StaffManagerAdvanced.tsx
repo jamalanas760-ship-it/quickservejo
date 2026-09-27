@@ -1,16 +1,49 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarClock, CalendarPlus, History, IdCard, KeyRound, MoreHorizontal, Pencil, Plus, Search, ShieldCheck, Trash2, UserRound, UsersRound } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarPlus,
+  History,
+  IdCard,
+  KeyRound,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  ShieldCheck,
+  Trash2,
+  UserRound,
+  UsersRound,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useAccess, useSupabaseSession } from "@/hooks/useSession";
@@ -20,13 +53,31 @@ import { supabase } from "@/integrations/supabase/client";
 import { avatarPresetUrl } from "@/lib/avatar-presets";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
-import { PERMISSION_GROUPS, ROLE_LABELS, roleHasCapability, type AppRole, type Capability, type PermissionOverrides } from "@/lib/permissions";
+import {
+  PERMISSION_GROUPS,
+  ROLE_LABELS,
+  roleHasCapability,
+  type AppRole,
+  type Capability,
+  type PermissionOverrides,
+} from "@/lib/permissions";
 import { qrDataUrl } from "@/lib/qr";
 import { getStaffAccess } from "@/lib/staff-auth.functions";
 import { inviteStaffMember, removeStaffMember, updateStaffMember } from "@/lib/staff.functions";
 import { cn } from "@/lib/utils";
 
-const ROLES: AppRole[] = ["restaurant_admin", "operations_manager", "manager", "kitchen", "waiter", "cashier", "host", "inventory", "procurement", "accountant"];
+const ROLES: AppRole[] = [
+  "restaurant_admin",
+  "operations_manager",
+  "manager",
+  "kitchen",
+  "waiter",
+  "cashier",
+  "host",
+  "inventory",
+  "procurement",
+  "accountant",
+];
 const ROLE_NAMES: Record<AppRole, { en: string; ar: string }> = ROLE_LABELS;
 const ROLE_TONE: Record<string, string> = {
   restaurant_admin: "bg-orange-500/12 text-orange-600",
@@ -57,11 +108,44 @@ type StaffRow = {
   permission_overrides?: PermissionOverrides | null;
   last_seen_at?: string | null;
 };
-type Editing = StaffRow & { password: string; confirmPassword: string; permission_overrides: PermissionOverrides };
-type AuditRow = { id: string; action: string; entity: string | null; created_at: string; metadata: unknown };
-type StaffScheduleRow = { id: string; name: string; shift_date: string; planned_start: string | null; planned_end: string | null; status: string };
-type StaffAssignmentRow = { id: string; shift_id: string; staff_id: string; starts_at: string | null; ends_at: string | null; status: string };
+type Editing = StaffRow & {
+  password: string;
+  confirmPassword: string;
+  permission_overrides: PermissionOverrides;
+};
+type AuditRow = {
+  id: string;
+  action: string;
+  entity: string | null;
+  created_at: string;
+  metadata: unknown;
+};
+type StaffScheduleRow = {
+  id: string;
+  name: string;
+  shift_date: string;
+  planned_start: string | null;
+  planned_end: string | null;
+  status: string;
+};
+type StaffAssignmentRow = {
+  id: string;
+  shift_id: string;
+  staff_id: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  status: string;
+};
 type StaffTimeRow = { staff_id: string; clock_in: string; clock_out: string | null };
+type StaffScheduleSummary = {
+  name: string;
+  start: string | null;
+  end: string | null;
+  status: string;
+  count: number;
+  distance: number;
+  attendance: "on_time" | "late" | "left_early" | "overtime" | "not_clocked";
+};
 
 export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string }) {
   const { t, lang } = useI18n();
@@ -71,7 +155,9 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const currentUserId = session.data?.user.id ?? null;
   const isSuperAdmin = accessHook.isSuperAdmin;
   const canManageShifts = accessHook.canFor(restaurantId, "manage_shifts");
-  const assignableRoles = isSuperAdmin ? ROLES : ROLES.filter((role) => role !== "restaurant_admin");
+  const assignableRoles = isSuperAdmin
+    ? ROLES
+    : ROLES.filter((role) => role !== "restaurant_admin");
   const qc = useQueryClient();
   const seats = useRestaurantSeatUsage(restaurantId);
   const seatLimit = seats.data?.limit ?? null;
@@ -107,12 +193,19 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     refetchInterval: 15_000,
     refetchIntervalInBackground: false,
     queryFn: async () => {
-      const { data, error } = await (supabase.from("staff") as any).select("*").eq("restaurant_id", restaurantId).order("created_at", { ascending: false });
+      const { data, error } = await (supabase.from("staff") as any)
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as StaffRow[];
     },
   });
-  const schedule = useQuery<{ shifts: StaffScheduleRow[]; assignments: StaffAssignmentRow[]; time: StaffTimeRow[] }>({
+  const schedule = useQuery<{
+    shifts: StaffScheduleRow[];
+    assignments: StaffAssignmentRow[];
+    time: StaffTimeRow[];
+  }>({
     queryKey: ["platform", "staff-schedule", restaurantId],
     refetchInterval: 20_000,
     queryFn: async () => {
@@ -121,28 +214,60 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       const horizon = new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10);
       const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
       const [shiftsResult, assignmentsResult, timeResult] = await Promise.all([
-        (supabase.from("shifts" as any) as any).select("id,name,shift_date,planned_start,planned_end,status").eq("restaurant_id", restaurantId).is("deleted_at", null).gte("shift_date", historyStart).lte("shift_date", horizon).order("shift_date", { ascending: true }),
-        (supabase.from("shift_assignments" as any) as any).select("id,shift_id,staff_id,starts_at,ends_at,status").eq("restaurant_id", restaurantId),
-        (supabase.from("staff_time_entries" as any) as any).select("staff_id,clock_in,clock_out").eq("restaurant_id", restaurantId).gte("clock_in", since),
+        (supabase.from("shifts" as any) as any)
+          .select("id,name,shift_date,planned_start,planned_end,status")
+          .eq("restaurant_id", restaurantId)
+          .is("deleted_at", null)
+          .gte("shift_date", historyStart)
+          .lte("shift_date", horizon)
+          .order("shift_date", { ascending: true }),
+        (supabase.from("shift_assignments" as any) as any)
+          .select("id,shift_id,staff_id,starts_at,ends_at,status")
+          .eq("restaurant_id", restaurantId),
+        (supabase.from("staff_time_entries" as any) as any)
+          .select("staff_id,clock_in,clock_out")
+          .eq("restaurant_id", restaurantId)
+          .gte("clock_in", since),
       ]);
-      for (const result of [shiftsResult, assignmentsResult, timeResult]) if (result.error) throw result.error;
-      return { shifts: (shiftsResult.data ?? []) as StaffScheduleRow[], assignments: (assignmentsResult.data ?? []) as StaffAssignmentRow[], time: (timeResult.data ?? []) as StaffTimeRow[] };
+      for (const result of [shiftsResult, assignmentsResult, timeResult])
+        if (result.error) throw result.error;
+      return {
+        shifts: (shiftsResult.data ?? []) as StaffScheduleRow[],
+        assignments: (assignmentsResult.data ?? []) as StaffAssignmentRow[],
+        time: (timeResult.data ?? []) as StaffTimeRow[],
+      };
     },
   });
   useEffect(() => {
-    const channel = supabase.channel(`team-presence:${restaurantId}`).on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "staff", filter: `restaurant_id=eq.${restaurantId}` },
-      () => void qc.invalidateQueries({ queryKey: ["platform", "staff", restaurantId] }),
-    ).subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    const channel = supabase
+      .channel(`team-presence:${restaurantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "staff",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
+        () => void qc.invalidateQueries({ queryKey: ["platform", "staff", restaurantId] }),
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, [qc, restaurantId]);
   const audit = useQuery<AuditRow[]>({
     queryKey: ["platform", "staff-audit", restaurantId, editing?.auth_user_id],
     enabled: Boolean(editing && drawerTab === "log"),
     queryFn: async () => {
       if (!editing) return [];
-      const { data, error } = await supabase.from("audit_logs").select("id, action, entity, created_at, metadata").eq("restaurant_id", restaurantId).eq("actor_user_id", editing.auth_user_id).order("created_at", { ascending: false }).limit(30);
+      const { data, error } = await supabase
+        .from("audit_logs")
+        .select("id, action, entity, created_at, metadata")
+        .eq("restaurant_id", restaurantId)
+        .eq("actor_user_id", editing.auth_user_id)
+        .order("created_at", { ascending: false })
+        .limit(30);
       if (error) throw error;
       return (data ?? []) as AuditRow[];
     },
@@ -162,7 +287,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     });
   }, [search, tab, roleFilter, statusFilter, staff.data]);
   const scheduleByStaff = useMemo(() => {
-    const result = new Map<string, { name: string; start: string | null; end: string | null; status: string; count: number; distance: number; attendance: "on_time" | "late" | "left_early" | "overtime" | "not_clocked" }>();
+    const result = new Map<string, StaffScheduleSummary>();
     const shiftsById = new Map((schedule.data?.shifts ?? []).map((shift) => [shift.id, shift]));
     for (const assignment of schedule.data?.assignments ?? []) {
       const shift = shiftsById.get(assignment.shift_id);
@@ -170,14 +295,28 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       const existing = result.get(assignment.staff_id);
       const start = assignment.starts_at ?? shift.planned_start;
       const end = assignment.ends_at ?? shift.planned_end;
-      const entry = (schedule.data?.time ?? []).find((time) => time.staff_id === assignment.staff_id && new Date(time.clock_in).getTime() <= new Date(end ?? 0).getTime() && (!time.clock_out || new Date(time.clock_out).getTime() >= new Date(start ?? 0).getTime()));
+      const entry = (schedule.data?.time ?? []).find(
+        (time) =>
+          time.staff_id === assignment.staff_id &&
+          new Date(time.clock_in).getTime() <= new Date(end ?? 0).getTime() &&
+          (!time.clock_out || new Date(time.clock_out).getTime() >= new Date(start ?? 0).getTime()),
+      );
       const attendance = scheduleAttendance(start, end, entry);
       const startMs = new Date(start ?? shift.shift_date).getTime();
       const endMs = new Date(end ?? shift.shift_date).getTime();
       const now = Date.now();
       const distance = now < startMs ? startMs - now : now > endMs ? now - endMs : 0;
       const count = (existing?.count ?? 0) + 1;
-      if (!existing || distance < existing.distance) result.set(assignment.staff_id, { name: shift.name, start, end, status: assignment.status, count, distance, attendance });
+      if (!existing || distance < existing.distance)
+        result.set(assignment.staff_id, {
+          name: shift.name,
+          start,
+          end,
+          status: assignment.status,
+          count,
+          distance,
+          attendance,
+        });
       else result.set(assignment.staff_id, { ...existing, count });
     }
     return result;
@@ -191,10 +330,20 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     ]);
   }
   function isOwnRestaurantManager(member: StaffRow) {
-    return !isSuperAdmin && member.role === "restaurant_admin" && Boolean(currentUserId) && member.auth_user_id === currentUserId;
+    return (
+      !isSuperAdmin &&
+      member.role === "restaurant_admin" &&
+      Boolean(currentUserId) &&
+      member.auth_user_id === currentUserId
+    );
   }
   function startEdit(member: StaffRow) {
-    setEditing({ ...member, password: "", confirmPassword: "", permission_overrides: { ...(member.permission_overrides ?? {}) } });
+    setEditing({
+      ...member,
+      password: "",
+      confirmPassword: "",
+      permission_overrides: { ...(member.permission_overrides ?? {}) },
+    });
     setDrawerTab(isOwnRestaurantManager(member) ? "profile" : "permissions");
   }
   function permissionEnabled(cap: Capability) {
@@ -203,16 +352,25 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   }
   function setPermission(cap: Capability, value: boolean) {
     if (!editing || !roleHasCapability(editing.role, cap)) return;
-    setEditing({ ...editing, permission_overrides: { ...editing.permission_overrides, [cap]: value } });
+    setEditing({
+      ...editing,
+      permission_overrides: { ...editing.permission_overrides, [cap]: value },
+    });
   }
   async function create() {
     if (seatsFull) {
-      toast.error(ar ? "تم الوصول إلى حد المستخدمين لهذا المطعم." : "This restaurant has reached its user limit.");
+      toast.error(
+        ar
+          ? "تم الوصول إلى حد المستخدمين لهذا المطعم."
+          : "This restaurant has reached its user limit.",
+      );
       return;
     }
     setBusy(true);
     try {
-      const result = await invite({ data: { restaurantId, email: form.email.trim(), name: form.name.trim(), role: form.role } });
+      const result = await invite({
+        data: { restaurantId, email: form.email.trim(), name: form.name.trim(), role: form.role },
+      });
       setCredentials(result);
       setAddOpen(false);
       setForm({ name: "", email: "", role: "waiter" });
@@ -233,13 +391,19 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       return;
     }
     if (nextName.length > 80) {
-      toast.error(ar ? "الاسم طويل جداً. الحد الأقصى 80 حرفاً." : "The name is too long. Maximum 80 characters.");
+      toast.error(
+        ar
+          ? "الاسم طويل جداً. الحد الأقصى 80 حرفاً."
+          : "The name is too long. Maximum 80 characters.",
+      );
       return;
     }
     const ownRestaurantManager = isOwnRestaurantManager(editing);
     if (!ownRestaurantManager) {
       if (password && password.length < 8) {
-        toast.error(ar ? "كلمة المرور 8 أحرف على الأقل." : "Password must be at least 8 characters.");
+        toast.error(
+          ar ? "كلمة المرور 8 أحرف على الأقل." : "Password must be at least 8 characters.",
+        );
         return;
       }
       if (password !== editing.confirmPassword) {
@@ -250,10 +414,16 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     setBusy(true);
     try {
       if (ownRestaurantManager) {
-        const { error: staffError } = await (supabase as any).rpc("update_own_display_name", { _staff_id: editing.id, _name: nextName });
+        const { error: staffError } = await (supabase as any).rpc("update_own_display_name", {
+          _staff_id: editing.id,
+          _name: nextName,
+        });
         if (staffError) throw staffError;
-        const { error: metadataError } = await supabase.auth.updateUser({ data: { full_name: nextName, name: nextName } });
-        if (metadataError) console.warn("Display-name metadata sync skipped:", metadataError.message);
+        const { error: metadataError } = await supabase.auth.updateUser({
+          data: { full_name: nextName, name: nextName },
+        });
+        if (metadataError)
+          console.warn("Display-name metadata sync skipped:", metadataError.message);
         await Promise.all([
           refresh(),
           qc.invalidateQueries({ queryKey: ["auth", "session"] }),
@@ -263,7 +433,17 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
         toast.success(ar ? "تم تحديث اسم مدير المطعم" : "Restaurant Manager name updated");
         return;
       }
-      await update({ data: { staffId: editing.id, name: nextName, email: editing.email?.trim() || undefined, role: editing.role, isActive: editing.is_active, permissionOverrides: editing.permission_overrides, ...(password ? { password } : {}) } });
+      await update({
+        data: {
+          staffId: editing.id,
+          name: nextName,
+          email: editing.email?.trim() || undefined,
+          role: editing.role,
+          isActive: editing.is_active,
+          permissionOverrides: editing.permission_overrides,
+          ...(password ? { password } : {}),
+        },
+      });
       await refresh();
       setEditing(null);
       toast.success(ar ? "تم حفظ التغييرات" : "Changes saved");
@@ -293,104 +473,971 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     try {
       const result = await readAccess({ data: { staffId: id } });
       setAccess(result);
-      setBadge(result.badgeCode ? await qrDataUrl(`${location.origin}/staff/badge/${result.badgeCode}`, 420) : null);
+      setBadge(
+        result.badgeCode
+          ? await qrDataUrl(`${location.origin}/staff/badge/${result.badgeCode}`, 420)
+          : null,
+      );
     } catch (error) {
       toast.error(humanError(error, lang));
     }
   }
 
-  return <div className="qs-viewport-fill flex h-full min-h-0 flex-col gap-2">
-    <MasterPageHeader
-      eyebrow={<MasterEyebrow icon={UsersRound}>{ar ? "الفريق والوصول" : "Team & access"}</MasterEyebrow>}
-      title={ar ? "الفريق والأدوار" : "Staff & Roles"}
-      description={ar ? "أدر الفريق، الصلاحيات، حالة الوصول والنشاط من مكان واحد واضح." : "Manage people, permissions, access state and activity from one organized workspace."}
-      actions={<Button disabled={seats.isPending||seatsFull} onClick={()=>setAddOpen(true)}><Plus className="size-4"/>{seatsFull?(ar?"اكتمل الحد":"Limit reached"):(ar?"إضافة عضو":"Invite Member")}</Button>}
-    />
+  return (
+    <div className="qs-viewport-fill flex h-full min-h-0 flex-col gap-2">
+      <MasterPageHeader
+        eyebrow={
+          <MasterEyebrow icon={UsersRound}>{ar ? "الفريق والوصول" : "Team & access"}</MasterEyebrow>
+        }
+        title={ar ? "الفريق والأدوار" : "Staff & Roles"}
+        description={
+          ar
+            ? "أدر الفريق، الصلاحيات، حالة الوصول والنشاط من مكان واحد واضح."
+            : "Manage people, permissions, access state and activity from one organized workspace."
+        }
+        actions={
+          <Button disabled={seats.isPending || seatsFull} onClick={() => setAddOpen(true)}>
+            <Plus className="size-4" />
+            {seatsFull ? (ar ? "اكتمل الحد" : "Limit reached") : ar ? "إضافة عضو" : "Invite Member"}
+          </Button>
+        }
+      />
 
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <MasterKpi icon={UsersRound} label={ar?"إجمالي الفريق":"Total Staff"} value={String((staff.data??[]).length)} hint={seatLimit==null?(ar?"غير محدود":"Unlimited"):`${seatsUsed}/${seatLimit} seats`} tone="blue"/>
-      <MasterKpi icon={ShieldCheck} label={ar?"المدراء":"Admins"} value={String(admins)} hint={ar?"وصول إداري":"Admin access"} tone="green"/>
-      <MasterKpi icon={UserRound} label={ar?"الموظفون":"Staff"} value={String(staffOnly)} hint={ar?"أدوار تشغيلية":"Operational roles"} tone="purple"/>
-      <MasterKpi icon={UserRound} label={ar?"نشطون الآن":"Active Access"} value={String((staff.data??[]).filter(member=>member.is_active).length)} hint={ar?"حسابات مفعلة":"Enabled accounts"} tone="orange"/>
-    </section>
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MasterKpi
+          icon={UsersRound}
+          label={ar ? "إجمالي الفريق" : "Total Staff"}
+          value={String((staff.data ?? []).length)}
+          hint={
+            seatLimit == null ? (ar ? "غير محدود" : "Unlimited") : `${seatsUsed}/${seatLimit} seats`
+          }
+          tone="blue"
+        />
+        <MasterKpi
+          icon={ShieldCheck}
+          label={ar ? "المدراء" : "Admins"}
+          value={String(admins)}
+          hint={ar ? "وصول إداري" : "Admin access"}
+          tone="green"
+        />
+        <MasterKpi
+          icon={UserRound}
+          label={ar ? "الموظفون" : "Staff"}
+          value={String(staffOnly)}
+          hint={ar ? "أدوار تشغيلية" : "Operational roles"}
+          tone="purple"
+        />
+        <MasterKpi
+          icon={UserRound}
+          label={ar ? "نشطون الآن" : "Active Access"}
+          value={String((staff.data ?? []).filter((member) => member.is_active).length)}
+          hint={ar ? "حسابات مفعلة" : "Enabled accounts"}
+          tone="orange"
+        />
+      </section>
 
-    <section className="qs-card qs-viewport-fill flex min-h-0 min-w-0 flex-col overflow-hidden">
-      <div className="border-b border-border px-4 pt-3">
-        <div className="flex gap-6 overflow-x-auto text-xs font-semibold">{([["all", ar ? "كل الفريق" : "All Staff", (staff.data ?? []).length], ["admins", ar ? "المدراء" : "Admins", admins], ["staff", ar ? "الموظفون" : "Staff", staffOnly]] as const).map(([id, label, count]) => <button key={id} type="button" onClick={() => setTab(id)} className={cn("relative min-h-8 shrink-0 px-1", tab === id ? "text-[#e85d2a]" : "text-muted-foreground")}>{label} <span className="ms-1 rounded-full bg-muted px-2 py-0.5 text-[10px]">{count}</span>{tab === id ? <span className="absolute inset-x-0 bottom-0 h-0.5 bg-[#e85d2a]" /> : null}</button>)}</div>
-      </div>
-      <div className="grid gap-2.5 border-b border-border p-3 lg:grid-cols-[minmax(0,1fr)_145px_145px]">
-        <div className="relative"><Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ar ? "ابحث بالاسم أو البريد أو الدور..." : "Search by name, email or role..."} className="h-8 ps-9" /></div>
-        <Select value={roleFilter} onValueChange={setRoleFilter}><SelectTrigger className="h-10"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل الأدوار" : "All Roles"}</SelectItem>{ROLES.map((role) => <SelectItem key={role} value={role}>{ROLE_NAMES[role][lang]}</SelectItem>)}</SelectContent></Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="h-10"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل الحالات" : "All Status"}</SelectItem><SelectItem value="active">{t("common.active")}</SelectItem><SelectItem value="inactive">{t("common.inactive")}</SelectItem></SelectContent></Select>
-      </div>
-      {staff.isPending ? <Skeleton className="m-4 h-[420px] rounded-xl" /> : <>
-        <div className="qs-scroll-region hidden min-h-0 flex-1 overflow-x-hidden md:block"><table className="qs-table w-full table-fixed"><colgroup><col className="w-[6%]"/><col className="w-[22%]"/><col className="w-[23%]"/><col className="w-[17%]"/><col className="w-[11%]"/><col className="w-[15%]"/><col className="w-[6%]"/></colgroup><thead><tr><th>#</th><th>{ar ? "الموظف" : "Staff Member"}</th><th>{ar ? "البريد" : "Email"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "آخر نشاط" : "Last Active"}</th><th>{ar ? "إجراءات" : "Actions"}</th></tr></thead><tbody>{rows.map((member, index) => {
-          const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
-          const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
-          const scheduleInfo = scheduleByStaff.get(member.id);
-          return <tr key={member.id}><td className="text-muted-foreground">#{String(index + 1).padStart(3, "0")}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex items-center gap-2.5 text-start"><span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span><strong className="block font-bold">{member.name}</strong>{scheduleInfo ? <span className={cn("mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold", scheduleTone(scheduleInfo.attendance))}><CalendarClock className="size-3" />{scheduleInfo.name} · {formatScheduleWindow(scheduleInfo.start, ar)} · {scheduleLabel(scheduleInfo.attendance, ar)}</span> : <span className="mt-1 block text-[9px] text-muted-foreground">{ar ? "لا توجد وردية قادمة" : "No upcoming shift"}</span>}</span></button></td><td className="text-muted-foreground">{member.email ?? "—"}</td><td><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span></td><td><span className={cn("qs-status", member.is_active ? "bg-emerald-500/12 text-emerald-600" : "bg-slate-500/12 text-slate-500")}><i className={cn("size-1.5 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} />{member.is_active ? t("common.active") : t("common.inactive")}</span></td><td className="text-muted-foreground">{formatLastSeen(member.last_seen_at, ar, presenceNow)}</td><td><StaffActions member={member} locked={locked} canManageShifts={canManageShifts} ar={ar} onEdit={() => startEdit(member)} onAssign={() => setShiftMember(member)} /></td></tr>;
-        })}</tbody></table></div>
-        <div className="space-y-2 p-3 md:hidden">{rows.map((member) => {
-          const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
-          const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
-          const scheduleInfo = scheduleByStaff.get(member.id);
-          return <div key={member.id} className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-start"><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex min-w-0 flex-1 items-center gap-3 text-start"><span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{member.name}</strong><span className="mt-1 flex flex-wrap items-center gap-2"><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span>{scheduleInfo ? <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold", scheduleTone(scheduleInfo.attendance))}><CalendarClock className="size-3" />{formatScheduleWindow(scheduleInfo.start, ar)} · {scheduleLabel(scheduleInfo.attendance, ar)}</span> : <span className="text-[9px] text-muted-foreground">{ar ? "لا توجد وردية قادمة" : "No upcoming shift"}</span>}<span className={cn("size-2 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} /></span></span></button><StaffActions member={member} locked={locked} canManageShifts={canManageShifts} ar={ar} onEdit={() => startEdit(member)} onAssign={() => setShiftMember(member)} /></div>;
-        })}</div>
-      </>}
-    </section>
-
-    <Dialog open={Boolean(editing)} onOpenChange={(open) => { if (!open && !busy) setEditing(null); }}>
-      <DialogContent className="flex h-[min(880px,calc(100dvh-1.5rem))] w-[calc(100vw-1.5rem)] max-w-[1100px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1100px]">
-        {editing ? <>
-          {(() => { const ownRestaurantManager = isOwnRestaurantManager(editing); return <>
-          <div className="border-b border-border px-4 py-4 sm:px-6">
-            <div className="flex min-w-0 items-center gap-3 pe-8">
-              <span className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-lg font-bold ring-1 ring-border">{(editing.avatar_url || avatarPresetUrl(editing.avatar_preset)) ? <img src={(editing.avatar_url || avatarPresetUrl(editing.avatar_preset)) ?? undefined} alt="" className="size-full object-cover" /> : editing.name.slice(0, 1).toUpperCase()}</span>
-              <div className="min-w-0 flex-1"><h2 className="truncate font-display text-lg font-bold sm:text-xl">{editing.name}</h2><p className="truncate text-xs text-muted-foreground">{editing.email}</p></div>
-              <span className={cn("hidden shrink-0 rounded-full px-3 py-1.5 text-xs font-bold sm:inline-flex", editing.is_active ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground")}>{editing.is_active ? t("common.active") : t("common.inactive")}</span>
+      <section className="qs-card qs-viewport-fill flex min-h-0 min-w-0 flex-col overflow-hidden">
+        <div className="border-b border-border px-4 pt-3">
+          <div className="flex gap-6 overflow-x-auto text-xs font-semibold">
+            {(
+              [
+                ["all", ar ? "كل الفريق" : "All Staff", (staff.data ?? []).length],
+                ["admins", ar ? "المدراء" : "Admins", admins],
+                ["staff", ar ? "الموظفون" : "Staff", staffOnly],
+              ] as const
+            ).map(([id, label, count]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={cn(
+                  "relative min-h-8 shrink-0 px-1",
+                  tab === id ? "text-[#e85d2a]" : "text-muted-foreground",
+                )}
+              >
+                {label}{" "}
+                <span className="ms-1 rounded-full bg-muted px-2 py-0.5 text-[10px]">{count}</span>
+                {tab === id ? (
+                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-[#e85d2a]" />
+                ) : null}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid gap-2.5 border-b border-border p-3 lg:grid-cols-[minmax(0,1fr)_145px_145px]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={
+                ar ? "ابحث بالاسم أو البريد أو الدور..." : "Search by name, email or role..."
+              }
+              className="h-8 ps-9"
+            />
+          </div>
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{ar ? "كل الأدوار" : "All Roles"}</SelectItem>
+              {ROLES.map((role) => (
+                <SelectItem key={role} value={role}>
+                  {ROLE_NAMES[role][lang]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{ar ? "كل الحالات" : "All Status"}</SelectItem>
+              <SelectItem value="active">{t("common.active")}</SelectItem>
+              <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {staff.isPending ? (
+          <Skeleton className="m-4 h-[420px] rounded-xl" />
+        ) : (
+          <>
+            <div className="qs-scroll-region hidden min-h-0 flex-1 overflow-x-hidden md:block">
+              <table className="qs-table w-full table-fixed">
+                <colgroup>
+                  <col className="w-[5%]" />
+                  <col className="w-[17%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[6%]" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>{ar ? "الموظف" : "Staff Member"}</th>
+                    <th>{ar ? "البريد" : "Email"}</th>
+                    <th>{ar ? "الدور" : "Role"}</th>
+                    <th>{ar ? "الحالة" : "Status"}</th>
+                    <th>{ar ? "الوردية" : "Shift"}</th>
+                    <th>{ar ? "آخر نشاط" : "Last Active"}</th>
+                    <th>{ar ? "إجراءات" : "Actions"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((member, index) => {
+                    const locked =
+                      member.role === "restaurant_admin" &&
+                      !isSuperAdmin &&
+                      !isOwnRestaurantManager(member);
+                    const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
+                    const scheduleInfo = scheduleByStaff.get(member.id);
+                    return (
+                      <tr key={member.id}>
+                        <td className="text-muted-foreground">
+                          #{String(index + 1).padStart(3, "0")}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            disabled={locked}
+                            onClick={() => !locked && startEdit(member)}
+                            className="flex items-center gap-2.5 text-start"
+                          >
+                            <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">
+                              {avatar ? (
+                                <img src={avatar} alt="" className="size-full object-cover" />
+                              ) : (
+                                member.name.slice(0, 1).toUpperCase()
+                              )}
+                            </span>
+                            <span className="min-w-0">
+                              <strong className="block font-bold">{member.name}</strong>
+                              <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
+                                {member.email ?? ROLE_NAMES[member.role][lang]}
+                              </span>
+                            </span>
+                          </button>
+                        </td>
+                        <td className="text-muted-foreground">{member.email ?? "—"}</td>
+                        <td>
+                          <span className={cn("qs-status", ROLE_TONE[member.role])}>
+                            {ROLE_NAMES[member.role][lang]}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={cn(
+                              "qs-status",
+                              member.is_active
+                                ? "bg-emerald-500/12 text-emerald-600"
+                                : "bg-slate-500/12 text-slate-500",
+                            )}
+                          >
+                            <i
+                              className={cn(
+                                "size-1.5 rounded-full",
+                                member.is_active ? "bg-emerald-500" : "bg-slate-400",
+                              )}
+                            />
+                            {member.is_active ? t("common.active") : t("common.inactive")}
+                          </span>
+                        </td>
+                        <td>
+                          <StaffShiftCell
+                            schedule={scheduleInfo}
+                            canAssign={canManageShifts && member.is_active}
+                            ar={ar}
+                            onAssign={() => setShiftMember(member)}
+                          />
+                        </td>
+                        <td className="text-muted-foreground">
+                          {formatLastSeen(member.last_seen_at, ar, presenceNow)}
+                        </td>
+                        <td>
+                          <StaffActions
+                            member={member}
+                            locked={locked}
+                            canManageShifts={canManageShifts}
+                            ar={ar}
+                            onEdit={() => startEdit(member)}
+                            onAssign={() => setShiftMember(member)}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
+            <div className="space-y-2 p-3 md:hidden">
+              {rows.map((member) => {
+                const locked =
+                  member.role === "restaurant_admin" &&
+                  !isSuperAdmin &&
+                  !isOwnRestaurantManager(member);
+                const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
+                const scheduleInfo = scheduleByStaff.get(member.id);
+                return (
+                  <div
+                    key={member.id}
+                    className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-start"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <button
+                        type="button"
+                        disabled={locked}
+                        onClick={() => !locked && startEdit(member)}
+                        className="flex w-full min-w-0 items-center gap-3 text-start"
+                      >
+                        <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">
+                          {avatar ? (
+                            <img src={avatar} alt="" className="size-full object-cover" />
+                          ) : (
+                            member.name.slice(0, 1).toUpperCase()
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <strong className="block truncate text-sm">{member.name}</strong>
+                          <span className="mt-1 flex flex-wrap items-center gap-2">
+                            <span className={cn("qs-status", ROLE_TONE[member.role])}>
+                              {ROLE_NAMES[member.role][lang]}
+                            </span>
+                            <span
+                              className={cn(
+                                "size-2 rounded-full",
+                                member.is_active ? "bg-emerald-500" : "bg-slate-400",
+                              )}
+                            />
+                          </span>
+                        </span>
+                      </button>
+                      <div className="mt-3 border-t border-border/70 pt-3">
+                        <StaffShiftCell
+                          schedule={scheduleInfo}
+                          canAssign={canManageShifts && member.is_active}
+                          ar={ar}
+                          onAssign={() => setShiftMember(member)}
+                        />
+                      </div>
+                    </div>
+                    <StaffActions
+                      member={member}
+                      locked={locked}
+                      canManageShifts={canManageShifts}
+                      ar={ar}
+                      onEdit={() => startEdit(member)}
+                      onAssign={() => setShiftMember(member)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </section>
+
+      <Dialog
+        open={Boolean(editing)}
+        onOpenChange={(open) => {
+          if (!open && !busy) setEditing(null);
+        }}
+      >
+        <DialogContent className="flex h-[min(880px,calc(100dvh-1.5rem))] w-[calc(100vw-1.5rem)] max-w-[1100px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1100px]">
+          {editing ? (
+            <>
+              {(() => {
+                const ownRestaurantManager = isOwnRestaurantManager(editing);
+                return (
+                  <>
+                    <div className="border-b border-border px-4 py-4 sm:px-6">
+                      <div className="flex min-w-0 items-center gap-3 pe-8">
+                        <span className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-lg font-bold ring-1 ring-border">
+                          {editing.avatar_url || avatarPresetUrl(editing.avatar_preset) ? (
+                            <img
+                              src={
+                                (editing.avatar_url || avatarPresetUrl(editing.avatar_preset)) ??
+                                undefined
+                              }
+                              alt=""
+                              className="size-full object-cover"
+                            />
+                          ) : (
+                            editing.name.slice(0, 1).toUpperCase()
+                          )}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <h2 className="truncate font-display text-lg font-bold sm:text-xl">
+                            {editing.name}
+                          </h2>
+                          <p className="truncate text-xs text-muted-foreground">{editing.email}</p>
+                        </div>
+                        <span
+                          className={cn(
+                            "hidden shrink-0 rounded-full px-3 py-1.5 text-xs font-bold sm:inline-flex",
+                            editing.is_active
+                              ? "bg-emerald-500/10 text-emerald-600"
+                              : "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {editing.is_active ? t("common.active") : t("common.inactive")}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 overflow-x-auto border-b border-border px-2 sm:px-4">
+                      {(ownRestaurantManager
+                        ? ([["profile", ar ? "الاسم" : "Manager name", UserRound]] as const)
+                        : ([
+                            ["permissions", ar ? "الصلاحيات" : "Permissions", ShieldCheck],
+                            ["profile", ar ? "الملف" : "Profile", UserRound],
+                            ["log", ar ? "سجل الوصول" : "Access Log", History],
+                          ] as const)
+                      ).map(([id, label, Icon]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setDrawerTab(id)}
+                          className={cn(
+                            "relative flex min-h-14 min-w-[140px] flex-1 items-center justify-center gap-2 px-3 text-sm font-semibold",
+                            drawerTab === id
+                              ? "text-[#e85d2a]"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          <Icon className="size-4" />
+                          {label}
+                          {drawerTab === id ? (
+                            <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-[#e85d2a]" />
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="min-h-0 flex-1 overflow-y-auto bg-muted/10 p-4 sm:p-6">
+                      {drawerTab === "permissions" ? (
+                        <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+                          <div className="space-y-4">
+                            <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                              <h3 className="mb-4 text-sm font-bold">
+                                {ar ? "الدور والوصول" : "Role & access"}
+                              </h3>
+                              <div className="space-y-4">
+                                <Field label={ar ? "الدور" : "Role"}>
+                                  <Select
+                                    value={editing.role}
+                                    onValueChange={(value) =>
+                                      setEditing({
+                                        ...editing,
+                                        role: value as AppRole,
+                                        permission_overrides: {},
+                                      })
+                                    }
+                                  >
+                                    <SelectTrigger className="h-10">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {assignableRoles.map((role) => (
+                                        <SelectItem key={role} value={role}>
+                                          {ROLE_NAMES[role][lang]}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </Field>
+                                <label className="flex min-h-12 items-center justify-between rounded-xl border border-border px-3">
+                                  <span>
+                                    <strong className="block text-xs">
+                                      {ar ? "وصول نشط" : "Active access"}
+                                    </strong>
+                                    <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                                      {ar ? "السماح بتسجيل الدخول" : "Allow sign in"}
+                                    </span>
+                                  </span>
+                                  <Switch
+                                    checked={editing.is_active}
+                                    onCheckedChange={(value) =>
+                                      setEditing({ ...editing, is_active: value })
+                                    }
+                                  />
+                                </label>
+                              </div>
+                            </section>
+                            <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                              <div className="mb-3 flex items-center gap-2">
+                                <KeyRound className="size-4 text-[#e85d2a]" />
+                                <h3 className="text-sm font-bold">
+                                  {ar ? "أمان الحساب" : "Account security"}
+                                </h3>
+                              </div>
+                              <div className="space-y-3">
+                                <Field label={ar ? "كلمة مرور جديدة" : "New Password"}>
+                                  <Input
+                                    type="password"
+                                    autoComplete="new-password"
+                                    value={editing.password}
+                                    placeholder={
+                                      ar ? "اتركها فارغة بدون تغيير" : "Leave blank to keep current"
+                                    }
+                                    onChange={(event) =>
+                                      setEditing({ ...editing, password: event.target.value })
+                                    }
+                                  />
+                                </Field>
+                                <Field label={ar ? "تأكيد كلمة المرور" : "Confirm Password"}>
+                                  <Input
+                                    type="password"
+                                    autoComplete="new-password"
+                                    value={editing.confirmPassword}
+                                    onChange={(event) =>
+                                      setEditing({
+                                        ...editing,
+                                        confirmPassword: event.target.value,
+                                      })
+                                    }
+                                  />
+                                </Field>
+                                <p className="text-[10px] leading-4 text-muted-foreground">
+                                  {ar
+                                    ? "الحد الأدنى 8 أحرف. اترك الحقلين فارغين للإبقاء على كلمة المرور الحالية."
+                                    : "Minimum 8 characters. Leave both fields blank to keep the current password."}
+                                </p>
+                              </div>
+                            </section>
+                          </div>
+                          <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+                            <div className="mb-4">
+                              <h3 className="text-sm font-bold">
+                                {ar ? "الصلاحيات المتقدمة" : "Advanced permissions"}
+                              </h3>
+                              <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
+                                {ar
+                                  ? "خصص صلاحيات هذا المستخدم ضمن حدود دوره. لا يمكن منح صلاحية أعلى من حدود الأمان في الخادم."
+                                  : "Customize this user inside the selected role's secure ceiling. A toggle can restrict access, but cannot grant privileges beyond the server-side role."}
+                              </p>
+                            </div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {PERMISSION_GROUPS.map((group) => (
+                                <section
+                                  key={group.id}
+                                  className="rounded-xl border border-border bg-muted/10 p-3.5"
+                                >
+                                  <h4 className="mb-3 text-xs font-bold">
+                                    {ar ? group.ar : group.en}
+                                  </h4>
+                                  <div className="space-y-3">
+                                    {group.items.map((item) => {
+                                      const supported = roleHasCapability(
+                                        editing.role,
+                                        item.capability,
+                                      );
+                                      return (
+                                        <label
+                                          key={item.capability}
+                                          className={cn(
+                                            "flex min-h-9 items-center justify-between gap-3 text-xs",
+                                            !supported && "opacity-45",
+                                          )}
+                                        >
+                                          <span className="leading-4">
+                                            {ar ? item.ar : item.en}
+                                          </span>
+                                          <Switch
+                                            disabled={!supported}
+                                            checked={permissionEnabled(item.capability)}
+                                            onCheckedChange={(value) =>
+                                              setPermission(item.capability, value)
+                                            }
+                                          />
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </section>
+                              ))}
+                            </div>
+                          </section>
+                        </div>
+                      ) : drawerTab === "profile" ? (
+                        <div className="mx-auto max-w-3xl space-y-5">
+                          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                            <h3 className="text-base font-bold">
+                              {ownRestaurantManager
+                                ? ar
+                                  ? "اسم مدير المطعم"
+                                  : "Restaurant Manager name"
+                                : ar
+                                  ? "معلومات المستخدم"
+                                  : "User profile"}
+                            </h3>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {ownRestaurantManager
+                                ? ar
+                                  ? "يمكنك تعديل اسمك هنا فقط. البريد والدور والصلاحيات تبقى محمية."
+                                  : "Edit your name here. Email, role and permissions remain protected."
+                                : ar
+                                  ? "يمكن تعديل الاسم والبريد وحفظهما مع بقية التغييرات."
+                                  : "Edit the name and email here; they are saved with the rest of the changes."}
+                            </p>
+                            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                              <Field label={ar ? "الاسم" : "Name"}>
+                                <Input
+                                  value={editing.name}
+                                  maxLength={80}
+                                  onChange={(event) =>
+                                    setEditing({ ...editing, name: event.target.value })
+                                  }
+                                />
+                              </Field>
+                              {ownRestaurantManager ? (
+                                <Read
+                                  label={ar ? "البريد الإلكتروني" : "Email"}
+                                  value={editing.email ?? "—"}
+                                />
+                              ) : (
+                                <Field label={ar ? "البريد الإلكتروني" : "Email"}>
+                                  <Input
+                                    type="email"
+                                    value={editing.email ?? ""}
+                                    onChange={(event) =>
+                                      setEditing({ ...editing, email: event.target.value })
+                                    }
+                                  />
+                                </Field>
+                              )}
+                              <Read
+                                label={ar ? "الدور" : "Role"}
+                                value={ROLE_NAMES[editing.role][lang]}
+                              />
+                              <Read
+                                label={ar ? "تاريخ الإضافة" : "Joined"}
+                                value={new Date(editing.created_at).toLocaleDateString(
+                                  ar ? "ar-JO" : "en-US",
+                                )}
+                              />
+                            </div>
+                            {!ownRestaurantManager ? (
+                              <button
+                                type="button"
+                                className="qs-button-secondary mt-5 w-full sm:w-auto"
+                                onClick={() => void openAccess(editing.id)}
+                              >
+                                <IdCard className="size-4" />
+                                {ar ? "عرض بطاقة الوصول" : "View Staff Access"}
+                              </button>
+                            ) : null}
+                          </section>
+                        </div>
+                      ) : (
+                        <div className="mx-auto max-w-3xl">
+                          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                            <div className="mb-4">
+                              <h3 className="text-base font-bold">
+                                {ar ? "سجل الوصول والنشاط" : "Access & activity log"}
+                              </h3>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {ar
+                                  ? "آخر الأحداث المسجلة لهذا المستخدم."
+                                  : "Latest recorded events for this user."}
+                              </p>
+                            </div>
+                            {audit.isPending ? (
+                              <Skeleton className="h-48 rounded-xl" />
+                            ) : audit.isError ? (
+                              <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">
+                                {ar
+                                  ? "تعذر تحميل سجل الوصول."
+                                  : "Access log is unavailable for this account."}
+                              </p>
+                            ) : (audit.data ?? []).length ? (
+                              <div className="space-y-2">
+                                {(audit.data ?? []).map((row) => (
+                                  <div key={row.id} className="rounded-xl border border-border p-3">
+                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                                      <strong className="text-xs">{row.action}</strong>
+                                      <span className="text-[10px] text-muted-foreground">
+                                        {new Date(row.created_at).toLocaleString(
+                                          ar ? "ar-JO" : "en-US",
+                                        )}
+                                      </span>
+                                    </div>
+                                    <p className="mt-1 text-[10px] text-muted-foreground">
+                                      {row.entity ?? (ar ? "النظام" : "System")}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="rounded-xl bg-muted/40 p-8 text-center text-sm text-muted-foreground">
+                                {ar
+                                  ? "لا يوجد نشاط مسجل لهذا المستخدم بعد."
+                                  : "No recorded activity for this user yet."}
+                              </p>
+                            )}
+                          </section>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="safe-bottom shrink-0 border-t border-border bg-card p-3 sm:p-4">
+                      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
+                        <button
+                          type="button"
+                          className="qs-button-secondary min-h-11 sm:min-w-28"
+                          disabled={busy}
+                          onClick={() => setEditing(null)}
+                        >
+                          {t("common.cancel")}
+                        </button>
+                        {!ownRestaurantManager ? (
+                          <>
+                            <button
+                              type="button"
+                              className="qs-button-secondary min-h-11 sm:min-w-28"
+                              disabled={busy}
+                              onClick={() => void openAccess(editing.id)}
+                            >
+                              <IdCard className="size-4" />
+                              {ar ? "الوصول" : "Access"}
+                            </button>
+                            <button
+                              type="button"
+                              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-destructive hover:bg-destructive/10 sm:ms-auto"
+                              disabled={busy}
+                              onClick={() => setPendingDelete(editing)}
+                            >
+                              <Trash2 className="size-4" />
+                              {ar ? "حذف" : "Delete"}
+                            </button>
+                          </>
+                        ) : (
+                          <span className="hidden sm:block sm:flex-1" />
+                        )}
+                        <button
+                          type="button"
+                          className="qs-button-primary min-h-11 sm:min-w-44"
+                          disabled={busy}
+                          onClick={() => void saveEdit()}
+                        >
+                          {busy
+                            ? ar
+                              ? "جارٍ الحفظ…"
+                              : "Saving…"
+                            : ownRestaurantManager
+                              ? ar
+                                ? "حفظ الاسم"
+                                : "Save name"
+                              : ar
+                                ? "حفظ التغييرات"
+                                : "Save Changes"}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{ar ? "إضافة عضو فريق" : "Add Team Member"}</DialogTitle>
+            <DialogDescription>
+              {seatLimit == null
+                ? ar
+                  ? "أضف مستخدماً جديداً للفريق."
+                  : "Add a new member to this restaurant."
+                : `${seatsUsed} / ${seatLimit} ${ar ? "مستخدمين" : "users"}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Field label={ar ? "الاسم" : "Name"}>
+              <Input
+                value={form.name}
+                onChange={(event) => setForm({ ...form, name: event.target.value })}
+              />
+            </Field>
+            <Field label={ar ? "البريد الإلكتروني" : "Email"}>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(event) => setForm({ ...form, email: event.target.value })}
+              />
+            </Field>
+            <Field label={ar ? "الدور" : "Role"}>
+              <Select
+                value={form.role}
+                onValueChange={(value) => setForm({ ...form, role: value as AppRole })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {assignableRoles.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {ROLE_NAMES[role][lang]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
           </div>
-
-          <div className="flex shrink-0 overflow-x-auto border-b border-border px-2 sm:px-4">{(ownRestaurantManager ? [["profile", ar ? "الاسم" : "Manager name", UserRound]] as const : [["permissions", ar ? "الصلاحيات" : "Permissions", ShieldCheck], ["profile", ar ? "الملف" : "Profile", UserRound], ["log", ar ? "سجل الوصول" : "Access Log", History]] as const).map(([id, label, Icon]) => <button key={id} type="button" onClick={() => setDrawerTab(id)} className={cn("relative flex min-h-14 min-w-[140px] flex-1 items-center justify-center gap-2 px-3 text-sm font-semibold", drawerTab === id ? "text-[#e85d2a]" : "text-muted-foreground hover:text-foreground")}><Icon className="size-4" />{label}{drawerTab === id ? <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-[#e85d2a]" /> : null}</button>)}</div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto bg-muted/10 p-4 sm:p-6">
-            {drawerTab === "permissions" ? <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-              <div className="space-y-4">
-                <section className="rounded-2xl border border-border bg-card p-4 shadow-sm"><h3 className="mb-4 text-sm font-bold">{ar ? "الدور والوصول" : "Role & access"}</h3><div className="space-y-4"><Field label={ar ? "الدور" : "Role"}><Select value={editing.role} onValueChange={(value) => setEditing({ ...editing, role: value as AppRole, permission_overrides: {} })}><SelectTrigger className="h-10"><SelectValue /></SelectTrigger><SelectContent>{assignableRoles.map((role) => <SelectItem key={role} value={role}>{ROLE_NAMES[role][lang]}</SelectItem>)}</SelectContent></Select></Field><label className="flex min-h-12 items-center justify-between rounded-xl border border-border px-3"><span><strong className="block text-xs">{ar ? "وصول نشط" : "Active access"}</strong><span className="mt-0.5 block text-[10px] text-muted-foreground">{ar ? "السماح بتسجيل الدخول" : "Allow sign in"}</span></span><Switch checked={editing.is_active} onCheckedChange={(value) => setEditing({ ...editing, is_active: value })} /></label></div></section>
-                <section className="rounded-2xl border border-border bg-card p-4 shadow-sm"><div className="mb-3 flex items-center gap-2"><KeyRound className="size-4 text-[#e85d2a]" /><h3 className="text-sm font-bold">{ar ? "أمان الحساب" : "Account security"}</h3></div><div className="space-y-3"><Field label={ar ? "كلمة مرور جديدة" : "New Password"}><Input type="password" autoComplete="new-password" value={editing.password} placeholder={ar ? "اتركها فارغة بدون تغيير" : "Leave blank to keep current"} onChange={(event) => setEditing({ ...editing, password: event.target.value })} /></Field><Field label={ar ? "تأكيد كلمة المرور" : "Confirm Password"}><Input type="password" autoComplete="new-password" value={editing.confirmPassword} onChange={(event) => setEditing({ ...editing, confirmPassword: event.target.value })} /></Field><p className="text-[10px] leading-4 text-muted-foreground">{ar ? "الحد الأدنى 8 أحرف. اترك الحقلين فارغين للإبقاء على كلمة المرور الحالية." : "Minimum 8 characters. Leave both fields blank to keep the current password."}</p></div></section>
-              </div>
-              <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5"><div className="mb-4"><h3 className="text-sm font-bold">{ar ? "الصلاحيات المتقدمة" : "Advanced permissions"}</h3><p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{ar ? "خصص صلاحيات هذا المستخدم ضمن حدود دوره. لا يمكن منح صلاحية أعلى من حدود الأمان في الخادم." : "Customize this user inside the selected role's secure ceiling. A toggle can restrict access, but cannot grant privileges beyond the server-side role."}</p></div><div className="grid gap-3 md:grid-cols-2">{PERMISSION_GROUPS.map((group) => <section key={group.id} className="rounded-xl border border-border bg-muted/10 p-3.5"><h4 className="mb-3 text-xs font-bold">{ar ? group.ar : group.en}</h4><div className="space-y-3">{group.items.map((item) => {
-                const supported = roleHasCapability(editing.role, item.capability);
-                return <label key={item.capability} className={cn("flex min-h-9 items-center justify-between gap-3 text-xs", !supported && "opacity-45")}><span className="leading-4">{ar ? item.ar : item.en}</span><Switch disabled={!supported} checked={permissionEnabled(item.capability)} onCheckedChange={(value) => setPermission(item.capability, value)} /></label>;
-              })}</div></section>)}</div></section>
-            </div> : drawerTab === "profile" ? <div className="mx-auto max-w-3xl space-y-5">
-              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm"><h3 className="text-base font-bold">{ownRestaurantManager ? (ar ? "اسم مدير المطعم" : "Restaurant Manager name") : (ar ? "معلومات المستخدم" : "User profile")}</h3><p className="mt-1 text-xs text-muted-foreground">{ownRestaurantManager ? (ar ? "يمكنك تعديل اسمك هنا فقط. البريد والدور والصلاحيات تبقى محمية." : "Edit your name here. Email, role and permissions remain protected.") : (ar ? "يمكن تعديل الاسم والبريد وحفظهما مع بقية التغييرات." : "Edit the name and email here; they are saved with the rest of the changes.")}</p><div className="mt-5 grid gap-4 sm:grid-cols-2"><Field label={ar ? "الاسم" : "Name"}><Input value={editing.name} maxLength={80} onChange={(event) => setEditing({ ...editing, name: event.target.value })} /></Field>{ownRestaurantManager ? <Read label={ar ? "البريد الإلكتروني" : "Email"} value={editing.email ?? "—"} /> : <Field label={ar ? "البريد الإلكتروني" : "Email"}><Input type="email" value={editing.email ?? ""} onChange={(event) => setEditing({ ...editing, email: event.target.value })} /></Field>}<Read label={ar ? "الدور" : "Role"} value={ROLE_NAMES[editing.role][lang]} /><Read label={ar ? "تاريخ الإضافة" : "Joined"} value={new Date(editing.created_at).toLocaleDateString(ar ? "ar-JO" : "en-US")} /></div>{!ownRestaurantManager ? <button type="button" className="qs-button-secondary mt-5 w-full sm:w-auto" onClick={() => void openAccess(editing.id)}><IdCard className="size-4" />{ar ? "عرض بطاقة الوصول" : "View Staff Access"}</button> : null}</section>
-            </div> : <div className="mx-auto max-w-3xl"><section className="rounded-2xl border border-border bg-card p-5 shadow-sm"><div className="mb-4"><h3 className="text-base font-bold">{ar ? "سجل الوصول والنشاط" : "Access & activity log"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "آخر الأحداث المسجلة لهذا المستخدم." : "Latest recorded events for this user."}</p></div>{audit.isPending ? <Skeleton className="h-48 rounded-xl" /> : audit.isError ? <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">{ar ? "تعذر تحميل سجل الوصول." : "Access log is unavailable for this account."}</p> : (audit.data ?? []).length ? <div className="space-y-2">{(audit.data ?? []).map((row) => <div key={row.id} className="rounded-xl border border-border p-3"><div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"><strong className="text-xs">{row.action}</strong><span className="text-[10px] text-muted-foreground">{new Date(row.created_at).toLocaleString(ar ? "ar-JO" : "en-US")}</span></div><p className="mt-1 text-[10px] text-muted-foreground">{row.entity ?? (ar ? "النظام" : "System")}</p></div>)}</div> : <p className="rounded-xl bg-muted/40 p-8 text-center text-sm text-muted-foreground">{ar ? "لا يوجد نشاط مسجل لهذا المستخدم بعد." : "No recorded activity for this user yet."}</p>}</section></div>}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAddOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              disabled={busy || !form.name.trim() || !form.email.trim() || seatsFull}
+              onClick={() => void create()}
+            >
+              {ar ? "إضافة" : "Add Member"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(credentials)} onOpenChange={(value) => !value && setCredentials(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{ar ? "بيانات الدخول" : "Login credentials"}</DialogTitle>
+            <DialogDescription>{credentials?.email}</DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl bg-muted p-4 font-mono text-sm">
+            {credentials?.password ?? (ar ? "تم ربط الحساب الموجود" : "Existing account linked")}
           </div>
-
-          <div className="safe-bottom shrink-0 border-t border-border bg-card p-3 sm:p-4"><div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center"><button type="button" className="qs-button-secondary min-h-11 sm:min-w-28" disabled={busy} onClick={() => setEditing(null)}>{t("common.cancel")}</button>{!ownRestaurantManager ? <><button type="button" className="qs-button-secondary min-h-11 sm:min-w-28" disabled={busy} onClick={() => void openAccess(editing.id)}><IdCard className="size-4" />{ar ? "الوصول" : "Access"}</button><button type="button" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-destructive hover:bg-destructive/10 sm:ms-auto" disabled={busy} onClick={() => setPendingDelete(editing)}><Trash2 className="size-4" />{ar ? "حذف" : "Delete"}</button></> : <span className="hidden sm:block sm:flex-1" />}<button type="button" className="qs-button-primary min-h-11 sm:min-w-44" disabled={busy} onClick={() => void saveEdit()}>{busy ? (ar ? "جارٍ الحفظ…" : "Saving…") : ownRestaurantManager ? (ar ? "حفظ الاسم" : "Save name") : (ar ? "حفظ التغييرات" : "Save Changes")}</button></div></div>
-          </>; })()}
-        </> : null}
-      </DialogContent>
-    </Dialog>
-
-    <Dialog open={addOpen} onOpenChange={setAddOpen}><DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>{ar ? "إضافة عضو فريق" : "Add Team Member"}</DialogTitle><DialogDescription>{seatLimit == null ? (ar ? "أضف مستخدماً جديداً للفريق." : "Add a new member to this restaurant.") : `${seatsUsed} / ${seatLimit} ${ar ? "مستخدمين" : "users"}`}</DialogDescription></DialogHeader><div className="space-y-4"><Field label={ar ? "الاسم" : "Name"}><Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></Field><Field label={ar ? "البريد الإلكتروني" : "Email"}><Input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></Field><Field label={ar ? "الدور" : "Role"}><Select value={form.role} onValueChange={(value) => setForm({ ...form, role: value as AppRole })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{assignableRoles.map((role) => <SelectItem key={role} value={role}>{ROLE_NAMES[role][lang]}</SelectItem>)}</SelectContent></Select></Field></div><DialogFooter><Button variant="ghost" onClick={() => setAddOpen(false)}>{t("common.cancel")}</Button><Button disabled={busy || !form.name.trim() || !form.email.trim() || seatsFull} onClick={() => void create()}>{ar ? "إضافة" : "Add Member"}</Button></DialogFooter></DialogContent></Dialog>
-    <Dialog open={Boolean(credentials)} onOpenChange={(value) => !value && setCredentials(null)}><DialogContent><DialogHeader><DialogTitle>{ar ? "بيانات الدخول" : "Login credentials"}</DialogTitle><DialogDescription>{credentials?.email}</DialogDescription></DialogHeader><div className="rounded-xl bg-muted p-4 font-mono text-sm">{credentials?.password ?? (ar ? "تم ربط الحساب الموجود" : "Existing account linked")}</div><DialogFooter><Button onClick={() => setCredentials(null)}>{t("common.close")}</Button></DialogFooter></DialogContent></Dialog>
-    <Dialog open={Boolean(pendingDelete)} onOpenChange={(value) => !value && setPendingDelete(null)}><DialogContent><DialogHeader><DialogTitle>{ar ? "حذف المستخدم؟" : "Delete team member?"}</DialogTitle><DialogDescription>{pendingDelete?.name}</DialogDescription></DialogHeader><DialogFooter><Button variant="ghost" onClick={() => setPendingDelete(null)}>{t("common.cancel")}</Button><Button variant="destructive" disabled={busy} onClick={() => void del()}>{t("common.delete")}</Button></DialogFooter></DialogContent></Dialog>
-    <Dialog open={Boolean(access)} onOpenChange={(value) => !value && setAccess(null)}><DialogContent className="max-w-sm"><DialogHeader><DialogTitle>{ar ? "وصول الموظف" : "Staff access"}</DialogTitle><DialogDescription>{access?.name}</DialogDescription></DialogHeader>{badge ? <img src={badge} alt="Staff badge" className="mx-auto size-56 rounded-xl" /> : <div className="rounded-xl bg-muted p-5 text-center text-sm text-muted-foreground">{ar ? "لا توجد بطاقة مفعلة." : "No active badge available."}</div>}<DialogFooter><Button onClick={() => setAccess(null)}>{t("common.close")}</Button></DialogFooter></DialogContent></Dialog>
-    {shiftMember ? <AssignStaffShiftDialog member={shiftMember} restaurantId={restaurantId} shifts={schedule.data?.shifts ?? []} assignments={schedule.data?.assignments ?? []} ar={ar} lang={lang} onClose={() => setShiftMember(null)} /> : null}
-  </div>;
+          <DialogFooter>
+            <Button onClick={() => setCredentials(null)}>{t("common.close")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(pendingDelete)}
+        onOpenChange={(value) => !value && setPendingDelete(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{ar ? "حذف المستخدم؟" : "Delete team member?"}</DialogTitle>
+            <DialogDescription>{pendingDelete?.name}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPendingDelete(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant="destructive" disabled={busy} onClick={() => void del()}>
+              {t("common.delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(access)} onOpenChange={(value) => !value && setAccess(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{ar ? "وصول الموظف" : "Staff access"}</DialogTitle>
+            <DialogDescription>{access?.name}</DialogDescription>
+          </DialogHeader>
+          {badge ? (
+            <img src={badge} alt="Staff badge" className="mx-auto size-56 rounded-xl" />
+          ) : (
+            <div className="rounded-xl bg-muted p-5 text-center text-sm text-muted-foreground">
+              {ar ? "لا توجد بطاقة مفعلة." : "No active badge available."}
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setAccess(null)}>{t("common.close")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {shiftMember ? (
+        <AssignStaffShiftDialog
+          member={shiftMember}
+          restaurantId={restaurantId}
+          shifts={schedule.data?.shifts ?? []}
+          assignments={schedule.data?.assignments ?? []}
+          ar={ar}
+          lang={lang}
+          onClose={() => setShiftMember(null)}
+        />
+      ) : null}
+    </div>
+  );
 }
 
-function StaffActions({ member, locked, canManageShifts, ar, onEdit, onAssign }: { member: StaffRow; locked: boolean; canManageShifts: boolean; ar: boolean; onEdit: () => void; onAssign: () => void }) {
+function StaffShiftCell({
+  schedule,
+  canAssign,
+  ar,
+  onAssign,
+}: {
+  schedule: StaffScheduleSummary | undefined;
+  canAssign: boolean;
+  ar: boolean;
+  onAssign: () => void;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <div className="min-w-0 flex-1">
+        {schedule ? (
+          <>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <CalendarClock className="size-3.5 shrink-0 text-[#e85d2a]" />
+              <strong className="truncate text-xs">{schedule.name}</strong>
+            </div>
+            <p className="mt-1 truncate text-[10px] text-muted-foreground">
+              {formatScheduleWindow(schedule.start, ar)}
+              {schedule.count > 1 ? ` · +${schedule.count - 1}` : ""}
+            </p>
+            <span
+              className={cn(
+                "mt-1 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold",
+                scheduleTone(schedule.attendance),
+              )}
+            >
+              {scheduleLabel(schedule.attendance, ar)}
+            </span>
+          </>
+        ) : (
+          <p className="text-[10px] text-muted-foreground">
+            {ar ? "لا توجد وردية" : "No shift assigned"}
+          </p>
+        )}
+      </div>
+      {canAssign ? (
+        <Button
+          type="button"
+          size="sm"
+          variant={schedule ? "outline" : "default"}
+          className="h-8 shrink-0 gap-1 px-2 text-[10px]"
+          onClick={onAssign}
+        >
+          <CalendarPlus className="size-3.5" />
+          {schedule ? (ar ? "تعديل" : "Change") : ar ? "إضافة" : "Add shift"}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function StaffActions({
+  member,
+  locked,
+  canManageShifts,
+  ar,
+  onEdit,
+  onAssign,
+}: {
+  member: StaffRow;
+  locked: boolean;
+  canManageShifts: boolean;
+  ar: boolean;
+  onEdit: () => void;
+  onAssign: () => void;
+}) {
   const canAssign = canManageShifts && member.is_active;
-  return <DropdownMenu><DropdownMenuTrigger asChild><button type="button" disabled={locked && !canAssign} className="grid size-9 place-items-center rounded-lg bg-muted/40 transition hover:bg-muted disabled:opacity-40" aria-label={ar ? `إجراءات ${member.name}` : `${member.name} actions`}><MoreHorizontal className="size-4" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-48">{canAssign ? <DropdownMenuItem onSelect={onAssign}><CalendarPlus className="size-4" />{ar ? "إضافة وردية" : "Assign shift"}</DropdownMenuItem> : null}{canAssign && !locked ? <DropdownMenuSeparator /> : null}{!locked ? <DropdownMenuItem onSelect={onEdit}><Pencil className="size-4" />{ar ? "تعديل المستخدم" : "Edit member"}</DropdownMenuItem> : null}</DropdownMenuContent></DropdownMenu>;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={locked && !canAssign}
+          className="grid size-9 place-items-center rounded-lg bg-muted/40 transition hover:bg-muted disabled:opacity-40"
+          aria-label={ar ? `إجراءات ${member.name}` : `${member.name} actions`}
+        >
+          <MoreHorizontal className="size-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-48">
+        {canAssign ? (
+          <DropdownMenuItem onSelect={onAssign}>
+            <CalendarPlus className="size-4" />
+            {ar ? "إضافة وردية" : "Assign shift"}
+          </DropdownMenuItem>
+        ) : null}
+        {canAssign && !locked ? <DropdownMenuSeparator /> : null}
+        {!locked ? (
+          <DropdownMenuItem onSelect={onEdit}>
+            <Pencil className="size-4" />
+            {ar ? "تعديل المستخدم" : "Edit member"}
+          </DropdownMenuItem>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
-function AssignStaffShiftDialog({ member, restaurantId, shifts, assignments, ar, lang, onClose }: { member: StaffRow; restaurantId: string; shifts: StaffScheduleRow[]; assignments: StaffAssignmentRow[]; ar: boolean; lang: "en" | "ar"; onClose: () => void }) {
+function AssignStaffShiftDialog({
+  member,
+  restaurantId,
+  shifts,
+  assignments,
+  ar,
+  lang,
+  onClose,
+}: {
+  member: StaffRow;
+  restaurantId: string;
+  shifts: StaffScheduleRow[];
+  assignments: StaffAssignmentRow[];
+  ar: boolean;
+  lang: "en" | "ar";
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const today = localDateKey(new Date());
-  const available = shifts.filter((shift) => shift.status !== "closed" && shift.shift_date >= today && !assignments.some((assignment) => assignment.shift_id === shift.id && assignment.staff_id === member.id));
+  const available = shifts.filter(
+    (shift) =>
+      shift.status !== "closed" &&
+      shift.shift_date >= today &&
+      !assignments.some(
+        (assignment) => assignment.shift_id === shift.id && assignment.staff_id === member.id,
+      ),
+  );
   const [mode, setMode] = useState<"existing" | "new">(available.length ? "existing" : "new");
   const [shiftId, setShiftId] = useState(available[0]?.id ?? "");
   const [name, setName] = useState(ar ? "وردية خدمة" : "Service shift");
@@ -405,16 +1452,52 @@ function AssignStaffShiftDialog({ member, restaurantId, shifts, assignments, ar,
       if (mode === "existing") {
         const shift = available.find((row) => row.id === shiftId);
         if (!shift) throw new Error(ar ? "اختر وردية متاحة." : "Choose an available shift.");
-        if (hasShiftConflict(member.id, shift.planned_start, shift.planned_end, assignments, shifts)) throw new Error(ar ? "تتداخل هذه الوردية مع وردية أخرى لهذا الموظف." : "This shift overlaps another assignment for this team member.");
-        await assignStaffToShift({ restaurant_id: restaurantId, shift_id: shift.id, staff_id: member.id, role_snapshot: member.role, starts_at: shift.planned_start, ends_at: shift.planned_end });
+        if (
+          hasShiftConflict(member.id, shift.planned_start, shift.planned_end, assignments, shifts)
+        )
+          throw new Error(
+            ar
+              ? "تتداخل هذه الوردية مع وردية أخرى لهذا الموظف."
+              : "This shift overlaps another assignment for this team member.",
+          );
+        await assignStaffToShift({
+          restaurant_id: restaurantId,
+          shift_id: shift.id,
+          staff_id: member.id,
+          role_snapshot: member.role,
+          starts_at: shift.planned_start,
+          ends_at: shift.planned_end,
+        });
       } else {
-        if (!name.trim() || !date || !start || !end) throw new Error(ar ? "أكمل اسم الوردية والتاريخ والوقت." : "Complete the shift name, date and time.");
+        if (!name.trim() || !date || !start || !end)
+          throw new Error(
+            ar ? "أكمل اسم الوردية والتاريخ والوقت." : "Complete the shift name, date and time.",
+          );
         const plannedStart = localDateTimeIso(date, start);
         const plannedEnd = localDateTimeIso(date, end, overnight ? 1 : 0);
-        if (hasShiftConflict(member.id, plannedStart, plannedEnd, assignments, shifts)) throw new Error(ar ? "يتداخل هذا الوقت مع وردية أخرى لهذا الموظف." : "This time overlaps another assignment for this team member.");
-        const shift = await createShift({ restaurant_id: restaurantId, name: name.trim(), shift_date: date, planned_start: plannedStart, planned_end: plannedEnd, notes: null });
+        if (hasShiftConflict(member.id, plannedStart, plannedEnd, assignments, shifts))
+          throw new Error(
+            ar
+              ? "يتداخل هذا الوقت مع وردية أخرى لهذا الموظف."
+              : "This time overlaps another assignment for this team member.",
+          );
+        const shift = await createShift({
+          restaurant_id: restaurantId,
+          name: name.trim(),
+          shift_date: date,
+          planned_start: plannedStart,
+          planned_end: plannedEnd,
+          notes: null,
+        });
         createdId = shift.id;
-        await assignStaffToShift({ restaurant_id: restaurantId, shift_id: shift.id, staff_id: member.id, role_snapshot: member.role, starts_at: plannedStart, ends_at: plannedEnd });
+        await assignStaffToShift({
+          restaurant_id: restaurantId,
+          shift_id: shift.id,
+          staff_id: member.id,
+          role_snapshot: member.role,
+          starts_at: plannedStart,
+          ends_at: plannedEnd,
+        });
       }
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["platform", "staff-schedule", restaurantId] }),
@@ -425,19 +1508,205 @@ function AssignStaffShiftDialog({ member, restaurantId, shifts, assignments, ar,
       onClose();
     } catch (error) {
       if (createdId) {
-        try { await deleteShift(createdId); } catch { /* Preserve the original assignment error. */ }
+        try {
+          await deleteShift(createdId);
+        } catch {
+          /* Preserve the original assignment error. */
+        }
       }
       throw error;
     }
   };
-  const mutation = useMutation({ mutationFn: save, onError: (error) => toast.error(humanError(error, lang)) });
+  const mutation = useMutation({
+    mutationFn: save,
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
 
-  return <Dialog open onOpenChange={(open) => { if (!open && !mutation.isPending) onClose(); }}><DialogContent className="w-[calc(100vw-1.5rem)] max-w-none overflow-hidden p-0 sm:max-w-[600px]"><div className="border-b border-border bg-muted/15 px-5 py-4"><DialogHeader><DialogTitle className="flex items-center gap-2"><span className="grid size-9 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><CalendarPlus className="size-4" /></span>{ar ? `إضافة وردية لـ ${member.name}` : `Assign shift to ${member.name}`}</DialogTitle><DialogDescription>{ar ? "اختر وردية موجودة أو أنشئ وقت عمل جديداً. سيظهر التغيير في صفحة الورديات مباشرة." : "Choose an existing shift or create a new work window. It will appear on the Shifts page immediately."}</DialogDescription></DialogHeader></div><div className="space-y-5 px-5 py-5"><div className="grid grid-cols-2 rounded-xl border border-border bg-muted/25 p-1"><button type="button" disabled={!available.length} onClick={() => setMode("existing")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "existing" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground", !available.length && "cursor-not-allowed opacity-45")}>{ar ? "وردية موجودة" : "Existing shift"}</button><button type="button" onClick={() => setMode("new")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "new" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "وردية جديدة" : "New shift"}</button></div>{mode === "existing" ? <Field label={ar ? "الوردية المتاحة" : "Available shift"}><Select value={shiftId} onValueChange={setShiftId}><SelectTrigger className="h-12"><SelectValue placeholder={ar ? "اختر وردية" : "Choose a shift"} /></SelectTrigger><SelectContent>{available.map((shift) => <SelectItem key={shift.id} value={shift.id}>{shift.name} · {formatShiftOption(shift, ar)}</SelectItem>)}</SelectContent></Select></Field> : <div className="grid gap-4 sm:grid-cols-2"><div className="sm:col-span-2"><Field label={ar ? "اسم الوردية" : "Shift name"}><Input value={name} maxLength={80} onChange={(event) => setName(event.target.value)} placeholder={ar ? "مثال: وردية المساء" : "e.g. Evening service"} /></Field></div><Field label={ar ? "التاريخ" : "Date"}><Input type="date" value={date} min={today} onChange={(event) => setDate(event.target.value)} /></Field><div className="hidden sm:block" /><Field label={ar ? "وقت البداية" : "Start time"}><Input type="time" value={start} onChange={(event) => setStart(event.target.value)} /></Field><Field label={ar ? "وقت النهاية" : "End time"}><Input type="time" value={end} onChange={(event) => setEnd(event.target.value)} /></Field>{overnight ? <p className="sm:col-span-2 rounded-xl bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">{ar ? "ستنتهي هذه الوردية في اليوم التالي." : "This shift ends the following day."}</p> : null}</div>}<div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"><span className="grid size-10 place-items-center rounded-full bg-muted font-bold">{member.name.slice(0, 1).toUpperCase()}</span><div className="min-w-0"><strong className="block truncate text-sm">{member.name}</strong><span className="text-xs text-muted-foreground">{ROLE_NAMES[member.role][lang]}</span></div></div></div><DialogFooter className="border-t border-border bg-card px-5 py-4"><Button variant="outline" disabled={mutation.isPending} onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button><Button disabled={mutation.isPending || (mode === "existing" ? !shiftId : !name.trim() || !date || !start || !end)} onClick={() => mutation.mutate()}><CalendarPlus className="size-4" />{mutation.isPending ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "إضافة الوردية" : "Assign shift")}</Button></DialogFooter></DialogContent></Dialog>;
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !mutation.isPending) onClose();
+      }}
+    >
+      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-none overflow-hidden p-0 sm:max-w-[600px]">
+        <div className="border-b border-border bg-muted/15 px-5 py-4">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="grid size-9 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]">
+                <CalendarPlus className="size-4" />
+              </span>
+              {ar ? `إضافة وردية لـ ${member.name}` : `Assign shift to ${member.name}`}
+            </DialogTitle>
+            <DialogDescription>
+              {ar
+                ? "اختر وردية موجودة أو أنشئ وقت عمل جديداً. سيظهر التغيير في صفحة الورديات مباشرة."
+                : "Choose an existing shift or create a new work window. It will appear on the Shifts page immediately."}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+        <div className="space-y-5 px-5 py-5">
+          <div className="grid grid-cols-2 rounded-xl border border-border bg-muted/25 p-1">
+            <button
+              type="button"
+              disabled={!available.length}
+              onClick={() => setMode("existing")}
+              className={cn(
+                "min-h-10 rounded-lg px-3 text-sm font-bold transition",
+                mode === "existing" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground",
+                !available.length && "cursor-not-allowed opacity-45",
+              )}
+            >
+              {ar ? "وردية موجودة" : "Existing shift"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("new")}
+              className={cn(
+                "min-h-10 rounded-lg px-3 text-sm font-bold transition",
+                mode === "new" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground",
+              )}
+            >
+              {ar ? "وردية جديدة" : "New shift"}
+            </button>
+          </div>
+          {mode === "existing" ? (
+            <Field label={ar ? "الوردية المتاحة" : "Available shift"}>
+              <Select value={shiftId} onValueChange={setShiftId}>
+                <SelectTrigger className="h-12">
+                  <SelectValue placeholder={ar ? "اختر وردية" : "Choose a shift"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {available.map((shift) => (
+                    <SelectItem key={shift.id} value={shift.id}>
+                      {shift.name} · {formatShiftOption(shift, ar)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <Field label={ar ? "اسم الوردية" : "Shift name"}>
+                  <Input
+                    value={name}
+                    maxLength={80}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder={ar ? "مثال: وردية المساء" : "e.g. Evening service"}
+                  />
+                </Field>
+              </div>
+              <Field label={ar ? "التاريخ" : "Date"}>
+                <Input
+                  type="date"
+                  value={date}
+                  min={today}
+                  onChange={(event) => setDate(event.target.value)}
+                />
+              </Field>
+              <div className="hidden sm:block" />
+              <Field label={ar ? "وقت البداية" : "Start time"}>
+                <Input
+                  type="time"
+                  value={start}
+                  onChange={(event) => setStart(event.target.value)}
+                />
+              </Field>
+              <Field label={ar ? "وقت النهاية" : "End time"}>
+                <Input type="time" value={end} onChange={(event) => setEnd(event.target.value)} />
+              </Field>
+              {overnight ? (
+                <p className="sm:col-span-2 rounded-xl bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  {ar
+                    ? "ستنتهي هذه الوردية في اليوم التالي."
+                    : "This shift ends the following day."}
+                </p>
+              ) : null}
+            </div>
+          )}
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+            <span className="grid size-10 place-items-center rounded-full bg-muted font-bold">
+              {member.name.slice(0, 1).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <strong className="block truncate text-sm">{member.name}</strong>
+              <span className="text-xs text-muted-foreground">{ROLE_NAMES[member.role][lang]}</span>
+            </div>
+          </div>
+        </div>
+        <DialogFooter className="border-t border-border bg-card px-5 py-4">
+          <Button variant="outline" disabled={mutation.isPending} onClick={onClose}>
+            {ar ? "إلغاء" : "Cancel"}
+          </Button>
+          <Button
+            disabled={
+              mutation.isPending ||
+              (mode === "existing" ? !shiftId : !name.trim() || !date || !start || !end)
+            }
+            onClick={() => mutation.mutate()}
+          >
+            <CalendarPlus className="size-4" />
+            {mutation.isPending
+              ? ar
+                ? "جارٍ الحفظ…"
+                : "Saving…"
+              : ar
+                ? "إضافة الوردية"
+                : "Assign shift"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div className="space-y-1.5"><Label className="text-xs font-bold">{label}</Label>{children}</div>; }
-function Read({ label, value }: { label: string; value: string }) { return <div className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-border px-4 py-3"><span className="text-xs font-semibold text-muted-foreground">{label}</span><strong className="truncate text-sm">{value}</strong></div>; }
-function Stat({ icon, value, label, tone, detail }: { icon: React.ReactNode; value: number; label: string; tone: "blue" | "green" | "cyan"; detail: string }) { const bg = tone === "green" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30" : tone === "cyan" ? "bg-cyan-50 text-cyan-600 dark:bg-cyan-950/30" : "bg-blue-50 text-blue-600 dark:bg-blue-950/30"; return <div className="qs-stat flex items-center gap-4"><span className={cn("grid size-11 place-items-center rounded-full", bg)}>{icon}</span><div><p className="font-display text-2xl font-bold">{value}</p><p className="text-xs font-semibold text-muted-foreground">{label}</p><p className="mt-1 text-[10px] text-muted-foreground">{detail}</p></div></div>; }
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-bold">{label}</Label>
+      {children}
+    </div>
+  );
+}
+function Read({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-border px-4 py-3">
+      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
+      <strong className="truncate text-sm">{value}</strong>
+    </div>
+  );
+}
+function Stat({
+  icon,
+  value,
+  label,
+  tone,
+  detail,
+}: {
+  icon: React.ReactNode;
+  value: number;
+  label: string;
+  tone: "blue" | "green" | "cyan";
+  detail: string;
+}) {
+  const bg =
+    tone === "green"
+      ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30"
+      : tone === "cyan"
+        ? "bg-cyan-50 text-cyan-600 dark:bg-cyan-950/30"
+        : "bg-blue-50 text-blue-600 dark:bg-blue-950/30";
+  return (
+    <div className="qs-stat flex items-center gap-4">
+      <span className={cn("grid size-11 place-items-center rounded-full", bg)}>{icon}</span>
+      <div>
+        <p className="font-display text-2xl font-bold">{value}</p>
+        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+        <p className="mt-1 text-[10px] text-muted-foreground">{detail}</p>
+      </div>
+    </div>
+  );
+}
 
 function formatLastSeen(value: string | null | undefined, ar: boolean, nowMs = Date.now()) {
   if (!value) return ar ? "لم يظهر بعد" : "No activity yet";
@@ -448,13 +1717,20 @@ function formatLastSeen(value: string | null | undefined, ar: boolean, nowMs = D
   const minutes = Math.floor(diff / 60_000);
   if (minutes < 60) return ar ? `قبل ${minutes} د` : `${minutes} min ago`;
   const now = new Date();
-  if (date.toDateString() === now.toDateString()) return ar ? `اليوم ${date.toLocaleTimeString("ar-JO", { hour: "2-digit", minute: "2-digit" })}` : `Today ${date.toLocaleTimeString("en-JO", { hour: "2-digit", minute: "2-digit" })}`;
+  if (date.toDateString() === now.toDateString())
+    return ar
+      ? `اليوم ${date.toLocaleTimeString("ar-JO", { hour: "2-digit", minute: "2-digit" })}`
+      : `Today ${date.toLocaleTimeString("en-JO", { hour: "2-digit", minute: "2-digit" })}`;
   return date.toLocaleString(ar ? "ar-JO" : "en-JO", { dateStyle: "medium", timeStyle: "short" });
 }
 
 type ScheduleAttendance = "on_time" | "late" | "left_early" | "overtime" | "not_clocked";
 
-function scheduleAttendance(start: string | null, end: string | null, entry: StaffTimeRow | undefined): ScheduleAttendance {
+function scheduleAttendance(
+  start: string | null,
+  end: string | null,
+  entry: StaffTimeRow | undefined,
+): ScheduleAttendance {
   if (!start || !end || !entry) return "not_clocked";
   const plannedStart = new Date(start).getTime();
   const plannedEnd = new Date(end).getTime();
@@ -467,11 +1743,37 @@ function scheduleAttendance(start: string | null, end: string | null, entry: Sta
 }
 
 function scheduleLabel(status: ScheduleAttendance, ar: boolean) {
-  return status === "overtime" ? (ar ? "وقت إضافي" : "Overtime") : status === "left_early" ? (ar ? "غادر مبكراً" : "Left early") : status === "late" ? (ar ? "متأخر" : "Late") : status === "on_time" ? (ar ? "ضمن الوقت" : "On time") : (ar ? "لم يسجل" : "Not clocked");
+  return status === "overtime"
+    ? ar
+      ? "وقت إضافي"
+      : "Overtime"
+    : status === "left_early"
+      ? ar
+        ? "غادر مبكراً"
+        : "Left early"
+      : status === "late"
+        ? ar
+          ? "متأخر"
+          : "Late"
+        : status === "on_time"
+          ? ar
+            ? "ضمن الوقت"
+            : "On time"
+          : ar
+            ? "لم يسجل"
+            : "Not clocked";
 }
 
 function scheduleTone(status: ScheduleAttendance) {
-  return status === "overtime" ? "bg-amber-500/10 text-amber-700" : status === "left_early" ? "bg-rose-500/10 text-rose-700" : status === "late" ? "bg-orange-500/10 text-orange-700" : status === "on_time" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-muted-foreground";
+  return status === "overtime"
+    ? "bg-amber-500/10 text-amber-700"
+    : status === "left_early"
+      ? "bg-rose-500/10 text-rose-700"
+      : status === "late"
+        ? "bg-orange-500/10 text-orange-700"
+        : status === "on_time"
+          ? "bg-emerald-500/10 text-emerald-700"
+          : "bg-muted text-muted-foreground";
 }
 
 function localDateKey(value: Date) {
@@ -490,7 +1792,12 @@ function localDateTimeIso(date: string, time: string, addDays = 0) {
 
 function formatScheduleWindow(value: string | null, ar: boolean) {
   if (!value) return ar ? "الوقت غير محدد" : "Time not set";
-  return new Date(value).toLocaleString(ar ? "ar-JO" : "en-JO", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  return new Date(value).toLocaleString(ar ? "ar-JO" : "en-JO", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatShiftOption(shift: StaffScheduleRow, ar: boolean) {
@@ -504,7 +1811,13 @@ function formatShiftOption(shift: StaffScheduleRow, ar: boolean) {
   return `${date}, ${startTime}–${endTime}`;
 }
 
-function hasShiftConflict(staffId: string, start: string | null, end: string | null, assignments: StaffAssignmentRow[], shifts: StaffScheduleRow[]) {
+function hasShiftConflict(
+  staffId: string,
+  start: string | null,
+  end: string | null,
+  assignments: StaffAssignmentRow[],
+  shifts: StaffScheduleRow[],
+) {
   if (!start || !end) return false;
   const candidateStart = new Date(start).getTime();
   const candidateEnd = new Date(end).getTime();
@@ -515,6 +1828,11 @@ function hasShiftConflict(staffId: string, start: string | null, end: string | n
     const shift = shiftsById.get(assignment.shift_id);
     const assignedStart = new Date(assignment.starts_at ?? shift?.planned_start ?? "").getTime();
     const assignedEnd = new Date(assignment.ends_at ?? shift?.planned_end ?? "").getTime();
-    return Number.isFinite(assignedStart) && Number.isFinite(assignedEnd) && candidateStart < assignedEnd && candidateEnd > assignedStart;
+    return (
+      Number.isFinite(assignedStart) &&
+      Number.isFinite(assignedEnd) &&
+      candidateStart < assignedEnd &&
+      candidateEnd > assignedStart
+    );
   });
 }

@@ -55,8 +55,8 @@ import {
 const DIET_FILTERS: DietTag[] = ["vegetarian", "vegan", "spicy", "gluten", "nuts", "seafood"];
 const searchSchema = z.object({
   t: z.string().optional(),
-  preview: z.enum(["1"]).optional(),
-  mode: z.enum(["kiosk"]).optional(),
+  preview: z.string().optional(),
+  mode: z.string().optional(),
 });
 
 export const Route = createFileRoute("/r/$slug")({
@@ -1299,7 +1299,9 @@ function ItemSheet({
         style={{ ...themeVars(theme), background: "var(--qs-surface)", color: "var(--qs-text)" }}
       >
         <SheetHeader>
-          <SheetTitle style={{ color: "var(--qs-text)" }}>{item ? pick(item.name_en, item.name_ar) : ""}</SheetTitle>
+          <SheetTitle style={{ color: "var(--qs-text)" }}>
+            {item ? pick(item.name_en, item.name_ar) : ""}
+          </SheetTitle>
         </SheetHeader>
         <div className="space-y-4 p-4">
           {item?.image_url ? (
