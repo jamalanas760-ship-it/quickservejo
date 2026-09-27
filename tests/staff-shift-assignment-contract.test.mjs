@@ -8,7 +8,7 @@ const source = await readFile(
 );
 
 test("staff page creates shared shift assignments and refreshes the shifts workspace", () => {
-  assert.match(source, /<th>\{ar \? "الوردية" : "Shift"\}<\/th>/);
+  assert.match(source, /<th className="text-center">\{ar \? "الوردية" : "Shift"\}<\/th>/);
   assert.match(source, /<StaffShiftCell/);
   assert.match(source, /schedule \? \(ar \? "تعديل" : "Change"\) : ar \? "إضافة" : "Add shift"/);
   assert.match(source, /AssignStaffShiftDialog/);

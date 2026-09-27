@@ -48,7 +48,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useRestaurantSeatUsage } from "@/hooks/useRestaurantSeatUsage";
-import { assignStaffShift, deleteShift } from "@/hooks/useOperations";
+import { assignStaffShift } from "@/hooks/useOperations";
 import { supabase } from "@/integrations/supabase/client";
 import { avatarPresetUrl } from "@/lib/avatar-presets";
 import { humanError } from "@/lib/errors";
@@ -623,7 +623,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                     <th>{ar ? "البريد" : "Email"}</th>
                     <th>{ar ? "الدور" : "Role"}</th>
                     <th>{ar ? "الحالة" : "Status"}</th>
-                    <th>{ar ? "الوردية" : "Shift"}</th>
+                    <th className="text-center">{ar ? "الوردية" : "Shift"}</th>
                     <th>{ar ? "آخر نشاط" : "Last Active"}</th>
                     <th>{ar ? "إجراءات" : "Actions"}</th>
                   </tr>
@@ -687,7 +687,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                             {member.is_active ? t("common.active") : t("common.inactive")}
                           </span>
                         </td>
-                        <td>
+                        <td className="align-middle text-center">
                           <StaffShiftCell
                             schedule={scheduleInfo}
                             canAssign={canManageShifts && member.is_active}
@@ -1321,7 +1321,7 @@ function StaffShiftCell({
   onAssign: () => void;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 items-center justify-center gap-2 text-center">
       <div className="min-w-0 flex-1">
         {schedule ? (
           <>
@@ -1350,11 +1350,15 @@ function StaffShiftCell({
       </div>
       {canAssign ? (
         <Button
-          type="button"
+            type="button"
           size="sm"
           variant={schedule ? "outline" : "default"}
           className="h-8 shrink-0 gap-1 px-2 text-[10px]"
-          onClick={onAssign}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onAssign();
+          }}
         >
           <CalendarPlus className="size-3.5" />
           {schedule ? (ar ? "تعديل" : "Change") : ar ? "إضافة" : "Add shift"}
@@ -1447,63 +1451,49 @@ function AssignStaffShiftDialog({
   const overnight = Boolean(start && end && end <= start);
 
   const save = async () => {
-    let createdId: string | null = null;
-    try {
-      if (mode === "existing") {
-        const shift = available.find((row) => row.id === shiftId);
-        if (!shift) throw new Error(ar ? "اختر وردية متاحة." : "Choose an available shift.");
-        if (
-          hasShiftConflict(member.id, shift.planned_start, shift.planned_end, assignments, shifts)
-        )
-          throw new Error(
-            ar
-              ? "تتداخل هذه الوردية مع وردية أخرى لهذا الموظف."
-              : "This shift overlaps another assignment for this team member.",
-          );
-        await assignStaffShift({
-          restaurant_id: restaurantId,
-          staff_id: member.id,
-          shift_id: shift.id,
-        });
-      } else {
-        if (!name.trim() || !date || !start || !end)
-          throw new Error(
-            ar ? "أكمل اسم الوردية والتاريخ والوقت." : "Complete the shift name, date and time.",
-          );
-        const plannedStart = localDateTimeIso(date, start);
-        const plannedEnd = localDateTimeIso(date, end, overnight ? 1 : 0);
-        if (hasShiftConflict(member.id, plannedStart, plannedEnd, assignments, shifts))
-          throw new Error(
-            ar
-              ? "يتداخل هذا الوقت مع وردية أخرى لهذا الموظف."
-              : "This time overlaps another assignment for this team member.",
-          );
-        await assignStaffShift({
-          restaurant_id: restaurantId,
-          staff_id: member.id,
-          name: name.trim(),
-          shift_date: date,
-          planned_start: plannedStart,
-          planned_end: plannedEnd,
-        });
-      }
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["platform", "staff-schedule", restaurantId] }),
-        qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }),
-        qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }),
-      ]);
-      toast.success(ar ? `تمت إضافة وردية ${member.name}` : `Shift assigned to ${member.name}`);
-      onClose();
-    } catch (error) {
-      if (createdId) {
-        try {
-          await deleteShift(createdId);
-        } catch {
-          /* Preserve the original assignment error. */
-        }
-      }
-      throw error;
+    if (mode === "existing") {
+      const shift = available.find((row) => row.id === shiftId);
+      if (!shift) throw new Error(ar ? "اختر وردية متاحة." : "Choose an available shift.");
+      if (hasShiftConflict(member.id, shift.planned_start, shift.planned_end, assignments, shifts))
+        throw new Error(
+          ar
+            ? "تتداخل هذه الوردية مع وردية أخرى لهذا الموظف."
+            : "This shift overlaps another assignment for this team member.",
+        );
+      await assignStaffShift({
+        restaurant_id: restaurantId,
+        staff_id: member.id,
+        shift_id: shift.id,
+      });
+    } else {
+      if (!name.trim() || !date || !start || !end)
+        throw new Error(
+          ar ? "أكمل اسم الوردية والتاريخ والوقت." : "Complete the shift name, date and time.",
+        );
+      const plannedStart = localDateTimeIso(date, start);
+      const plannedEnd = localDateTimeIso(date, end, overnight ? 1 : 0);
+      if (hasShiftConflict(member.id, plannedStart, plannedEnd, assignments, shifts))
+        throw new Error(
+          ar
+            ? "يتداخل هذا الوقت مع وردية أخرى لهذا الموظف."
+            : "This time overlaps another assignment for this team member.",
+        );
+      await assignStaffShift({
+        restaurant_id: restaurantId,
+        staff_id: member.id,
+        name: name.trim(),
+        shift_date: date,
+        planned_start: plannedStart,
+        planned_end: plannedEnd,
+      });
     }
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["platform", "staff-schedule", restaurantId] }),
+      qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }),
+      qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }),
+    ]);
+    toast.success(ar ? `تمت إضافة وردية ${member.name}` : `Shift assigned to ${member.name}`);
+    onClose();
   };
   const mutation = useMutation({
     mutationFn: save,
@@ -1624,10 +1614,11 @@ function AssignStaffShiftDialog({
           </div>
         </div>
         <DialogFooter className="border-t border-border bg-card px-5 py-4">
-          <Button variant="outline" disabled={mutation.isPending} onClick={onClose}>
+          <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onClose}>
             {ar ? "إلغاء" : "Cancel"}
           </Button>
           <Button
+            type="button"
             disabled={
               mutation.isPending ||
               (mode === "existing" ? !shiftId : !name.trim() || !date || !start || !end)

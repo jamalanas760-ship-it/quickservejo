@@ -27,9 +27,6 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
   const [workflow, setWorkflow] = useState<Workflow>("standard");
   const [section, setSection] = useState<StandardSection>("design");
 
-  const persistedWorkflow = restaurant.data && readAppearance(restaurant.data.menu_theme).menuMode === "pdf" ? "pdf" : "standard";
-  useEffect(() => setWorkflow(persistedWorkflow), [persistedWorkflow]);
-
   const saveWorkflow = useMutation({
     mutationFn: async (nextWorkflow: Workflow) => {
       return nextWorkflow;
@@ -40,7 +37,7 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
       return { previous };
     },
     onError: (error, _nextWorkflow, context) => {
-      setWorkflow(context?.previous ?? persistedWorkflow);
+      setWorkflow(context?.previous ?? "standard");
       toast.error(humanError(error, lang));
     },
     onSuccess: async (nextWorkflow) => {
