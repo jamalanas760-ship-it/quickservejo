@@ -2019,8 +2019,11 @@ function hasShiftConflict(
   return assignments.some((assignment) => {
     if (assignment.staff_id !== staffId || assignment.status === "released") return false;
     const shift = shiftsById.get(assignment.shift_id);
-    const assignedStart = new Date(assignment.starts_at ?? shift?.planned_start ?? "").getTime();
-    const assignedEnd = new Date(assignment.ends_at ?? shift?.planned_end ?? "").getTime();
+    // Ignore stale assignments whose shift was deleted/archived, and completed shifts.
+    // Only live schedule rows are eligible to block a new assignment.
+    if (!shift || shift.status === "closed") return false;
+    const assignedStart = new Date(assignment.starts_at ?? shift.planned_start ?? "").getTime();
+    const assignedEnd = new Date(assignment.ends_at ?? shift.planned_end ?? "").getTime();
     return (
       Number.isFinite(assignedStart) &&
       Number.isFinite(assignedEnd) &&

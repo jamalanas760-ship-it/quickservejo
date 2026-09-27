@@ -59,3 +59,23 @@ test("team page securely cancels only active or upcoming shift assignments", asy
   assert.match(migration, /manage_shifts/);
   assert.match(migration, /staff_shift_cancelled/);
 });
+
+
+test("deleted or closed shifts do not create false overlap conflicts", async () => {
+  assert.match(source, /if \(!shift \|\| shift\.status === "closed"\) return false/);
+
+  const migration = await readFile(
+    new URL(
+      "../supabase/migrations/20260927161000_fix_shift_overlap_false_positive.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(migration, /delete from public\.shift_assignments a/);
+  assert.match(migration, /sh\.deleted_at is not null/);
+  assert.match(migration, /sh\.deleted_at is null/);
+  assert.match(migration, /sh\.status <> 'closed'/);
+  assert.match(migration, /a\.status <> 'released'/);
+  assert.match(migration, /_candidate_start < coalesce/);
+  assert.match(migration, /_candidate_end > coalesce/);
+});
