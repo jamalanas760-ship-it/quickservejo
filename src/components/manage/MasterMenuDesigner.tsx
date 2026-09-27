@@ -1,10 +1,15 @@
-import { lazy, Suspense, useState } from "react";
-import { ExternalLink, FileText, Image as ImageIcon, Layers3, Package, Tags, UtensilsCrossed } from "lucide-react";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ExternalLink, FileText, Image as ImageIcon, Layers3, Moon, Package, Sun, Tags, UtensilsCrossed } from "lucide-react";
+import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
+import { supabase } from "@/integrations/supabase/client";
+import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
+import { readAppearance } from "@/lib/restaurant-appearance";
 import { cn } from "@/lib/utils";
 
 const PdfEditor = lazy(() => import("./PdfMenuManagerModern").then((module) => ({ default: module.PdfMenuManagerModern })));
@@ -17,9 +22,48 @@ type StandardSection = "design" | "categories" | "products" | "pricing";
 export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
   const { lang } = useI18n();
   const ar = lang === "ar";
+  const queryClient = useQueryClient();
   const restaurant = useRestaurant(restaurantId);
   const [workflow, setWorkflow] = useState<Workflow>("standard");
   const [section, setSection] = useState<StandardSection>("design");
+
+  const persistedWorkflow = restaurant.data && readAppearance(restaurant.data.menu_theme).menuMode === "pdf" ? "pdf" : "standard";
+  useEffect(() => setWorkflow(persistedWorkflow), [persistedWorkflow]);
+
+  const saveWorkflow = useMutation({
+    mutationFn: async (nextWorkflow: Workflow) => {
+      if (!restaurant.data) return nextWorkflow;
+      const rawTheme = restaurant.data.menu_theme && typeof restaurant.data.menu_theme === "object" && !Array.isArray(restaurant.data.menu_theme)
+        ? restaurant.data.menu_theme as Record<string, unknown>
+        : {};
+      const rawWorkspace = rawTheme.workspace && typeof rawTheme.workspace === "object" && !Array.isArray(rawTheme.workspace)
+        ? rawTheme.workspace as Record<string, unknown>
+        : {};
+      const menuTheme = { ...rawTheme, workspace: { ...rawWorkspace, menuMode: nextWorkflow === "standard" ? "products" : "pdf" } };
+      const { error } = await supabase.from("restaurants").update({ menu_theme: menuTheme }).eq("id", restaurantId);
+      if (error) throw error;
+      return nextWorkflow;
+    },
+    onMutate: (nextWorkflow) => {
+      const previous = workflow;
+      setWorkflow(nextWorkflow);
+      return { previous };
+    },
+    onError: (error, _nextWorkflow, context) => {
+      setWorkflow(context?.previous ?? persistedWorkflow);
+      toast.error(humanError(error, lang));
+    },
+    onSuccess: async (nextWorkflow) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["platform", "restaurant", restaurantId] }),
+        queryClient.invalidateQueries({ queryKey: ["diner"] }),
+        queryClient.invalidateQueries({ queryKey: ["pdf-diner"] }),
+      ]);
+      toast.success(nextWorkflow === "standard"
+        ? (ar ? "تم تفعيل القائمة العادية" : "Standard Menu is now active")
+        : (ar ? "تم تفعيل قائمة PDF التفاعلية" : "Clickable PDF Menu is now active"));
+    },
+  });
 
   const standardSections = [
     { id: "design" as const, icon: ImageIcon, en: "Design & Branding", ar: "التصميم والهوية", hint: ar ? "الشعار وإعدادات المؤسسة" : "Logo and organization settings" },
@@ -34,14 +78,19 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
         eyebrow={<MasterEyebrow icon={UtensilsCrossed}>{ar ? "استوديو القائمة" : "Menu Studio"}</MasterEyebrow>}
         title={ar ? "إدارة القائمة" : "Menu Management"}
         description={ar ? "أدر العناصر والفئات والأسعار والهوية من مساحة عمل واحدة واضحة." : "Manage items, categories, pricing and presentation from one focused workspace."}
-        actions={restaurant.data ? <Link to="/m/$slug" params={{ slug: restaurant.data.slug }} target="_blank" rel="noreferrer" className="qs-button-secondary"><ExternalLink className="size-4" />{ar ? "معاينة القائمة" : "Preview Menu"}</Link> : null}
+        actions={restaurant.data ? <>
+          {workflow === "standard" ? <StandardMenuModeControl restaurant={restaurant.data} /> : null}
+          {workflow === "standard"
+            ? <Link to="/r/$slug" params={{ slug: restaurant.data.slug }} search={{ preview: "1" as const }} target="_blank" rel="noreferrer" className="qs-button-secondary"><ExternalLink className="size-4" />{ar ? "معاينة القائمة" : "Preview Menu"}</Link>
+            : <Link to="/m/$slug" params={{ slug: restaurant.data.slug }} target="_blank" rel="noreferrer" className="qs-button-secondary"><ExternalLink className="size-4" />{ar ? "معاينة القائمة" : "Preview Menu"}</Link>}
+        </> : null}
       />
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <button type="button" aria-pressed={workflow === "standard"} onClick={() => setWorkflow("standard")} className={cn("flex min-h-[68px] items-center gap-3 rounded-[12px] border bg-card px-4 py-3 text-start shadow-[var(--qs-shadow-card)] transition", workflow === "standard" ? "border-[#e85d2a] bg-orange-500/[.035]" : "border-border hover:bg-muted/30")}>
+        <button type="button" aria-pressed={workflow === "standard"} disabled={saveWorkflow.isPending} onClick={() => workflow !== "standard" && saveWorkflow.mutate("standard")} className={cn("flex min-h-[68px] items-center gap-3 rounded-[12px] border bg-card px-4 py-3 text-start shadow-[var(--qs-shadow-card)] transition disabled:cursor-wait disabled:opacity-70", workflow === "standard" ? "border-[#e85d2a] bg-orange-500/[.035]" : "border-border hover:bg-muted/30")}>
           <span className={cn("grid size-10 shrink-0 place-items-center rounded-[10px]", workflow === "standard" ? "bg-orange-100 text-[#cf4818] dark:bg-orange-950/30" : "bg-muted text-muted-foreground")}><UtensilsCrossed className="size-4" /></span><span><strong className={cn("block text-sm", workflow === "standard" && "text-[#cf4818]")}>{ar ? "القائمة العادية" : "Standard Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "أنشئ وخصص قائمتك الإلكترونية" : "Build and customize your menu online"}</span></span>
         </button>
-        <button type="button" aria-pressed={workflow === "pdf"} onClick={() => setWorkflow("pdf")} className={cn("flex min-h-[68px] items-center gap-3 rounded-[12px] border bg-card px-4 py-3 text-start shadow-[var(--qs-shadow-card)] transition", workflow === "pdf" ? "border-[#e85d2a] bg-orange-500/[.035]" : "border-border hover:bg-muted/30")}>
+        <button type="button" aria-pressed={workflow === "pdf"} disabled={saveWorkflow.isPending} onClick={() => workflow !== "pdf" && saveWorkflow.mutate("pdf")} className={cn("flex min-h-[68px] items-center gap-3 rounded-[12px] border bg-card px-4 py-3 text-start shadow-[var(--qs-shadow-card)] transition disabled:cursor-wait disabled:opacity-70", workflow === "pdf" ? "border-[#e85d2a] bg-orange-500/[.035]" : "border-border hover:bg-muted/30")}>
           <span className={cn("grid size-10 shrink-0 place-items-center rounded-[10px]", workflow === "pdf" ? "bg-orange-100 text-[#cf4818] dark:bg-orange-950/30" : "bg-muted text-muted-foreground")}><FileText className="size-4" /></span><span><strong className={cn("block text-sm", workflow === "pdf" && "text-[#cf4818]")}>{ar ? "قائمة PDF" : "PDF Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "ارفع قائمة PDF تفاعلية" : "Upload a clickable PDF menu"}</span></span>
         </button>
       </div>
@@ -71,5 +120,60 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
         )}
       </Suspense></div>
     </section>
+  );
+}
+
+function StandardMenuModeControl({ restaurant }: { restaurant: NonNullable<ReturnType<typeof useRestaurant>["data"]> }) {
+  const { lang } = useI18n();
+  const ar = lang === "ar";
+  const queryClient = useQueryClient();
+  const persistedMode = readAppearance(restaurant.menu_theme).guestMenuMode;
+  const [mode, setMode] = useState<"light" | "dark">(persistedMode);
+
+  useEffect(() => setMode(persistedMode), [persistedMode]);
+
+  const saveMode = useMutation({
+    mutationFn: async (nextMode: "light" | "dark") => {
+      const rawTheme = restaurant.menu_theme && typeof restaurant.menu_theme === "object" && !Array.isArray(restaurant.menu_theme)
+        ? restaurant.menu_theme as Record<string, unknown>
+        : {};
+      const rawWorkspace = rawTheme.workspace && typeof rawTheme.workspace === "object" && !Array.isArray(rawTheme.workspace)
+        ? rawTheme.workspace as Record<string, unknown>
+        : {};
+      const menuTheme = { ...rawTheme, workspace: { ...rawWorkspace, guestMenuMode: nextMode } };
+      const { error } = await supabase.from("restaurants").update({ menu_theme: menuTheme }).eq("id", restaurant.id);
+      if (error) throw error;
+      return nextMode;
+    },
+    onMutate: (nextMode) => {
+      const previous = mode;
+      setMode(nextMode);
+      return { previous };
+    },
+    onError: (error, _nextMode, context) => {
+      setMode(context?.previous ?? persistedMode);
+      toast.error(humanError(error, lang));
+    },
+    onSuccess: async (nextMode) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["platform", "restaurant", restaurant.id] }),
+        queryClient.invalidateQueries({ queryKey: ["diner"] }),
+        queryClient.invalidateQueries({ queryKey: ["pdf-diner"] }),
+      ]);
+      toast.success(nextMode === "dark"
+        ? (ar ? "تم تفعيل المظهر الداكن للقائمة" : "Standard Menu set to dark mode")
+        : (ar ? "تم تفعيل المظهر الفاتح للقائمة" : "Standard Menu set to light mode"));
+    },
+  });
+
+  return (
+    <div className="flex min-h-11 items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-sm" role="group" aria-label={ar ? "مظهر القائمة العادية" : "Standard Menu appearance"}>
+      <span className="hidden px-2 text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground sm:inline">{ar ? "المظهر" : "Appearance"}</span>
+      {(["light", "dark"] as const).map((option) => {
+        const selected = mode === option;
+        const Icon = option === "light" ? Sun : Moon;
+        return <button key={option} type="button" aria-pressed={selected} disabled={saveMode.isPending} onClick={() => option !== mode && saveMode.mutate(option)} className={cn("inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition", selected ? "bg-[#fff1ec] text-[#cf4818] shadow-sm ring-1 ring-orange-200 dark:bg-orange-950/35 dark:text-orange-300 dark:ring-orange-900/60" : "text-muted-foreground hover:bg-muted hover:text-foreground")}><Icon className="size-3.5" /><span>{option === "light" ? (ar ? "فاتح" : "Light") : (ar ? "داكن" : "Dark")}</span></button>;
+      })}
+    </div>
   );
 }

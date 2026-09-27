@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarClock, History, IdCard, KeyRound, MoreHorizontal, Plus, Search, ShieldCheck, Trash2, UserRound, UsersRound } from "lucide-react";
+import { CalendarClock, CalendarPlus, History, IdCard, KeyRound, MoreHorizontal, Pencil, Plus, Search, ShieldCheck, Trash2, UserRound, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useRestaurantSeatUsage } from "@/hooks/useRestaurantSeatUsage";
+import { assignStaffToShift, createShift, deleteShift } from "@/hooks/useOperations";
 import { supabase } from "@/integrations/supabase/client";
 import { avatarPresetUrl } from "@/lib/avatar-presets";
 import { humanError } from "@/lib/errors";
@@ -68,6 +70,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const session = useSupabaseSession();
   const currentUserId = session.data?.user.id ?? null;
   const isSuperAdmin = accessHook.isSuperAdmin;
+  const canManageShifts = accessHook.canFor(restaurantId, "manage_shifts");
   const assignableRoles = isSuperAdmin ? ROLES : ROLES.filter((role) => role !== "restaurant_admin");
   const qc = useQueryClient();
   const seats = useRestaurantSeatUsage(restaurantId);
@@ -92,6 +95,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const [badge, setBadge] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", role: "waiter" as AppRole });
   const [presenceNow, setPresenceNow] = useState(() => Date.now());
+  const [shiftMember, setShiftMember] = useState<StaffRow | null>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setPresenceNow(Date.now()), 15_000);
@@ -114,7 +118,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     queryFn: async () => {
       const today = new Date().toISOString().slice(0, 10);
       const historyStart = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
-      const horizon = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
+      const horizon = new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10);
       const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
       const [shiftsResult, assignmentsResult, timeResult] = await Promise.all([
         (supabase.from("shifts" as any) as any).select("id,name,shift_date,planned_start,planned_end,status").eq("restaurant_id", restaurantId).is("deleted_at", null).gte("shift_date", historyStart).lte("shift_date", horizon).order("shift_date", { ascending: true }),
@@ -324,13 +328,13 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
           const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
           const scheduleInfo = scheduleByStaff.get(member.id);
-          return <tr key={member.id}><td className="text-muted-foreground">#{String(index + 1).padStart(3, "0")}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex items-center gap-2.5 text-start"><span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span><strong className="block font-bold">{member.name}</strong>{scheduleInfo ? <span className={cn("mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold", scheduleTone(scheduleInfo.attendance))}><CalendarClock className="size-3" />{scheduleInfo.name} · {scheduleLabel(scheduleInfo.attendance, ar)}</span> : <span className="mt-1 block text-[9px] text-muted-foreground">{ar ? "لا توجد وردية قادمة" : "No upcoming shift"}</span>}</span></button></td><td className="text-muted-foreground">{member.email ?? "—"}</td><td><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span></td><td><span className={cn("qs-status", member.is_active ? "bg-emerald-500/12 text-emerald-600" : "bg-slate-500/12 text-slate-500")}><i className={cn("size-1.5 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} />{member.is_active ? t("common.active") : t("common.inactive")}</span></td><td className="text-muted-foreground">{formatLastSeen(member.last_seen_at, ar, presenceNow)}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="grid size-8 place-items-center rounded-lg bg-muted/40 hover:bg-muted" aria-label={ar ? "تعديل" : "Edit"}><MoreHorizontal className="size-4" /></button></td></tr>;
+          return <tr key={member.id}><td className="text-muted-foreground">#{String(index + 1).padStart(3, "0")}</td><td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex items-center gap-2.5 text-start"><span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span><strong className="block font-bold">{member.name}</strong>{scheduleInfo ? <span className={cn("mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold", scheduleTone(scheduleInfo.attendance))}><CalendarClock className="size-3" />{scheduleInfo.name} · {formatScheduleWindow(scheduleInfo.start, ar)} · {scheduleLabel(scheduleInfo.attendance, ar)}</span> : <span className="mt-1 block text-[9px] text-muted-foreground">{ar ? "لا توجد وردية قادمة" : "No upcoming shift"}</span>}</span></button></td><td className="text-muted-foreground">{member.email ?? "—"}</td><td><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span></td><td><span className={cn("qs-status", member.is_active ? "bg-emerald-500/12 text-emerald-600" : "bg-slate-500/12 text-slate-500")}><i className={cn("size-1.5 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} />{member.is_active ? t("common.active") : t("common.inactive")}</span></td><td className="text-muted-foreground">{formatLastSeen(member.last_seen_at, ar, presenceNow)}</td><td><StaffActions member={member} locked={locked} canManageShifts={canManageShifts} ar={ar} onEdit={() => startEdit(member)} onAssign={() => setShiftMember(member)} /></td></tr>;
         })}</tbody></table></div>
         <div className="space-y-2 p-3 md:hidden">{rows.map((member) => {
           const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
           const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
           const scheduleInfo = scheduleByStaff.get(member.id);
-          return <button key={member.id} type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-start"><span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{member.name}</strong><span className="mt-1 flex flex-wrap items-center gap-2"><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span>{scheduleInfo ? <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold", scheduleTone(scheduleInfo.attendance))}><CalendarClock className="size-3" />{scheduleLabel(scheduleInfo.attendance, ar)}</span> : null}<span className={cn("size-2 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} /></span></span><MoreHorizontal className="size-4 text-muted-foreground" /></button>;
+          return <div key={member.id} className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-start"><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex min-w-0 flex-1 items-center gap-3 text-start"><span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{member.name}</strong><span className="mt-1 flex flex-wrap items-center gap-2"><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span>{scheduleInfo ? <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold", scheduleTone(scheduleInfo.attendance))}><CalendarClock className="size-3" />{formatScheduleWindow(scheduleInfo.start, ar)} · {scheduleLabel(scheduleInfo.attendance, ar)}</span> : <span className="text-[9px] text-muted-foreground">{ar ? "لا توجد وردية قادمة" : "No upcoming shift"}</span>}<span className={cn("size-2 rounded-full", member.is_active ? "bg-emerald-500" : "bg-slate-400")} /></span></span></button><StaffActions member={member} locked={locked} canManageShifts={canManageShifts} ar={ar} onEdit={() => startEdit(member)} onAssign={() => setShiftMember(member)} /></div>;
         })}</div>
       </>}
     </section>
@@ -374,7 +378,61 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     <Dialog open={Boolean(credentials)} onOpenChange={(value) => !value && setCredentials(null)}><DialogContent><DialogHeader><DialogTitle>{ar ? "بيانات الدخول" : "Login credentials"}</DialogTitle><DialogDescription>{credentials?.email}</DialogDescription></DialogHeader><div className="rounded-xl bg-muted p-4 font-mono text-sm">{credentials?.password ?? (ar ? "تم ربط الحساب الموجود" : "Existing account linked")}</div><DialogFooter><Button onClick={() => setCredentials(null)}>{t("common.close")}</Button></DialogFooter></DialogContent></Dialog>
     <Dialog open={Boolean(pendingDelete)} onOpenChange={(value) => !value && setPendingDelete(null)}><DialogContent><DialogHeader><DialogTitle>{ar ? "حذف المستخدم؟" : "Delete team member?"}</DialogTitle><DialogDescription>{pendingDelete?.name}</DialogDescription></DialogHeader><DialogFooter><Button variant="ghost" onClick={() => setPendingDelete(null)}>{t("common.cancel")}</Button><Button variant="destructive" disabled={busy} onClick={() => void del()}>{t("common.delete")}</Button></DialogFooter></DialogContent></Dialog>
     <Dialog open={Boolean(access)} onOpenChange={(value) => !value && setAccess(null)}><DialogContent className="max-w-sm"><DialogHeader><DialogTitle>{ar ? "وصول الموظف" : "Staff access"}</DialogTitle><DialogDescription>{access?.name}</DialogDescription></DialogHeader>{badge ? <img src={badge} alt="Staff badge" className="mx-auto size-56 rounded-xl" /> : <div className="rounded-xl bg-muted p-5 text-center text-sm text-muted-foreground">{ar ? "لا توجد بطاقة مفعلة." : "No active badge available."}</div>}<DialogFooter><Button onClick={() => setAccess(null)}>{t("common.close")}</Button></DialogFooter></DialogContent></Dialog>
+    {shiftMember ? <AssignStaffShiftDialog member={shiftMember} restaurantId={restaurantId} shifts={schedule.data?.shifts ?? []} assignments={schedule.data?.assignments ?? []} ar={ar} lang={lang} onClose={() => setShiftMember(null)} /> : null}
   </div>;
+}
+
+function StaffActions({ member, locked, canManageShifts, ar, onEdit, onAssign }: { member: StaffRow; locked: boolean; canManageShifts: boolean; ar: boolean; onEdit: () => void; onAssign: () => void }) {
+  const canAssign = canManageShifts && member.is_active;
+  return <DropdownMenu><DropdownMenuTrigger asChild><button type="button" disabled={locked && !canAssign} className="grid size-9 place-items-center rounded-lg bg-muted/40 transition hover:bg-muted disabled:opacity-40" aria-label={ar ? `إجراءات ${member.name}` : `${member.name} actions`}><MoreHorizontal className="size-4" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-48">{canAssign ? <DropdownMenuItem onSelect={onAssign}><CalendarPlus className="size-4" />{ar ? "إضافة وردية" : "Assign shift"}</DropdownMenuItem> : null}{canAssign && !locked ? <DropdownMenuSeparator /> : null}{!locked ? <DropdownMenuItem onSelect={onEdit}><Pencil className="size-4" />{ar ? "تعديل المستخدم" : "Edit member"}</DropdownMenuItem> : null}</DropdownMenuContent></DropdownMenu>;
+}
+
+function AssignStaffShiftDialog({ member, restaurantId, shifts, assignments, ar, lang, onClose }: { member: StaffRow; restaurantId: string; shifts: StaffScheduleRow[]; assignments: StaffAssignmentRow[]; ar: boolean; lang: "en" | "ar"; onClose: () => void }) {
+  const qc = useQueryClient();
+  const today = localDateKey(new Date());
+  const available = shifts.filter((shift) => shift.status !== "closed" && shift.shift_date >= today && !assignments.some((assignment) => assignment.shift_id === shift.id && assignment.staff_id === member.id));
+  const [mode, setMode] = useState<"existing" | "new">(available.length ? "existing" : "new");
+  const [shiftId, setShiftId] = useState(available[0]?.id ?? "");
+  const [name, setName] = useState(ar ? "وردية خدمة" : "Service shift");
+  const [date, setDate] = useState(today);
+  const [start, setStart] = useState("09:00");
+  const [end, setEnd] = useState("17:00");
+  const overnight = Boolean(start && end && end <= start);
+
+  const save = async () => {
+    let createdId: string | null = null;
+    try {
+      if (mode === "existing") {
+        const shift = available.find((row) => row.id === shiftId);
+        if (!shift) throw new Error(ar ? "اختر وردية متاحة." : "Choose an available shift.");
+        if (hasShiftConflict(member.id, shift.planned_start, shift.planned_end, assignments, shifts)) throw new Error(ar ? "تتداخل هذه الوردية مع وردية أخرى لهذا الموظف." : "This shift overlaps another assignment for this team member.");
+        await assignStaffToShift({ restaurant_id: restaurantId, shift_id: shift.id, staff_id: member.id, role_snapshot: member.role, starts_at: shift.planned_start, ends_at: shift.planned_end });
+      } else {
+        if (!name.trim() || !date || !start || !end) throw new Error(ar ? "أكمل اسم الوردية والتاريخ والوقت." : "Complete the shift name, date and time.");
+        const plannedStart = localDateTimeIso(date, start);
+        const plannedEnd = localDateTimeIso(date, end, overnight ? 1 : 0);
+        if (hasShiftConflict(member.id, plannedStart, plannedEnd, assignments, shifts)) throw new Error(ar ? "يتداخل هذا الوقت مع وردية أخرى لهذا الموظف." : "This time overlaps another assignment for this team member.");
+        const shift = await createShift({ restaurant_id: restaurantId, name: name.trim(), shift_date: date, planned_start: plannedStart, planned_end: plannedEnd, notes: null });
+        createdId = shift.id;
+        await assignStaffToShift({ restaurant_id: restaurantId, shift_id: shift.id, staff_id: member.id, role_snapshot: member.role, starts_at: plannedStart, ends_at: plannedEnd });
+      }
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["platform", "staff-schedule", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }),
+      ]);
+      toast.success(ar ? `تمت إضافة وردية ${member.name}` : `Shift assigned to ${member.name}`);
+      onClose();
+    } catch (error) {
+      if (createdId) {
+        try { await deleteShift(createdId); } catch { /* Preserve the original assignment error. */ }
+      }
+      throw error;
+    }
+  };
+  const mutation = useMutation({ mutationFn: save, onError: (error) => toast.error(humanError(error, lang)) });
+
+  return <Dialog open onOpenChange={(open) => { if (!open && !mutation.isPending) onClose(); }}><DialogContent className="w-[calc(100vw-1.5rem)] max-w-none overflow-hidden p-0 sm:max-w-[600px]"><div className="border-b border-border bg-muted/15 px-5 py-4"><DialogHeader><DialogTitle className="flex items-center gap-2"><span className="grid size-9 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><CalendarPlus className="size-4" /></span>{ar ? `إضافة وردية لـ ${member.name}` : `Assign shift to ${member.name}`}</DialogTitle><DialogDescription>{ar ? "اختر وردية موجودة أو أنشئ وقت عمل جديداً. سيظهر التغيير في صفحة الورديات مباشرة." : "Choose an existing shift or create a new work window. It will appear on the Shifts page immediately."}</DialogDescription></DialogHeader></div><div className="space-y-5 px-5 py-5"><div className="grid grid-cols-2 rounded-xl border border-border bg-muted/25 p-1"><button type="button" disabled={!available.length} onClick={() => setMode("existing")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "existing" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground", !available.length && "cursor-not-allowed opacity-45")}>{ar ? "وردية موجودة" : "Existing shift"}</button><button type="button" onClick={() => setMode("new")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "new" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "وردية جديدة" : "New shift"}</button></div>{mode === "existing" ? <Field label={ar ? "الوردية المتاحة" : "Available shift"}><Select value={shiftId} onValueChange={setShiftId}><SelectTrigger className="h-12"><SelectValue placeholder={ar ? "اختر وردية" : "Choose a shift"} /></SelectTrigger><SelectContent>{available.map((shift) => <SelectItem key={shift.id} value={shift.id}>{shift.name} · {formatShiftOption(shift, ar)}</SelectItem>)}</SelectContent></Select></Field> : <div className="grid gap-4 sm:grid-cols-2"><div className="sm:col-span-2"><Field label={ar ? "اسم الوردية" : "Shift name"}><Input value={name} maxLength={80} onChange={(event) => setName(event.target.value)} placeholder={ar ? "مثال: وردية المساء" : "e.g. Evening service"} /></Field></div><Field label={ar ? "التاريخ" : "Date"}><Input type="date" value={date} min={today} onChange={(event) => setDate(event.target.value)} /></Field><div className="hidden sm:block" /><Field label={ar ? "وقت البداية" : "Start time"}><Input type="time" value={start} onChange={(event) => setStart(event.target.value)} /></Field><Field label={ar ? "وقت النهاية" : "End time"}><Input type="time" value={end} onChange={(event) => setEnd(event.target.value)} /></Field>{overnight ? <p className="sm:col-span-2 rounded-xl bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">{ar ? "ستنتهي هذه الوردية في اليوم التالي." : "This shift ends the following day."}</p> : null}</div>}<div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"><span className="grid size-10 place-items-center rounded-full bg-muted font-bold">{member.name.slice(0, 1).toUpperCase()}</span><div className="min-w-0"><strong className="block truncate text-sm">{member.name}</strong><span className="text-xs text-muted-foreground">{ROLE_NAMES[member.role][lang]}</span></div></div></div><DialogFooter className="border-t border-border bg-card px-5 py-4"><Button variant="outline" disabled={mutation.isPending} onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button><Button disabled={mutation.isPending || (mode === "existing" ? !shiftId : !name.trim() || !date || !start || !end)} onClick={() => mutation.mutate()}><CalendarPlus className="size-4" />{mutation.isPending ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "إضافة الوردية" : "Assign shift")}</Button></DialogFooter></DialogContent></Dialog>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div className="space-y-1.5"><Label className="text-xs font-bold">{label}</Label>{children}</div>; }
@@ -414,4 +472,49 @@ function scheduleLabel(status: ScheduleAttendance, ar: boolean) {
 
 function scheduleTone(status: ScheduleAttendance) {
   return status === "overtime" ? "bg-amber-500/10 text-amber-700" : status === "left_early" ? "bg-rose-500/10 text-rose-700" : status === "late" ? "bg-orange-500/10 text-orange-700" : status === "on_time" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-muted-foreground";
+}
+
+function localDateKey(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function localDateTimeIso(date: string, time: string, addDays = 0) {
+  const value = new Date(`${date}T${time}:00`);
+  if (addDays) value.setDate(value.getDate() + addDays);
+  if (Number.isNaN(value.getTime())) throw new Error("Invalid shift date or time.");
+  return value.toISOString();
+}
+
+function formatScheduleWindow(value: string | null, ar: boolean) {
+  if (!value) return ar ? "الوقت غير محدد" : "Time not set";
+  return new Date(value).toLocaleString(ar ? "ar-JO" : "en-JO", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function formatShiftOption(shift: StaffScheduleRow, ar: boolean) {
+  if (!shift.planned_start) return shift.shift_date;
+  const start = new Date(shift.planned_start);
+  const end = shift.planned_end ? new Date(shift.planned_end) : null;
+  const locale = ar ? "ar-JO" : "en-JO";
+  const date = start.toLocaleDateString(locale, { month: "short", day: "numeric" });
+  const startTime = start.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  const endTime = end?.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) ?? "—";
+  return `${date}, ${startTime}–${endTime}`;
+}
+
+function hasShiftConflict(staffId: string, start: string | null, end: string | null, assignments: StaffAssignmentRow[], shifts: StaffScheduleRow[]) {
+  if (!start || !end) return false;
+  const candidateStart = new Date(start).getTime();
+  const candidateEnd = new Date(end).getTime();
+  if (!Number.isFinite(candidateStart) || !Number.isFinite(candidateEnd)) return false;
+  const shiftsById = new Map(shifts.map((shift) => [shift.id, shift]));
+  return assignments.some((assignment) => {
+    if (assignment.staff_id !== staffId || assignment.status === "released") return false;
+    const shift = shiftsById.get(assignment.shift_id);
+    const assignedStart = new Date(assignment.starts_at ?? shift?.planned_start ?? "").getTime();
+    const assignedEnd = new Date(assignment.ends_at ?? shift?.planned_end ?? "").getTime();
+    return Number.isFinite(assignedStart) && Number.isFinite(assignedEnd) && candidateStart < assignedEnd && candidateEnd > assignedStart;
+  });
 }

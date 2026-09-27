@@ -102,7 +102,7 @@ function PdfOrderPage() {
 
   const { restaurant, pdfMenu } = menu.data;
 
-  if (menu.data.menuMode === "products" || (!pdfMenu && menu.data.items.length > 0)) {
+  if (menu.data.menuMode === "products") {
     return <Navigate to="/r/$slug" params={{ slug }} search={{ t: qrToken }} replace />;
   }
 
@@ -114,11 +114,7 @@ function PdfOrderPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             This restaurant has no active PDF menu.
           </p>
-          <Button asChild className="mt-4">
-            <Link to="/r/$slug" params={{ slug }}>
-              Open menu
-            </Link>
-          </Button>
+          <p className="mt-4 text-xs text-muted-foreground">Please ask the restaurant to publish its PDF menu.</p>
         </div>
       </div>
     );

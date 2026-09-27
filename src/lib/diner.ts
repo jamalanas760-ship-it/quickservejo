@@ -5,10 +5,11 @@ import { parseMenuTheme, type MenuTheme } from "@/lib/menu-theme";
 export type DinerModifier = { id: string; name_en: string; name_ar: string; price_delta: number };
 export type DinerGroup = { id: string; name_en: string; name_ar: string; is_required: boolean; min_selection: number; max_selection: number; modifiers: DinerModifier[] };
 export type DinerItem = { id: string; category_id: string | null; name_en: string; name_ar: string; description_en: string | null; description_ar: string | null; price: number; compare_at_price: number | null; image_url: string | null; is_featured: boolean; preparation_time: number; groups: DinerGroup[] };
-export type DinerPdfLink = { id: string; page_number: number; x: number; y: number; width: number; height: number; menu_item_id: string; label: string | null };
+export type DinerPdfLink = { id: string; document_id?: string; page_number: number; x: number; y: number; width: number; height: number; menu_item_id: string; label: string | null; is_active?: boolean };
 
 export type DinerMenu = {
   menuMode: "pdf" | "products";
+  standardAppearance: { mode: "light" | "dark"; light: MenuTheme; dark: MenuTheme };
   restaurant: { id: string; name: string; slug: string; logo_url: string | null; cover_image_url: string | null; description_en: string | null; description_ar: string | null; currency: string; tax_rate: number; service_charge: number; primary_color: string; accent_color: string; menu_theme: MenuTheme };
   settings: {
     enable_orders: boolean;
@@ -72,14 +73,17 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
   }));
 
   const pdfDocument = pdfDocumentRes.data as { id: string; file_url: string; file_parts?: unknown; file_name: string; page_count: number; is_active: boolean } | null;
-  let pdfLinks: DinerPdfLink[] = [];
-  if (pdfDocument) {
-    const { data, error: linkError } = await (supabase as any).from("menu_pdf_item_links").select("id, page_number, x, y, width, height, menu_item_id, label").eq("document_id", pdfDocument.id).eq("restaurant_id", restaurant.id).eq("is_active", true);
-    if (linkError) throw linkError;
-    const availableIds = new Set(items.map((item) => item.id));
-    pdfLinks = (data ?? []).filter((link: DinerPdfLink) => availableIds.has(link.menu_item_id)).map((link: DinerPdfLink) => ({ ...link, x: Number(link.x), y: Number(link.y), width: Number(link.width), height: Number(link.height) }));
-  }
+  const { data: linkRows, error: linkError } = await (supabase as any)
+    .from("menu_pdf_item_links")
+    .select("id, document_id, page_number, x, y, width, height, menu_item_id, label, is_active")
+    .eq("restaurant_id", restaurant.id);
+  if (linkError) throw linkError;
+  const availableIds = new Set(items.map((item) => item.id));
+  const pdfLinks: DinerPdfLink[] = (linkRows ?? [])
+    .filter((link: DinerPdfLink) => availableIds.has(link.menu_item_id))
+    .map((link: DinerPdfLink) => ({ ...link, x: Number(link.x), y: Number(link.y), width: Number(link.width), height: Number(link.height) }));
 
+  const appearance = readAppearance(restaurant.menu_theme);
   let menuTheme = parseMenuTheme(restaurant.menu_theme);
   if (typeof window !== "undefined" && window.location.hash.startsWith("#designer-preview:")) {
     try {
@@ -90,10 +94,26 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
     }
   }
 
+  const lightTheme = { ...menuTheme, ...appearance.guestMenuLight };
+  const darkTheme = { ...menuTheme, ...appearance.guestMenuDark };
+  const guestPalette = appearance.guestMenuMode === "dark" ? darkTheme : lightTheme;
+  menuTheme = { ...menuTheme, ...guestPalette };
+
+  const linkedItemIds = new Set(pdfLinks.map((link) => link.menu_item_id));
+  const activePdfLinks = pdfDocument
+    ? pdfLinks.filter((link) => link.document_id === pdfDocument.id && link.is_active !== false)
+    : [];
+  const visibleItems = appearance.menuMode === "pdf"
+    ? items.filter((item) => linkedItemIds.has(item.id))
+    : items.filter((item) => !linkedItemIds.has(item.id));
+  const visibleCategoryIds = new Set(
+    visibleItems.flatMap((item) => item.category_id ? [item.category_id] : []),
+  );
+
   const parts = Array.isArray(pdfDocument?.file_parts) ? pdfDocument.file_parts.filter((part): part is string => typeof part === "string" && part.length > 0) : [];
-  const appearance = readAppearance(restaurant.menu_theme);
   return {
     menuMode: appearance.menuMode,
+    standardAppearance: { mode: appearance.guestMenuMode, light: lightTheme, dark: darkTheme },
     restaurant: { ...restaurant, logo_url: appearance.menuLogo || restaurant.logo_url, tax_rate: Number(restaurant.tax_rate), service_charge: Number(restaurant.service_charge), menu_theme: menuTheme },
     settings: settingsRes.data ? {
       ...settingsRes.data,
@@ -101,9 +121,9 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
       delivery_fee: Number(settingsRes.data.delivery_fee ?? 0),
     } : null,
     table: tableRes.data ?? null,
-    categories: categoriesRes.data ?? [],
-    items,
-    pdfMenu: pdfDocument ? { url: pdfDocument.file_url, parts, fileName: pdfDocument.file_name, pageCount: Number(pdfDocument.page_count), links: pdfLinks } : null,
+    categories: (categoriesRes.data ?? []).filter((category) => visibleCategoryIds.has(category.id)),
+    items: visibleItems,
+    pdfMenu: pdfDocument ? { url: pdfDocument.file_url, parts, fileName: pdfDocument.file_name, pageCount: Number(pdfDocument.page_count), links: activePdfLinks } : null,
   };
 }
 
