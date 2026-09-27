@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarClock,
@@ -687,7 +687,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                             {member.is_active ? t("common.active") : t("common.inactive")}
                           </span>
                         </td>
-                        <td className="align-middle text-center">
+                        <td className="align-middle">
                           <StaffShiftCell
                             schedule={scheduleInfo}
                             canAssign={canManageShifts && member.is_active}
@@ -1296,6 +1296,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       </Dialog>
       {shiftMember ? (
         <AssignStaffShiftDialog
+          key={shiftMember.id}
           member={shiftMember}
           restaurantId={restaurantId}
           shifts={schedule.data?.shifts ?? []}
@@ -1321,7 +1322,7 @@ function StaffShiftCell({
   onAssign: () => void;
 }) {
   return (
-    <div className="flex min-w-0 items-center justify-center gap-2 text-center">
+    <div className="flex min-h-12 w-full min-w-[190px] items-center justify-between gap-3 text-start">
       <div className="min-w-0 flex-1">
         {schedule ? (
           <>
@@ -1350,10 +1351,11 @@ function StaffShiftCell({
       </div>
       {canAssign ? (
         <Button
-            type="button"
+          type="button"
           size="sm"
           variant={schedule ? "outline" : "default"}
-          className="h-8 shrink-0 gap-1 px-2 text-[10px]"
+          disabled={false}
+          className="h-9 min-w-[92px] shrink-0 gap-1 whitespace-nowrap px-2.5 text-xs"
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -1398,7 +1400,7 @@ function StaffActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-48">
         {canAssign ? (
-          <DropdownMenuItem onSelect={onAssign}>
+          <DropdownMenuItem onSelect={() => window.setTimeout(onAssign, 0)}>
             <CalendarPlus className="size-4" />
             {ar ? "إضافة وردية" : "Assign shift"}
           </DropdownMenuItem>
