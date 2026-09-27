@@ -1354,7 +1354,6 @@ function StaffShiftCell({
           type="button"
           size="sm"
           variant={schedule ? "outline" : "default"}
-          disabled={false}
           className="h-9 min-w-[92px] shrink-0 gap-1 whitespace-nowrap px-2.5 text-xs"
           onClick={(event) => {
             event.preventDefault();
