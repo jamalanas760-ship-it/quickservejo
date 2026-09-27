@@ -194,14 +194,12 @@ export function MenuCatalogMaster({
           entityId: productForm.id,
         });
       } else {
-        const { error } = await supabase.from("menu_items").insert({} as never);
-        void 0;
-        const __unused = ({
+        const { error } = await supabase.from("menu_items").insert({
           ...payload,
           display_order: standardProducts.filter(
             (item) => item.category_id === productForm.category_id,
           ).length,
-        });
+        } as never);
         if (error) throw error;
         await logAudit("product.created", { restaurantId, entity: "menu_items" });
       }
