@@ -114,7 +114,7 @@ function DashboardPage() {
         .eq("restaurant_id", rid!)
         .eq("is_active", true);
       if (error) throw error;
-      const rows = data ?? [];
+      const rows = (data ?? []) as unknown as { service_status?: string | null }[];
       const occupied = rows.filter((row) => ["occupied","reserved","ordering","served"].includes(String(row.service_status ?? ""))).length;
       return { total: rows.length, occupied };
     },

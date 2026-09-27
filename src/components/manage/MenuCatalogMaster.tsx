@@ -139,7 +139,7 @@ export function MenuCatalogMaster({
   });
 
   const standardProducts = useMemo(
-    () => (products.data ?? []).filter((item) => item.menu_origin === "standard"),
+    () => (products.data ?? []).filter((item) => (item as { menu_origin?: string }).menu_origin === "standard"),
     [products.data],
   );
   const categoryList = categories.data ?? [];
@@ -184,7 +184,7 @@ export function MenuCatalogMaster({
       if (productForm.id) {
         const { error } = await supabase
           .from("menu_items")
-          .update(payload)
+          .update(payload as never)
           .eq("id", productForm.id)
           .eq("restaurant_id", restaurantId);
         if (error) throw error;
@@ -194,7 +194,7 @@ export function MenuCatalogMaster({
           entityId: productForm.id,
         });
       } else {
-        const { error } = await supabase.from("menu_items").insert({
+        const { error } = await supabase.from("menu_items").insert(<never>{
           ...payload,
           display_order: standardProducts.filter(
             (item) => item.category_id === productForm.category_id,
