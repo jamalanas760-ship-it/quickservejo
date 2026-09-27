@@ -26,6 +26,7 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
   const restaurant = useRestaurant(restaurantId);
   const [workflow, setWorkflow] = useState<Workflow>("standard");
   const [section, setSection] = useState<StandardSection>("design");
+  const [pdfEditorOpen, setPdfEditorOpen] = useState(false);
 
   const saveWorkflow = useMutation({
     mutationFn: async (nextWorkflow: Workflow) => {
@@ -34,6 +35,7 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
     onMutate: (nextWorkflow) => {
       const previous = workflow;
       setWorkflow(nextWorkflow);
+      setPdfEditorOpen(false);
       return { previous };
     },
     onError: (error, _nextWorkflow, context) => {
@@ -42,8 +44,8 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
     },
     onSuccess: async (nextWorkflow) => {
       toast.success(nextWorkflow === "standard"
-        ? (ar ? "تم فتح محرر القائمة العادية" : "Standard Menu editor opened")
-        : (ar ? "تم فتح محرر قائمة PDF" : "Clickable PDF editor opened"));
+        ? (ar ? "تم اختيار القائمة العادية" : "Standard Menu selected")
+        : (ar ? "تم اختيار قائمة PDF التفاعلية" : "Clickable PDF Menu selected"));
     },
   });
 
@@ -78,7 +80,16 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
       </div>
 
       <div className="qs-viewport-fill min-h-0 overflow-hidden"><Suspense fallback={<Skeleton className="h-full rounded-xl" />}>
-        {workflow === "pdf" ? <PdfEditor restaurantId={restaurantId} /> : (
+        {workflow === "pdf" ? (pdfEditorOpen ? <PdfEditor restaurantId={restaurantId} /> : (
+          <div className="qs-card flex h-full min-h-[240px] flex-col items-center justify-center gap-4 p-6 text-center">
+            <span className="grid size-12 place-items-center rounded-xl bg-orange-100 text-[#cf4818] dark:bg-orange-950/30"><FileText className="size-5" /></span>
+            <div className="max-w-md">
+              <h2 className="font-display text-lg font-bold">{ar ? "تم اختيار قائمة PDF التفاعلية" : "Clickable PDF Menu selected"}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{ar ? "افتح محرر PDF عندما تكون جاهزاً لرفع الملف وتحديد المناطق القابلة للنقر. تبقى منتجات القائمة العادية منفصلة." : "Open the PDF editor when you're ready to upload the file and mark clickable areas. Standard Menu products stay separate."}</p>
+            </div>
+            <button type="button" onClick={() => setPdfEditorOpen(true)} className="qs-button-primary"><FileText className="size-4" />{ar ? "فتح محرر PDF" : "Open PDF editor"}</button>
+          </div>
+        )) : (
           <div className="grid h-full min-h-0 min-w-0 gap-4 xl:grid-cols-[190px_minmax(0,1fr)]">
             <aside className="qs-card h-full min-h-0 overflow-hidden">
               <nav className="grid gap-1 p-1.5 sm:grid-cols-2 xl:grid-cols-1">

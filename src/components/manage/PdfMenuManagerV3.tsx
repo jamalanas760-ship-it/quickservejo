@@ -777,14 +777,14 @@ export function PdfMenuManagerV3({ restaurantId }: { restaurantId: string }) {
       if (menuItemId) {
         const { error } = await supabase
           .from("menu_items")
-          .update(payload)
+          .update(payload as never)
           .eq("id", menuItemId)
           .eq("restaurant_id", restaurantId);
         if (error) throw error;
       } else {
         const { data: item, error } = await supabase
           .from("menu_items")
-          .insert(payload)
+          .insert(payload as never)
           .select("id")
           .single();
         if (error) throw error;

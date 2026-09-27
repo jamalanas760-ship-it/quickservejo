@@ -168,7 +168,7 @@ export async function loadDinerMenu(slug: string, qrToken: string | null): Promi
   }
   const groups = groupsRes.data ?? [];
   const modifiers = modifiersRes.data ?? [];
-  const items: DinerItem[] = (itemsRes.data ?? []).map((item) => ({
+  const items: DinerItem[] = ((itemsRes.data ?? []) as any[]).map((item) => ({
     id: item.id,
     category_id: item.category_id,
     name_en: item.name_en,
