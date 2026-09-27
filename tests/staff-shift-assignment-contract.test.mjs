@@ -38,3 +38,24 @@ test("staff shift assignment handles overnight work and blocks schedule overlap"
   assert.match(source, /This shift overlaps another assignment/);
   assert.match(source, /This time overlaps another assignment/);
 });
+
+
+test("team page securely cancels only active or upcoming shift assignments", async () => {
+  assert.match(source, /CancelStaffShiftDialog/);
+  assert.match(source, /cancelStaffShiftAssignment/);
+  assert.match(source, /Cancel shift/);
+  assert.match(source, /staff-schedule/);
+  assert.match(source, /shift-assignments/);
+
+  const migration = await readFile(
+    new URL(
+      "../supabase/migrations/20260927153000_cancel_staff_shift_assignment.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(migration, /cancel_staff_shift_assignment/);
+  assert.match(migration, /Past or completed shift assignments cannot be cancelled/);
+  assert.match(migration, /manage_shifts/);
+  assert.match(migration, /staff_shift_cancelled/);
+});

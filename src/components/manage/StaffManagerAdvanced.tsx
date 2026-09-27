@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarClock,
   CalendarPlus,
+  CalendarX2,
   History,
   IdCard,
   KeyRound,
@@ -48,7 +49,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useRestaurantSeatUsage } from "@/hooks/useRestaurantSeatUsage";
-import { assignStaffShift } from "@/hooks/useOperations";
+import { assignStaffShift, cancelStaffShiftAssignment } from "@/hooks/useOperations";
 import { supabase } from "@/integrations/supabase/client";
 import { avatarPresetUrl } from "@/lib/avatar-presets";
 import { humanError } from "@/lib/errors";
@@ -146,6 +147,16 @@ type StaffScheduleSummary = {
   distance: number;
   attendance: "on_time" | "late" | "left_early" | "overtime" | "not_clocked";
 };
+type StaffCancelableShift = {
+  assignmentId: string;
+  shiftId: string;
+  name: string;
+  shiftDate: string;
+  start: string | null;
+  end: string | null;
+  status: string;
+  distance: number;
+};
 
 export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string }) {
   const { t, lang } = useI18n();
@@ -182,6 +193,10 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const [form, setForm] = useState({ name: "", email: "", role: "waiter" as AppRole });
   const [presenceNow, setPresenceNow] = useState(() => Date.now());
   const [shiftMember, setShiftMember] = useState<StaffRow | null>(null);
+  const [cancelShiftTarget, setCancelShiftTarget] = useState<{
+    member: StaffRow;
+    shift: StaffCancelableShift;
+  } | null>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setPresenceNow(Date.now()), 15_000);
@@ -321,6 +336,42 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     }
     return result;
   }, [schedule.data]);
+  const cancellableShiftByStaff = useMemo(() => {
+    const result = new Map<string, StaffCancelableShift>();
+    const shiftsById = new Map((schedule.data?.shifts ?? []).map((shift) => [shift.id, shift]));
+    const now = presenceNow;
+    const today = localDateKey(new Date(now));
+    for (const assignment of schedule.data?.assignments ?? []) {
+      if (assignment.status === "released") continue;
+      const shift = shiftsById.get(assignment.shift_id);
+      if (!shift || shift.status === "closed") continue;
+      const start = assignment.starts_at ?? shift.planned_start;
+      const end = assignment.ends_at ?? shift.planned_end;
+      const endMs = end ? new Date(end).getTime() : Number.NaN;
+      const stillActiveOrUpcoming = Number.isFinite(endMs)
+        ? endMs >= now
+        : shift.shift_date >= today;
+      if (!stillActiveOrUpcoming) continue;
+      const startMs = start
+        ? new Date(start).getTime()
+        : new Date(`${shift.shift_date}T00:00:00`).getTime();
+      const distance = Number.isFinite(startMs) && startMs > now ? startMs - now : 0;
+      const existing = result.get(assignment.staff_id);
+      if (!existing || distance < existing.distance) {
+        result.set(assignment.staff_id, {
+          assignmentId: assignment.id,
+          shiftId: shift.id,
+          name: shift.name,
+          shiftDate: shift.shift_date,
+          start,
+          end,
+          status: assignment.status,
+          distance,
+        });
+      }
+    }
+    return result;
+  }, [presenceNow, schedule.data]);
 
   async function refresh() {
     await Promise.all([
@@ -636,6 +687,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                       !isOwnRestaurantManager(member);
                     const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
                     const scheduleInfo = scheduleByStaff.get(member.id);
+                    const cancelShiftInfo = cancellableShiftByStaff.get(member.id);
                     return (
                       <tr key={member.id}>
                         <td className="text-muted-foreground">
@@ -691,8 +743,13 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                           <StaffShiftCell
                             schedule={scheduleInfo}
                             canAssign={canManageShifts && member.is_active}
+                            canCancel={canManageShifts && Boolean(cancelShiftInfo)}
                             ar={ar}
                             onAssign={() => setShiftMember(member)}
+                            onCancel={() =>
+                              cancelShiftInfo &&
+                              setCancelShiftTarget({ member, shift: cancelShiftInfo })
+                            }
                           />
                         </td>
                         <td className="text-muted-foreground">
@@ -703,9 +760,14 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                             member={member}
                             locked={locked}
                             canManageShifts={canManageShifts}
+                            canCancelShift={canManageShifts && Boolean(cancelShiftInfo)}
                             ar={ar}
                             onEdit={() => startEdit(member)}
                             onAssign={() => setShiftMember(member)}
+                            onCancel={() =>
+                              cancelShiftInfo &&
+                              setCancelShiftTarget({ member, shift: cancelShiftInfo })
+                            }
                           />
                         </td>
                       </tr>
@@ -722,6 +784,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                   !isOwnRestaurantManager(member);
                 const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
                 const scheduleInfo = scheduleByStaff.get(member.id);
+                const cancelShiftInfo = cancellableShiftByStaff.get(member.id);
                 return (
                   <div
                     key={member.id}
@@ -760,8 +823,13 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                         <StaffShiftCell
                           schedule={scheduleInfo}
                           canAssign={canManageShifts && member.is_active}
+                          canCancel={canManageShifts && Boolean(cancelShiftInfo)}
                           ar={ar}
                           onAssign={() => setShiftMember(member)}
+                          onCancel={() =>
+                            cancelShiftInfo &&
+                            setCancelShiftTarget({ member, shift: cancelShiftInfo })
+                          }
                         />
                       </div>
                     </div>
@@ -769,9 +837,14 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                       member={member}
                       locked={locked}
                       canManageShifts={canManageShifts}
+                      canCancelShift={canManageShifts && Boolean(cancelShiftInfo)}
                       ar={ar}
                       onEdit={() => startEdit(member)}
                       onAssign={() => setShiftMember(member)}
+                      onCancel={() =>
+                        cancelShiftInfo &&
+                        setCancelShiftTarget({ member, shift: cancelShiftInfo })
+                      }
                     />
                   </div>
                 );
@@ -1306,6 +1379,17 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           onClose={() => setShiftMember(null)}
         />
       ) : null}
+      {cancelShiftTarget ? (
+        <CancelStaffShiftDialog
+          key={cancelShiftTarget.shift.assignmentId}
+          member={cancelShiftTarget.member}
+          shift={cancelShiftTarget.shift}
+          restaurantId={restaurantId}
+          ar={ar}
+          lang={lang}
+          onClose={() => setCancelShiftTarget(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1313,13 +1397,17 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
 function StaffShiftCell({
   schedule,
   canAssign,
+  canCancel,
   ar,
   onAssign,
+  onCancel,
 }: {
   schedule: StaffScheduleSummary | undefined;
   canAssign: boolean;
+  canCancel: boolean;
   ar: boolean;
   onAssign: () => void;
+  onCancel: () => void;
 }) {
   return (
     <div className="flex min-h-12 w-full min-w-[190px] items-center justify-between gap-3 text-start">
@@ -1349,21 +1437,41 @@ function StaffShiftCell({
           </p>
         )}
       </div>
-      {canAssign ? (
-        <Button
-          type="button"
-          size="sm"
-          variant={schedule ? "outline" : "default"}
-          className="h-9 min-w-[92px] shrink-0 gap-1 whitespace-nowrap px-2.5 text-xs"
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onAssign();
-          }}
-        >
-          <CalendarPlus className="size-3.5" />
-          {schedule ? (ar ? "تعديل" : "Change") : ar ? "إضافة" : "Add shift"}
-        </Button>
+      {canAssign || canCancel ? (
+        <div className="flex shrink-0 items-center gap-1">
+          {canAssign ? (
+            <Button
+              type="button"
+              size="sm"
+              variant={schedule ? "outline" : "default"}
+              className="h-9 min-w-[92px] shrink-0 gap-1 whitespace-nowrap px-2.5 text-xs"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onAssign();
+              }}
+            >
+              <CalendarPlus className="size-3.5" />
+              {schedule ? (ar ? "تعديل" : "Change") : ar ? "إضافة" : "Add shift"}
+            </Button>
+          ) : null}
+          {canCancel ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="size-9 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              aria-label={ar ? "إلغاء الوردية" : "Cancel shift"}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onCancel();
+              }}
+            >
+              <CalendarX2 className="size-4" />
+            </Button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
@@ -1373,16 +1481,20 @@ function StaffActions({
   member,
   locked,
   canManageShifts,
+  canCancelShift,
   ar,
   onEdit,
   onAssign,
+  onCancel,
 }: {
   member: StaffRow;
   locked: boolean;
   canManageShifts: boolean;
+  canCancelShift: boolean;
   ar: boolean;
   onEdit: () => void;
   onAssign: () => void;
+  onCancel: () => void;
 }) {
   const canAssign = canManageShifts && member.is_active;
   return (
@@ -1390,7 +1502,7 @@ function StaffActions({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          disabled={locked && !canAssign}
+          disabled={locked && !canAssign && !canCancelShift}
           className="grid size-9 place-items-center rounded-lg bg-muted/40 transition hover:bg-muted disabled:opacity-40"
           aria-label={ar ? `إجراءات ${member.name}` : `${member.name} actions`}
         >
@@ -1404,7 +1516,16 @@ function StaffActions({
             {ar ? "إضافة وردية" : "Assign shift"}
           </DropdownMenuItem>
         ) : null}
-        {canAssign && !locked ? <DropdownMenuSeparator /> : null}
+        {canCancelShift ? (
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onSelect={() => window.setTimeout(onCancel, 0)}
+          >
+            <CalendarX2 className="size-4" />
+            {ar ? "إلغاء الوردية" : "Cancel shift"}
+          </DropdownMenuItem>
+        ) : null}
+        {(canAssign || canCancelShift) && !locked ? <DropdownMenuSeparator /> : null}
         {!locked ? (
           <DropdownMenuItem onSelect={onEdit}>
             <Pencil className="size-4" />
@@ -1634,6 +1755,98 @@ function AssignStaffShiftDialog({
               : ar
                 ? "إضافة الوردية"
                 : "Assign shift"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CancelStaffShiftDialog({
+  member,
+  shift,
+  restaurantId,
+  ar,
+  lang,
+  onClose,
+}: {
+  member: StaffRow;
+  shift: StaffCancelableShift;
+  restaurantId: string;
+  ar: boolean;
+  lang: "en" | "ar";
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: () =>
+      cancelStaffShiftAssignment({
+        restaurant_id: restaurantId,
+        assignment_id: shift.assignmentId,
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["platform", "staff-schedule", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }),
+      ]);
+      toast.success(ar ? `تم إلغاء وردية ${member.name}` : `Shift cancelled for ${member.name}`);
+      onClose();
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+  const windowLabel = shift.start ? formatScheduleWindow(shift.start, ar) : shift.shiftDate;
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !mutation.isPending) onClose();
+      }}
+    >
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="grid size-9 place-items-center rounded-xl bg-destructive/10 text-destructive">
+              <CalendarX2 className="size-4" />
+            </span>
+            {ar ? "إلغاء الوردية؟" : "Cancel shift?"}
+          </DialogTitle>
+          <DialogDescription>
+            {ar
+              ? `سيتم إلغاء تعيين ${member.name} من وردية ${shift.name} (${windowLabel}). لن يتم حذف الوردية نفسها.`
+              : `Remove ${member.name} from ${shift.name} (${windowLabel}). The shift itself will not be deleted.`}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="rounded-xl border border-border bg-muted/20 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <strong className="block truncate text-sm">{shift.name}</strong>
+              <span className="mt-1 block text-xs text-muted-foreground">{windowLabel}</span>
+            </div>
+            <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-bold capitalize text-muted-foreground">
+              {shift.status}
+            </span>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onClose}>
+            {ar ? "رجوع" : "Keep shift"}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            <CalendarX2 className="size-4" />
+            {mutation.isPending
+              ? ar
+                ? "جارٍ الإلغاء…"
+                : "Cancelling…"
+              : ar
+                ? "إلغاء الوردية"
+                : "Cancel shift"}
           </Button>
         </DialogFooter>
       </DialogContent>

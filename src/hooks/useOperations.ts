@@ -333,6 +333,14 @@ export async function updateShiftAssignment(id: string, patch: Partial<Pick<Shif
   await expectNoError(result);
 }
 
+export async function cancelStaffShiftAssignment(input: { restaurant_id: string; assignment_id: string }) {
+  const { error } = await (supabase as any).rpc("cancel_staff_shift_assignment", {
+    _restaurant_id: input.restaurant_id,
+    _assignment_id: input.assignment_id,
+  });
+  if (error) throw error;
+}
+
 export async function removeShiftAssignment(id: string) {
   const result = await fromOperations("shift_assignments").delete().eq("id", id) as unknown as { error: Error | null };
   await expectNoError(result);
