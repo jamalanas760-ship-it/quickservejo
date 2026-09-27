@@ -306,6 +306,28 @@ export async function assignStaffToShift(input: Pick<ShiftAssignment, "restauran
   await expectNoError(result);
 }
 
+export async function assignStaffShift(input: {
+  restaurant_id: string;
+  staff_id: string;
+  shift_id?: string | null;
+  name?: string | null;
+  shift_date?: string | null;
+  planned_start?: string | null;
+  planned_end?: string | null;
+}) {
+  const { data, error } = await (supabase as any).rpc("assign_staff_shift", {
+    _restaurant_id: input.restaurant_id,
+    _staff_id: input.staff_id,
+    _shift_id: input.shift_id ?? null,
+    _name: input.name ?? null,
+    _shift_date: input.shift_date ?? null,
+    _planned_start: input.planned_start ?? null,
+    _planned_end: input.planned_end ?? null,
+  });
+  if (error) throw error;
+  return String(data);
+}
+
 export async function updateShiftAssignment(id: string, patch: Partial<Pick<ShiftAssignment, "status" | "notes">>) {
   const result = await fromOperations("shift_assignments").update(patch).eq("id", id) as unknown as { error: Error | null };
   await expectNoError(result);

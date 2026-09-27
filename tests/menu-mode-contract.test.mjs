@@ -45,7 +45,9 @@ test("Standard Menu exposes and persists a pre-preview light and dark selector",
   const designer = await file("src/components/manage/MasterMenuDesigner.tsx");
   const diner = await file("src/lib/diner.ts");
   assert.match(designer, /StandardMenuModeControl/);
-  assert.match(designer, /menuMode: nextWorkflow === "standard" \? "products" : "pdf"/);
+  assert.match(designer, /const saveWorkflow = useMutation/);
+  assert.match(designer, /return nextWorkflow/);
+  assert.doesNotMatch(designer, /menuMode: nextWorkflow/);
   assert.match(designer, /guestMenuMode: nextMode/);
   assert.match(designer, /Preview Menu/);
   assert.match(diner, /appearance\.guestMenuMode === "dark"/);
@@ -55,4 +57,13 @@ test("Standard Menu exposes and persists a pre-preview light and dark selector",
     /standardAppearance: \{ mode: appearance\.guestMenuMode, light: lightTheme, dark: darkTheme \}/,
   );
   assert.match(await file("src/routes/r/$slug.tsx"), /data-standard-menu-theme=\{appearanceMode\}/);
+});
+
+test("menu history supports individual and bulk cleanup while preserving live versions", async () => {
+  const migration = await file(
+    "supabase/migrations/20260927130000_repair_menu_history_qr_timeout_and_staff_shift_assignment.sql",
+  );
+  assert.match(migration, /delete_menu_design_version/);
+  assert.match(migration, /delete_all_menu_design_versions/);
+  assert.match(migration, /status <> 'published'/);
 });

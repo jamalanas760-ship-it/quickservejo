@@ -48,7 +48,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useRestaurantSeatUsage } from "@/hooks/useRestaurantSeatUsage";
-import { assignStaffToShift, createShift, deleteShift } from "@/hooks/useOperations";
+import { assignStaffShift, deleteShift } from "@/hooks/useOperations";
 import { supabase } from "@/integrations/supabase/client";
 import { avatarPresetUrl } from "@/lib/avatar-presets";
 import { humanError } from "@/lib/errors";
@@ -1460,13 +1460,10 @@ function AssignStaffShiftDialog({
               ? "تتداخل هذه الوردية مع وردية أخرى لهذا الموظف."
               : "This shift overlaps another assignment for this team member.",
           );
-        await assignStaffToShift({
+        await assignStaffShift({
           restaurant_id: restaurantId,
-          shift_id: shift.id,
           staff_id: member.id,
-          role_snapshot: member.role,
-          starts_at: shift.planned_start,
-          ends_at: shift.planned_end,
+          shift_id: shift.id,
         });
       } else {
         if (!name.trim() || !date || !start || !end)
@@ -1481,22 +1478,13 @@ function AssignStaffShiftDialog({
               ? "يتداخل هذا الوقت مع وردية أخرى لهذا الموظف."
               : "This time overlaps another assignment for this team member.",
           );
-        const shift = await createShift({
+        await assignStaffShift({
           restaurant_id: restaurantId,
+          staff_id: member.id,
           name: name.trim(),
           shift_date: date,
           planned_start: plannedStart,
           planned_end: plannedEnd,
-          notes: null,
-        });
-        createdId = shift.id;
-        await assignStaffToShift({
-          restaurant_id: restaurantId,
-          shift_id: shift.id,
-          staff_id: member.id,
-          role_snapshot: member.role,
-          starts_at: plannedStart,
-          ends_at: plannedEnd,
         });
       }
       await Promise.all([

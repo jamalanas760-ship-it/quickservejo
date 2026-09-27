@@ -193,6 +193,28 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
     onError: (error) => toast.error(humanError(error, lang)),
   });
 
+  const deleteAllVersions = useMutation({
+    mutationFn: async () => {
+      const confirmed = window.confirm(
+        ar
+          ? "حذف كل الإصدارات غير المباشرة نهائياً؟ سيبقى الإصدار المباشر الحالي محفوظاً."
+          : "Delete all non-live design versions permanently? The current live version will be kept.",
+      );
+      if (!confirmed) return false;
+      const { error } = await (supabase as any).rpc("delete_all_menu_design_versions", {
+        _restaurant_id: restaurant.id,
+      });
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: async (deleted) => {
+      if (!deleted) return;
+      await refreshAfterLifecycleChange();
+      toast.success(ar ? "تم حذف سجل الإصدارات" : "Design history deleted");
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
   const cancelSchedule = useMutation({
     mutationFn: async (versionId: string) => {
       const { error } = await (supabase as any).rpc("cancel_scheduled_menu_design", { _version_id: versionId });
@@ -207,7 +229,7 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
     publishNow.mutate();
   }
 
-  const busy = saveDraft.isPending || publishNow.isPending || schedule.isPending || rollback.isPending || cancelSchedule.isPending || deleteVersion.isPending;
+  const busy = saveDraft.isPending || publishNow.isPending || schedule.isPending || rollback.isPending || cancelSchedule.isPending || deleteVersion.isPending || deleteAllVersions.isPending;
 
   return (
     <form onSubmit={submitPublish} className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
@@ -222,7 +244,7 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
         </section>
 
         <section className="panel p-3.5 sm:p-4">
-          <div className="flex items-center gap-2"><History className="size-4 text-[#e85d2a]" /><h3 className="text-lg font-semibold">{ar ? "سجل إصدارات التصميم" : "Design version history"}</h3></div>
+          <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><History className="size-4 text-[#e85d2a]" /><h3 className="text-lg font-semibold">{ar ? "سجل إصدارات التصميم" : "Design version history"}</h3></div><Button type="button" size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" disabled={busy || (versions.data ?? []).every((version) => version.status === "published")} onClick={() => deleteAllVersions.mutate()}><Trash2 className="size-3" />{ar ? "حذف الكل" : "Delete all"}</Button></div>
           <p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكنك استعادة أي إصدار سابق بدون حذف التاريخ." : "Restore any prior version without deleting history."}</p>
           {versions.isPending ? <Skeleton className="mt-4 h-52 rounded-xl" /> : versions.isError ? <p className="mt-4 text-sm text-destructive">{humanError(versions.error, lang)}</p> : (
             <div className="mt-3 max-h-[260px] divide-y divide-border overflow-y-auto pe-1">

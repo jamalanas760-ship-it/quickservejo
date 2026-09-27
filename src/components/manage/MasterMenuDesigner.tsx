@@ -32,16 +32,6 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
 
   const saveWorkflow = useMutation({
     mutationFn: async (nextWorkflow: Workflow) => {
-      if (!restaurant.data) return nextWorkflow;
-      const rawTheme = restaurant.data.menu_theme && typeof restaurant.data.menu_theme === "object" && !Array.isArray(restaurant.data.menu_theme)
-        ? restaurant.data.menu_theme as Record<string, unknown>
-        : {};
-      const rawWorkspace = rawTheme.workspace && typeof rawTheme.workspace === "object" && !Array.isArray(rawTheme.workspace)
-        ? rawTheme.workspace as Record<string, unknown>
-        : {};
-      const menuTheme = { ...rawTheme, workspace: { ...rawWorkspace, menuMode: nextWorkflow === "standard" ? "products" : "pdf" } };
-      const { error } = await supabase.from("restaurants").update({ menu_theme: menuTheme }).eq("id", restaurantId);
-      if (error) throw error;
       return nextWorkflow;
     },
     onMutate: (nextWorkflow) => {
@@ -54,14 +44,9 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
       toast.error(humanError(error, lang));
     },
     onSuccess: async (nextWorkflow) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["platform", "restaurant", restaurantId] }),
-        queryClient.invalidateQueries({ queryKey: ["diner"] }),
-        queryClient.invalidateQueries({ queryKey: ["pdf-diner"] }),
-      ]);
       toast.success(nextWorkflow === "standard"
-        ? (ar ? "تم تفعيل القائمة العادية" : "Standard Menu is now active")
-        : (ar ? "تم تفعيل قائمة PDF التفاعلية" : "Clickable PDF Menu is now active"));
+        ? (ar ? "تم فتح محرر القائمة العادية" : "Standard Menu editor opened")
+        : (ar ? "تم فتح محرر قائمة PDF" : "Clickable PDF editor opened"));
     },
   });
 
