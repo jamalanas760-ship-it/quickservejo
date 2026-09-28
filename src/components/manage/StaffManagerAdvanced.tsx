@@ -101,7 +101,7 @@ const ROLE_TONE: Record<string, string> = {
   procurement: "bg-amber-500/12 text-amber-700",
   accountant: "bg-teal-500/12 text-teal-600",
 };
-type StaffTab = "all" | "admins" | "staff";
+type StaffTab = "all" | "on_shift" | "off_shift" | "leave";
 type DrawerTab = "permissions" | "profile" | "log";
 type StaffRow = {
   id: string;
@@ -147,6 +147,7 @@ type StaffAssignmentRow = {
   status: string;
 };
 type StaffTimeRow = { staff_id: string; clock_in: string; clock_out: string | null };
+type StaffLeaveRow = { staff_id: string; start_date: string; end_date: string; status: string };
 type StaffScheduleSummary = {
   name: string;
   start: string | null;
@@ -229,6 +230,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     shifts: StaffScheduleRow[];
     assignments: StaffAssignmentRow[];
     time: StaffTimeRow[];
+    leave: StaffLeaveRow[];
   }>({
     queryKey: ["platform", "staff-schedule", restaurantId],
     refetchInterval: 20_000,
@@ -237,7 +239,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       const historyStart = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
       const horizon = new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10);
       const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
-      const [shiftsResult, assignmentsResult, timeResult] = await Promise.all([
+      const [shiftsResult, assignmentsResult, timeResult, leaveResult] = await Promise.all([
         (supabase.from("shifts" as any) as any)
           .select("id,name,shift_date,planned_start,planned_end,status")
           .eq("restaurant_id", restaurantId)
@@ -252,13 +254,20 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           .select("staff_id,clock_in,clock_out")
           .eq("restaurant_id", restaurantId)
           .gte("clock_in", since),
+        (supabase.from("staff_leave_requests" as any) as any)
+          .select("staff_id,start_date,end_date,status")
+          .eq("restaurant_id", restaurantId)
+          .eq("status", "approved")
+          .lte("start_date", today)
+          .gte("end_date", today),
       ]);
-      for (const result of [shiftsResult, assignmentsResult, timeResult])
+      for (const result of [shiftsResult, assignmentsResult, timeResult, leaveResult])
         if (result.error) throw result.error;
       return {
         shifts: (shiftsResult.data ?? []) as StaffScheduleRow[],
         assignments: (assignmentsResult.data ?? []) as StaffAssignmentRow[],
         time: (timeResult.data ?? []) as StaffTimeRow[],
+        leave: (leaveResult.data ?? []) as StaffLeaveRow[],
       };
     },
   });
@@ -298,19 +307,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   });
   const admins = (staff.data ?? []).filter((row) => row.role === "restaurant_admin").length;
   const staffOnly = (staff.data ?? []).length - admins;
-  const rows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return (staff.data ?? []).filter((row) => {
-      const isAdmin = row.role === "restaurant_admin";
-      if (tab === "admins" && !isAdmin) return false;
-      if (tab === "staff" && isAdmin) return false;
-      if (roleFilter !== "all" && row.role !== roleFilter) return false;
-      if (statusFilter === "active" && !row.is_active) return false;
-      if (statusFilter === "inactive" && row.is_active) return false;
-      return !q || `${row.name} ${row.email ?? ""} ${row.role}`.toLowerCase().includes(q);
-    });
-  }, [search, tab, roleFilter, statusFilter, staff.data]);
-  const scheduleByStaff = useMemo(() => {
+  const scheduleByStaff = useMemo(() => {  const scheduleByStaff = useMemo(() => {
     const result = new Map<string, StaffScheduleSummary>();
     const shiftsById = new Map((schedule.data?.shifts ?? []).map((shift) => [shift.id, shift]));
     for (const assignment of schedule.data?.assignments ?? []) {
@@ -381,6 +378,37 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     }
     return result;
   }, [presenceNow, schedule.data]);
+
+  const openClockByStaff = useMemo(() => {
+    const result = new Map<string, StaffTimeRow>();
+    for (const entry of schedule.data?.time ?? []) {
+      if (!entry.clock_out && !result.has(entry.staff_id)) result.set(entry.staff_id, entry);
+    }
+    return result;
+  }, [schedule.data?.time]);
+  const leaveStaffIds = useMemo(
+    () => new Set((schedule.data?.leave ?? []).map((row) => row.staff_id)),
+    [schedule.data?.leave],
+  );
+  const activeTeam = (staff.data ?? []).filter((row) => row.is_active);
+  const onShiftNow = activeTeam.filter((row) => openClockByStaff.has(row.id)).length;
+  const onLeaveNow = activeTeam.filter((row) => leaveStaffIds.has(row.id)).length;
+  const offShiftNow = Math.max(0, activeTeam.length - onShiftNow - onLeaveNow);
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (staff.data ?? []).filter((row) => {
+      const isClocked = openClockByStaff.has(row.id);
+      const isOnLeave = leaveStaffIds.has(row.id);
+      if (tab === "on_shift" && !isClocked) return false;
+      if (tab === "off_shift" && (isClocked || isOnLeave)) return false;
+      if (tab === "leave" && !isOnLeave) return false;
+      if (roleFilter !== "all" && row.role !== roleFilter) return false;
+      if (statusFilter === "active" && !row.is_active) return false;
+      if (statusFilter === "inactive" && row.is_active) return false;
+      return !q || `${row.name} ${row.email ?? ""} ${row.role}`.toLowerCase().includes(q);
+    });
+  }, [leaveStaffIds, openClockByStaff, roleFilter, search, staff.data, statusFilter, tab]);
 
   async function refresh() {
     await Promise.all([
@@ -544,87 +572,53 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   }
 
   return (
-    <div className="qs-viewport-fill flex h-full min-h-0 flex-col gap-2">
+    <div className="qs-viewport-fill flex h-full min-h-0 flex-col gap-4">
       <MasterPageHeader
         eyebrow={
-          <MasterEyebrow icon={UsersRound}>{ar ? "الفريق والوصول" : "Team & access"}</MasterEyebrow>
+          <MasterEyebrow icon={UsersRound}>{ar ? "إدارة الفريق" : "Team management"}</MasterEyebrow>
         }
-        title={ar ? "الفريق والأدوار" : "Staff & Roles"}
+        title={ar ? "الفريق" : "Team"}
         description={
           ar
-            ? "أدر الفريق، الصلاحيات، حالة الوصول والنشاط من مكان واحد واضح."
-            : "Manage people, permissions, access state and activity from one organized workspace."
+            ? "أدر فريق المطعم، الورديات، الحضور والصلاحيات من مساحة عمل حديثة واحدة."
+            : "Manage your staff, assign shifts, track live attendance and keep every role organized."
         }
         actions={
-          <Button disabled={seats.isPending || seatsFull} onClick={() => setAddOpen(true)}>
+          <Button className="min-w-32 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md" disabled={seats.isPending || seatsFull} onClick={() => setAddOpen(true)}>
             <Plus className="size-4" />
-            {seatsFull ? (ar ? "اكتمل الحد" : "Limit reached") : ar ? "إضافة عضو" : "Invite Member"}
+            {seatsFull ? (ar ? "اكتمل الحد" : "Limit reached") : ar ? "إضافة موظف" : "Add staff"}
           </Button>
         }
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MasterKpi
-          icon={UsersRound}
-          label={ar ? "إجمالي الفريق" : "Total Staff"}
-          value={String((staff.data ?? []).length)}
-          hint={
-            seatLimit == null ? (ar ? "غير محدود" : "Unlimited") : `${seatsUsed}/${seatLimit} seats`
-          }
-          tone="blue"
-        />
-        <MasterKpi
-          icon={ShieldCheck}
-          label={ar ? "المدراء" : "Admins"}
-          value={String(admins)}
-          hint={ar ? "وصول إداري" : "Admin access"}
-          tone="green"
-        />
-        <MasterKpi
-          icon={UserRound}
-          label={ar ? "الموظفون" : "Staff"}
-          value={String(staffOnly)}
-          hint={ar ? "أدوار تشغيلية" : "Operational roles"}
-          tone="purple"
-        />
-        <MasterKpi
-          icon={UserRound}
-          label={ar ? "نشطون الآن" : "Active Access"}
-          value={String((staff.data ?? []).filter((member) => member.is_active).length)}
-          hint={ar ? "حسابات مفعلة" : "Enabled accounts"}
-          tone="orange"
-        />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 [&>article]:transition-all [&>article]:duration-200 [&>article:hover]:-translate-y-0.5 [&>article:hover]:shadow-md">
+        <MasterKpi icon={UsersRound} label={ar ? "إجمالي الفريق" : "Total Staff"} value={String((staff.data ?? []).length)} hint={seatLimit == null ? (ar ? "غير محدود" : "Unlimited seats") : `${seatsUsed}/${seatLimit} seats`} tone="blue" />
+        <MasterKpi icon={CalendarClock} label={ar ? "على رأس العمل" : "On Shift Now"} value={String(onShiftNow)} hint={ar ? "حضور حي الآن" : "Live attendance"} tone="green" />
+        <MasterKpi icon={UserRound} label={ar ? "خارج الوردية" : "Off Shift"} value={String(offShiftNow)} hint={ar ? "متاحون خارج الدوام" : "Not clocked in"} tone="slate" />
+        <MasterKpi icon={CalendarPlus} label={ar ? "في إجازة" : "On Leave"} value={String(onLeaveNow)} hint={ar ? "إجازة معتمدة اليوم" : "Approved today"} tone={onLeaveNow ? "purple" : "orange"} />
       </section>
 
       <section className="qs-card qs-viewport-fill flex min-h-0 min-w-0 flex-col overflow-hidden">
-        <div className="border-b border-border px-4 pt-3">
-          <div className="flex gap-6 overflow-x-auto text-xs font-semibold">
+        <div className="flex flex-col gap-3 border-b border-border bg-muted/10 p-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex w-full gap-1 overflow-x-auto rounded-xl bg-muted/50 p-1 lg:w-auto">
             {(
               [
                 ["all", ar ? "كل الفريق" : "All Staff", (staff.data ?? []).length],
-                ["admins", ar ? "المدراء" : "Admins", admins],
-                ["staff", ar ? "الموظفون" : "Staff", staffOnly],
+                ["on_shift", ar ? "على رأس العمل" : "On Shift", onShiftNow],
+                ["off_shift", ar ? "خارج الوردية" : "Off Shift", offShiftNow],
+                ["leave", ar ? "إجازة" : "On Leave", onLeaveNow],
               ] as const
             ).map(([id, label, count]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTab(id)}
-                className={cn(
-                  "relative min-h-8 shrink-0 px-1",
-                  tab === id ? "text-[#e85d2a]" : "text-muted-foreground",
-                )}
-              >
-                {label}{" "}
-                <span className="ms-1 rounded-full bg-muted px-2 py-0.5 text-[10px]">{count}</span>
-                {tab === id ? (
-                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-[#e85d2a]" />
-                ) : null}
+              <button key={id} type="button" onClick={() => setTab(id)} className={cn(
+                "inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-xs font-bold transition-all duration-200",
+                tab === id ? "bg-card text-[#e85d2a] shadow-sm ring-1 ring-border" : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
+              )}>
+                {label}
+                <span className={cn("rounded-full px-2 py-0.5 text-[10px]", tab === id ? "bg-orange-500/10 text-[#cf4818]" : "bg-background text-muted-foreground")}>{count}</span>
               </button>
             ))}
           </div>
-        </div>
-        <div className="grid gap-2.5 border-b border-border p-3 lg:grid-cols-[minmax(0,1fr)_145px_145px]">
+        <div className="grid gap-2.5 border-b border-border bg-card p-3 lg:grid-cols-[minmax(0,1fr)_160px_160px]">        <div className="grid gap-2.5 border-b border-border p-3 lg:grid-cols-[minmax(0,1fr)_145px_145px]">
           <div className="relative">
             <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -633,7 +627,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
               placeholder={
                 ar ? "ابحث بالاسم أو البريد أو الدور..." : "Search by name, email or role..."
               }
-              className="h-8 ps-9"
+              className="h-10 rounded-xl ps-10"
             />
           </div>
           <Select value={roleFilter} onValueChange={setRoleFilter}>
@@ -664,128 +658,35 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           <Skeleton className="m-4 h-[420px] rounded-xl" />
         ) : (
           <>
-            <div className="qs-scroll-region hidden min-h-0 flex-1 overflow-x-hidden md:block">
-              <table className="qs-table w-full table-fixed">
-                <colgroup>
-                  <col className="w-[5%]" />
-                  <col className="w-[17%]" />
-                  <col className="w-[18%]" />
-                  <col className="w-[14%]" />
-                  <col className="w-[10%]" />
-                  <col className="w-[20%]" />
-                  <col className="w-[10%]" />
-                  <col className="w-[6%]" />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>{ar ? "الموظف" : "Staff Member"}</th>
-                    <th>{ar ? "البريد" : "Email"}</th>
-                    <th>{ar ? "الدور" : "Role"}</th>
-                    <th>{ar ? "الحالة" : "Status"}</th>
-                    <th className="text-center">{ar ? "الوردية" : "Shift"}</th>
-                    <th>{ar ? "آخر نشاط" : "Last Active"}</th>
-                    <th>{ar ? "إجراءات" : "Actions"}</th>
-                  </tr>
-                </thead>
+            <div className="qs-scroll-region hidden min-h-0 flex-1 overflow-x-auto md:block">
+              <table className="qs-table min-w-[1120px] w-full table-fixed">
+                <colgroup><col className="w-[5%]" /><col className="w-[22%]" /><col className="w-[15%]" /><col className="w-[10%]" /><col className="w-[18%]" /><col className="w-[15%]" /><col className="w-[10%]" /><col className="w-[5%]" /></colgroup>
+                <thead><tr><th>#</th><th>{ar ? "الموظف" : "Staff Member"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "وردية اليوم" : "Today's Shift"}</th><th>{ar ? "الحالة الحية" : "Live Status"}</th><th>{ar ? "آخر نشاط" : "Last Active"}</th><th className="text-center">{ar ? "إجراءات" : "Actions"}</th></tr></thead>
                 <tbody>
                   {rows.map((member, index) => {
-                    const locked =
-                      member.role === "restaurant_admin" &&
-                      !isSuperAdmin &&
-                      !isOwnRestaurantManager(member);
+                    const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
                     const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
                     const scheduleInfo = scheduleByStaff.get(member.id);
                     const cancelShiftInfo = cancellableShiftByStaff.get(member.id);
+                    const clockEntry = openClockByStaff.get(member.id);
+                    const isOnLeave = leaveStaffIds.has(member.id);
                     return (
-                      <tr key={member.id}>
-                        <td className="text-muted-foreground">
-                          #{String(index + 1).padStart(3, "0")}
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            disabled={locked}
-                            onClick={() => !locked && startEdit(member)}
-                            className="flex items-center gap-2.5 text-start"
-                          >
-                            <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">
-                              {avatar ? (
-                                <img src={avatar} alt="" className="size-full object-cover" />
-                              ) : (
-                                member.name.slice(0, 1).toUpperCase()
-                              )}
-                            </span>
-                            <span className="min-w-0">
-                              <strong className="block font-bold">{member.name}</strong>
-                              <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
-                                {member.email ?? ROLE_NAMES[member.role][lang]}
-                              </span>
-                            </span>
-                          </button>
-                        </td>
-                        <td className="text-muted-foreground">{member.email ?? "—"}</td>
-                        <td>
-                          <span className={cn("qs-status", ROLE_TONE[member.role])}>
-                            {ROLE_NAMES[member.role][lang]}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            className={cn(
-                              "qs-status",
-                              member.is_active
-                                ? "bg-emerald-500/12 text-emerald-600"
-                                : "bg-slate-500/12 text-slate-500",
-                            )}
-                          >
-                            <i
-                              className={cn(
-                                "size-1.5 rounded-full",
-                                member.is_active ? "bg-emerald-500" : "bg-slate-400",
-                              )}
-                            />
-                            {member.is_active ? t("common.active") : t("common.inactive")}
-                          </span>
-                        </td>
-                        <td className="align-middle">
-                          <StaffShiftCell
-                            schedule={scheduleInfo}
-                            canAssign={canManageShifts && member.is_active}
-                            canCancel={canManageShifts && Boolean(cancelShiftInfo)}
-                            ar={ar}
-                            onAssign={() => setShiftMember(member)}
-                            onCancel={() =>
-                              cancelShiftInfo &&
-                              setCancelShiftTarget({ member, shift: cancelShiftInfo })
-                            }
-                          />
-                        </td>
-                        <td className="text-muted-foreground">
-                          {formatLastSeen(member.last_seen_at, ar, presenceNow)}
-                        </td>
-                        <td>
-                          <StaffActions
-                            member={member}
-                            locked={locked}
-                            canManageShifts={canManageShifts}
-                            canCancelShift={canManageShifts && Boolean(cancelShiftInfo)}
-                            ar={ar}
-                            onEdit={() => startEdit(member)}
-                            onAssign={() => setShiftMember(member)}
-                            onCancel={() =>
-                              cancelShiftInfo &&
-                              setCancelShiftTarget({ member, shift: cancelShiftInfo })
-                            }
-                          />
-                        </td>
+                      <tr key={member.id} className="group transition-colors hover:bg-orange-500/[0.025]">
+                        <td className="text-muted-foreground">#{String(index + 1).padStart(3, "0")}</td>
+                        <td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex min-w-0 items-center gap-3 text-start"><span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold ring-1 ring-border transition group-hover:ring-orange-200">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="min-w-0"><strong className="block truncate text-sm font-bold">{member.name}</strong><span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{member.email ?? "—"}</span></span></button></td>
+                        <td><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span></td>
+                        <td><span className={cn("qs-status", member.is_active ? "bg-emerald-500/12 text-emerald-600" : "bg-slate-500/12 text-slate-500")}><i className={cn("size-1.5 rounded-full", member.is_active ? "bg-emerald-500 animate-pulse" : "bg-slate-400")} />{member.is_active ? t("common.active") : t("common.inactive")}</span></td>
+                        <td><StaffShiftSummaryCell schedule={scheduleInfo} ar={ar} /></td>
+                        <td><StaffLiveStatus clockEntry={clockEntry} schedule={scheduleInfo} onLeave={isOnLeave} now={presenceNow} ar={ar} /></td>
+                        <td className="text-xs text-muted-foreground">{formatLastSeen(member.last_seen_at, ar, presenceNow)}</td>
+                        <td><StaffRowActions member={member} locked={locked} canManageShifts={canManageShifts} canCancelShift={canManageShifts && Boolean(cancelShiftInfo)} ar={ar} onEdit={() => startEdit(member)} onAssign={() => setShiftMember(member)} onCancel={() => cancelShiftInfo && setCancelShiftTarget({ member, shift: cancelShiftInfo })} /></td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
-            <div className="space-y-2 p-3 md:hidden">
+            <div className="space-y-2 p-3 md:hidden">            <div className="space-y-2 p-3 md:hidden">
               {rows.map((member) => {
                 const locked =
                   member.role === "restaurant_admin" &&
@@ -1403,6 +1304,35 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   );
 }
 
+function StaffShiftSummaryCell({ schedule, ar }: { schedule: StaffScheduleSummary | undefined; ar: boolean }) {
+  if (!schedule) return <span className="text-xs text-muted-foreground">{ar ? "لا توجد وردية" : "No shift assigned"}</span>;
+  return <div className="flex min-w-0 items-center gap-2"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-3.5" /></span><div className="min-w-0"><strong className="block truncate text-xs">{schedule.name}</strong><p className="mt-0.5 truncate text-[10px] text-muted-foreground">{formatScheduleWindow(schedule.start, ar)}{schedule.count > 1 ? ` · +${schedule.count - 1}` : ""}</p></div></div>;
+}
+
+function StaffLiveStatus({ clockEntry, schedule, onLeave, now, ar }: { clockEntry: StaffTimeRow | undefined; schedule: StaffScheduleSummary | undefined; onLeave: boolean; now: number; ar: boolean }) {
+  if (onLeave) return <span className="inline-flex items-center gap-2 rounded-full bg-violet-500/10 px-2.5 py-1.5 text-[10px] font-bold text-violet-700 dark:text-violet-300"><i className="size-1.5 rounded-full bg-violet-500" />{ar ? "في إجازة" : "On leave"}</span>;
+  if (clockEntry) {
+    const seconds = Math.max(0, Math.floor((now - new Date(clockEntry.clock_in).getTime()) / 1000));
+    return <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300"><i className="size-1.5 animate-pulse rounded-full bg-emerald-500" />{ar ? "حاضر" : "Clocked in"} <b>{formatTeamDuration(seconds, ar)}</b></span>;
+  }
+  if (schedule && schedule.attendance !== "not_clocked") return <span className={cn("inline-flex items-center rounded-full px-2.5 py-1.5 text-[10px] font-bold", scheduleTone(schedule.attendance))}>{scheduleLabel(schedule.attendance, ar)}</span>;
+  if (schedule) return <span className="inline-flex items-center gap-2 rounded-full bg-slate-500/10 px-2.5 py-1.5 text-[10px] font-bold text-slate-600 dark:text-slate-300"><i className="size-1.5 rounded-full bg-slate-400" />{ar ? "لم يبدأ" : "Not started"}</span>;
+  return <span className="inline-flex items-center gap-2 rounded-full bg-muted px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground"><i className="size-1.5 rounded-full bg-slate-300" />{ar ? "خارج الوردية" : "Off shift"}</span>;
+}
+
+function StaffRowActions({ member, locked, canManageShifts, canCancelShift, ar, onEdit, onAssign, onCancel }: { member: StaffRow; locked: boolean; canManageShifts: boolean; canCancelShift: boolean; ar: boolean; onEdit: () => void; onAssign: () => void; onCancel: () => void }) {
+  const canAssign = canManageShifts && member.is_active;
+  return <div className="flex items-center justify-center gap-1">
+    {canAssign ? <Button type="button" size="icon" variant="outline" className="size-8 rounded-lg" title={ar ? "تعيين وردية" : "Assign shift"} onClick={onAssign}><CalendarPlus className="size-3.5" /></Button> : null}
+    {!locked ? <Button type="button" size="icon" variant="outline" className="size-8 rounded-lg" title={ar ? "تعديل" : "Edit"} onClick={onEdit}><Pencil className="size-3.5" /></Button> : null}
+    <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="grid size-8 place-items-center rounded-lg bg-muted/45 transition hover:bg-muted" aria-label={ar ? `إجراءات ${member.name}` : `${member.name} actions`}><MoreHorizontal className="size-4" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-44">
+      {canAssign ? <DropdownMenuItem onSelect={() => window.setTimeout(onAssign, 0)}><CalendarPlus className="size-4" />{ar ? "تعيين وردية" : "Assign shift"}</DropdownMenuItem> : null}
+      {!locked ? <DropdownMenuItem onSelect={() => window.setTimeout(onEdit, 0)}><Pencil className="size-4" />{ar ? "تعديل الموظف" : "Edit member"}</DropdownMenuItem> : null}
+      {canCancelShift ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => window.setTimeout(onCancel, 0)}><CalendarX2 className="size-4" />{ar ? "إلغاء الوردية" : "Cancel shift"}</DropdownMenuItem></> : null}
+    </DropdownMenuContent></DropdownMenu>
+  </div>;
+}
+
 function StaffShiftCell({
   schedule,
   canAssign,
@@ -1913,6 +1843,13 @@ function Stat({
       </div>
     </div>
   );
+}
+
+function formatTeamDuration(seconds: number, ar: boolean) {
+  const totalMinutes = Math.max(0, Math.floor(seconds / 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return ar ? `${hours}س ${minutes}د` : `${hours}h ${minutes}m`;
 }
 
 function formatLastSeen(value: string | null | undefined, ar: boolean, nowMs = Date.now()) {

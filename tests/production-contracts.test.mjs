@@ -176,3 +176,22 @@ test("attendance shows live, completed-session, and daily hour-minute durations"
   assert.match(shifts, /Clocked out · session/);
   assert.match(shifts, /new Date\(entry\.clock_in\)\.toLocaleDateString\("en-CA"\)/);
 });
+
+
+test("team and shifts pages implement the approved modern live workforce design", async () => {
+  const team = await file("src/components/manage/StaffManagerAdvanced.tsx");
+  const shifts = await file("src/routes/_authenticated/shifts.tsx");
+  assert.match(team, /Team management/);
+  assert.match(team, /On Shift Now/);
+  assert.match(team, /Live Status/);
+  assert.match(team, /StaffLiveStatus/);
+  assert.match(team, /StaffRowActions/);
+  assert.match(team, /On Leave/);
+  assert.match(shifts, /Shift coverage/);
+  assert.match(shifts, /Live preview/);
+  assert.match(shifts, /CoverageTimeline/);
+  assert.match(shifts, /ShiftWeekCalendar/);
+  assert.match(shifts, /Shift Conflicts/);
+  assert.match(shifts, /Create shift/);
+  assert.match(shifts, /"timeline" \| "calendar" \| "list"/);
+});

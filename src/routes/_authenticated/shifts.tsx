@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, ChevronDown, Clock3, Download, Handshake, List, PlayCircle, Plus, Rows3, StopCircle, TimerReset, Trash2, UserPlus, UsersRound } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Download, Handshake, List, PlayCircle, Plus, Rows3, StopCircle, TimerReset, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
@@ -48,7 +48,7 @@ export const Route = createFileRoute("/_authenticated/shifts")({
   component: ShiftsPage,
 });
 
-type ShiftView = "timeline" | "list";
+type ShiftView = "timeline" | "calendar" | "list";
 
 const HANDOVER_ROLES: AppRole[] = ["restaurant_admin", "operations_manager", "manager", "kitchen", "waiter", "cashier", "host", "inventory", "procurement", "accountant"];
 const SHIFT_WEEKDAYS = [
@@ -82,19 +82,24 @@ function ShiftsPage() {
   const [deletingShift, setDeletingShift] = useState<Shift | null>(null);
   const [detailShiftId, setDetailShiftId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ShiftView>("timeline");
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toLocaleDateString("en-CA"));
 
   if (scope.isPending || access.isPending) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><Skeleton className="h-[620px] rounded-3xl" /></main></div>;
   if (!rid || !membership || !canView) return <Denied ar={ar} />;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString("en-CA");
   const rows = shifts.data ?? [];
-  const todayRows = rows.filter((row) => row.shift_date === today);
+  const selectedRows = rows.filter((row) => row.shift_date === selectedDate);
+  const selectedShiftIds = new Set(selectedRows.map((row) => row.id));
+  const selectedAssignments = (assignments.data ?? []).filter((row) => selectedShiftIds.has(row.shift_id));
   const openShiftRow = rows.find((row) => row.status === "open") ?? null;
-  const plannedToday = todayRows.filter((row) => row.status === "planned").length;
-  const closedToday = todayRows.filter((row) => row.status === "closed").length;
+  const scheduledStaff = new Set(selectedAssignments.filter((row) => row.status !== "released").map((row) => row.staff_id)).size;
+  const onShiftNow = selectedAssignments.filter((row) => row.status === "present").length;
+  const upcomingCount = selectedRows.filter((row) => row.status === "planned").length;
   const pendingHandovers = (handovers.data ?? []).filter((row) => !row.acknowledged_at).length;
-  const attentionAssignments = (assignments.data ?? []).filter((row) => row.status === "late" || row.status === "absent").length;
+  const attentionAssignments = selectedAssignments.filter((row) => row.status === "late" || row.status === "absent").length;
   const needsAttention = attentionAssignments + pendingHandovers;
+  const weekDays = shiftWeekDays(selectedDate).map((day) => ({ ...day, shiftCount: rows.filter((row) => row.shift_date === day.key).length }));
   const detailShift = rows.find((row) => row.id === detailShiftId) ?? null;
   const detailAssignments = detailShift ? (assignments.data ?? []).filter((row) => row.shift_id === detailShift.id) : [];
   const detailHandover = detailShift ? (handovers.data ?? []).find((row) => row.shift_id === detailShift.id) ?? null : null;
@@ -102,39 +107,47 @@ function ShiftsPage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "الورديات والتسليم" : "Shifts & Handover"} />
-    <main className="qs-page qs-compact-page qs-viewport-page">
+    <main className="qs-page qs-compact-page space-y-4">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={CalendarClock}>{ar ? "جدول الفريق" : "Team schedule"}</MasterEyebrow>}
         title={ar ? "الورديات والتسليم" : "Shifts & Handover"}
-        description={ar ? "جدول واضح للحضور، التغطية، التسليم والإجراءات التي تحتاج تدخل أثناء التشغيل." : "A clear workforce workspace for staffing coverage, attendance, handover and shift-critical actions."}
-        actions={<div className="flex flex-wrap items-center gap-2"><div className="inline-grid grid-cols-2 rounded-xl border border-border p-1"><button type="button" onClick={() => setViewMode("timeline")} className={cn("inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold", viewMode === "timeline" ? "bg-foreground text-background" : "text-muted-foreground")}><Rows3 className="size-4" />{ar ? "زمني" : "Timeline"}</button><button type="button" onClick={() => setViewMode("list")} className={cn("inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold", viewMode === "list" ? "bg-foreground text-background" : "text-muted-foreground")}><List className="size-4" />{ar ? "قائمة" : "List"}</button></div>{canManage ? <Button onClick={() => setCreateOpen(true)}><Plus className="size-4" />{ar ? "وردية جديدة" : "New shift"}</Button> : null}</div>}
+        description={ar ? "خطط الورديات وراقب التغطية والحضور والتسليم من مساحة تشغيل واحدة." : "Plan, assign and manage shifts with real-time coverage, attendance and handover context."}
+        actions={<div className="flex flex-wrap items-center gap-2"><div className="inline-grid grid-cols-3 rounded-xl border border-border bg-card p-1 shadow-sm"><button type="button" onClick={() => setViewMode("timeline")} className={cn("inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition", viewMode === "timeline" ? "bg-orange-500/10 text-[#cf4818]" : "text-muted-foreground hover:bg-muted")}><Rows3 className="size-4" />{ar ? "زمني" : "Timeline"}</button><button type="button" onClick={() => setViewMode("calendar")} className={cn("inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition", viewMode === "calendar" ? "bg-orange-500/10 text-[#cf4818]" : "text-muted-foreground hover:bg-muted")}><CalendarDays className="size-4" />{ar ? "تقويم" : "Calendar"}</button><button type="button" onClick={() => setViewMode("list")} className={cn("inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition", viewMode === "list" ? "bg-orange-500/10 text-[#cf4818]" : "text-muted-foreground hover:bg-muted")}><List className="size-4" />{ar ? "قائمة" : "List"}</button></div>{canManage ? <Button className="min-w-32 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md" onClick={() => setCreateOpen(true)}><Plus className="size-4" />{ar ? "إنشاء وردية" : "Create shift"}</Button> : null}</div>}
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MasterKpi icon={PlayCircle} label={ar ? "نشطة الآن" : "Active now"} value={openShiftRow ? 1 : 0} tone={openShiftRow ? "green" : "slate"} />
-        <MasterKpi icon={Clock3} label={ar ? "قادمة اليوم" : "Upcoming today"} value={plannedToday} tone="blue" />
-        <MasterKpi icon={AlertTriangle} label={ar ? "تحتاج انتباه" : "Needs attention"} value={needsAttention} tone={needsAttention > 0 ? "red" : "green"} />
-        <MasterKpi icon={CheckCircle2} label={ar ? "مكتملة اليوم" : "Completed today"} value={closedToday} tone="purple" />
-      </section>
-
-      <div className="shrink-0"><WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} shifts={rows} assignments={assignments.data ?? []} ar={ar} lang={lang} /></div>
-
-      {openShiftRow ? <CurrentShift shift={openShiftRow} assignments={(assignments.data ?? []).filter((row) => row.shift_id === openShiftRow.id)} members={members.data ?? []} canManage={canManage} currentStaffId={membership.id} ar={ar} lang={lang} onClose={() => setClosingShift(openShiftRow)} /> : <section className="qs-card flex items-center gap-4 p-5"><span className="grid size-11 place-items-center rounded-2xl bg-muted text-muted-foreground"><CalendarClock className="size-5" /></span><div><h2 className="font-bold">{ar ? "لا توجد وردية مفتوحة" : "No shift is open"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكن لمدير الوردية فتح وردية مخططة عندما يبدأ التشغيل." : "A shift manager can open a planned shift when service starts."}</p></div></section>}
-
-      <section className="qs-viewport-fill grid min-h-0 gap-2 overflow-hidden xl:grid-cols-[minmax(0,1.65fr)_minmax(260px,.7fr)]">
-        <div className="qs-card flex min-h-0 flex-col overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5"><div><h2 className="qs-section-title">{ar ? "الورديات" : "Shift schedule"}</h2><p className="mt-1 text-xs text-muted-foreground">{viewMode === "timeline" ? (ar ? "مرتب حسب الوقت لتشاهد تغطية التشغيل بسرعة." : "Ordered by time so coverage is easy to scan.") : (ar ? "قائمة عملية لكل الورديات والإجراءات." : "A practical list of shifts and actions.")}</p></div><span className="rounded-full bg-muted px-3 py-1.5 text-[10px] font-bold text-muted-foreground">{rows.length} {ar ? "وردية" : "shifts"}</span></div>
-          {shifts.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : shifts.isError ? <p className="p-5 text-sm text-destructive">{humanError(shifts.error, lang)}</p> : !rows.length ? <EmptyShifts ar={ar} /> : viewMode === "timeline" ? <div className="qs-scroll-region min-h-0 flex-1"><ShiftTimeline rows={rows.slice(0, 20)} assignments={assignments.data ?? []} canManage={canManage} canDelete={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpen={(shift) => setDetailShiftId(shift.id)} onClose={setClosingShift} onDelete={setDeletingShift} /></div> : <div className="qs-scroll-region min-h-0 flex-1 divide-y divide-border">{rows.slice(0, 20).map((shift) => <ShiftRow key={shift.id} shift={shift} assignments={(assignments.data ?? []).filter((row) => row.shift_id === shift.id)} canManage={canManage} canDelete={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpen={() => setDetailShiftId(shift.id)} onClose={() => setClosingShift(shift)} onDelete={() => setDeletingShift(shift)} />)}</div>}
-        </div>
-
-        <div className="qs-card qs-scroll-region min-h-0 overflow-hidden">
-          <div className="border-b border-border p-5"><h2 className="qs-section-title">{ar ? "آخر التسليمات" : "Recent handovers"}</h2></div>
-          {handovers.isPending ? <div className="p-5"><Skeleton className="h-48 rounded-2xl" /></div> : !(handovers.data ?? []).length ? <div className="p-8 text-center text-xs text-muted-foreground">{ar ? "لا توجد تسليمات بعد." : "No handovers yet."}</div> : <div className="divide-y divide-border">{(handovers.data ?? []).slice(0, 8).map((handover) => <HandoverItem key={handover.id} handover={handover} currentStaffId={membership.id} restaurantId={rid} ar={ar} lang={lang} />)}</div>}
+      <section className="qs-card overflow-hidden p-2">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <div className="flex items-center gap-1"><Button type="button" variant="ghost" size="icon" className="size-9" onClick={() => setSelectedDate(addShiftDays(selectedDate, -7))}><ChevronLeft className="size-4" /></Button><Button type="button" variant="outline" className="h-9 px-3 text-xs font-bold" onClick={() => setSelectedDate(today)}>{ar ? "اليوم" : "Today"}</Button><Button type="button" variant="ghost" size="icon" className="size-9" onClick={() => setSelectedDate(addShiftDays(selectedDate, 7))}><ChevronRight className="size-4" /></Button></div>
+          <div className="grid flex-1 grid-cols-7 gap-1.5">{weekDays.map((day) => <button key={day.key} type="button" onClick={() => setSelectedDate(day.key)} className={cn("group min-w-0 rounded-xl border px-2 py-2 text-center transition-all duration-200", selectedDate === day.key ? "border-orange-300 bg-orange-500/10 text-[#cf4818] shadow-sm" : "border-transparent bg-muted/30 text-muted-foreground hover:-translate-y-0.5 hover:border-border hover:bg-card hover:text-foreground")}><span className="block truncate text-[9px] font-bold uppercase tracking-[.08em]">{day.weekday}</span><strong className="mt-0.5 block text-sm">{day.day}</strong>{day.shiftCount ? <span className={cn("mx-auto mt-1 block size-1.5 rounded-full", selectedDate === day.key ? "bg-[#e85d2a]" : "bg-blue-500")} /> : <span className="mx-auto mt-1 block size-1.5" />}</button>)}</div>
         </div>
       </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 [&>article]:transition-all [&>article]:duration-200 [&>article:hover]:-translate-y-0.5 [&>article:hover]:shadow-md">
+        <MasterKpi icon={UsersRound} label={ar ? "الموظفون المجدولون" : "Scheduled Staff"} value={scheduledStaff} hint={formatShiftDateLabel(selectedDate, ar)} tone="blue" />
+        <MasterKpi icon={PlayCircle} label={ar ? "على رأس العمل" : "On Shift Now"} value={onShiftNow} hint={ar ? "حالة حية" : "Live assignment status"} tone="green" />
+        <MasterKpi icon={Clock3} label={ar ? "ورديات قادمة" : "Upcoming"} value={upcomingCount} hint={ar ? "في اليوم المحدد" : "For selected day"} tone="orange" />
+        <MasterKpi icon={AlertTriangle} label={ar ? "تحتاج انتباه" : "Needs Attention"} value={needsAttention} hint={pendingHandovers ? (ar ? "تسليمات معلقة" : "Pending handovers") : (ar ? "لا مشاكل حرجة" : "No critical issues")} tone={needsAttention ? "red" : "green"} />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,.65fr)]">
+        <div className="qs-card min-w-0 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4"><div><h2 className="qs-section-title">{ar ? "تغطية الورديات" : "Shift coverage"}</h2><p className="mt-1 text-xs text-muted-foreground">{formatShiftDateLabel(selectedDate, ar)} · {selectedRows.length} {ar ? "ورديات" : "shifts"}</p></div><span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-[10px] font-bold text-muted-foreground"><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />{ar ? "تحديث حي" : "Live preview"}</span></div>
+          {shifts.isPending ? <div className="p-5"><Skeleton className="h-72 rounded-2xl" /></div> : viewMode === "timeline" ? <CoverageTimeline dateKey={selectedDate} members={members.data ?? []} shifts={selectedRows} assignments={selectedAssignments} ar={ar} onOpen={(shift) => setDetailShiftId(shift.id)} /> : viewMode === "calendar" ? <ShiftWeekCalendar days={weekDays} rows={rows} ar={ar} onSelectDate={(key) => { setSelectedDate(key); setViewMode("timeline"); }} onOpen={(shift) => setDetailShiftId(shift.id)} /> : <div className="divide-y divide-border">{selectedRows.length ? selectedRows.map((shift) => <ShiftRow key={shift.id} shift={shift} assignments={selectedAssignments.filter((row) => row.shift_id === shift.id)} canManage={canManage} canDelete={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpen={() => setDetailShiftId(shift.id)} onClose={() => setClosingShift(shift)} onDelete={() => setDeletingShift(shift)} />) : <EmptyShifts ar={ar} />}</div>}
+        </div>
+
+        <div className="space-y-4">
+          <section className="qs-card p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold text-muted-foreground">{ar ? "تغطية الفريق" : "Shift Coverage"}</p><strong className="mt-1 block font-display text-2xl">{members.data?.length ? Math.round((scheduledStaff / Math.max(1, (members.data ?? []).filter((m) => m.is_active).length)) * 100) : 0}%</strong></div><span className="grid size-11 place-items-center rounded-full bg-emerald-500/10 text-emerald-600"><UsersRound className="size-5" /></span></div><div className="mt-4 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${members.data?.length ? Math.min(100, Math.round((scheduledStaff / Math.max(1, (members.data ?? []).filter((m) => m.is_active).length)) * 100)) : 0}%` }} /></div><div className="mt-3 grid grid-cols-3 gap-2 text-center text-[10px] text-muted-foreground"><span>{scheduledStaff}<b className="block text-foreground">{ar ? "مجدول" : "Scheduled"}</b></span><span>{onShiftNow}<b className="block text-foreground">{ar ? "حاضر" : "On shift"}</b></span><span>{Math.max(0, (members.data ?? []).filter((m) => m.is_active).length - scheduledStaff)}<b className="block text-foreground">{ar ? "خارج" : "Off shift"}</b></span></div></section>
+          <section className="qs-card overflow-hidden"><div className="border-b border-border p-4"><h2 className="text-sm font-bold">{ar ? "الورديات القادمة" : "Upcoming Shifts"}</h2></div><div className="divide-y divide-border">{selectedRows.filter((row) => row.status === "planned").slice(0, 4).map((row) => <button key={row.id} type="button" onClick={() => setDetailShiftId(row.id)} className="flex w-full items-center justify-between gap-3 p-3 text-start transition hover:bg-muted/30"><span className="min-w-0"><strong className="block truncate text-xs">{row.name}</strong><span className="mt-1 block text-[10px] text-muted-foreground">{formatWindow(row, ar)}</span></span><ChevronRight className="size-4 shrink-0 text-muted-foreground" /></button>)}{!selectedRows.some((row) => row.status === "planned") ? <p className="p-5 text-center text-xs text-muted-foreground">{ar ? "لا توجد ورديات قادمة." : "No upcoming shifts."}</p> : null}</div></section>
+          <section className={cn("qs-card p-4", needsAttention ? "border-red-200 bg-red-500/[0.025]" : "")}><div className="flex items-center gap-3"><span className={cn("grid size-9 place-items-center rounded-xl", needsAttention ? "bg-red-500/10 text-red-600" : "bg-emerald-500/10 text-emerald-600")}><AlertTriangle className="size-4" /></span><div><p className="text-xs font-bold">{ar ? "تعارضات وتنبيهات" : "Shift Conflicts"}</p><strong className="mt-0.5 block text-lg">{needsAttention}</strong></div></div><p className="mt-3 text-xs leading-5 text-muted-foreground">{needsAttention ? (ar ? "يوجد حضور متأخر/غياب أو تسليم يحتاج متابعة." : "Late/absent attendance or a handover needs review.") : (ar ? "لا توجد تعارضات حرجة في اليوم المحدد." : "No critical conflicts for the selected day.")}</p></section>
+          <section className="qs-card overflow-hidden"><div className="border-b border-border p-4"><h2 className="text-sm font-bold">{ar ? "آخر التسليمات" : "Recent handovers"}</h2></div>{!(handovers.data ?? []).length ? <p className="p-5 text-center text-xs text-muted-foreground">{ar ? "لا توجد تسليمات بعد." : "No handovers yet."}</p> : <div className="divide-y divide-border">{(handovers.data ?? []).slice(0, 3).map((handover) => <HandoverItem key={handover.id} handover={handover} currentStaffId={membership.id} restaurantId={rid} ar={ar} lang={lang} />)}</div>}</section>
+        </div>
+      </section>
+
+      {openShiftRow ? <CurrentShift shift={openShiftRow} assignments={(assignments.data ?? []).filter((row) => row.shift_id === openShiftRow.id)} members={members.data ?? []} canManage={canManage} currentStaffId={membership.id} ar={ar} lang={lang} onClose={() => setClosingShift(openShiftRow)} /> : <section className="qs-card flex items-center gap-4 p-5"><span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-5" /></span><div><h2 className="font-bold">{ar ? "لا توجد وردية مفتوحة" : "No shift is open"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكن لمدير الوردية فتح وردية مخططة عندما يبدأ التشغيل." : "A shift manager can open a planned shift when service starts."}</p></div></section>}
+      <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} shifts={rows} assignments={assignments.data ?? []} ar={ar} lang={lang} />
     </main>
 
-    <DetailSheet
+    <DetailSheet    <DetailSheet
       open={Boolean(detailShift)}
       onOpenChange={(open) => { if (!open) setDetailShiftId(null); }}
       title={detailShift?.name ?? ""}
@@ -163,6 +176,55 @@ function ShiftsPage() {
     {canManage && closingShift ? <CloseShiftDialog shift={closingShift} openWorkCount={openWork.data ?? 0} restaurantId={rid} currentStaffId={membership.id} onClose={() => setClosingShift(null)} ar={ar} lang={lang} /> : null}
     {canDelete && deletingShift ? <DeleteShiftDialog shift={deletingShift} restaurantId={rid} onClose={() => setDeletingShift(null)} ar={ar} lang={lang} /> : null}
   </div>;
+}
+
+type ShiftWeekDay = { key: string; weekday: string; day: string; shiftCount: number };
+
+function addShiftDays(dateKey: string, amount: number) {
+  const value = new Date(`${dateKey}T12:00:00`);
+  value.setDate(value.getDate() + amount);
+  return value.toLocaleDateString("en-CA");
+}
+function shiftWeekDays(dateKey: string): ShiftWeekDay[] {
+  const selected = new Date(`${dateKey}T12:00:00`);
+  const start = new Date(selected);
+  start.setDate(selected.getDate() - selected.getDay());
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return { key: date.toLocaleDateString("en-CA"), weekday: date.toLocaleDateString("en-US", { weekday: "short" }), day: String(date.getDate()), shiftCount: 0 };
+  });
+}
+function formatShiftDateLabel(dateKey: string, ar: boolean) {
+  return new Date(`${dateKey}T12:00:00`).toLocaleDateString(ar ? "ar-JO" : "en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+}
+
+function CoverageTimeline({ dateKey, members, shifts, assignments, ar, onOpen }: { dateKey: string; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; shifts: Shift[]; assignments: ShiftAssignment[]; ar: boolean; onOpen: (shift: Shift) => void }) {
+  const minHour = 6, maxHour = 22, span = maxHour - minHour;
+  const byShift = new Map(shifts.map((shift) => [shift.id, shift]));
+  const assignedByStaff = new Map<string, { assignment: ShiftAssignment; shift: Shift }>();
+  for (const assignment of assignments) { const shift = byShift.get(assignment.shift_id); if (shift && assignment.status !== "released" && !assignedByStaff.has(assignment.staff_id)) assignedByStaff.set(assignment.staff_id, { assignment, shift }); }
+  const activeMembers = members.filter((member) => member.is_active).slice(0, 14);
+  const now = new Date();
+  const nowHour = now.getHours() + now.getMinutes() / 60;
+  const showNow = dateKey === now.toLocaleDateString("en-CA") && nowHour >= minHour && nowHour <= maxHour;
+  const nowLeft = ((nowHour - minHour) / span) * 100;
+  const labels = [6,8,10,12,14,16,18,20,22];
+  return <div className="overflow-x-auto"><div className="min-w-[860px] p-4">
+    <div className="grid grid-cols-[190px_minmax(0,1fr)] border-b border-border pb-2"><span className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "الموظف" : "Staff Member"}</span><div className="relative h-5">{labels.map((hour)=><span key={hour} className="absolute -translate-x-1/2 text-[9px] font-semibold text-muted-foreground" style={{left:`${((hour-minHour)/span)*100}%`}}>{hour>12?hour-12:hour}:00 {hour>=12?"PM":"AM"}</span>)}</div></div>
+    <div className="relative">
+      {showNow ? <div className="pointer-events-none absolute bottom-0 top-0 z-20 w-px bg-[#e85d2a]" style={{left:`calc(190px + (100% - 190px) * ${nowLeft/100})`}}><span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-[#e85d2a] px-2 py-0.5 text-[8px] font-bold text-white">{now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</span></div> : null}
+      {activeMembers.map((member)=>{ const found=assignedByStaff.get(member.id); const shift=found?.shift; const start=shift?.planned_start?new Date(shift.planned_start):null; const end=shift?.planned_end?new Date(shift.planned_end):null; const startHour=start?start.getHours()+start.getMinutes()/60:minHour; const endHour=end?end.getHours()+end.getMinutes()/60:minHour; const left=Math.max(0,Math.min(100,((startHour-minHour)/span)*100)); const rightHour=endHour<=startHour&&end?maxHour:endHour; const width=Math.max(4,Math.min(100-left,((rightHour-startHour)/span)*100)); return <div key={member.id} className="grid min-h-14 grid-cols-[190px_minmax(0,1fr)] border-b border-border/60 last:border-b-0"><div className="flex min-w-0 items-center gap-2 pe-4"><span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold">{member.name.slice(0,1).toUpperCase()}</span><span className="min-w-0"><strong className="block truncate text-xs">{member.name}</strong><span className="block truncate text-[9px] text-muted-foreground">{ROLE_LABELS[member.role]?.[ar?"ar":"en"]??member.role}</span></span></div><div className="relative flex items-center"><div className="absolute inset-y-0 left-0 right-0 grid grid-cols-8">{Array.from({length:8},(_,i)=><span key={i} className="border-s border-border/40" />)}</div>{shift&&start&&end?<button type="button" onClick={()=>onOpen(shift)} className={cn("relative z-10 flex h-8 items-center justify-between gap-2 overflow-hidden rounded-full px-3 text-[10px] font-bold shadow-sm ring-1 ring-inset transition duration-200 hover:-translate-y-0.5 hover:shadow-md",shiftBarTone(member.role))} style={{marginLeft:`${left}%`,width:`${width}%`}}><span className="truncate">{formatWindow(shift,ar)}</span><span className="shrink-0">{Math.max(0,Math.round((end.getTime()-start.getTime())/3_600_000))}h</span></button>:<span className="relative z-10 ms-3 rounded-full bg-muted/70 px-3 py-1 text-[10px] font-semibold text-muted-foreground">{ar?"غير مجدول":"Not scheduled"}</span>}</div></div>; })}
+    </div>
+  </div></div>;
+}
+
+function ShiftWeekCalendar({ days, rows, ar, onSelectDate, onOpen }: { days: ShiftWeekDay[]; rows: Shift[]; ar: boolean; onSelectDate: (key: string) => void; onOpen: (shift: Shift) => void }) {
+  return <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">{days.map((day)=>{const dayRows=rows.filter((row)=>row.shift_date===day.key);return <section key={day.key} className="min-h-40 rounded-2xl border border-border bg-card p-3 transition duration-200 hover:-translate-y-0.5 hover:shadow-sm"><button type="button" onClick={()=>onSelectDate(day.key)} className="flex w-full items-center justify-between gap-2 text-start"><span><span className="block text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{day.weekday}</span><strong className="text-lg">{day.day}</strong></span><span className="rounded-full bg-muted px-2 py-1 text-[9px] font-bold text-muted-foreground">{dayRows.length}</span></button><div className="mt-3 space-y-2">{dayRows.slice(0,4).map((shift)=><button type="button" key={shift.id} onClick={()=>onOpen(shift)} className="w-full rounded-xl bg-muted/40 p-2 text-start transition hover:bg-orange-500/8"><strong className="block truncate text-[10px]">{shift.name}</strong><span className="mt-1 block text-[9px] text-muted-foreground">{formatWindow(shift,ar)}</span></button>)}{!dayRows.length?<p className="py-4 text-center text-[10px] text-muted-foreground">{ar?"لا ورديات":"No shifts"}</p>:null}</div></section>;})}</div>;
+}
+
+function shiftBarTone(role: AppRole) {
+  return role==="operations_manager"||role==="manager"?"bg-blue-500/12 text-blue-700 ring-blue-200 dark:text-blue-300":role==="host"?"bg-cyan-500/12 text-cyan-700 ring-cyan-200 dark:text-cyan-300":role==="procurement"?"bg-orange-500/12 text-orange-700 ring-orange-200 dark:text-orange-300":role==="accountant"||role==="inventory"?"bg-emerald-500/12 text-emerald-700 ring-emerald-200 dark:text-emerald-300":role==="waiter"?"bg-rose-500/12 text-rose-700 ring-rose-200 dark:text-rose-300":role==="kitchen"?"bg-violet-500/12 text-violet-700 ring-violet-200 dark:text-violet-300":"bg-slate-500/12 text-slate-700 ring-slate-200 dark:text-slate-300";
 }
 
 type TimeEntry = { id: string; staff_id: string; clock_in: string; clock_out: string | null; break_minutes: number };
