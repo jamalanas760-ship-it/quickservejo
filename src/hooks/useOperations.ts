@@ -352,6 +352,35 @@ export async function assignStaffShift(input: {
   return String(data);
 }
 
+export async function assignRecurringStaffShifts(input: {
+  restaurant_id: string;
+  staff_id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  weekdays: number[];
+  planned_start: string;
+  planned_end: string;
+}) {
+  const { data, error } = await (supabase as any).rpc("assign_recurring_staff_shifts", {
+    _restaurant_id: input.restaurant_id,
+    _staff_id: input.staff_id,
+    _name: input.name,
+    _start_date: input.start_date,
+    _end_date: input.end_date,
+    _weekdays: input.weekdays,
+    _planned_start: input.planned_start,
+    _planned_end: input.planned_end,
+  });
+  if (error) throw error;
+  const result = (data ?? {}) as { assigned?: number; skipped?: number; selected_days?: number };
+  return {
+    assigned: Number(result.assigned ?? 0),
+    skipped: Number(result.skipped ?? 0),
+    selected_days: Number(result.selected_days ?? 0),
+  };
+}
+
 export async function updateShiftAssignment(id: string, patch: Partial<Pick<ShiftAssignment, "status" | "notes">>) {
   const result = await fromOperations("shift_assignments").update(patch).eq("id", id) as unknown as { error: Error | null };
   await expectNoError(result);

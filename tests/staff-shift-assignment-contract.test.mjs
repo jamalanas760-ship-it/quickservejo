@@ -79,3 +79,24 @@ test("deleted or closed shifts do not create false overlap conflicts", async () 
   assert.match(migration, /_candidate_start < coalesce/);
   assert.match(migration, /_candidate_end > coalesce/);
 });
+
+
+test("team add-shift dialog supports professional recurring workday schedules", async () => {
+  assert.match(source, /TEAM_SHIFT_WEEKDAYS/);
+  assert.match(source, /Recurring days/);
+  assert.match(source, /Sun–Thu/);
+  assert.match(source, /Weekend/);
+  assert.match(source, /Every day/);
+  assert.match(source, /assignRecurringStaffShifts/);
+  assert.match(source, /Assign schedule/);
+
+  const migration = await readFile(
+    new URL("../supabase/migrations/20260928113000_team_recurring_staff_shifts.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(migration, /assign_recurring_staff_shifts/);
+  assert.match(migration, /extract\(dow from d\)/);
+  assert.match(migration, /Recurring shift overlaps another assignment on/);
+  assert.match(migration, /Recurring schedule cannot exceed 366 days/);
+  assert.match(migration, /staff_recurring_shifts_assigned/);
+});

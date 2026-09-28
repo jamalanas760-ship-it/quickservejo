@@ -49,7 +49,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useRestaurantSeatUsage } from "@/hooks/useRestaurantSeatUsage";
-import { assignStaffShift, cancelStaffShiftAssignment } from "@/hooks/useOperations";
+import { assignRecurringStaffShifts, assignStaffShift, cancelStaffShiftAssignment } from "@/hooks/useOperations";
 import { supabase } from "@/integrations/supabase/client";
 import { avatarPresetUrl } from "@/lib/avatar-presets";
 import { humanError } from "@/lib/errors";
@@ -80,6 +80,15 @@ const ROLES: AppRole[] = [
   "accountant",
 ];
 const ROLE_NAMES: Record<AppRole, { en: string; ar: string }> = ROLE_LABELS;
+const TEAM_SHIFT_WEEKDAYS = [
+  { value: 0, en: "Sun", ar: "الأحد" },
+  { value: 1, en: "Mon", ar: "الاثنين" },
+  { value: 2, en: "Tue", ar: "الثلاثاء" },
+  { value: 3, en: "Wed", ar: "الأربعاء" },
+  { value: 4, en: "Thu", ar: "الخميس" },
+  { value: 5, en: "Fri", ar: "الجمعة" },
+  { value: 6, en: "Sat", ar: "السبت" },
+] as const;
 const ROLE_TONE: Record<string, string> = {
   restaurant_admin: "bg-orange-500/12 text-orange-600",
   operations_manager: "bg-sky-500/12 text-sky-600",
@@ -1565,12 +1574,22 @@ function AssignStaffShiftDialog({
       ),
   );
   const [mode, setMode] = useState<"existing" | "new">(available.length ? "existing" : "new");
+  const [newMode, setNewMode] = useState<"single" | "recurring">("single");
   const [shiftId, setShiftId] = useState(available[0]?.id ?? "");
   const [name, setName] = useState(ar ? "وردية خدمة" : "Service shift");
   const [date, setDate] = useState(today);
+  const [rangeEnd, setRangeEnd] = useState(today);
+  const [weekdays, setWeekdays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("17:00");
   const overnight = Boolean(start && end && end <= start);
+  const invalidRange = newMode === "recurring" && rangeEnd < date;
+
+  function toggleWeekday(day: number) {
+    setWeekdays((current) =>
+      current.includes(day) ? current.filter((value) => value !== day) : [...current, day].sort(),
+    );
+  }
 
   const save = async () => {
     if (mode === "existing") {
@@ -1587,174 +1606,169 @@ function AssignStaffShiftDialog({
         staff_id: member.id,
         shift_id: shift.id,
       });
-    } else {
-      if (!name.trim() || !date || !start || !end)
-        throw new Error(
-          ar ? "أكمل اسم الوردية والتاريخ والوقت." : "Complete the shift name, date and time.",
-        );
-      const plannedStart = localDateTimeIso(date, start);
-      const plannedEnd = localDateTimeIso(date, end, overnight ? 1 : 0);
-      if (hasShiftConflict(member.id, plannedStart, plannedEnd, assignments, shifts))
-        throw new Error(
-          ar
-            ? "يتداخل هذا الوقت مع وردية أخرى لهذا الموظف."
-            : "This time overlaps another assignment for this team member.",
-        );
-      await assignStaffShift({
+      return { assigned: 1, skipped: 0, recurring: false };
+    }
+
+    if (!name.trim() || !date || !start || !end)
+      throw new Error(
+        ar ? "أكمل اسم الوردية والتاريخ والوقت." : "Complete the shift name, date and time.",
+      );
+
+    if (newMode === "recurring") {
+      if (!rangeEnd || invalidRange)
+        throw new Error(ar ? "اختر نطاق تاريخ صحيحاً." : "Choose a valid date range.");
+      if (!weekdays.length)
+        throw new Error(ar ? "اختر يوم عمل واحداً على الأقل." : "Choose at least one workday.");
+      const result = await assignRecurringStaffShifts({
         restaurant_id: restaurantId,
         staff_id: member.id,
         name: name.trim(),
-        shift_date: date,
-        planned_start: plannedStart,
-        planned_end: plannedEnd,
+        start_date: date,
+        end_date: rangeEnd,
+        weekdays,
+        planned_start: start,
+        planned_end: end,
       });
+      return { assigned: result.assigned, skipped: result.skipped, recurring: true };
     }
-    await Promise.all([
-      qc.invalidateQueries({ queryKey: ["platform", "staff-schedule", restaurantId] }),
-      qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }),
-      qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }),
-    ]);
-    toast.success(ar ? `تمت إضافة وردية ${member.name}` : `Shift assigned to ${member.name}`);
-    onClose();
+
+    const plannedStart = localDateTimeIso(date, start);
+    const plannedEnd = localDateTimeIso(date, end, overnight ? 1 : 0);
+    if (hasShiftConflict(member.id, plannedStart, plannedEnd, assignments, shifts))
+      throw new Error(
+        ar
+          ? "يتداخل هذا الوقت مع وردية أخرى لهذا الموظف."
+          : "This time overlaps another assignment for this team member.",
+      );
+    await assignStaffShift({
+      restaurant_id: restaurantId,
+      staff_id: member.id,
+      name: name.trim(),
+      shift_date: date,
+      planned_start: plannedStart,
+      planned_end: plannedEnd,
+    });
+    return { assigned: 1, skipped: 0, recurring: false };
   };
+
   const mutation = useMutation({
     mutationFn: save,
+    onSuccess: async (result) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["platform", "staff-schedule", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }),
+      ]);
+      if (result.recurring) {
+        toast.success(
+          ar
+            ? `تم تعيين ${result.assigned} ورديات لـ ${member.name}${result.skipped ? ` · تم تخطي ${result.skipped} مكررة` : ""}`
+            : `${result.assigned} shifts assigned to ${member.name}${result.skipped ? ` · ${result.skipped} duplicate(s) skipped` : ""}`,
+        );
+      } else {
+        toast.success(ar ? `تمت إضافة وردية ${member.name}` : `Shift assigned to ${member.name}`);
+      }
+      onClose();
+    },
     onError: (error) => toast.error(humanError(error, lang)),
   });
 
+  const newReady =
+    Boolean(name.trim() && date && start && end) &&
+    (newMode === "single" || Boolean(rangeEnd && weekdays.length && !invalidRange));
+
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open && !mutation.isPending) onClose();
-      }}
-    >
-      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-none overflow-hidden p-0 sm:max-w-[600px]">
+    <Dialog open onOpenChange={(open) => { if (!open && !mutation.isPending) onClose(); }}>
+      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-none overflow-hidden p-0 sm:max-w-[680px]">
         <div className="border-b border-border bg-muted/15 px-5 py-4">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span className="grid size-9 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]">
-                <CalendarPlus className="size-4" />
-              </span>
+              <span className="grid size-9 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><CalendarPlus className="size-4" /></span>
               {ar ? `إضافة وردية لـ ${member.name}` : `Assign shift to ${member.name}`}
             </DialogTitle>
             <DialogDescription>
-              {ar
-                ? "اختر وردية موجودة أو أنشئ وقت عمل جديداً. سيظهر التغيير في صفحة الورديات مباشرة."
-                : "Choose an existing shift or create a new work window. It will appear on the Shifts page immediately."}
+              {ar ? "اختر وردية موجودة أو أنشئ وردية مفردة أو جدول عمل متكرر بأيام تختارها." : "Choose an existing shift, a single work window, or a recurring weekly schedule."}
             </DialogDescription>
           </DialogHeader>
         </div>
-        <div className="space-y-5 px-5 py-5">
+
+        <div className="max-h-[72vh] space-y-5 overflow-y-auto px-5 py-5">
           <div className="grid grid-cols-2 rounded-xl border border-border bg-muted/25 p-1">
-            <button
-              type="button"
-              disabled={!available.length}
-              onClick={() => setMode("existing")}
-              className={cn(
-                "min-h-10 rounded-lg px-3 text-sm font-bold transition",
-                mode === "existing" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground",
-                !available.length && "cursor-not-allowed opacity-45",
-              )}
-            >
+            <button type="button" disabled={!available.length} onClick={() => setMode("existing")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "existing" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground", !available.length && "cursor-not-allowed opacity-45")}>
               {ar ? "وردية موجودة" : "Existing shift"}
             </button>
-            <button
-              type="button"
-              onClick={() => setMode("new")}
-              className={cn(
-                "min-h-10 rounded-lg px-3 text-sm font-bold transition",
-                mode === "new" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground",
-              )}
-            >
-              {ar ? "وردية جديدة" : "New shift"}
+            <button type="button" onClick={() => setMode("new")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "new" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
+              {ar ? "جدول جديد" : "New schedule"}
             </button>
           </div>
+
           {mode === "existing" ? (
             <Field label={ar ? "الوردية المتاحة" : "Available shift"}>
               <Select value={shiftId} onValueChange={setShiftId}>
-                <SelectTrigger className="h-12">
-                  <SelectValue placeholder={ar ? "اختر وردية" : "Choose a shift"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {available.map((shift) => (
-                    <SelectItem key={shift.id} value={shift.id}>
-                      {shift.name} · {formatShiftOption(shift, ar)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectTrigger className="h-12"><SelectValue placeholder={ar ? "اختر وردية" : "Choose a shift"} /></SelectTrigger>
+                <SelectContent>{available.map((shift) => <SelectItem key={shift.id} value={shift.id}>{shift.name} · {formatShiftOption(shift, ar)}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Field label={ar ? "اسم الوردية" : "Shift name"}>
-                  <Input
-                    value={name}
-                    maxLength={80}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder={ar ? "مثال: وردية المساء" : "e.g. Evening service"}
-                  />
-                </Field>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 rounded-xl border border-border bg-muted/20 p-1">
+                <button type="button" onClick={() => setNewMode("single")} className={cn("min-h-10 rounded-lg px-3 text-xs font-bold transition sm:text-sm", newMode === "single" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "يوم واحد" : "Single day"}</button>
+                <button type="button" onClick={() => { setNewMode("recurring"); if (rangeEnd < date) setRangeEnd(date); }} className={cn("min-h-10 rounded-lg px-3 text-xs font-bold transition sm:text-sm", newMode === "recurring" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "أيام متكررة" : "Recurring days"}</button>
               </div>
-              <Field label={ar ? "التاريخ" : "Date"}>
-                <Input
-                  type="date"
-                  value={date}
-                  min={today}
-                  onChange={(event) => setDate(event.target.value)}
-                />
+
+              <Field label={ar ? "اسم الوردية" : "Shift name"}>
+                <Input value={name} maxLength={80} onChange={(event) => setName(event.target.value)} placeholder={ar ? "مثال: وردية المساء" : "e.g. Evening service"} />
               </Field>
-              <div className="hidden sm:block" />
-              <Field label={ar ? "وقت البداية" : "Start time"}>
-                <Input
-                  type="time"
-                  value={start}
-                  onChange={(event) => setStart(event.target.value)}
-                />
-              </Field>
-              <Field label={ar ? "وقت النهاية" : "End time"}>
-                <Input type="time" value={end} onChange={(event) => setEnd(event.target.value)} />
-              </Field>
-              {overnight ? (
-                <p className="sm:col-span-2 rounded-xl bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">
-                  {ar
-                    ? "ستنتهي هذه الوردية في اليوم التالي."
-                    : "This shift ends the following day."}
-                </p>
-              ) : null}
+
+              {newMode === "single" ? (
+                <Field label={ar ? "التاريخ" : "Date"}><Input type="date" value={date} min={today} onChange={(event) => setDate(event.target.value)} /></Field>
+              ) : (
+                <>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label={ar ? "من تاريخ" : "Start date"}><Input type="date" value={date} min={today} onChange={(event) => { const next = event.target.value; setDate(next); if (rangeEnd < next) setRangeEnd(next); }} /></Field>
+                    <Field label={ar ? "إلى تاريخ" : "End date"}><Input type="date" value={rangeEnd} min={date} onChange={(event) => setRangeEnd(event.target.value)} /></Field>
+                  </div>
+
+                  <section className="rounded-2xl border border-border bg-muted/10 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div><h3 className="text-sm font-bold">{ar ? "أيام العمل" : "Workdays"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "حدد أيام الدوام بدقة، مثل الأحد إلى الخميس، أو اختر عطلة نهاية الأسبوع." : "Pick the exact workdays, such as Sunday–Thursday, weekends, or any custom combination."}</p></div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button type="button" size="sm" variant="outline" onClick={() => setWeekdays([0, 1, 2, 3, 4])}>{ar ? "الأحد–الخميس" : "Sun–Thu"}</Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => setWeekdays([5, 6])}>{ar ? "عطلة الأسبوع" : "Weekend"}</Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => setWeekdays([0, 1, 2, 3, 4, 5, 6])}>{ar ? "كل الأيام" : "Every day"}</Button>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-7">
+                      {TEAM_SHIFT_WEEKDAYS.map((day) => {
+                        const selected = weekdays.includes(day.value);
+                        return <button key={day.value} type="button" aria-pressed={selected} onClick={() => toggleWeekday(day.value)} className={cn("min-h-10 rounded-xl border px-2 text-xs font-bold transition", selected ? "border-[#e85d2a] bg-orange-500/10 text-[#cf4818]" : "border-border bg-card text-muted-foreground hover:text-foreground")}>{ar ? day.ar : day.en}</button>;
+                      })}
+                    </div>
+                    <p className="mt-3 text-xs font-semibold text-muted-foreground">{ar ? `${weekdays.length} أيام بالأسبوع محددة` : `${weekdays.length} day(s) per week selected`}</p>
+                  </section>
+                  {invalidRange ? <p className="rounded-xl bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300">{ar ? "تاريخ النهاية يجب أن يكون بعد تاريخ البداية." : "End date must be on or after the start date."}</p> : null}
+                </>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label={ar ? "وقت البداية" : "Start time"}><Input type="time" value={start} onChange={(event) => setStart(event.target.value)} /></Field>
+                <Field label={ar ? "وقت النهاية" : "End time"}><Input type="time" value={end} onChange={(event) => setEnd(event.target.value)} /></Field>
+              </div>
+              {overnight ? <p className="rounded-xl bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">{ar ? "ستنتهي كل وردية في اليوم التالي." : "Each shift ends the following day."}</p> : null}
             </div>
           )}
+
           <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
-            <span className="grid size-10 place-items-center rounded-full bg-muted font-bold">
-              {member.name.slice(0, 1).toUpperCase()}
-            </span>
-            <div className="min-w-0">
-              <strong className="block truncate text-sm">{member.name}</strong>
-              <span className="text-xs text-muted-foreground">{ROLE_NAMES[member.role][lang]}</span>
-            </div>
+            <span className="grid size-10 place-items-center rounded-full bg-muted font-bold">{member.name.slice(0, 1).toUpperCase()}</span>
+            <div className="min-w-0"><strong className="block truncate text-sm">{member.name}</strong><span className="text-xs text-muted-foreground">{ROLE_NAMES[member.role][lang]}</span></div>
           </div>
         </div>
+
         <DialogFooter className="border-t border-border bg-card px-5 py-4">
-          <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onClose}>
-            {ar ? "إلغاء" : "Cancel"}
-          </Button>
-          <Button
-            type="button"
-            disabled={
-              mutation.isPending ||
-              (mode === "existing" ? !shiftId : !name.trim() || !date || !start || !end)
-            }
-            onClick={() => mutation.mutate()}
-          >
+          <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button type="button" disabled={mutation.isPending || (mode === "existing" ? !shiftId : !newReady)} onClick={() => mutation.mutate()}>
             <CalendarPlus className="size-4" />
-            {mutation.isPending
-              ? ar
-                ? "جارٍ الحفظ…"
-                : "Saving…"
-              : ar
-                ? "إضافة الوردية"
-                : "Assign shift"}
+            {mutation.isPending ? (ar ? "جارٍ الحفظ…" : "Saving…") : mode === "new" && newMode === "recurring" ? (ar ? "تعيين الجدول" : "Assign schedule") : (ar ? "إضافة الوردية" : "Assign shift")}
           </Button>
         </DialogFooter>
       </DialogContent>
