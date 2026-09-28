@@ -162,3 +162,17 @@ test("profile settings selection uses the brand accent instead of a black fill",
   assert.match(profile, /bg-\[#e85d2a\] text-white/);
   assert.doesNotMatch(profile, /active \? "bg-foreground text-background/);
 });
+
+
+test("attendance shows live, completed-session, and daily hour-minute durations", async () => {
+  const shifts = await file("src/routes/_authenticated/shifts.tsx");
+  assert.match(shifts, /Current session/);
+  assert.match(shifts, /Last session/);
+  assert.match(shifts, /Worked today/);
+  assert.match(shifts, /currentSessionSeconds/);
+  assert.match(shifts, /latestCompletedSeconds/);
+  assert.match(shifts, /todayWorkedSeconds/);
+  assert.match(shifts, /formatClockDuration\(todayWorkedSeconds/);
+  assert.match(shifts, /Clocked out · session/);
+  assert.match(shifts, /new Date\(entry\.clock_in\)\.toLocaleDateString\("en-CA"\)/);
+});

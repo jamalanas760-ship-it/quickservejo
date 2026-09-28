@@ -217,11 +217,33 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
     return () => window.clearInterval(timer);
   }, []);
   const pendingLeave = (workforce.data?.leave ?? []).filter((request) => request.status === "pending");
-  const todayKey = new Date().toLocaleDateString("en-CA");
-  const todayMinutes = (workforce.data?.time ?? []).filter((entry) => entry.clock_in.slice(0,10) === todayKey).reduce((sum, entry) => {
-    const end = entry.clock_out ? new Date(entry.clock_out).getTime() : Date.now();
-    return sum + Math.max(0, (end - new Date(entry.clock_in).getTime()) / 60000 - Number(entry.break_minutes || 0));
+  const todayKey = new Date(clockNow).toLocaleDateString("en-CA");
+  const myEntries = (workforce.data?.time ?? []).filter((entry) => entry.staff_id === currentStaffId);
+  const myTodayEntries = myEntries.filter(
+    (entry) => new Date(entry.clock_in).toLocaleDateString("en-CA") === todayKey,
+  );
+  const todayWorkedSeconds = myTodayEntries.reduce((sum, entry) => {
+    const startMs = new Date(entry.clock_in).getTime();
+    const endMs = entry.clock_out ? new Date(entry.clock_out).getTime() : clockNow;
+    const breakSeconds = Number(entry.break_minutes || 0) * 60;
+    return sum + Math.max(0, Math.floor((endMs - startMs) / 1000) - breakSeconds);
   }, 0);
+  const currentSessionSeconds = openEntry
+    ? Math.max(0, Math.floor((clockNow - new Date(openEntry.clock_in).getTime()) / 1000))
+    : 0;
+  const latestCompletedEntry =
+    myEntries.find((entry) => Boolean(entry.clock_out)) ?? null;
+  const latestCompletedSeconds =
+    latestCompletedEntry?.clock_out
+      ? Math.max(
+          0,
+          Math.floor(
+            (new Date(latestCompletedEntry.clock_out).getTime() -
+              new Date(latestCompletedEntry.clock_in).getTime()) /
+              1000,
+          ) - Number(latestCompletedEntry.break_minutes || 0) * 60,
+        )
+      : 0;
 
   const toggleClock = useMutation({
     mutationFn: async () => {
@@ -272,7 +294,23 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
         qc.invalidateQueries({ queryKey: ["workforce-clock", restaurantId, currentStaffId] }),
         qc.invalidateQueries({ queryKey: ["workforce", restaurantId] }),
       ]);
-      toast.success(isOut ? (ar ? "تم تسجيل الانصراف" : "Clocked out") : (ar ? "تم تسجيل الحضور" : "Clocked in"));
+      const completedSeconds =
+        isOut && result?.clock_in
+          ? Math.max(0, Math.floor((new Date(at).getTime() - new Date(result.clock_in).getTime()) / 1000))
+          : 0;
+      toast.success(
+        isOut
+          ? completedSeconds > 0
+            ? ar
+              ? `تم تسجيل الانصراف · مدة الجلسة ${formatClockDuration(completedSeconds, true)}`
+              : `Clocked out · session ${formatClockDuration(completedSeconds, false)}`
+            : ar
+              ? "تم تسجيل الانصراف"
+              : "Clocked out"
+          : ar
+            ? "تم تسجيل الحضور"
+            : "Clocked in",
+      );
     },
     onError: (error) => toast.error(humanError(error, lang)),
   });
@@ -364,10 +402,51 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
         <div><h2 className="qs-section-title">{ar ? "الحضور والوقت" : "Attendance & time"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "ساعة حضور فعلية مرتبطة بحساب كل موظف." : "A real time clock tied to each staff account."}</p></div>
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto"><Button variant="outline" onClick={() => setLeaveOpen(true)}><CalendarDays className="size-4"/>{ar ? "طلب إجازة" : "Request leave"}</Button><Button className="min-w-[132px]" variant={openEntry ? "destructive" : "default"} aria-busy={toggleClock.isPending} aria-pressed={Boolean(openEntry)} onClick={() => toggleClock.mutate()} disabled={toggleClock.isPending || clockStatus.isPending}>{openEntry ? <StopCircle className="size-4"/> : <TimerReset className="size-4"/>}{toggleClock.isPending ? (ar ? "جارٍ التحديث…" : "Updating…") : openEntry ? (ar ? "انصراف" : "Clock out") : (ar ? "حضور" : "Clock in")}</Button></div>
       </div>
-      <div className="grid gap-3 p-4 sm:grid-cols-3">
-        <div className="rounded-xl bg-muted/45 p-3" aria-live="polite"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حالتي" : "My status"}</p><strong className="mt-1 block text-sm">{openEntry ? (ar ? "على رأس العمل" : "Clocked in") : (ar ? "خارج الوردية" : "Clocked out")}</strong>{openEntry ? <p className="mt-1 text-[10px] text-muted-foreground">{formatStamp(openEntry.clock_in, ar)} · {formatClockDuration(Math.max(0, Math.floor((clockNow - new Date(openEntry.clock_in).getTime()) / 1000)), ar)}</p> : null}</div>
-        <div className="rounded-xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "ساعات اليوم" : "Hours today"}</p><strong className="mt-1 block text-sm">{(todayMinutes/60).toFixed(1)}h</strong></div>
-        <div className="rounded-xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حاضرون الآن" : "Clocked in now"}</p><strong className="mt-1 block text-sm">{clockedIn.length}</strong></div>
+      <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl bg-muted/45 p-3" aria-live="polite">
+          <p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حالتي" : "My status"}</p>
+          <strong className="mt-1 block text-sm">{openEntry ? (ar ? "على رأس العمل" : "Clocked in") : (ar ? "خارج الوردية" : "Clocked out")}</strong>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            {openEntry
+              ? formatStamp(openEntry.clock_in, ar)
+              : latestCompletedEntry?.clock_out
+                ? `${ar ? "آخر انصراف" : "Last out"} · ${formatStamp(latestCompletedEntry.clock_out, ar)}`
+                : ar
+                  ? "لا يوجد تسجيل اليوم بعد"
+                  : "No time recorded yet"}
+          </p>
+        </div>
+        <div className="rounded-xl bg-muted/45 p-3" aria-live="polite">
+          <p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">
+            {openEntry ? (ar ? "الجلسة الحالية" : "Current session") : (ar ? "آخر جلسة" : "Last session")}
+          </p>
+          <strong className="mt-1 block text-sm">
+            {formatClockDuration(openEntry ? currentSessionSeconds : latestCompletedSeconds, ar)}
+          </strong>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            {openEntry
+              ? ar
+                ? "يتحدث تلقائياً أثناء الدوام"
+                : "Updates live while clocked in"
+              : latestCompletedEntry
+                ? ar
+                  ? "مدة آخر حضور مكتمل"
+                  : "Duration of your last completed session"
+                : ar
+                  ? "—"
+                  : "—"}
+          </p>
+        </div>
+        <div className="rounded-xl bg-muted/45 p-3" aria-live="polite">
+          <p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "وقت العمل اليوم" : "Worked today"}</p>
+          <strong className="mt-1 block text-sm">{formatClockDuration(todayWorkedSeconds, ar)}</strong>
+          <p className="mt-1 text-[10px] text-muted-foreground">{ar ? "إجمالي الحضور ناقص الاستراحات" : "Total attendance minus breaks"}</p>
+        </div>
+        <div className="rounded-xl bg-muted/45 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حاضرون الآن" : "Clocked in now"}</p>
+          <strong className="mt-1 block text-sm">{clockedIn.length}</strong>
+          <p className="mt-1 text-[10px] text-muted-foreground">{ar ? "أعضاء الفريق النشطون" : "Active team members"}</p>
+        </div>
       </div>
       {canManage && clockedIn.length ? <div className="border-t border-border p-4"><p className="mb-2 text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "الفريق الموجود الآن" : "Team on the clock"}</p><div className="flex flex-wrap gap-2">{clockedIn.slice(0,12).map(entry=><span key={entry.id} className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold">{memberName(entry.staff_id)} · {new Date(entry.clock_in).toLocaleTimeString(ar?"ar-JO":"en-JO",{hour:"2-digit",minute:"2-digit"})}</span>)}</div></div> : null}
     </div>
