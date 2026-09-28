@@ -599,8 +599,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       </section>
 
       <section className="qs-card qs-viewport-fill flex min-h-0 min-w-0 flex-col overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-border bg-muted/10 p-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex w-full gap-1 overflow-x-auto rounded-xl bg-muted/50 p-1 lg:w-auto">
+        <div className="border-b border-border bg-muted/10 p-3">
+          <div className="flex w-full gap-1 overflow-x-auto rounded-xl bg-muted/50 p-1 lg:w-auto lg:max-w-fit">
             {(
               [
                 ["all", ar ? "كل الفريق" : "All Staff", (staff.data ?? []).length],
@@ -618,40 +618,19 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
               </button>
             ))}
           </div>
-        <div className="grid gap-2.5 border-b border-border bg-card p-3 lg:grid-cols-[minmax(0,1fr)_160px_160px]">        <div className="grid gap-2.5 border-b border-border p-3 lg:grid-cols-[minmax(0,1fr)_145px_145px]">
+        </div>
+        <div className="grid gap-2.5 border-b border-border bg-card p-3 lg:grid-cols-[minmax(0,1fr)_160px_160px]">
           <div className="relative">
             <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={
-                ar ? "ابحث بالاسم أو البريد أو الدور..." : "Search by name, email or role..."
-              }
-              className="h-10 rounded-xl ps-10"
-            />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ar ? "ابحث بالاسم أو البريد أو الدور..." : "Search staff, role or email..."} className="h-10 rounded-xl ps-10" />
           </div>
           <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{ar ? "كل الأدوار" : "All Roles"}</SelectItem>
-              {ROLES.map((role) => (
-                <SelectItem key={role} value={role}>
-                  {ROLE_NAMES[role][lang]}
-                </SelectItem>
-              ))}
-            </SelectContent>
+            <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">{ar ? "كل الأدوار" : "All Roles"}</SelectItem>{ROLES.map((role) => <SelectItem key={role} value={role}>{ROLE_NAMES[role][lang]}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{ar ? "كل الحالات" : "All Status"}</SelectItem>
-              <SelectItem value="active">{t("common.active")}</SelectItem>
-              <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
-            </SelectContent>
+            <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">{ar ? "كل الحالات" : "All Status"}</SelectItem><SelectItem value="active">{t("common.active")}</SelectItem><SelectItem value="inactive">{t("common.inactive")}</SelectItem></SelectContent>
           </Select>
         </div>
         {staff.isPending ? (
@@ -686,7 +665,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                 </tbody>
               </table>
             </div>
-            <div className="space-y-2 p-3 md:hidden">            <div className="space-y-2 p-3 md:hidden">
+            <div className="space-y-2 p-3 md:hidden">
               {rows.map((member) => {
                 const locked =
                   member.role === "restaurant_admin" &&
