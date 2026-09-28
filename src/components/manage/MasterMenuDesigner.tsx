@@ -63,13 +63,13 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
         eyebrow={<MasterEyebrow icon={UtensilsCrossed}>{ar ? "استوديو القائمة" : "Menu Studio"}</MasterEyebrow>}
         title={ar ? "إدارة القائمة" : "Menu Management"}
         description={ar ? "أنشئ وأدر قائمة مطعمك بعناصر جميلة وفئات وأسعار واضحة." : "Create and manage your restaurant menu with beautiful items, categories and pricing."}
-        actions={restaurant.data ? <div className="flex flex-wrap items-center gap-2">
+        actions={restaurant.data ? <div className="qs-menu-header-actions flex flex-wrap items-center gap-2">
           <span className="qs-live-menu-pill"><i />{ar ? "القائمة مباشرة" : "Live Menu"}</span>
           {workflow === "standard" ? <StandardMenuModeControl restaurant={restaurant.data} /> : null}
           {workflow === "standard"
-            ? <Link to="/r/$slug" params={{ slug: restaurant.data.slug }} search={{ preview: "1" as const }} target="_blank" rel="noreferrer" className="qs-button-secondary"><ExternalLink className="size-4" />{ar ? "معاينة القائمة" : "Preview Menu"}</Link>
-            : <Link to="/m/$slug" params={{ slug: restaurant.data.slug }} target="_blank" rel="noreferrer" className="qs-button-secondary"><ExternalLink className="size-4" />{ar ? "معاينة القائمة" : "Preview Menu"}</Link>}
-          <button type="button" className="qs-icon-button" aria-label={ar ? "المزيد" : "More options"}><MoreHorizontal className="size-4" /></button>
+            ? <Link to="/r/$slug" params={{ slug: restaurant.data.slug }} search={{ preview: "1" as const }} target="_blank" rel="noreferrer" className="qs-menu-preview-button qs-button-secondary"><ExternalLink className="size-4" />{ar ? "معاينة القائمة" : "Preview Menu"}</Link>
+            : <Link to="/m/$slug" params={{ slug: restaurant.data.slug }} target="_blank" rel="noreferrer" className="qs-menu-preview-button qs-button-secondary"><ExternalLink className="size-4" />{ar ? "معاينة القائمة" : "Preview Menu"}</Link>}
+          <button type="button" className="qs-icon-button hidden sm:grid" aria-label={ar ? "المزيد" : "More options"}><MoreHorizontal className="size-4" /></button>
         </div> : null}
       />
 
@@ -169,7 +169,7 @@ function StandardMenuModeControl({ restaurant }: { restaurant: NonNullable<Retur
   });
 
   return (
-    <div className="flex min-h-11 items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-sm" role="group" aria-label={ar ? "مظهر القائمة العادية" : "Standard Menu appearance"}>
+    <div className="qs-menu-mode-control flex min-h-11 items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-sm" role="group" aria-label={ar ? "مظهر القائمة العادية" : "Standard Menu appearance"}>
       <span className="hidden px-2 text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground sm:inline">{ar ? "المظهر" : "Appearance"}</span>
       {(["light", "dark"] as const).map((option) => {
         const selected = mode === option;

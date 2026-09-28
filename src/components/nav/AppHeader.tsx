@@ -95,8 +95,8 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
       <div className="mx-auto flex h-[var(--qs-shell-topbar)] w-full max-w-[1640px] items-center gap-2 px-2.5 sm:px-4 lg:px-5">
         {onMenu ? <button type="button" onClick={onMenu} aria-label="Menu" className="grid size-8.5 shrink-0 place-items-center rounded-[9px] border border-border bg-card text-foreground shadow-[0_1px_2px_rgba(15,23,42,.03)] transition hover:bg-muted/60 lg:hidden"><MenuIcon className="size-4" /></button> : null}
 
-        <Link to={homeTo as never} className="min-w-0 shrink-0 lg:hidden" aria-label={restaurant?.name || "QuickServe"}>
-          {customLogo ? <span className="inline-flex h-8 max-w-[118px] items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-white px-2 shadow-sm"><img src={restaurant!.logo_url!} alt={restaurant?.name ?? "Restaurant"} className="h-6 w-auto max-w-full object-contain" /></span> : <BrandLogo className="size-7" accentClassName="text-[#e85d2a]" textClassName="text-base text-foreground" />}
+        <Link to={homeTo as never} className="qs-mobile-brand-link min-w-0 shrink-0 lg:hidden" aria-label={restaurant?.name || "QuickServe"}>
+          {customLogo ? <span className="qs-mobile-logo-box inline-flex items-center justify-center overflow-hidden border border-border/70 bg-white shadow-sm"><img src={restaurant!.logo_url!} alt={restaurant?.name ?? "Restaurant"} className="max-h-full max-w-full object-contain" /></span> : <BrandLogo className="size-7" accentClassName="text-[#e85d2a]" textClassName="text-base text-foreground" />}
         </Link>
 
         <div className="hidden min-w-0 items-center gap-3 lg:flex">
@@ -116,7 +116,7 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
           <kbd>⌘ K</kbd>
         </button>
 
-        <div className="ms-auto flex items-center gap-1 sm:gap-1.5">
+        <div className="qs-topbar-controls ms-auto flex min-w-0 items-center gap-1 sm:gap-1.5">
           <ThemeToggle compact className="qs-topbar-theme-control inline-flex" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

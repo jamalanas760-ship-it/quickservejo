@@ -1287,3 +1287,95 @@
     min-height:32px!important;
   }
 }
+
+
+/* Master mobile responsive system — 2026-09-28 */
+.qs-mobile-logo-box{width:38px;height:38px;border-radius:12px;padding:4px}
+.qs-topbar-controls{justify-content:flex-end}
+
+@media(max-width:767px){
+  .qs-topbar{min-height:56px!important}
+  .qs-topbar>div{height:56px!important;gap:5px!important;padding-inline:10px!important}
+  .qs-mobile-brand-link{display:flex;align-items:center;min-width:38px}
+  .qs-mobile-logo-box{width:36px;height:36px;border-radius:11px;padding:4px}
+  .qs-topbar-controls{gap:4px!important}
+  .qs-topbar-theme-control{width:64px!important;height:34px!important;padding:2px!important;border-radius:999px!important;background:var(--qs-surface-soft)!important;box-shadow:none!important}
+  .qs-topbar-theme-control>button{width:29px!important;min-width:29px!important;height:29px!important;min-height:29px!important;border-radius:999px!important}
+  .qs-topbar-theme-control>button svg{width:15px;height:15px}
+  .qs-topbar-language{width:34px!important;min-width:34px!important;height:34px!important;min-height:34px!important;border:1px solid var(--qs-stroke)!important;border-radius:10px!important;background:var(--qs-surface)!important;padding:0!important}
+  .qs-topbar-language svg:first-child{width:17px;height:17px}
+  .qs-topbar-controls button[aria-label="Notifications"],
+  .qs-topbar-controls button[aria-label="الإشعارات"]{width:34px!important;min-width:34px!important;height:34px!important;min-height:34px!important;border-radius:10px!important}
+  .qs-topbar-controls button[aria-label="Account menu"],
+  .qs-topbar-controls button[aria-label="قائمة الحساب"]{min-height:34px!important;padding-inline:2px!important}
+  .qs-topbar-controls button[aria-label="Account menu"]>span:first-child,
+  .qs-topbar-controls button[aria-label="قائمة الحساب"]>span:first-child{width:32px!important;height:32px!important}
+}
+
+/* Bottom navigation: five slots maximum for clean thumb-friendly use. */
+.qs-mobile-bottom-nav-shell{
+  border:1px solid color-mix(in srgb,var(--qs-stroke) 88%,transparent);
+  border-radius:19px;
+  background:color-mix(in srgb,var(--qs-surface) 95%,transparent);
+  padding:4px;
+  box-shadow:0 12px 34px rgb(15 23 42/.14);
+  backdrop-filter:blur(20px) saturate(1.1)
+}
+.qs-mobile-nav-item{border-radius:14px;padding:4px 2px 5px;overflow:hidden}
+.qs-mobile-nav-icon{display:grid;width:31px;height:28px;place-items:center;border-radius:10px;transition:background-color .16s ease,color .16s ease,transform .16s ease}
+.qs-mobile-nav-item.is-active{background:color-mix(in srgb,var(--qs-brand-soft) 72%,transparent);color:var(--restaurant-selected-nav,var(--qs-brand))!important}
+.qs-mobile-nav-item.is-active .qs-mobile-nav-icon{background:var(--qs-brand-soft);color:var(--restaurant-selected-nav,var(--qs-brand));transform:translateY(-1px)}
+.qs-mobile-nav-label{font-size:9px;line-height:1.05;letter-spacing:-.01em}
+.qs-mobile-nav-more svg{width:20px;height:20px}
+@media(max-width:767px){
+  .qs-app nav.qs-mobile-bottom-nav{inset-inline:8px!important;bottom:max(6px,env(safe-area-inset-bottom))!important}
+  .qs-app nav.qs-mobile-bottom-nav>div{border-radius:19px!important}
+  .qs-app nav.qs-mobile-bottom-nav a,
+  .qs-app nav.qs-mobile-bottom-nav button{min-height:58px!important}
+}
+@media(max-width:360px){
+  .qs-mobile-nav-label{font-size:8.5px}
+  .qs-mobile-bottom-nav-shell{padding:3px}
+  .qs-mobile-nav-item{padding-inline:1px}
+}
+
+/* Workspace tools is a calm mobile sheet; opening More never summons the keyboard. */
+@media(max-width:767px){
+  .qs-workspace-tools-dialog{width:calc(100vw - 12px)!important;max-width:calc(100vw - 12px)!important;max-height:calc(100dvh - 12px)!important;border-radius:20px!important}
+  .qs-workspace-tools-dialog .qs-workspace-tools-layout{min-height:0}
+  .qs-workspace-tools-dialog .qs-search-field{min-height:44px;box-shadow:none!important}
+  .qs-workspace-tools-dialog .qs-search-field input{font-size:16px!important}
+  .qs-workspace-tools-dialog kbd{display:none!important}
+}
+
+/* Every master page shares the same phone spacing and overflow discipline. */
+@media(max-width:767px){
+  .qs-page{padding:14px 12px calc(86px + env(safe-area-inset-bottom))!important}
+  .qs-route-frame,.qs-page,.qs-page>*,.qs-master-header,.qs-master-header>div,.qs-master-actions,.qs-page-actions{min-width:0!important;max-width:100%}
+  .qs-master-header>div{gap:12px!important;padding-block:4px!important}
+  .qs-page-title{font-size:1.48rem!important;line-height:1.12!important}
+  .qs-page-subtitle{margin-top:6px!important;font-size:.86rem!important;line-height:1.45!important}
+  .qs-page-actions,.qs-master-actions{width:100%!important;gap:8px!important;align-items:stretch!important}
+  .qs-page-actions>*,.qs-master-actions>*{min-width:0;max-width:100%}
+  .qs-page-actions>:is(a,button),.qs-master-actions>:is(a,button){min-height:42px!important}
+  .qs-card,.panel,.qs-kpi-card,.qs-settings-card{max-width:100%}
+  .qs-scroll-region{overscroll-behavior:contain}
+  .qs-page :is(input,textarea,select,[role="combobox"]){font-size:16px!important}
+}
+
+/* Menu Studio actions use a deliberate two-row phone layout. */
+@media(max-width:767px){
+  .qs-menu-header-actions{display:grid!important;width:100%;grid-template-columns:auto minmax(0,1fr);gap:8px!important}
+  .qs-menu-header-actions .qs-live-menu-pill{min-height:42px;justify-content:center;padding-inline:11px;white-space:nowrap}
+  .qs-menu-mode-control{width:100%;min-width:0;min-height:42px!important}
+  .qs-menu-mode-control>span{display:none!important}
+  .qs-menu-mode-control>button{min-width:0!important;flex:1 1 0;justify-content:center;padding-inline:8px!important}
+  .qs-menu-preview-button{grid-column:1/-1;width:100%;min-height:44px!important;justify-content:center}
+  .qs-menu-studio-master{gap:12px!important}
+  .qs-menu-workflow-grid{gap:8px!important}
+  .qs-menu-workflow-card{min-height:78px!important;padding:10px 12px!important}
+}
+@media(max-width:390px){
+  .qs-menu-header-actions{grid-template-columns:1fr}
+  .qs-menu-header-actions .qs-live-menu-pill,.qs-menu-mode-control,.qs-menu-preview-button{grid-column:1;width:100%}
+}

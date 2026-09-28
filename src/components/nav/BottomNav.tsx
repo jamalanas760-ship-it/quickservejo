@@ -158,13 +158,13 @@ export function BottomNav() {
   const desktopHasMore = desktopItems.some((item) => !desktopPrimary.some((primary) => primary.to === item.to));
 
   // Mobile mirrors the same user-defined order while keeping ergonomic tap targets.
-  // Home is fixed first, then the first four configured tools, followed by More when needed.
+  // Home is fixed first, then the first three configured tools, followed by More when needed.
   const customMobilePrimary = managerial && appearance.sidebarPinnedTools.length
     ? [
         ...desktopItems.filter((item) => item.to === homeTo).slice(0, 1),
         ...appearance.sidebarPinnedTools
           .flatMap((key) => desktopItems.find((item) => item.to !== homeTo && sidebarToolKey(item) === key) ?? [])
-          .slice(0, 4),
+          .slice(0, 3),
       ].filter((item, index, list) => list.findIndex((candidate) => candidate.to === item.to) === index)
     : [];
   const mobilePrimary = customMobilePrimary.length > 1
@@ -291,22 +291,21 @@ export function BottomNav() {
         </div>
       </aside>
 
-      <nav aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"} className="safe-bottom fixed inset-x-3 bottom-2 z-50 lg:hidden">
-        <div className="grid overflow-hidden rounded-[19px] border border-border bg-card/96 px-1 shadow-[0_14px_42px_rgba(15,23,42,.16)] backdrop-blur-xl" style={{ gridTemplateColumns: `repeat(${Math.max(1, mobilePrimary.length + (mobileHasMore ? 1 : 0))}, minmax(0,1fr))` }}>
+      <nav aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"} className="qs-mobile-bottom-nav safe-bottom fixed inset-x-3 bottom-2 z-50 lg:hidden">
+        <div className="qs-mobile-bottom-nav-shell grid overflow-hidden" style={{ gridTemplateColumns: `repeat(${Math.max(1, mobilePrimary.length + (mobileHasMore ? 1 : 0))}, minmax(0,1fr))` }}>
           {mobilePrimary.map((item) => {
             const active = activeFor(item);
             const Icon = item.icon;
             const count = countFor(item);
             return (
-              <Link key={`${item.to}-${item.en}`} to={item.to as never} preload="render" aria-current={active?"page":undefined} className={cn("relative flex min-h-[66px] flex-col items-center justify-center gap-1 text-[10px] font-semibold transition", active ? "text-[var(--restaurant-selected-nav,#e85d2a)]" : "text-muted-foreground")}>
-                <span className="relative"><Icon className="size-5" />{count > 0 ? <span className="absolute -end-2.5 -top-2 min-w-[17px] rounded-full bg-red-500 px-1 text-center text-[8px] font-black leading-[17px] text-white">{count > 99 ? "99+" : count}</span> : null}</span>
-                <span className="max-w-20 truncate">{lang === "ar" ? item.ar : item.en}</span>
-                {active ? <span className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-[var(--restaurant-selected-nav,#e85d2a)]" /> : null}
+              <Link key={`${item.to}-${item.en}`} to={item.to as never} preload="render" aria-current={active?"page":undefined} className={cn("qs-mobile-nav-item relative flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition", active ? "is-active text-[var(--restaurant-selected-nav,#e85d2a)]" : "text-muted-foreground")}>
+                <span className="qs-mobile-nav-icon relative"><Icon className="size-5" />{count > 0 ? <span className="absolute -end-2.5 -top-2 min-w-[17px] rounded-full bg-red-500 px-1 text-center text-[8px] font-black leading-[17px] text-white">{count > 99 ? "99+" : count}</span> : null}</span>
+                <span className="qs-mobile-nav-label w-full truncate px-1 text-center">{lang === "ar" ? item.ar : item.en}</span>
               </Link>
             );
           })}
           {mobileHasMore ? (
-            <button type="button" onClick={() => setMoreOpen(true)} aria-expanded={moreOpen} className={cn("relative flex min-h-[62px] flex-col items-center justify-center gap-1 text-[10px] font-semibold text-muted-foreground transition hover:text-foreground")}>
+            <button type="button" onClick={() => setMoreOpen(true)} aria-expanded={moreOpen} className={cn("qs-mobile-nav-item qs-mobile-nav-more relative flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 text-[10px] font-semibold text-muted-foreground transition hover:text-foreground")}>
               <MoreHorizontal className="size-5" />
               <span>{lang === "ar" ? "المزيد" : "More"}</span>
             </button>
@@ -338,7 +337,7 @@ export function BottomNav() {
                 </div>
                 <div className="qs-search-field mt-4">
                   <Search />
-                  <Input autoFocus value={toolSearch} onChange={(event) => setToolSearch(event.target.value)} placeholder={lang === "ar" ? "ابحث عن الطلبات، الفريق، التحليلات…" : "Search orders, team, analytics…"} aria-label={lang === "ar" ? "البحث في الأدوات" : "Search tools"} />
+                  <Input value={toolSearch} inputMode="search" onChange={(event) => setToolSearch(event.target.value)} placeholder={lang === "ar" ? "ابحث عن الطلبات، الفريق، التحليلات…" : "Search orders, team, analytics…"} aria-label={lang === "ar" ? "البحث في الأدوات" : "Search tools"} />
                   <kbd>Ctrl K</kbd>
                 </div>
               </DialogHeader>

@@ -24,7 +24,7 @@ export function MasterPageHeader({
           <h1 className="qs-page-title min-w-0 whitespace-normal leading-tight">{title}</h1>
           {description ? <p className="qs-page-subtitle mt-2">{description}</p> : null}
         </div>
-        {actions ? <div className="qs-page-actions flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">{actions}</div> : null}
+        {actions ? <div className="qs-page-actions qs-master-actions flex w-full min-w-0 shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">{actions}</div> : null}
       </div>
       {tabs ? <div className="no-scrollbar mt-2 overflow-x-auto border-t border-border/80 py-2">{tabs}</div> : null}
     </section>

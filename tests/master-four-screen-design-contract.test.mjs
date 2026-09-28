@@ -11,6 +11,7 @@ const analyticsRoute = await readFile(new URL("../src/routes/_authenticated/mana
 const header = await readFile(new URL("../src/components/nav/AppHeader.tsx", import.meta.url), "utf8");
 const nav = await readFile(new URL("../src/components/nav/BottomNav.tsx", import.meta.url), "utf8");
 const styles = await readFile(new URL("../src/quickserve-system.css", import.meta.url), "utf8");
+const masterPage = await readFile(new URL("../src/components/app/MasterPage.tsx", import.meta.url), "utf8");
 
 test("approved Menu Studio layout is implemented", () => {
   assert.match(menu,/qs-menu-studio-master/);
@@ -134,4 +135,26 @@ test("mobile navigation mirrors the configured sidebar and preferences live in t
   assert.match(header,/qs-topbar-language/);
   assert.match(settings,/Mobile: first 4/);
   assert.match(styles,/Mobile navigation master alignment/);
+});
+
+
+test("mobile master UX prevents unwanted keyboard focus and keeps navigation compact", () => {
+  assert.doesNotMatch(nav,/Input autoFocus/);
+  assert.match(nav,/inputMode="search"/);
+  assert.match(nav,/customMobilePrimary/);
+  assert.match(nav,/slice\(0, 3\)/);
+  assert.match(nav,/qs-mobile-bottom-nav/);
+  assert.match(nav,/qs-mobile-nav-item/);
+  assert.match(header,/qs-topbar-controls/);
+  assert.match(header,/qs-mobile-logo-box/);
+  assert.match(styles,/Master mobile responsive system/);
+  assert.match(styles,/five slots maximum/);
+});
+
+test("Menu Studio mobile actions use the shared aligned responsive layout", () => {
+  assert.match(menu,/qs-menu-header-actions/);
+  assert.match(menu,/qs-menu-mode-control/);
+  assert.match(menu,/qs-menu-preview-button/);
+  assert.match(masterPage,/qs-master-actions/);
+  assert.match(styles,/Menu Studio actions use a deliberate two-row phone layout/);
 });
