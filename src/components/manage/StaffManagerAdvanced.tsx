@@ -307,7 +307,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   });
   const admins = (staff.data ?? []).filter((row) => row.role === "restaurant_admin").length;
   const staffOnly = (staff.data ?? []).length - admins;
-  const scheduleByStaff = useMemo(() => {  const scheduleByStaff = useMemo(() => {
+  const scheduleByStaff = useMemo(() => {
     const result = new Map<string, StaffScheduleSummary>();
     const shiftsById = new Map((schedule.data?.shifts ?? []).map((shift) => [shift.id, shift]));
     for (const assignment of schedule.data?.assignments ?? []) {
@@ -572,7 +572,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   }
 
   return (
-    <div className="qs-viewport-fill flex h-full min-h-0 flex-col gap-4">
+    <div className="qs-workforce-screen qs-workforce-team qs-viewport-fill flex h-full min-h-0 flex-col gap-4">
+      <div className="qs-workforce-hero">
       <MasterPageHeader
         eyebrow={
           <MasterEyebrow icon={UsersRound}>{ar ? "إدارة الفريق" : "Team management"}</MasterEyebrow>
@@ -590,15 +591,16 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           </Button>
         }
       />
+      </div>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 [&>article]:transition-all [&>article]:duration-200 [&>article:hover]:-translate-y-0.5 [&>article:hover]:shadow-md">
+      <section className="qs-workforce-kpis grid gap-3 sm:grid-cols-2 xl:grid-cols-4 [&>article]:transition-all [&>article]:duration-200 [&>article:hover]:-translate-y-0.5 [&>article:hover]:shadow-md">
         <MasterKpi icon={UsersRound} label={ar ? "إجمالي الفريق" : "Total Staff"} value={String((staff.data ?? []).length)} hint={seatLimit == null ? (ar ? "غير محدود" : "Unlimited seats") : `${seatsUsed}/${seatLimit} seats`} tone="blue" />
         <MasterKpi icon={CalendarClock} label={ar ? "على رأس العمل" : "On Shift Now"} value={String(onShiftNow)} hint={ar ? "حضور حي الآن" : "Live attendance"} tone="green" />
         <MasterKpi icon={UserRound} label={ar ? "خارج الوردية" : "Off Shift"} value={String(offShiftNow)} hint={ar ? "متاحون خارج الدوام" : "Not clocked in"} tone="slate" />
         <MasterKpi icon={CalendarPlus} label={ar ? "في إجازة" : "On Leave"} value={String(onLeaveNow)} hint={ar ? "إجازة معتمدة اليوم" : "Approved today"} tone={onLeaveNow ? "purple" : "orange"} />
       </section>
 
-      <section className="qs-card qs-viewport-fill flex min-h-0 min-w-0 flex-col overflow-hidden">
+      <section className="qs-workforce-board qs-card qs-viewport-fill flex min-h-0 min-w-0 flex-col overflow-hidden">
         <div className="border-b border-border bg-muted/10 p-3">
           <div className="flex w-full gap-1 overflow-x-auto rounded-xl bg-muted/50 p-1 lg:w-auto lg:max-w-fit">
             {(
@@ -650,7 +652,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                     const clockEntry = openClockByStaff.get(member.id);
                     const isOnLeave = leaveStaffIds.has(member.id);
                     return (
-                      <tr key={member.id} className="group transition-colors hover:bg-orange-500/[0.025]">
+                      <tr key={member.id} className="qs-workforce-row group transition-colors hover:bg-orange-500/[0.025]">
                         <td className="text-muted-foreground">#{String(index + 1).padStart(3, "0")}</td>
                         <td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex min-w-0 items-center gap-3 text-start"><span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold ring-1 ring-border transition group-hover:ring-orange-200">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="min-w-0"><strong className="block truncate text-sm font-bold">{member.name}</strong><span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{member.email ?? "—"}</span></span></button></td>
                         <td><span className={cn("qs-status", ROLE_TONE[member.role])}>{ROLE_NAMES[member.role][lang]}</span></td>

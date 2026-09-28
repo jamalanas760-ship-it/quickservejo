@@ -373,3 +373,136 @@
 .pdf-order-surface[lang="ar"] :is(h1, h2, h3, p) {
   text-align: start;
 }
+
+
+/* Workforce master UI — Team + Shifts */
+@keyframes qs-workforce-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes qs-workforce-glow {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.68 0.205 42 / 0); }
+  50% { box-shadow: 0 0 0 5px oklch(0.68 0.205 42 / 0.08); }
+}
+@keyframes qs-workforce-sheen {
+  from { transform: translateX(-120%) skewX(-18deg); }
+  to { transform: translateX(260%) skewX(-18deg); }
+}
+.qs-workforce-screen {
+  position: relative;
+  isolation: isolate;
+}
+.qs-workforce-screen::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(55rem 24rem at 72% -6%, oklch(0.75 0.12 55 / 0.09), transparent 66%),
+    radial-gradient(32rem 20rem at 14% 8%, oklch(0.92 0.06 72 / 0.16), transparent 70%);
+}
+.dark .qs-workforce-screen::before {
+  background:
+    radial-gradient(50rem 22rem at 72% -8%, oklch(0.72 0.14 60 / 0.07), transparent 68%),
+    radial-gradient(28rem 20rem at 12% 8%, oklch(0.45 0.08 70 / 0.08), transparent 70%);
+}
+.qs-workforce-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  border-radius: 1.35rem;
+  background:
+    linear-gradient(110deg, color-mix(in oklab, var(--card) 96%, transparent), color-mix(in oklab, var(--card) 86%, transparent)),
+    radial-gradient(30rem 12rem at 84% 18%, oklch(0.76 0.15 52 / 0.16), transparent 72%);
+  box-shadow: 0 14px 44px oklch(0.28 0.04 55 / 0.07);
+  padding: clamp(0.85rem, 1.5vw, 1.25rem);
+  animation: qs-workforce-rise .38s cubic-bezier(.2,.8,.2,1) both;
+}
+.qs-workforce-hero::after {
+  content: "";
+  position: absolute;
+  top: -40%;
+  bottom: -40%;
+  width: 18%;
+  opacity: .42;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / .55), transparent);
+  animation: qs-workforce-sheen 8s ease-in-out infinite;
+}
+.qs-workforce-kpis > article {
+  border-color: color-mix(in oklab, var(--border) 78%, transparent);
+  box-shadow: 0 8px 28px oklch(0.28 0.035 60 / 0.055);
+  animation: qs-workforce-rise .42s cubic-bezier(.2,.8,.2,1) both;
+}
+.qs-workforce-kpis > article:nth-child(2) { animation-delay: .04s; }
+.qs-workforce-kpis > article:nth-child(3) { animation-delay: .08s; }
+.qs-workforce-kpis > article:nth-child(4) { animation-delay: .12s; }
+.qs-workforce-board {
+  border-color: color-mix(in oklab, var(--border) 82%, transparent);
+  box-shadow: 0 16px 48px oklch(0.25 0.035 60 / 0.07);
+  animation: qs-workforce-rise .48s .08s cubic-bezier(.2,.8,.2,1) both;
+}
+.qs-workforce-team .qs-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  backdrop-filter: blur(14px);
+  background: color-mix(in oklab, var(--card) 90%, transparent);
+}
+.qs-workforce-row {
+  position: relative;
+}
+.qs-workforce-row::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 16%;
+  bottom: 16%;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--primary);
+  opacity: 0;
+  transform: scaleY(.45);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.qs-workforce-row:hover::after {
+  opacity: 1;
+  transform: scaleY(1);
+}
+.qs-workforce-row td {
+  transition: background-color .2s ease, transform .2s ease;
+}
+.qs-workforce-row:hover td:first-child {
+  color: var(--primary);
+}
+.qs-shift-weekstrip {
+  box-shadow: 0 8px 26px oklch(0.25 0.035 60 / 0.05);
+  animation: qs-workforce-rise .42s .04s cubic-bezier(.2,.8,.2,1) both;
+}
+.qs-workforce-shifts .qs-workforce-board button[class*="rounded-full"] {
+  transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+}
+.qs-workforce-shifts .qs-workforce-board button[class*="rounded-full"]:hover {
+  filter: saturate(1.08);
+}
+.qs-workforce-shifts [class*="animate-pulse"],
+.qs-workforce-team [class*="animate-pulse"] {
+  animation-duration: 1.8s;
+}
+.qs-workforce-screen button:focus-visible {
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .qs-workforce-hero,
+  .qs-workforce-kpis > article,
+  .qs-workforce-board,
+  .qs-shift-weekstrip,
+  .qs-workforce-hero::after {
+    animation: none !important;
+  }
+  .qs-workforce-row::after,
+  .qs-workforce-row td {
+    transition: none !important;
+  }
+}
