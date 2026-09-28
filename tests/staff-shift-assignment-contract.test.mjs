@@ -8,9 +8,9 @@ const source = await readFile(
 );
 
 test("staff page creates shared shift assignments and refreshes the shifts workspace", () => {
-  assert.match(source, /<th className="text-center">\{ar \? "الوردية" : "Shift"\}<\/th>/);
+  assert.match(source, /Today's Shift/);
+  assert.match(source, /<StaffShiftSummaryCell/);
   assert.match(source, /<StaffShiftCell/);
-  assert.match(source, /schedule \? \(ar \? "تعديل" : "Change"\) : ar \? "إضافة" : "Add shift"/);
   assert.match(source, /AssignStaffShiftDialog/);
   assert.match(source, /assignStaffShift/);
   assert.match(source, /assignStaffShift\(/);
@@ -99,4 +99,13 @@ test("team add-shift dialog supports professional recurring workday schedules", 
   assert.match(migration, /Recurring shift overlaps another assignment on/);
   assert.match(migration, /Recurring schedule cannot exceed 366 days/);
   assert.match(migration, /staff_recurring_shifts_assigned/);
+});
+
+
+test("team shift dialog keeps actions visible and shows a live schedule preview", () => {
+  assert.match(source, /max-h-\[min\(92dvh,860px\)\]/);
+  assert.match(source, /sticky bottom-0 z-20/);
+  assert.match(source, /Schedule preview/);
+  assert.match(source, /Live preview/);
+  assert.match(source, /formatTimeInput/);
 });

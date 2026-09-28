@@ -195,3 +195,15 @@ test("team and shifts pages implement the approved modern live workforce design"
   assert.match(shifts, /Create shift/);
   assert.match(shifts, /"timeline" \| "calendar" \| "list"/);
 });
+
+
+test("shifts page places a modern live clock hero above shift coverage", async () => {
+  const shifts = await file("src/routes/_authenticated/shifts.tsx");
+  assert.match(shifts, /function WorkforceClockHero/);
+  assert.ok(shifts.indexOf("<WorkforceClockHero") < shifts.indexOf("Shift coverage"));
+  assert.match(shifts, /You are currently on shift/);
+  assert.match(shifts, /Current session/);
+  assert.match(shifts, /Expected end/);
+  assert.match(shifts, /Clock out/);
+  assert.match(shifts, /hideAttendance/);
+});

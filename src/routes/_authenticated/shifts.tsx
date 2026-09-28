@@ -131,6 +131,15 @@ function ShiftsPage() {
         <MasterKpi icon={AlertTriangle} label={ar ? "تحتاج انتباه" : "Needs Attention"} value={needsAttention} hint={pendingHandovers ? (ar ? "تسليمات معلقة" : "Pending handovers") : (ar ? "لا مشاكل حرجة" : "No critical issues")} tone={needsAttention ? "red" : "green"} />
       </section>
 
+      <WorkforceClockHero
+        restaurantId={rid}
+        currentStaffId={membership.id}
+        members={members.data ?? []}
+        assignments={assignments.data ?? []}
+        ar={ar}
+        lang={lang}
+      />
+
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,.65fr)]">
         <div className="qs-workforce-board qs-card min-w-0 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4"><div><h2 className="qs-section-title">{ar ? "تغطية الورديات" : "Shift coverage"}</h2><p className="mt-1 text-xs text-muted-foreground">{formatShiftDateLabel(selectedDate, ar)} · {selectedRows.length} {ar ? "ورديات" : "shifts"}</p></div><span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-[10px] font-bold text-muted-foreground"><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />{ar ? "تحديث حي" : "Live preview"}</span></div>
@@ -146,7 +155,7 @@ function ShiftsPage() {
       </section>
 
       {openShiftRow ? <CurrentShift shift={openShiftRow} assignments={(assignments.data ?? []).filter((row) => row.shift_id === openShiftRow.id)} members={members.data ?? []} canManage={canManage} currentStaffId={membership.id} ar={ar} lang={lang} onClose={() => setClosingShift(openShiftRow)} /> : <section className="qs-card flex items-center gap-4 p-5"><span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-5" /></span><div><h2 className="font-bold">{ar ? "لا توجد وردية مفتوحة" : "No shift is open"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكن لمدير الوردية فتح وردية مخططة عندما يبدأ التشغيل." : "A shift manager can open a planned shift when service starts."}</p></div></section>}
-      <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} shifts={rows} assignments={assignments.data ?? []} ar={ar} lang={lang} />
+      <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} shifts={rows} assignments={assignments.data ?? []} ar={ar} lang={lang} hideAttendance />
     </main>
 
     <DetailSheet
@@ -234,7 +243,256 @@ type LeaveRequest = { id: string; staff_id: string; start_date: string; end_date
 type ClockStatus = { entry_id: string; staff_id: string; clock_in: string; server_now?: string; elapsed_seconds?: number };
 type ClockResult = { action?: string; entry_id?: string | null; staff_id?: string | null; at?: string; clock_in?: string | null } | null;
 
-function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shifts, assignments, ar, lang }: { restaurantId: string; currentStaffId: string; canManage: boolean; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; shifts: Shift[]; assignments: ShiftAssignment[]; ar: boolean; lang: "en" | "ar" }) {
+function WorkforceClockHero({
+  restaurantId,
+  currentStaffId,
+  members,
+  assignments,
+  ar,
+  lang,
+}: {
+  restaurantId: string;
+  currentStaffId: string;
+  members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>;
+  assignments: ShiftAssignment[];
+  ar: boolean;
+  lang: "en" | "ar";
+}) {
+  const qc = useQueryClient();
+  const [clockNow, setClockNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const clockStatus = useQuery<ClockStatus | null>({
+    queryKey: ["workforce-clock", restaurantId, currentStaffId],
+    refetchInterval: 10_000,
+    staleTime: 2_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("get_my_time_clock_status", {
+        _restaurant_id: restaurantId,
+      });
+      if (error) throw error;
+      const row = (Array.isArray(data) ? data[0] : data) as ClockStatus | null;
+      return row?.entry_id ? row : null;
+    },
+  });
+
+  const history = useQuery<TimeEntry[]>({
+    queryKey: ["workforce-clock-history", restaurantId, currentStaffId],
+    refetchInterval: 20_000,
+    queryFn: async () => {
+      const since = new Date(Date.now() - 14 * 86_400_000).toISOString();
+      const { data, error } = await (supabase.from("staff_time_entries" as any) as any)
+        .select("id,staff_id,clock_in,clock_out,break_minutes")
+        .eq("restaurant_id", restaurantId)
+        .eq("staff_id", currentStaffId)
+        .gte("clock_in", since)
+        .order("clock_in", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data ?? []) as TimeEntry[];
+    },
+  });
+
+  const openEntry: TimeEntry | null = clockStatus.data
+    ? {
+        id: clockStatus.data.entry_id,
+        staff_id: clockStatus.data.staff_id,
+        clock_in: clockStatus.data.clock_in,
+        clock_out: null,
+        break_minutes: 0,
+      }
+    : null;
+  const currentSessionSeconds = openEntry
+    ? Math.max(0, Math.floor((clockNow - new Date(openEntry.clock_in).getTime()) / 1000))
+    : 0;
+  const todayKey = new Date(clockNow).toLocaleDateString("en-CA");
+  const todayWorkedSeconds = (history.data ?? [])
+    .filter((entry) => new Date(entry.clock_in).toLocaleDateString("en-CA") === todayKey)
+    .reduce((sum, entry) => {
+      const startMs = new Date(entry.clock_in).getTime();
+      const endMs = entry.clock_out ? new Date(entry.clock_out).getTime() : clockNow;
+      return sum + Math.max(0, Math.floor((endMs - startMs) / 1000) - Number(entry.break_minutes || 0) * 60);
+    }, 0);
+
+  const staffMember = members.find((member) => member.id === currentStaffId) ?? null;
+  const liveAssignment =
+    assignments
+      .filter(
+        (assignment) =>
+          assignment.staff_id === currentStaffId &&
+          assignment.status !== "released" &&
+          assignment.starts_at &&
+          assignment.ends_at,
+      )
+      .map((assignment) => ({
+        assignment,
+        startMs: new Date(assignment.starts_at!).getTime(),
+        endMs: new Date(assignment.ends_at!).getTime(),
+      }))
+      .filter((item) => Number.isFinite(item.startMs) && Number.isFinite(item.endMs))
+      .sort((a, b) => {
+        const aLive = a.startMs <= clockNow && a.endMs >= clockNow;
+        const bLive = b.startMs <= clockNow && b.endMs >= clockNow;
+        if (aLive !== bLive) return aLive ? -1 : 1;
+        return Math.abs(a.startMs - clockNow) - Math.abs(b.startMs - clockNow);
+      })[0]?.assignment ?? null;
+
+  const expectedEnd = openEntry ? liveAssignment?.ends_at ?? null : null;
+  const nextShift =
+    !openEntry
+      ? assignments
+          .filter(
+            (assignment) =>
+              assignment.staff_id === currentStaffId &&
+              assignment.status !== "released" &&
+              assignment.starts_at &&
+              new Date(assignment.starts_at).getTime() >= clockNow,
+          )
+          .sort((a, b) => new Date(a.starts_at!).getTime() - new Date(b.starts_at!).getTime())[0] ?? null
+      : null;
+
+  const toggleClock = useMutation({
+    mutationFn: async () => {
+      const rpc = openEntry ? "clock_out_staff" : "clock_in_staff";
+      const { data, error } = await (supabase as any).rpc(rpc, { _restaurant_id: restaurantId });
+      if (error) throw error;
+      return (Array.isArray(data) ? data[0] : data) as ClockResult;
+    },
+    onSuccess: async (result) => {
+      const action = result?.action?.toLowerCase();
+      const at = result?.at ?? new Date().toISOString();
+      const isOut = action === "clocked_out" || action === "already_clocked_out";
+      const isIn = action === "clocked_in" || action === "already_clocked_in";
+      if (isIn && result?.entry_id && result?.staff_id) {
+        qc.setQueryData<ClockStatus | null>(
+          ["workforce-clock", restaurantId, currentStaffId],
+          () => ({
+            entry_id: result.entry_id!,
+            staff_id: result.staff_id!,
+            clock_in: result.clock_in ?? at,
+            server_now: at,
+          }),
+        );
+      } else if (isOut) {
+        qc.setQueryData<ClockStatus | null>(
+          ["workforce-clock", restaurantId, currentStaffId],
+          () => null,
+        );
+      }
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["workforce-clock", restaurantId, currentStaffId] }),
+        qc.invalidateQueries({ queryKey: ["workforce-clock-history", restaurantId, currentStaffId] }),
+        qc.invalidateQueries({ queryKey: ["workforce", restaurantId] }),
+      ]);
+      toast.success(
+        isOut
+          ? ar
+            ? "تم تسجيل الانصراف"
+            : "Clocked out"
+          : ar
+            ? "تم تسجيل الحضور"
+            : "Clocked in",
+      );
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  const expectedLabel = expectedEnd
+    ? new Date(expectedEnd).toLocaleTimeString(ar ? "ar-JO" : "en-JO", { hour: "2-digit", minute: "2-digit" })
+    : nextShift?.starts_at
+      ? new Date(nextShift.starts_at).toLocaleTimeString(ar ? "ar-JO" : "en-JO", { hour: "2-digit", minute: "2-digit" })
+      : "—";
+  const expectedHint = expectedEnd
+    ? formatRelativeClock(expectedEnd, clockNow, ar)
+    : nextShift?.starts_at
+      ? (ar ? "الوردية القادمة" : "Next shift") + " · " + new Date(nextShift.starts_at).toLocaleDateString(ar ? "ar-JO" : "en-JO", { month: "short", day: "numeric" })
+      : ar
+        ? "لا توجد وردية قادمة"
+        : "No upcoming shift";
+
+  return (
+    <section className={cn("qs-clock-hero", openEntry && "is-active")}>
+      <div className="qs-clock-hero-person">
+        <span className="qs-clock-avatar">{(staffMember?.name ?? "T").slice(0, 2).toUpperCase()}</span>
+        <div className="min-w-0">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold",
+              openEntry
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : "bg-muted text-muted-foreground",
+            )}
+          >
+            <i className={cn("size-1.5 rounded-full", openEntry ? "bg-emerald-500 animate-pulse" : "bg-slate-400")} />
+            {openEntry
+              ? ar
+                ? "أنت على رأس العمل الآن"
+                : "You are currently on shift"
+              : ar
+                ? "جاهز لتسجيل الحضور"
+                : "Ready to clock in"}
+          </span>
+          <strong className="mt-2 block truncate font-display text-base sm:text-lg">
+            {staffMember?.name ?? (ar ? "عضو الفريق" : "Team member")}
+          </strong>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {staffMember ? ROLE_LABELS[staffMember.role]?.[lang] ?? staffMember.role : "—"}
+            {openEntry
+              ? " · " + (ar ? "بدأ" : "Started") + " " + new Date(openEntry.clock_in).toLocaleTimeString(ar ? "ar-JO" : "en-JO", { hour: "2-digit", minute: "2-digit" })
+              : ""}
+          </p>
+        </div>
+      </div>
+
+      <div className="qs-clock-hero-metrics">
+        <div className="qs-clock-metric">
+          <Clock3 className="size-4 text-muted-foreground" />
+          <span>
+            <small>{openEntry ? (ar ? "الجلسة الحالية" : "Current session") : (ar ? "وقت العمل اليوم" : "Worked today")}</small>
+            <strong>{formatClockDuration(openEntry ? currentSessionSeconds : todayWorkedSeconds, ar)}</strong>
+          </span>
+        </div>
+        <div className="qs-clock-metric">
+          <CalendarClock className="size-4 text-muted-foreground" />
+          <span>
+            <small>{openEntry ? (ar ? "النهاية المتوقعة" : "Expected end") : (ar ? "الوردية القادمة" : "Next shift")}</small>
+            <strong>{expectedLabel}</strong>
+            <em>{expectedHint}</em>
+          </span>
+        </div>
+      </div>
+
+      <div className="qs-clock-hero-action">
+        <Button
+          size="lg"
+          className="min-w-[168px] bg-[#ff5722] shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#ed4f1d]"
+          aria-busy={toggleClock.isPending}
+          onClick={() => toggleClock.mutate()}
+          disabled={toggleClock.isPending || clockStatus.isPending}
+        >
+          {openEntry ? <StopCircle className="size-5" /> : <TimerReset className="size-5" />}
+          {toggleClock.isPending
+            ? ar
+              ? "جارٍ التحديث…"
+              : "Updating…"
+            : openEntry
+              ? ar
+                ? "تسجيل الانصراف"
+                : "Clock out"
+              : ar
+                ? "تسجيل الحضور"
+                : "Clock in"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shifts, assignments, ar, lang, hideAttendance = false }: { restaurantId: string; currentStaffId: string; canManage: boolean; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; shifts: Shift[]; assignments: ShiftAssignment[]; ar: boolean; lang: "en" | "ar"; hideAttendance?: boolean }) {
   const qc = useQueryClient();
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaveStart, setLeaveStart] = useState(new Date().toISOString().slice(0, 10));
@@ -460,8 +718,8 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
   }
 
   return <section className="space-y-4">
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]">
-    <div className="qs-card overflow-hidden">
+    <div className={cn("grid gap-4", hideAttendance ? "grid-cols-1" : "xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]")}>
+    {!hideAttendance ? <div className="qs-card overflow-hidden">
       <div className="flex flex-col gap-4 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
         <div><h2 className="qs-section-title">{ar ? "الحضور والوقت" : "Attendance & time"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "ساعة حضور فعلية مرتبطة بحساب كل موظف." : "A real time clock tied to each staff account."}</p></div>
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto"><Button variant="outline" onClick={() => setLeaveOpen(true)}><CalendarDays className="size-4"/>{ar ? "طلب إجازة" : "Request leave"}</Button><Button className="min-w-[132px]" variant={openEntry ? "destructive" : "default"} aria-busy={toggleClock.isPending} aria-pressed={Boolean(openEntry)} onClick={() => toggleClock.mutate()} disabled={toggleClock.isPending || clockStatus.isPending}>{openEntry ? <StopCircle className="size-4"/> : <TimerReset className="size-4"/>}{toggleClock.isPending ? (ar ? "جارٍ التحديث…" : "Updating…") : openEntry ? (ar ? "انصراف" : "Clock out") : (ar ? "حضور" : "Clock in")}</Button></div>
@@ -513,7 +771,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
         </div>
       </div>
       {canManage && clockedIn.length ? <div className="border-t border-border p-4"><p className="mb-2 text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "الفريق الموجود الآن" : "Team on the clock"}</p><div className="flex flex-wrap gap-2">{clockedIn.slice(0,12).map(entry=><span key={entry.id} className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold">{memberName(entry.staff_id)} · {new Date(entry.clock_in).toLocaleTimeString(ar?"ar-JO":"en-JO",{hour:"2-digit",minute:"2-digit"})}</span>)}</div></div> : null}
-    </div>
+    </div> : null}
 
     <div className="qs-card overflow-hidden">
       <div className="border-b border-border p-5"><div className="flex items-center justify-between gap-3"><div><h2 className="qs-section-title">{ar ? "طلبات الإجازة" : "Leave requests"}</h2><p className="mt-1 text-xs text-muted-foreground">{canManage ? (ar ? "راجع الطلبات المعلقة." : "Review pending requests.") : (ar ? "آخر طلباتك." : "Your recent requests.")}</p></div>{pendingLeave.length ? <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-700">{pendingLeave.length}</span> : null}</div></div>
@@ -629,7 +887,8 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
 }
 
 function formatLeaveTime(value: string | null | undefined) { return value ? value.slice(0, 5) : "—"; }
-function formatClockDuration(seconds: number, ar: boolean) { const total = Math.max(0, Math.floor(seconds / 60)); const hours = Math.floor(total / 60); const minutes = total % 60; return ar ? `${hours}س ${minutes}د` : `${hours}h ${minutes}m`; }
+function formatClockDuration(seconds: number, ar: boolean) { const total = Math.max(0, Math.floor(seconds / 60)); const hours = Math.floor(total / 60); const minutes = total % 60; return ar ? String(hours) + "س " + String(minutes) + "د" : String(hours) + "h " + String(minutes) + "m"; }
+function formatRelativeClock(value: string, nowMs: number, ar: boolean) { const diff = Math.max(0, new Date(value).getTime() - nowMs); const total = Math.floor(diff / 60000); const hours = Math.floor(total / 60); const minutes = total % 60; return ar ? "بعد " + hours + "س " + minutes + "د" : "in " + hours + "h " + minutes + "m"; }
 function localShiftDateTimeIso(date: string, time: string, addDays = 0) { const value = new Date(`${date}T${time}:00`); if (addDays) value.setDate(value.getDate() + addDays); if (Number.isNaN(value.getTime())) throw new Error("Invalid shift date or time."); return value.toISOString(); }
 
 function LaborMetric({label,value,warning=false}:{label:string;value:string;warning?:boolean}){

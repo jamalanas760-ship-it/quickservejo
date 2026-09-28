@@ -1587,10 +1587,21 @@ function AssignStaffShiftDialog({
   const newReady =
     Boolean(name.trim() && date && start && end) &&
     (newMode === "single" || Boolean(rangeEnd && weekdays.length && !invalidRange));
+  const selectedDaysLabel =
+    newMode === "single"
+      ? date
+      : weekdays.length === 5 && [0, 1, 2, 3, 4].every((day) => weekdays.includes(day))
+        ? ar ? "الأحد–الخميس" : "Sun–Thu"
+        : weekdays.length === 2 && weekdays.includes(5) && weekdays.includes(6)
+          ? ar ? "عطلة الأسبوع" : "Weekend"
+          : TEAM_SHIFT_WEEKDAYS.filter((day) => weekdays.includes(day.value))
+              .map((day) => (ar ? day.ar : day.en))
+              .join(" · ");
+  const previewWindow = formatTimeInput(start, ar) + " – " + formatTimeInput(end, ar);
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !mutation.isPending) onClose(); }}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-none overflow-hidden p-0 sm:max-w-[680px]">
+      <DialogContent className="flex max-h-[min(92dvh,860px)] w-[calc(100vw-1.5rem)] max-w-none flex-col overflow-hidden p-0 sm:max-w-[680px]">
         <div className="border-b border-border bg-muted/15 px-5 py-4">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1603,7 +1614,7 @@ function AssignStaffShiftDialog({
           </DialogHeader>
         </div>
 
-        <div className="max-h-[72vh] space-y-5 overflow-y-auto px-5 py-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
           <div className="grid grid-cols-2 rounded-xl border border-border bg-muted/25 p-1">
             <button type="button" disabled={!available.length} onClick={() => setMode("existing")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "existing" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground", !available.length && "cursor-not-allowed opacity-45")}>
               {ar ? "وردية موجودة" : "Existing shift"}
@@ -1669,15 +1680,31 @@ function AssignStaffShiftDialog({
             </div>
           )}
 
-          <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
-            <span className="grid size-10 place-items-center rounded-full bg-muted font-bold">{member.name.slice(0, 1).toUpperCase()}</span>
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5">
+            <span className="grid size-10 place-items-center rounded-full bg-orange-500/10 font-bold text-[#d94a19]">{member.name.slice(0, 1).toUpperCase()}</span>
             <div className="min-w-0"><strong className="block truncate text-sm">{member.name}</strong><span className="text-xs text-muted-foreground">{ROLE_NAMES[member.role][lang]}</span></div>
           </div>
+
+          {mode === "new" && newReady ? (
+            <div className="qs-shift-preview-card">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-orange-500/12 text-[#e85d2a]"><CalendarPlus className="size-4" /></span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <strong className="text-sm">{ar ? "معاينة الجدول" : "Schedule preview"}</strong>
+                  <span className="qs-live-dot"><i />{ar ? "معاينة حية" : "Live preview"}</span>
+                </div>
+                <p className="mt-1 truncate text-xs text-muted-foreground">
+                  {selectedDaysLabel} · {previewWindow}
+                  {newMode === "recurring" ? " · " + weekdays.length + " " + (ar ? "أيام بالأسبوع" : "days per week") : ""}
+                </p>
+              </div>
+            </div>
+          ) : null}
         </div>
 
-        <DialogFooter className="border-t border-border bg-card px-5 py-4">
-          <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button>
-          <Button type="button" disabled={mutation.isPending || (mode === "existing" ? !shiftId : !newReady)} onClick={() => mutation.mutate()}>
+        <DialogFooter className="sticky bottom-0 z-20 grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-5 py-4 shadow-[0_-18px_34px_-28px_rgba(15,23,42,.45)] backdrop-blur sm:flex sm:justify-end">
+          <Button type="button" variant="outline" className="min-w-24" disabled={mutation.isPending} onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button type="button" className="min-w-36 shadow-md" disabled={mutation.isPending || (mode === "existing" ? !shiftId : !newReady)} onClick={() => mutation.mutate()}>
             <CalendarPlus className="size-4" />
             {mutation.isPending ? (ar ? "جارٍ الحفظ…" : "Saving…") : mode === "new" && newMode === "recurring" ? (ar ? "تعيين الجدول" : "Assign schedule") : (ar ? "إضافة الوردية" : "Assign shift")}
           </Button>
@@ -1906,6 +1933,13 @@ function localDateKey(value: Date) {
   const month = String(value.getMonth() + 1).padStart(2, "0");
   const day = String(value.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function formatTimeInput(value: string, ar: boolean) {
+  if (!value) return "—";
+  const parts = value.split(":").map(Number);
+  const date = new Date(2000, 0, 1, parts[0] || 0, parts[1] || 0);
+  return date.toLocaleTimeString(ar ? "ar-JO" : "en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
 function localDateTimeIso(date: string, time: string, addDays = 0) {
