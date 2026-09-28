@@ -28,7 +28,8 @@ test("team actions are aligned as one control group",()=>{
 });
 
 test("analytics and ERP expose decision-ready master summaries",()=>{
-  assert.match(analytics,/qs-analytics-pulse/);
+  assert.match(analytics,/qs-analytics-approved/);
+  assert.match(analytics,/DecisionIntelligencePanel/);
   assert.match(analytics,/Peak hour/);
   assert.match(analytics,/Cancellation rate/);
   assert.match(erp,/Back Office command/);
