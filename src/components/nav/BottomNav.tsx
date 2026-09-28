@@ -142,12 +142,21 @@ export function BottomNav() {
   const desktopPriority = managerial
     ? [homeTo, `/manage/${restaurantId}/orders`, "/bookings", `/manage/${restaurantId}`, `/manage/${restaurantId}/staff`, `/manage/${restaurantId}/analytics`]
     : [homeTo, "/work", "/shifts", `/manage/${restaurantId}/operations`, "/notifications", "/profile"];
-  const desktopPrimary = desktopItems.length > 6
-    ? desktopPriority
-        .flatMap((to) => desktopItems.find((item) => item.to === to) ?? [])
-        .filter((item, index, list) => list.findIndex((candidate) => candidate.to === item.to) === index)
-        .slice(0, 6)
-    : desktopItems;
+  const sidebarToolKey = (item: Item) => item.en.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const customDesktopPrimary = managerial && appearance.sidebarPinnedTools.length
+    ? [
+        ...desktopItems.filter((item) => item.to === homeTo).slice(0, 1),
+        ...appearance.sidebarPinnedTools.flatMap((key) => desktopItems.find((item) => item.to !== homeTo && sidebarToolKey(item) === key) ?? []),
+      ].filter((item, index, list) => list.findIndex((candidate) => candidate.to === item.to) === index).slice(0, 6)
+    : [];
+  const desktopPrimary = customDesktopPrimary.length > 1
+    ? customDesktopPrimary
+    : desktopItems.length > 6
+      ? desktopPriority
+          .flatMap((to) => desktopItems.find((item) => item.to === to) ?? [])
+          .filter((item, index, list) => list.findIndex((candidate) => candidate.to === item.to) === index)
+          .slice(0, 6)
+      : desktopItems;
   const desktopHasMore = desktopItems.some((item) => !desktopPrimary.some((primary) => primary.to === item.to));
   const mobilePrimary = desktopItems.length > 5
     ? mobilePriority.flatMap((to) => desktopItems.find((item) => item.to === to) ?? []).filter((item, index, list) => list.findIndex(candidate => candidate.to === item.to) === index).slice(0, 4)

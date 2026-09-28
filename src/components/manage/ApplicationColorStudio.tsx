@@ -61,6 +61,17 @@ export function ApplicationColorStudio({ ar, restaurantName, brand, setBrand, pr
     set.background(preset.background);
   }
 
+  const activePresetId = presets.find((preset) =>
+    preset.primary.toLowerCase() === token.primary.toLowerCase()
+    && preset.accent.toLowerCase() === token.accent.toLowerCase()
+    && preset.selected.toLowerCase() === token.selected.toLowerCase()
+    && preset.topBg.toLowerCase() === token.topBg.toLowerCase()
+    && preset.topText.toLowerCase() === token.topText.toLowerCase()
+    && preset.sideBg.toLowerCase() === token.sideBg.toLowerCase()
+    && preset.sideText.toLowerCase() === token.sideText.toLowerCase()
+    && preset.background.toLowerCase() === token.background.toLowerCase()
+  )?.id ?? null;
+
   const reset = {
     primary: () => dark ? update("darkPrimaryColor", defaults.darkPrimaryColor) : setPrimaryColor(BRAND_DEFAULT),
     accent: () => dark ? update("darkAccentColor", defaults.darkAccentColor) : setAccentColor(ACCENT_DEFAULT),
@@ -83,13 +94,17 @@ export function ApplicationColorStudio({ ar, restaurantName, brand, setBrand, pr
     </div>
 
     <section className="qs-color-presets mb-5">
-      <div className="mb-3 flex items-center justify-between gap-3"><div><strong className="block text-xs">{ar ? "بداية سريعة" : "Quick styles"}</strong><span className="mt-0.5 block text-[10px] text-muted-foreground">{ar ? "اختر أسلوباً ثم عدّل أي لون بالتفصيل." : "Choose a polished starting point, then fine-tune any token."}</span></div><span className="rounded-full bg-muted px-2.5 py-1 text-[9px] font-bold text-muted-foreground">{dark ? (ar ? "داكن" : "Dark") : (ar ? "فاتح" : "Light")}</span></div>
+      <div className="mb-3 flex items-center justify-between gap-3"><div><strong className="block text-xs">{ar ? "بداية سريعة" : "Quick styles"}</strong><span className="mt-0.5 block text-[10px] text-muted-foreground">{ar ? "النمط يغيّر الأزرار والإجراءات والتنقل والقائمة الجانبية والخلفية والتمييز معاً. احفظ لتطبيقه على مساحة المطعم." : "One style updates buttons, actions, active navigation, sidebar, workspace background and highlights together. Save to apply it across the restaurant workspace."}</span></div><span className="rounded-full bg-muted px-2.5 py-1 text-[9px] font-bold text-muted-foreground">{dark ? (ar ? "داكن" : "Dark") : (ar ? "فاتح" : "Light")}</span></div>
       <div className="grid gap-2 sm:grid-cols-3">
-        {presets.map((preset) => <button key={preset.id} type="button" onClick={() => applyPreset(preset)} className="qs-color-preset">
-          <span className="qs-color-preset-swatches"><i style={{background:preset.primary}}/><i style={{background:preset.accent}}/><i style={{background:preset.background}}/></span>
-          <strong>{preset.label}</strong>
-          <small>{ar ? "تطبيق النمط" : "Apply style"}</small>
-        </button>)}
+        {presets.map((preset) => {
+          const active = activePresetId === preset.id;
+          return <button key={preset.id} type="button" aria-pressed={active} onClick={() => applyPreset(preset)} className={cn("qs-color-preset", active && "is-active")}>
+            <span className="qs-color-preset-swatches"><i style={{background:preset.primary}}/><i style={{background:preset.accent}}/><i style={{background:preset.background}}/></span>
+            <strong>{preset.label}</strong>
+            <small>{active ? (ar ? "مطبق — احفظ للتثبيت" : "Applied — save to publish") : (ar ? "تطبيق النمط" : "Apply style")}</small>
+            {active ? <CheckCircle2 className="qs-color-preset-check size-4" /> : null}
+          </button>;
+        })}
       </div>
     </section>
 

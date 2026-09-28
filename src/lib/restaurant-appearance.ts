@@ -17,6 +17,7 @@ export type RestaurantAppearance = {
   standardMenuCardIcon: string | null;
   pdfMenuCardImage: string | null;
   pdfMenuCardIcon: string | null;
+  sidebarPinnedTools: string[];
   homeTitle: string;
   dashboardTitle: string;
   useQuickServeLogo: boolean;
@@ -52,6 +53,13 @@ function numberInRange(value: unknown, fallback: number, min: number, max: numbe
 }
 function color(value: unknown, fallback: string) { return typeof value === "string" && HEX.test(value) ? value : fallback; }
 function imageUrl(value: unknown) { return typeof value === "string" && /^https:\/\//.test(value) ? value : null; }
+function stringList(value: unknown, max = 5) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string" && /^[a-z0-9-]{2,40}$/i.test(item))
+    .filter((item, index, list) => list.indexOf(item) === index)
+    .slice(0, max);
+}
 function palette(value: unknown, fallback: GuestMenuPalette): GuestMenuPalette {
   const source = value && typeof value === "object" ? value as Record<string, unknown> : {};
   return { bg: color(source.bg, fallback.bg), surface: color(source.surface, fallback.surface), text: color(source.text, fallback.text), muted: color(source.muted, fallback.muted), primary: color(source.primary, fallback.primary), primaryText: color(source.primaryText, fallback.primaryText), accent: color(source.accent, fallback.accent) };
@@ -69,6 +77,7 @@ export function readAppearance(theme: unknown): RestaurantAppearance {
     standardMenuCardIcon: imageUrl(value.standardMenuCardIcon),
     pdfMenuCardImage: imageUrl(value.pdfMenuCardImage),
     pdfMenuCardIcon: imageUrl(value.pdfMenuCardIcon),
+    sidebarPinnedTools: stringList(value.sidebarPinnedTools, 5),
     homeTitle: typeof value.homeTitle === "string" ? value.homeTitle.slice(0, 100) : "",
     dashboardTitle: typeof value.dashboardTitle === "string" ? value.dashboardTitle.slice(0, 100) : "",
     useQuickServeLogo: value.useQuickServeLogo !== false,

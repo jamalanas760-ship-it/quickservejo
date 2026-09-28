@@ -947,3 +947,253 @@
   .qs-route-progress i{animation:none!important}
   .qs-color-preset,.qs-color-token{transition:none!important}
 }
+
+
+/* Comprehensive workspace theming + sidebar customization — 2026-09-28 */
+/* Quick Styles now drive the complete restaurant shell instead of only a few tokens. */
+.tenant-theme-scope{
+  --qs-brand:var(--restaurant-light-primary);
+  --qs-brand-strong:color-mix(in srgb,var(--restaurant-light-primary) 80%,#111 20%);
+  --qs-brand-soft:color-mix(in srgb,var(--restaurant-light-primary) 11%,var(--restaurant-light-bg) 89%);
+  --qs-canvas:var(--restaurant-light-bg);
+  --qs-surface:color-mix(in srgb,var(--restaurant-light-bg) 18%,#fff 82%);
+  --qs-surface-soft:color-mix(in srgb,var(--restaurant-light-bg) 62%,#fff 38%);
+  --qs-ink:var(--restaurant-light-topbar-text);
+  --qs-muted:var(--restaurant-light-sidebar-text);
+  --qs-stroke:color-mix(in srgb,var(--restaurant-light-primary) 7%,#e3e5e8 93%);
+  --qs-stroke-strong:color-mix(in srgb,var(--restaurant-light-primary) 12%,#d2d6db 88%);
+  --ring:var(--restaurant-light-primary);
+}
+.dark .tenant-theme-scope{
+  --qs-brand:var(--restaurant-dark-primary);
+  --qs-brand-strong:color-mix(in srgb,var(--restaurant-dark-primary) 82%,#fff 18%);
+  --qs-brand-soft:color-mix(in srgb,var(--restaurant-dark-primary) 16%,var(--restaurant-dark-bg) 84%);
+  --qs-canvas:var(--restaurant-dark-bg);
+  --qs-surface:color-mix(in srgb,var(--restaurant-dark-bg) 76%,#30343a 24%);
+  --qs-surface-soft:color-mix(in srgb,var(--restaurant-dark-bg) 84%,#353a40 16%);
+  --qs-ink:var(--restaurant-dark-topbar-text);
+  --qs-muted:var(--restaurant-dark-sidebar-text);
+  --qs-stroke:color-mix(in srgb,var(--restaurant-dark-primary) 9%,#343a43 91%);
+  --qs-stroke-strong:color-mix(in srgb,var(--restaurant-dark-primary) 14%,#424a55 86%);
+  --ring:var(--restaurant-dark-primary);
+}
+.tenant-theme-scope .qs-button-primary,
+.tenant-theme-scope button.bg-primary{
+  border-color:var(--qs-brand)!important;
+  background:var(--qs-brand)!important;
+  color:var(--primary-foreground)!important;
+  box-shadow:0 6px 16px color-mix(in srgb,var(--qs-brand) 22%,transparent)!important;
+}
+.tenant-theme-scope .qs-button-primary:hover,
+.tenant-theme-scope button.bg-primary:hover{
+  border-color:var(--qs-brand-strong)!important;
+  background:var(--qs-brand-strong)!important;
+}
+.tenant-theme-scope :is(input,textarea,select,[role="combobox"]):focus{
+  border-color:var(--qs-brand)!important;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--qs-brand) 13%,transparent)!important;
+}
+.tenant-theme-scope :is(a,button,input,textarea,select,[role="button"],[role="tab"],[role="combobox"]):focus-visible{
+  outline-color:var(--qs-brand)!important;
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--qs-brand) 14%,transparent)!important;
+}
+.tenant-theme-scope .qs-live-menu-pill,
+.tenant-theme-scope [role="tab"][data-state="active"]{
+  color:var(--qs-brand-strong)!important;
+}
+.tenant-theme-scope .qs-icon-button:hover,
+.tenant-theme-scope .qs-global-search-trigger:hover{
+  border-color:color-mix(in srgb,var(--qs-brand) 34%,var(--qs-stroke))!important;
+  color:var(--qs-brand-strong)!important;
+}
+
+/* Quick style state */
+.qs-color-preset{position:relative}
+.qs-color-preset.is-active{
+  border-color:color-mix(in srgb,var(--qs-brand) 52%,var(--qs-stroke))!important;
+  background:var(--qs-brand-soft)!important;
+  box-shadow:0 8px 22px color-mix(in srgb,var(--qs-brand) 11%,transparent)!important;
+}
+.qs-color-preset.is-active strong{color:var(--qs-brand-strong)}
+.qs-color-preset-check{
+  position:absolute;
+  inset-block-start:8px;
+  inset-inline-end:8px;
+  color:var(--qs-brand);
+}
+
+/* Sidebar customization */
+.qs-sidebar-customizer{
+  overflow:hidden;
+  border:1px solid var(--qs-stroke);
+  border-radius:15px;
+  background:linear-gradient(180deg,var(--qs-surface),var(--qs-surface-soft));
+  padding:14px;
+}
+.qs-sidebar-customizer-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:14px;
+  padding-bottom:13px;
+  border-bottom:1px solid var(--qs-stroke);
+}
+.qs-sidebar-customizer-head strong{display:block;font-size:13px}
+.qs-sidebar-customizer-head p{margin-top:4px;max-width:720px;color:var(--qs-muted);font-size:10px;line-height:1.55}
+.qs-sidebar-count{
+  display:inline-grid;
+  min-width:38px;
+  height:30px;
+  place-items:center;
+  border-radius:9px;
+  background:var(--qs-brand-soft);
+  color:var(--qs-brand-strong);
+  font-size:10px;
+  font-weight:900;
+}
+.qs-sidebar-reset{
+  display:inline-flex;
+  min-height:30px!important;
+  align-items:center;
+  gap:6px;
+  border:1px solid var(--qs-stroke)!important;
+  border-radius:9px;
+  background:var(--qs-surface)!important;
+  padding:0 9px;
+  color:var(--qs-muted);
+  font-size:9px;
+  font-weight:800;
+}
+.qs-sidebar-reset:hover{border-color:color-mix(in srgb,var(--qs-brand) 34%,var(--qs-stroke))!important;color:var(--qs-brand-strong)}
+.qs-sidebar-bucket{
+  min-width:0;
+  border:1px solid var(--qs-stroke);
+  border-radius:13px;
+  background:var(--qs-surface);
+  padding:11px;
+}
+.qs-sidebar-bucket-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+  padding:1px 2px 8px;
+  border-bottom:1px solid var(--qs-stroke);
+}
+.qs-sidebar-bucket-title span{font-size:10px;font-weight:900}
+.qs-sidebar-bucket-title small{color:var(--qs-muted);font-size:8px}
+.qs-sidebar-tool-row{
+  display:flex;
+  min-height:42px;
+  align-items:center;
+  gap:8px;
+  border:1px solid var(--qs-stroke);
+  border-radius:10px;
+  background:var(--qs-surface-soft);
+  padding:5px 7px;
+}
+.qs-sidebar-tool-row.is-pinned{
+  border-color:color-mix(in srgb,var(--qs-brand) 22%,var(--qs-stroke));
+  background:color-mix(in srgb,var(--qs-brand-soft) 58%,var(--qs-surface) 42%);
+}
+.qs-sidebar-tool-index{
+  display:grid;
+  width:26px;
+  height:26px;
+  place-items:center;
+  border-radius:8px;
+  background:var(--qs-brand-soft);
+  color:var(--qs-brand-strong);
+  font-size:9px;
+  font-weight:900;
+}
+.qs-sidebar-tool-row strong{font-size:10px}
+.qs-sidebar-tool-row button{
+  display:grid;
+  width:28px;
+  min-width:28px;
+  min-height:28px!important;
+  place-items:center;
+  border:1px solid transparent!important;
+  border-radius:8px;
+  color:var(--qs-muted);
+}
+.qs-sidebar-tool-row button:hover:not(:disabled){border-color:var(--qs-stroke)!important;background:var(--qs-surface);color:var(--qs-ink)}
+.qs-sidebar-tool-row button:disabled{opacity:.3}
+.qs-sidebar-pool-item{
+  display:flex;
+  min-height:40px!important;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  border:1px solid var(--qs-stroke)!important;
+  border-radius:10px;
+  background:var(--qs-surface-soft)!important;
+  padding:0 10px;
+  color:var(--qs-ink);
+  font-size:9px;
+  font-weight:800;
+}
+.qs-sidebar-pool-item:hover:not(:disabled){
+  border-color:color-mix(in srgb,var(--qs-brand) 32%,var(--qs-stroke))!important;
+  background:var(--qs-brand-soft)!important;
+  color:var(--qs-brand-strong);
+}
+.qs-sidebar-pool-item:disabled{opacity:.42}
+.qs-sidebar-empty{
+  border:1px dashed var(--qs-stroke-strong);
+  border-radius:10px;
+  background:var(--qs-surface-soft);
+  padding:14px;
+  color:var(--qs-muted);
+  font-size:9px;
+  line-height:1.5;
+}
+.qs-sidebar-preview-strip{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px;
+  margin-top:12px;
+  border-top:1px solid var(--qs-stroke);
+  padding-top:11px;
+}
+.qs-sidebar-preview-strip span{
+  display:inline-flex;
+  min-height:27px;
+  align-items:center;
+  border:1px solid var(--qs-stroke);
+  border-radius:999px;
+  background:var(--qs-surface);
+  padding:0 9px;
+  color:var(--qs-muted);
+  font-size:8px;
+  font-weight:800;
+}
+.qs-sidebar-preview-strip .qs-sidebar-preview-home{
+  border-color:color-mix(in srgb,var(--qs-brand) 28%,var(--qs-stroke));
+  background:var(--qs-brand-soft);
+  color:var(--qs-brand-strong);
+}
+.qs-sidebar-preview-strip .qs-sidebar-preview-more{margin-inline-start:auto}
+
+@media(max-width:767px){
+  .qs-sidebar-customizer-head{flex-direction:column}
+  .qs-sidebar-preview-strip .qs-sidebar-preview-more{margin-inline-start:0}
+}
+
+
+/* Brand utility bridge */
+.tenant-theme-scope [class*="bg-[#e85d2a]"],
+.tenant-theme-scope [class*="bg-[#ff5a0a]"]{
+  background-color:var(--qs-brand)!important;
+}
+.tenant-theme-scope [class*="text-[#e85d2a]"],
+.tenant-theme-scope [class*="text-[#cf4818]"]{
+  color:var(--qs-brand-strong)!important;
+}
+.tenant-theme-scope [class*="border-[#e85d2a]"]{
+  border-color:var(--qs-brand)!important;
+}

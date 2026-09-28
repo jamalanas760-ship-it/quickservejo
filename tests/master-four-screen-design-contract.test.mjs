@@ -83,3 +83,26 @@ test("organization color studio and navigation loader use the friendly master ex
   assert.match(styles,/qs-interface-visuals/);
   assert.match(styles,/qs-color-presets/);
 });
+
+
+test("quick styles apply across the restaurant shell and sidebar is customizable", async () => {
+  const appearanceModel = await readFile(new URL("../src/lib/restaurant-appearance.ts", import.meta.url), "utf8");
+  const colorStudio = await readFile(new URL("../src/components/manage/ApplicationColorStudio.tsx", import.meta.url), "utf8");
+  assert.match(appearanceModel,/sidebarPinnedTools/);
+  assert.match(settings,/Customize left sidebar/);
+  assert.match(settings,/Still in All tools/);
+  assert.match(settings,/Home always stays first/);
+  assert.match(nav,/appearance\.sidebarPinnedTools/);
+  assert.match(nav,/customDesktopPrimary/);
+  assert.match(colorStudio,/One style updates buttons, actions, active navigation, sidebar, workspace background and highlights together/);
+  assert.match(colorStudio,/activePresetId/);
+  assert.match(styles,/Comprehensive workspace theming \+ sidebar customization/);
+  assert.match(styles,/--qs-brand:var\(--restaurant-light-primary\)/);
+  assert.match(styles,/qs-sidebar-customizer/);
+});
+
+test("PDF Menu selector mirrors the Standard Menu card design", () => {
+  assert.match(menu,/appearance\.pdfMenuCardImage \?\? appearance\.standardMenuCardImage \?\? restaurant\.data\?\.cover_image_url/);
+  assert.doesNotMatch(menu,/qs-menu-workflow-image qs-menu-workflow-image-logo/);
+  assert.match(menu,/workflow === "pdf" \? "is-active border-primary\/70 bg-primary\/\[\.045\]"/);
+});

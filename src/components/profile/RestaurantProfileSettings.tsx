@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Save, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronUp, LayoutPanelLeft, Plus, RotateCcw, Save, SlidersHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { ApplicationColorStudio } from "@/components/manage/ApplicationColorStudio";
@@ -14,6 +14,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
 import { readAppearance } from "@/lib/restaurant-appearance";
+
+const SIDEBAR_TOOL_CHOICES = [
+  { key: "orders", en: "Orders", ar: "الطلبات" },
+  { key: "reservations", en: "Reservations", ar: "الحجوزات" },
+  { key: "menu", en: "Menu", ar: "القائمة" },
+  { key: "tables", en: "Tables", ar: "الطاولات" },
+  { key: "my-work", en: "My Work", ar: "عملي" },
+  { key: "shifts", en: "Shifts", ar: "الورديات" },
+  { key: "automation", en: "Automation", ar: "الأتمتة" },
+  { key: "erp", en: "ERP", ar: "ERP" },
+  { key: "analytics", en: "Analytics", ar: "التحليلات" },
+  { key: "daily-close", en: "Daily Close", ar: "إقفال اليوم" },
+  { key: "team", en: "Team", ar: "الفريق" },
+  { key: "guests", en: "Guests", ar: "الضيوف" },
+  { key: "campaigns", en: "Campaigns", ar: "الحملات" },
+  { key: "connect", en: "Connect", ar: "التكاملات" },
+  { key: "devices", en: "Devices", ar: "الأجهزة" },
+] as const;
+const DEFAULT_SIDEBAR_TOOLS = ["orders","reservations","menu","team","analytics"] as const;
 
 export function RestaurantProfileSettings({ restaurantId }: { restaurantId: string }) {
   const { lang } = useI18n();
@@ -40,6 +59,29 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
   });
   const [saving, setSaving] = useState(false);
   const field = <K extends keyof typeof form>(key: K, value: typeof form[K]) => setForm((current) => ({ ...current, [key]: value }));
+  const pinnedSidebarTools = brand.sidebarPinnedTools;
+  const sidebarPool = SIDEBAR_TOOL_CHOICES.filter((item) => !pinnedSidebarTools.includes(item.key));
+  const sidebarLabel = (key: string) => {
+    const item = SIDEBAR_TOOL_CHOICES.find((choice) => choice.key === key);
+    return item ? (ar ? item.ar : item.en) : key;
+  };
+  const setPinnedSidebarTools = (items: string[]) => setBrand((current) => ({ ...current, sidebarPinnedTools: items.slice(0, 5) }));
+  const addSidebarTool = (key: string) => {
+    if (pinnedSidebarTools.includes(key) || pinnedSidebarTools.length >= 5) return;
+    setPinnedSidebarTools([...pinnedSidebarTools, key]);
+  };
+  const removeSidebarTool = (key: string) => setPinnedSidebarTools(pinnedSidebarTools.filter((item) => item !== key));
+  const moveSidebarTool = (index: number, direction: -1 | 1) => {
+    const next = [...pinnedSidebarTools];
+    const target = index + direction;
+    if (target < 0 || target >= next.length) return;
+    const currentValue = next[index];
+    const targetValue = next[target];
+    if (!currentValue || !targetValue) return;
+    next[index] = targetValue;
+    next[target] = currentValue;
+    setPinnedSidebarTools(next);
+  };
 
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -158,6 +200,54 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
           </div>
         </section>
       </div>
+
+      <section className="qs-sidebar-customizer mt-4">
+        <div className="qs-sidebar-customizer-head">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><LayoutPanelLeft className="size-4" /></span>
+            <div>
+              <strong>{ar ? "تخصيص القائمة الجانبية" : "Customize left sidebar"}</strong>
+              <p>{ar ? "الرئيسية تبقى دائماً أول عنصر. اختر حتى 5 أدوات سريعة؛ كل الأدوات الأخرى تبقى داخل All tools حسب صلاحيات المستخدم." : "Home always stays first. Choose up to 5 quick tools; everything else remains available in All tools according to each user's permissions."}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="qs-sidebar-count">{pinnedSidebarTools.length}/5</span>
+            <button type="button" className="qs-sidebar-reset" onClick={() => setPinnedSidebarTools([...DEFAULT_SIDEBAR_TOOLS])}><RotateCcw className="size-3.5" />{ar ? "افتراضي ذكي" : "Smart default"}</button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="qs-sidebar-bucket">
+            <div className="qs-sidebar-bucket-title"><span>{ar ? "في القائمة الجانبية" : "In sidebar"}</span><small>{ar ? "الترتيب الظاهر" : "Visible order"}</small></div>
+            <div className="space-y-2">
+              {pinnedSidebarTools.length ? pinnedSidebarTools.map((key, index) => <div key={key} className="qs-sidebar-tool-row is-pinned">
+                <span className="qs-sidebar-tool-index">{index + 2}</span>
+                <strong>{sidebarLabel(key)}</strong>
+                <div className="ms-auto flex items-center gap-1">
+                  <button type="button" aria-label={ar ? "تحريك للأعلى" : "Move up"} disabled={index === 0} onClick={() => moveSidebarTool(index, -1)}><ChevronUp className="size-3.5" /></button>
+                  <button type="button" aria-label={ar ? "تحريك للأسفل" : "Move down"} disabled={index === pinnedSidebarTools.length - 1} onClick={() => moveSidebarTool(index, 1)}><ChevronDown className="size-3.5" /></button>
+                  <button type="button" aria-label={ar ? "إزالة من القائمة الجانبية" : "Remove from sidebar"} onClick={() => removeSidebarTool(key)}><X className="size-3.5" /></button>
+                </div>
+              </div>) : <div className="qs-sidebar-empty">{ar ? "لم تختر أدوات بعد. ستستخدم QuickServe الترتيب الذكي الحالي حتى تختار." : "No custom tools selected yet. QuickServe keeps the current smart order until you choose."}</div>}
+            </div>
+          </div>
+
+          <div className="qs-sidebar-bucket">
+            <div className="qs-sidebar-bucket-title"><span>{ar ? "تبقى في All tools" : "Still in All tools"}</span><small>{ar ? "أضف أي أداة بنقرة" : "Add with one click"}</small></div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {sidebarPool.map((item) => <button key={item.key} type="button" className="qs-sidebar-pool-item" disabled={pinnedSidebarTools.length >= 5} onClick={() => addSidebarTool(item.key)}>
+                <span>{ar ? item.ar : item.en}</span><Plus className="size-3.5" />
+              </button>)}
+            </div>
+          </div>
+        </div>
+
+        <div className="qs-sidebar-preview-strip">
+          <span className="qs-sidebar-preview-home">1 · {ar ? "الرئيسية" : "Home"}</span>
+          {pinnedSidebarTools.map((key, index) => <span key={key}>{index + 2} · {sidebarLabel(key)}</span>)}
+          <span className="qs-sidebar-preview-more">{ar ? "الباقي → All tools" : "Rest → All tools"}</span>
+        </div>
+      </section>
     </section>
 
     <section className="qs-card p-4 sm:p-6">
@@ -166,7 +256,7 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
 
     <div className="qs-settings-savebar">
       <div><strong>{ar?"التغييرات تطبق على مساحة المطعم":"Changes apply to this restaurant workspace"}</strong><p>{ar?"راجع الشعار والألوان ثم احفظ مرة واحدة.":"Review the logo and colors, then save everything together."}</p></div>
-      <Button type="submit" disabled={saving} className="min-h-11 bg-[#e85d2a] px-5 text-white shadow-md hover:bg-[#e94f00]"><Save className="size-4" />{saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ إعدادات المؤسسة" : "Save organization settings")}</Button>
+      <Button type="submit" disabled={saving} className="min-h-11 bg-primary px-5 text-primary-foreground shadow-md hover:opacity-90"><Save className="size-4" />{saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ إعدادات المؤسسة" : "Save organization settings")}</Button>
     </div>
   </form>;
 }
