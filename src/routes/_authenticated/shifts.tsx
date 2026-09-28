@@ -240,15 +240,15 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
       const isOut = action === "clocked_out" || action === "already_clocked_out";
 
       if (isIn && entryId && staffId) {
-        qc.setQueryData<ClockStatus | null>(["workforce-clock", restaurantId, currentStaffId], {
+        qc.setQueryData<ClockStatus | null>(["workforce-clock", restaurantId, currentStaffId], () => ({
           entry_id: entryId,
           staff_id: staffId,
           clock_in: startedAt,
           server_now: at,
           elapsed_seconds: Math.max(0, Math.floor((new Date(at).getTime() - new Date(startedAt).getTime()) / 1000)),
-        });
+        }) as ClockStatus);
       } else if (isOut) {
-        qc.setQueryData<ClockStatus | null>(["workforce-clock", restaurantId, currentStaffId], null);
+        qc.setQueryData<ClockStatus | null>(["workforce-clock", restaurantId, currentStaffId], () => null);
       }
 
       qc.setQueryData<{ time: TimeEntry[]; leave: LeaveRequest[] }>(["workforce", restaurantId], (current) => {
