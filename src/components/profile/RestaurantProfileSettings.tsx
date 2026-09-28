@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, LayoutPanelLeft, Plus, RotateCcw, Save, SlidersHorizontal, X } from "lucide-react";
+import { BookOpenText, ChevronDown, ChevronUp, FileText, LayoutPanelLeft, Plus, RotateCcw, Save, SlidersHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { ApplicationColorStudio } from "@/components/manage/ApplicationColorStudio";
@@ -182,20 +182,20 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
           <div className="qs-interface-asset-head">
             <div><span>{ar ? "استوديو القائمة" : "Menu Studio"}</span><strong>{ar ? "بطاقات نوع القائمة" : "Menu type cards"}</strong></div>
             <div className="flex gap-1.5">
-              <span className="qs-interface-card-swatch" style={brand.standardMenuCardImage ? { backgroundImage: `url(${brand.standardMenuCardImage})` } : undefined}>{brand.standardMenuCardIcon ? <img src={brand.standardMenuCardIcon} alt="" /> : "S"}</span>
-              <span className="qs-interface-card-swatch" style={brand.pdfMenuCardImage ? { backgroundImage: `url(${brand.pdfMenuCardImage})` } : undefined}>{brand.pdfMenuCardIcon ? <img src={brand.pdfMenuCardIcon} alt="" /> : "P"}</span>
+              <span className="qs-interface-card-swatch" style={brand.standardMenuCardImage ? { backgroundImage: `url(${brand.standardMenuCardImage})` } : undefined}><i className="qs-interface-card-system-icon"><BookOpenText className="size-4" strokeWidth={1.9} /></i></span>
+              <span className="qs-interface-card-swatch" style={brand.pdfMenuCardImage ? { backgroundImage: `url(${brand.pdfMenuCardImage})` } : undefined}><i className="qs-interface-card-system-icon"><FileText className="size-4" strokeWidth={1.9} /></i></span>
             </div>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="qs-interface-upload-group">
-              <strong>{ar ? "القائمة العادية" : "Standard Menu"}</strong>
+              <div className="mb-2 flex items-center gap-2"><span className="qs-fixed-menu-icon"><BookOpenText className="size-4" strokeWidth={1.9} /></span><strong className="!mb-0">{ar ? "القائمة العادية" : "Standard Menu"}</strong></div>
               <ImageUploader restaurantId={restaurant.id} kind="cover" aspect="wide" value={brand.standardMenuCardImage} onChange={(value) => setBrand((current) => ({ ...current, standardMenuCardImage: value }))} label={ar ? "صورة البطاقة" : "Card image"} />
-              <ImageUploader restaurantId={restaurant.id} kind="logo" value={brand.standardMenuCardIcon} onChange={(value) => setBrand((current) => ({ ...current, standardMenuCardIcon: value }))} label={ar ? "أيقونة البطاقة" : "Card icon"} />
+              <p className="mt-2 text-[9px] leading-4 text-muted-foreground">{ar ? "الأيقونة ثابتة من نظام QuickServe وتتبع لون النمط تلقائياً." : "The icon is fixed by QuickServe and automatically follows the active system color."}</p>
             </div>
             <div className="qs-interface-upload-group">
-              <strong>{ar ? "قائمة PDF" : "PDF Menu"}</strong>
+              <div className="mb-2 flex items-center gap-2"><span className="qs-fixed-menu-icon"><FileText className="size-4" strokeWidth={1.9} /></span><strong className="!mb-0">{ar ? "قائمة PDF" : "PDF Menu"}</strong></div>
               <ImageUploader restaurantId={restaurant.id} kind="cover" aspect="wide" value={brand.pdfMenuCardImage} onChange={(value) => setBrand((current) => ({ ...current, pdfMenuCardImage: value }))} label={ar ? "صورة البطاقة" : "Card image"} />
-              <ImageUploader restaurantId={restaurant.id} kind="logo" value={brand.pdfMenuCardIcon} onChange={(value) => setBrand((current) => ({ ...current, pdfMenuCardIcon: value }))} label={ar ? "أيقونة البطاقة" : "Card icon"} />
+              <p className="mt-2 text-[9px] leading-4 text-muted-foreground">{ar ? "الأيقونة ثابتة من نظام QuickServe وتتبع لون النمط تلقائياً." : "The icon is fixed by QuickServe and automatically follows the active system color."}</p>
             </div>
           </div>
         </section>

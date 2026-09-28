@@ -1197,3 +1197,35 @@
 .tenant-theme-scope [class*="border-[#e85d2a]"]{
   border-color:var(--qs-brand)!important;
 }
+
+
+/* Fixed system menu-type icons — 2026-09-28 */
+.qs-menu-type-icon{
+  border:1px solid color-mix(in srgb,var(--qs-brand) 18%,var(--qs-stroke));
+  background:linear-gradient(145deg,color-mix(in srgb,var(--qs-brand) 11%,var(--qs-surface)),color-mix(in srgb,var(--qs-brand) 5%,var(--qs-surface)))!important;
+  color:var(--qs-brand)!important;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--qs-brand) 5%,transparent),0 4px 14px color-mix(in srgb,var(--qs-brand) 7%,transparent);
+}
+.qs-menu-type-icon.is-active{
+  border-color:color-mix(in srgb,var(--qs-brand) 34%,var(--qs-stroke));
+  background:var(--qs-brand-soft)!important;
+  color:var(--qs-brand-strong)!important;
+}
+.qs-fixed-menu-icon,
+.qs-interface-card-system-icon{
+  display:grid;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--qs-brand) 22%,var(--qs-stroke));
+  background:var(--qs-brand-soft);
+  color:var(--qs-brand-strong);
+}
+.qs-fixed-menu-icon{
+  width:30px;height:30px;border-radius:9px;flex:0 0 auto
+}
+.qs-interface-card-system-icon{
+  width:25px;height:25px;border-radius:7px;
+  box-shadow:0 3px 10px color-mix(in srgb,var(--qs-brand) 9%,transparent)
+}
+.qs-interface-card-swatch .qs-interface-card-system-icon svg{
+  color:currentColor;
+}

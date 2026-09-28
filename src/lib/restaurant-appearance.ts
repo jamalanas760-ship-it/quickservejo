@@ -14,9 +14,7 @@ export type RestaurantAppearance = {
   workspaceToolsImage: string | null;
   workspaceToolsIcon: string | null;
   standardMenuCardImage: string | null;
-  standardMenuCardIcon: string | null;
   pdfMenuCardImage: string | null;
-  pdfMenuCardIcon: string | null;
   sidebarPinnedTools: string[];
   homeTitle: string;
   dashboardTitle: string;
@@ -74,9 +72,7 @@ export function readAppearance(theme: unknown): RestaurantAppearance {
     workspaceToolsImage: imageUrl(value.workspaceToolsImage),
     workspaceToolsIcon: imageUrl(value.workspaceToolsIcon),
     standardMenuCardImage: imageUrl(value.standardMenuCardImage),
-    standardMenuCardIcon: imageUrl(value.standardMenuCardIcon),
     pdfMenuCardImage: imageUrl(value.pdfMenuCardImage),
-    pdfMenuCardIcon: imageUrl(value.pdfMenuCardIcon),
     sidebarPinnedTools: stringList(value.sidebarPinnedTools, 5),
     homeTitle: typeof value.homeTitle === "string" ? value.homeTitle.slice(0, 100) : "",
     dashboardTitle: typeof value.dashboardTitle === "string" ? value.dashboardTitle.slice(0, 100) : "",

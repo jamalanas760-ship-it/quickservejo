@@ -59,14 +59,18 @@ test("workspace and menu visual assets are restaurant-customizable", async () =>
   assert.match(appearanceModel,/workspaceToolsImage/);
   assert.match(appearanceModel,/workspaceToolsIcon/);
   assert.match(appearanceModel,/standardMenuCardImage/);
-  assert.match(appearanceModel,/standardMenuCardIcon/);
   assert.match(appearanceModel,/pdfMenuCardImage/);
-  assert.match(appearanceModel,/pdfMenuCardIcon/);
+  assert.doesNotMatch(appearanceModel,/standardMenuCardIcon/);
+  assert.doesNotMatch(appearanceModel,/pdfMenuCardIcon/);
   assert.match(settings,/Customize images & icons/);
   assert.match(settings,/Panel image/);
   assert.match(settings,/Panel icon/);
+  assert.doesNotMatch(settings,/Card icon/);
+  assert.match(settings,/icon is fixed by QuickServe/);
   assert.match(menu,/appearance\.standardMenuCardImage/);
-  assert.match(menu,/appearance\.standardMenuCardIcon/);
+  assert.doesNotMatch(menu,/appearance\.standardMenuCardIcon/);
+  assert.doesNotMatch(menu,/appearance\.pdfMenuCardIcon/);
+  assert.match(menu,/BookOpenText/);
   assert.match(nav,/appearance\.workspaceToolsImage/);
   assert.match(nav,/appearance\.workspaceToolsIcon/);
 });
@@ -105,4 +109,15 @@ test("PDF Menu selector mirrors the Standard Menu card design", () => {
   assert.match(menu,/appearance\.pdfMenuCardImage \?\? appearance\.standardMenuCardImage \?\? restaurant\.data\?\.cover_image_url/);
   assert.doesNotMatch(menu,/qs-menu-workflow-image qs-menu-workflow-image-logo/);
   assert.match(menu,/workflow === "pdf" \? "is-active border-primary\/70 bg-primary\/\[\.045\]"/);
+});
+
+
+test("menu type cards always use fixed system-colored icons", async () => {
+  assert.match(menu,/qs-menu-type-icon/);
+  assert.match(menu,/BookOpenText/);
+  assert.match(menu,/FileText/);
+  assert.doesNotMatch(menu,/standardMenuCardIcon/);
+  assert.doesNotMatch(menu,/pdfMenuCardIcon/);
+  assert.match(styles,/Fixed system menu-type icons/);
+  assert.match(styles,/--qs-brand/);
 });

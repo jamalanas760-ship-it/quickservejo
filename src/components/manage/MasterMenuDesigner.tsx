@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ExternalLink, FileText, Image as ImageIcon, Layers3, MoreHorizontal, Moon, Package, Sun, Tags, UtensilsCrossed } from "lucide-react";
+import { BookOpenText, CheckCircle2, ExternalLink, FileText, Image as ImageIcon, Layers3, MoreHorizontal, Moon, Package, Sun, Tags, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
@@ -75,13 +75,13 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
 
       <div className="qs-menu-workflow-grid grid gap-3 lg:grid-cols-2">
         <button type="button" aria-pressed={workflow === "standard"} disabled={saveWorkflow.isPending} onClick={() => workflow !== "standard" && saveWorkflow.mutate("standard")} className={cn("qs-menu-workflow-card group relative flex min-h-[84px] items-center gap-3 overflow-hidden rounded-[14px] border bg-card px-4 py-3 text-start shadow-[var(--qs-shadow-card)] transition disabled:cursor-wait disabled:opacity-70", workflow === "standard" ? "is-active border-primary/70 bg-primary/[.045]" : "border-border hover:bg-muted/30")}>
-          <span className={cn("relative z-10 grid size-11 shrink-0 place-items-center overflow-hidden rounded-[11px]", workflow === "standard" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>{appearance.standardMenuCardIcon ? <img src={appearance.standardMenuCardIcon} alt="" className="size-full object-cover" /> : <UtensilsCrossed className="size-5" />}</span>
+          <span className={cn("qs-menu-type-icon relative z-10 grid size-11 shrink-0 place-items-center overflow-hidden rounded-[11px]", workflow === "standard" ? "is-active bg-primary/10 text-primary" : "bg-primary/[.07] text-primary")}><BookOpenText className="size-5" strokeWidth={1.9} /></span>
           <span className="relative z-10 min-w-0 flex-1"><strong className={cn("block text-sm", workflow === "standard" && "text-primary")}>{ar ? "القائمة العادية" : "Standard Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "أنشئ وخصص قائمتك الإلكترونية" : "Build and customize your menu online"}</span></span>
           {(appearance.standardMenuCardImage ?? restaurant.data?.cover_image_url) ? <span className="qs-menu-workflow-image" style={{ backgroundImage: `linear-gradient(90deg,transparent,rgba(255,255,255,.08)),url(${appearance.standardMenuCardImage ?? restaurant.data?.cover_image_url})` }} /> : null}
           {workflow === "standard" ? <CheckCircle2 className="relative z-10 size-5 shrink-0 text-primary" /> : null}
         </button>
         <button type="button" aria-pressed={workflow === "pdf"} disabled={saveWorkflow.isPending} onClick={() => workflow !== "pdf" && saveWorkflow.mutate("pdf")} className={cn("qs-menu-workflow-card group relative flex min-h-[84px] items-center gap-3 overflow-hidden rounded-[14px] border bg-card px-4 py-3 text-start shadow-[var(--qs-shadow-card)] transition disabled:cursor-wait disabled:opacity-70", workflow === "pdf" ? "is-active border-primary/70 bg-primary/[.045]" : "border-border hover:bg-muted/30")}>
-          <span className={cn("relative z-10 grid size-11 shrink-0 place-items-center overflow-hidden rounded-[11px]", workflow === "pdf" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>{appearance.pdfMenuCardIcon ? <img src={appearance.pdfMenuCardIcon} alt="" className="size-full object-cover" /> : <FileText className="size-5" />}</span>
+          <span className={cn("qs-menu-type-icon relative z-10 grid size-11 shrink-0 place-items-center overflow-hidden rounded-[11px]", workflow === "pdf" ? "is-active bg-primary/10 text-primary" : "bg-primary/[.07] text-primary")}><FileText className="size-5" strokeWidth={1.9} /></span>
           <span className="relative z-10 min-w-0 flex-1"><strong className={cn("block text-sm", workflow === "pdf" && "text-primary")}>{ar ? "قائمة PDF" : "PDF Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "ارفع قائمة PDF تفاعلية" : "Upload a clickable PDF menu"}</span></span>
           {(appearance.pdfMenuCardImage ?? appearance.standardMenuCardImage ?? restaurant.data?.cover_image_url) ? <span className="qs-menu-workflow-image" style={{ backgroundImage: `linear-gradient(90deg,transparent,rgba(255,255,255,.08)),url(${appearance.pdfMenuCardImage ?? appearance.standardMenuCardImage ?? restaurant.data?.cover_image_url})` }} /> : null}
           {workflow === "pdf" ? <CheckCircle2 className="relative z-10 size-5 shrink-0 text-primary" /> : null}
