@@ -190,3 +190,26 @@ test("tables mobile floor plan uses responsive rails, compact controls and scale
   assert.match(styles,/--qs-floor-object-scale:\.62/);
   assert.match(styles,/\.qs-master-switch/);
 });
+
+
+test("reservation dialogs are mobile-first and never summon the keyboard on open", async () => {
+  const bookings = await readFile(new URL("../src/routes/_authenticated/bookings.tsx", import.meta.url), "utf8");
+  const createBlock = bookings.slice(bookings.indexOf("function CreateBookingDialog"), bookings.indexOf("function SectionHeading"));
+  const settingsBlock = bookings.slice(bookings.indexOf("function BookingSettingsDialog"), bookings.indexOf("function BookingRow"));
+  assert.match(createBlock,/qs-booking-create-dialog/);
+  assert.match(createBlock,/onOpenAutoFocus/);
+  assert.match(createBlock,/event\.preventDefault\(\)/);
+  assert.doesNotMatch(createBlock,/autoFocus/);
+  assert.match(createBlock,/qs-booking-create-footer/);
+  assert.match(createBlock,/qs-booking-duration-rail/);
+  assert.match(settingsBlock,/qs-booking-settings-dialog/);
+  assert.match(settingsBlock,/onOpenAutoFocus/);
+  assert.match(settingsBlock,/qs-booking-settings-section/);
+  assert.match(settingsBlock,/qs-booking-settings-footer/);
+  assert.match(settingsBlock,/Timing & capacity/);
+  assert.match(settingsBlock,/Guest messaging/);
+  assert.match(settingsBlock,/Deposits & terms/);
+  assert.match(styles,/Reservation dialogs mobile master pass/);
+  assert.match(styles,/qs-booking-settings-toggle-grid/);
+  assert.match(styles,/safe-area-inset-bottom/);
+});

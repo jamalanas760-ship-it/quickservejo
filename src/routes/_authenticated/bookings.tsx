@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, MessageSquareText, MoreHorizontal, Plus, Send, Settings2, Timer, Trash2, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
+import { BadgeDollarSign, CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, Globe2, MessageSquareText, MoreHorizontal, Plus, Send, Settings2, Timer, Trash2, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
@@ -270,34 +270,40 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
   }
 
   return <Dialog open={open} onOpenChange={value=>!busy&&onOpenChange(value)}>
-    <DialogContent className="max-h-[94dvh] overflow-hidden p-0 sm:max-w-4xl">
-      <div className="border-b border-border bg-gradient-to-r from-orange-500/[.09] via-background to-background px-5 py-5 sm:px-7">
+    <DialogContent
+      className="qs-booking-create-dialog max-h-[94dvh] overflow-hidden p-0 sm:max-w-4xl"
+      onOpenAutoFocus={(event)=>{
+        if(typeof window!=="undefined"&&window.matchMedia("(max-width: 767px)").matches)event.preventDefault();
+      }}
+    >
+      <div className="qs-booking-create-hero border-b border-border bg-gradient-to-r from-orange-500/[.09] via-background to-background px-5 py-5 sm:px-7">
         <DialogHeader>
-          <div className="flex items-start gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><CalendarCheck2 className="size-5"/></span>
-            <div>
-              <DialogTitle className="text-xl sm:text-2xl">{ar?"حجز جديد":"New reservation"}</DialogTitle>
-              <DialogDescription className="mt-1 max-w-2xl">{ar?"أدخل بيانات الضيف ثم اختر التاريخ والوقت بوضوح. يتم فحص التوفر مباشرة ومرة أخيرة عند الحفظ.":"Add the guest, choose date and time clearly, then QuickServe checks availability live and once again when saving."}</DialogDescription>
+          <div className="qs-booking-create-title-row flex items-start gap-3">
+            <span className="qs-booking-create-icon grid size-9 shrink-0 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><CalendarCheck2 className="size-5"/></span>
+            <div className="min-w-0">
+              <DialogTitle className="qs-booking-create-title text-xl sm:text-2xl">{ar?"حجز جديد":"New reservation"}</DialogTitle>
+              <DialogDescription className="qs-booking-create-description mt-1 max-w-2xl">{ar?"أدخل بيانات الضيف ثم اختر التاريخ والوقت بوضوح. يتم فحص التوفر مباشرة ومرة أخيرة عند الحفظ.":"Add the guest, choose date and time clearly, then QuickServe checks availability live and once again when saving."}</DialogDescription>
+              <p className="qs-booking-create-mobile-subtitle hidden">{ar?"بيانات الضيف ← الموعد ← الطاولة":"Guest → time → table"}</p>
             </div>
           </div>
         </DialogHeader>
       </div>
 
-      <form onSubmit={submit} className="grid max-h-[calc(94dvh-105px)] overflow-y-auto lg:grid-cols-[minmax(0,1fr)_290px]">
-        <div className="space-y-4 p-4 sm:p-5">
-          <section>
+      <form onSubmit={submit} className="qs-booking-create-form grid max-h-[calc(94dvh-105px)] overflow-y-auto lg:grid-cols-[minmax(0,1fr)_290px]">
+        <div className="qs-booking-create-main space-y-4 p-4 sm:p-5">
+          <section className="qs-booking-step">
             <SectionHeading number="1" title={ar?"بيانات الضيف":"Guest details"} subtitle={ar?"المعلومات الأساسية للحجز والتواصل.":"Core reservation and contact information."}/>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label={ar?"اسم الضيف":"Guest name"}><Input className="h-11 rounded-xl" name="customer_name" required maxLength={120} autoFocus/></Field>
-              <Field label={ar?"الهاتف":"Phone"}><Input className="h-11 rounded-xl" name="phone" inputMode="tel" maxLength={40}/></Field>
-              <Field label={ar?"البريد الإلكتروني":"Email"}><Input className="h-11 rounded-xl" name="email" type="email" maxLength={160}/></Field>
+            <div className="qs-booking-guest-grid mt-3 grid gap-3 sm:grid-cols-2">
+              <Field label={ar?"اسم الضيف":"Guest name"}><Input className="h-11 rounded-xl" name="customer_name" autoComplete="name" required maxLength={120}/></Field>
+              <Field label={ar?"الهاتف":"Phone"}><Input className="h-11 rounded-xl" name="phone" inputMode="tel" autoComplete="tel" maxLength={40}/></Field>
+              <Field label={ar?"البريد الإلكتروني":"Email"}><Input className="h-11 rounded-xl" name="email" type="email" inputMode="email" autoComplete="email" maxLength={160}/></Field>
               <Field label={ar?"المناسبة":"Occasion"}><Input className="h-11 rounded-xl" name="occasion" maxLength={120} placeholder={ar?"عيد ميلاد، ذكرى...":"Birthday, anniversary..."}/></Field>
             </div>
           </section>
 
-          <section className="border-t border-border pt-4">
+          <section className="qs-booking-step">
             <SectionHeading number="2" title={ar?"الموعد وعدد الضيوف":"Date, time & party"} subtitle={ar?"التاريخ والوقت منفصلان لتكون عملية الاختيار واضحة وسهلة على جميع الأجهزة.":"Date and time are separated for a clearer, reliable picker on every device."}/>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="qs-booking-datetime-grid mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Field label={ar?"التاريخ":"Date"}>
                 <ReservationDatePicker
                   value={bookingDate}
@@ -316,16 +322,16 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
 
             <div className="mt-4">
               <Label className="text-xs font-bold">{ar?"مدة الحجز":"Reservation duration"}</Label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {[60,90,120,150,180].map(value=><button key={value} type="button" onClick={()=>{setDuration(value);setSelectedTable("auto");}} className={cn("rounded-xl border px-3.5 py-2 text-xs font-bold transition",duration===value?"border-[#e85d2a] bg-orange-500/10 text-[#e34d00]":"border-border bg-background hover:bg-muted/50")}>{value<120?`${value} min`:`${value/60} hr`}</button>)}
-                <div className="relative w-28"><Timer className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-9 rounded-xl ps-9 text-xs" type="number" min="30" max="360" step="15" value={duration} onChange={e=>{setDuration(Number(e.target.value)||90);setSelectedTable("auto");}}/></div>
+              <div className="qs-booking-duration-rail mt-2 flex flex-wrap gap-2">
+                {[60,90,120,150,180].map(value=><button key={value} type="button" onClick={()=>{setDuration(value);setSelectedTable("auto");}} className={cn("qs-booking-duration-chip rounded-xl border px-3.5 py-2 text-xs font-bold transition",duration===value?"is-active border-[#e85d2a] bg-orange-500/10 text-[#e34d00]":"border-border bg-background hover:bg-muted/50")}>{value<120?`${value} min`:`${value/60} hr`}</button>)}
+                <div className="qs-booking-duration-custom relative w-28"><Timer className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-9 rounded-xl ps-9 text-xs" type="number" min="30" max="360" step="15" value={duration} onChange={e=>{setDuration(Number(e.target.value)||90);setSelectedTable("auto");}}/></div>
               </div>
             </div>
           </section>
 
-          <section className="border-t border-border pt-4">
+          <section className="qs-booking-step">
             <SectionHeading number="3" title={ar?"الطاولة وسير العمل":"Table & workflow"} subtitle={ar?"QuickServe يختار أصغر طاولة مناسبة تلقائياً، أو يمكنك اختيار طاولة متاحة.":"QuickServe auto-selects the smallest suitable table, or you can choose an available table."}/>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="qs-booking-workflow-grid mt-3 grid gap-3 sm:grid-cols-3">
               <Field label={ar?"الطاولة":"Table"}>
                 <Select value={selectedTable} onValueChange={setSelectedTable}>
                   <SelectTrigger className="h-11 rounded-xl"><SelectValue/></SelectTrigger>
@@ -346,7 +352,7 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
           </section>
         </div>
 
-        <aside className="border-t border-border bg-muted/20 p-4 lg:border-s lg:border-t-0 sm:p-4">
+        <aside className="qs-booking-live-aside border-t border-border bg-muted/20 p-4 lg:border-s lg:border-t-0 sm:p-4">
           <div className="sticky top-0 space-y-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[.15em] text-muted-foreground">{ar?"التوفر المباشر":"Live availability"}</p>
@@ -374,9 +380,9 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
           </div>
         </aside>
 
-        <DialogFooter className="sticky bottom-0 z-10 border-t border-border bg-background/95 px-5 py-4 backdrop-blur lg:col-span-2 sm:px-7">
-          <Button type="button" variant="outline" className="rounded-xl" onClick={()=>onOpenChange(false)} disabled={busy}>{ar?"إلغاء":"Cancel"}</Button>
-          <Button type="submit" className="min-w-40 rounded-xl" disabled={!canSubmit}>{busy?(ar?"جارٍ الحفظ…":"Saving…"):(ar?"إنشاء الحجز":"Create reservation")}</Button>
+        <DialogFooter className="qs-booking-create-footer sticky bottom-0 z-10 border-t border-border bg-background/95 px-5 py-4 backdrop-blur lg:col-span-2 sm:px-7">
+          <Button type="button" variant="outline" className="qs-booking-cancel rounded-xl" onClick={()=>onOpenChange(false)} disabled={busy}>{ar?"إلغاء":"Cancel"}</Button>
+          <Button type="submit" className="qs-booking-submit min-w-40 rounded-xl" disabled={!canSubmit}>{busy?(ar?"جارٍ الحفظ…":"Saving…"):(ar?"إنشاء الحجز":"Create reservation")}</Button>
         </DialogFooter>
       </form>
     </DialogContent>
@@ -426,19 +432,86 @@ function BookingSettingsDialog({open,onOpenChange,restaurantId,settings,ar,lang}
     onError:(error)=>toast.error(humanError(error,lang)),
   });
 
-  return <Dialog open={open} onOpenChange={value=>!save.isPending&&onOpenChange(value)}><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>{ar?"إعدادات الحجز":"Booking settings"}</DialogTitle><DialogDescription>{ar?"تحكم بالتوفر العام، أوقات الحجز، التأكيد والعربون.":"Control public availability, timing, confirmation and deposits."}</DialogDescription></DialogHeader><div className="space-y-5">
-    <div className="grid gap-3 sm:grid-cols-2"><Toggle label={ar?"الحجز العام":"Public booking"} value={online} onChange={setOnline}/><Toggle label={ar?"تأكيد تلقائي":"Auto-confirm"} value={autoConfirm} onChange={setAutoConfirm}/></div>
-    <div className="grid gap-4 sm:grid-cols-3"><Field label={ar?"مدة الفترة":"Slot minutes"}><Select value={String(slot)} onValueChange={v=>setSlot(Number(v))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{[15,30,45,60].map(v=><SelectItem key={v} value={String(v)}>{v}</SelectItem>)}</SelectContent></Select></Field><Field label={ar?"مدة الحجز":"Default duration"}><Input type="number" min="30" max="360" step="15" value={duration} onChange={e=>setDuration(Number(e.target.value)||90)}/></Field><Field label={ar?"مهلة قبل الحجز":"Lead minutes"}><Input type="number" min="0" value={lead} onChange={e=>setLead(Number(e.target.value)||0)}/></Field><Field label={ar?"أيام الحجز المسبق":"Advance days"}><Input type="number" min="1" max="365" value={advance} onChange={e=>setAdvance(Number(e.target.value)||90)}/></Field><Field label={ar?"أقل عدد ضيوف":"Min party"}><Input type="number" min="1" value={minParty} onChange={e=>setMinParty(Number(e.target.value)||1)}/></Field><Field label={ar?"أكبر عدد ضيوف":"Max party"}><Input type="number" min={minParty} max="100" value={maxParty} onChange={e=>setMaxParty(Number(e.target.value)||12)}/></Field></div>
-    <div className="grid gap-4 sm:grid-cols-2">
-      <Field label={ar?"قناة تأكيد الحجز":"Confirmation channel"}><Select value={confirmationChannel} onValueChange={setConfirmationChannel}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">{ar?"بدون رسالة":"No message"}</SelectItem><SelectItem value="sms">SMS</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></Field>
-      <Field label={ar?"قناة التذكير":"Reminder channel"}><Select value={reminderChannel} onValueChange={setReminderChannel}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">{ar?"بدون تذكير":"No reminder"}</SelectItem><SelectItem value="sms">SMS</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></Field>
-      <Field label={ar?"التذكير قبل الموعد بالساعات":"Reminder hours before"}><Input type="number" min="1" max="168" value={reminderHours} onChange={e=>setReminderHours(Number(e.target.value)||24)}/></Field>
-      <Field label={ar?"مهلة الإلغاء بالساعات":"Cancellation cutoff hours"}><Input type="number" min="0" max="168" value={cancelCutoff} onChange={e=>setCancelCutoff(Number(e.target.value)||0)}/></Field>
-    </div>
-    <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">{ar?"رسائل التأكيد والتذكير لا تُعتبر رسائل تسويقية. يتم إرسالها فقط إذا كانت بيانات Twilio/Resend مضبوطة على الخادم، وإلا تبقى المهمة غير ناجحة ولا يتم تسجيل إرسال وهمي.":"Confirmation and reminder messages are transactional. They send only when Twilio/Resend server credentials are configured; otherwise no fake success is recorded."}</div>
-    <div className="grid gap-4 sm:grid-cols-2"><Field label={ar?"نظام العربون":"Deposit mode"}><Select value={depositMode} onValueChange={v=>setDepositMode(v as typeof depositMode)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">{ar?"بدون عربون":"No deposit"}</SelectItem><SelectItem value="fixed">{ar?"مبلغ ثابت":"Fixed amount"}</SelectItem><SelectItem value="per_guest">{ar?"لكل ضيف":"Per guest"}</SelectItem></SelectContent></Select></Field><Field label={ar?"قيمة العربون":"Deposit amount"}><Input type="number" min="0" step="0.001" disabled={depositMode==="none"} value={deposit} onChange={e=>setDeposit(Number(e.target.value)||0)}/></Field></div>
-    <Field label={ar?"شروط الحجز":"Booking terms"}><Textarea rows={4} maxLength={2000} value={terms} onChange={e=>setTerms(e.target.value)}/></Field>
-  </div><DialogFooter><Button variant="outline" onClick={()=>onOpenChange(false)}>{ar?"إلغاء":"Cancel"}</Button><Button disabled={save.isPending} onClick={()=>save.mutate()}>{ar?"حفظ":"Save settings"}</Button></DialogFooter></DialogContent></Dialog>;
+  return <Dialog open={open} onOpenChange={value=>!save.isPending&&onOpenChange(value)}>
+    <DialogContent
+      className="qs-booking-settings-dialog max-h-[92dvh] overflow-hidden p-0 sm:max-w-3xl"
+      onOpenAutoFocus={(event)=>{
+        if(typeof window!=="undefined"&&window.matchMedia("(max-width: 767px)").matches)event.preventDefault();
+      }}
+    >
+      <div className="qs-booking-settings-hero border-b border-border bg-gradient-to-r from-orange-500/[.08] via-background to-background px-5 py-5 sm:px-7">
+        <DialogHeader>
+          <div className="flex items-center gap-3 pe-8">
+            <span className="qs-booking-settings-icon grid size-10 shrink-0 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><Settings2 className="size-5"/></span>
+            <div className="min-w-0">
+              <DialogTitle className="qs-booking-settings-title text-xl">{ar?"إعدادات الحجز":"Booking settings"}</DialogTitle>
+              <DialogDescription className="qs-booking-settings-description mt-1">{ar?"تحكم بالتوفر العام، أوقات الحجز، التأكيد والعربون.":"Control availability, timing, messaging and deposits from one organized setup."}</DialogDescription>
+              <p className="qs-booking-settings-mobile-subtitle hidden">{ar?"التوفر · القواعد · الرسائل · العربون":"Availability · rules · messaging · deposits"}</p>
+            </div>
+          </div>
+        </DialogHeader>
+      </div>
+
+      <div className="qs-booking-settings-body min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+        <section className="qs-booking-settings-section">
+          <div className="qs-booking-settings-section-head">
+            <span><Globe2 className="size-4"/></span>
+            <div><strong>{ar?"التوفر العام":"Availability"}</strong><p>{ar?"تحكم بكيفية استقبال الحجوزات الجديدة.":"Control how new reservations enter the system."}</p></div>
+          </div>
+          <div className="qs-booking-settings-toggle-grid">
+            <Toggle label={ar?"الحجز العام":"Public booking"} value={online} onChange={setOnline}/>
+            <Toggle label={ar?"تأكيد تلقائي":"Auto-confirm"} value={autoConfirm} onChange={setAutoConfirm}/>
+          </div>
+        </section>
+
+        <section className="qs-booking-settings-section">
+          <div className="qs-booking-settings-section-head">
+            <span><Clock3 className="size-4"/></span>
+            <div><strong>{ar?"قواعد الوقت والسعة":"Timing & capacity"}</strong><p>{ar?"اضبط الفترات والمدة ومهلة الحجز وحدود عدد الضيوف.":"Set slots, duration, booking windows and party limits."}</p></div>
+          </div>
+          <div className="qs-booking-settings-grid">
+            <Field label={ar?"مدة الفترة":"Slot minutes"}><Select value={String(slot)} onValueChange={v=>setSlot(Number(v))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{[15,30,45,60].map(v=><SelectItem key={v} value={String(v)}>{v}</SelectItem>)}</SelectContent></Select></Field>
+            <Field label={ar?"مدة الحجز":"Default duration"}><Input inputMode="numeric" type="number" min="30" max="360" step="15" value={duration} onChange={e=>setDuration(Number(e.target.value)||90)}/></Field>
+            <Field label={ar?"مهلة قبل الحجز":"Lead minutes"}><Input inputMode="numeric" type="number" min="0" value={lead} onChange={e=>setLead(Number(e.target.value)||0)}/></Field>
+            <Field label={ar?"أيام الحجز المسبق":"Advance days"}><Input inputMode="numeric" type="number" min="1" max="365" value={advance} onChange={e=>setAdvance(Number(e.target.value)||90)}/></Field>
+            <Field label={ar?"أقل عدد ضيوف":"Min party"}><Input inputMode="numeric" type="number" min="1" value={minParty} onChange={e=>setMinParty(Number(e.target.value)||1)}/></Field>
+            <Field label={ar?"أكبر عدد ضيوف":"Max party"}><Input inputMode="numeric" type="number" min={minParty} max="100" value={maxParty} onChange={e=>setMaxParty(Number(e.target.value)||12)}/></Field>
+          </div>
+        </section>
+
+        <section className="qs-booking-settings-section">
+          <div className="qs-booking-settings-section-head">
+            <span><MessageSquareText className="size-4"/></span>
+            <div><strong>{ar?"تواصل الضيف":"Guest messaging"}</strong><p>{ar?"اختر قنوات التأكيد والتذكير ومواعيدها.":"Choose confirmation and reminder channels and timing."}</p></div>
+          </div>
+          <div className="qs-booking-settings-grid">
+            <Field label={ar?"قناة تأكيد الحجز":"Confirmation channel"}><Select value={confirmationChannel} onValueChange={setConfirmationChannel}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">{ar?"بدون رسالة":"No message"}</SelectItem><SelectItem value="sms">SMS</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></Field>
+            <Field label={ar?"قناة التذكير":"Reminder channel"}><Select value={reminderChannel} onValueChange={setReminderChannel}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">{ar?"بدون تذكير":"No reminder"}</SelectItem><SelectItem value="sms">SMS</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></Field>
+            <Field label={ar?"التذكير قبل الموعد بالساعات":"Reminder hours before"}><Input inputMode="numeric" type="number" min="1" max="168" value={reminderHours} onChange={e=>setReminderHours(Number(e.target.value)||24)}/></Field>
+            <Field label={ar?"مهلة الإلغاء بالساعات":"Cancellation cutoff hours"}><Input inputMode="numeric" type="number" min="0" max="168" value={cancelCutoff} onChange={e=>setCancelCutoff(Number(e.target.value)||0)}/></Field>
+          </div>
+          <div className="qs-booking-settings-note">{ar?"رسائل التأكيد والتذكير معاملات تشغيلية فقط. يتم الإرسال الحقيقي عندما تكون خدمة Twilio/Resend مضبوطة، بدون تسجيل نجاح وهمي.":"Confirmation and reminder messages are transactional. Delivery is recorded only when Twilio/Resend is actually configured—never as a fake success."}</div>
+        </section>
+
+        <section className="qs-booking-settings-section">
+          <div className="qs-booking-settings-section-head">
+            <span><BadgeDollarSign className="size-4"/></span>
+            <div><strong>{ar?"العربون والشروط":"Deposits & terms"}</strong><p>{ar?"حدد سياسة العربون والشروط التي تظهر للحجز.":"Define the deposit policy and booking terms."}</p></div>
+          </div>
+          <div className="qs-booking-settings-grid">
+            <Field label={ar?"نظام العربون":"Deposit mode"}><Select value={depositMode} onValueChange={v=>setDepositMode(v as typeof depositMode)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">{ar?"بدون عربون":"No deposit"}</SelectItem><SelectItem value="fixed">{ar?"مبلغ ثابت":"Fixed amount"}</SelectItem><SelectItem value="per_guest">{ar?"لكل ضيف":"Per guest"}</SelectItem></SelectContent></Select></Field>
+            <Field label={ar?"قيمة العربون":"Deposit amount"}><Input inputMode="decimal" type="number" min="0" step="0.001" disabled={depositMode==="none"} value={deposit} onChange={e=>setDeposit(Number(e.target.value)||0)}/></Field>
+          </div>
+          <Field label={ar?"شروط الحجز":"Booking terms"}><Textarea className="qs-booking-settings-terms" rows={4} maxLength={2000} value={terms} onChange={e=>setTerms(e.target.value)} placeholder={ar?"سياسة التأخير، الإلغاء، العربون...":"Late arrival, cancellation and deposit policy..."}/></Field>
+        </section>
+      </div>
+
+      <DialogFooter className="qs-booking-settings-footer border-t border-border bg-background/95 px-5 py-4 backdrop-blur sm:px-7">
+        <Button type="button" variant="outline" className="qs-booking-settings-cancel rounded-xl" onClick={()=>onOpenChange(false)} disabled={save.isPending}>{ar?"إلغاء":"Cancel"}</Button>
+        <Button type="button" className="qs-booking-settings-save rounded-xl" disabled={save.isPending} onClick={()=>save.mutate()}>{save.isPending?(ar?"جارٍ الحفظ…":"Saving…"):(ar?"حفظ الإعدادات":"Save settings")}</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>;
 }
 
 function BookingRow({booking,table,currency,ar,lang,busy,onStatus,onMessage,onDelete}:{booking:Booking;table:FloorTable|null;currency:string;ar:boolean;lang:"ar"|"en";busy:boolean;onStatus:(status:BookingStatus,reason?:string)=>void;onMessage:()=>void;onDelete:()=>void}){
@@ -706,6 +779,6 @@ function startOfLocalDay(date:Date){
 
 function Metric({icon:Icon,label,value}:{icon:typeof CalendarCheck2;label:string;value:number}){return <article className="flex min-h-[88px] items-center gap-3 bg-card p-3.5"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-2xl tracking-[-.04em]">{value}</strong></div></article>;}
 function Field({label,children}:{label:string;children:React.ReactNode}){return <div className="space-y-1.5"><Label className="text-xs font-bold">{label}</Label>{children}</div>;}
-function Toggle({label,value,onChange}:{label:string;value:boolean;onChange:(v:boolean)=>void}){return <button type="button" onClick={()=>onChange(!value)} className={cn("flex items-center justify-between rounded-xl border p-4 text-start",value?"border-[#e85d2a] bg-orange-500/5":"border-border")}><span className="text-sm font-semibold">{label}</span><span className={cn("relative h-6 w-11 rounded-full transition",value?"bg-[#e85d2a]":"bg-muted")}><span className={cn("absolute top-1 size-4 rounded-full bg-white shadow transition",value?"start-6":"start-1")}/></span></button>;}
+function Toggle({label,value,onChange}:{label:string;value:boolean;onChange:(v:boolean)=>void}){return <button type="button" aria-pressed={value} onClick={()=>onChange(!value)} className={cn("qs-booking-setting-toggle",value&&"is-active")}><span><strong>{label}</strong><small>{value?"On":"Off"}</small></span><i aria-hidden="true"><b/></i></button>;}
 function bookingDateParts(d:Date){const local=new Date(d.getTime()-d.getTimezoneOffset()*60_000);local.setMinutes(Math.ceil(local.getMinutes()/15)*15,0,0);const value=local.toISOString();return {date:value.slice(0,10),time:value.slice(11,16)};}
 function statusLabel(status:string,ar:boolean){const labels:Record<string,[string,string]>={pending:["Pending","قيد الانتظار"],confirmed:["Confirmed","مؤكد"],seated:["Seated","تم الجلوس"],completed:["Completed","مكتمل"],cancelled:["Cancelled","ملغي"],no_show:["No-show","لم يحضر"],free:["Free","متاحة"],reserved:["Reserved","محجوزة"],active:["Active","نشطة"],cleaning:["Cleaning","تنظيف"],out_of_service:["Out of service","خارج الخدمة"]};return labels[status]?.[ar?1:0]??status;}
