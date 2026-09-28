@@ -234,13 +234,24 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
   return (
     <form onSubmit={submitPublish} className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
       <div className="min-w-0 space-y-3">
-        <section className="panel space-y-3 p-3.5 sm:p-4">
-          <div>
-            <h3 className="text-lg font-semibold">{ar ? "الرئيسية ولوحة التحكم" : "Home & dashboard"}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">{ar ? "عدّل الهوية واحفظها كمسودة قبل النشر." : "Edit the brand workspace and save a draft before publishing."}</p>
+        <section className="panel qs-menu-home-dashboard p-3.5 sm:p-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-lg font-semibold">{ar ? "الرئيسية ولوحة التحكم" : "Home & dashboard"}</h3>
+                <p className="mt-1 text-xs text-muted-foreground">{ar ? "عدّل الهوية واحفظها كمسودة قبل النشر." : "Edit the brand workspace and save a draft before publishing."}</p>
+              </div>
+              <label className="block space-y-2 text-sm"><span>{ar ? "عنوان الرئيسية" : "Home heading"}</span><Input maxLength={100} value={brand.homeTitle} placeholder={restaurant.name} onChange={(e) => setBrand((p) => ({ ...p, homeTitle: e.target.value }))} /></label>
+              <label className="block space-y-2 text-sm"><span>{ar ? "عنوان لوحة التحكم" : "Dashboard heading"}</span><Input maxLength={100} value={brand.dashboardTitle} placeholder={restaurant.name} onChange={(e) => setBrand((p) => ({ ...p, dashboardTitle: e.target.value }))} /></label>
+            </div>
+            <div className="qs-menu-brand-preview" style={form.cover_image_url ? { backgroundImage: `linear-gradient(180deg,rgba(13,12,10,.08),rgba(13,12,10,.62)),url(${form.cover_image_url})` } : undefined}>
+              <span className="qs-menu-brand-preview-badge">{ar ? "معاينة مباشرة" : "Live preview"}</span>
+              <div>
+                <strong>{brand.homeTitle || restaurant.name}</strong>
+                <small>{ar ? "نكهات تجمع الناس" : "Flavors that bring people together"}</small>
+              </div>
+            </div>
           </div>
-          <label className="block space-y-2 text-sm"><span>{ar ? "عنوان الرئيسية" : "Home heading"}</span><Input maxLength={100} value={brand.homeTitle} placeholder={restaurant.name} onChange={(e) => setBrand((p) => ({ ...p, homeTitle: e.target.value }))} /></label>
-          <label className="block space-y-2 text-sm"><span>{ar ? "عنوان لوحة التحكم" : "Dashboard heading"}</span><Input maxLength={100} value={brand.dashboardTitle} placeholder={restaurant.name} onChange={(e) => setBrand((p) => ({ ...p, dashboardTitle: e.target.value }))} /></label>
         </section>
 
         <section className="panel p-3.5 sm:p-4">

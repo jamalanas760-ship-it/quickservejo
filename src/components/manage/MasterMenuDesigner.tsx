@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, FileText, Image as ImageIcon, Layers3, Moon, Package, Sun, Tags, UtensilsCrossed } from "lucide-react";
+import { CheckCircle2, ExternalLink, FileText, Image as ImageIcon, Layers3, MoreHorizontal, Moon, Package, Sun, Tags, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
@@ -57,25 +57,33 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
   ];
 
   return (
-    <section className="qs-viewport-fill flex h-full min-h-0 flex-col gap-4">
+    <section className="qs-menu-studio-master qs-viewport-fill flex h-full min-h-0 flex-col gap-4">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={UtensilsCrossed}>{ar ? "استوديو القائمة" : "Menu Studio"}</MasterEyebrow>}
         title={ar ? "إدارة القائمة" : "Menu Management"}
-        description={ar ? "أدر العناصر والفئات والأسعار والهوية من مساحة عمل واحدة واضحة." : "Manage items, categories, pricing and presentation from one focused workspace."}
-        actions={restaurant.data ? <>
+        description={ar ? "أنشئ وأدر قائمة مطعمك بعناصر جميلة وفئات وأسعار واضحة." : "Create and manage your restaurant menu with beautiful items, categories and pricing."}
+        actions={restaurant.data ? <div className="flex flex-wrap items-center gap-2">
+          <span className="qs-live-menu-pill"><i />{ar ? "القائمة مباشرة" : "Live Menu"}</span>
           {workflow === "standard" ? <StandardMenuModeControl restaurant={restaurant.data} /> : null}
           {workflow === "standard"
             ? <Link to="/r/$slug" params={{ slug: restaurant.data.slug }} search={{ preview: "1" as const }} target="_blank" rel="noreferrer" className="qs-button-secondary"><ExternalLink className="size-4" />{ar ? "معاينة القائمة" : "Preview Menu"}</Link>
             : <Link to="/m/$slug" params={{ slug: restaurant.data.slug }} target="_blank" rel="noreferrer" className="qs-button-secondary"><ExternalLink className="size-4" />{ar ? "معاينة القائمة" : "Preview Menu"}</Link>}
-        </> : null}
+          <button type="button" className="qs-icon-button" aria-label={ar ? "المزيد" : "More options"}><MoreHorizontal className="size-4" /></button>
+        </div> : null}
       />
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <button type="button" aria-pressed={workflow === "standard"} disabled={saveWorkflow.isPending} onClick={() => workflow !== "standard" && saveWorkflow.mutate("standard")} className={cn("flex min-h-[68px] items-center gap-3 rounded-[12px] border bg-card px-4 py-3 text-start shadow-[var(--qs-shadow-card)] transition disabled:cursor-wait disabled:opacity-70", workflow === "standard" ? "border-[#e85d2a] bg-orange-500/[.035]" : "border-border hover:bg-muted/30")}>
-          <span className={cn("grid size-10 shrink-0 place-items-center rounded-[10px]", workflow === "standard" ? "bg-orange-100 text-[#cf4818] dark:bg-orange-950/30" : "bg-muted text-muted-foreground")}><UtensilsCrossed className="size-4" /></span><span><strong className={cn("block text-sm", workflow === "standard" && "text-[#cf4818]")}>{ar ? "القائمة العادية" : "Standard Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "أنشئ وخصص قائمتك الإلكترونية" : "Build and customize your menu online"}</span></span>
+      <div className="qs-menu-workflow-grid grid gap-3 lg:grid-cols-2">
+        <button type="button" aria-pressed={workflow === "standard"} disabled={saveWorkflow.isPending} onClick={() => workflow !== "standard" && saveWorkflow.mutate("standard")} className={cn("qs-menu-workflow-card group relative flex min-h-[84px] items-center gap-3 overflow-hidden rounded-[14px] border bg-card px-4 py-3 text-start shadow-[var(--qs-shadow-card)] transition disabled:cursor-wait disabled:opacity-70", workflow === "standard" ? "is-active border-[#e85d2a] bg-orange-500/[.035]" : "border-border hover:bg-muted/30")}>
+          <span className={cn("relative z-10 grid size-11 shrink-0 place-items-center rounded-[11px]", workflow === "standard" ? "bg-orange-100 text-[#cf4818] dark:bg-orange-950/30" : "bg-muted text-muted-foreground")}><UtensilsCrossed className="size-5" /></span>
+          <span className="relative z-10 min-w-0 flex-1"><strong className={cn("block text-sm", workflow === "standard" && "text-[#cf4818]")}>{ar ? "القائمة العادية" : "Standard Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "أنشئ وخصص قائمتك الإلكترونية" : "Build and customize your menu online"}</span></span>
+          {restaurant.data?.cover_image_url ? <span className="qs-menu-workflow-image" style={{ backgroundImage: `linear-gradient(90deg,transparent,rgba(255,255,255,.08)),url(${restaurant.data.cover_image_url})` }} /> : null}
+          {workflow === "standard" ? <CheckCircle2 className="relative z-10 size-5 shrink-0 text-[#e85d2a]" /> : null}
         </button>
-        <button type="button" aria-pressed={workflow === "pdf"} disabled={saveWorkflow.isPending} onClick={() => workflow !== "pdf" && saveWorkflow.mutate("pdf")} className={cn("flex min-h-[68px] items-center gap-3 rounded-[12px] border bg-card px-4 py-3 text-start shadow-[var(--qs-shadow-card)] transition disabled:cursor-wait disabled:opacity-70", workflow === "pdf" ? "border-[#e85d2a] bg-orange-500/[.035]" : "border-border hover:bg-muted/30")}>
-          <span className={cn("grid size-10 shrink-0 place-items-center rounded-[10px]", workflow === "pdf" ? "bg-orange-100 text-[#cf4818] dark:bg-orange-950/30" : "bg-muted text-muted-foreground")}><FileText className="size-4" /></span><span><strong className={cn("block text-sm", workflow === "pdf" && "text-[#cf4818]")}>{ar ? "قائمة PDF" : "PDF Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "ارفع قائمة PDF تفاعلية" : "Upload a clickable PDF menu"}</span></span>
+        <button type="button" aria-pressed={workflow === "pdf"} disabled={saveWorkflow.isPending} onClick={() => workflow !== "pdf" && saveWorkflow.mutate("pdf")} className={cn("qs-menu-workflow-card group relative flex min-h-[84px] items-center gap-3 overflow-hidden rounded-[14px] border bg-card px-4 py-3 text-start shadow-[var(--qs-shadow-card)] transition disabled:cursor-wait disabled:opacity-70", workflow === "pdf" ? "is-active border-[#e85d2a] bg-orange-500/[.035]" : "border-border hover:bg-muted/30")}>
+          <span className={cn("relative z-10 grid size-11 shrink-0 place-items-center rounded-[11px]", workflow === "pdf" ? "bg-orange-100 text-[#cf4818] dark:bg-orange-950/30" : "bg-muted text-muted-foreground")}><FileText className="size-5" /></span>
+          <span className="relative z-10 min-w-0 flex-1"><strong className={cn("block text-sm", workflow === "pdf" && "text-[#cf4818]")}>{ar ? "قائمة PDF" : "PDF Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "ارفع قائمة PDF تفاعلية" : "Upload a clickable PDF menu"}</span></span>
+          {restaurant.data?.logo_url ? <span className="qs-menu-workflow-image qs-menu-workflow-image-logo" style={{ backgroundImage: `url(${restaurant.data.logo_url})` }} /> : null}
+          {workflow === "pdf" ? <CheckCircle2 className="relative z-10 size-5 shrink-0 text-[#e85d2a]" /> : null}
         </button>
       </div>
 
@@ -90,8 +98,8 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
             <button type="button" onClick={() => setPdfEditorOpen(true)} className="qs-button-primary"><FileText className="size-4" />{ar ? "فتح محرر PDF" : "Open PDF editor"}</button>
           </div>
         )) : (
-          <div className="grid h-full min-h-0 min-w-0 gap-4 xl:grid-cols-[190px_minmax(0,1fr)]">
-            <aside className="qs-card h-full min-h-0 overflow-hidden">
+          <div className="qs-menu-studio-workspace grid h-full min-h-0 min-w-0 gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
+            <aside className="qs-menu-studio-nav qs-card h-full min-h-0 overflow-hidden">
               <nav className="grid gap-1 p-1.5 sm:grid-cols-2 xl:grid-cols-1">
                 {standardSections.map(({ id, icon: Icon, en, ar: arabic, hint }) => (
                   <button key={id} type="button" onClick={() => setSection(id)} aria-current={section === id ? "page" : undefined} className={cn("flex min-h-14 w-full items-start gap-2.5 rounded-[10px] px-3 py-2.5 text-start transition", section === id ? "bg-[#fff1ec] text-[#cf4818]" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")}>
@@ -101,7 +109,7 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
               </nav>
             </aside>
 
-            <main className="qs-scroll-region min-h-0 min-w-0">
+            <main className="qs-menu-studio-content qs-scroll-region min-h-0 min-w-0">
               {section === "design" ? <Appearance restaurantId={restaurantId} /> : (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2"><span className="grid size-9 place-items-center rounded-full bg-orange-50 text-[#e85d2a] dark:bg-orange-950/30"><Layers3 className="size-4" /></span><div><h2 className="font-display text-lg font-bold">{ar ? standardSections.find((item) => item.id === section)?.ar : standardSections.find((item) => item.id === section)?.en}</h2><p className="text-xs text-muted-foreground">{ar ? "تعديل القائمة العادية فقط — منتجات PDF تبقى منفصلة." : "Standard Menu only — PDF hotspot products remain separate."}</p></div></div>
