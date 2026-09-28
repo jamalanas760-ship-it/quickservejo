@@ -73,19 +73,23 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
     }
   }
 
-  return <form onSubmit={save} className="space-y-5">
+  return <form onSubmit={save} className="qs-organization-settings space-y-5">
     <section className="qs-card overflow-hidden">
       <div className="qs-panel-header flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div><h2 className="font-display text-lg font-bold">{ar ? "إعدادات المؤسسة" : "Organization Settings"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "الشعارات وصورة الغلاف وهوية مساحة العمل الخاصة بهذا المطعم." : "Logos, cover image and workspace identity for this restaurant."}</p></div>
         <span className="inline-flex items-center gap-2 self-start rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-600"><SlidersHorizontal className="size-3.5" />{ar ? "خاص بالمطعم" : "Restaurant scoped"}</span>
       </div>
       <div className="space-y-6 p-4 sm:p-6">
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-3">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="qs-brand-card space-y-3">
+            <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{ar?"هوية مساحة العمل":"Workspace identity"}</p><h3 className="mt-1 text-sm font-bold">{ar?"شعار المؤسسة":"Organization logo"}</h3></div>
             <ImageUploader restaurantId={restaurant.id} kind="logo" value={form.logo_url} onChange={(value) => field("logo_url", value)} label={ar ? "شعار المؤسسة" : "Organization logo"} />
             <label className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-muted/20 p-4"><span className="min-w-0"><strong className="block text-sm">{ar ? "استخدام شعار QuickServe" : "Use QuickServe logo"}</strong><span className="mt-1 block text-xs leading-5 text-muted-foreground">{ar ? "أوقفه لإظهار شعار المطعم في التطبيق عند توفره." : "Turn this off to use the restaurant logo in the workspace when available."}</span></span><Switch checked={brand.useQuickServeLogo} onCheckedChange={(value) => setBrand((current) => ({ ...current, useQuickServeLogo: value }))} /></label>
           </div>
-          <ImageUploader restaurantId={restaurant.id} kind="logo" value={brand.menuLogo} onChange={(value) => setBrand((current) => ({ ...current, menuLogo: value }))} label={ar ? "شعار قائمة الضيف" : "Guest menu logo"} />
+          <div className="qs-brand-card space-y-3">
+            <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{ar?"واجهة الضيف":"Guest experience"}</p><h3 className="mt-1 text-sm font-bold">{ar?"شعار قائمة الضيف":"Guest menu logo"}</h3></div>
+            <ImageUploader restaurantId={restaurant.id} kind="logo" value={brand.menuLogo} onChange={(value) => setBrand((current) => ({ ...current, menuLogo: value }))} label={ar ? "شعار قائمة الضيف" : "Guest menu logo"} />
+          </div>
         </div>
 
         <div className="space-y-4 border-t border-border pt-6">
@@ -100,7 +104,10 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
       <ApplicationColorStudio ar={ar} restaurantName={restaurant.name} brand={brand} setBrand={setBrand} primaryColor={form.primary_color} accentColor={form.accent_color} setPrimaryColor={(value) => field("primary_color", value)} setAccentColor={(value) => field("accent_color", value)} />
     </section>
 
-    <div className="flex justify-end"><Button type="submit" disabled={saving} className="min-h-11 bg-[#e85d2a] px-5 text-white hover:bg-[#e94f00]"><Save className="size-4" />{saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ إعدادات المؤسسة" : "Save organization settings")}</Button></div>
+    <div className="qs-settings-savebar">
+      <div><strong>{ar?"التغييرات تطبق على مساحة المطعم":"Changes apply to this restaurant workspace"}</strong><p>{ar?"راجع الشعار والألوان والغلاف ثم احفظ مرة واحدة.":"Review logo, colors and cover, then save everything together."}</p></div>
+      <Button type="submit" disabled={saving} className="min-h-11 bg-[#e85d2a] px-5 text-white shadow-md hover:bg-[#e94f00]"><Save className="size-4" />{saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ إعدادات المؤسسة" : "Save organization settings")}</Button>
+    </div>
   </form>;
 }
 
