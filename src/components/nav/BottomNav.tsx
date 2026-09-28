@@ -208,6 +208,11 @@ export function BottomNav() {
     if (!open) setToolSearch("");
   }
 
+  function clearIOSSelection(){
+    if(typeof window==="undefined")return;
+    try{window.getSelection()?.removeAllRanges();}catch{}
+  }
+
   function isIOSMobile(){
     if(typeof window==="undefined"||typeof navigator==="undefined")return false;
     const isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
@@ -239,6 +244,7 @@ export function BottomNav() {
 
   function startLongPress(item:Item,target:HTMLElement,clientX:number,clientY:number){
     if(!isIOSMobile())return;
+    clearIOSSelection();
     cancelLongPress();
     pressOrigin.current={x:clientX,y:clientY};
     const key=`${item.to}-${item.en}`;
@@ -255,6 +261,7 @@ export function BottomNav() {
     });
     setPressedNavKey(key);
     longPressTimer.current=setTimeout(()=>{
+      clearIOSSelection();
       suppressNextNavClick.current=true;
       setIOSQuickItem(item);
       setPressedNavKey(null);
@@ -309,6 +316,7 @@ export function BottomNav() {
       Devices:["Connect","Tables","Orders","Home"],
       Team:["Shifts","My Work","Analytics","Profile"],
       Profile:["Connect","Devices","Home","My Work"],
+      More:["Profile","Connect","Devices","Home"],
       Alerts:["My Work","Shifts","Home","Profile"],
       Kitchen:["Orders","Menu","My Work","Shifts"],
       Floor:["Tables","Orders","Reservations","Shifts"],
@@ -339,6 +347,20 @@ export function BottomNav() {
     fireIOSHaptic("light");
     await navigate({to:action.to as never,search:(action.search??{}) as never});
   }
+
+  useEffect(()=>{
+    if(!iosQuickItem||typeof document==="undefined")return;
+    const root=document.documentElement;
+    const keepSelectionCleared=()=>clearIOSSelection();
+    root.classList.add("qs-ios-context-active");
+    clearIOSSelection();
+    document.addEventListener("selectionchange",keepSelectionCleared);
+    return ()=>{
+      document.removeEventListener("selectionchange",keepSelectionCleared);
+      root.classList.remove("qs-ios-context-active");
+      clearIOSSelection();
+    };
+  },[iosQuickItem]);
 
   const normalizedToolSearch = toolSearch.trim().toLocaleLowerCase(lang === "ar" ? "ar" : "en");
   const visibleTools = normalizedToolSearch
@@ -432,7 +454,7 @@ export function BottomNav() {
         </div>
       </aside>
 
-      <nav aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"} className="qs-mobile-bottom-nav safe-bottom fixed inset-x-3 bottom-2 z-50 lg:hidden">
+      <nav aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"} onContextMenu={event=>{if(isIOSMobile())event.preventDefault();}} className="qs-mobile-bottom-nav safe-bottom fixed inset-x-3 bottom-2 z-50 lg:hidden">
         <div className="qs-mobile-bottom-nav-shell grid overflow-hidden" style={{ gridTemplateColumns: `repeat(${Math.max(1, mobilePrimary.length + (mobileHasMore ? 1 : 0))}, minmax(0,1fr))` }}>
           {mobilePrimary.map((item) => {
             const active = activeFor(item);
@@ -458,12 +480,23 @@ export function BottomNav() {
               </Link>
             );
           })}
-          {mobileHasMore ? (
-            <button type="button" onClick={() => setMoreOpen(true)} aria-expanded={moreOpen} className={cn("qs-mobile-nav-item qs-mobile-nav-more relative flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 text-[10px] font-semibold text-muted-foreground transition hover:text-foreground")}>
+          {mobileHasMore ? (()=>{const moreItem:Item={to:"__more__",icon:MoreHorizontal,en:"More",ar:"المزيد"};return (
+            <button
+              type="button"
+              data-ios-pressed={pressedNavKey==="__more__-More"||undefined}
+              onTouchStart={event=>{const touch=event.touches[0];startLongPress(moreItem,event.currentTarget,touch?.clientX??0,touch?.clientY??0);}}
+              onTouchEnd={cancelLongPress}
+              onTouchCancel={cancelLongPress}
+              onTouchMove={event=>{const touch=event.touches[0];if(touch)moveLongPress(touch.clientX,touch.clientY);}}
+              onContextMenu={event=>{if(isIOSMobile())event.preventDefault();}}
+              onClick={event=>{if(consumeLongPressClick(event))return;setMoreOpen(true);}}
+              aria-expanded={moreOpen}
+              className={cn("qs-mobile-nav-item qs-mobile-nav-more qs-ios-haptic-nav-item relative flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 text-[10px] font-semibold text-muted-foreground transition hover:text-foreground")}
+            >
               <MoreHorizontal className="size-5" />
               <span>{lang === "ar" ? "المزيد" : "More"}</span>
             </button>
-          ) : null}
+          )})() : null}
         </div>
       </nav>
 
@@ -476,6 +509,7 @@ export function BottomNav() {
             aria-label={lang==="ar"?`إجراءات ${iosQuickItem.ar}`:`${iosQuickItem.en} quick actions`}
             style={{left:iosQuickAnchor.menuLeft,bottom:iosQuickAnchor.menuBottom}}
             onClick={event=>event.stopPropagation()}
+            onContextMenu={event=>event.preventDefault()}
           >
             <div className="qs-ios-context-title">{lang==="ar"?iosQuickItem.ar:iosQuickItem.en}</div>
             {quickActionsFor(iosQuickItem).map((action,index)=>{
@@ -486,14 +520,6 @@ export function BottomNav() {
                 {index<quickActionsFor(iosQuickItem).length-1?<i aria-hidden="true"/>:null}
               </button>;
             })}
-          </div>
-          <div
-            className="qs-ios-context-preview"
-            aria-hidden="true"
-            style={{left:iosQuickAnchor.previewLeft,bottom:iosQuickAnchor.previewBottom,width:iosQuickAnchor.previewWidth}}
-          >
-            {(()=>{const Icon=iosQuickItem.icon;return <Icon className="size-5"/>;})()}
-            <span>{lang==="ar"?iosQuickItem.ar:iosQuickItem.en}</span>
           </div>
         </div>
       ):null}

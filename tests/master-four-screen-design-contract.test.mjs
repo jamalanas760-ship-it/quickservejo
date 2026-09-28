@@ -291,3 +291,18 @@ test("iOS long-press navigation uses an anchored native-style context menu with 
   assert.match(styles,/backdrop-filter:blur\(28px\) saturate\(1\.75\)/);
   assert.match(styles,/qs-ios-menu-pop/);
 });
+
+
+test("iOS bottom navigation suppresses native text selection, callouts and the magnifier during long press", async () => {
+  const nav = await readFile(new URL("../src/components/nav/BottomNav.tsx", import.meta.url), "utf8");
+  assert.match(nav,/clearIOSSelection/);
+  assert.match(nav,/removeAllRanges/);
+  assert.match(nav,/selectionchange/);
+  assert.match(nav,/qs-ios-context-active/);
+  assert.match(nav,/More:\["Profile","Connect","Devices","Home"\]/);
+  assert.match(styles,/iOS native-selection suppression for bottom navigation/);
+  assert.match(styles,/-webkit-touch-callout:none!important/);
+  assert.match(styles,/-webkit-user-select:none!important/);
+  assert.match(styles,/touch-action:none!important/);
+  assert.match(styles,/\.qs-ios-context-preview\{display:none!important\}/);
+});

@@ -2913,3 +2913,46 @@
 @media(min-width:768px){
   .qs-ios-context-layer{display:none!important}
 }
+
+
+/* iOS native-selection suppression for bottom navigation — 2026-09-28 */
+.qs-mobile-bottom-nav,
+.qs-mobile-bottom-nav *,
+.qs-ios-context-layer,
+.qs-ios-context-layer *{
+  -webkit-touch-callout:none!important;
+  -webkit-user-select:none!important;
+  user-select:none!important;
+  -webkit-user-drag:none!important;
+  -webkit-tap-highlight-color:transparent!important;
+  caret-color:transparent!important;
+}
+.qs-mobile-bottom-nav img,
+.qs-ios-context-layer img{
+  -webkit-user-drag:none!important;
+  user-drag:none;
+  pointer-events:none;
+}
+.qs-ios-haptic-nav-item{
+  touch-action:none!important;
+  -webkit-touch-callout:none!important;
+  -webkit-user-select:none!important;
+  user-select:none!important;
+}
+html.qs-ios-context-active,
+html.qs-ios-context-active body,
+html.qs-ios-context-active body *{
+  -webkit-touch-callout:none!important;
+  -webkit-user-select:none!important;
+  user-select:none!important;
+}
+html.qs-ios-context-active ::selection{
+  background:transparent!important;
+  color:inherit!important;
+}
+html.qs-ios-context-active ::-moz-selection{
+  background:transparent!important;
+  color:inherit!important;
+}
+/* The context menu itself is the only lifted surface; do not render a second tab preview. */
+.qs-ios-context-preview{display:none!important}
