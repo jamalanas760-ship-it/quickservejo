@@ -1,5 +1,5 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import {
   BarChart3,
   Banknote,
@@ -18,6 +18,7 @@ import {
   Megaphone,
   MonitorSmartphone,
   MoreHorizontal,
+  Plus,
   LayoutGrid,
   PlugZap,
   Search,
@@ -44,6 +45,7 @@ import { cn } from "@/lib/utils";
 
 type NavGroup = "overview" | "service" | "operations" | "growth" | "admin";
 type Item = { to: string; icon: typeof Home; en: string; ar: string; exact?: boolean; capability?: Capability; badge?: "tasks" | "shifts" | "orders" | "unread"; group?: NavGroup };
+type IOSQuickAction={key:string;to:string;icon:typeof Home;en:string;ar:string;search?:Record<string,unknown>};
 
 const FRONTLINE_ITEMS: Record<string, Item> = {
   kitchen: { to: "/kitchen", icon: ChefHat, en: "Kitchen", ar: "المطبخ" },
@@ -54,8 +56,13 @@ const FRONTLINE_ITEMS: Record<string, Item> = {
 
 export function BottomNav() {
   const { lang } = useI18n();
+  const navigate=useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
   const [toolSearch, setToolSearch] = useState("");
+  const [iosQuickItem,setIOSQuickItem]=useState<Item|null>(null);
+  const [pressedNavKey,setPressedNavKey]=useState<string|null>(null);
+  const longPressTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const suppressNextNavClick=useRef(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const access = useAccess();
   const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
@@ -199,6 +206,93 @@ export function BottomNav() {
     if (!open) setToolSearch("");
   }
 
+  function isIOSMobile(){
+    if(typeof window==="undefined"||typeof navigator==="undefined")return false;
+    const isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+    return isiOS&&window.matchMedia("(max-width: 767px) and (pointer: coarse)").matches;
+  }
+
+  function fireIOSHaptic(style:"light"|"medium"="light"){
+    if(!isIOSMobile())return;
+    try{
+      const bridge=(window as Window&{webkit?:{messageHandlers?:{quickserveHaptics?:{postMessage:(payload:{style:string})=>void}}}}).webkit?.messageHandlers?.quickserveHaptics;
+      bridge?.postMessage({style});
+    }catch{}
+    try{
+      const vibration=navigator as Navigator&{vibrate?:(pattern:number|number[])=>boolean};
+      vibration.vibrate?.(style==="medium"?14:8);
+    }catch{}
+    window.dispatchEvent(new CustomEvent("quickserve:haptic",{detail:{style}}));
+  }
+
+  function cancelLongPress(){
+    if(longPressTimer.current){
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current=null;
+    }
+    setPressedNavKey(null);
+  }
+
+  function startLongPress(item:Item){
+    if(!isIOSMobile())return;
+    cancelLongPress();
+    const key=`${item.to}-${item.en}`;
+    setPressedNavKey(key);
+    longPressTimer.current=setTimeout(()=>{
+      suppressNextNavClick.current=true;
+      setIOSQuickItem(item);
+      setPressedNavKey(null);
+      fireIOSHaptic("medium");
+      longPressTimer.current=null;
+    },460);
+  }
+
+  function consumeLongPressClick(event:{preventDefault:()=>void;stopPropagation:()=>void}){
+    if(!suppressNextNavClick.current)return false;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressNextNavClick.current=false;
+    return true;
+  }
+
+  function quickActionsFor(item:Item):IOSQuickAction[]{
+    const byName=(name:string)=>desktopItems.find(candidate=>candidate.en===name);
+    const namesByContext:Record<string,string[]>={
+      Home:["Orders","Tables","Reservations","Team"],
+      Operations:["Orders","Tables","Reservations","Shifts"],
+      Shift:["Shifts","My Work","Team","Reservations"],
+      Menu:["Orders","Tables","Reservations","Analytics"],
+      Tables:["Reservations","Waitlist","Orders","Menu"],
+      Reservations:["Waitlist","Tables","Guests","Orders"],
+      Team:["Shifts","My Work","Analytics","Home"],
+      Analytics:["Orders","ERP","Daily Close","Home"],
+      Orders:["Tables","Menu","Reservations","Analytics"],
+      Shifts:["Team","My Work","Reservations","Home"],
+    };
+    const actions:IOSQuickAction[]=[];
+    if((item.en==="Home"||item.en==="Reservations")&&desktopItems.some(candidate=>candidate.to==="/bookings")){
+      actions.push({key:"add-booking",to:"/bookings",search:{create:true},icon:Plus,en:"Add Booking",ar:"حجز جديد"});
+    }
+    const requested=namesByContext[item.en]??[];
+    for(const name of requested){
+      const candidate=byName(name);
+      if(candidate&&!actions.some(action=>action.to===candidate.to)){
+        actions.push({key:`${candidate.to}-${candidate.en}`,to:candidate.to,icon:candidate.icon,en:candidate.en,ar:candidate.ar});
+      }
+      if(actions.length>=4)break;
+    }
+    if(actions.length<4&&!actions.some(action=>action.to===item.to)){
+      actions.unshift({key:`open-${item.to}`,to:item.to,icon:item.icon,en:`Open ${item.en}`,ar:`فتح ${item.ar}`});
+    }
+    return actions.slice(0,4);
+  }
+
+  async function runIOSQuickAction(action:IOSQuickAction){
+    setIOSQuickItem(null);
+    fireIOSHaptic("light");
+    await navigate({to:action.to as never,search:(action.search??{}) as never});
+  }
+
   const normalizedToolSearch = toolSearch.trim().toLocaleLowerCase(lang === "ar" ? "ar" : "en");
   const visibleTools = normalizedToolSearch
     ? desktopItems.filter((item) => `${item.en} ${item.ar}`.toLocaleLowerCase(lang === "ar" ? "ar" : "en").includes(normalizedToolSearch))
@@ -298,7 +392,20 @@ export function BottomNav() {
             const Icon = item.icon;
             const count = countFor(item);
             return (
-              <Link key={`${item.to}-${item.en}`} to={item.to as never} preload="render" aria-current={active?"page":undefined} className={cn("qs-mobile-nav-item relative flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition", active ? "is-active text-[var(--restaurant-selected-nav,#e85d2a)]" : "text-muted-foreground")}>
+              <Link
+                key={`${item.to}-${item.en}`}
+                to={item.to as never}
+                preload="render"
+                aria-current={active?"page":undefined}
+                data-ios-pressed={pressedNavKey===`${item.to}-${item.en}`||undefined}
+                onTouchStart={()=>startLongPress(item)}
+                onTouchEnd={cancelLongPress}
+                onTouchCancel={cancelLongPress}
+                onTouchMove={cancelLongPress}
+                onContextMenu={event=>{if(isIOSMobile())event.preventDefault();}}
+                onClick={event=>{void consumeLongPressClick(event);}}
+                className={cn("qs-mobile-nav-item qs-ios-haptic-nav-item relative flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition", active ? "is-active text-[var(--restaurant-selected-nav,#e85d2a)]" : "text-muted-foreground")}
+              >
                 <span className="qs-mobile-nav-icon relative"><Icon className="size-5" />{count > 0 ? <span className="absolute -end-2.5 -top-2 min-w-[17px] rounded-full bg-red-500 px-1 text-center text-[8px] font-black leading-[17px] text-white">{count > 99 ? "99+" : count}</span> : null}</span>
                 <span className="qs-mobile-nav-label w-full truncate px-1 text-center">{lang === "ar" ? item.ar : item.en}</span>
               </Link>
@@ -312,6 +419,33 @@ export function BottomNav() {
           ) : null}
         </div>
       </nav>
+
+      <Dialog open={Boolean(iosQuickItem)} onOpenChange={open=>{if(!open)setIOSQuickItem(null);}}>
+        <DialogContent
+          className="qs-ios-haptic-sheet gap-0 overflow-hidden p-0 sm:max-w-sm"
+          onOpenAutoFocus={event=>event.preventDefault()}
+        >
+          <DialogHeader className="qs-ios-haptic-sheet-head text-start">
+            <div className="flex items-center gap-3 pe-8">
+              {iosQuickItem?<span className="qs-ios-haptic-sheet-icon">{(()=>{const Icon=iosQuickItem.icon;return <Icon className="size-5"/>;})()}</span>:null}
+              <div className="min-w-0">
+                <DialogTitle>{iosQuickItem?(lang==="ar"?iosQuickItem.ar:iosQuickItem.en):""}</DialogTitle>
+                <DialogDescription>{lang==="ar"?"إجراءات سريعة — اضغط مطولاً على أي تبويب لفتحها.":"Quick actions — long-press any bottom tab to open them."}</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="qs-ios-haptic-action-list">
+            {(iosQuickItem?quickActionsFor(iosQuickItem):[]).map(action=>{
+              const Icon=action.icon;
+              return <button key={action.key} type="button" className="qs-ios-haptic-action" onClick={()=>void runIOSQuickAction(action)}>
+                <span><Icon className="size-[18px]"/></span>
+                <strong>{lang==="ar"?action.ar:action.en}</strong>
+                <ChevronRight className={cn("ms-auto size-4 text-muted-foreground",lang==="ar"&&"rotate-180")}/>
+              </button>;
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={moreOpen} onOpenChange={changeMoreOpen}>
         <DialogContent

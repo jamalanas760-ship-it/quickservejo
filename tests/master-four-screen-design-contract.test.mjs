@@ -235,3 +235,31 @@ test("Add Booking mobile controls never overlap and footer consumes no dead spac
   assert.match(styles,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
   assert.match(styles,/\.qs-booking-create-form[\s\S]*overflow:hidden!important/);
 });
+
+
+test("reservation schedule uses a responsive guest table and Message is WhatsApp-only", async () => {
+  const bookings = await readFile(new URL("../src/routes/_authenticated/bookings.tsx", import.meta.url), "utf8");
+  assert.match(bookings,/qs-reservation-table/);
+  assert.match(bookings,/role="columnheader"/);
+  assert.match(bookings,/qs-reservation-row/);
+  assert.match(bookings,/qs-reservation-guest/);
+  assert.match(bookings,/const channel="whatsapp" as const/);
+  assert.doesNotMatch(bookings,/\(\["sms","whatsapp"\] as const\)/);
+  assert.match(bookings,/qs-whatsapp-channel-pill/);
+  assert.match(styles,/Reservation schedule table \+ iOS Haptic Touch/);
+  assert.match(styles,/grid-template-areas:/);
+});
+
+test("iOS bottom navigation supports long-press quick actions without changing Android or desktop behavior", async () => {
+  const nav = await readFile(new URL("../src/components/nav/BottomNav.tsx", import.meta.url), "utf8");
+  assert.match(nav,/function isIOSMobile/);
+  assert.match(nav,/iPad\|iPhone\|iPod/);
+  assert.match(nav,/startLongPress/);
+  assert.match(nav,/460/);
+  assert.match(nav,/quickserve:haptic/);
+  assert.match(nav,/quickserveHaptics/);
+  assert.match(nav,/qs-ios-haptic-sheet/);
+  assert.match(nav,/Add Booking/);
+  assert.match(styles,/iOS-only Haptic Touch-style bottom navigation/);
+  assert.match(styles,/-webkit-touch-callout:none/);
+});

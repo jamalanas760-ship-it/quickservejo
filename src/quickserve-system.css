@@ -2307,3 +2307,339 @@
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
   }
 }
+
+
+/* Reservation schedule table + iOS Haptic Touch — 2026-09-28 */
+.qs-reservation-table{
+  min-width:980px;
+}
+.qs-reservation-table-head,
+.qs-reservation-row{
+  display:grid;
+  grid-template-columns:minmax(210px,1.4fr) minmax(150px,.9fr) minmax(110px,.55fr) minmax(120px,.65fr) minmax(130px,.7fr) minmax(210px,1fr);
+  align-items:center;
+}
+.qs-reservation-table-head{
+  position:sticky;
+  top:0;
+  z-index:4;
+  min-height:44px;
+  border-bottom:1px solid var(--qs-stroke);
+  background:color-mix(in srgb,var(--qs-surface) 96%,transparent);
+  color:var(--qs-muted);
+  font-size:.67rem;
+  font-weight:850;
+  letter-spacing:.02em;
+  backdrop-filter:blur(12px);
+}
+.qs-reservation-table-head>div{padding:0 12px}
+.qs-reservation-table-body{background:var(--qs-surface)}
+.qs-reservation-row{
+  position:relative;
+  min-height:94px;
+  border-bottom:1px solid var(--qs-stroke);
+  transition:background-color .15s ease;
+}
+.qs-reservation-row:hover{background:var(--qs-surface-soft)}
+.qs-reservation-cell{
+  min-width:0;
+  padding:13px 12px;
+}
+.qs-reservation-cell>strong{
+  display:block;
+  color:var(--qs-ink);
+  font-size:.76rem;
+}
+.qs-reservation-cell>span:not(.qs-reservation-avatar){
+  display:block;
+  margin-top:3px;
+  overflow:hidden;
+  color:var(--qs-muted);
+  font-size:.67rem;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.qs-reservation-guest-head{
+  display:flex;
+  min-width:0;
+  align-items:center;
+  gap:9px;
+}
+.qs-reservation-avatar{
+  display:grid;
+  width:36px;
+  height:36px;
+  flex:0 0 36px;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--qs-brand) 18%,var(--qs-stroke));
+  border-radius:11px;
+  background:var(--qs-brand-soft);
+  color:var(--qs-brand-strong);
+  font-size:.78rem;
+  font-weight:900;
+}
+.qs-reservation-guest-name{
+  display:block;
+  overflow:hidden;
+  color:var(--qs-ink);
+  font-size:.78rem;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.qs-reservation-guest-head small{
+  display:block;
+  margin-top:2px;
+  overflow:hidden;
+  color:var(--qs-muted);
+  font-size:.64rem;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.qs-reservation-meta-line{
+  display:flex;
+  min-width:0;
+  flex-wrap:wrap;
+  gap:5px 8px;
+  margin-top:8px;
+  color:var(--qs-muted);
+  font-size:.59rem;
+}
+.qs-reservation-meta-line b{color:var(--qs-ink);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.qs-reservation-party strong{
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+.qs-reservation-status{
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:5px;
+}
+.qs-reservation-status>span{margin-top:0!important}
+.qs-reservation-deposit{color:#047857!important;font-weight:750}
+.qs-reservation-warning{color:#dc2626!important}
+.qs-reservation-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:5px;
+}
+.qs-reservation-primary-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:5px;
+}
+.qs-reservation-actions button{
+  min-height:34px!important;
+  border-radius:9px!important;
+  font-size:.66rem!important;
+}
+.qs-reservation-more{width:34px!important;min-width:34px!important;padding:0!important}
+.qs-reservation-row-note{
+  grid-column:1/-1;
+  margin:-8px 12px 11px;
+  border-radius:8px;
+  background:var(--qs-surface-soft);
+  padding:7px 9px;
+  color:var(--qs-muted);
+  font-size:.64rem;
+  line-height:1.45;
+}
+.qs-whatsapp-channel-pill{
+  display:inline-flex;
+  min-height:28px;
+  align-items:center;
+  border:1px solid #16a34a33;
+  border-radius:999px;
+  background:#16a34a10;
+  padding:0 10px;
+  color:#15803d;
+  font-size:.64rem;
+  font-weight:850;
+  letter-spacing:.03em;
+}
+
+@media(max-width:767px){
+  .qs-reservation-table-wrap{
+    overflow:visible!important;
+    padding:10px;
+  }
+  .qs-reservation-table{min-width:0!important}
+  .qs-reservation-table-head{display:none}
+  .qs-reservation-table-body{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    background:transparent;
+  }
+  .qs-reservation-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    grid-template-areas:
+      "guest guest"
+      "time party"
+      "table status"
+      "actions actions";
+    min-height:0;
+    overflow:hidden;
+    border:1px solid var(--qs-stroke);
+    border-radius:16px;
+    background:var(--qs-surface);
+    box-shadow:0 5px 18px rgb(15 23 42/.045);
+  }
+  .qs-reservation-cell{
+    position:relative;
+    padding:11px 12px;
+    border-bottom:1px solid var(--qs-stroke);
+  }
+  .qs-reservation-cell::before{
+    content:attr(data-label);
+    display:block;
+    margin-bottom:5px;
+    color:var(--qs-muted);
+    font-size:.57rem;
+    font-weight:850;
+    letter-spacing:.055em;
+    text-transform:uppercase;
+  }
+  .qs-reservation-guest{
+    grid-area:guest;
+    padding:12px;
+  }
+  .qs-reservation-guest::before{display:none}
+  .qs-reservation-time{grid-area:time;border-inline-end:1px solid var(--qs-stroke)}
+  .qs-reservation-party{grid-area:party}
+  .qs-reservation-table-cell{grid-area:table;border-inline-end:1px solid var(--qs-stroke)}
+  .qs-reservation-status{grid-area:status}
+  .qs-reservation-actions{
+    grid-area:actions;
+    justify-content:space-between;
+    gap:8px;
+    border-bottom:0;
+    padding:9px 10px;
+    background:var(--qs-surface-soft);
+  }
+  .qs-reservation-avatar{width:38px;height:38px;flex-basis:38px}
+  .qs-reservation-guest-name{font-size:.82rem}
+  .qs-reservation-guest-head small{font-size:.67rem}
+  .qs-reservation-primary-actions{
+    min-width:0;
+    flex:1 1 auto;
+    justify-content:flex-start;
+    gap:6px;
+  }
+  .qs-reservation-primary-actions button{
+    min-width:0;
+    min-height:40px!important;
+    flex:1 1 auto;
+    justify-content:center;
+    padding-inline:9px!important;
+    font-size:.68rem!important;
+  }
+  .qs-reservation-more{
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    flex:0 0 40px;
+  }
+  .qs-reservation-row-note{
+    grid-column:1/-1;
+    margin:0;
+    border-radius:0;
+    border-top:1px solid var(--qs-stroke);
+    padding:9px 12px;
+  }
+  .qs-reservation-message-dialog{
+    width:calc(100vw - 12px)!important;
+    max-width:calc(100vw - 12px)!important;
+    max-height:calc(100dvh - 12px)!important;
+    border-radius:20px!important;
+  }
+  .qs-reservation-message-composer textarea{font-size:16px!important}
+}
+@media(max-width:390px){
+  .qs-reservation-row{
+    grid-template-columns:1fr;
+    grid-template-areas:"guest" "time" "party" "table" "status" "actions";
+  }
+  .qs-reservation-time,
+  .qs-reservation-table-cell{border-inline-end:0}
+}
+
+/* iOS-only Haptic Touch-style bottom navigation. */
+.qs-ios-haptic-nav-item{
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+}
+.qs-ios-haptic-nav-item[data-ios-pressed="true"]{
+  transform:scale(.94);
+  background:var(--qs-brand-soft);
+  transition:transform .12s ease,background-color .12s ease;
+}
+.qs-ios-haptic-sheet{
+  width:min(360px,calc(100vw - 20px))!important;
+  max-width:min(360px,calc(100vw - 20px))!important;
+  border-radius:22px!important;
+  box-shadow:0 28px 70px rgb(15 23 42/.25)!important;
+}
+.qs-ios-haptic-sheet-head{
+  padding:16px 16px 13px;
+  border-bottom:1px solid var(--qs-stroke);
+  background:color-mix(in srgb,var(--qs-surface) 95%,transparent);
+}
+.qs-ios-haptic-sheet-icon{
+  display:grid;
+  width:38px;
+  height:38px;
+  flex:0 0 38px;
+  place-items:center;
+  border-radius:12px;
+  background:var(--qs-brand-soft);
+  color:var(--qs-brand-strong);
+}
+.qs-ios-haptic-action-list{
+  display:flex;
+  flex-direction:column;
+  gap:1px;
+  padding:7px;
+  background:var(--qs-surface-soft);
+}
+.qs-ios-haptic-action{
+  display:flex;
+  min-height:52px!important;
+  align-items:center;
+  gap:10px;
+  border:0!important;
+  border-radius:13px;
+  background:var(--qs-surface)!important;
+  padding:7px 10px;
+  color:var(--qs-ink);
+  text-align:start;
+  touch-action:manipulation;
+}
+.qs-ios-haptic-action:active{
+  transform:scale(.985);
+  background:var(--qs-brand-soft)!important;
+}
+.qs-ios-haptic-action>span{
+  display:grid;
+  width:34px;
+  height:34px;
+  flex:0 0 34px;
+  place-items:center;
+  border-radius:10px;
+  background:var(--qs-brand-soft);
+  color:var(--qs-brand-strong);
+}
+.qs-ios-haptic-action strong{
+  min-width:0;
+  flex:1 1 auto;
+  font-size:.78rem;
+}
+@media(min-width:768px){
+  .qs-ios-haptic-sheet{display:none!important}
+}
