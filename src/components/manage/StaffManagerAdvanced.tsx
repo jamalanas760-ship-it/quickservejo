@@ -156,6 +156,8 @@ type StaffScheduleSummary = {
   count: number;
   distance: number;
   attendance: "on_time" | "late" | "left_early" | "overtime" | "not_clocked";
+  attendanceMinutes: number;
+  attendanceAt: string | null;
 };
 type StaffCancelableShift = {
   assignmentId: string;
@@ -323,6 +325,19 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           (!time.clock_out || new Date(time.clock_out).getTime() >= new Date(start ?? 0).getTime()),
       );
       const attendance = scheduleAttendance(start, end, entry);
+      const plannedStartMs = new Date(start ?? 0).getTime();
+      const plannedEndMs = new Date(end ?? 0).getTime();
+      const actualStartMs = entry ? new Date(entry.clock_in).getTime() : Number.NaN;
+      const actualEndMs = entry?.clock_out ? new Date(entry.clock_out).getTime() : Date.now();
+      const attendanceMinutes =
+        attendance === "late" && Number.isFinite(actualStartMs) && Number.isFinite(plannedStartMs)
+          ? Math.max(0, Math.round((actualStartMs - plannedStartMs) / 60_000))
+          : attendance === "left_early" && Number.isFinite(actualEndMs) && Number.isFinite(plannedEndMs)
+            ? Math.max(0, Math.round((plannedEndMs - actualEndMs) / 60_000))
+            : attendance === "overtime" && Number.isFinite(actualEndMs) && Number.isFinite(plannedEndMs)
+              ? Math.max(0, Math.round((actualEndMs - plannedEndMs) / 60_000))
+              : 0;
+      const attendanceAt = entry?.clock_in ?? null;
       const startMs = new Date(start ?? shift.shift_date).getTime();
       const endMs = new Date(end ?? shift.shift_date).getTime();
       const now = Date.now();
@@ -337,6 +352,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           count,
           distance,
           attendance,
+          attendanceMinutes,
+          attendanceAt,
         });
       else result.set(assignment.staff_id, { ...existing, count });
     }
@@ -639,9 +656,9 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           <Skeleton className="m-4 h-[420px] rounded-xl" />
         ) : (
           <>
-            <div className="qs-scroll-region hidden min-h-0 flex-1 overflow-x-auto md:block">
-              <table className="qs-table min-w-[1120px] w-full table-fixed">
-                <colgroup><col className="w-[4%]" /><col className="w-[21%]" /><col className="w-[14%]" /><col className="w-[9%]" /><col className="w-[18%]" /><col className="w-[14%]" /><col className="w-[10%]" /><col className="w-[10%]" /></colgroup>
+            <div className="qs-team-table-wrap hidden min-h-0 flex-1 overflow-hidden xl:block">
+              <table className="qs-team-table qs-table w-full table-fixed">
+                <colgroup><col className="w-[4%]" /><col className="w-[18%]" /><col className="w-[13%]" /><col className="w-[9%]" /><col className="w-[16%]" /><col className="w-[17%]" /><col className="w-[9%]" /><col className="w-[14%]" /></colgroup>
                 <thead><tr><th>#</th><th>{ar ? "الموظف" : "Staff Member"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "وردية اليوم" : "Today's Shift"}</th><th>{ar ? "الحالة الحية" : "Live Status"}</th><th>{ar ? "آخر نشاط" : "Last Active"}</th><th className="text-center">{ar ? "إجراءات" : "Actions"}</th></tr></thead>
                 <tbody>
                   {rows.map((member, index) => {
@@ -667,7 +684,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                 </tbody>
               </table>
             </div>
-            <div className="space-y-2 p-3 md:hidden">
+            <div className="space-y-2 p-3 xl:hidden">
               {rows.map((member) => {
                 const locked =
                   member.role === "restaurant_admin" &&
@@ -676,6 +693,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                 const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
                 const scheduleInfo = scheduleByStaff.get(member.id);
                 const cancelShiftInfo = cancellableShiftByStaff.get(member.id);
+                const clockEntry = openClockByStaff.get(member.id);
+                const isOnLeave = leaveStaffIds.has(member.id);
                 return (
                   <div
                     key={member.id}
@@ -710,7 +729,14 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                           </span>
                         </span>
                       </button>
-                      <div className="mt-3 border-t border-border/70 pt-3">
+                      <div className="mt-3 grid gap-3 border-t border-border/70 pt-3 sm:grid-cols-2">
+                        <StaffLiveStatus
+                          clockEntry={clockEntry}
+                          schedule={scheduleInfo}
+                          onLeave={isOnLeave}
+                          now={presenceNow}
+                          ar={ar}
+                        />
                         <StaffShiftCell
                           schedule={scheduleInfo}
                           canAssign={canManageShifts && member.is_active}
@@ -1291,22 +1317,106 @@ function StaffShiftSummaryCell({ schedule, ar }: { schedule: StaffScheduleSummar
 }
 
 function StaffLiveStatus({ clockEntry, schedule, onLeave, now, ar }: { clockEntry: StaffTimeRow | undefined; schedule: StaffScheduleSummary | undefined; onLeave: boolean; now: number; ar: boolean }) {
-  if (onLeave) return <span className="inline-flex items-center gap-2 rounded-full bg-violet-500/10 px-2.5 py-1.5 text-[10px] font-bold text-violet-700 dark:text-violet-300"><i className="size-1.5 rounded-full bg-violet-500" />{ar ? "في إجازة" : "On leave"}</span>;
+  if (onLeave) {
+    return (
+      <div className="qs-live-status-card qs-live-status-leave">
+        <span className="qs-live-status-icon"><UserRound className="size-3.5" /></span>
+        <span className="min-w-0">
+          <strong>{ar ? "في إجازة" : "On leave"}</strong>
+          <small>{ar ? "اليوم" : "Today"}</small>
+        </span>
+      </div>
+    );
+  }
   if (clockEntry) {
     const seconds = Math.max(0, Math.floor((now - new Date(clockEntry.clock_in).getTime()) / 1000));
-    return <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300"><i className="size-1.5 animate-pulse rounded-full bg-emerald-500" />{ar ? "حاضر" : "Clocked in"} <b>{formatTeamDuration(seconds, ar)}</b></span>;
+    const clockedAt = new Date(clockEntry.clock_in).toLocaleTimeString(ar ? "ar-JO" : "en-JO", { hour: "2-digit", minute: "2-digit" });
+    return (
+      <div className="qs-live-status-card qs-live-status-on">
+        <span className="qs-live-status-icon"><ShieldCheck className="size-3.5" /></span>
+        <span className="min-w-0">
+          <strong>{ar ? "على رأس العمل" : "On shift"} <i /></strong>
+          <b>{formatTeamDuration(seconds, ar)}</b>
+          <small>{ar ? `سجل الحضور ${clockedAt}` : `Clocked in ${clockedAt}`}</small>
+        </span>
+      </div>
+    );
   }
-  if (schedule && schedule.attendance !== "not_clocked") return <span className={cn("inline-flex items-center rounded-full px-2.5 py-1.5 text-[10px] font-bold", scheduleTone(schedule.attendance))}>{scheduleLabel(schedule.attendance, ar)}</span>;
-  if (schedule) return <span className="inline-flex items-center gap-2 rounded-full bg-slate-500/10 px-2.5 py-1.5 text-[10px] font-bold text-slate-600 dark:text-slate-300"><i className="size-1.5 rounded-full bg-slate-400" />{ar ? "لم يبدأ" : "Not started"}</span>;
-  return <span className="inline-flex items-center gap-2 rounded-full bg-muted px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground"><i className="size-1.5 rounded-full bg-slate-300" />{ar ? "خارج الوردية" : "Off shift"}</span>;
+  if (schedule?.attendance === "late") {
+    return (
+      <div className="qs-live-status-card qs-live-status-alert">
+        <span className="qs-live-status-icon"><History className="size-3.5" /></span>
+        <span className="min-w-0">
+          <strong>{ar ? "متأخر" : "Late"}</strong>
+          <b>{schedule.attendanceMinutes > 0 ? `${schedule.attendanceMinutes} ${ar ? "د" : "min"}` : "—"}</b>
+          <small>{schedule.start ? (ar ? `بدأت الوردية ${formatTeamTime(schedule.start, true)}` : `Shift started ${formatTeamTime(schedule.start, false)}`) : (ar ? "تأخر عن بداية الوردية" : "Late for scheduled start")}</small>
+        </span>
+      </div>
+    );
+  }
+  if (schedule?.attendance === "left_early") {
+    return (
+      <div className="qs-live-status-card qs-live-status-alert">
+        <span className="qs-live-status-icon"><History className="size-3.5" /></span>
+        <span className="min-w-0">
+          <strong>{ar ? "غادر مبكراً" : "Left early"}</strong>
+          <b>{schedule.attendanceMinutes > 0 ? `${schedule.attendanceMinutes} ${ar ? "د" : "min"}` : ""}</b>
+          <small>{ar ? "قبل نهاية الوردية" : "Before scheduled end"}</small>
+        </span>
+      </div>
+    );
+  }
+  if (schedule?.attendance === "overtime") {
+    return (
+      <div className="qs-live-status-card qs-live-status-break">
+        <span className="qs-live-status-icon"><History className="size-3.5" /></span>
+        <span className="min-w-0">
+          <strong>{ar ? "وقت إضافي" : "Overtime"}</strong>
+          <b>{schedule.attendanceMinutes > 0 ? `${schedule.attendanceMinutes} ${ar ? "د" : "min"}` : ""}</b>
+          <small>{ar ? "بعد نهاية الوردية" : "Beyond scheduled end"}</small>
+        </span>
+      </div>
+    );
+  }
+  if (schedule?.attendance === "on_time") {
+    return (
+      <div className="qs-live-status-card qs-live-status-done">
+        <span className="qs-live-status-icon"><ShieldCheck className="size-3.5" /></span>
+        <span className="min-w-0">
+          <strong>{ar ? "ضمن الوقت" : "On time"}</strong>
+          <small>{ar ? "حضور مكتمل" : "Attendance recorded"}</small>
+        </span>
+      </div>
+    );
+  }
+  if (schedule) {
+    return (
+      <div className="qs-live-status-card qs-live-status-off">
+        <span className="qs-live-status-icon"><CalendarClock className="size-3.5" /></span>
+        <span className="min-w-0">
+          <strong>{ar ? "لم تبدأ الوردية" : "Not started"}</strong>
+          <small>{schedule.start ? (ar ? `تبدأ ${formatTeamTime(schedule.start, true)}` : `Starts ${formatTeamTime(schedule.start, false)}`) : (ar ? "بانتظار تسجيل الحضور" : "Waiting for clock in")}</small>
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="qs-live-status-card qs-live-status-off">
+      <span className="qs-live-status-icon"><History className="size-3.5" /></span>
+      <span className="min-w-0">
+        <strong>{ar ? "خارج الوردية" : "Off shift"}</strong>
+        <small>{ar ? "غير مسجل حالياً" : "Not clocked in"}</small>
+      </span>
+    </div>
+  );
 }
 
 function StaffRowActions({ member, locked, canManageShifts, canCancelShift, ar, onEdit, onAssign, onCancel }: { member: StaffRow; locked: boolean; canManageShifts: boolean; canCancelShift: boolean; ar: boolean; onEdit: () => void; onAssign: () => void; onCancel: () => void }) {
   const canAssign = canManageShifts && member.is_active;
   return <div className="qs-team-actions">
-    {canAssign ? <button type="button" className="qs-team-action-button" title={ar ? "تعيين وردية" : "Assign shift"} onClick={onAssign}><CalendarPlus className="size-3.5" /><span>{ar?"وردية":"Shift"}</span></button> : null}
-    {!locked ? <button type="button" className="qs-team-action-button" title={ar ? "تعديل الموظف" : "Edit member"} onClick={onEdit}><Pencil className="size-3.5" /><span>{ar?"تعديل":"Edit"}</span></button> : null}
-    <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="qs-team-action-more" aria-label={ar ? `إجراءات ${member.name}` : `${member.name} actions`}><MoreHorizontal className="size-4" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-44">
+    {canAssign ? <button type="button" className="qs-team-action-button qs-team-action-shift" title={ar ? "تعيين وردية" : "Assign shift"} onClick={onAssign}><CalendarPlus className="size-4" /><span>{ar?"وردية":"Shift"}</span></button> : null}
+    {!locked ? <button type="button" className="qs-team-action-button qs-team-action-edit" title={ar ? "تعديل الموظف" : "Edit member"} onClick={onEdit}><Pencil className="size-4" /><span>{ar?"تعديل":"Edit"}</span></button> : null}
+    <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="qs-team-action-more" aria-label={ar ? `إجراءات ${member.name}` : `${member.name} actions`}><MoreHorizontal className="size-5" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-44">
       {canAssign ? <DropdownMenuItem onSelect={() => window.setTimeout(onAssign, 0)}><CalendarPlus className="size-4" />{ar ? "تعيين وردية" : "Assign shift"}</DropdownMenuItem> : null}
       {!locked ? <DropdownMenuItem onSelect={() => window.setTimeout(onEdit, 0)}><Pencil className="size-4" />{ar ? "تعديل الموظف" : "Edit member"}</DropdownMenuItem> : null}
       {canCancelShift ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => window.setTimeout(onCancel, 0)}><CalendarX2 className="size-4" />{ar ? "إلغاء الوردية" : "Cancel shift"}</DropdownMenuItem></> : null}
@@ -1851,6 +1961,13 @@ function Stat({
       </div>
     </div>
   );
+}
+
+function formatTeamTime(value: string, ar: boolean) {
+  return new Date(value).toLocaleTimeString(ar ? "ar-JO" : "en-JO", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatTeamDuration(seconds: number, ar: boolean) {

@@ -109,3 +109,24 @@ test("team shift dialog keeps actions visible and shows a live schedule preview"
   assert.match(source, /Live preview/);
   assert.match(source, /formatTimeInput/);
 });
+
+
+test("team table uses the approved action buttons and live status cards without horizontal scrolling", async () => {
+  assert.match(source, /qs-team-table-wrap/);
+  assert.match(source, /overflow-hidden xl:block/);
+  assert.doesNotMatch(source, /qs-scroll-region hidden min-h-0 flex-1 overflow-x-auto md:block/);
+  assert.match(source, /qs-team-action-shift/);
+  assert.match(source, /qs-team-action-edit/);
+  assert.match(source, /qs-live-status-card qs-live-status-on/);
+  assert.match(source, /qs-live-status-card qs-live-status-off/);
+  assert.match(source, /Clocked in/);
+  assert.match(source, /Not clocked in/);
+  assert.match(source, /attendanceMinutes/);
+
+  const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(styles, /Approved Team table \+ Live Status design 2026-09-28/);
+  assert.match(styles, /\.qs-team-action-shift/);
+  assert.match(styles, /\.qs-live-status-on/);
+  assert.match(styles, /\.qs-live-status-alert/);
+  assert.match(styles, /@media\(max-width:1279px\)/);
+});

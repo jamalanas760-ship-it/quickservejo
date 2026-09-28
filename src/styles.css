@@ -629,3 +629,217 @@
 @media(max-width:900px){.qs-analytics-pulse{grid-template-columns:repeat(2,minmax(0,1fr))}.qs-analytics-pulse>div+div{border-inline-start:0;border-top:1px solid var(--border)}}
 @media(max-width:640px){.qs-team-action-button span{display:none}.qs-team-action-button{width:30px;padding:0}.qs-analytics-pulse{grid-template-columns:1fr}.qs-settings-savebar{align-items:stretch;flex-direction:column}.qs-settings-savebar button{width:100%}}
 @media(prefers-reduced-motion:reduce){.qs-team-action-button,.qs-team-action-more,.qs-analytics-kpis>article{transition:none!important}}
+
+
+/* Approved Team table + Live Status design 2026-09-28 */
+.qs-team-table-wrap{
+  width:100%;
+  max-width:100%;
+}
+.qs-team-table{
+  width:100%;
+  min-width:0;
+}
+.qs-workforce-team .qs-team-table th,
+.qs-workforce-team .qs-team-table td{
+  min-width:0;
+  padding-inline:10px;
+}
+.qs-workforce-team .qs-team-table th{
+  white-space:nowrap;
+  font-size:10px;
+  letter-spacing:.01em;
+}
+.qs-workforce-team .qs-team-table td{
+  vertical-align:middle;
+}
+.qs-team-actions{
+  display:flex;
+  width:100%;
+  align-items:center;
+  justify-content:flex-end;
+  gap:7px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  padding:0;
+  box-shadow:none;
+}
+.qs-team-action-button,
+.qs-team-action-more{
+  display:inline-flex;
+  height:38px;
+  min-height:38px;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  border:1px solid color-mix(in oklab,var(--border) 92%,transparent);
+  border-radius:10px;
+  background:var(--card);
+  color:var(--foreground);
+  font-size:11px;
+  font-weight:750;
+  line-height:1;
+  box-shadow:0 2px 7px oklch(.25 .02 55/.035);
+  transition:border-color .18s ease,background .18s ease,color .18s ease,transform .18s ease,box-shadow .18s ease;
+}
+.qs-team-action-button{
+  min-width:64px;
+  padding:0 11px;
+}
+.qs-team-action-shift{
+  min-width:72px;
+  border-color:oklch(.78 .13 52/.52);
+  background:linear-gradient(180deg,oklch(.99 .014 62),oklch(.975 .028 55));
+  color:oklch(.55 .19 42);
+}
+.qs-team-action-edit{
+  min-width:66px;
+  color:color-mix(in oklab,var(--foreground) 78%,var(--muted-foreground) 22%);
+}
+.qs-team-action-more{
+  width:38px;
+  min-width:38px;
+  padding:0;
+  color:var(--muted-foreground);
+}
+.qs-team-action-button:hover,
+.qs-team-action-more:hover{
+  transform:translateY(-1px);
+  border-color:color-mix(in oklab,var(--border) 72%,var(--primary) 28%);
+  background:color-mix(in oklab,var(--card) 88%,var(--muted) 12%);
+  color:var(--foreground);
+  box-shadow:0 7px 18px oklch(.25 .035 55/.075);
+}
+.qs-team-action-shift:hover{
+  border-color:oklch(.72 .16 48/.7);
+  background:oklch(.97 .035 55);
+  color:oklch(.52 .2 42);
+}
+.qs-live-status-card{
+  display:flex;
+  width:min(100%,170px);
+  min-height:48px;
+  align-items:center;
+  gap:9px;
+  border-radius:14px;
+  padding:7px 10px;
+  line-height:1.15;
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.qs-live-status-card:hover{
+  transform:translateY(-1px);
+  box-shadow:0 8px 20px oklch(.25 .03 55/.065);
+}
+.qs-live-status-icon{
+  display:grid;
+  width:30px;
+  height:30px;
+  flex:0 0 auto;
+  place-items:center;
+  border-radius:999px;
+  background:color-mix(in oklab,var(--card) 74%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in oklab,currentColor 14%,transparent);
+}
+.qs-live-status-card strong,
+.qs-live-status-card b,
+.qs-live-status-card small{
+  display:block;
+}
+.qs-live-status-card strong{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:10.5px;
+  font-weight:800;
+}
+.qs-live-status-card strong i{
+  display:inline-block;
+  width:5px;
+  height:5px;
+  margin-inline-start:4px;
+  border-radius:999px;
+  background:currentColor;
+  vertical-align:middle;
+}
+.qs-live-status-card b{
+  margin-top:2px;
+  font-size:10.5px;
+  font-weight:850;
+}
+.qs-live-status-card small{
+  margin-top:3px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:9px;
+  font-weight:550;
+  opacity:.76;
+}
+.qs-live-status-off{
+  border:1px solid color-mix(in oklab,var(--border) 72%,transparent);
+  background:linear-gradient(135deg,color-mix(in oklab,var(--muted) 72%,var(--card) 28%),color-mix(in oklab,var(--muted) 52%,var(--card) 48%));
+  color:var(--muted-foreground);
+}
+.qs-live-status-on,
+.qs-live-status-done{
+  border:1px solid oklch(.78 .12 165/.24);
+  background:linear-gradient(135deg,oklch(.965 .035 165),oklch(.94 .055 165));
+  color:oklch(.47 .14 165);
+}
+.qs-live-status-on strong i{
+  animation:pulse 1.7s ease-in-out infinite;
+}
+.qs-live-status-break{
+  border:1px solid oklch(.82 .12 85/.25);
+  background:linear-gradient(135deg,oklch(.98 .035 88),oklch(.945 .07 88));
+  color:oklch(.55 .13 78);
+}
+.qs-live-status-alert{
+  border:1px solid oklch(.82 .11 20/.25);
+  background:linear-gradient(135deg,oklch(.98 .028 20),oklch(.95 .055 20));
+  color:oklch(.55 .17 25);
+}
+.qs-live-status-leave{
+  border:1px solid oklch(.82 .08 235/.28);
+  background:linear-gradient(135deg,oklch(.975 .025 235),oklch(.94 .055 235));
+  color:oklch(.48 .14 240);
+}
+.dark .qs-live-status-on,
+.dark .qs-live-status-done{
+  background:linear-gradient(135deg,oklch(.28 .055 165),oklch(.24 .04 165));
+}
+.dark .qs-live-status-break{
+  background:linear-gradient(135deg,oklch(.29 .055 82),oklch(.245 .04 82));
+}
+.dark .qs-live-status-alert{
+  background:linear-gradient(135deg,oklch(.29 .06 25),oklch(.245 .045 25));
+}
+.dark .qs-live-status-leave{
+  background:linear-gradient(135deg,oklch(.28 .055 240),oklch(.245 .04 240));
+}
+@media(max-width:1380px){
+  .qs-workforce-team .qs-team-table th,
+  .qs-workforce-team .qs-team-table td{padding-inline:7px}
+  .qs-team-actions{gap:5px}
+  .qs-team-action-button{min-width:58px;padding:0 8px}
+  .qs-team-action-shift{min-width:64px}
+  .qs-team-action-edit{min-width:58px}
+  .qs-team-action-more{width:34px;min-width:34px}
+  .qs-live-status-card{padding-inline:8px}
+}
+@media(max-width:1279px){
+  .qs-team-table-wrap{display:none!important}
+}
+@media(max-width:640px){
+  .qs-team-action-button span{display:inline}
+  .qs-team-action-button{width:auto}
+  .qs-team-actions{justify-content:flex-end}
+  .qs-live-status-card{width:100%;max-width:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .qs-team-action-button,
+  .qs-team-action-more,
+  .qs-live-status-card{transition:none!important}
+  .qs-live-status-on strong i{animation:none!important}
+}
