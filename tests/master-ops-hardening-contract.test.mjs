@@ -40,3 +40,14 @@ test("integrations surface runtime health",()=>{
   assert.match(integrations,/WhatsApp \/ SMS/);
   assert.match(integrations,/Runtime tested/);
 });
+
+
+test("campaign messaging normalizes local destinations and CRM pages reuse cached data", async()=>{
+  const campaignWorker=await readFile(new URL("../supabase/functions/quickserve-campaign-worker/index.ts",import.meta.url),"utf8");
+  const guests=await readFile(new URL("../src/routes/_authenticated/guests.tsx",import.meta.url),"utf8");
+  const campaigns=await readFile(new URL("../src/routes/_authenticated/campaigns.tsx",import.meta.url),"utf8");
+  assert.match(campaignWorker,/normalizeDestination/);
+  assert.match(campaignWorker,/"962"\+digits\.slice\(1\)/);
+  assert.match(guests,/staleTime: 60_000/);
+  assert.match(campaigns,/staleTime:15_000/);
+});
