@@ -93,7 +93,7 @@ test("quick styles apply across the restaurant shell and sidebar is customizable
   const appearanceModel = await readFile(new URL("../src/lib/restaurant-appearance.ts", import.meta.url), "utf8");
   const colorStudio = await readFile(new URL("../src/components/manage/ApplicationColorStudio.tsx", import.meta.url), "utf8");
   assert.match(appearanceModel,/sidebarPinnedTools/);
-  assert.match(settings,/Customize left sidebar/);
+  assert.match(settings,/Customize navigation/);
   assert.match(settings,/Still in All tools/);
   assert.match(settings,/Home always stays first/);
   assert.match(nav,/appearance\.sidebarPinnedTools/);
@@ -120,4 +120,18 @@ test("menu type cards always use fixed system-colored icons", async () => {
   assert.doesNotMatch(menu,/pdfMenuCardIcon/);
   assert.match(styles,/Fixed system menu-type icons/);
   assert.match(styles,/--qs-brand/);
+});
+
+
+test("mobile navigation mirrors the configured sidebar and preferences live in the topbar", () => {
+  assert.match(nav,/customMobilePrimary/);
+  assert.match(nav,/appearance\.sidebarPinnedTools/);
+  assert.match(nav,/slice\(0, 4\)/);
+  assert.doesNotMatch(nav,/Preferences/);
+  assert.doesNotMatch(nav,/toggleLang/);
+  assert.doesNotMatch(nav,/ThemeToggle/);
+  assert.match(header,/qs-topbar-theme-control/);
+  assert.match(header,/qs-topbar-language/);
+  assert.match(settings,/Mobile: first 4/);
+  assert.match(styles,/Mobile navigation master alignment/);
 });

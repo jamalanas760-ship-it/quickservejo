@@ -117,10 +117,10 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
         </button>
 
         <div className="ms-auto flex items-center gap-1 sm:gap-1.5">
-          <ThemeToggle compact className="hidden lg:inline-flex" />
+          <ThemeToggle compact className="qs-topbar-theme-control inline-flex" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button type="button" className="hidden min-h-10 items-center gap-1.5 rounded-[9px] border border-transparent px-2.5 text-muted-foreground transition hover:border-border hover:bg-muted/55 hover:text-foreground lg:inline-flex" aria-label={lang === "ar" ? "اختيار اللغة" : "Choose language"}>
+              <button type="button" className="qs-topbar-language inline-flex min-h-9 items-center gap-1.5 rounded-[9px] border border-transparent px-2 text-muted-foreground transition hover:border-border hover:bg-muted/55 hover:text-foreground lg:min-h-10 lg:px-2.5" aria-label={lang === "ar" ? "اختيار اللغة" : "Choose language"}>
                 <Globe2 className="size-4" />
                 <span className="hidden text-xs font-semibold xl:inline">{lang === "ar" ? "العربية" : "English"}</span>
                 <ChevronDown className="hidden size-3.5 xl:block" />

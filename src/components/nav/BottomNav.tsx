@@ -14,7 +14,6 @@ import {
   ClipboardList,
   Clock3,
   Home,
-  Globe2,
   HeartHandshake,
   Megaphone,
   MonitorSmartphone,
@@ -33,7 +32,6 @@ import {
 } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
-import { ThemeToggle } from "@/components/nav/ThemeToggle";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +53,7 @@ const FRONTLINE_ITEMS: Record<string, Item> = {
 };
 
 export function BottomNav() {
-  const { lang, toggleLang } = useI18n();
+  const { lang } = useI18n();
   const [moreOpen, setMoreOpen] = useState(false);
   const [toolSearch, setToolSearch] = useState("");
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -158,9 +156,22 @@ export function BottomNav() {
           .slice(0, 6)
       : desktopItems;
   const desktopHasMore = desktopItems.some((item) => !desktopPrimary.some((primary) => primary.to === item.to));
-  const mobilePrimary = desktopItems.length > 5
-    ? mobilePriority.flatMap((to) => desktopItems.find((item) => item.to === to) ?? []).filter((item, index, list) => list.findIndex(candidate => candidate.to === item.to) === index).slice(0, 4)
-    : desktopItems;
+
+  // Mobile mirrors the same user-defined order while keeping ergonomic tap targets.
+  // Home is fixed first, then the first four configured tools, followed by More when needed.
+  const customMobilePrimary = managerial && appearance.sidebarPinnedTools.length
+    ? [
+        ...desktopItems.filter((item) => item.to === homeTo).slice(0, 1),
+        ...appearance.sidebarPinnedTools
+          .flatMap((key) => desktopItems.find((item) => item.to !== homeTo && sidebarToolKey(item) === key) ?? [])
+          .slice(0, 4),
+      ].filter((item, index, list) => list.findIndex((candidate) => candidate.to === item.to) === index)
+    : [];
+  const mobilePrimary = customMobilePrimary.length > 1
+    ? customMobilePrimary
+    : desktopItems.length > 5
+      ? mobilePriority.flatMap((to) => desktopItems.find((item) => item.to === to) ?? []).filter((item, index, list) => list.findIndex(candidate => candidate.to === item.to) === index).slice(0, 4)
+      : desktopItems;
   const mobileHasMore = desktopItems.some(item => !mobilePrimary.some(primary => primary.to === item.to));
 
   function groupLabel(group: NavGroup) {
@@ -356,13 +367,6 @@ export function BottomNav() {
                   </section>;
                 })}
                 {visibleTools.length === 0 ? <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center"><div><Search className="mx-auto size-6 text-muted-foreground"/><p className="mt-3 text-sm font-bold">{lang === "ar" ? "لم نعثر على أداة مطابقة" : "No matching tool"}</p><button type="button" onClick={() => setToolSearch("")} className="mt-2 text-xs font-bold text-primary">{lang === "ar" ? "مسح البحث" : "Clear search"}</button></div></div> : null}
-                <section className="border-t border-border pt-5 lg:hidden">
-                  <p className="mb-3 px-1 text-xs font-bold text-muted-foreground">{lang === "ar" ? "التفضيلات" : "Preferences"}</p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button type="button" onClick={toggleLang} className="qs-button-secondary"><Globe2 className="size-4" />{lang === "ar" ? "English" : "العربية"}</button>
-                    <ThemeToggle />
-                  </div>
-                </section>
                 </div>
               </div>
             </div>

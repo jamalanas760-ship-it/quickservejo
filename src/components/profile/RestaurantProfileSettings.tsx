@@ -206,8 +206,8 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
           <div className="flex items-start gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><LayoutPanelLeft className="size-4" /></span>
             <div>
-              <strong>{ar ? "تخصيص القائمة الجانبية" : "Customize left sidebar"}</strong>
-              <p>{ar ? "الرئيسية تبقى دائماً أول عنصر. اختر حتى 5 أدوات سريعة؛ كل الأدوات الأخرى تبقى داخل All tools حسب صلاحيات المستخدم." : "Home always stays first. Choose up to 5 quick tools; everything else remains available in All tools according to each user's permissions."}</p>
+              <strong>{ar ? "تخصيص التنقل" : "Customize navigation"}</strong>
+              <p>{ar ? "الرئيسية تبقى دائماً أول عنصر. اختر حتى 5 أدوات للقائمة الجانبية؛ شريط الموبايل يعكس نفس الترتيب ويعرض أول 4 أدوات بعد الرئيسية، والباقي يبقى في All tools." : "Home always stays first. Choose up to 5 sidebar tools; mobile mirrors the same order and shows the first 4 after Home, while everything else stays in All tools."}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -245,6 +245,7 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
         <div className="qs-sidebar-preview-strip">
           <span className="qs-sidebar-preview-home">1 · {ar ? "الرئيسية" : "Home"}</span>
           {pinnedSidebarTools.map((key, index) => <span key={key}>{index + 2} · {sidebarLabel(key)}</span>)}
+          <span className="qs-sidebar-preview-mobile">{ar ? "الموبايل: أول 4" : "Mobile: first 4"}</span>
           <span className="qs-sidebar-preview-more">{ar ? "الباقي → All tools" : "Rest → All tools"}</span>
         </div>
       </section>

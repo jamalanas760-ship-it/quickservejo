@@ -1229,3 +1229,61 @@
 .qs-interface-card-swatch .qs-interface-card-system-icon svg{
   color:currentColor;
 }
+
+
+/* Mobile navigation master alignment — 2026-09-28 */
+.qs-topbar-theme-control{
+  flex:0 0 auto;
+}
+.qs-topbar-language{
+  flex:0 0 auto;
+}
+.qs-sidebar-preview-mobile{
+  border-color:color-mix(in srgb,var(--qs-brand) 20%,var(--qs-stroke))!important;
+  background:var(--qs-surface-soft)!important;
+  color:var(--qs-brand-strong)!important;
+}
+@media(max-width:1023px){
+  .qs-topbar-theme-control{
+    width:72px!important;
+    height:36px!important;
+    padding:2px!important;
+  }
+  .qs-topbar-theme-control>button{
+    width:31px!important;
+    min-width:31px!important;
+    height:31px!important;
+    min-height:31px!important;
+  }
+  .qs-topbar-language{
+    width:36px;
+    min-width:36px!important;
+    height:36px;
+    min-height:36px!important;
+    justify-content:center;
+    padding:0!important;
+    border-color:var(--qs-stroke);
+    background:var(--qs-surface);
+  }
+  .qs-topbar-language>span,
+  .qs-topbar-language>svg:last-child{
+    display:none!important;
+  }
+}
+@media(max-width:420px){
+  .qs-topbar-theme-control{
+    width:66px!important;
+  }
+  .qs-topbar-theme-control>button{
+    width:28px!important;
+    min-width:28px!important;
+    height:28px!important;
+    min-height:28px!important;
+  }
+  .qs-topbar-language{
+    width:32px;
+    min-width:32px!important;
+    height:32px;
+    min-height:32px!important;
+  }
+}
