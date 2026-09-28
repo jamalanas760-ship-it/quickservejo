@@ -107,7 +107,8 @@ function DashboardPage() {
   const tableStats = useQuery({
     queryKey: ["workspace", "table-stats", rid],
     enabled: Boolean(rid),
-    staleTime: 20_000,
+    staleTime: 5_000,
+    refetchInterval: rid ? 10_000 : false,
     queryFn: async () => {
       const { data, error } = await supabase.from("restaurant_tables")
         .select("id,service_status")
@@ -115,10 +116,23 @@ function DashboardPage() {
         .eq("is_active", true);
       if (error) throw error;
       const rows = (data ?? []) as unknown as { service_status?: string | null }[];
-      const occupied = rows.filter((row) => ["occupied","reserved","ordering","served"].includes(String(row.service_status ?? ""))).length;
+      const occupied = rows.filter((row) => ["active","reserved"].includes(String(row.service_status ?? ""))).length;
       return { total: rows.length, occupied };
     },
   });
+
+  useEffect(() => {
+    if (!rid) return;
+    const channel = supabase
+      .channel(`dashboard-table-status:${rid}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "restaurant_tables", filter: `restaurant_id=eq.${rid}` },
+        () => void qc.invalidateQueries({ queryKey: ["workspace", "table-stats", rid] }),
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [qc, rid]);
 
   const reservationStats = useQuery({
     queryKey: ["workspace", "reservation-stats", rid],
