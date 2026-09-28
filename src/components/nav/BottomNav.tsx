@@ -68,6 +68,22 @@ export function BottomNav() {
   const restaurant = membership?.restaurant ?? null;
   const counters = useOperationalCounters(restaurantId);
 
+  useEffect(() => {
+    const openTools = () => setMoreOpen(true);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setMoreOpen(true);
+      }
+    };
+    window.addEventListener("quickserve:open-workspace-tools", openTools);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("quickserve:open-workspace-tools", openTools);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+
   if (access.isPending || access.isSuperAdmin) return null;
 
   const role = membership?.role ?? access.roles[0] ?? null;
@@ -167,22 +183,6 @@ export function BottomNav() {
   const visibleTools = normalizedToolSearch
     ? desktopItems.filter((item) => `${item.en} ${item.ar}`.toLocaleLowerCase(lang === "ar" ? "ar" : "en").includes(normalizedToolSearch))
     : desktopItems;
-
-  useEffect(() => {
-    const openTools = () => setMoreOpen(true);
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setMoreOpen(true);
-      }
-    };
-    window.addEventListener("quickserve:open-workspace-tools", openTools);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("quickserve:open-workspace-tools", openTools);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, []);
 
   function toolHint(item: Item) {
     const hints: Record<string, { en: string; ar: string }> = {
