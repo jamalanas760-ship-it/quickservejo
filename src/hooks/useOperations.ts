@@ -275,6 +275,30 @@ export async function createShift(input: Pick<Shift, "restaurant_id" | "name" | 
   return result.data as Shift;
 }
 
+export async function createRecurringShifts(input: {
+  restaurant_id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  weekdays: number[];
+  planned_start: string;
+  planned_end: string;
+  notes: string | null;
+}) {
+  const { data, error } = await (supabase as any).rpc("create_recurring_shifts", {
+    _restaurant_id: input.restaurant_id,
+    _name: input.name,
+    _start_date: input.start_date,
+    _end_date: input.end_date,
+    _weekdays: input.weekdays,
+    _planned_start: input.planned_start,
+    _planned_end: input.planned_end,
+    _notes: input.notes,
+  });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
 export async function openShift(id: string, staffId: string) {
   const result = await fromOperations("shifts").update({ status: "open", actual_opened_at: new Date().toISOString(), opened_by_staff_id: staffId }).eq("id", id) as unknown as { error: Error | null };
   await expectNoError(result);

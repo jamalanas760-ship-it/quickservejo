@@ -20,6 +20,7 @@ import {
   assignStaffToShift,
   closeShift,
   createShift,
+  createRecurringShifts,
   deleteShift,
   createShiftHandover,
   openShift,
@@ -50,6 +51,15 @@ export const Route = createFileRoute("/_authenticated/shifts")({
 type ShiftView = "timeline" | "list";
 
 const HANDOVER_ROLES: AppRole[] = ["restaurant_admin", "operations_manager", "manager", "kitchen", "waiter", "cashier", "host", "inventory", "procurement", "accountant"];
+const SHIFT_WEEKDAYS = [
+  { value: 0, en: "Sun", ar: "الأحد" },
+  { value: 1, en: "Mon", ar: "الاثنين" },
+  { value: 2, en: "Tue", ar: "الثلاثاء" },
+  { value: 3, en: "Wed", ar: "الأربعاء" },
+  { value: 4, en: "Thu", ar: "الخميس" },
+  { value: 5, en: "Fri", ar: "الجمعة" },
+  { value: 6, en: "Sat", ar: "السبت" },
+] as const;
 
 function ShiftsPage() {
   const { lang } = useI18n();
@@ -157,7 +167,8 @@ function ShiftsPage() {
 
 type TimeEntry = { id: string; staff_id: string; clock_in: string; clock_out: string | null; break_minutes: number };
 type LeaveRequest = { id: string; staff_id: string; start_date: string; end_date: string; start_time?: string | null; end_time?: string | null; reason: string; status: "pending" | "approved" | "rejected" | "cancelled"; created_at: string };
-type ClockResult = { action?: string; entry_id?: string; at?: string } | null;
+type ClockStatus = { entry_id: string; staff_id: string; clock_in: string; server_now?: string; elapsed_seconds?: number };
+type ClockResult = { action?: string; entry_id?: string | null; staff_id?: string | null; at?: string; clock_in?: string | null } | null;
 
 function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shifts, assignments, ar, lang }: { restaurantId: string; currentStaffId: string; canManage: boolean; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; shifts: Shift[]; assignments: ShiftAssignment[]; ar: boolean; lang: "en" | "ar" }) {
   const qc = useQueryClient();
@@ -168,9 +179,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
   const [leaveEndTime, setLeaveEndTime] = useState("17:00");
   const [leaveReason, setLeaveReason] = useState("");
   const [laborOpen, setLaborOpen] = useState(false);
-  // Keep the action state deterministic while the authoritative list query
-  // catches up with the RPC response.
-  const [clockOverride, setClockOverride] = useState<TimeEntry | null | undefined>(undefined);
+  const [clockNow, setClockNow] = useState(() => Date.now());
 
   const workforce = useQuery({
     queryKey: ["workforce", restaurantId],
@@ -187,14 +196,26 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
     },
   });
 
-  const queryOpenEntry = (workforce.data?.time ?? []).find((entry) => entry.staff_id === currentStaffId && !entry.clock_out) ?? null;
-  const openEntry = clockOverride === undefined ? queryOpenEntry : clockOverride;
-  const clockedIn = (workforce.data?.time ?? []).filter((entry) => !entry.clock_out && (clockOverride !== null || entry.staff_id !== currentStaffId));
-  if (clockOverride && !clockedIn.some((entry) => entry.id === clockOverride.id)) clockedIn.unshift(clockOverride);
+  const clockStatus = useQuery<ClockStatus | null>({
+    queryKey: ["workforce-clock", restaurantId, currentStaffId],
+    refetchInterval: 10_000,
+    staleTime: 2_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("get_my_time_clock_status", { _restaurant_id: restaurantId });
+      if (error) throw error;
+      const row = (Array.isArray(data) ? data[0] : data) as ClockStatus | null;
+      return row?.entry_id ? row : null;
+    },
+  });
+  const openEntry: TimeEntry | null = clockStatus.data
+    ? { id: clockStatus.data.entry_id, staff_id: clockStatus.data.staff_id, clock_in: clockStatus.data.clock_in, clock_out: null, break_minutes: 0 }
+    : null;
+  const clockedIn = (workforce.data?.time ?? []).filter((entry) => !entry.clock_out && entry.staff_id !== currentStaffId);
+  if (openEntry && !clockedIn.some((entry) => entry.id === openEntry.id)) clockedIn.unshift(openEntry);
   useEffect(() => {
-    if (clockOverride === null && queryOpenEntry === null) setClockOverride(undefined);
-    if (clockOverride && queryOpenEntry?.id === clockOverride.id) setClockOverride(undefined);
-  }, [clockOverride, queryOpenEntry]);
+    const timer = window.setInterval(() => setClockNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const pendingLeave = (workforce.data?.leave ?? []).filter((request) => request.status === "pending");
   const todayKey = new Date().toLocaleDateString("en-CA");
   const todayMinutes = (workforce.data?.time ?? []).filter((entry) => entry.clock_in.slice(0,10) === todayKey).reduce((sum, entry) => {
@@ -203,35 +224,41 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
   }, 0);
 
   const toggleClock = useMutation({
-    onMutate: () => {
-      const previous = clockOverride;
-      setClockOverride(openEntry ? null : { id: `optimistic-${Date.now()}`, staff_id: currentStaffId, clock_in: new Date().toISOString(), clock_out: null, break_minutes: 0 });
-      return { previous };
-    },
     mutationFn: async () => {
-      const { data, error } = await (supabase as any).rpc("toggle_time_clock", { _restaurant_id: restaurantId });
+      const rpc = openEntry ? "clock_out_staff" : "clock_in_staff";
+      const { data, error } = await (supabase as any).rpc(rpc, { _restaurant_id: restaurantId });
       if (error) throw error;
       return (Array.isArray(data) ? data[0] : data) as ClockResult;
     },
     onSuccess: async (result) => {
-      // The RPC is authoritative, but the list query can take a moment to reflect
-      // the write. Apply its returned event to the active cache first so the
-      // control changes from Clock in to Clock out (and back) immediately.
       const action = result?.action?.toLowerCase();
       const at = result?.at ?? new Date().toISOString();
-      const entryId = result?.entry_id;
-      if (action === "clocked_in" && entryId) {
-        setClockOverride({ id: entryId, staff_id: currentStaffId, clock_in: at, clock_out: null, break_minutes: 0 });
-      } else if (action === "clocked_out") {
-        setClockOverride(null);
+      const entryId = result?.entry_id ?? null;
+      const staffId = result?.staff_id ?? currentStaffId;
+      const startedAt = result?.clock_in ?? at;
+      const isIn = action === "clocked_in" || action === "already_clocked_in";
+      const isOut = action === "clocked_out" || action === "already_clocked_out";
+
+      if (isIn && entryId && staffId) {
+        qc.setQueryData<ClockStatus | null>(["workforce-clock", restaurantId, currentStaffId], {
+          entry_id: entryId,
+          staff_id: staffId,
+          clock_in: startedAt,
+          server_now: at,
+          elapsed_seconds: Math.max(0, Math.floor((new Date(at).getTime() - new Date(startedAt).getTime()) / 1000)),
+        });
+      } else if (isOut) {
+        qc.setQueryData<ClockStatus | null>(["workforce-clock", restaurantId, currentStaffId], null);
       }
+
       qc.setQueryData<{ time: TimeEntry[]; leave: LeaveRequest[] }>(["workforce", restaurantId], (current) => {
         if (!current || !action) return current;
-        if (action === "clocked_in") {
-          if (!entryId || current.time.some((entry) => entry.id === entryId)) return current;
-          return { ...current, time: [{ id: entryId, staff_id: currentStaffId, clock_in: at, clock_out: null, break_minutes: 0 }, ...current.time] };
+        if (isIn && entryId && staffId) {
+          const existing = current.time.find((entry) => entry.id === entryId);
+          if (existing && !existing.clock_out) return current;
+          return { ...current, time: [{ id: entryId, staff_id: staffId, clock_in: startedAt, clock_out: null, break_minutes: existing?.break_minutes ?? 0 }, ...current.time.filter((entry) => entry.id !== entryId)] };
         }
-        if (action === "clocked_out") {
+        if (isOut) {
           const target = entryId
             ? current.time.find((entry) => entry.id === entryId)
             : current.time.find((entry) => entry.staff_id === currentStaffId && !entry.clock_out);
@@ -240,14 +267,14 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
         }
         return current;
       });
-      await qc.invalidateQueries({ queryKey: ["workforce", restaurantId] });
-      const clockedOut = result?.action === "clocked_out" || action === "clocked_out";
-      toast.success(clockedOut ? (ar ? "تم تسجيل الانصراف" : "Clocked out") : (ar ? "تم تسجيل الحضور" : "Clocked in"));
+
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["workforce-clock", restaurantId, currentStaffId] }),
+        qc.invalidateQueries({ queryKey: ["workforce", restaurantId] }),
+      ]);
+      toast.success(isOut ? (ar ? "تم تسجيل الانصراف" : "Clocked out") : (ar ? "تم تسجيل الحضور" : "Clocked in"));
     },
-    onError: (error, _variables, context) => {
-      setClockOverride(context?.previous);
-      toast.error(humanError(error, lang));
-    },
+    onError: (error) => toast.error(humanError(error, lang)),
   });
 
   const submitLeave = useMutation({
@@ -335,10 +362,10 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
     <div className="qs-card overflow-hidden">
       <div className="flex flex-col gap-4 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
         <div><h2 className="qs-section-title">{ar ? "الحضور والوقت" : "Attendance & time"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "ساعة حضور فعلية مرتبطة بحساب كل موظف." : "A real time clock tied to each staff account."}</p></div>
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto"><Button variant="outline" onClick={() => setLeaveOpen(true)}><CalendarDays className="size-4"/>{ar ? "طلب إجازة" : "Request leave"}</Button><Button className="min-w-[132px]" variant={openEntry ? "destructive" : "default"} aria-busy={toggleClock.isPending} aria-pressed={Boolean(openEntry)} onClick={() => toggleClock.mutate()} disabled={toggleClock.isPending}>{openEntry ? <StopCircle className="size-4"/> : <TimerReset className="size-4"/>}{toggleClock.isPending ? (ar ? "جارٍ التحديث…" : "Updating…") : openEntry ? (ar ? "انصراف" : "Clock out") : (ar ? "حضور" : "Clock in")}</Button></div>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto"><Button variant="outline" onClick={() => setLeaveOpen(true)}><CalendarDays className="size-4"/>{ar ? "طلب إجازة" : "Request leave"}</Button><Button className="min-w-[132px]" variant={openEntry ? "destructive" : "default"} aria-busy={toggleClock.isPending} aria-pressed={Boolean(openEntry)} onClick={() => toggleClock.mutate()} disabled={toggleClock.isPending || clockStatus.isPending}>{openEntry ? <StopCircle className="size-4"/> : <TimerReset className="size-4"/>}{toggleClock.isPending ? (ar ? "جارٍ التحديث…" : "Updating…") : openEntry ? (ar ? "انصراف" : "Clock out") : (ar ? "حضور" : "Clock in")}</Button></div>
       </div>
       <div className="grid gap-3 p-4 sm:grid-cols-3">
-        <div className="rounded-xl bg-muted/45 p-3" aria-live="polite"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حالتي" : "My status"}</p><strong className="mt-1 block text-sm">{openEntry ? (ar ? "على رأس العمل" : "Clocked in") : (ar ? "خارج الوردية" : "Clocked out")}</strong>{openEntry ? <p className="mt-1 text-[10px] text-muted-foreground">{formatStamp(openEntry.clock_in, ar)}</p> : null}</div>
+        <div className="rounded-xl bg-muted/45 p-3" aria-live="polite"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حالتي" : "My status"}</p><strong className="mt-1 block text-sm">{openEntry ? (ar ? "على رأس العمل" : "Clocked in") : (ar ? "خارج الوردية" : "Clocked out")}</strong>{openEntry ? <p className="mt-1 text-[10px] text-muted-foreground">{formatStamp(openEntry.clock_in, ar)} · {formatClockDuration(Math.max(0, Math.floor((clockNow - new Date(openEntry.clock_in).getTime()) / 1000)), ar)}</p> : null}</div>
         <div className="rounded-xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "ساعات اليوم" : "Hours today"}</p><strong className="mt-1 block text-sm">{(todayMinutes/60).toFixed(1)}h</strong></div>
         <div className="rounded-xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حاضرون الآن" : "Clocked in now"}</p><strong className="mt-1 block text-sm">{clockedIn.length}</strong></div>
       </div>
@@ -459,6 +486,8 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
 }
 
 function formatLeaveTime(value: string | null | undefined) { return value ? value.slice(0, 5) : "—"; }
+function formatClockDuration(seconds: number, ar: boolean) { const total = Math.max(0, Math.floor(seconds / 60)); const hours = Math.floor(total / 60); const minutes = total % 60; return ar ? `${hours}س ${minutes}د` : `${hours}h ${minutes}m`; }
+function localShiftDateTimeIso(date: string, time: string, addDays = 0) { const value = new Date(`${date}T${time}:00`); if (addDays) value.setDate(value.getDate() + addDays); if (Number.isNaN(value.getTime())) throw new Error("Invalid shift date or time."); return value.toISOString(); }
 
 function LaborMetric({label,value,warning=false}:{label:string;value:string;warning?:boolean}){
   return <span className="block min-w-20 rounded-xl bg-muted/45 p-3"><span className="block text-[9px] font-bold uppercase tracking-[.06em] text-muted-foreground">{label}</span><strong className={cn("mt-1 block font-display text-lg",warning&&"text-amber-700")}>{value}</strong></span>;
@@ -568,13 +597,79 @@ function DeleteShiftDialog({ shift, restaurantId, onClose, ar, lang }: { shift: 
 function CreateShiftDialog({ open, onOpenChange, restaurantId, ar, lang }: { open: boolean; onOpenChange: (open: boolean) => void; restaurantId: string; ar: boolean; lang: "en" | "ar" }) {
   const qc = useQueryClient();
   const today = new Date().toISOString().slice(0, 10);
+  const [mode, setMode] = useState<"single" | "recurring">("single");
   const [name, setName] = useState(ar ? "وردية اليوم" : "Service shift");
   const [date, setDate] = useState(today);
+  const [rangeEnd, setRangeEnd] = useState(today);
+  const [weekdays, setWeekdays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("17:00");
   const [notes, setNotes] = useState("");
-  const create = useMutation({ mutationFn: () => createShift({ restaurant_id: restaurantId, name: name.trim(), shift_date: date, planned_start: start ? `${date}T${start}:00` : null, planned_end: end ? `${date}T${end}:00` : null, notes: notes.trim() || null }), onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }); toast.success(ar ? "تم إنشاء الوردية" : "Shift created"); onOpenChange(false); }, onError: (error) => toast.error(humanError(error, lang)) });
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="sm:max-w-[540px]"><DialogHeader><DialogTitle>{ar ? "وردية جديدة" : "Create shift"}</DialogTitle><DialogDescription>{ar ? "أنشئ الوردية أولاً ثم أضف أعضاء الفريق." : "Create the shift, then assign the team."}</DialogDescription></DialogHeader><div className="grid gap-4 py-2 sm:grid-cols-2"><Field label={ar ? "الاسم" : "Name"} className="sm:col-span-2"><Input value={name} onChange={(event) => setName(event.target.value)} /></Field><Field label={ar ? "التاريخ" : "Date"}><Input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></Field><div /><Field label={ar ? "البداية" : "Start"}><Input type="time" value={start} onChange={(event) => setStart(event.target.value)} /></Field><Field label={ar ? "النهاية" : "End"}><Input type="time" value={end} onChange={(event) => setEnd(event.target.value)} /></Field><Field label={ar ? "ملاحظات" : "Notes"} className="sm:col-span-2"><Textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} /></Field></div><DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>{ar ? "إلغاء" : "Cancel"}</Button><Button disabled={!name.trim() || !date || create.isPending} onClick={() => create.mutate()}>{ar ? "إنشاء" : "Create shift"}</Button></DialogFooter></DialogContent></Dialog>;
+  const overnight = Boolean(start && end && end <= start);
+
+  const create = useMutation({
+    mutationFn: async () => {
+      if (mode === "recurring") {
+        return createRecurringShifts({
+          restaurant_id: restaurantId,
+          name: name.trim(),
+          start_date: date,
+          end_date: rangeEnd,
+          weekdays,
+          planned_start: start,
+          planned_end: end,
+          notes: notes.trim() || null,
+        });
+      }
+      await createShift({
+        restaurant_id: restaurantId,
+        name: name.trim(),
+        shift_date: date,
+        planned_start: start ? localShiftDateTimeIso(date, start) : null,
+        planned_end: end ? localShiftDateTimeIso(date, end, overnight ? 1 : 0) : null,
+        notes: notes.trim() || null,
+      });
+      return 1;
+    },
+    onSuccess: async (count) => {
+      await qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] });
+      toast.success(mode === "recurring"
+        ? (ar ? `تم إنشاء ${count} ورديات مجدولة` : `${count} scheduled shifts created`)
+        : (ar ? "تم إنشاء الوردية" : "Shift created"));
+      onOpenChange(false);
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  function applyDays(days: number[]) { setWeekdays(days); }
+  function toggleDay(day: number) { setWeekdays((current) => current.includes(day) ? current.filter((value) => value !== day) : [...current, day].sort()); }
+  const invalidRange = mode === "recurring" && rangeEnd < date;
+  const ready = Boolean(name.trim() && date && start && end && !invalidRange && (mode === "single" || weekdays.length));
+
+  return <Dialog open={open} onOpenChange={(next) => { if (!create.isPending) onOpenChange(next); }}>
+    <DialogContent className="w-[calc(100vw-1.5rem)] max-w-none overflow-hidden p-0 sm:max-w-[680px]">
+      <div className="border-b border-border bg-muted/15 px-5 py-4"><DialogHeader><DialogTitle>{ar ? "إنشاء وردية" : "Create shift schedule"}</DialogTitle><DialogDescription>{ar ? "أنشئ وردية واحدة أو جدولاً متكرراً بأيام العمل التي تختارها." : "Create one shift or generate a recurring schedule on the exact workdays you choose."}</DialogDescription></DialogHeader></div>
+      <div className="space-y-5 px-5 py-5">
+        <div className="grid grid-cols-2 rounded-xl border border-border bg-muted/25 p-1">
+          <button type="button" onClick={() => setMode("single")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "single" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "وردية واحدة" : "Single shift"}</button>
+          <button type="button" onClick={() => { setMode("recurring"); if (rangeEnd < date) setRangeEnd(date); }} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "recurring" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "جدول متكرر" : "Recurring schedule"}</button>
+        </div>
+        <Field label={ar ? "اسم الوردية" : "Shift name"}><Input value={name} maxLength={80} onChange={(event) => setName(event.target.value)} /></Field>
+        {mode === "single" ? <Field label={ar ? "التاريخ" : "Date"}><Input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></Field> : <>
+          <div className="grid gap-4 sm:grid-cols-2"><Field label={ar ? "من تاريخ" : "Start date"}><Input type="date" value={date} onChange={(event) => { const next=event.target.value; setDate(next); if (rangeEnd < next) setRangeEnd(next); }} /></Field><Field label={ar ? "إلى تاريخ" : "End date"}><Input type="date" min={date} value={rangeEnd} onChange={(event) => setRangeEnd(event.target.value)} /></Field></div>
+          <section className="rounded-2xl border border-border bg-muted/10 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-bold">{ar ? "أيام العمل" : "Workdays"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "اختر أي أيام تريدها؛ مثال الأحد إلى الخميس." : "Choose any combination; for example Sunday through Thursday."}</p></div><div className="flex flex-wrap gap-1.5"><Button type="button" size="sm" variant="outline" onClick={() => applyDays([0,1,2,3,4])}>{ar ? "الأحد–الخميس" : "Sun–Thu"}</Button><Button type="button" size="sm" variant="outline" onClick={() => applyDays([5,6])}>{ar ? "عطلة نهاية الأسبوع" : "Weekend"}</Button><Button type="button" size="sm" variant="outline" onClick={() => applyDays([0,1,2,3,4,5,6])}>{ar ? "كل الأيام" : "Every day"}</Button></div></div>
+            <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-7">{SHIFT_WEEKDAYS.map((day) => <button key={day.value} type="button" aria-pressed={weekdays.includes(day.value)} onClick={() => toggleDay(day.value)} className={cn("min-h-10 rounded-xl border px-2 text-xs font-bold transition", weekdays.includes(day.value) ? "border-[#e85d2a] bg-orange-500/10 text-[#cf4818]" : "border-border bg-card text-muted-foreground hover:text-foreground")}>{ar ? day.ar : day.en}</button>)}</div>
+          </section>
+        </>}
+        <div className="grid gap-4 sm:grid-cols-2"><Field label={ar ? "وقت البداية" : "Start time"}><Input type="time" value={start} onChange={(event) => setStart(event.target.value)} /></Field><Field label={ar ? "وقت النهاية" : "End time"}><Input type="time" value={end} onChange={(event) => setEnd(event.target.value)} /></Field></div>
+        {overnight ? <p className="rounded-xl bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">{ar ? "ستنتهي كل وردية في اليوم التالي." : "Each shift will end on the following day."}</p> : null}
+        {invalidRange ? <p className="rounded-xl bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-700">{ar ? "تاريخ النهاية يجب أن يكون بعد تاريخ البداية." : "End date must be on or after the start date."}</p> : null}
+        <Field label={ar ? "ملاحظات" : "Notes"}><Textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} /></Field>
+      </div>
+      <DialogFooter className="border-t border-border bg-card px-5 py-4"><Button variant="outline" disabled={create.isPending} onClick={() => onOpenChange(false)}>{ar ? "إلغاء" : "Cancel"}</Button><Button disabled={!ready || create.isPending} onClick={() => create.mutate()}>{create.isPending ? (ar ? "جارٍ الإنشاء…" : "Creating…") : mode === "recurring" ? (ar ? "إنشاء الجدول" : "Create schedule") : (ar ? "إنشاء الوردية" : "Create shift")}</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>;
 }
 
 function CloseShiftDialog({ shift, openWorkCount, restaurantId, currentStaffId, onClose, ar, lang }: { shift: Shift; openWorkCount: number; restaurantId: string; currentStaffId: string; onClose: () => void; ar: boolean; lang: "en" | "ar" }) {
