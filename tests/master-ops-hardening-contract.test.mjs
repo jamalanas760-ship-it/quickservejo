@@ -47,7 +47,7 @@ test("campaign messaging normalizes local destinations and CRM pages reuse cache
   const guests=await readFile(new URL("../src/routes/_authenticated/guests.tsx",import.meta.url),"utf8");
   const campaigns=await readFile(new URL("../src/routes/_authenticated/campaigns.tsx",import.meta.url),"utf8");
   assert.match(campaignWorker,/normalizeDestination/);
-  assert.match(campaignWorker,/"962"\+digits\.slice\(1\)/);
+  assert.match(campaignWorker,/"962"\s*\+\s*digits\.slice\(1\)/);
   assert.match(guests,/staleTime: 60_000/);
   assert.match(campaigns,/staleTime:15_000/);
 });
