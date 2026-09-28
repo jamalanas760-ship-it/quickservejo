@@ -112,6 +112,54 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
       </div>
     </section>
 
+    <section className="qs-interface-visuals qs-card p-4 sm:p-6">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <span className="inline-flex items-center rounded-full bg-orange-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[.14em] text-[#e85d2a]">{ar ? "مرئيات الواجهة" : "Interface visuals"}</span>
+          <h2 className="mt-3 font-display text-xl font-bold tracking-[-.03em]">{ar ? "خصص الصور والأيقونات" : "Customize images & icons"}</h2>
+          <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{ar ? "خصص لوحة أدوات مساحة العمل وبطاقات اختيار القائمة بدون تغيير شعار المطعم أو صورة الغلاف." : "Customize the Workspace Tools panel and Menu selector cards without changing the restaurant logo or cover image."}</p>
+        </div>
+        <span className="inline-flex items-center gap-2 self-start rounded-xl border border-border bg-card px-3 py-2 text-[10px] font-semibold text-muted-foreground"><SlidersHorizontal className="size-3.5 text-[#e85d2a]" />{ar ? "تخصيص مباشر" : "Live customization"}</span>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <section className="qs-interface-asset-card">
+          <div className="qs-interface-asset-head">
+            <div><span>{ar ? "أدوات مساحة العمل" : "Workspace Tools"}</span><strong>{ar ? "لوحة الاختصارات" : "Launcher spotlight"}</strong></div>
+            <div className="qs-interface-asset-mini qs-interface-asset-mini-tools" style={brand.workspaceToolsImage ? { backgroundImage: `linear-gradient(180deg,rgba(15,12,10,.08),rgba(15,12,10,.72)),url(${brand.workspaceToolsImage})` } : undefined}>
+              {brand.workspaceToolsIcon ? <img src={brand.workspaceToolsIcon} alt="" /> : form.logo_url ? <img src={form.logo_url} alt="" /> : <span>Q</span>}
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_150px]">
+            <ImageUploader restaurantId={restaurant.id} kind="cover" aspect="wide" value={brand.workspaceToolsImage} onChange={(value) => setBrand((current) => ({ ...current, workspaceToolsImage: value }))} label={ar ? "صورة اللوحة" : "Panel image"} />
+            <ImageUploader restaurantId={restaurant.id} kind="logo" value={brand.workspaceToolsIcon} onChange={(value) => setBrand((current) => ({ ...current, workspaceToolsIcon: value }))} label={ar ? "أيقونة اللوحة" : "Panel icon"} />
+          </div>
+        </section>
+
+        <section className="qs-interface-asset-card">
+          <div className="qs-interface-asset-head">
+            <div><span>{ar ? "استوديو القائمة" : "Menu Studio"}</span><strong>{ar ? "بطاقات نوع القائمة" : "Menu type cards"}</strong></div>
+            <div className="flex gap-1.5">
+              <span className="qs-interface-card-swatch" style={brand.standardMenuCardImage ? { backgroundImage: `url(${brand.standardMenuCardImage})` } : undefined}>{brand.standardMenuCardIcon ? <img src={brand.standardMenuCardIcon} alt="" /> : "S"}</span>
+              <span className="qs-interface-card-swatch" style={brand.pdfMenuCardImage ? { backgroundImage: `url(${brand.pdfMenuCardImage})` } : undefined}>{brand.pdfMenuCardIcon ? <img src={brand.pdfMenuCardIcon} alt="" /> : "P"}</span>
+            </div>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="qs-interface-upload-group">
+              <strong>{ar ? "القائمة العادية" : "Standard Menu"}</strong>
+              <ImageUploader restaurantId={restaurant.id} kind="cover" aspect="wide" value={brand.standardMenuCardImage} onChange={(value) => setBrand((current) => ({ ...current, standardMenuCardImage: value }))} label={ar ? "صورة البطاقة" : "Card image"} />
+              <ImageUploader restaurantId={restaurant.id} kind="logo" value={brand.standardMenuCardIcon} onChange={(value) => setBrand((current) => ({ ...current, standardMenuCardIcon: value }))} label={ar ? "أيقونة البطاقة" : "Card icon"} />
+            </div>
+            <div className="qs-interface-upload-group">
+              <strong>{ar ? "قائمة PDF" : "PDF Menu"}</strong>
+              <ImageUploader restaurantId={restaurant.id} kind="cover" aspect="wide" value={brand.pdfMenuCardImage} onChange={(value) => setBrand((current) => ({ ...current, pdfMenuCardImage: value }))} label={ar ? "صورة البطاقة" : "Card image"} />
+              <ImageUploader restaurantId={restaurant.id} kind="logo" value={brand.pdfMenuCardIcon} onChange={(value) => setBrand((current) => ({ ...current, pdfMenuCardIcon: value }))} label={ar ? "أيقونة البطاقة" : "Card icon"} />
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
     <section className="qs-card p-4 sm:p-6">
       <ApplicationColorStudio ar={ar} restaurantName={restaurant.name} brand={brand} setBrand={setBrand} primaryColor={form.primary_color} accentColor={form.accent_color} setPrimaryColor={(value) => field("primary_color", value)} setAccentColor={(value) => field("accent_color", value)} />
     </section>

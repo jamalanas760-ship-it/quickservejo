@@ -147,3 +147,13 @@ test("team Last Active column is aligned and uses a dedicated responsive status 
   assert.match(styles, /\.qs-last-active-today/);
   assert.match(styles, /nth-child\(7\)/);
 });
+
+
+test("team actions remove the three-dot menu while preserving shift cancellation", () => {
+  const rowActions = source.slice(source.indexOf("function StaffRowActions"), source.indexOf("function StaffShiftCell"));
+  assert.doesNotMatch(rowActions, /MoreHorizontal/);
+  assert.doesNotMatch(rowActions, /qs-team-action-more/);
+  assert.match(rowActions, /Change shift/);
+  assert.match(rowActions, /Cancel shift/);
+  assert.match(rowActions, /qs-team-actions-clean/);
+});

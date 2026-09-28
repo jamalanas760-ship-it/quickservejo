@@ -52,3 +52,34 @@ test("approved global search and workspace tools launcher are implemented", () =
   assert.match(nav,/Ctrl K/);
   assert.match(styles,/Workspace tools/);
 });
+
+
+test("workspace and menu visual assets are restaurant-customizable", async () => {
+  const appearanceModel = await readFile(new URL("../src/lib/restaurant-appearance.ts", import.meta.url), "utf8");
+  assert.match(appearanceModel,/workspaceToolsImage/);
+  assert.match(appearanceModel,/workspaceToolsIcon/);
+  assert.match(appearanceModel,/standardMenuCardImage/);
+  assert.match(appearanceModel,/standardMenuCardIcon/);
+  assert.match(appearanceModel,/pdfMenuCardImage/);
+  assert.match(appearanceModel,/pdfMenuCardIcon/);
+  assert.match(settings,/Customize images & icons/);
+  assert.match(settings,/Panel image/);
+  assert.match(settings,/Panel icon/);
+  assert.match(menu,/appearance\.standardMenuCardImage/);
+  assert.match(menu,/appearance\.standardMenuCardIcon/);
+  assert.match(nav,/appearance\.workspaceToolsImage/);
+  assert.match(nav,/appearance\.workspaceToolsIcon/);
+});
+
+test("organization color studio and navigation loader use the friendly master experience", async () => {
+  const colorStudio = await readFile(new URL("../src/components/manage/ApplicationColorStudio.tsx", import.meta.url), "utf8");
+  const root = await readFile(new URL("../src/routes/__root.tsx", import.meta.url), "utf8");
+  assert.match(colorStudio,/Quick styles/);
+  assert.match(colorStudio,/qs-color-preset/);
+  assert.match(colorStudio,/applyPreset/);
+  assert.match(root,/function NavigationProgress/);
+  assert.match(root,/state\.isLoading/);
+  assert.match(styles,/qs-route-progress/);
+  assert.match(styles,/qs-interface-visuals/);
+  assert.match(styles,/qs-color-presets/);
+});

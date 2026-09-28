@@ -1489,14 +1489,14 @@ function StaffLastActive({ value, ar, now }: { value: string | null | undefined;
 
 function StaffRowActions({ member, locked, canManageShifts, canCancelShift, ar, onEdit, onAssign, onCancel }: { member: StaffRow; locked: boolean; canManageShifts: boolean; canCancelShift: boolean; ar: boolean; onEdit: () => void; onAssign: () => void; onCancel: () => void }) {
   const canAssign = canManageShifts && member.is_active;
-  return <div className="qs-team-actions">
-    {canAssign ? <button type="button" className="qs-team-action-button qs-team-action-shift" title={ar ? "تعيين وردية" : "Assign shift"} onClick={onAssign}><CalendarPlus className="size-4" /><span>{ar?"وردية":"Shift"}</span></button> : null}
+  const shiftButton = <button type="button" className="qs-team-action-button qs-team-action-shift" title={ar ? "إدارة الوردية" : "Manage shift"} onClick={canCancelShift ? undefined : onAssign}><CalendarPlus className="size-4" /><span>{ar?"وردية":"Shift"}</span></button>;
+  return <div className="qs-team-actions qs-team-actions-clean">
+    {canAssign ? (canCancelShift ? <DropdownMenu><DropdownMenuTrigger asChild>{shiftButton}</DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-44">
+      <DropdownMenuItem onSelect={() => window.setTimeout(onAssign, 0)}><CalendarPlus className="size-4" />{ar ? "تعديل الوردية" : "Change shift"}</DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => window.setTimeout(onCancel, 0)}><CalendarX2 className="size-4" />{ar ? "إلغاء الوردية" : "Cancel shift"}</DropdownMenuItem>
+    </DropdownMenuContent></DropdownMenu> : shiftButton) : canCancelShift ? <button type="button" className="qs-team-action-button qs-team-action-cancel" onClick={onCancel}><CalendarX2 className="size-4" /><span>{ar?"إلغاء":"Cancel"}</span></button> : null}
     {!locked ? <button type="button" className="qs-team-action-button qs-team-action-edit" title={ar ? "تعديل الموظف" : "Edit member"} onClick={onEdit}><Pencil className="size-4" /><span>{ar?"تعديل":"Edit"}</span></button> : null}
-    <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="qs-team-action-more" aria-label={ar ? `إجراءات ${member.name}` : `${member.name} actions`}><MoreHorizontal className="size-5" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-44">
-      {canAssign ? <DropdownMenuItem onSelect={() => window.setTimeout(onAssign, 0)}><CalendarPlus className="size-4" />{ar ? "تعيين وردية" : "Assign shift"}</DropdownMenuItem> : null}
-      {!locked ? <DropdownMenuItem onSelect={() => window.setTimeout(onEdit, 0)}><Pencil className="size-4" />{ar ? "تعديل الموظف" : "Edit member"}</DropdownMenuItem> : null}
-      {canCancelShift ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => window.setTimeout(onCancel, 0)}><CalendarX2 className="size-4" />{ar ? "إلغاء الوردية" : "Cancel shift"}</DropdownMenuItem></> : null}
-    </DropdownMenuContent></DropdownMenu>
   </div>;
 }
 

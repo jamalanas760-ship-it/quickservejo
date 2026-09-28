@@ -4,10 +4,11 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import quickServeSystemCss from "../quickserve-system.css?url";
@@ -169,6 +170,22 @@ function MenuThemeBridgeSync() {
   return null;
 }
 
+function NavigationProgress() {
+  const loading = useRouterState({ select: (state) => state.isLoading });
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (!loading) {
+      setVisible(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setVisible(true), 90);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
+
+  return <div className={`qs-route-progress ${visible ? "is-visible" : ""}`} aria-hidden="true"><i /></div>;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
@@ -223,6 +240,7 @@ function RootComponent() {
       <I18nProvider>
         <a href="#main-content" className="sr-only fixed start-3 top-3 z-[200] rounded-lg bg-background px-3 py-2 text-sm font-bold text-foreground shadow-lg focus:not-sr-only">Skip to main content</a>
         <MenuThemeBridgeSync />
+        <NavigationProgress />
         <AppRuntimeMonitor />
         <div id="main-content" tabIndex={-1}>
           <Outlet />

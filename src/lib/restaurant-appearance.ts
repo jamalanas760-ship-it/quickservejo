@@ -11,6 +11,12 @@ export type GuestMenuPalette = {
 export type RestaurantAppearance = {
   menuMode: "pdf" | "products";
   menuLogo: string | null;
+  workspaceToolsImage: string | null;
+  workspaceToolsIcon: string | null;
+  standardMenuCardImage: string | null;
+  standardMenuCardIcon: string | null;
+  pdfMenuCardImage: string | null;
+  pdfMenuCardIcon: string | null;
   homeTitle: string;
   dashboardTitle: string;
   useQuickServeLogo: boolean;
@@ -45,6 +51,7 @@ function numberInRange(value: unknown, fallback: number, min: number, max: numbe
   return Number.isFinite(numeric) ? Math.min(max, Math.max(min, numeric)) : fallback;
 }
 function color(value: unknown, fallback: string) { return typeof value === "string" && HEX.test(value) ? value : fallback; }
+function imageUrl(value: unknown) { return typeof value === "string" && /^https:\/\//.test(value) ? value : null; }
 function palette(value: unknown, fallback: GuestMenuPalette): GuestMenuPalette {
   const source = value && typeof value === "object" ? value as Record<string, unknown> : {};
   return { bg: color(source.bg, fallback.bg), surface: color(source.surface, fallback.surface), text: color(source.text, fallback.text), muted: color(source.muted, fallback.muted), primary: color(source.primary, fallback.primary), primaryText: color(source.primaryText, fallback.primaryText), accent: color(source.accent, fallback.accent) };
@@ -55,7 +62,13 @@ export function readAppearance(theme: unknown): RestaurantAppearance {
   const value = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
   return {
     menuMode: value.menuMode === "products" ? "products" : "pdf",
-    menuLogo: typeof value.menuLogo === "string" && /^https:\/\//.test(value.menuLogo) ? value.menuLogo : null,
+    menuLogo: imageUrl(value.menuLogo),
+    workspaceToolsImage: imageUrl(value.workspaceToolsImage),
+    workspaceToolsIcon: imageUrl(value.workspaceToolsIcon),
+    standardMenuCardImage: imageUrl(value.standardMenuCardImage),
+    standardMenuCardIcon: imageUrl(value.standardMenuCardIcon),
+    pdfMenuCardImage: imageUrl(value.pdfMenuCardImage),
+    pdfMenuCardIcon: imageUrl(value.pdfMenuCardIcon),
     homeTitle: typeof value.homeTitle === "string" ? value.homeTitle.slice(0, 100) : "",
     dashboardTitle: typeof value.dashboardTitle === "string" ? value.dashboardTitle.slice(0, 100) : "",
     useQuickServeLogo: value.useQuickServeLogo !== false,

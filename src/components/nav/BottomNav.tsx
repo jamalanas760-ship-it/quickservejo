@@ -297,13 +297,13 @@ export function BottomNav() {
       <Dialog open={moreOpen} onOpenChange={changeMoreOpen}>
         <DialogContent className="qs-workspace-tools-dialog max-h-[min(92dvh,820px)] max-w-[1120px] gap-0 overflow-hidden p-0">
           <div className="qs-workspace-tools-layout">
-            <aside className="qs-workspace-tools-spotlight" style={restaurant?.cover_image_url ? { backgroundImage: `linear-gradient(180deg,rgba(16,14,12,.18),rgba(16,14,12,.86)),url(${restaurant.cover_image_url})` } : undefined}>
+            <aside className="qs-workspace-tools-spotlight" style={(appearance.workspaceToolsImage ?? restaurant?.cover_image_url) ? { backgroundImage: `linear-gradient(180deg,rgba(16,14,12,.18),rgba(16,14,12,.86)),url(${appearance.workspaceToolsImage ?? restaurant?.cover_image_url})` } : undefined}>
               <div className="qs-workspace-tools-spotlight-copy">
                 <strong>{lang === "ar" ? "كل ما تحتاجه في مكان واحد" : "Everything you need in one place."}</strong>
                 <p>{lang === "ar" ? "أدر الطلبات والقائمة والفريق والتحليلات والمزيد من مساحة عمل واحدة." : "Manage orders, menu, team, analytics and more from a single workspace."}</p>
               </div>
               <div className="qs-workspace-tools-spotlight-brand">
-                {restaurant?.logo_url ? <img src={restaurant.logo_url} alt="" /> : <BrandLogo className="size-8" accentClassName="text-[#ff6a1a]" textClassName="text-xl text-white" />}
+                {(appearance.workspaceToolsIcon ?? restaurant?.logo_url) ? <img src={appearance.workspaceToolsIcon ?? restaurant?.logo_url ?? ""} alt="" /> : <BrandLogo className="size-8" accentClassName="text-[#ff6a1a]" textClassName="text-xl text-white" />}
                 <span>{restaurant?.name ?? "QuickServe"}</span>
               </div>
             </aside>
