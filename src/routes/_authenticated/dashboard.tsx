@@ -231,7 +231,7 @@ function DashboardPage() {
           </div>
         </div>
         <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex">
-          {rid ? <Button asChild><Link to="/bookings"><CalendarCheck2 className="size-4"/>{ar?"حجز جديد":"Add Booking"}</Link></Button> : null}
+          {rid ? <Button asChild><Link to="/bookings" search={{create:true}}><CalendarCheck2 className="size-4"/>{ar?"حجز جديد":"Add Booking"}</Link></Button> : null}
           {rid ? <Button asChild variant="outline"><Link to="/manage/$restaurantId/orders" params={{restaurantId:rid}}><ClipboardList className="size-4"/>{ar?"الطلبات":"Orders"}</Link></Button> : null}
         </div>
       </div>

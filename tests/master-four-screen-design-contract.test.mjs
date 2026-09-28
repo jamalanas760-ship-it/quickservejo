@@ -127,13 +127,13 @@ test("menu type cards always use fixed system-colored icons", async () => {
 test("mobile navigation mirrors the configured sidebar and preferences live in the topbar", () => {
   assert.match(nav,/customMobilePrimary/);
   assert.match(nav,/appearance\.sidebarPinnedTools/);
-  assert.match(nav,/slice\(0, 4\)/);
+  assert.match(nav,/slice\(0, 3\)/);
   assert.doesNotMatch(nav,/Preferences/);
   assert.doesNotMatch(nav,/toggleLang/);
   assert.doesNotMatch(nav,/ThemeToggle/);
   assert.match(header,/qs-topbar-theme-control/);
   assert.match(header,/qs-topbar-language/);
-  assert.match(settings,/Mobile: first 4/);
+  assert.match(settings,/Mobile: first 3/);
   assert.match(styles,/Mobile navigation master alignment/);
 });
 
@@ -212,4 +212,26 @@ test("reservation dialogs are mobile-first and never summon the keyboard on open
   assert.match(styles,/Reservation dialogs mobile master pass/);
   assert.match(styles,/qs-booking-settings-toggle-grid/);
   assert.match(styles,/safe-area-inset-bottom/);
+});
+
+
+test("Home Add Booking deep-links directly into the reservation creator", async () => {
+  const dashboard = await readFile(new URL("../src/routes/_authenticated/dashboard.tsx", import.meta.url), "utf8");
+  const bookings = await readFile(new URL("../src/routes/_authenticated/bookings.tsx", import.meta.url), "utf8");
+  assert.match(dashboard,/to="\/bookings" search=\{\{create:true\}\}/);
+  assert.match(bookings,/validateSearch/);
+  assert.match(bookings,/routeSearch\.create/);
+  assert.match(bookings,/setCreateOpen\(true\)/);
+});
+
+test("Add Booking mobile controls never overlap and footer consumes no dead space", async () => {
+  const bookings = await readFile(new URL("../src/routes/_authenticated/bookings.tsx", import.meta.url), "utf8");
+  assert.match(bookings,/qs-booking-create-scroll-body/);
+  assert.match(bookings,/qs-booking-date-field/);
+  assert.match(bookings,/qs-booking-time-field/);
+  assert.match(bookings,/qs-booking-guests-field/);
+  assert.match(styles,/Add Booking mobile layout correction/);
+  assert.match(styles,/grid-template-columns:1fr!important/);
+  assert.match(styles,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
+  assert.match(styles,/\.qs-booking-create-form[\s\S]*overflow:hidden!important/);
 });

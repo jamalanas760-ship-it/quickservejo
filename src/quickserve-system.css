@@ -2155,3 +2155,155 @@
   .qs-booking-datetime-grid>div:first-child,
   .qs-booking-workflow-grid>div:first-child{grid-column:auto}
 }
+
+
+/* Add Booking mobile layout correction — 2026-09-28 */
+.qs-booking-create-progress{
+  margin-top:8px;
+  grid-template-columns:repeat(3,1fr);
+  gap:4px;
+}
+.qs-booking-create-progress i{
+  height:3px;
+  border-radius:999px;
+  background:var(--qs-stroke);
+}
+.qs-booking-create-progress i.is-active{background:var(--qs-brand)}
+
+@media(max-width:767px){
+  .qs-booking-create-dialog{
+    display:flex!important;
+    height:min(94dvh,780px)!important;
+    max-height:calc(100dvh - 12px)!important;
+    flex-direction:column;
+  }
+  .qs-booking-create-hero{
+    position:relative!important;
+    flex:0 0 auto;
+    padding:13px 15px!important;
+  }
+  .qs-booking-create-progress{display:grid!important}
+  .qs-booking-create-form{
+    display:flex!important;
+    flex:1 1 auto;
+    min-height:0!important;
+    height:auto!important;
+    max-height:none!important;
+    flex-direction:column;
+    overflow:hidden!important;
+  }
+  .qs-booking-create-scroll-body{
+    flex:1 1 auto;
+    min-height:0;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    scroll-padding:12px 0 20px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .qs-booking-create-main{
+    gap:10px!important;
+    padding:10px!important;
+  }
+  .qs-booking-step{
+    min-width:0;
+    border-radius:14px!important;
+    padding:12px!important;
+  }
+  .qs-booking-step>div:first-child{
+    min-width:0;
+  }
+  .qs-booking-step>div:first-child>div{
+    min-width:0;
+  }
+  .qs-booking-step>div:first-child p{
+    line-height:1.4!important;
+  }
+
+  /* Date / time / party: never allow native time inputs to collide. */
+  .qs-booking-datetime-grid{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:10px!important;
+  }
+  .qs-booking-date-field,
+  .qs-booking-time-field,
+  .qs-booking-guests-field{
+    min-width:0!important;
+    width:100%!important;
+    grid-column:auto!important;
+  }
+  .qs-booking-datetime-grid :is(input,button,[role="combobox"]){
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box;
+  }
+  .qs-booking-datetime-grid input[type="time"]{
+    appearance:none;
+    -webkit-appearance:none;
+  }
+
+  /* Duration becomes a compact 3-column choice grid instead of a clipped rail. */
+  .qs-booking-duration-rail{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:8px!important;
+    overflow:visible!important;
+    margin-inline:0!important;
+    padding:0!important;
+  }
+  .qs-booking-duration-chip{
+    width:100%;
+    min-width:0!important;
+    min-height:44px!important;
+    justify-content:center;
+    padding:8px 6px!important;
+    white-space:nowrap;
+  }
+  .qs-booking-duration-custom{
+    width:100%!important;
+    min-width:0!important;
+    flex:none!important;
+  }
+  .qs-booking-duration-custom input{
+    width:100%!important;
+    min-width:0!important;
+    height:44px!important;
+    min-height:44px!important;
+    padding-inline-end:8px!important;
+  }
+
+  .qs-booking-workflow-grid{
+    grid-template-columns:1fr!important;
+    gap:10px!important;
+  }
+  .qs-booking-workflow-grid>div:first-child{grid-column:auto!important}
+
+  .qs-booking-live-aside{
+    margin:0 10px 10px!important;
+  }
+
+  .qs-booking-create-footer{
+    position:relative!important;
+    bottom:auto!important;
+    flex:0 0 auto;
+    display:grid!important;
+    grid-template-columns:minmax(92px,.65fr) minmax(0,1.35fr);
+    gap:8px!important;
+    padding:9px 10px calc(9px + env(safe-area-inset-bottom))!important;
+    box-shadow:0 -8px 24px rgb(15 23 42/.065);
+  }
+  .qs-booking-create-footer>button{
+    min-height:48px!important;
+    border-radius:12px!important;
+    font-size:.84rem!important;
+  }
+}
+@media(max-width:390px){
+  .qs-booking-create-dialog{
+    height:calc(100dvh - 8px)!important;
+  }
+  .qs-booking-duration-rail{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}

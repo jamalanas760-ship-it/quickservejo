@@ -30,7 +30,11 @@ import { useI18n } from "@/lib/i18n";
 import { membershipHasCapability } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
+type BookingRouteSearch={create?:boolean};
 export const Route = createFileRoute("/_authenticated/bookings")({
+  validateSearch:(search:Record<string,unknown>):BookingRouteSearch=>({
+    create:search.create===true||search.create==="1"||search.create==="true"?true:undefined,
+  }),
   head: () => ({ meta: [{ title: "Reservations — QuickServe" }, { name: "description", content: "Live table availability, reservations and guest seating." }] }),
   component: BookingsPage,
 });
@@ -52,6 +56,7 @@ type BookingSettings={
 
 function BookingsPage(){
   const {lang}=useI18n(); const ar=lang==="ar";
+  const routeSearch=Route.useSearch();
   const scope=useWorkspaceScope(); const access=useAccess(); const qc=useQueryClient();
   const rid=scope.restaurantId; const membership=rid?access.membershipFor(rid):null;
   const canManage=Boolean(access.isSuperAdmin||(membership&&membershipHasCapability(membership.role,membership.permission_overrides,"manage_tables")));
@@ -61,6 +66,10 @@ function BookingsPage(){
   const [deleteTarget,setDeleteTarget]=useState<Booking|null>(null);
   const [messageTarget,setMessageTarget]=useState<Booking|null>(null);
   const [search,setSearch]=useState("");
+
+  useEffect(()=>{
+    if(routeSearch.create)setCreateOpen(true);
+  },[routeSearch.create]);
 
   const restaurant=useQuery({
     queryKey:["bookings","restaurant",rid],
@@ -284,12 +293,14 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
               <DialogTitle className="qs-booking-create-title text-xl sm:text-2xl">{ar?"حجز جديد":"New reservation"}</DialogTitle>
               <DialogDescription className="qs-booking-create-description mt-1 max-w-2xl">{ar?"أدخل بيانات الضيف ثم اختر التاريخ والوقت بوضوح. يتم فحص التوفر مباشرة ومرة أخيرة عند الحفظ.":"Add the guest, choose date and time clearly, then QuickServe checks availability live and once again when saving."}</DialogDescription>
               <p className="qs-booking-create-mobile-subtitle hidden">{ar?"بيانات الضيف ← الموعد ← الطاولة":"Guest → time → table"}</p>
+              <div className="qs-booking-create-progress hidden" aria-hidden="true"><i className="is-active"/><i/><i/></div>
             </div>
           </div>
         </DialogHeader>
       </div>
 
-      <form onSubmit={submit} className="qs-booking-create-form grid max-h-[calc(94dvh-105px)] overflow-y-auto lg:grid-cols-[minmax(0,1fr)_290px]">
+      <form onSubmit={submit} className="qs-booking-create-form">
+        <div className="qs-booking-create-scroll-body lg:grid lg:grid-cols-[minmax(0,1fr)_290px]">
         <div className="qs-booking-create-main space-y-4 p-4 sm:p-5">
           <section className="qs-booking-step">
             <SectionHeading number="1" title={ar?"بيانات الضيف":"Guest details"} subtitle={ar?"المعلومات الأساسية للحجز والتواصل.":"Core reservation and contact information."}/>
@@ -304,27 +315,27 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
           <section className="qs-booking-step">
             <SectionHeading number="2" title={ar?"الموعد وعدد الضيوف":"Date, time & party"} subtitle={ar?"التاريخ والوقت منفصلان لتكون عملية الاختيار واضحة وسهلة على جميع الأجهزة.":"Date and time are separated for a clearer, reliable picker on every device."}/>
             <div className="qs-booking-datetime-grid mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Field label={ar?"التاريخ":"Date"}>
+              <div className="qs-booking-date-field"><Field label={ar?"التاريخ":"Date"}>
                 <ReservationDatePicker
                   value={bookingDate}
                   onChange={value=>{setBookingDate(value);setSelectedTable("auto");}}
                   ar={ar}
                   maxAdvanceDays={settings?.max_advance_days??365}
                 />
-              </Field>
-              <Field label={ar?"الوقت":"Time"}>
+              </Field></div>
+              <div className="qs-booking-time-field"><Field label={ar?"الوقت":"Time"}>
                 <div className="relative"><Clock3 className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-12 cursor-pointer rounded-xl ps-10" type="time" step="900" value={bookingTime} onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()} onChange={e=>{setBookingTime(e.target.value);setSelectedTable("auto");}} required/></div>
-              </Field>
-              <Field label={ar?"عدد الضيوف":"Guests"}>
+              </Field></div>
+              <div className="qs-booking-guests-field"><Field label={ar?"عدد الضيوف":"Guests"}>
                 <div className="relative"><UsersRound className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-12 rounded-xl ps-10" type="number" min="1" max="100" value={guests} onChange={e=>{setGuests(Number(e.target.value)||1);setSelectedTable("auto");}} required/></div>
-              </Field>
+              </Field></div>
             </div>
 
-            <div className="mt-4">
+            <div className="qs-booking-duration mt-4">
               <Label className="text-xs font-bold">{ar?"مدة الحجز":"Reservation duration"}</Label>
               <div className="qs-booking-duration-rail mt-2 flex flex-wrap gap-2">
                 {[60,90,120,150,180].map(value=><button key={value} type="button" onClick={()=>{setDuration(value);setSelectedTable("auto");}} className={cn("qs-booking-duration-chip rounded-xl border px-3.5 py-2 text-xs font-bold transition",duration===value?"is-active border-[#e85d2a] bg-orange-500/10 text-[#e34d00]":"border-border bg-background hover:bg-muted/50")}>{value<120?`${value} min`:`${value/60} hr`}</button>)}
-                <div className="qs-booking-duration-custom relative w-28"><Timer className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-9 rounded-xl ps-9 text-xs" type="number" min="30" max="360" step="15" value={duration} onChange={e=>{setDuration(Number(e.target.value)||90);setSelectedTable("auto");}}/></div>
+                <div className="qs-booking-duration-custom relative w-28"><Timer className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input aria-label={ar?"مدة مخصصة بالدقائق":"Custom duration in minutes"} className="h-9 rounded-xl ps-9 text-xs" type="number" min="30" max="360" step="15" value={duration} onChange={e=>{setDuration(Number(e.target.value)||90);setSelectedTable("auto");}}/></div>
               </div>
             </div>
           </section>
@@ -379,8 +390,9 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
             <div className="rounded-2xl border border-dashed border-border p-4 text-[11px] leading-5 text-muted-foreground">{ar?"يتم إعادة فحص التوفر داخل قاعدة البيانات عند إنشاء الحجز، لذلك لا يمكن لحجزين متزامنين حجز نفس الطاولة لنفس الوقت.":"Availability is rechecked inside the database when creating the reservation, preventing concurrent double-booking."}</div>
           </div>
         </aside>
+        </div>
 
-        <DialogFooter className="qs-booking-create-footer sticky bottom-0 z-10 border-t border-border bg-background/95 px-5 py-4 backdrop-blur lg:col-span-2 sm:px-7">
+        <DialogFooter className="qs-booking-create-footer border-t border-border bg-background/95 px-5 py-4 backdrop-blur sm:px-7">
           <Button type="button" variant="outline" className="qs-booking-cancel rounded-xl" onClick={()=>onOpenChange(false)} disabled={busy}>{ar?"إلغاء":"Cancel"}</Button>
           <Button type="submit" className="qs-booking-submit min-w-40 rounded-xl" disabled={!canSubmit}>{busy?(ar?"جارٍ الحفظ…":"Saving…"):(ar?"إنشاء الحجز":"Create reservation")}</Button>
         </DialogFooter>
