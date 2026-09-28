@@ -172,3 +172,21 @@ test("mobile topbar uses the dedicated segmented theme control", async () => {
   assert.match(styles,/touch-action:manipulation/);
   assert.match(styles,/\.qs-topbar-theme-control\.qs-theme-toggle-compact/);
 });
+
+
+test("tables mobile floor plan uses responsive rails, compact controls and scaled table markers", async () => {
+  const tablesPro = await readFile(new URL("../src/components/manage/TablesManagerPro.tsx", import.meta.url), "utf8");
+  const switchControl = await readFile(new URL("../src/components/ui/switch.tsx", import.meta.url), "utf8");
+  assert.match(tablesPro,/qs-tables-page/);
+  assert.match(tablesPro,/qs-tables-chip-rail/);
+  assert.match(tablesPro,/qs-floor-toolbar/);
+  assert.match(tablesPro,/qs-toggle-control/);
+  assert.match(tablesPro,/qs-floor-canvas/);
+  assert.match(tablesPro,/qs-floor-table-piece/);
+  assert.match(tablesPro,/--qs-floor-object-scale/);
+  assert.doesNotMatch(tablesPro,/<Switch checked=\{grid\}/);
+  assert.match(switchControl,/qs-master-switch/);
+  assert.match(styles,/Tables mobile floor-plan master pass/);
+  assert.match(styles,/--qs-floor-object-scale:\.62/);
+  assert.match(styles,/\.qs-master-switch/);
+});
