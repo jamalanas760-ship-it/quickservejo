@@ -32,9 +32,10 @@ import { cn } from "@/lib/utils";
 
 type BookingRouteSearch={create?:boolean};
 export const Route = createFileRoute("/_authenticated/bookings")({
-  validateSearch:(search:Record<string,unknown>):BookingRouteSearch=>({
-    create:search.create===true||search.create==="1"||search.create==="true"?true:undefined,
-  }),
+  validateSearch:(search:Record<string,unknown>):BookingRouteSearch=>{
+    const create=search.create===true||search.create==="1"||search.create==="true";
+    return create?{create:true}:{};
+  },
   head: () => ({ meta: [{ title: "Reservations — QuickServe" }, { name: "description", content: "Live table availability, reservations and guest seating." }] }),
   component: BookingsPage,
 });
