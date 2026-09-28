@@ -74,13 +74,35 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
   }
 
   return <form onSubmit={save} className="qs-organization-settings space-y-5">
+    <section className="qs-organization-overview grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]">
+      <div className="qs-organization-cover-card" style={form.cover_image_url ? { backgroundImage: `linear-gradient(90deg,rgba(16,14,12,.25),rgba(16,14,12,.08)),url(${form.cover_image_url})` } : undefined}>
+        <div className="qs-organization-cover-copy">
+          <span>{ar ? "هوية المطعم" : "Restaurant identity"}</span>
+          <strong>{restaurant.name}</strong>
+          <small>{ar ? "نكهات أصيلة، تجربة عصرية" : "Authentic flavors, modern experience"}</small>
+        </div>
+      </div>
+      <div className="qs-card p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{ar ? "معلومات المطعم" : "Restaurant information"}</p><h2 className="mt-1 text-base font-bold">{restaurant.name}</h2></div>
+          {form.logo_url ? <img src={form.logo_url} alt="" className="size-16 rounded-2xl border border-border bg-white object-contain p-2" /> : null}
+        </div>
+        <div className="mt-4 divide-y divide-border text-xs">
+          <div className="flex items-center justify-between gap-4 py-2"><span className="text-muted-foreground">{ar ? "الاسم" : "Restaurant name"}</span><strong className="truncate">{restaurant.name}</strong></div>
+          <div className="flex items-center justify-between gap-4 py-2"><span className="text-muted-foreground">{ar ? "العملة" : "Currency"}</span><strong>{restaurant.currency ?? "JOD"}</strong></div>
+          <div className="flex items-center justify-between gap-4 py-2"><span className="text-muted-foreground">{ar ? "المنطقة الزمنية" : "Timezone"}</span><strong className="truncate">{restaurant.timezone ?? "Asia/Amman"}</strong></div>
+          <div className="flex items-center justify-between gap-4 py-2"><span className="text-muted-foreground">{ar ? "الفئة" : "Category"}</span><strong>{ar ? "مطعم" : "Restaurant"}</strong></div>
+        </div>
+      </div>
+    </section>
+
     <section className="qs-card overflow-hidden">
       <div className="qs-panel-header flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div><h2 className="font-display text-lg font-bold">{ar ? "إعدادات المؤسسة" : "Organization Settings"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "الشعارات وصورة الغلاف وهوية مساحة العمل الخاصة بهذا المطعم." : "Logos, cover image and workspace identity for this restaurant."}</p></div>
         <span className="inline-flex items-center gap-2 self-start rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-600"><SlidersHorizontal className="size-3.5" />{ar ? "خاص بالمطعم" : "Restaurant scoped"}</span>
       </div>
       <div className="space-y-6 p-4 sm:p-6">
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 xl:grid-cols-[1fr_1fr_.72fr]">
           <div className="qs-brand-card space-y-3">
             <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{ar?"هوية مساحة العمل":"Workspace identity"}</p><h3 className="mt-1 text-sm font-bold">{ar?"شعار المؤسسة":"Organization logo"}</h3></div>
             <ImageUploader restaurantId={restaurant.id} kind="logo" value={form.logo_url} onChange={(value) => field("logo_url", value)} label={ar ? "شعار المؤسسة" : "Organization logo"} />
@@ -89,6 +111,18 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
           <div className="qs-brand-card space-y-3">
             <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{ar?"واجهة الضيف":"Guest experience"}</p><h3 className="mt-1 text-sm font-bold">{ar?"شعار قائمة الضيف":"Guest menu logo"}</h3></div>
             <ImageUploader restaurantId={restaurant.id} kind="logo" value={brand.menuLogo} onChange={(value) => setBrand((current) => ({ ...current, menuLogo: value }))} label={ar ? "شعار قائمة الضيف" : "Guest menu logo"} />
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 p-3"><span className="min-w-0"><strong className="block text-xs">{ar ? "استخدام نفس الشعار" : "Use same logo"}</strong><small className="mt-1 block text-[10px] text-muted-foreground">{ar ? "استخدم شعار المؤسسة في قائمة الضيف." : "Use the organization logo on the guest menu."}</small></span><Switch checked={Boolean(form.logo_url && brand.menuLogo === form.logo_url)} onCheckedChange={(value) => setBrand((current) => ({ ...current, menuLogo: value ? form.logo_url : null }))} /></label>
+          </div>
+          <div className="qs-brand-card space-y-3">
+            <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{ar?"نظام العلامة":"Brand system"}</p><h3 className="mt-1 text-sm font-bold">{ar?"ألوان العلامة":"Brand colors"}</h3></div>
+            <div className="space-y-2">
+              {[
+                [ar?"أساسي":"Primary",form.primary_color],
+                [ar?"ثانوي":"Secondary",form.accent_color],
+                [ar?"الخلفية":"Background",brand.lightBackground],
+                [ar?"التحديد":"Selection",brand.selectedNavColor],
+              ].map(([label,color]) => <div key={String(label)} className="flex items-center gap-2 rounded-xl border border-border bg-card p-2"><span className="size-8 rounded-lg border border-black/5 shadow-inner" style={{backgroundColor:String(color)}} /><span className="min-w-0 flex-1"><strong className="block text-[10px]">{label}</strong><small className="block truncate text-[9px] uppercase text-muted-foreground">{String(color)}</small></span></div>)}
+            </div>
           </div>
         </div>
 

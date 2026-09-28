@@ -131,6 +131,8 @@ function ProfilePage() {
     ["tableSounds", "Table Alert Sounds", "أصوات تنبيهات الطاولة", "Play a sound for table changes", "تشغيل صوت لتغييرات الطاولات"],
   ];
 
+  const organizationFocus = section === "organization" && canManageRestaurant;
+
   const navItems = [
     { id: "profile" as const, icon: UserRound, label: ar ? "الملف الشخصي" : "Personal profile", hint: ar ? "الصورة وبيانات الحساب" : "Identity and account details" },
     { id: "notifications" as const, icon: Bell, label: ar ? "الإشعارات" : "Notifications", hint: ar ? "التنبيهات والأصوات" : "Alerts and sound preferences" },
@@ -139,8 +141,8 @@ function ProfilePage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader />
-    <main className="qs-page qs-compact-page qs-viewport-page">
-      <section className="relative overflow-hidden rounded-[14px] border border-border bg-card">
+    <main className={cn("qs-page qs-compact-page qs-viewport-page", organizationFocus && "qs-organization-page")}>
+      {!organizationFocus ? <section className="relative overflow-hidden rounded-[14px] border border-border bg-card">
         {accountCover ? <><img src={accountCover} alt="" className="pointer-events-none absolute inset-0 size-full object-cover opacity-20" style={{ objectPosition: `${accountCoverX}% ${accountCoverY}%`, transform: `scale(${accountCoverZoom / 100})` }} /><div className="pointer-events-none absolute inset-0 bg-white/85" /></> : null}
         <div className="relative flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
@@ -159,10 +161,10 @@ function ProfilePage() {
           </div>
           <Button variant="outline" className="self-start rounded-xl lg:self-auto" onClick={() => void signOut()}><LogOut className="size-4" />{ar ? "تسجيل الخروج" : "Sign out"}</Button>
         </div>
-      </section>
+      </section> : null}
 
-      <div className="qs-viewport-fill grid min-h-0 gap-4 xl:grid-cols-[210px_minmax(0,1fr)] xl:items-stretch">
-        <aside className="min-h-0">
+      <div className={cn("qs-viewport-fill min-h-0 gap-4", organizationFocus ? "block" : "grid xl:grid-cols-[210px_minmax(0,1fr)] xl:items-stretch")}>
+        {!organizationFocus ? <aside className="min-h-0">
           <div className="qs-card p-2.5">
             <div className="px-3 pb-2 pt-2">
               <p className="text-[10px] font-bold uppercase tracking-[.2em] text-muted-foreground">{ar ? "الإعدادات" : "Settings"}</p>
@@ -184,12 +186,12 @@ function ProfilePage() {
             <div className="flex items-center gap-2 text-xs font-bold"><ShieldCheck className="size-4 text-emerald-600" />{ar ? "حساب آمن" : "Secure account"}</div>
             <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{ar ? "بيانات الحساب هنا للعرض. يتم تعديل اسم مدير المطعم من صفحة الفريق." : "Account identity is read-only here. Restaurant Manager names are edited from the Team page."}</p>
           </div>
-        </aside>
+        </aside> : null}
 
-        <div className="qs-scroll-region min-h-0 min-w-0">
+        <div className={cn("qs-scroll-region min-h-0 min-w-0", organizationFocus && "h-full")}>
           {section === "profile" ? <PersonalSection ar={ar} lang={lang} rid={rid} displayName={displayName} email={email} roleLabel={roleLabel} restaurantName={restaurantName} createdAt={user?.created_at} /> : null}
           {section === "notifications" ? <NotificationsSection ar={ar} notif={notif} operationalRows={operationalRows} soundRows={soundRows} toggle={toggle} /> : null}
-          {section === "organization" && rid ? <OrganizationSection ar={ar} restaurantId={rid} canManageRestaurant={canManageRestaurant} showAccountCover={personalCoverEligible} /> : null}
+          {section === "organization" && rid ? <OrganizationSection ar={ar} restaurantId={rid} canManageRestaurant={canManageRestaurant} showAccountCover={personalCoverEligible} onBack={() => setSection("profile")} /> : null}
         </div>
       </div>
     </main>
@@ -224,15 +226,27 @@ function NotificationsSection({ ar, notif, operationalRows, soundRows, toggle }:
   </div>;
 }
 
-function OrganizationSection({ ar, restaurantId, canManageRestaurant, showAccountCover }: { ar: boolean; restaurantId: string; canManageRestaurant: boolean; showAccountCover: boolean }) {
-  return <div className="space-y-4">
-    <SectionHeading icon={<Store className="size-5" />} title={ar ? "المؤسسة والمظهر" : "Organization & appearance"} description={canManageRestaurant ? (ar ? "إدارة هوية المطعم وإعدادات الحساب من مساحة واحدة منظمة." : "Manage restaurant identity and your account appearance from one organized workspace.") : (ar ? "خصص غلاف حسابك فقط بدون التأثير على هوية المطعم أو إعداداته." : "Customize only your account cover without changing restaurant branding or settings.")} />
+function OrganizationSection({ ar, restaurantId, canManageRestaurant, showAccountCover, onBack }: { ar: boolean; restaurantId: string; canManageRestaurant: boolean; showAccountCover: boolean; onBack: () => void }) {
+  return <div className="qs-organization-focus space-y-4">
+    <header className="qs-organization-hero">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]"><Store className="size-5" /></span>
+        <div className="min-w-0">
+          <span className="text-[10px] font-black uppercase tracking-[.18em] text-[#e85d2a]">{ar ? "الإعدادات" : "Settings"}</span>
+          <h1 className="mt-1 font-display text-2xl font-bold tracking-[-.035em] sm:text-[2rem]">{ar ? "المؤسسة والمظهر" : "Organization & appearance"}</h1>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">{canManageRestaurant ? (ar ? "إدارة هوية المطعم ومظهر مساحة العمل من مركز واحد." : "Manage restaurant identity and workspace appearance from one focused center.") : (ar ? "خصص غلاف حسابك فقط بدون التأثير على هوية المطعم." : "Customize only your account cover without changing restaurant branding.")}</p>
+        </div>
+      </div>
+      <button type="button" className="qs-button-secondary shrink-0" onClick={onBack}><UserRound className="size-4" />{ar ? "إعدادات الحساب" : "Account settings"}</button>
+    </header>
+
     {showAccountCover ? <AccountCoverEditor restaurantId={restaurantId} /> : null}
     {canManageRestaurant ? <>
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-border bg-muted/20 p-3 text-[10px] font-bold text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-2"><Building2 className="size-3.5" />{ar ? "هوية المطعم" : "Restaurant identity"}</span>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-2"><Palette className="size-3.5" />{ar ? "نظام الألوان" : "Color system"}</span>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-2"><SlidersHorizontal className="size-3.5" />{ar ? "مظهر مساحة العمل" : "Workspace appearance"}</span>
+      <div className="qs-organization-tabs">
+        <span className="is-active"><Building2 className="size-4" />{ar ? "هوية المطعم" : "Restaurant identity"}</span>
+        <span><Palette className="size-4" />{ar ? "نظام الألوان" : "Color system"}</span>
+        <span><SlidersHorizontal className="size-4" />{ar ? "مظهر مساحة العمل" : "Workspace appearance"}</span>
+        <span><UserRound className="size-4" />{ar ? "تجربة الضيف" : "Guest experience"}</span>
       </div>
       <RestaurantProfileSettings restaurantId={restaurantId} />
     </> : <section className="rounded-2xl border border-border bg-muted/20 p-4 text-xs leading-5 text-muted-foreground">{ar ? "إعدادات الشعار والألوان والمطعم تبقى تحت إدارة مدير المطعم. هذا الحساب يستطيع تعديل غلافه الشخصي فقط." : "Restaurant logos, colors and organization settings remain controlled by the Restaurant Manager. This account can edit only its personal cover."}</section>}
