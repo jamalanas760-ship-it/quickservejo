@@ -58,7 +58,6 @@ function DevicesPage(){
     enabled:Boolean(rid&&canManage),
     staleTime:15_000,
     refetchInterval:30_000,
-    refetchInterval:30_000,
     queryFn:async()=>{
       const {data,error}=await (supabase as any).from("restaurant_devices")
         .select("id,name,device_type,kitchen_station_id,token_prefix,is_active,last_seen_at,last_route,last_metadata,created_at")
