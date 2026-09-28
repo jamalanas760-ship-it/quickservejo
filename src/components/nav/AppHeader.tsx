@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { BadgeDollarSign, Check, ChefHat, ChevronDown, Globe2, HandPlatter, Languages, LogOut, Menu as MenuIcon, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
+import { BadgeDollarSign, Check, ChefHat, ChevronDown, Globe2, HandPlatter, Languages, LogOut, Menu as MenuIcon, Search, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
 import { toast } from "sonner";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
@@ -104,6 +104,17 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
             <div className="min-w-0"><p className="truncate text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">{restaurant?.name || scope.restaurantName || (access.isSuperAdmin ? "QuickServe" : "Restaurant")}</p>{title ? <p className="mt-0.5 truncate text-sm font-bold text-foreground">{title}</p> : null}</div>
           )}
         </div>
+
+        <button
+          type="button"
+          className="qs-global-search-trigger mx-auto hidden min-w-0 flex-1 items-center gap-2 lg:flex lg:max-w-[370px] xl:max-w-[430px]"
+          onClick={() => window.dispatchEvent(new CustomEvent("quickserve:open-workspace-tools"))}
+          aria-label={lang === "ar" ? "البحث في أدوات مساحة العمل" : "Search workspace tools"}
+        >
+          <Search className="size-4 shrink-0" />
+          <span className="min-w-0 flex-1 truncate text-start">{lang === "ar" ? "ابحث في الطلبات، الفريق، التحليلات..." : "Search orders, team, analytics..."}</span>
+          <kbd>⌘ K</kbd>
+        </button>
 
         <div className="ms-auto flex items-center gap-1 sm:gap-1.5">
           <ThemeToggle compact className="hidden lg:inline-flex" />

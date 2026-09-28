@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BarChart3,
   Banknote,
@@ -9,6 +9,7 @@ import {
   Building2,
   CalendarClock,
   ChefHat,
+  ChevronRight,
   ClipboardCheck,
   ClipboardList,
   Clock3,
@@ -167,6 +168,49 @@ export function BottomNav() {
     ? desktopItems.filter((item) => `${item.en} ${item.ar}`.toLocaleLowerCase(lang === "ar" ? "ar" : "en").includes(normalizedToolSearch))
     : desktopItems;
 
+  useEffect(() => {
+    const openTools = () => setMoreOpen(true);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setMoreOpen(true);
+      }
+    };
+    window.addEventListener("quickserve:open-workspace-tools", openTools);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("quickserve:open-workspace-tools", openTools);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+
+  function toolHint(item: Item) {
+    const hints: Record<string, { en: string; ar: string }> = {
+      Home: { en: "Dashboard & insights", ar: "لوحة التحكم والرؤى" },
+      Operations: { en: "Operations workspace", ar: "مساحة العمليات" },
+      Shift: { en: "Shift workspace", ar: "مساحة الوردية" },
+      "My Work": { en: "Your tasks & activity", ar: "مهامك ونشاطك" },
+      Orders: { en: "Manage customer orders", ar: "إدارة طلبات العملاء" },
+      Menu: { en: "Items & categories", ar: "العناصر والفئات" },
+      Tables: { en: "Table management", ar: "إدارة الطاولات" },
+      Reservations: { en: "View and manage reservations", ar: "عرض وإدارة الحجوزات" },
+      Waitlist: { en: "Customer queue", ar: "قائمة انتظار العملاء" },
+      Shifts: { en: "Staff scheduling", ar: "جدولة الموظفين" },
+      Automation: { en: "Rules & workflows", ar: "القواعد وسير العمل" },
+      ERP: { en: "Inventory & procurement", ar: "المخزون والمشتريات" },
+      Analytics: { en: "Reports & insights", ar: "التقارير والرؤى" },
+      "Daily Close": { en: "End of day operations", ar: "عمليات إقفال اليوم" },
+      Guests: { en: "Guest CRM & loyalty", ar: "الضيوف والولاء" },
+      Campaigns: { en: "Customer campaigns", ar: "حملات العملاء" },
+      Connect: { en: "Integrations & channels", ar: "التكاملات والقنوات" },
+      Devices: { en: "Hardware & devices", ar: "الأجهزة والمعدات" },
+      Team: { en: "People & permissions", ar: "الفريق والصلاحيات" },
+      Profile: { en: "Account settings", ar: "إعدادات الحساب" },
+    };
+    const hint = hints[item.en];
+    return hint ? (lang === "ar" ? hint.ar : hint.en) : (lang === "ar" ? "فتح الأداة" : "Open tool");
+  }
+
   const brand = useRestaurantLogo ? (
     <span className="flex min-w-0 items-center gap-2">
       <span className="flex h-10 max-w-[112px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-white px-2 shadow-sm"><img src={restaurant!.logo_url!} alt={restaurant?.name ?? "Restaurant"} className="h-7 w-auto max-w-full object-contain" /></span>
@@ -251,49 +295,67 @@ export function BottomNav() {
       </nav>
 
       <Dialog open={moreOpen} onOpenChange={changeMoreOpen}>
-        <DialogContent className="max-h-[min(90dvh,780px)] max-w-[920px] gap-0 overflow-hidden p-0">
-          <DialogHeader className="border-b border-border bg-card px-5 py-5 pe-14 text-start sm:px-6">
-            <div className="flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><LayoutGrid className="size-5" /></span>
-              <div className="min-w-0">
-                <DialogTitle>{lang === "ar" ? "كل أدوات مساحة العمل" : "All workspace tools"}</DialogTitle>
-                <DialogDescription>{lang === "ar" ? "انتقل بسرعة إلى أي أداة متاحة لدورك." : "Find and open any tool available to your role."}</DialogDescription>
+        <DialogContent className="qs-workspace-tools-dialog max-h-[min(92dvh,820px)] max-w-[1120px] gap-0 overflow-hidden p-0">
+          <div className="qs-workspace-tools-layout">
+            <aside className="qs-workspace-tools-spotlight" style={restaurant?.cover_image_url ? { backgroundImage: `linear-gradient(180deg,rgba(16,14,12,.18),rgba(16,14,12,.86)),url(${restaurant.cover_image_url})` } : undefined}>
+              <div className="qs-workspace-tools-spotlight-copy">
+                <strong>{lang === "ar" ? "كل ما تحتاجه في مكان واحد" : "Everything you need in one place."}</strong>
+                <p>{lang === "ar" ? "أدر الطلبات والقائمة والفريق والتحليلات والمزيد من مساحة عمل واحدة." : "Manage orders, menu, team, analytics and more from a single workspace."}</p>
               </div>
-            </div>
-            <div className="qs-search-field mt-4">
-              <Search />
-              <Input autoFocus value={toolSearch} onChange={(event) => setToolSearch(event.target.value)} placeholder={lang === "ar" ? "ابحث عن الطلبات، الفريق، التحليلات…" : "Search orders, team, analytics…"} aria-label={lang === "ar" ? "البحث في الأدوات" : "Search tools"} />
-            </div>
-          </DialogHeader>
-          <div className="qs-scroll max-h-[calc(90dvh-190px)] overflow-y-auto overscroll-contain p-4 pb-[calc(20px+env(safe-area-inset-bottom))] sm:p-6">
-            <div className="space-y-6">
-            {(["overview","service","operations","growth","admin"] as NavGroup[]).map(group => {
-              const items = visibleTools.filter(item => item.group === group || (!item.group && group === "overview"));
-              if (items.length === 0) return null;
-              return <section key={group}>
-                <p className="mb-2.5 px-1 text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{groupLabel(group)}</p>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {items.map(item => {
-                    const Icon = item.icon;
-                    const active = activeFor(item);
-                    const count = countFor(item);
-                    return <Link key={`${item.to}-more`} to={item.to as never} onClick={() => changeMoreOpen(false)} className={cn("group flex min-h-[58px] items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-bold transition", active ? "border-primary/30 bg-primary/8 text-foreground" : "border-border/80 bg-card text-foreground hover:border-primary/20 hover:bg-muted/45")}>
-                      <span className={cn("grid size-9 shrink-0 place-items-center rounded-[10px] transition", active ? "bg-primary/12 text-primary" : "bg-muted text-muted-foreground group-hover:text-foreground")}><Icon className="size-[17px]" /></span>
-                      <span className="min-w-0 flex-1 text-start leading-5">{lang === "ar" ? item.ar : item.en}</span>
-                      {count > 0 ? <span className="min-w-6 rounded-full bg-red-500 px-1.5 py-1 text-center text-[9px] font-black text-white">{count > 99 ? "99+" : count}</span> : null}
-                    </Link>;
-                  })}
+              <div className="qs-workspace-tools-spotlight-brand">
+                {restaurant?.logo_url ? <img src={restaurant.logo_url} alt="" /> : <BrandLogo className="size-8" accentClassName="text-[#ff6a1a]" textClassName="text-xl text-white" />}
+                <span>{restaurant?.name ?? "QuickServe"}</span>
+              </div>
+            </aside>
+            <div className="min-w-0 bg-card">
+              <DialogHeader className="border-b border-border bg-card px-5 py-5 pe-14 text-start sm:px-6">
+                <div className="flex items-start gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><LayoutGrid className="size-5" /></span>
+                  <div className="min-w-0">
+                    <DialogTitle>{lang === "ar" ? "كل أدوات مساحة العمل" : "All workspace tools"}</DialogTitle>
+                    <DialogDescription>{lang === "ar" ? "انتقل بسرعة إلى أي أداة متاحة لدورك." : "Find and open any tool available to your role."}</DialogDescription>
+                  </div>
                 </div>
-              </section>;
-            })}
-            {visibleTools.length === 0 ? <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center"><div><Search className="mx-auto size-6 text-muted-foreground"/><p className="mt-3 text-sm font-bold">{lang === "ar" ? "لم نعثر على أداة مطابقة" : "No matching tool"}</p><button type="button" onClick={() => setToolSearch("")} className="mt-2 text-xs font-bold text-primary">{lang === "ar" ? "مسح البحث" : "Clear search"}</button></div></div> : null}
-            <section className="border-t border-border pt-5 lg:hidden">
-              <p className="mb-3 px-1 text-xs font-bold text-muted-foreground">{lang === "ar" ? "التفضيلات" : "Preferences"}</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={toggleLang} className="qs-button-secondary"><Globe2 className="size-4" />{lang === "ar" ? "English" : "العربية"}</button>
-                <ThemeToggle />
+                <div className="qs-search-field mt-4">
+                  <Search />
+                  <Input autoFocus value={toolSearch} onChange={(event) => setToolSearch(event.target.value)} placeholder={lang === "ar" ? "ابحث عن الطلبات، الفريق، التحليلات…" : "Search orders, team, analytics…"} aria-label={lang === "ar" ? "البحث في الأدوات" : "Search tools"} />
+                  <kbd>Ctrl K</kbd>
+                </div>
+              </DialogHeader>
+              <div className="qs-scroll max-h-[calc(92dvh-190px)] overflow-y-auto overscroll-contain p-4 pb-[calc(20px+env(safe-area-inset-bottom))] sm:p-6">
+                <div className="space-y-6">
+                {(["overview","service","operations","growth","admin"] as NavGroup[]).map(group => {
+                  const items = visibleTools.filter(item => item.group === group || (!item.group && group === "overview"));
+                  if (items.length === 0) return null;
+                  return <section key={group}>
+                    <p className="mb-2.5 px-1 text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{groupLabel(group)}</p>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {items.map(item => {
+                        const Icon = item.icon;
+                        const active = activeFor(item);
+                        const count = countFor(item);
+                        return <Link key={`${item.to}-more`} to={item.to as never} onClick={() => changeMoreOpen(false)} className={cn("qs-workspace-tool-card group flex min-h-[70px] items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-bold transition", active ? "is-active border-primary/40 bg-primary/8 text-foreground" : "border-border/80 bg-card text-foreground hover:border-primary/25 hover:bg-muted/35")}>
+                          <span className={cn("grid size-9 shrink-0 place-items-center rounded-[10px] transition", active ? "bg-primary/12 text-primary" : "bg-[#f7f2ea] text-[#8a7661] dark:bg-muted dark:text-muted-foreground group-hover:text-foreground")}><Icon className="size-[17px]" /></span>
+                          <span className="min-w-0 flex-1 text-start">
+                            <strong className="block truncate text-xs">{lang === "ar" ? item.ar : item.en}</strong>
+                            <small className="mt-0.5 block truncate text-[9px] font-medium text-muted-foreground">{toolHint(item)}</small>
+                          </span>
+                          {count > 0 ? <span className="min-w-5 rounded-full bg-red-500 px-1.5 py-1 text-center text-[8px] font-black text-white">{count > 99 ? "99+" : count}</span> : <ChevronRight className={cn("size-3.5 text-muted-foreground transition group-hover:translate-x-0.5", lang === "ar" && "rotate-180 group-hover:-translate-x-0.5")} />}
+                        </Link>;
+                      })}
+                    </div>
+                  </section>;
+                })}
+                {visibleTools.length === 0 ? <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center"><div><Search className="mx-auto size-6 text-muted-foreground"/><p className="mt-3 text-sm font-bold">{lang === "ar" ? "لم نعثر على أداة مطابقة" : "No matching tool"}</p><button type="button" onClick={() => setToolSearch("")} className="mt-2 text-xs font-bold text-primary">{lang === "ar" ? "مسح البحث" : "Clear search"}</button></div></div> : null}
+                <section className="border-t border-border pt-5 lg:hidden">
+                  <p className="mb-3 px-1 text-xs font-bold text-muted-foreground">{lang === "ar" ? "التفضيلات" : "Preferences"}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={toggleLang} className="qs-button-secondary"><Globe2 className="size-4" />{lang === "ar" ? "English" : "العربية"}</button>
+                    <ThemeToggle />
+                  </div>
+                </section>
+                </div>
               </div>
-            </section>
             </div>
           </div>
         </DialogContent>
