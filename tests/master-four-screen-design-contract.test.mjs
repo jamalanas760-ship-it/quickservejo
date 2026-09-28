@@ -306,3 +306,23 @@ test("iOS bottom navigation suppresses native text selection, callouts and the m
   assert.match(styles,/touch-action:none!important/);
   assert.match(styles,/\.qs-ios-context-preview\{display:none!important\}/);
 });
+
+
+test("iOS Haptic Touch matches the uploaded app-icon reference with a lifted source tab", async () => {
+  const nav = await readFile(new URL("../src/components/nav/BottomNav.tsx", import.meta.url), "utf8");
+  assert.match(nav,/qs-ios-context-source-lift/);
+  assert.match(nav,/data-ios-context-source/);
+  assert.match(styles,/iOS Home Screen Haptic Touch motion/);
+  assert.match(styles,/backdrop-filter:blur\(34px\) saturate\(1\.68\)/);
+  assert.match(styles,/translateY\(-3px\) scale\(1\.045\)/);
+});
+
+test("every navigation context has page-specific iOS quick actions", async () => {
+  const nav = await readFile(new URL("../src/components/nav/BottomNav.tsx", import.meta.url), "utf8");
+  const pages=["Home","Operations","Shift","HQ","My Work","Orders","Menu","Tables","Reservations","Waitlist","Shifts","Automation","ERP","Analytics","Daily Close","Guests","Campaigns","Connect","Devices","Team","Profile","Alerts","Kitchen","Floor","Host","Cashier","Restaurants","Settings","More"];
+  for(const page of pages) assert.ok(nav.includes('case "'+page+'":'),"missing quick actions for "+page);
+  assert.match(nav,/New Reservation/);
+  assert.match(nav,/Reservation Schedule/);
+  assert.match(nav,/Floor & Tables/);
+  assert.match(nav,/command:"more"/);
+});

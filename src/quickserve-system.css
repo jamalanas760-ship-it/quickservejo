@@ -2956,3 +2956,111 @@ html.qs-ios-context-active ::-moz-selection{
 }
 /* The context menu itself is the only lifted surface; do not render a second tab preview. */
 .qs-ios-context-preview{display:none!important}
+
+
+/* iOS Home Screen Haptic Touch motion — matched to uploaded reference video, 2026-09-28 */
+.qs-ios-context-backdrop{
+  background:rgb(26 31 38/.10)!important;
+  backdrop-filter:blur(12px) saturate(.96)!important;
+  -webkit-backdrop-filter:blur(12px) saturate(.96)!important;
+  animation:qs-ios-reference-backdrop .18s ease-out both!important;
+}
+.qs-ios-context-menu{
+  width:min(292px,calc(100vw - 28px))!important;
+  border:1px solid rgb(255 255 255/.34)!important;
+  border-radius:14px!important;
+  background:color-mix(in srgb,var(--qs-surface) 78%,transparent)!important;
+  box-shadow:0 18px 50px rgb(15 23 42/.24),0 1px 2px rgb(15 23 42/.10)!important;
+  backdrop-filter:blur(34px) saturate(1.68)!important;
+  -webkit-backdrop-filter:blur(34px) saturate(1.68)!important;
+  transform-origin:50% 100%;
+  animation:qs-ios-reference-menu-in .22s cubic-bezier(.22,.82,.24,1.06) both!important;
+}
+.qs-ios-context-title{display:none!important}
+.qs-ios-context-action{
+  min-height:50px!important;
+  padding:0 14px!important;
+  background:transparent!important;
+}
+.qs-ios-context-action>span{
+  font-size:.83rem!important;
+  font-weight:590!important;
+  letter-spacing:-.01em;
+}
+.qs-ios-context-action>svg{
+  width:18px!important;
+  height:18px!important;
+  color:color-mix(in srgb,var(--qs-ink) 72%,transparent)!important;
+  stroke-width:1.75!important;
+}
+.qs-ios-context-action>i{
+  inset-inline-start:14px!important;
+  background:color-mix(in srgb,var(--qs-stroke) 66%,transparent)!important;
+}
+.qs-ios-context-action:active{
+  background:color-mix(in srgb,var(--qs-ink) 9%,transparent)!important;
+}
+.qs-ios-context-source-lift{
+  position:fixed;
+  z-index:96;
+  display:flex;
+  min-height:62px;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  overflow:hidden;
+  border:1px solid rgb(255 255 255/.42);
+  border-radius:17px;
+  background:color-mix(in srgb,var(--qs-surface) 90%,transparent);
+  color:var(--qs-muted);
+  box-shadow:0 13px 34px rgb(15 23 42/.20),0 1px 2px rgb(15 23 42/.08);
+  backdrop-filter:blur(22px) saturate(1.35);
+  -webkit-backdrop-filter:blur(22px) saturate(1.35);
+  pointer-events:none;
+  transform-origin:center;
+  animation:qs-ios-reference-source-lift .22s cubic-bezier(.18,.88,.26,1.10) both;
+}
+.qs-ios-context-source-lift.is-active{
+  color:var(--restaurant-selected-nav,var(--qs-brand));
+  background:color-mix(in srgb,var(--qs-brand-soft) 76%,var(--qs-surface));
+}
+.qs-ios-context-source-lift .qs-mobile-nav-icon{
+  display:grid;
+  width:30px;
+  height:28px;
+  place-items:center;
+  border-radius:10px;
+}
+.qs-ios-context-source-lift .qs-mobile-nav-label{
+  max-width:100%;
+  overflow:hidden;
+  padding-inline:4px;
+  font-size:9px;
+  font-weight:650;
+  line-height:1.05;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+html.qs-ios-context-active .qs-ios-haptic-nav-item[data-ios-context-source="true"]{
+  opacity:0!important;
+}
+.qs-ios-haptic-nav-item[data-ios-pressed="true"]{
+  transform:scale(.94)!important;
+  background:color-mix(in srgb,var(--qs-brand) 5%,transparent)!important;
+  transition:transform .11s cubic-bezier(.25,.8,.25,1),background-color .11s ease!important;
+}
+@keyframes qs-ios-reference-menu-in{
+  0%{opacity:0;transform:translateY(9px) scale(.965)}
+  68%{opacity:1;transform:translateY(-1px) scale(1.008)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes qs-ios-reference-source-lift{
+  0%{opacity:.76;transform:translateY(0) scale(.94)}
+  62%{opacity:1;transform:translateY(-4px) scale(1.055)}
+  100%{opacity:1;transform:translateY(-3px) scale(1.045)}
+}
+@keyframes qs-ios-reference-backdrop{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){
+  .qs-ios-context-menu,.qs-ios-context-source-lift,.qs-ios-context-backdrop{animation:none!important}
+}

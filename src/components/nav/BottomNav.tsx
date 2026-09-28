@@ -45,7 +45,7 @@ import { cn } from "@/lib/utils";
 
 type NavGroup = "overview" | "service" | "operations" | "growth" | "admin";
 type Item = { to: string; icon: typeof Home; en: string; ar: string; exact?: boolean; capability?: Capability; badge?: "tasks" | "shifts" | "orders" | "unread"; group?: NavGroup };
-type IOSQuickAction={key:string;to:string;icon:typeof Home;en:string;ar:string;search?:Record<string,unknown>};
+type IOSQuickAction={key:string;to?:string;icon:typeof Home;en:string;ar:string;search?:Record<string,unknown>;command?:"more"};
 
 const FRONTLINE_ITEMS: Record<string, Item> = {
   kitchen: { to: "/kitchen", icon: ChefHat, en: "Kitchen", ar: "المطبخ" },
@@ -294,50 +294,53 @@ export function BottomNav() {
   function quickActionsFor(item:Item):IOSQuickAction[]{
     const availableQuickItems=managementItems.length?managementItems:desktopItems;
     const byName=(name:string)=>availableQuickItems.find(candidate=>candidate.en===name)||desktopItems.find(candidate=>candidate.en===name);
-    const namesByContext:Record<string,string[]>={
-      Home:["Orders","Tables","Analytics","Team"],
-      Operations:["Orders","Shifts","ERP","Analytics"],
-      Shift:["Shifts","Team","My Work","Reservations"],
-      HQ:["Analytics","Team","Guests","Profile"],
-      "My Work":["Shifts","Team","Alerts","Home"],
-      Orders:["Tables","Menu","Reservations","Analytics"],
-      Menu:["Orders","Tables","Analytics","Home"],
-      Tables:["Reservations","Waitlist","Orders","Menu"],
-      Reservations:["Waitlist","Tables","Guests","Orders"],
-      Waitlist:["Reservations","Tables","Guests","Orders"],
-      Shifts:["Team","My Work","Reservations","Daily Close"],
-      Automation:["My Work","Shifts","Connect","Home"],
-      ERP:["Analytics","Orders","Daily Close","Home"],
-      Analytics:["Orders","ERP","Guests","Daily Close"],
-      "Daily Close":["Analytics","Orders","Shifts","Home"],
-      Guests:["Reservations","Campaigns","Analytics","Home"],
-      Campaigns:["Guests","Analytics","Connect","Home"],
-      Connect:["Devices","Automation","Profile","Home"],
-      Devices:["Connect","Tables","Orders","Home"],
-      Team:["Shifts","My Work","Analytics","Profile"],
-      Profile:["Connect","Devices","Home","My Work"],
-      More:["Profile","Connect","Devices","Home"],
-      Alerts:["My Work","Shifts","Home","Profile"],
-      Kitchen:["Orders","Menu","My Work","Shifts"],
-      Floor:["Tables","Orders","Reservations","Shifts"],
-      Host:["Reservations","Waitlist","Tables","Guests"],
-      Cashier:["Orders","Daily Close","Analytics","My Work"],
-      Restaurants:["Home","Profile"],
-      Settings:["Home","Profile"],
-    };
     const actions:IOSQuickAction[]=[];
-    if((item.en==="Home"||item.en==="Reservations"||item.en==="Host")&&availableQuickItems.some(candidate=>candidate.to==="/bookings")){
-      actions.push({key:"add-booking",to:"/bookings",search:{create:true},icon:Plus,en:"Add Booking",ar:"حجز جديد"});
+    const addTool=(key:string,targetName:string,en:string,ar:string)=>{
+      const candidate=byName(targetName);
+      if(!candidate||actions.some(action=>action.to===candidate.to&&action.en===en))return;
+      actions.push({key,to:candidate.to,icon:candidate.icon,en,ar});
+    };
+    const addBooking=()=>{
+      if(!availableQuickItems.some(candidate=>candidate.to==="/bookings"))return;
+      actions.push({key:"new-reservation",to:"/bookings",search:{create:true},icon:Plus,en:"New Reservation",ar:"حجز جديد"});
+    };
+    const addAllTools=()=>actions.push({key:"all-tools",command:"more",icon:LayoutGrid,en:"All Tools",ar:"كل الأدوات"});
+
+    switch(item.en){
+      case "Home": addBooking(); addTool("home-orders","Orders","Live Orders","الطلبات المباشرة"); addTool("home-tables","Tables","Floor & Tables","الصالة والطاولات"); addTool("home-analytics","Analytics","Today Analytics","تحليلات اليوم"); break;
+      case "Operations": addTool("ops-orders","Orders","Service Orders","طلبات الخدمة"); addTool("ops-shifts","Shifts","Shift Control","إدارة الورديات"); addTool("ops-erp","ERP","Inventory & ERP","المخزون و ERP"); addTool("ops-analytics","Analytics","Operations Analytics","تحليلات العمليات"); break;
+      case "Shift": addTool("shift-schedule","Shifts","Shift Schedule","جدول الورديات"); addTool("shift-team","Team","Team Status","حالة الفريق"); addBooking(); addTool("shift-work","My Work","My Tasks","مهامي"); break;
+      case "HQ": addTool("hq-analytics","Analytics","Group Analytics","تحليلات المجموعة"); addTool("hq-team","Team","Restaurant Team","فريق المطعم"); addTool("hq-guests","Guests","Guest Intelligence","بيانات الضيوف"); addTool("hq-profile","Profile","Organization Profile","ملف المؤسسة"); break;
+      case "My Work": addTool("work-shifts","Shifts","My Shifts","وردياتي"); addTool("work-team","Team","Team","الفريق"); addTool("work-alerts","Alerts","Alerts","التنبيهات"); addTool("work-home","Home","Dashboard","لوحة التحكم"); break;
+      case "Orders": addTool("orders-tables","Tables","Open Tables","الطاولات المفتوحة"); addTool("orders-menu","Menu","Menu","القائمة"); addBooking(); addTool("orders-analytics","Analytics","Order Analytics","تحليلات الطلبات"); break;
+      case "Menu": addTool("menu-orders","Orders","Live Orders","الطلبات المباشرة"); addTool("menu-tables","Tables","Tables","الطاولات"); addTool("menu-analytics","Analytics","Menu Analytics","تحليلات القائمة"); addTool("menu-home","Home","Dashboard","لوحة التحكم"); break;
+      case "Tables": addBooking(); addTool("tables-waitlist","Waitlist","Waitlist","قائمة الانتظار"); addTool("tables-orders","Orders","Table Orders","طلبات الطاولات"); addTool("tables-menu","Menu","Menu","القائمة"); break;
+      case "Reservations": addBooking(); addTool("reservations-waitlist","Waitlist","Waitlist","قائمة الانتظار"); addTool("reservations-guests","Guests","Guest Profiles","ملفات الضيوف"); addTool("reservations-tables","Tables","Table Availability","توفر الطاولات"); break;
+      case "Waitlist": addBooking(); addTool("wait-reservations","Reservations","Reservation Schedule","جدول الحجوزات"); addTool("wait-tables","Tables","Table Availability","توفر الطاولات"); addTool("wait-guests","Guests","Guest Profiles","ملفات الضيوف"); break;
+      case "Shifts": addTool("shifts-team","Team","Team Directory","دليل الفريق"); addTool("shifts-work","My Work","My Work","عملي"); addTool("shifts-close","Daily Close","Daily Close","إقفال اليوم"); addBooking(); break;
+      case "Automation": addTool("auto-work","My Work","Workflow Tasks","مهام سير العمل"); addTool("auto-shifts","Shifts","Shift Rules","قواعد الورديات"); addTool("auto-connect","Connect","Integrations","التكاملات"); addTool("auto-home","Home","Dashboard","لوحة التحكم"); break;
+      case "ERP": addTool("erp-analytics","Analytics","ERP Analytics","تحليلات ERP"); addTool("erp-orders","Orders","Orders","الطلبات"); addTool("erp-close","Daily Close","Daily Close","إقفال اليوم"); addTool("erp-home","Home","Dashboard","لوحة التحكم"); break;
+      case "Analytics": addTool("analytics-orders","Orders","Orders","الطلبات"); addTool("analytics-erp","ERP","ERP","ERP"); addTool("analytics-guests","Guests","Guest Analytics","تحليلات الضيوف"); addTool("analytics-close","Daily Close","Daily Close","إقفال اليوم"); break;
+      case "Daily Close": addTool("close-analytics","Analytics","Day Analytics","تحليلات اليوم"); addTool("close-orders","Orders","Orders","الطلبات"); addTool("close-shifts","Shifts","Shift Summary","ملخص الورديات"); addTool("close-home","Home","Dashboard","لوحة التحكم"); break;
+      case "Guests": addBooking(); addTool("guests-campaigns","Campaigns","Campaigns","الحملات"); addTool("guests-analytics","Analytics","Guest Analytics","تحليلات الضيوف"); addTool("guests-home","Home","Dashboard","لوحة التحكم"); break;
+      case "Campaigns": addTool("campaigns-guests","Guests","Guest Segments","شرائح الضيوف"); addTool("campaigns-analytics","Analytics","Campaign Analytics","تحليلات الحملات"); addTool("campaigns-connect","Connect","Messaging Integrations","تكاملات الرسائل"); addTool("campaigns-home","Home","Dashboard","لوحة التحكم"); break;
+      case "Connect": addTool("connect-devices","Devices","Devices","الأجهزة"); addTool("connect-auto","Automation","Automation","الأتمتة"); addTool("connect-profile","Profile","Profile","الحساب"); addTool("connect-home","Home","Dashboard","لوحة التحكم"); break;
+      case "Devices": addTool("devices-connect","Connect","Integrations","التكاملات"); addTool("devices-tables","Tables","Tables","الطاولات"); addTool("devices-orders","Orders","Orders","الطلبات"); addTool("devices-home","Home","Dashboard","لوحة التحكم"); break;
+      case "Team": addTool("team-shifts","Shifts","Shift Schedule","جدول الورديات"); addTool("team-work","My Work","My Work","عملي"); addTool("team-analytics","Analytics","Labor Analytics","تحليلات الموظفين"); addTool("team-profile","Profile","Profile","الحساب"); break;
+      case "Profile": addTool("profile-connect","Connect","Integrations","التكاملات"); addTool("profile-devices","Devices","Devices","الأجهزة"); addTool("profile-work","My Work","My Work","عملي"); addTool("profile-home","Home","Dashboard","لوحة التحكم"); break;
+      case "Alerts": addTool("alerts-work","My Work","My Work","عملي"); addTool("alerts-shifts","Shifts","Shifts","الورديات"); addTool("alerts-profile","Profile","Profile","الحساب"); addTool("alerts-home","Home","Dashboard","لوحة التحكم"); break;
+      case "Kitchen": addTool("kitchen-orders","Orders","Kitchen Orders","طلبات المطبخ"); addTool("kitchen-menu","Menu","Menu","القائمة"); addTool("kitchen-work","My Work","My Work","عملي"); addTool("kitchen-shifts","Shifts","Shift","الوردية"); break;
+      case "Floor": addTool("floor-tables","Tables","Floor Tables","طاولات الصالة"); addTool("floor-orders","Orders","Floor Orders","طلبات الصالة"); addBooking(); addTool("floor-shifts","Shifts","Shift","الوردية"); break;
+      case "Host": addBooking(); addTool("host-reservations","Reservations","Reservation Schedule","جدول الحجوزات"); addTool("host-waitlist","Waitlist","Waitlist","قائمة الانتظار"); addTool("host-tables","Tables","Table Availability","توفر الطاولات"); break;
+      case "Cashier": addTool("cashier-orders","Orders","Orders","الطلبات"); addTool("cashier-close","Daily Close","Daily Close","إقفال اليوم"); addTool("cashier-analytics","Analytics","Sales Analytics","تحليلات المبيعات"); addTool("cashier-work","My Work","My Work","عملي"); break;
+      case "Restaurants": addTool("restaurants-home","Home","Dashboard","لوحة التحكم"); addTool("restaurants-profile","Profile","Profile","الحساب"); break;
+      case "Settings": addTool("settings-profile","Profile","Profile","الحساب"); addTool("settings-home","Home","Dashboard","لوحة التحكم"); break;
+      case "More": addAllTools(); addTool("more-profile","Profile","Profile","الحساب"); addTool("more-connect","Connect","Integrations","التكاملات"); addTool("more-devices","Devices","Devices","الأجهزة"); break;
+      default: addAllTools(); addTool("default-home","Home","Dashboard","لوحة التحكم"); addTool("default-profile","Profile","Profile","الحساب"); break;
     }
-    for(const name of namesByContext[item.en]??[]){
-      const candidate=byName(name);
-      if(candidate&&!actions.some(action=>action.to===candidate.to)){
-        actions.push({key:`${candidate.to}-${candidate.en}`,to:candidate.to,icon:candidate.icon,en:candidate.en,ar:candidate.ar});
-      }
-      if(actions.length>=4)break;
-    }
-    if(actions.length===0||!actions.some(action=>action.to===item.to)){
-      actions.unshift({key:`open-${item.to}`,to:item.to,icon:item.icon,en:`Open ${item.en}`,ar:`فتح ${item.ar}`});
+
+    if(item.en!=="More"&&!actions.some(action=>action.to===item.to)){
+      actions.unshift({key:"open-"+item.to,to:item.to,icon:item.icon,en:"Open "+item.en,ar:"فتح "+item.ar});
     }
     return actions.slice(0,4);
   }
@@ -345,9 +348,10 @@ export function BottomNav() {
   async function runIOSQuickAction(action:IOSQuickAction){
     closeIOSQuickMenu();
     fireIOSHaptic("light");
+    if(action.command==="more"){ setMoreOpen(true); return; }
+    if(!action.to)return;
     await navigate({to:action.to as never,search:(action.search??{}) as never});
   }
-
   useEffect(()=>{
     if(!iosQuickItem||typeof document==="undefined")return;
     const root=document.documentElement;
@@ -467,6 +471,7 @@ export function BottomNav() {
                 preload="render"
                 aria-current={active?"page":undefined}
                 data-ios-pressed={pressedNavKey===`${item.to}-${item.en}`||undefined}
+                data-ios-context-source={iosQuickItem?.to===item.to&&iosQuickItem?.en===item.en||undefined}
                 onTouchStart={event=>{const touch=event.touches[0];startLongPress(item,event.currentTarget,touch?.clientX??0,touch?.clientY??0);}}
                 onTouchEnd={cancelLongPress}
                 onTouchCancel={cancelLongPress}
@@ -484,6 +489,7 @@ export function BottomNav() {
             <button
               type="button"
               data-ios-pressed={pressedNavKey==="__more__-More"||undefined}
+              data-ios-context-source={iosQuickItem?.en==="More"||undefined}
               onTouchStart={event=>{const touch=event.touches[0];startLongPress(moreItem,event.currentTarget,touch?.clientX??0,touch?.clientY??0);}}
               onTouchEnd={cancelLongPress}
               onTouchCancel={cancelLongPress}
@@ -511,19 +517,25 @@ export function BottomNav() {
             onClick={event=>event.stopPropagation()}
             onContextMenu={event=>event.preventDefault()}
           >
-            <div className="qs-ios-context-title">{lang==="ar"?iosQuickItem.ar:iosQuickItem.en}</div>
-            {quickActionsFor(iosQuickItem).map((action,index)=>{
+            {quickActionsFor(iosQuickItem).map((action,index,all)=>{
               const Icon=action.icon;
               return <button key={action.key} type="button" role="menuitem" className="qs-ios-context-action" onClick={()=>void runIOSQuickAction(action)}>
                 <span>{lang==="ar"?action.ar:action.en}</span>
                 <Icon className="size-[18px]"/>
-                {index<quickActionsFor(iosQuickItem).length-1?<i aria-hidden="true"/>:null}
+                {index<all.length-1?<i aria-hidden="true"/>:null}
               </button>;
             })}
           </div>
+          <div
+            className={cn("qs-ios-context-source-lift",activeFor(iosQuickItem)&&"is-active")}
+            aria-hidden="true"
+            style={{left:iosQuickAnchor.previewLeft,bottom:iosQuickAnchor.previewBottom,width:iosQuickAnchor.previewWidth}}
+          >
+            <span className="qs-mobile-nav-icon">{(()=>{const Icon=iosQuickItem.icon;return <Icon className="size-5"/>;})()}</span>
+            <span className="qs-mobile-nav-label">{lang==="ar"?iosQuickItem.ar:iosQuickItem.en}</span>
+          </div>
         </div>
       ):null}
-
       <Dialog open={moreOpen} onOpenChange={changeMoreOpen}>
         <DialogContent
           className="qs-workspace-tools-dialog max-h-[min(92dvh,820px)] max-w-[1120px] gap-0 overflow-hidden p-0"
