@@ -255,12 +255,12 @@ test("iOS bottom navigation supports long-press quick actions without changing A
   assert.match(nav,/function isIOSMobile/);
   assert.match(nav,/iPad\|iPhone\|iPod/);
   assert.match(nav,/startLongPress/);
-  assert.match(nav,/460/);
+  assert.match(nav,/420/);
   assert.match(nav,/quickserve:haptic/);
   assert.match(nav,/quickserveHaptics/);
-  assert.match(nav,/qs-ios-haptic-sheet/);
+  assert.match(nav,/qs-ios-context-layer/);
   assert.match(nav,/Add Booking/);
-  assert.match(styles,/iOS-only Haptic Touch-style bottom navigation/);
+  assert.match(styles,/iOS-like Haptic Touch context menu/);
   assert.match(styles,/-webkit-touch-callout:none/);
 });
 

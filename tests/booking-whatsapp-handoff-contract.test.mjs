@@ -15,7 +15,8 @@ test("reservation WhatsApp checks provider readiness before sending", () => {
 });
 
 test("unconfigured WhatsApp opens the direct customer chat", () => {
-  assert.match(bookings,/channel==="whatsapp"&&!whatsappConfigured/);
+  assert.match(bookings,/const channel="whatsapp" as const/);
+  assert.match(bookings,/if\(!whatsappConfigured\)/);
   assert.match(bookings,/window\.open\(whatsappLink/);
   assert.match(bookings,/Press Send in WhatsApp to deliver it/);
   assert.match(bookings,/friendlyBookingMessageError/);
