@@ -38,40 +38,32 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
     return (
       <div
         className={cn(
-          "inline-flex h-11 w-[92px] shrink-0 items-center justify-between rounded-full border border-border/90 bg-muted/70 p-1 shadow-inner",
-          !ready && "opacity-80",
+          "qs-theme-toggle qs-theme-toggle-compact",
+          !ready && "is-loading",
           className,
         )}
+        data-theme={theme}
         role="group"
         aria-label="Color theme"
       >
+        <span className="qs-theme-toggle-thumb" aria-hidden="true" />
         <button
           type="button"
           onClick={() => choose("light")}
           aria-label="Use light mode"
           aria-pressed={theme === "light"}
-          className={cn(
-            "grid !h-9 !w-9 !min-h-0 !min-w-0 shrink-0 place-items-center rounded-full leading-none transition-[background-color,color,box-shadow] duration-200",
-            theme === "light"
-              ? "bg-background text-foreground shadow-sm ring-1 ring-black/5"
-              : "text-muted-foreground hover:text-foreground",
-          )}
+          className={cn("qs-theme-toggle-option", theme === "light" && "is-active")}
         >
-          <Sun className="size-4 shrink-0" />
+          <Sun className="size-4 shrink-0" strokeWidth={2} />
         </button>
         <button
           type="button"
           onClick={() => choose("dark")}
           aria-label="Use dark mode"
           aria-pressed={theme === "dark"}
-          className={cn(
-            "grid !h-9 !w-9 !min-h-0 !min-w-0 shrink-0 place-items-center rounded-full leading-none transition-[background-color,color,box-shadow] duration-200",
-            theme === "dark"
-              ? "bg-slate-950 text-white shadow-sm ring-1 ring-white/10"
-              : "text-muted-foreground hover:text-foreground",
-          )}
+          className={cn("qs-theme-toggle-option", theme === "dark" && "is-active")}
         >
-          <Moon className="size-4 shrink-0" />
+          <Moon className="size-4 shrink-0" strokeWidth={2} />
         </button>
       </div>
     );

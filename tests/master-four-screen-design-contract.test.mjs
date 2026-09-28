@@ -160,3 +160,15 @@ test("Menu Studio mobile actions use the shared aligned responsive layout", () =
   assert.match(masterPage,/qs-master-actions/);
   assert.match(styles,/Menu Studio actions use a deliberate two-row phone layout/);
 });
+
+
+test("mobile topbar uses the dedicated segmented theme control", async () => {
+  const themeToggle = await readFile(new URL("../src/components/nav/ThemeToggle.tsx", import.meta.url), "utf8");
+  assert.match(themeToggle,/qs-theme-toggle-compact/);
+  assert.match(themeToggle,/qs-theme-toggle-thumb/);
+  assert.match(themeToggle,/data-theme=\{theme\}/);
+  assert.match(themeToggle,/qs-theme-toggle-option/);
+  assert.match(styles,/Mobile segmented theme control/);
+  assert.match(styles,/touch-action:manipulation/);
+  assert.match(styles,/\.qs-topbar-theme-control\.qs-theme-toggle-compact/);
+});
