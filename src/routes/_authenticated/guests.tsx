@@ -72,6 +72,9 @@ function GuestsPage() {
   const query = useQuery({
     queryKey: ["crm", rid],
     enabled: Boolean(rid && canView),
+    staleTime: 60_000,
+    gcTime: 15 * 60_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const [guestsRes, loyaltyRes, settingsRes, giftRes] = await Promise.all([
         supabase.from("crm_guests" as any).select("id,name,phone,email,marketing_opt_in,visits,lifetime_spend,last_visit_at,created_at").eq("restaurant_id", rid!).order("last_visit_at", { ascending: false, nullsFirst: false }).limit(2000),
