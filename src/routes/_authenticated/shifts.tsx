@@ -147,7 +147,7 @@ function ShiftsPage() {
       <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} shifts={rows} assignments={assignments.data ?? []} ar={ar} lang={lang} />
     </main>
 
-    <DetailSheet    <DetailSheet
+    <DetailSheet
       open={Boolean(detailShift)}
       onOpenChange={(open) => { if (!open) setDetailShiftId(null); }}
       title={detailShift?.name ?? ""}
