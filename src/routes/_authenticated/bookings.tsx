@@ -463,6 +463,23 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{b
   const [channel,setChannel]=useState<"sms"|"whatsapp">("sms");
   const [body,setBody]=useState("");
 
+  const providerStatus=useQuery<{
+    whatsapp:{configured:boolean;mode:"provider"|"handoff"};
+    sms:{configured:boolean};
+  }>({
+    queryKey:["booking-messaging-provider-status"],
+    enabled:Boolean(booking),
+    staleTime:60_000,
+    queryFn:async()=>{
+      const {data,error}=await supabase.functions.invoke("quickserve-booking-messaging",{
+        body:{action:"status"},
+      });
+      if(error)throw error;
+      if(data?.error)throw new Error(String(data.error));
+      return data.providers;
+    },
+  });
+
   const messages=useQuery<BookingMessage[]>({
     queryKey:["booking-messages",booking?.id],
     enabled:Boolean(booking?.id),
@@ -510,9 +527,35 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{b
   });
 
   const whatsappLink=booking?.phone?buildWhatsAppLink(booking.phone,body):null;
-  function openWhatsApp(){
+  const whatsappConfigured=providerStatus.data?.whatsapp.configured===true;
+
+  async function recordWhatsAppHandoff(){
+    if(!booking)return;
+    try{
+      await (supabase as any).rpc("record_booking_whatsapp_handoff",{
+        _booking_id:booking.id,
+        _body_length:body.trim().length,
+      });
+    }catch{}
+  }
+
+  async function openWhatsApp(){
     if(!whatsappLink)return;
-    window.open(whatsappLink,"_blank","noopener,noreferrer");
+    const opened=window.open(whatsappLink,"_blank","noopener,noreferrer");
+    if(!opened){
+      toast.error(ar?"المتصفح منع نافذة WhatsApp. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.":"Your browser blocked the WhatsApp window. Allow pop-ups and try again.");
+      return;
+    }
+    await recordWhatsAppHandoff();
+    toast.success(ar?"تم فتح WhatsApp والرسالة جاهزة. اضغط إرسال داخل WhatsApp لإيصالها.":"WhatsApp opened with the message ready. Press Send in WhatsApp to deliver it.");
+  }
+
+  async function handlePrimarySend(){
+    if(channel==="whatsapp"&&!whatsappConfigured){
+      await openWhatsApp();
+      return;
+    }
+    send.mutate();
   }
 
   return <Dialog open={Boolean(booking)} onOpenChange={onOpenChange}>
@@ -528,13 +571,22 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{b
         {messages.isPending?<Skeleton className="h-64 rounded-2xl"/>
           :messages.isError?<div className="rounded-xl bg-red-500/10 p-3 text-sm text-red-700">{humanError(messages.error,lang)}</div>
           :(messages.data??[]).length===0?<div className="grid min-h-52 place-items-center text-center"><div><MessageSquareText className="mx-auto size-8 text-muted-foreground"/><p className="mt-2 text-sm font-semibold">{ar?"ابدأ المحادثة مع الضيف":"Start the guest conversation"}</p><p className="mt-1 text-xs text-muted-foreground">{ar?"الردود الواردة من Twilio ستظهر هنا تلقائياً.":"Inbound Twilio replies appear here automatically."}</p></div></div>
-          :<div className="space-y-2">{(messages.data??[]).map(message=><div key={message.id} className={cn("flex",message.direction==="outbound"?"justify-end":"justify-start")}><div className={cn("max-w-[84%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm",message.direction==="outbound"?"rounded-ee-md bg-foreground text-background":"rounded-es-md border border-border bg-card text-foreground")}><p className="whitespace-pre-wrap leading-5">{message.body}</p><div className={cn("mt-1.5 flex flex-wrap items-center gap-2 text-[9px]",message.direction==="outbound"?"text-background/60":"text-muted-foreground")}><span>{message.channel.toUpperCase()}</span><span>{new Date(message.created_at).toLocaleString(ar?"ar-JO":"en-JO",{hour:"2-digit",minute:"2-digit",month:"short",day:"numeric"})}</span><span className="capitalize">{message.provider_status}</span>{message.last_error?<span className="text-red-500">{message.last_error}</span>:null}</div></div></div>)}</div>}
+          :<div className="space-y-2">{(messages.data??[]).map(message=><div key={message.id} className={cn("flex",message.direction==="outbound"?"justify-end":"justify-start")}><div className={cn("max-w-[84%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm",message.direction==="outbound"?"rounded-ee-md bg-foreground text-background":"rounded-es-md border border-border bg-card text-foreground")}><p className="whitespace-pre-wrap leading-5">{message.body}</p><div className={cn("mt-1.5 flex flex-wrap items-center gap-2 text-[9px]",message.direction==="outbound"?"text-background/60":"text-muted-foreground")}><span>{message.channel.toUpperCase()}</span><span>{new Date(message.created_at).toLocaleString(ar?"ar-JO":"en-JO",{hour:"2-digit",minute:"2-digit",month:"short",day:"numeric"})}</span><span className="capitalize">{message.provider_status}</span>{message.last_error?<span className="text-red-500">{friendlyBookingMessageError(message.last_error,ar)}</span>:null}</div></div></div>)}</div>}
       </div>
 
       <div className="border-t border-border bg-card p-4 sm:p-5">
-        <div className="mb-3 flex gap-2">
-          {(["sms","whatsapp"] as const).map(value=><button type="button" key={value} onClick={()=>setChannel(value)} className={cn("rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide",channel===value?"border-[#e85d2a] bg-orange-500/10 text-[#e85d2a]":"border-border text-muted-foreground")}>{value}</button>)}
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex gap-2">
+            {(["sms","whatsapp"] as const).map(value=><button type="button" key={value} onClick={()=>setChannel(value)} className={cn("rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide",channel===value?"border-[#e85d2a] bg-orange-500/10 text-[#e85d2a]":"border-border text-muted-foreground")}>{value}</button>)}
+          </div>
+          {channel==="whatsapp"?<span className={cn("rounded-full px-2.5 py-1 text-[10px] font-bold",whatsappConfigured?"bg-emerald-500/10 text-emerald-700":"bg-amber-500/10 text-amber-700")}>
+            {providerStatus.isPending?(ar?"فحص الاتصال…":"Checking provider…"):whatsappConfigured?(ar?"الإرسال التلقائي جاهز":"Automatic ready"):(ar?"وضع WhatsApp المباشر":"Direct WhatsApp mode")}
+          </span>:null}
         </div>
+        {channel==="whatsapp"&&!providerStatus.isPending&&!whatsappConfigured?<div className="mb-3 rounded-2xl border border-amber-200/70 bg-amber-50/80 p-3 text-xs leading-5 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/25 dark:text-amber-200">
+          <strong className="block">{ar?"الإرسال التلقائي غير متصل حالياً":"Automatic WhatsApp is not connected yet"}</strong>
+          <span>{ar?"سيقوم زر الإرسال بفتح محادثة العميل في WhatsApp مع الرسالة جاهزة. أكمل الإرسال من WhatsApp نفسه بدون رسالة خطأ داخل QuickServe.":"Send will open the customer chat in WhatsApp with the message prefilled. Complete delivery in WhatsApp without a failed-message error inside QuickServe."}</span>
+        </div>:null}
         <Textarea rows={3} maxLength={2000} value={body} onChange={e=>setBody(e.target.value)} placeholder={ar?"اكتب رسالة للضيف…":"Write a message to the guest…"}/>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-sm text-[10px] font-semibold leading-4 text-muted-foreground">
@@ -543,8 +595,11 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{b
               : (ar?"سيظهر التسليم الحقيقي وحالة الفشل داخل المحادثة.":"Real delivery and failure status appear in the conversation.")}
           </p>
           <div className="flex items-center gap-2">
-            {channel==="whatsapp"?<Button type="button" variant="outline" disabled={!whatsappLink||body.trim().length===0} onClick={openWhatsApp}><ExternalLink className="size-4"/>{ar?"فتح WhatsApp":"Open WhatsApp"}</Button>:null}
-            <Button disabled={send.isPending||body.trim().length===0||!booking?.phone} onClick={()=>send.mutate()}><Send className="size-4"/>{send.isPending?(ar?"جارٍ الإرسال…":"Sending…"):(ar?"إرسال":"Send")}</Button>
+            {channel==="whatsapp"&&whatsappConfigured?<Button type="button" variant="outline" disabled={!whatsappLink||body.trim().length===0} onClick={()=>void openWhatsApp()}><ExternalLink className="size-4"/>{ar?"فتح WhatsApp":"Open WhatsApp"}</Button>:null}
+            <Button disabled={send.isPending||providerStatus.isPending||body.trim().length===0||!booking?.phone} onClick={()=>void handlePrimarySend()}>
+              {channel==="whatsapp"&&!whatsappConfigured?<ExternalLink className="size-4"/>:<Send className="size-4"/>}
+              {send.isPending?(ar?"جارٍ الإرسال…":"Sending…"):channel==="whatsapp"&&!whatsappConfigured?(ar?"إرسال عبر WhatsApp":"Send via WhatsApp"):(ar?"إرسال":"Send")}
+            </Button>
           </div>
         </div>
       </div>
@@ -552,6 +607,10 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{b
   </Dialog>;
 }
 
+function friendlyBookingMessageError(value:string,ar:boolean){
+  if(/credentials are not configured/i.test(value))return ar?"مزود WhatsApp غير متصل":"WhatsApp provider not connected";
+  return value;
+}
 function normalizeWhatsAppPhone(value:string){
   let digits=value.replace(/\D/g,"");
   if(digits.startsWith("00"))digits=digits.slice(2);

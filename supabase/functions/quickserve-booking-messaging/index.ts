@@ -56,6 +56,19 @@ Deno.serve(async(req)=>{
     if(userError||!userData.user)return json({error:"Invalid session"},401);
 
     const body=await req.json().catch(()=>({}));
+    if(String(body.action??"")==="status"){
+      const sid=Boolean(Deno.env.get("TWILIO_ACCOUNT_SID")?.trim());
+      const token=Boolean(Deno.env.get("TWILIO_AUTH_TOKEN")?.trim());
+      const whatsappFrom=Boolean(Deno.env.get("TWILIO_WHATSAPP_FROM")?.trim());
+      const smsFrom=Boolean(Deno.env.get("TWILIO_FROM_NUMBER")?.trim());
+      return json({
+        ok:true,
+        providers:{
+          whatsapp:{configured:sid&&token&&whatsappFrom,mode:sid&&token&&whatsappFrom?"provider":"handoff"},
+          sms:{configured:sid&&token&&smsFrom},
+        },
+      });
+    }
     const bookingId=String(body.bookingId??"").trim();
     const channel=String(body.channel??"sms").trim().toLowerCase();
     const message=String(body.message??"").trim();
