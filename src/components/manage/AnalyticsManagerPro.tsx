@@ -123,7 +123,14 @@ export function AnalyticsManagerPro({ restaurantId, detailWidget: detailWidgetPr
       for (const item of (items ?? []) as unknown as OrderItemRow[]) { const name = item.product_name_snapshot_en || item.product_name_snapshot_ar || "Item"; const current = itemMap.get(name) ?? { nameAr: item.product_name_snapshot_ar || name, qty: 0, revenue: 0 }; current.qty += Number(item.quantity ?? 0); current.revenue += Number(item.total_price ?? 0); itemMap.set(name, current); }
       const topProducts = Array.from(itemMap.entries()).map(([name, value]) => ({ name, ...value })).sort((a, b) => b.qty - a.qty).slice(0, 10);
       const weekly = byWeekday.map((value, index) => ({ label: new Intl.DateTimeFormat(ar ? "ar-JO" : "en-US", { weekday: "short" }).format(new Date(2026, 0, 4 + index)), ...value }));
-      return { orders: live, revenue, aov: live.length ? revenue / live.length : 0, paidRate: live.length ? paid / live.length * 100 : 0, series, channels: [{ name: ar ? "داخل المطعم" : "Dine-in", value: dineIn }, { name: ar ? "خارجي" : "Takeaway", value: takeaway }].filter((value) => value.value > 0), topProducts, peak: byHour.filter((value) => value.orders > 0), weekly, recent: [...live].reverse().slice(0, 20) };
+      const cancelled = rows.filter((order) => order.status === "cancelled").length;
+      const peakRows = byHour.filter((value) => value.orders > 0);
+      const peakHour = [...peakRows].sort((a,b)=>b.orders-a.orders)[0] ?? null;
+      const busiestDay = [...weekly].sort((a,b)=>b.orders-a.orders)[0] ?? null;
+      const topProduct = topProducts[0] ?? null;
+      const dineInShare = live.length ? dineIn / live.length * 100 : 0;
+      const cancelRate = rows.length ? cancelled / rows.length * 100 : 0;
+      return { orders: live, revenue, aov: live.length ? revenue / live.length : 0, paidRate: live.length ? paid / live.length * 100 : 0, cancelRate, dineInShare, peakHour, busiestDay, topProduct, series, channels: [{ name: ar ? "داخل المطعم" : "Dine-in", value: dineIn }, { name: ar ? "خارجي" : "Takeaway", value: takeaway }].filter((value) => value.value > 0), topProducts, peak: peakRows, weekly, recent: [...live].reverse().slice(0, 20) };
     },
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -182,7 +189,7 @@ export function AnalyticsManagerPro({ restaurantId, detailWidget: detailWidgetPr
     return <Widget title={labels[id]} tools={toolbar(id)}>{data.recent.length ? <div className="overflow-x-hidden"><table className="qs-table w-full table-fixed"><thead><tr><th>{ar ? "الطلب" : "Order"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "الدفع" : "Payment"}</th><th>{ar ? "الإجمالي" : "Total"}</th><th>{ar ? "التاريخ" : "Date"}</th></tr></thead><tbody>{data.recent.map((order) => { const row = { order: order.order_number, status: order.status, payment: order.payment_status, total: Number(order.total ?? 0), date: formatDateTime(order.created_at, lang) }; return <tr key={order.id} style={conditionalRowStyle(rules, row)}><td style={conditionalCellStyle(rules, "order", row.order)}>{row.order}</td><td style={conditionalCellStyle(rules, "status", row.status)}>{row.status}</td><td style={conditionalCellStyle(rules, "payment", row.payment)}>{row.payment}</td><td style={conditionalCellStyle(rules, "total", row.total)}>{formatMoney(row.total, currency, lang)}</td><td style={conditionalCellStyle(rules, "date", row.date)}>{row.date}</td></tr>; })}</tbody></table></div> : <Empty ar={ar} />}</Widget>;
   }
 
-  return <div className="qs-viewport-fill flex h-full min-h-0 flex-col gap-2">
+  return <div className="qs-analytics-master qs-viewport-fill flex h-full min-h-0 flex-col gap-3">
     <MasterPageHeader
       eyebrow={<MasterEyebrow icon={BarChart3}>{ar ? "ذكاء الأعمال" : "Business intelligence"}</MasterEyebrow>}
       title={ar ? "التحليلات والتقارير" : "Analytics & Reports"}
@@ -190,11 +197,19 @@ export function AnalyticsManagerPro({ restaurantId, detailWidget: detailWidgetPr
       actions={<div className="flex flex-wrap gap-2"><span className="qs-button-secondary pointer-events-none"><CalendarDays className="size-4" />{ar ? "آخر 30 يوماً" : "Last 30 days"}</span>{customize ? <><Button variant="outline" onClick={() => { setConfig(savedConfig); setCustomize(false); }}><X className="size-4" />{ar ? "إلغاء" : "Cancel"}</Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline"><MoreHorizontal className="size-4" />{ar ? "المزيد" : "More"}</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => setAddOpen(true)}><ListPlus className="size-4" />{ar ? "إضافة أداة" : "Add widget"}</DropdownMenuItem><DropdownMenuItem onSelect={() => setConfig({ ...readConfig({ workspace: {} }), widgets: [...DEFAULT_WIDGETS] })}><RotateCcw className="size-4" />{ar ? "إعادة التخطيط" : "Reset layout"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button disabled={saving} onClick={() => void saveConfig()}><Save className="size-4" />{saving ? (ar ? "حفظ…" : "Saving…") : (ar ? "حفظ" : "Save Layout")}</Button></> : <button type="button" className="qs-button-secondary" onClick={() => setCustomize(true)}><Settings2 className="size-4" />{ar ? "تخصيص اللوحة" : "Customize Dashboard"}</button>}</div>}
     />
 
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <section className="qs-analytics-kpis grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <MasterKpi icon={BarChart3} label={ar ? "إجمالي الإيرادات" : "Total Revenue"} value={formatMoney(data.revenue,currency,lang)} hint={ar?"آخر 30 يوماً":"Last 30 days"} tone="orange"/>
       <MasterKpi icon={Table2} label={ar ? "إجمالي الطلبات" : "Total Orders"} value={formatNumber(data.orders.length,lang)} hint={ar?"بيانات فعلية":"Real orders"} tone="blue"/>
       <MasterKpi icon={FileText} label={ar ? "متوسط الطلب" : "Average Order"} value={formatMoney(data.aov,currency,lang)} hint={ar?"قيمة الفاتورة":"Ticket value"} tone="purple"/>
       <MasterKpi icon={SlidersHorizontal} label={ar ? "طلبات مدفوعة" : "Paid Orders"} value={`${Math.round(data.paidRate)}%`} hint={ar?"نسبة التحصيل":"Collection rate"} tone="green"/>
+    </section>
+
+    <section className="qs-analytics-pulse">
+      <div><span>{ar?"ساعة الذروة":"Peak hour"}</span><strong>{data.peakHour?`${String(data.peakHour.hour).padStart(2,"0")}:00`:"—"}</strong><small>{data.peakHour?`${data.peakHour.orders} ${ar?"طلبات":"orders"}`:(ar?"لا توجد بيانات":"No data")}</small></div>
+      <div><span>{ar?"اليوم الأقوى":"Busiest day"}</span><strong>{data.busiestDay?.label??"—"}</strong><small>{data.busiestDay?`${data.busiestDay.orders} ${ar?"طلبات":"orders"}`:"—"}</small></div>
+      <div><span>{ar?"المنتج الأفضل":"Top product"}</span><strong className="truncate">{data.topProduct?(ar?data.topProduct.nameAr:data.topProduct.name):"—"}</strong><small>{data.topProduct?`${data.topProduct.qty} ${ar?"وحدة":"units"}`:"—"}</small></div>
+      <div><span>{ar?"حصة داخل المطعم":"Dine-in share"}</span><strong>{Math.round(data.dineInShare)}%</strong><small>{ar?"من الطلبات":"of orders"}</small></div>
+      <div><span>{ar?"نسبة الإلغاء":"Cancellation rate"}</span><strong>{data.cancelRate.toFixed(1)}%</strong><small>{data.cancelRate>8?(ar?"تحتاج مراجعة":"Needs review"):(ar?"ضمن الطبيعي":"Healthy")}</small></div>
     </section>
 
     {customize ? <section className="qs-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><strong className="text-sm">{ar ? "وضع التخصيص" : "Customization mode"}</strong><p className="mt-1 text-xs text-muted-foreground">{ar ? "اسحب من مقابض النقاط الست، غيّر الحجم من الزاوية، وعدّل اللون والنوع داخل كل أداة." : "Drag widgets from the six-dot handles, resize from the corner, and change type/color inside each widget."}</p></div><label className="flex items-center gap-2 text-xs font-bold"><span>{ar ? "اللون الافتراضي" : "Default color"}</span><Input type="color" value={config.accent} onChange={(event) => setConfig((current) => ({ ...current, accent: event.target.value }))} className="h-10 w-14 p-1" /></label></section> : null}
