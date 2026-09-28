@@ -130,3 +130,20 @@ test("team table uses the approved action buttons and live status cards without 
   assert.match(styles, /\.qs-live-status-alert/);
   assert.match(styles, /@media\(max-width:1279px\)/);
 });
+
+
+test("team Last Active column is aligned and uses a dedicated responsive status card", async () => {
+  assert.match(source, /<StaffLastActive value=\{member\.last_seen_at\}/);
+  assert.match(source, /function StaffLastActive/);
+  assert.match(source, /Nothing recorded yet/);
+  assert.match(source, /Recent activity/);
+  assert.match(source, /Live activity/);
+  assert.match(source, /sm:grid-cols-3/);
+
+  const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(styles, /Team Last Active alignment 2026-09-28/);
+  assert.match(styles, /\.qs-last-active-online/);
+  assert.match(styles, /\.qs-last-active-recent/);
+  assert.match(styles, /\.qs-last-active-today/);
+  assert.match(styles, /nth-child\(7\)/);
+});

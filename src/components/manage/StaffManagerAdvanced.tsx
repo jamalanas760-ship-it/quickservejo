@@ -658,7 +658,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           <>
             <div className="qs-team-table-wrap hidden min-h-0 flex-1 overflow-hidden xl:block">
               <table className="qs-team-table qs-table w-full table-fixed">
-                <colgroup><col className="w-[4%]" /><col className="w-[18%]" /><col className="w-[13%]" /><col className="w-[9%]" /><col className="w-[16%]" /><col className="w-[17%]" /><col className="w-[9%]" /><col className="w-[14%]" /></colgroup>
+                <colgroup><col className="w-[4%]" /><col className="w-[17%]" /><col className="w-[12%]" /><col className="w-[8%]" /><col className="w-[15%]" /><col className="w-[15%]" /><col className="w-[12%]" /><col className="w-[17%]" /></colgroup>
                 <thead><tr><th>#</th><th>{ar ? "الموظف" : "Staff Member"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "وردية اليوم" : "Today's Shift"}</th><th>{ar ? "الحالة الحية" : "Live Status"}</th><th>{ar ? "آخر نشاط" : "Last Active"}</th><th className="text-center">{ar ? "إجراءات" : "Actions"}</th></tr></thead>
                 <tbody>
                   {rows.map((member, index) => {
@@ -676,7 +676,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                         <td><span className={cn("qs-status", member.is_active ? "bg-emerald-500/12 text-emerald-600" : "bg-slate-500/12 text-slate-500")}><i className={cn("size-1.5 rounded-full", member.is_active ? "bg-emerald-500 animate-pulse" : "bg-slate-400")} />{member.is_active ? t("common.active") : t("common.inactive")}</span></td>
                         <td><StaffShiftSummaryCell schedule={scheduleInfo} ar={ar} /></td>
                         <td><StaffLiveStatus clockEntry={clockEntry} schedule={scheduleInfo} onLeave={isOnLeave} now={presenceNow} ar={ar} /></td>
-                        <td className="text-xs text-muted-foreground">{formatLastSeen(member.last_seen_at, ar, presenceNow)}</td>
+                        <td><StaffLastActive value={member.last_seen_at} ar={ar} now={presenceNow} /></td>
                         <td><StaffRowActions member={member} locked={locked} canManageShifts={canManageShifts} canCancelShift={canManageShifts && Boolean(cancelShiftInfo)} ar={ar} onEdit={() => startEdit(member)} onAssign={() => setShiftMember(member)} onCancel={() => cancelShiftInfo && setCancelShiftTarget({ member, shift: cancelShiftInfo })} /></td>
                       </tr>
                     );
@@ -729,7 +729,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                           </span>
                         </span>
                       </button>
-                      <div className="mt-3 grid gap-3 border-t border-border/70 pt-3 sm:grid-cols-2">
+                      <div className="mt-3 grid gap-3 border-t border-border/70 pt-3 sm:grid-cols-3">
                         <StaffLiveStatus
                           clockEntry={clockEntry}
                           schedule={scheduleInfo}
@@ -737,6 +737,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                           now={presenceNow}
                           ar={ar}
                         />
+                        <StaffLastActive value={member.last_seen_at} ar={ar} now={presenceNow} />
                         <StaffShiftCell
                           schedule={scheduleInfo}
                           canAssign={canManageShifts && member.is_active}
@@ -1411,6 +1412,81 @@ function StaffLiveStatus({ clockEntry, schedule, onLeave, now, ar }: { clockEntr
   );
 }
 
+function StaffLastActive({ value, ar, now }: { value: string | null | undefined; ar: boolean; now: number }) {
+  if (!value) {
+    return (
+      <div className="qs-last-active qs-last-active-idle">
+        <span className="qs-last-active-icon"><History className="size-3.5" /></span>
+        <span className="min-w-0">
+          <strong>{ar ? "لا يوجد نشاط" : "No activity"}</strong>
+          <small>{ar ? "لم يُسجل نشاط بعد" : "Nothing recorded yet"}</small>
+        </span>
+      </div>
+    );
+  }
+
+  const date = new Date(value);
+  const diff = now - date.getTime();
+  if (!Number.isFinite(diff)) {
+    return (
+      <div className="qs-last-active qs-last-active-idle">
+        <span className="qs-last-active-icon"><History className="size-3.5" /></span>
+        <span className="min-w-0"><strong>—</strong><small>{ar ? "وقت غير متاح" : "Time unavailable"}</small></span>
+      </div>
+    );
+  }
+
+  if (diff <= 90_000) {
+    return (
+      <div className="qs-last-active qs-last-active-online">
+        <span className="qs-last-active-icon"><ShieldCheck className="size-3.5" /></span>
+        <span className="min-w-0">
+          <strong>{ar ? "متصل الآن" : "Online now"} <i /></strong>
+          <small>{ar ? "نشاط مباشر" : "Live activity"}</small>
+        </span>
+      </div>
+    );
+  }
+
+  const minutes = Math.max(0, Math.floor(diff / 60_000));
+  if (minutes < 60) {
+    return (
+      <div className="qs-last-active qs-last-active-recent">
+        <span className="qs-last-active-icon"><History className="size-3.5" /></span>
+        <span className="min-w-0">
+          <strong>{ar ? `قبل ${minutes} د` : `${minutes} min ago`}</strong>
+          <small>{ar ? "نشاط حديث" : "Recent activity"}</small>
+        </span>
+      </div>
+    );
+  }
+
+  const sameDay = date.toDateString() === new Date(now).toDateString();
+  const time = date.toLocaleTimeString(ar ? "ar-JO" : "en-JO", { hour: "2-digit", minute: "2-digit" });
+  if (sameDay) {
+    return (
+      <div className="qs-last-active qs-last-active-today">
+        <span className="qs-last-active-icon"><History className="size-3.5" /></span>
+        <span className="min-w-0">
+          <strong>{ar ? "اليوم" : "Today"}</strong>
+          <small>{time}</small>
+        </span>
+      </div>
+    );
+  }
+
+  const day = date.toLocaleDateString(ar ? "ar-JO" : "en-JO", { month: "short", day: "numeric" });
+  return (
+    <div className="qs-last-active qs-last-active-idle">
+      <span className="qs-last-active-icon"><History className="size-3.5" /></span>
+      <span className="min-w-0">
+        <strong>{day}</strong>
+        <small>{time}</small>
+      </span>
+    </div>
+  );
+}
+
 function StaffRowActions({ member, locked, canManageShifts, canCancelShift, ar, onEdit, onAssign, onCancel }: { member: StaffRow; locked: boolean; canManageShifts: boolean; canCancelShift: boolean; ar: boolean; onEdit: () => void; onAssign: () => void; onCancel: () => void }) {
   const canAssign = canManageShifts && member.is_active;
   return <div className="qs-team-actions">
@@ -1978,7 +2054,7 @@ function formatTeamDuration(seconds: number, ar: boolean) {
 }
 
 function formatLastSeen(value: string | null | undefined, ar: boolean, nowMs = Date.now()) {
-  if (!value) return ar ? "لم يظهر بعد" : "No activity yet";
+  if (!value) return ar ? "لا يوجد نشاط" : "No activity";
   const date = new Date(value);
   const diff = nowMs - date.getTime();
   if (!Number.isFinite(diff)) return "—";
