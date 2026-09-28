@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BarChart3, ChefHat, Coins, FileText, LayoutDashboard, MoreHorizontal, Package, PackageCheck, Printer, ShoppingCart, Truck } from "lucide-react";
 
-import { MasterPageHeader } from "@/components/app/MasterPage";
+import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { FinancePanel } from "@/components/backoffice/FinancePanel";
 import { KitchenConfigPanel } from "@/components/manage/KitchenConfigPanel";
 import { InventoryPanel } from "@/components/backoffice/InventoryPanel";
@@ -20,6 +20,7 @@ import { backOfficeSummary, useBackOffice, type BackOfficeAccess } from "@/hooks
 import { useAccess } from "@/hooks/useSession";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { humanError } from "@/lib/errors";
+import { formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { membershipHasCapability } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
@@ -82,14 +83,22 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
   const primarySections = priorityKeys.flatMap((key) => sections.find((item) => item.key === key) ?? []);
   const secondarySections = sections.filter((item) => !primarySections.some((primary) => primary.key === item.key));
 
-  return <section className="qs-viewport-fill flex h-full min-h-0 flex-col gap-4">
+  return <section className="qs-backoffice-master qs-viewport-fill flex h-full min-h-0 flex-col gap-4">
     <MasterPageHeader
+      eyebrow={<MasterEyebrow icon={LayoutDashboard}>{ar?"مركز الإدارة الخلفية":"Back Office command"}</MasterEyebrow>}
       title={ar ? "المخزون والمشتريات والمالية" : "Inventory, Purchasing & Finance"}
       description={ar ? "مساحة تشغيل موحدة للمخزون والاستلام والمشتريات والموردين والمالية والتقارير، مع صلاحيات حسب الدور." : "One operational workspace for inventory, receiving, procurement, suppliers, finance and reporting, scoped by role."}
       actions={attention > 0 ? <span className="qs-status border-amber-200 bg-amber-50 text-amber-700"><span className="size-1.5 rounded-full bg-amber-500" />{attention} {ar ? "تحتاج انتباه" : "need attention"}</span> : <span className="qs-status border-emerald-200 bg-emerald-50 text-emerald-700"><span className="size-1.5 rounded-full bg-emerald-500" />{ar ? "مستقر" : "All clear"}</span>}
     />
 
-    <div className="qs-viewport-fill grid min-h-0 gap-4 xl:grid-cols-[196px_minmax(0,1fr)]">
+    <section className="qs-backoffice-kpis grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <MasterKpi icon={Package} label={ar?"أصناف المخزون":"Inventory Items"} value={String(summary.itemCount)} hint={summary.lowStock.length?(ar?`${summary.lowStock.length} منخفضة`:`${summary.lowStock.length} low stock`):(ar?"المخزون مستقر":"Stock healthy")} tone={summary.lowStock.length?"orange":"green"}/>
+      <MasterKpi icon={ShoppingCart} label={ar?"طلبات معلقة":"Open Procurement"} value={String(summary.pendingApproval+summary.pendingReceiving)} hint={formatMoney(summary.openProcurementValue,currency,lang)} tone="blue"/>
+      <MasterKpi icon={Coins} label={ar?"مصروفات الشهر":"Month Expenses"} value={formatMoney(summary.monthTotal,currency,lang)} hint={ar?`${summary.monthCount} قيود`:`${summary.monthCount} entries`} tone="purple"/>
+      <MasterKpi icon={Truck} label={ar?"الموردون":"Suppliers"} value={String(summary.supplierCount)} hint={attention?(ar?`${attention} تحتاج انتباه`:`${attention} need attention`):(ar?"لا توجد مشاكل حرجة":"No critical issues")} tone={attention?"orange":"green"}/>
+    </section>
+
+    <div className="qs-viewport-fill grid min-h-0 gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
       <nav aria-label={ar ? "وحدات ERP" : "ERP modules"} className="self-start overflow-x-auto xl:sticky xl:top-24 xl:overflow-visible">
         <div className="flex min-w-max gap-1 rounded-[12px] border border-border bg-card p-1.5 xl:min-w-0 xl:flex-col">
           {primarySections.map(({ key, en, ar: arLabel, icon: Icon }) => <button key={key} type="button" onClick={() => setSection(key)} aria-current={safeSection === key ? "page" : undefined} className={cn("flex min-h-11 items-center gap-2.5 rounded-[9px] px-3 text-start text-sm font-semibold transition xl:w-full", safeSection === key ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}><Icon className="size-4 shrink-0" /><span>{ar ? arLabel : en}</span>{key === "procurement" && summary.pendingApproval > 0 ? <span className="ms-auto min-w-5 rounded-full bg-[#e85d2a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{summary.pendingApproval}</span> : null}{key === "inventory" && summary.lowStock.length > 0 ? <span className="ms-auto min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{summary.lowStock.length}</span> : null}</button>)}

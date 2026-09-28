@@ -17,6 +17,16 @@ function personalize(template: string, name: string | null) {
   return template.replaceAll("{{name}}", name?.trim() || "Guest");
 }
 
+function normalizeDestination(value: string) {
+  const raw = value.trim();
+  if (raw.startsWith("whatsapp:")) return "whatsapp:" + normalizeDestination(raw.slice(9));
+  if (raw.startsWith("+")) return raw;
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("0") && digits.length >= 9) digits = "962" + digits.slice(1);
+  return "+" + digits;
+}
+
 async function sendTwilio(channel: "sms" | "whatsapp", to: string, message: string) {
   const sid = Deno.env.get("TWILIO_ACCOUNT_SID")?.trim();
   const token = Deno.env.get("TWILIO_AUTH_TOKEN")?.trim();
@@ -27,7 +37,8 @@ async function sendTwilio(channel: "sms" | "whatsapp", to: string, message: stri
     ? "TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_FROM are required"
     : "TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER are required");
 
-  const destination = channel === "whatsapp" && !to.startsWith("whatsapp:") ? `whatsapp:${to}` : to;
+  const normalizedTo = normalizeDestination(to);
+  const destination = channel === "whatsapp" && !normalizedTo.startsWith("whatsapp:") ? `whatsapp:${normalizedTo}` : normalizedTo;
   const source = channel === "whatsapp" && !from.startsWith("whatsapp:") ? `whatsapp:${from}` : from;
   const body = new URLSearchParams({ To: destination, From: source, Body: message });
   const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {

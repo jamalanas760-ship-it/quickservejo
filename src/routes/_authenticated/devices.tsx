@@ -56,6 +56,7 @@ function DevicesPage(){
   const devices=useQuery<Device[]>({
     queryKey:["restaurant-devices",rid],
     enabled:Boolean(rid&&canManage),
+    staleTime:15_000,
     refetchInterval:30_000,
     queryFn:async()=>{
       const {data,error}=await (supabase as any).from("restaurant_devices")
@@ -70,6 +71,7 @@ function DevicesPage(){
   const stations=useQuery<Station[]>({
     queryKey:["device-stations",rid],
     enabled:Boolean(rid&&canManage),
+    staleTime:5*60_000,
     queryFn:async()=>{
       const {data,error}=await (supabase as any).from("kitchen_stations")
         .select("id,name,name_ar,is_active")
@@ -82,6 +84,7 @@ function DevicesPage(){
   const printers=useQuery<PrinterRow[]>({
     queryKey:["device-printers",rid],
     enabled:Boolean(rid&&canManage),
+    staleTime:60_000,
     queryFn:async()=>{
       const {data,error}=await (supabase as any).from("kitchen_printers")
         .select("id,name,purpose,provider,endpoint,is_active,kitchen_station_id,updated_at")

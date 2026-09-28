@@ -641,7 +641,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           <>
             <div className="qs-scroll-region hidden min-h-0 flex-1 overflow-x-auto md:block">
               <table className="qs-table min-w-[1120px] w-full table-fixed">
-                <colgroup><col className="w-[5%]" /><col className="w-[22%]" /><col className="w-[15%]" /><col className="w-[10%]" /><col className="w-[18%]" /><col className="w-[15%]" /><col className="w-[10%]" /><col className="w-[5%]" /></colgroup>
+                <colgroup><col className="w-[4%]" /><col className="w-[21%]" /><col className="w-[14%]" /><col className="w-[9%]" /><col className="w-[18%]" /><col className="w-[14%]" /><col className="w-[10%]" /><col className="w-[10%]" /></colgroup>
                 <thead><tr><th>#</th><th>{ar ? "الموظف" : "Staff Member"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "وردية اليوم" : "Today's Shift"}</th><th>{ar ? "الحالة الحية" : "Live Status"}</th><th>{ar ? "آخر نشاط" : "Last Active"}</th><th className="text-center">{ar ? "إجراءات" : "Actions"}</th></tr></thead>
                 <tbody>
                   {rows.map((member, index) => {
@@ -1303,10 +1303,10 @@ function StaffLiveStatus({ clockEntry, schedule, onLeave, now, ar }: { clockEntr
 
 function StaffRowActions({ member, locked, canManageShifts, canCancelShift, ar, onEdit, onAssign, onCancel }: { member: StaffRow; locked: boolean; canManageShifts: boolean; canCancelShift: boolean; ar: boolean; onEdit: () => void; onAssign: () => void; onCancel: () => void }) {
   const canAssign = canManageShifts && member.is_active;
-  return <div className="flex items-center justify-center gap-1">
-    {canAssign ? <Button type="button" size="icon" variant="outline" className="size-8 rounded-lg" title={ar ? "تعيين وردية" : "Assign shift"} onClick={onAssign}><CalendarPlus className="size-3.5" /></Button> : null}
-    {!locked ? <Button type="button" size="icon" variant="outline" className="size-8 rounded-lg" title={ar ? "تعديل" : "Edit"} onClick={onEdit}><Pencil className="size-3.5" /></Button> : null}
-    <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="grid size-8 place-items-center rounded-lg bg-muted/45 transition hover:bg-muted" aria-label={ar ? `إجراءات ${member.name}` : `${member.name} actions`}><MoreHorizontal className="size-4" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-44">
+  return <div className="qs-team-actions">
+    {canAssign ? <button type="button" className="qs-team-action-button" title={ar ? "تعيين وردية" : "Assign shift"} onClick={onAssign}><CalendarPlus className="size-3.5" /><span>{ar?"وردية":"Shift"}</span></button> : null}
+    {!locked ? <button type="button" className="qs-team-action-button" title={ar ? "تعديل الموظف" : "Edit member"} onClick={onEdit}><Pencil className="size-3.5" /><span>{ar?"تعديل":"Edit"}</span></button> : null}
+    <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="qs-team-action-more" aria-label={ar ? `إجراءات ${member.name}` : `${member.name} actions`}><MoreHorizontal className="size-4" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-44">
       {canAssign ? <DropdownMenuItem onSelect={() => window.setTimeout(onAssign, 0)}><CalendarPlus className="size-4" />{ar ? "تعيين وردية" : "Assign shift"}</DropdownMenuItem> : null}
       {!locked ? <DropdownMenuItem onSelect={() => window.setTimeout(onEdit, 0)}><Pencil className="size-4" />{ar ? "تعديل الموظف" : "Edit member"}</DropdownMenuItem> : null}
       {canCancelShift ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => window.setTimeout(onCancel, 0)}><CalendarX2 className="size-4" />{ar ? "إلغاء الوردية" : "Cancel shift"}</DropdownMenuItem></> : null}

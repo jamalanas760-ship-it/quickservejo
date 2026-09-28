@@ -9,12 +9,23 @@ function serverKey(){
 }
 const respond=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json"}});
 
+function normalizeDestination(value:string){
+  const raw=value.trim();
+  if(raw.startsWith("whatsapp:"))return "whatsapp:"+normalizeDestination(raw.slice(9));
+  if(raw.startsWith("+"))return raw;
+  let digits=raw.replace(/\D/g,"");
+  if(digits.startsWith("00"))digits=digits.slice(2);
+  if(digits.startsWith("0")&&digits.length>=9)digits="962"+digits.slice(1);
+  return "+"+digits;
+}
+
 async function sendTwilio(channel:"sms"|"whatsapp",to:string,bodyText:string,statusCallback:string){
   const sid=Deno.env.get("TWILIO_ACCOUNT_SID")?.trim();
   const token=Deno.env.get("TWILIO_AUTH_TOKEN")?.trim();
   const configuredFrom=channel==="whatsapp"?Deno.env.get("TWILIO_WHATSAPP_FROM")?.trim():Deno.env.get("TWILIO_FROM_NUMBER")?.trim();
   if(!sid||!token||!configuredFrom)throw new Error(channel==="whatsapp"?"Twilio WhatsApp credentials are not configured":"Twilio SMS credentials are not configured");
-  const destination=channel==="whatsapp"&&!to.startsWith("whatsapp:")?`whatsapp:${to}`:to;
+  const normalizedTo=normalizeDestination(to);
+  const destination=channel==="whatsapp"&&!normalizedTo.startsWith("whatsapp:")?`whatsapp:${normalizedTo}`:normalizedTo;
   const source=channel==="whatsapp"&&!configuredFrom.startsWith("whatsapp:")?`whatsapp:${configuredFrom}`:configuredFrom;
   const form=new URLSearchParams({To:destination,From:source,Body:bodyText,StatusCallback:statusCallback});
   const response=await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,{

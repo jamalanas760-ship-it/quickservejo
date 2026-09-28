@@ -4,7 +4,7 @@ import { Activity, BarChart3, CreditCard, Link2, MessageSquareText, PlugZap, Pri
 import { useMemo } from "react";
 import { toast } from "sonner";
 
-import { MasterEyebrow, MasterPageHeader, MasterStatus } from "@/components/app/MasterPage";
+import { MasterEyebrow, MasterKpi, MasterPageHeader, MasterStatus } from "@/components/app/MasterPage";
 import { DeveloperConnectPanel } from "@/components/integrations/DeveloperConnectPanel";
 import { IntegrationOperationsPanel } from "@/components/integrations/IntegrationOperationsPanel";
 import { AppHeader } from "@/components/nav/AppHeader";
@@ -61,6 +61,8 @@ function IntegrationsPage() {
   const query = useQuery<Connection[]>({
     queryKey: ["integrations", rid],
     enabled: Boolean(rid && canManage),
+    staleTime: 60_000,
+    refetchInterval: 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("integration_connections")
@@ -147,16 +149,28 @@ function IntegrationsPage() {
   if (scope.isPending || access.isPending) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><Skeleton className="h-[520px] rounded-3xl" /></main></div>;
   if (!rid || !canManage) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><section className="qs-card p-8 text-center"><PlugZap className="mx-auto size-10 text-muted-foreground" /><h1 className="mt-4 text-xl font-bold">{ar ? "التكاملات غير متاحة" : "Integrations are not available"}</h1></section></main></div>;
 
+  const healthyCount=(query.data??[]).filter(row=>row.status==="healthy").length;
+  const configuredCount=(query.data??[]).filter(row=>["healthy","configured"].includes(row.status)).length;
+  const issueCount=(query.data??[]).filter(row=>["error","degraded"].includes(row.status)).length;
+  const messaging=byKey.get("messaging:twilio");
+
   return <div className="min-h-dvh bg-background">
     <AppHeader title="QuickServe Connect" />
-    <main className="qs-page qs-compact-page qs-viewport-page">
+    <main className="qs-integrations-master qs-page qs-compact-page qs-viewport-page">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={PlugZap}>QuickServe Connect</MasterEyebrow>}
         title={ar ? "الإعدادات والتكاملات" : "Settings & Integrations"}
         description={ar ? "أدر المدفوعات والرسائل والتوصيل والمحاسبة والطباعة وواجهات API من مكان واحد." : "Manage payments, messaging, delivery, accounting, printing and API connectivity from one place."}
       />
 
-      <section className="qs-viewport-fill grid min-h-0 gap-2 overflow-hidden xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,.75fr)]">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MasterKpi icon={PlugZap} label={ar?"موصلات مهيأة":"Configured"} value={String(configuredCount)} hint={ar?`من ${PRESETS.length} موصلات`:`of ${PRESETS.length} connectors`} tone="blue"/>
+        <MasterKpi icon={Activity} label={ar?"اتصالات سليمة":"Healthy"} value={String(healthyCount)} hint={ar?"تم اختبارها بنجاح":"Runtime tested"} tone="green"/>
+        <MasterKpi icon={MessageSquareText} label="WhatsApp / SMS" value={messaging?.status==="healthy"?(ar?"جاهز":"Ready"):(ar?"يحتاج إعداد":"Needs setup")} hint={messaging?.last_error??(ar?"اختبر مزود الرسائل":"Test messaging provider")} tone={messaging?.status==="healthy"?"green":"orange"}/>
+        <MasterKpi icon={Webhook} label={ar?"مشاكل التكامل":"Integration Issues"} value={String(issueCount)} hint={issueCount?(ar?"راجع البطاقات أدناه":"Review cards below"):(ar?"لا توجد أخطاء مسجلة":"No recorded errors")} tone={issueCount?"orange":"green"}/>
+      </section>
+
+      <section className="qs-viewport-fill grid min-h-0 gap-3 overflow-hidden xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,.75fr)]">
         <div className="qs-scroll-region min-h-0">
           {query.isPending ? <Skeleton className="h-full min-h-[280px] rounded-xl" /> : query.isError ? <section className="qs-card p-4 text-sm text-destructive">{humanError(query.error, lang)}</section> : (
             <section className="grid gap-2 md:grid-cols-2">

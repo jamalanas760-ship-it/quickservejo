@@ -482,18 +482,38 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{b
   const send=useMutation({
     mutationFn:async()=>{
       if(!booking)throw new Error("Reservation unavailable");
-      const {error}=await (supabase as any).rpc("prepare_booking_message",{
-        _booking_id:booking.id,_channel:channel,_body:body.trim(),
+      const message=body.trim();
+      const {data,error}=await supabase.functions.invoke("quickserve-booking-messaging",{
+        body:{bookingId:booking.id,channel,message},
       });
       if(error)throw error;
+      if(data?.error)throw new Error(String(data.error));
+      return data as {ok?:boolean;status?:string;messageId?:string};
     },
-    onSuccess:async()=>{
+    onSuccess:async(result)=>{
       setBody("");
       await qc.invalidateQueries({queryKey:["booking-messages",booking?.id]});
-      toast.success(ar?"تم وضع الرسالة في طابور الإرسال":"Message queued for delivery");
+      toast.success(
+        ar
+          ? `تم إرسال الرسالة إلى مزود الخدمة · ${result?.status??"sent"}`
+          : `Message accepted by provider · ${result?.status??"sent"}`,
+      );
     },
-    onError:(error)=>toast.error(humanError(error,lang)),
+    onError:async(error)=>{
+      await qc.invalidateQueries({queryKey:["booking-messages",booking?.id]});
+      toast.error(
+        channel==="whatsapp"
+          ? (ar?"تعذر الإرسال التلقائي. استخدم زر فتح WhatsApp للإرسال مباشرة من حسابك.":"Automatic WhatsApp delivery failed. Use Open WhatsApp to send directly from your account.")
+          : humanError(error,lang),
+      );
+    },
   });
+
+  const whatsappLink=booking?.phone?buildWhatsAppLink(booking.phone,body):null;
+  function openWhatsApp(){
+    if(!whatsappLink)return;
+    window.open(whatsappLink,"_blank","noopener,noreferrer");
+  }
 
   return <Dialog open={Boolean(booking)} onOpenChange={onOpenChange}>
     <DialogContent className="flex max-h-[88dvh] flex-col overflow-hidden p-0 sm:max-w-xl">
@@ -516,13 +536,32 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{b
           {(["sms","whatsapp"] as const).map(value=><button type="button" key={value} onClick={()=>setChannel(value)} className={cn("rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide",channel===value?"border-[#e85d2a] bg-orange-500/10 text-[#e85d2a]":"border-border text-muted-foreground")}>{value}</button>)}
         </div>
         <Textarea rows={3} maxLength={2000} value={body} onChange={e=>setBody(e.target.value)} placeholder={ar?"اكتب رسالة للضيف…":"Write a message to the guest…"}/>
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-[10px] text-muted-foreground">{ar?"الإرسال الفعلي يتطلب إعداد Twilio على الخادم.":"Actual delivery requires Twilio server credentials."}</p>
-          <Button disabled={send.isPending||body.trim().length===0||!booking?.phone} onClick={()=>send.mutate()}><Send className="size-4"/>{ar?"إرسال":"Send"}</Button>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="max-w-sm text-[10px] font-semibold leading-4 text-muted-foreground">
+            {channel==="whatsapp"
+              ? (ar?"الإرسال التلقائي يستخدم مزود WhatsApp. زر فتح WhatsApp يبقى كمسار موثوق عند عدم إعداد المزود.":"Automatic delivery uses the WhatsApp provider. Open WhatsApp remains a reliable fallback when the provider is not configured.")
+              : (ar?"سيظهر التسليم الحقيقي وحالة الفشل داخل المحادثة.":"Real delivery and failure status appear in the conversation.")}
+          </p>
+          <div className="flex items-center gap-2">
+            {channel==="whatsapp"?<Button type="button" variant="outline" disabled={!whatsappLink||body.trim().length===0} onClick={openWhatsApp}><ExternalLink className="size-4"/>{ar?"فتح WhatsApp":"Open WhatsApp"}</Button>:null}
+            <Button disabled={send.isPending||body.trim().length===0||!booking?.phone} onClick={()=>send.mutate()}><Send className="size-4"/>{send.isPending?(ar?"جارٍ الإرسال…":"Sending…"):(ar?"إرسال":"Send")}</Button>
+          </div>
         </div>
       </div>
     </DialogContent>
   </Dialog>;
+}
+
+function normalizeWhatsAppPhone(value:string){
+  let digits=value.replace(/\D/g,"");
+  if(digits.startsWith("00"))digits=digits.slice(2);
+  if(digits.startsWith("0")&&digits.length>=9)digits="962"+digits.slice(1);
+  return digits;
+}
+function buildWhatsAppLink(phone:string,message:string){
+  const digits=normalizeWhatsAppPhone(phone);
+  if(digits.length<8)return null;
+  return "https://wa.me/"+digits+"?text="+encodeURIComponent(message.trim());
 }
 
 function ReservationDatePicker({value,onChange,ar,maxAdvanceDays}:{value:string;onChange:(value:string)=>void;ar:boolean;maxAdvanceDays:number}){
