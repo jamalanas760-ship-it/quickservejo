@@ -141,6 +141,8 @@ test("mobile navigation mirrors the configured sidebar and preferences live in t
 test("mobile master UX prevents unwanted keyboard focus and keeps navigation compact", () => {
   assert.doesNotMatch(nav,/Input autoFocus/);
   assert.match(nav,/inputMode="search"/);
+  assert.match(nav,/onOpenAutoFocus/);
+  assert.match(nav,/event\.preventDefault\(\)/);
   assert.match(nav,/customMobilePrimary/);
   assert.match(nav,/slice\(0, 3\)/);
   assert.match(nav,/qs-mobile-bottom-nav/);

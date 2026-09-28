@@ -314,7 +314,12 @@ export function BottomNav() {
       </nav>
 
       <Dialog open={moreOpen} onOpenChange={changeMoreOpen}>
-        <DialogContent className="qs-workspace-tools-dialog max-h-[min(92dvh,820px)] max-w-[1120px] gap-0 overflow-hidden p-0">
+        <DialogContent
+          className="qs-workspace-tools-dialog max-h-[min(92dvh,820px)] max-w-[1120px] gap-0 overflow-hidden p-0"
+          onOpenAutoFocus={(event) => {
+            if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) event.preventDefault();
+          }}
+        >
           <div className="qs-workspace-tools-layout">
             <aside className="qs-workspace-tools-spotlight" style={(appearance.workspaceToolsImage ?? restaurant?.cover_image_url) ? { backgroundImage: `linear-gradient(180deg,rgba(16,14,12,.18),rgba(16,14,12,.86)),url(${appearance.workspaceToolsImage ?? restaurant?.cover_image_url})` } : undefined}>
               <div className="qs-workspace-tools-spotlight-copy">
