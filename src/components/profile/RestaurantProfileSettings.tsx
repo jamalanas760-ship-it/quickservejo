@@ -1,6 +1,6 @@
-import { useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Image as ImageIcon, Minus, Move, Plus, RotateCcw, Save, SlidersHorizontal } from "lucide-react";
+import { Save, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
 import { ApplicationColorStudio } from "@/components/manage/ApplicationColorStudio";
@@ -98,38 +98,16 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
 
     <section className="qs-card overflow-hidden">
       <div className="qs-panel-header flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div><h2 className="font-display text-lg font-bold">{ar ? "إعدادات المؤسسة" : "Organization Settings"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "الشعارات وصورة الغلاف وهوية مساحة العمل الخاصة بهذا المطعم." : "Logos, cover image and workspace identity for this restaurant."}</p></div>
+        <div><h2 className="font-display text-lg font-bold">{ar ? "إعدادات المؤسسة" : "Organization Settings"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "شعار المؤسسة وهوية مساحة العمل الخاصة بهذا المطعم." : "Organization logo and workspace identity for this restaurant."}</p></div>
         <span className="inline-flex items-center gap-2 self-start rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-600"><SlidersHorizontal className="size-3.5" />{ar ? "خاص بالمطعم" : "Restaurant scoped"}</span>
       </div>
       <div className="space-y-6 p-4 sm:p-6">
-        <div className="grid gap-4 xl:grid-cols-[1fr_1fr_.72fr]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,620px)]">
           <div className="qs-brand-card space-y-3">
             <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{ar?"هوية مساحة العمل":"Workspace identity"}</p><h3 className="mt-1 text-sm font-bold">{ar?"شعار المؤسسة":"Organization logo"}</h3></div>
             <ImageUploader restaurantId={restaurant.id} kind="logo" value={form.logo_url} onChange={(value) => field("logo_url", value)} label={ar ? "شعار المؤسسة" : "Organization logo"} />
             <label className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-muted/20 p-4"><span className="min-w-0"><strong className="block text-sm">{ar ? "استخدام شعار QuickServe" : "Use QuickServe logo"}</strong><span className="mt-1 block text-xs leading-5 text-muted-foreground">{ar ? "أوقفه لإظهار شعار المطعم في التطبيق عند توفره." : "Turn this off to use the restaurant logo in the workspace when available."}</span></span><Switch checked={brand.useQuickServeLogo} onCheckedChange={(value) => setBrand((current) => ({ ...current, useQuickServeLogo: value }))} /></label>
           </div>
-          <div className="qs-brand-card space-y-3">
-            <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{ar?"واجهة الضيف":"Guest experience"}</p><h3 className="mt-1 text-sm font-bold">{ar?"شعار قائمة الضيف":"Guest menu logo"}</h3></div>
-            <ImageUploader restaurantId={restaurant.id} kind="logo" value={brand.menuLogo} onChange={(value) => setBrand((current) => ({ ...current, menuLogo: value }))} label={ar ? "شعار قائمة الضيف" : "Guest menu logo"} />
-            <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 p-3"><span className="min-w-0"><strong className="block text-xs">{ar ? "استخدام نفس الشعار" : "Use same logo"}</strong><small className="mt-1 block text-[10px] text-muted-foreground">{ar ? "استخدم شعار المؤسسة في قائمة الضيف." : "Use the organization logo on the guest menu."}</small></span><Switch checked={Boolean(form.logo_url && brand.menuLogo === form.logo_url)} onCheckedChange={(value) => setBrand((current) => ({ ...current, menuLogo: value ? form.logo_url : null }))} /></label>
-          </div>
-          <div className="qs-brand-card space-y-3">
-            <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{ar?"نظام العلامة":"Brand system"}</p><h3 className="mt-1 text-sm font-bold">{ar?"ألوان العلامة":"Brand colors"}</h3></div>
-            <div className="space-y-2">
-              {[
-                [ar?"أساسي":"Primary",form.primary_color],
-                [ar?"ثانوي":"Secondary",form.accent_color],
-                [ar?"الخلفية":"Background",brand.lightBackground],
-                [ar?"التحديد":"Selection",brand.selectedNavColor],
-              ].map(([label,color]) => <div key={String(label)} className="flex items-center gap-2 rounded-xl border border-border bg-card p-2"><span className="size-8 rounded-lg border border-black/5 shadow-inner" style={{backgroundColor:String(color)}} /><span className="min-w-0 flex-1"><strong className="block text-[10px]">{label}</strong><small className="block truncate text-[9px] uppercase text-muted-foreground">{String(color)}</small></span></div>)}
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4 border-t border-border pt-6">
-          <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><ImageIcon className="size-5" /></span><div><h3 className="text-sm font-bold">{ar ? "صورة الغلاف والرئيسية" : "Cover & home image"}</h3><p className="mt-0.5 text-[11px] text-muted-foreground">{ar ? "ارفع الصورة ثم اختر الجزء الظاهر وحجم التكبير." : "Upload the image, then choose the visible focal area and zoom."}</p></div></div>
-          <ImageUploader restaurantId={restaurant.id} kind="cover" aspect="wide" value={form.cover_image_url} onChange={(value) => field("cover_image_url", value)} label={ar ? "صورة الغلاف" : "Cover image"} />
-          {form.cover_image_url ? <CoverComposer ar={ar} url={form.cover_image_url} x={brand.coverPositionX} y={brand.coverPositionY} zoom={brand.coverZoom} onChange={(next) => setBrand((current) => ({ ...current, ...next }))} /> : null}
         </div>
       </div>
     </section>
@@ -139,69 +117,8 @@ function RestaurantProfileSettingsForm({ restaurant, ar, lang, qc }: { restauran
     </section>
 
     <div className="qs-settings-savebar">
-      <div><strong>{ar?"التغييرات تطبق على مساحة المطعم":"Changes apply to this restaurant workspace"}</strong><p>{ar?"راجع الشعار والألوان والغلاف ثم احفظ مرة واحدة.":"Review logo, colors and cover, then save everything together."}</p></div>
+      <div><strong>{ar?"التغييرات تطبق على مساحة المطعم":"Changes apply to this restaurant workspace"}</strong><p>{ar?"راجع الشعار والألوان ثم احفظ مرة واحدة.":"Review the logo and colors, then save everything together."}</p></div>
       <Button type="submit" disabled={saving} className="min-h-11 bg-[#e85d2a] px-5 text-white shadow-md hover:bg-[#e94f00]"><Save className="size-4" />{saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ إعدادات المؤسسة" : "Save organization settings")}</Button>
     </div>
   </form>;
-}
-
-function CoverComposer({ ar, url, x, y, zoom, onChange }: { ar: boolean; url: string; x: number; y: number; zoom: number; onChange: (value: { coverPositionX?: number; coverPositionY?: number; coverZoom?: number }) => void }) {
-  const frameRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<{ pointerId: number; clientX: number; clientY: number; x: number; y: number } | null>(null);
-  const previewStyle = { objectPosition: `${x}% ${y}%`, transform: `scale(${zoom / 100})`, transformOrigin: `${x}% ${y}%` };
-  const clampValue = (value: number) => Math.min(100, Math.max(0, value));
-  const clampZoom = (value: number) => Math.min(220, Math.max(100, value));
-
-  function beginDrag(event: ReactPointerEvent<HTMLDivElement>) {
-    if ((event.target as HTMLElement).closest('button')) return;
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, x, y };
-  }
-
-  function moveDrag(event: ReactPointerEvent<HTMLDivElement>) {
-    const drag = dragRef.current;
-    const rect = frameRef.current?.getBoundingClientRect();
-    if (!drag || drag.pointerId !== event.pointerId || !rect) return;
-    event.preventDefault();
-    const dx = (event.clientX - drag.clientX) / rect.width * 100;
-    const dy = (event.clientY - drag.clientY) / rect.height * 100;
-    onChange({ coverPositionX: clampValue(drag.x - dx), coverPositionY: clampValue(drag.y - dy) });
-  }
-
-  function endDrag(event: ReactPointerEvent<HTMLDivElement>) {
-    if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) return;
-    dragRef.current = null;
-    try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
-  }
-
-  return <div className="space-y-2">
-    <div
-      ref={frameRef}
-      role="application"
-      aria-label={ar ? "اسحب صورة الغلاف لتغيير الجزء الظاهر" : "Drag the cover image to change the visible area"}
-      onPointerDown={beginDrag}
-      onPointerMove={moveDrag}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      className="group relative aspect-[16/6] touch-none select-none overflow-hidden rounded-2xl border border-border bg-muted shadow-sm cursor-grab active:cursor-grabbing"
-    >
-      <img src={url} alt="" draggable={false} className="pointer-events-none h-full w-full object-cover transition-transform duration-150" style={previewStyle} />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/10" />
-      <div className="pointer-events-none absolute inset-0 grid place-items-center opacity-0 transition group-hover:opacity-100">
-        <span className="grid size-10 place-items-center rounded-full border border-white/70 bg-black/25 text-white backdrop-blur-sm"><Move className="size-4" /></span>
-      </div>
-      <div className="absolute start-3 top-3 flex items-center gap-1 rounded-xl border border-white/20 bg-black/55 p-1 text-white shadow-lg backdrop-blur-md">
-        <button type="button" onClick={() => onChange({ coverZoom: clampZoom(zoom - 10) })} className="grid size-9 place-items-center rounded-lg transition hover:bg-white/15" aria-label={ar ? "تصغير" : "Zoom out"}><Minus className="size-4" /></button>
-        <span className="min-w-12 text-center text-[10px] font-bold tabular-nums">{Math.round(zoom)}%</span>
-        <button type="button" onClick={() => onChange({ coverZoom: clampZoom(zoom + 10) })} className="grid size-9 place-items-center rounded-lg transition hover:bg-white/15" aria-label={ar ? "تكبير" : "Zoom in"}><Plus className="size-4" /></button>
-        <span className="mx-0.5 h-5 w-px bg-white/20" />
-        <button type="button" onClick={() => onChange({ coverPositionX: 50, coverPositionY: 50, coverZoom: 100 })} className="grid size-9 place-items-center rounded-lg transition hover:bg-white/15" aria-label={ar ? "إعادة ضبط" : "Reset framing"}><RotateCcw className="size-4" /></button>
-      </div>
-      <div className="pointer-events-none absolute bottom-3 start-3 max-w-[78%] rounded-xl bg-black/55 px-3 py-2 text-[10px] font-semibold leading-4 text-white backdrop-blur-md">
-        {ar ? "اسحب الصورة نفسها لاختيار الجزء الظاهر. استخدم + و− للتكبير والتصغير." : "Drag the image itself to choose what stays visible. Use + and − to zoom."}
-      </div>
-    </div>
-    <p className="text-[10px] text-muted-foreground">{ar ? "يتم حفظ الموضع والتكبير عند حفظ إعدادات المؤسسة." : "The framing and zoom are saved with the organization settings."}</p>
-  </div>;
 }

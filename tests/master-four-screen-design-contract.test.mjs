@@ -27,7 +27,11 @@ test("approved Organization and appearance layout is implemented", () => {
   assert.match(profile,/qs-organization-tabs/);
   assert.match(settings,/qs-organization-overview/);
   assert.match(settings,/Restaurant information/);
-  assert.match(settings,/Brand colors/);
+  assert.doesNotMatch(settings,/Guest experience/);
+  assert.doesNotMatch(settings,/Brand system/);
+  assert.doesNotMatch(settings,/Cover & home image/);
+  assert.doesNotMatch(settings,/CoverComposer/);
+  assert.doesNotMatch(profile,/Guest experience/);
   assert.match(styles,/Organization & appearance/);
 });
 

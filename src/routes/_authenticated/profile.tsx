@@ -246,7 +246,6 @@ function OrganizationSection({ ar, restaurantId, canManageRestaurant, showAccoun
         <span className="is-active"><Building2 className="size-4" />{ar ? "هوية المطعم" : "Restaurant identity"}</span>
         <span><Palette className="size-4" />{ar ? "نظام الألوان" : "Color system"}</span>
         <span><SlidersHorizontal className="size-4" />{ar ? "مظهر مساحة العمل" : "Workspace appearance"}</span>
-        <span><UserRound className="size-4" />{ar ? "تجربة الضيف" : "Guest experience"}</span>
       </div>
       <RestaurantProfileSettings restaurantId={restaurantId} />
     </> : <section className="rounded-2xl border border-border bg-muted/20 p-4 text-xs leading-5 text-muted-foreground">{ar ? "إعدادات الشعار والألوان والمطعم تبقى تحت إدارة مدير المطعم. هذا الحساب يستطيع تعديل غلافه الشخصي فقط." : "Restaurant logos, colors and organization settings remain controlled by the Restaurant Manager. This account can edit only its personal cover."}</section>}
