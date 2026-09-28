@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ConditionalFormattingDialog, conditionalCellStyle, conditionalRowStyle, normalizeConditionalRules, type ConditionalColumn, type ConditionalRule } from "@/components/customization/ConditionalFormatting";
 import { DashboardGrid, normalizeDashboardSize, reorderDashboardItems, type DashboardItemSize } from "@/components/customization/DashboardGrid";
 import { AnalyticsDetailPage, isAnalyticsDetailWidget, type AnalyticsDetailWidgetId } from "@/components/manage/AnalyticsDetailPage";
+import { DecisionIntelligencePanel } from "@/components/manage/DecisionIntelligencePanel";
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -35,11 +36,11 @@ type OrderRow = { id: string; order_number: string; status: string; payment_stat
 type OrderItemRow = { product_name_snapshot_en: string; product_name_snapshot_ar: string; quantity: number; total_price: number | string; created_at: string };
 
 const ALL_WIDGETS: WidgetId[] = ["revenue", "orders", "channels", "topProducts", "peakHours", "weekly", "orderTable", "paidProgress", "summary"];
-const DEFAULT_WIDGETS: WidgetId[] = ["revenue", "orders", "channels", "topProducts", "peakHours", "weekly", "paidProgress", "orderTable"];
+const DEFAULT_WIDGETS: WidgetId[] = ["revenue", "topProducts", "orders", "channels", "peakHours", "weekly", "paidProgress", "orderTable"];
 const DEFAULT_CHART_TYPES: Partial<Record<WidgetId, ChartType>> = { revenue: "area", orders: "bar", channels: "donut", peakHours: "bar", weekly: "bar" };
 const DEFAULT_SIZES: Record<WidgetId, DashboardItemSize> = {
-  revenue: { columns: 8, minHeight: 340 }, orders: { columns: 4, minHeight: 340 }, channels: { columns: 4, minHeight: 320 },
-  topProducts: { columns: 8, minHeight: 320 }, peakHours: { columns: 6, minHeight: 320 }, weekly: { columns: 6, minHeight: 320 },
+  revenue: { columns: 8, minHeight: 320 }, orders: { columns: 4, minHeight: 320 }, channels: { columns: 4, minHeight: 320 },
+  topProducts: { columns: 4, minHeight: 320 }, peakHours: { columns: 6, minHeight: 320 }, weekly: { columns: 6, minHeight: 320 },
   orderTable: { columns: 12, minHeight: 380 }, paidProgress: { columns: 4, minHeight: 240 }, summary: { columns: 8, minHeight: 240 },
 };
 const CHART_OPTIONS: Partial<Record<WidgetId, ChartType[]>> = {
@@ -189,7 +190,7 @@ export function AnalyticsManagerPro({ restaurantId, detailWidget: detailWidgetPr
     return <Widget title={labels[id]} tools={toolbar(id)}>{data.recent.length ? <div className="overflow-x-hidden"><table className="qs-table w-full table-fixed"><thead><tr><th>{ar ? "الطلب" : "Order"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "الدفع" : "Payment"}</th><th>{ar ? "الإجمالي" : "Total"}</th><th>{ar ? "التاريخ" : "Date"}</th></tr></thead><tbody>{data.recent.map((order) => { const row = { order: order.order_number, status: order.status, payment: order.payment_status, total: Number(order.total ?? 0), date: formatDateTime(order.created_at, lang) }; return <tr key={order.id} style={conditionalRowStyle(rules, row)}><td style={conditionalCellStyle(rules, "order", row.order)}>{row.order}</td><td style={conditionalCellStyle(rules, "status", row.status)}>{row.status}</td><td style={conditionalCellStyle(rules, "payment", row.payment)}>{row.payment}</td><td style={conditionalCellStyle(rules, "total", row.total)}>{formatMoney(row.total, currency, lang)}</td><td style={conditionalCellStyle(rules, "date", row.date)}>{row.date}</td></tr>; })}</tbody></table></div> : <Empty ar={ar} />}</Widget>;
   }
 
-  return <div className="qs-analytics-master qs-viewport-fill flex h-full min-h-0 flex-col gap-3">
+  return <div className="qs-analytics-master qs-analytics-approved qs-viewport-fill flex h-full min-h-0 flex-col gap-3">
     <MasterPageHeader
       eyebrow={<MasterEyebrow icon={BarChart3}>{ar ? "ذكاء الأعمال" : "Business intelligence"}</MasterEyebrow>}
       title={ar ? "التحليلات والتقارير" : "Analytics & Reports"}
@@ -204,13 +205,7 @@ export function AnalyticsManagerPro({ restaurantId, detailWidget: detailWidgetPr
       <MasterKpi icon={SlidersHorizontal} label={ar ? "طلبات مدفوعة" : "Paid Orders"} value={`${Math.round(data.paidRate)}%`} hint={ar?"نسبة التحصيل":"Collection rate"} tone="green"/>
     </section>
 
-    <section className="qs-analytics-pulse">
-      <div><span>{ar?"ساعة الذروة":"Peak hour"}</span><strong>{data.peakHour?`${String(data.peakHour.hour).padStart(2,"0")}:00`:"—"}</strong><small>{data.peakHour?`${data.peakHour.orders} ${ar?"طلبات":"orders"}`:(ar?"لا توجد بيانات":"No data")}</small></div>
-      <div><span>{ar?"اليوم الأقوى":"Busiest day"}</span><strong>{data.busiestDay?.label??"—"}</strong><small>{data.busiestDay?`${data.busiestDay.orders} ${ar?"طلبات":"orders"}`:"—"}</small></div>
-      <div><span>{ar?"المنتج الأفضل":"Top product"}</span><strong className="truncate">{data.topProduct?(ar?data.topProduct.nameAr:data.topProduct.name):"—"}</strong><small>{data.topProduct?`${data.topProduct.qty} ${ar?"وحدة":"units"}`:"—"}</small></div>
-      <div><span>{ar?"حصة داخل المطعم":"Dine-in share"}</span><strong>{Math.round(data.dineInShare)}%</strong><small>{ar?"من الطلبات":"of orders"}</small></div>
-      <div><span>{ar?"نسبة الإلغاء":"Cancellation rate"}</span><strong>{data.cancelRate.toFixed(1)}%</strong><small>{data.cancelRate>8?(ar?"تحتاج مراجعة":"Needs review"):(ar?"ضمن الطبيعي":"Healthy")}</small></div>
-    </section>
+    <DecisionIntelligencePanel restaurantId={restaurantId} />
 
     {customize ? <section className="qs-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><strong className="text-sm">{ar ? "وضع التخصيص" : "Customization mode"}</strong><p className="mt-1 text-xs text-muted-foreground">{ar ? "اسحب من مقابض النقاط الست، غيّر الحجم من الزاوية، وعدّل اللون والنوع داخل كل أداة." : "Drag widgets from the six-dot handles, resize from the corner, and change type/color inside each widget."}</p></div><label className="flex items-center gap-2 text-xs font-bold"><span>{ar ? "اللون الافتراضي" : "Default color"}</span><Input type="color" value={config.accent} onChange={(event) => setConfig((current) => ({ ...current, accent: event.target.value }))} className="h-10 w-14 p-1" /></label></section> : null}
 
@@ -223,6 +218,6 @@ export function AnalyticsManagerPro({ restaurantId, detailWidget: detailWidgetPr
   </div>;
 }
 
-function Widget({ title, tools, children }: { title: string; tools?: React.ReactNode; children: React.ReactNode }) { return <section className="qs-card flex h-full min-h-0 flex-col overflow-hidden p-3.5 sm:p-4"><div className="mb-2 flex items-center justify-between gap-3"><h2 className="text-sm font-bold">{title}</h2></div>{tools}<div className="min-h-0 flex-1">{children}</div></section>; }
+function Widget({ title, tools, children }: { title: string; tools?: React.ReactNode; children: React.ReactNode }) { return <section className="qs-analytics-widget qs-card flex h-full min-h-0 flex-col overflow-hidden p-3.5 sm:p-4"><div className="mb-2 flex items-center justify-between gap-3"><h2 className="text-sm font-bold">{title}</h2></div>{tools}<div className="min-h-0 flex-1">{children}</div></section>; }
 function Kpi({ label, value, href, viewLabel }: { label: string; value: string; href?: string; viewLabel?: string }) { return <article className="qs-stat group flex min-h-[92px] flex-col p-3"><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><p className="mt-1.5 truncate font-display text-xl font-bold tracking-[-.035em]">{value}</p>{href ? <Link to={href as never} preload="intent" className="mt-auto pt-3 text-[10px] font-bold text-[#e85d2a] transition group-hover:translate-x-0.5">{viewLabel ?? "View details"} →</Link> : null}</article>; }
 function Empty({ ar }: { ar: boolean }) { return <div className="grid min-h-[180px] place-items-center p-6 text-center text-sm text-muted-foreground">{ar ? "لا توجد بيانات كافية لهذه الأداة بعد." : "Not enough real data for this widget yet."}</div>; }
