@@ -83,15 +83,16 @@ test("delivery accounting persists the fee separately from order total", async (
   assert.match(migration, /delivery_amount=_delivery/);
 });
 
-test("shift clock stays visible and reflects the database action", async () => {
+test("shift clock stays visible and uses server-authoritative attendance state", async () => {
   const shifts = await file("src/routes/_authenticated/shifts.tsx");
   assert.match(shifts, /import \{ useEffect, useMemo, useState \} from "react"/);
   assert.doesNotMatch(shifts, /max-h-\[118px\][^>]*overflow-y-auto/);
   assert.ok(shifts.indexOf("Attendance & time") < shifts.indexOf("Weekly labor control"));
   assert.match(shifts, /clock_out\.is\.null,clock_in\.gte/);
-  assert.match(shifts, /result\?\.action === "clocked_out"/);
-  assert.match(shifts, /onMutate:\s*\(\)\s*=>/);
-  assert.match(shifts, /setClockOverride\(openEntry \? null :/);
+  assert.match(shifts, /get_my_time_clock_status/);
+  assert.match(shifts, /clock_in_staff/);
+  assert.match(shifts, /clock_out_staff/);
+  assert.doesNotMatch(shifts, /setClockOverride\(openEntry \? null :/);
   assert.match(shifts, /aria-busy=\{toggleClock\.isPending\}/);
   assert.match(shifts, /aria-live="polite"/);
 });
