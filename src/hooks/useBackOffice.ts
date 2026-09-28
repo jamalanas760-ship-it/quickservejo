@@ -25,7 +25,9 @@ export function useBackOffice(restaurantId: string, access: BackOfficeAccess, en
   return useQuery<BackOfficeData>({
     queryKey: [...backOfficeKey(restaurantId), access.inventory, access.procurement, access.finance],
     enabled: enabled && Boolean(restaurantId) && (access.inventory || access.procurement || access.finance),
-    staleTime: 15_000,
+    staleTime: 60_000,
+    gcTime: 15 * 60_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const [inventory, suppliers, movements, expenses, procurement] = await Promise.all([
         (access.inventory || access.procurement || access.finance) ? erpSelect<InventoryBalance>("erp_inventory_balances", (q) => q.select("id,name,unit,reorder_level,quantity").eq("restaurant_id", restaurantId).order("name").limit(2000)) : Promise.resolve([]),
