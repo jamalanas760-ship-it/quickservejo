@@ -64,7 +64,9 @@ function CampaignsPage() {
   const campaigns=useQuery<Campaign[]>({
     queryKey:["crm-campaigns",rid],
     enabled:Boolean(rid&&canManage),
-    refetchInterval:20_000,
+    staleTime:15_000,
+    refetchInterval:30_000,
+    refetchOnWindowFocus:false,
     queryFn:async()=>{
       const {data,error}=await (supabase as any).from("crm_campaigns")
         .select("id,name,channel,segment_type,status,scheduled_at,recipient_count,sent_count,failed_count,skipped_count,last_error,created_at")
