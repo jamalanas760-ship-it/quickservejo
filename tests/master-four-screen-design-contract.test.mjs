@@ -263,3 +263,31 @@ test("iOS bottom navigation supports long-press quick actions without changing A
   assert.match(styles,/iOS-only Haptic Touch-style bottom navigation/);
   assert.match(styles,/-webkit-touch-callout:none/);
 });
+
+
+test("mobile reservation schedule uses a strict guest-first table card hierarchy", async () => {
+  const bookings = await readFile(new URL("../src/routes/_authenticated/bookings.tsx", import.meta.url), "utf8");
+  assert.match(bookings,/qs-reservation-mobile-status/);
+  assert.match(bookings,/data-label=\{ar\?"الموعد":"Date & time"\}/);
+  assert.match(bookings,/data-label=\{ar\?"الضيوف":"Guests"\}/);
+  assert.match(styles,/Reservation mobile table refinement/);
+  assert.match(styles,/grid-template-areas:[\s\S]*"guest guest guest"[\s\S]*"time party table"[\s\S]*"actions actions actions"/);
+  assert.match(styles,/\.qs-reservation-status\{display:none!important\}/);
+});
+
+test("iOS long-press navigation uses an anchored native-style context menu with page-specific actions", async () => {
+  const nav = await readFile(new URL("../src/components/nav/BottomNav.tsx", import.meta.url), "utf8");
+  assert.match(nav,/iosQuickAnchor/);
+  assert.match(nav,/startLongPress\(item,event\.currentTarget/);
+  assert.match(nav,/Math\.hypot/);
+  assert.match(nav,/420/);
+  assert.match(nav,/qs-ios-context-layer/);
+  assert.match(nav,/role="menu"/);
+  assert.match(nav,/Reservations:\["Waitlist","Tables","Guests","Orders"\]/);
+  assert.match(nav,/Campaigns:\["Guests","Analytics","Connect","Home"\]/);
+  assert.match(nav,/Devices:\["Connect","Tables","Orders","Home"\]/);
+  assert.doesNotMatch(nav,/qs-ios-haptic-sheet/);
+  assert.match(styles,/iOS-like Haptic Touch context menu/);
+  assert.match(styles,/backdrop-filter:blur\(28px\) saturate\(1\.75\)/);
+  assert.match(styles,/qs-ios-menu-pop/);
+});

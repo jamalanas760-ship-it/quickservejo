@@ -60,8 +60,10 @@ export function BottomNav() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [toolSearch, setToolSearch] = useState("");
   const [iosQuickItem,setIOSQuickItem]=useState<Item|null>(null);
+  const [iosQuickAnchor,setIOSQuickAnchor]=useState<{menuLeft:number;menuBottom:number;previewLeft:number;previewBottom:number;previewWidth:number}|null>(null);
   const [pressedNavKey,setPressedNavKey]=useState<string|null>(null);
   const longPressTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const pressOrigin=useRef<{x:number;y:number}|null>(null);
   const suppressNextNavClick=useRef(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const access = useAccess();
@@ -229,14 +231,28 @@ export function BottomNav() {
     if(longPressTimer.current){
       clearTimeout(longPressTimer.current);
       longPressTimer.current=null;
+      setIOSQuickAnchor(null);
     }
+    pressOrigin.current=null;
     setPressedNavKey(null);
   }
 
-  function startLongPress(item:Item){
+  function startLongPress(item:Item,target:HTMLElement,clientX:number,clientY:number){
     if(!isIOSMobile())return;
     cancelLongPress();
+    pressOrigin.current={x:clientX,y:clientY};
     const key=`${item.to}-${item.en}`;
+    const rect=target.getBoundingClientRect();
+    const menuWidth=Math.min(308,window.innerWidth-24);
+    const menuLeft=Math.min(Math.max(rect.left+rect.width/2-menuWidth/2,12),window.innerWidth-menuWidth-12);
+    const menuBottom=Math.max(82,window.innerHeight-rect.top+10);
+    setIOSQuickAnchor({
+      menuLeft,
+      menuBottom,
+      previewLeft:rect.left,
+      previewBottom:Math.max(6,window.innerHeight-rect.bottom),
+      previewWidth:rect.width,
+    });
     setPressedNavKey(key);
     longPressTimer.current=setTimeout(()=>{
       suppressNextNavClick.current=true;
@@ -244,7 +260,20 @@ export function BottomNav() {
       setPressedNavKey(null);
       fireIOSHaptic("medium");
       longPressTimer.current=null;
-    },460);
+    },420);
+  }
+
+  function moveLongPress(clientX:number,clientY:number){
+    const origin=pressOrigin.current;
+    if(!origin)return;
+    if(Math.hypot(clientX-origin.x,clientY-origin.y)>12)cancelLongPress();
+  }
+
+  function closeIOSQuickMenu(){
+    setIOSQuickItem(null);
+    setIOSQuickAnchor(null);
+    setPressedNavKey(null);
+    pressOrigin.current=null;
   }
 
   function consumeLongPressClick(event:{preventDefault:()=>void;stopPropagation:()=>void}){
@@ -256,39 +285,57 @@ export function BottomNav() {
   }
 
   function quickActionsFor(item:Item):IOSQuickAction[]{
-    const byName=(name:string)=>desktopItems.find(candidate=>candidate.en===name);
+    const availableQuickItems=managementItems.length?managementItems:desktopItems;
+    const byName=(name:string)=>availableQuickItems.find(candidate=>candidate.en===name)||desktopItems.find(candidate=>candidate.en===name);
     const namesByContext:Record<string,string[]>={
-      Home:["Orders","Tables","Reservations","Team"],
-      Operations:["Orders","Tables","Reservations","Shifts"],
-      Shift:["Shifts","My Work","Team","Reservations"],
-      Menu:["Orders","Tables","Reservations","Analytics"],
+      Home:["Orders","Tables","Analytics","Team"],
+      Operations:["Orders","Shifts","ERP","Analytics"],
+      Shift:["Shifts","Team","My Work","Reservations"],
+      HQ:["Analytics","Team","Guests","Profile"],
+      "My Work":["Shifts","Team","Alerts","Home"],
+      Orders:["Tables","Menu","Reservations","Analytics"],
+      Menu:["Orders","Tables","Analytics","Home"],
       Tables:["Reservations","Waitlist","Orders","Menu"],
       Reservations:["Waitlist","Tables","Guests","Orders"],
-      Team:["Shifts","My Work","Analytics","Home"],
-      Analytics:["Orders","ERP","Daily Close","Home"],
-      Orders:["Tables","Menu","Reservations","Analytics"],
-      Shifts:["Team","My Work","Reservations","Home"],
+      Waitlist:["Reservations","Tables","Guests","Orders"],
+      Shifts:["Team","My Work","Reservations","Daily Close"],
+      Automation:["My Work","Shifts","Connect","Home"],
+      ERP:["Analytics","Orders","Daily Close","Home"],
+      Analytics:["Orders","ERP","Guests","Daily Close"],
+      "Daily Close":["Analytics","Orders","Shifts","Home"],
+      Guests:["Reservations","Campaigns","Analytics","Home"],
+      Campaigns:["Guests","Analytics","Connect","Home"],
+      Connect:["Devices","Automation","Profile","Home"],
+      Devices:["Connect","Tables","Orders","Home"],
+      Team:["Shifts","My Work","Analytics","Profile"],
+      Profile:["Connect","Devices","Home","My Work"],
+      Alerts:["My Work","Shifts","Home","Profile"],
+      Kitchen:["Orders","Menu","My Work","Shifts"],
+      Floor:["Tables","Orders","Reservations","Shifts"],
+      Host:["Reservations","Waitlist","Tables","Guests"],
+      Cashier:["Orders","Daily Close","Analytics","My Work"],
+      Restaurants:["Home","Profile"],
+      Settings:["Home","Profile"],
     };
     const actions:IOSQuickAction[]=[];
-    if((item.en==="Home"||item.en==="Reservations")&&desktopItems.some(candidate=>candidate.to==="/bookings")){
+    if((item.en==="Home"||item.en==="Reservations"||item.en==="Host")&&availableQuickItems.some(candidate=>candidate.to==="/bookings")){
       actions.push({key:"add-booking",to:"/bookings",search:{create:true},icon:Plus,en:"Add Booking",ar:"حجز جديد"});
     }
-    const requested=namesByContext[item.en]??[];
-    for(const name of requested){
+    for(const name of namesByContext[item.en]??[]){
       const candidate=byName(name);
       if(candidate&&!actions.some(action=>action.to===candidate.to)){
         actions.push({key:`${candidate.to}-${candidate.en}`,to:candidate.to,icon:candidate.icon,en:candidate.en,ar:candidate.ar});
       }
       if(actions.length>=4)break;
     }
-    if(actions.length<4&&!actions.some(action=>action.to===item.to)){
+    if(actions.length===0||!actions.some(action=>action.to===item.to)){
       actions.unshift({key:`open-${item.to}`,to:item.to,icon:item.icon,en:`Open ${item.en}`,ar:`فتح ${item.ar}`});
     }
     return actions.slice(0,4);
   }
 
   async function runIOSQuickAction(action:IOSQuickAction){
-    setIOSQuickItem(null);
+    closeIOSQuickMenu();
     fireIOSHaptic("light");
     await navigate({to:action.to as never,search:(action.search??{}) as never});
   }
@@ -398,10 +445,10 @@ export function BottomNav() {
                 preload="render"
                 aria-current={active?"page":undefined}
                 data-ios-pressed={pressedNavKey===`${item.to}-${item.en}`||undefined}
-                onTouchStart={()=>startLongPress(item)}
+                onTouchStart={event=>{const touch=event.touches[0];startLongPress(item,event.currentTarget,touch?.clientX??0,touch?.clientY??0);}}
                 onTouchEnd={cancelLongPress}
                 onTouchCancel={cancelLongPress}
-                onTouchMove={cancelLongPress}
+                onTouchMove={event=>{const touch=event.touches[0];if(touch)moveLongPress(touch.clientX,touch.clientY);}}
                 onContextMenu={event=>{if(isIOSMobile())event.preventDefault();}}
                 onClick={event=>{void consumeLongPressClick(event);}}
                 className={cn("qs-mobile-nav-item qs-ios-haptic-nav-item relative flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition", active ? "is-active text-[var(--restaurant-selected-nav,#e85d2a)]" : "text-muted-foreground")}
@@ -420,32 +467,36 @@ export function BottomNav() {
         </div>
       </nav>
 
-      <Dialog open={Boolean(iosQuickItem)} onOpenChange={open=>{if(!open)setIOSQuickItem(null);}}>
-        <DialogContent
-          className="qs-ios-haptic-sheet gap-0 overflow-hidden p-0 sm:max-w-sm"
-          onOpenAutoFocus={event=>event.preventDefault()}
-        >
-          <DialogHeader className="qs-ios-haptic-sheet-head text-start">
-            <div className="flex items-center gap-3 pe-8">
-              {iosQuickItem?<span className="qs-ios-haptic-sheet-icon">{(()=>{const Icon=iosQuickItem.icon;return <Icon className="size-5"/>;})()}</span>:null}
-              <div className="min-w-0">
-                <DialogTitle>{iosQuickItem?(lang==="ar"?iosQuickItem.ar:iosQuickItem.en):""}</DialogTitle>
-                <DialogDescription>{lang==="ar"?"إجراءات سريعة — اضغط مطولاً على أي تبويب لفتحها.":"Quick actions — long-press any bottom tab to open them."}</DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-          <div className="qs-ios-haptic-action-list">
-            {(iosQuickItem?quickActionsFor(iosQuickItem):[]).map(action=>{
+      {iosQuickItem&&iosQuickAnchor?(
+        <div className="qs-ios-context-layer lg:hidden" role="presentation">
+          <button type="button" className="qs-ios-context-backdrop" aria-label={lang==="ar"?"إغلاق الإجراءات السريعة":"Close quick actions"} onClick={closeIOSQuickMenu}/>
+          <div
+            className="qs-ios-context-menu"
+            role="menu"
+            aria-label={lang==="ar"?`إجراءات ${iosQuickItem.ar}`:`${iosQuickItem.en} quick actions`}
+            style={{left:iosQuickAnchor.menuLeft,bottom:iosQuickAnchor.menuBottom}}
+            onClick={event=>event.stopPropagation()}
+          >
+            <div className="qs-ios-context-title">{lang==="ar"?iosQuickItem.ar:iosQuickItem.en}</div>
+            {quickActionsFor(iosQuickItem).map((action,index)=>{
               const Icon=action.icon;
-              return <button key={action.key} type="button" className="qs-ios-haptic-action" onClick={()=>void runIOSQuickAction(action)}>
-                <span><Icon className="size-[18px]"/></span>
-                <strong>{lang==="ar"?action.ar:action.en}</strong>
-                <ChevronRight className={cn("ms-auto size-4 text-muted-foreground",lang==="ar"&&"rotate-180")}/>
+              return <button key={action.key} type="button" role="menuitem" className="qs-ios-context-action" onClick={()=>void runIOSQuickAction(action)}>
+                <span>{lang==="ar"?action.ar:action.en}</span>
+                <Icon className="size-[18px]"/>
+                {index<quickActionsFor(iosQuickItem).length-1?<i aria-hidden="true"/>:null}
               </button>;
             })}
           </div>
-        </DialogContent>
-      </Dialog>
+          <div
+            className="qs-ios-context-preview"
+            aria-hidden="true"
+            style={{left:iosQuickAnchor.previewLeft,bottom:iosQuickAnchor.previewBottom,width:iosQuickAnchor.previewWidth}}
+          >
+            {(()=>{const Icon=iosQuickItem.icon;return <Icon className="size-5"/>;})()}
+            <span>{lang==="ar"?iosQuickItem.ar:iosQuickItem.en}</span>
+          </div>
+        </div>
+      ):null}
 
       <Dialog open={moreOpen} onOpenChange={changeMoreOpen}>
         <DialogContent

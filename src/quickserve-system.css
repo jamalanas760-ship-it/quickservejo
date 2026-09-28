@@ -2643,3 +2643,273 @@
 @media(min-width:768px){
   .qs-ios-haptic-sheet{display:none!important}
 }
+
+
+/* Reservation mobile table refinement + iOS context menu v2 — 2026-09-28 */
+.qs-reservation-mobile-status{display:none}
+@media(max-width:767px){
+  .qs-reservation-table-wrap{
+    padding:8px!important;
+  }
+  .qs-reservation-table-body{
+    gap:9px!important;
+  }
+  .qs-reservation-row{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    grid-template-areas:
+      "guest guest guest"
+      "time party table"
+      "actions actions actions"!important;
+    border-radius:15px!important;
+    box-shadow:0 4px 14px rgb(15 23 42/.04)!important;
+  }
+  .qs-reservation-guest{
+    display:block;
+    padding:12px 12px 10px!important;
+    background:linear-gradient(180deg,var(--qs-surface),color-mix(in srgb,var(--qs-surface-soft) 42%,var(--qs-surface)));
+  }
+  .qs-reservation-guest-head{
+    align-items:center;
+    gap:9px;
+  }
+  .qs-reservation-mobile-status{
+    display:block!important;
+    flex:0 0 auto;
+  }
+  .qs-reservation-mobile-status [data-slot="badge"],
+  .qs-reservation-mobile-status{
+    white-space:nowrap;
+  }
+  .qs-reservation-status{display:none!important}
+  .qs-reservation-meta-line{
+    margin-top:8px!important;
+    gap:5px!important;
+  }
+  .qs-reservation-meta-line>span{
+    display:inline-flex;
+    min-height:22px;
+    align-items:center;
+    border:1px solid var(--qs-stroke);
+    border-radius:999px;
+    background:var(--qs-surface);
+    padding:0 7px;
+  }
+  .qs-reservation-time,
+  .qs-reservation-party,
+  .qs-reservation-table-cell{
+    display:flex;
+    min-width:0;
+    min-height:74px;
+    flex-direction:column;
+    justify-content:center;
+    border-bottom:1px solid var(--qs-stroke)!important;
+    padding:10px!important;
+  }
+  .qs-reservation-time,
+  .qs-reservation-party{
+    border-inline-end:1px solid var(--qs-stroke)!important;
+  }
+  .qs-reservation-cell::before{
+    margin-bottom:4px!important;
+    font-size:.53rem!important;
+    letter-spacing:.045em!important;
+  }
+  .qs-reservation-time>strong,
+  .qs-reservation-party>strong,
+  .qs-reservation-table-cell>strong{
+    overflow:hidden;
+    font-size:.75rem!important;
+    line-height:1.2;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .qs-reservation-time>span,
+  .qs-reservation-party>span,
+  .qs-reservation-table-cell>span{
+    margin-top:4px!important;
+    font-size:.58rem!important;
+    line-height:1.25;
+  }
+  .qs-reservation-actions{
+    min-height:56px;
+    padding:8px!important;
+    background:var(--qs-surface)!important;
+  }
+  .qs-reservation-primary-actions{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px!important;
+  }
+  .qs-reservation-primary-actions:has(>button:only-child){
+    grid-template-columns:minmax(0,1fr);
+  }
+  .qs-reservation-primary-actions button{
+    min-height:40px!important;
+    border-radius:10px!important;
+    font-size:.65rem!important;
+  }
+  .qs-reservation-more{
+    border:1px solid var(--qs-stroke)!important;
+    background:var(--qs-surface-soft)!important;
+  }
+  .qs-reservation-row-note{
+    grid-column:1/-1!important;
+    grid-row:auto;
+  }
+}
+@media(max-width:380px){
+  .qs-reservation-avatar{
+    width:34px!important;height:34px!important;flex-basis:34px!important;
+  }
+  .qs-reservation-guest-name{font-size:.76rem!important}
+  .qs-reservation-time,
+  .qs-reservation-party,
+  .qs-reservation-table-cell{
+    min-height:70px;
+    padding:8px!important;
+  }
+}
+
+/* iOS-like Haptic Touch context menu for bottom navigation. */
+.qs-ios-context-layer{
+  position:fixed;
+  inset:0;
+  z-index:90;
+}
+.qs-ios-context-backdrop{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  border:0!important;
+  border-radius:0!important;
+  background:rgb(0 0 0/.16)!important;
+  padding:0!important;
+  backdrop-filter:blur(7px) saturate(1.08);
+  -webkit-backdrop-filter:blur(7px) saturate(1.08);
+  animation:qs-ios-backdrop-in .16s ease-out both;
+}
+.qs-ios-context-menu{
+  position:fixed;
+  z-index:94;
+  width:min(308px,calc(100vw - 24px));
+  overflow:hidden;
+  border:1px solid rgb(255 255 255/.42);
+  border-radius:14px;
+  background:color-mix(in srgb,var(--qs-surface) 88%,transparent);
+  box-shadow:0 18px 44px rgb(15 23 42/.24),0 2px 8px rgb(15 23 42/.12);
+  backdrop-filter:blur(28px) saturate(1.75);
+  -webkit-backdrop-filter:blur(28px) saturate(1.75);
+  transform-origin:50% 100%;
+  animation:qs-ios-menu-pop .2s cubic-bezier(.2,.9,.28,1.08) both;
+}
+.qs-ios-context-title{
+  min-height:34px;
+  display:flex;
+  align-items:center;
+  padding:0 13px;
+  border-bottom:1px solid color-mix(in srgb,var(--qs-stroke) 72%,transparent);
+  color:var(--qs-muted);
+  font-size:.65rem;
+  font-weight:780;
+}
+.qs-ios-context-action{
+  position:relative;
+  display:flex;
+  width:100%;
+  min-height:49px!important;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  padding:0 13px!important;
+  color:var(--qs-ink);
+  text-align:start;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+.qs-ios-context-action>span{
+  min-width:0;
+  flex:1 1 auto;
+  overflow:hidden;
+  font-size:.82rem;
+  font-weight:650;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.qs-ios-context-action>svg{
+  flex:0 0 auto;
+  color:var(--qs-muted);
+  stroke-width:1.8;
+}
+.qs-ios-context-action>i{
+  position:absolute;
+  inset-inline-start:13px;
+  inset-inline-end:0;
+  bottom:0;
+  height:1px;
+  background:color-mix(in srgb,var(--qs-stroke) 76%,transparent);
+}
+.qs-ios-context-action:active{
+  background:color-mix(in srgb,var(--qs-ink) 8%,transparent)!important;
+}
+.qs-ios-context-preview{
+  position:fixed;
+  z-index:96;
+  display:flex;
+  min-height:62px;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  border:1px solid rgb(255 255 255/.5);
+  border-radius:18px;
+  background:color-mix(in srgb,var(--qs-surface) 88%,transparent);
+  color:var(--qs-brand-strong);
+  box-shadow:0 12px 34px rgb(15 23 42/.20);
+  backdrop-filter:blur(22px) saturate(1.5);
+  -webkit-backdrop-filter:blur(22px) saturate(1.5);
+  animation:qs-ios-source-lift .19s cubic-bezier(.2,.9,.3,1.12) both;
+  pointer-events:none;
+}
+.qs-ios-context-preview>span{
+  max-width:100%;
+  overflow:hidden;
+  padding:0 4px;
+  color:var(--qs-ink);
+  font-size:.62rem;
+  font-weight:700;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.qs-ios-haptic-nav-item{
+  transform-origin:center;
+  transition:transform .14s cubic-bezier(.2,.8,.2,1),background-color .14s ease!important;
+}
+.qs-ios-haptic-nav-item[data-ios-pressed="true"]{
+  transform:scale(.91)!important;
+  background:color-mix(in srgb,var(--qs-brand) 8%,transparent)!important;
+}
+@keyframes qs-ios-menu-pop{
+  0%{opacity:0;transform:translateY(10px) scale(.93)}
+  70%{opacity:1;transform:translateY(-1px) scale(1.012)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes qs-ios-source-lift{
+  0%{opacity:.68;transform:scale(.92)}
+  100%{opacity:1;transform:scale(1.045)}
+}
+@keyframes qs-ios-backdrop-in{
+  from{opacity:0}
+  to{opacity:1}
+}
+@media(prefers-reduced-motion:reduce){
+  .qs-ios-context-backdrop,
+  .qs-ios-context-menu,
+  .qs-ios-context-preview{animation:none!important}
+}
+@media(min-width:768px){
+  .qs-ios-context-layer{display:none!important}
+}

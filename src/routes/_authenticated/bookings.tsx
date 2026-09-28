@@ -554,10 +554,11 @@ function BookingRow({booking,table,currency,ar,lang,busy,onStatus,onMessage,onDe
     <div className="qs-reservation-cell qs-reservation-guest" role="cell" data-label={ar?"الضيف":"Guest"}>
       <div className="qs-reservation-guest-head">
         <span className="qs-reservation-avatar">{booking.customer_name.trim().slice(0,1).toUpperCase()||"G"}</span>
-        <span className="min-w-0">
+        <span className="min-w-0 flex-1">
           <strong className="qs-reservation-guest-name">{booking.customer_name}</strong>
           <small>{booking.phone??booking.email??(ar?"لا توجد وسيلة اتصال":"No contact")}</small>
         </span>
+        <span className="qs-reservation-mobile-status"><Badge variant={booking.status==="seated"?"default":booking.status==="cancelled"||booking.status==="no_show"?"destructive":"secondary"}>{statusLabel(booking.status,ar)}</Badge></span>
       </div>
       <div className="qs-reservation-meta-line">
         <span>{ar?"رمز":"Code"} <b>{booking.confirmation_code}</b></span>
@@ -565,12 +566,12 @@ function BookingRow({booking,table,currency,ar,lang,busy,onStatus,onMessage,onDe
       </div>
     </div>
 
-    <div className="qs-reservation-cell qs-reservation-time" role="cell" data-label={ar?"الموعد":"Reservation"}>
-      <strong>{dateLabel}</strong>
-      <span>{timeLabel} · {booking.duration_minutes} {ar?"د":"min"}</span>
+    <div className="qs-reservation-cell qs-reservation-time" role="cell" data-label={ar?"الموعد":"Date & time"}>
+      <strong>{timeLabel}</strong>
+      <span>{dateLabel} · {booking.duration_minutes} {ar?"د":"min"}</span>
     </div>
 
-    <div className="qs-reservation-cell qs-reservation-party" role="cell" data-label={ar?"الضيوف":"Party"}>
+    <div className="qs-reservation-cell qs-reservation-party" role="cell" data-label={ar?"الضيوف":"Guests"}>
       <strong><UsersRound className="size-3.5"/>{booking.guest_count}</strong>
       <span>{booking.occasion??(ar?"زيارة عادية":"Standard visit")}</span>
     </div>
