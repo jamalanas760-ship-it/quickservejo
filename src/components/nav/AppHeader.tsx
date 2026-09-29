@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { BadgeDollarSign, Check, ChefHat, ChevronDown, Globe2, HandPlatter, Languages, LogOut, Menu as MenuIcon, Search, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
+import { BadgeDollarSign, Check, ChefHat, ChevronDown, Command, Globe2, HandPlatter, Languages, LogOut, Menu as MenuIcon, Search, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
 import { toast } from "sonner";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
@@ -107,13 +107,13 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
 
         <button
           type="button"
-          className="qs-global-search-trigger mx-auto hidden min-w-0 flex-1 items-center gap-2 lg:flex lg:max-w-[370px] xl:max-w-[430px]"
+          className="qs-global-search-trigger qs-global-search-trigger-approved mx-auto hidden min-w-0 flex-1 items-center gap-2 lg:flex lg:max-w-[370px] xl:max-w-[430px]"
           onClick={() => window.dispatchEvent(new CustomEvent("quickserve:open-workspace-tools"))}
           aria-label={lang === "ar" ? "البحث في أدوات مساحة العمل" : "Search workspace tools"}
         >
           <Search className="size-4 shrink-0" />
-          <span className="min-w-0 flex-1 truncate text-start">{lang === "ar" ? "ابحث في الطلبات، الفريق، التحليلات..." : "Search orders, team, analytics..."}</span>
-          <span className="qs-topbar-shortcut" aria-hidden="true"><kbd>Ctrl</kbd><i>+</i><kbd>K</kbd></span>
+          <span className="min-w-0 flex-1 truncate text-start">{lang === "ar" ? "ابحث في كل شيء..." : "Search anything..."}</span>
+          <span className="qs-command-icon-trigger" aria-hidden="true"><Command className="size-[17px]" strokeWidth={2.4} /></span>
         </button>
 
         <div className="qs-topbar-controls ms-auto flex min-w-0 items-center gap-1 sm:gap-1.5">
