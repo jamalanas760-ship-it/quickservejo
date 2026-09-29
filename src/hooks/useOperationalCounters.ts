@@ -89,7 +89,7 @@ export function useOperationalCounters(restaurantId: string | null) {
             .select("id", { count: "exact", head: true })
             .eq("restaurant_id", restaurantId)
             .is("read_at", null)
-            .or("kind.eq.shift,source_type.eq.missing_punch_request,source_type.eq.staff_leave_request,source_type.eq.workforce,source_type.eq.workforce_alert"),
+            .or("kind.eq.shift,source_type.eq.missing_punch_request,source_type.eq.staff_leave_request,source_type.eq.workforce_permission_request,source_type.eq.workforce,source_type.eq.workforce_alert"),
         ),
         safeCount(
           client
