@@ -44,7 +44,7 @@ import { readAppearance } from "@/lib/restaurant-appearance";
 import { cn } from "@/lib/utils";
 
 type NavGroup = "overview" | "service" | "operations" | "growth" | "admin";
-type Item = { to: string; icon: typeof Home; en: string; ar: string; exact?: boolean; capability?: Capability; badge?: "tasks" | "shifts" | "orders" | "unread"; group?: NavGroup };
+type Item = { to: string; icon: typeof Home; en: string; ar: string; exact?: boolean; capability?: Capability; badge?: "tasks" | "shifts" | "orders" | "unread" | "workforceUnread"; group?: NavGroup };
 type IOSQuickAction={key:string;to?:string;icon:typeof Home;en:string;ar:string;search?:Record<string,unknown>;command?:"more"};
 
 const FRONTLINE_ITEMS: Record<string, Item> = {
@@ -105,7 +105,7 @@ export function BottomNav() {
     { to: homeTo, icon: role === "operations_manager" || role === "manager" ? UserRoundCog : Home, en: role === "operations_manager" ? "Operations" : role === "manager" ? "Shift" : "Home", ar: role === "operations_manager" ? "العمليات" : role === "manager" ? "الوردية" : "الرئيسية", exact: true, group: "overview" },
     { to: "/hq", icon: Building2, en: "HQ", ar: "المجموعة", group: "overview" },
     { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي", capability: "view_work", badge: "tasks", group: "overview" },
-    { to: "/shifts", icon: CalendarClock, en: "Workforce", ar: "القوى العاملة", capability: "view_work", badge: "shifts", group: "operations" },
+    { to: "/shifts", icon: CalendarClock, en: "Workforce", ar: "القوى العاملة", capability: "view_work", badge: "workforceUnread", group: "operations" },
     { to: "/automations", icon: Workflow, en: "Automation", ar: "الأتمتة", capability: "manage_work", group: "operations" },
     { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات", capability: "view_orders", badge: "orders", group: "service" },
     { to: `/manage/${restaurantId}`, icon: UtensilsCrossed, en: "Menu", ar: "القائمة", exact: true, capability: "manage_menu", group: "service" },
@@ -125,7 +125,7 @@ export function BottomNav() {
 
   const frontlineItem = role ? FRONTLINE_ITEMS[role] : undefined;
   const workItem: Item | null = can("view_work") ? { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي", badge: "tasks" } : null;
-  const shiftItem: Item | null = can("view_work") ? { to: "/shifts", icon: CalendarClock, en: "Workforce", ar: "القوى العاملة", badge: "shifts" } : null;
+  const shiftItem: Item | null = can("view_work") ? { to: "/shifts", icon: CalendarClock, en: "Workforce", ar: "القوى العاملة", badge: "workforceUnread" } : null;
   const erpItem: Item | null = restaurantId && can("view_erp") ? { to: `/manage/${restaurantId}/operations`, icon: Boxes, en: "ERP", ar: "ERP" } : null;
   const desktopItems: Item[] = managerial
     ? managementItems
