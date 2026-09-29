@@ -1,5 +1,6 @@
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 
 const KEY = "quickserve-theme";
@@ -14,24 +15,16 @@ function preferredTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-function applyTheme(theme: Theme, animate = false) {
+function applyTheme(theme: Theme) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  const reduceMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  if (animate && !reduceMotion) {
-    root.classList.remove(TRANSITION_CLASS);
-    // Force a style boundary so repeated toggles always start from the current theme.
-    void root.offsetWidth;
-    root.classList.add(TRANSITION_CLASS);
-    window.setTimeout(() => root.classList.remove(TRANSITION_CLASS), 280);
-  }
-
   root.classList.toggle("dark", theme === "dark");
   root.style.colorScheme = theme;
 }
+
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (update: () => void) => { finished: Promise<void> };
+};
 
 export function ThemeToggle({ compact = false, className }: { compact?: boolean; className?: string }) {
   const [theme, setTheme] = useState<Theme>("light");
@@ -74,9 +67,29 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
   function choose(next: Theme) {
     if (next === themeRef.current) return;
     themeRef.current = next;
-    setTheme(next);
     window.localStorage.setItem(KEY, next);
-    applyTheme(next, true);
+
+    const root = document.documentElement;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const doc = document as ViewTransitionDocument;
+    const commit = () => {
+      flushSync(() => setTheme(next));
+      applyTheme(next);
+    };
+
+    if (!reduceMotion && typeof doc.startViewTransition === "function") {
+      root.classList.remove(TRANSITION_CLASS);
+      root.classList.add("qs-theme-view-transition");
+      const transition = doc.startViewTransition(commit);
+      void transition.finished.finally(() => root.classList.remove("qs-theme-view-transition"));
+    } else {
+      // Unsupported browsers switch atomically. A synchronous change is much
+      // better than painting the header, cards and canvas in separate phases.
+      root.classList.add(TRANSITION_CLASS);
+      commit();
+      requestAnimationFrame(() => root.classList.remove(TRANSITION_CLASS));
+    }
+
     window.dispatchEvent(new CustomEvent<Theme>(EVENT, { detail: next }));
   }
 
