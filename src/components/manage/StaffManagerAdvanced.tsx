@@ -481,6 +481,28 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const onShiftNow = activeTeam.filter((row) => openClockByStaff.has(row.id)).length;
   const onLeaveNow = activeTeam.filter((row) => leaveStaffIds.has(row.id)).length;
   const offShiftNow = Math.max(0, activeTeam.length - onShiftNow - onLeaveNow);
+  const scheduledToday = activeTeam.filter((row) => scheduleByStaff.has(row.id)).length;
+  const notClockedToday = activeTeam.filter((row) => scheduleByStaff.has(row.id) && !openClockByStaff.has(row.id) && !leaveStaffIds.has(row.id)).length;
+  const attendancePercent = scheduledToday ? Math.min(100, Math.round((onShiftNow / scheduledToday) * 100)) : 0;
+  const shiftDistribution = activeTeam.reduce(
+    (acc, member) => {
+      const scheduleInfo = scheduleByStaff.get(member.id);
+      if (!scheduleInfo?.start) return acc;
+      const hour = new Date(scheduleInfo.start).getHours();
+      if (hour < 12) acc.morning += 1;
+      else if (hour < 17) acc.afternoon += 1;
+      else if (hour < 22) acc.evening += 1;
+      else acc.night += 1;
+      return acc;
+    },
+    { morning: 0, afternoon: 0, evening: 0, night: 0 },
+  );
+  const maxDistribution = Math.max(1, shiftDistribution.morning, shiftDistribution.afternoon, shiftDistribution.evening, shiftDistribution.night);
+  const upcomingTeamShifts = activeTeam
+    .map((member) => ({ member, schedule: scheduleByStaff.get(member.id) }))
+    .filter((item): item is { member: StaffRow; schedule: StaffScheduleSummary } => Boolean(item.schedule) && item.schedule.phase !== "missed" && item.schedule.phase !== "completed")
+    .sort((a, b) => new Date(a.schedule.start ?? 0).getTime() - new Date(b.schedule.start ?? 0).getTime())
+    .slice(0, 4);
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -659,8 +681,10 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   }
 
   return (
-    <div className="qs-workforce-screen qs-workforce-team qs-viewport-fill flex h-full min-h-0 flex-col gap-4">
-      <div className="qs-workforce-hero">
+    <div className="qs-workforce-screen qs-workforce-team qs-approved-team-page qs-viewport-fill flex h-full min-h-0 flex-col gap-4">
+      <div className="qs-approved-team-layout grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,.55fr)]">
+        <div className="flex min-h-0 min-w-0 flex-col gap-4">
+      <div className="qs-workforce-hero qs-approved-page-hero">
       <MasterPageHeader
         eyebrow={
           <MasterEyebrow icon={UsersRound}>{ar ? "إدارة الفريق" : "Team management"}</MasterEyebrow>
@@ -841,6 +865,53 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           </>
         )}
       </section>
+        </div>
+
+        <aside className="qs-team-insights hidden min-h-0 min-w-0 flex-col gap-4 xl:flex">
+          <section className="qs-card qs-team-attendance-card p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div><h3 className="text-sm font-extrabold">{ar ? "حضور اليوم" : "Today's Attendance"}</h3><p className="mt-1 text-[10px] font-medium text-muted-foreground">{formatScheduleDayLabel(scheduleDayKey, ar)}</p></div>
+              <span className="qs-live-badge">{ar ? "مباشر" : "Live"}</span>
+            </div>
+            <div className="mt-4 grid grid-cols-[112px_minmax(0,1fr)] items-center gap-4">
+              <div className="qs-attendance-donut relative grid size-28 place-items-center rounded-full" style={{ background: `conic-gradient(#16c784 0 ${attendancePercent}%, #edf1f7 ${attendancePercent}% 100%)` }}>
+                <div className="grid size-[78px] place-items-center rounded-full bg-card text-center shadow-inner"><span><strong className="block text-2xl font-black tabular-nums">{attendancePercent}%</strong><small className="text-[9px] font-semibold text-muted-foreground">{ar ? "حاضر" : "Present"}</small></span></div>
+              </div>
+              <div className="space-y-2 text-[10px]">
+                <div className="flex items-center justify-between gap-2"><span className="flex items-center gap-2 text-muted-foreground"><i className="size-2 rounded-full bg-emerald-500" />{ar ? "على رأس العمل" : "On Shift"}</span><strong>{onShiftNow}</strong></div>
+                <div className="flex items-center justify-between gap-2"><span className="flex items-center gap-2 text-muted-foreground"><i className="size-2 rounded-full bg-orange-400" />{ar ? "لم يسجل" : "Not Clocked In"}</span><strong>{notClockedToday}</strong></div>
+                <div className="flex items-center justify-between gap-2"><span className="flex items-center gap-2 text-muted-foreground"><i className="size-2 rounded-full bg-violet-500" />{ar ? "إجازة" : "Day Off"}</span><strong>{onLeaveNow}</strong></div>
+              </div>
+            </div>
+          </section>
+
+          <section className="qs-card p-4">
+            <div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-extrabold">{ar ? "توزيع الورديات" : "Shift Distribution"}</h3><p className="mt-1 text-[10px] text-muted-foreground">{ar ? "حسب وقت بداية وردية اليوم" : "By today's shift start"}</p></div><strong className="text-2xl font-black">{scheduledToday}</strong></div>
+            <div className="mt-5 grid grid-cols-4 gap-3">
+              {([
+                ["morning", ar ? "صباح" : "Morning", "#3b82f6"],
+                ["afternoon", ar ? "ظهر" : "Afternoon", "#10b981"],
+                ["evening", ar ? "مساء" : "Evening", "#f59e0b"],
+                ["night", ar ? "ليل" : "Night", "#8b5cf6"],
+              ] as const).map(([key, label, color]) => {
+                const value = shiftDistribution[key];
+                const height = Math.max(14, Math.round((value / maxDistribution) * 54));
+                return <div key={key} className="text-center"><div className="mx-auto flex h-16 w-7 items-end justify-center rounded-full bg-muted/45 p-1"><span className="w-full rounded-full" style={{ height, background: color }} /></div><strong className="mt-2 block text-sm">{value}</strong><span className="block text-[9px] text-muted-foreground">{label}</span></div>;
+              })}
+            </div>
+          </section>
+
+          <section className="qs-card min-h-0 flex-1 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-4"><div><h3 className="text-sm font-extrabold">{ar ? "الورديات القادمة" : "Upcoming Shifts"}</h3><p className="mt-1 text-[10px] text-muted-foreground">{ar ? "أقرب أعضاء الفريق للعمل" : "Next team members scheduled"}</p></div><span className="rounded-full bg-orange-500/10 px-2 py-1 text-[9px] font-bold text-orange-700">{upcomingTeamShifts.length}</span></div>
+            <div className="divide-y divide-border">
+              {upcomingTeamShifts.length ? upcomingTeamShifts.map(({ member, schedule }) => {
+                const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
+                return <div key={member.id} className="flex items-center gap-3 p-3"><span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><strong className="block truncate text-xs">{member.name}</strong><span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{ROLE_NAMES[member.role][lang]} · {formatTodayShiftRange(schedule.start, schedule.end, ar)}</span></span><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold", schedule.phase === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-orange-500/10 text-orange-700")}>{schedule.phase === "active" ? (ar ? "على رأس العمل" : "On Shift") : (ar ? "قادمة" : "Upcoming")}</span></div>;
+              }) : <div className="p-6 text-center text-xs text-muted-foreground">{ar ? "لا توجد ورديات قادمة اليوم." : "No upcoming shifts today."}</div>}
+            </div>
+          </section>
+        </aside>
+      </div>
 
       <Dialog
         open={Boolean(editing)}
