@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useI18n } from "@/lib/i18n";
 
-const FLAG = "quickserve.splash.shown";
+const FLAG = "quickserve.splash.shown.v2";
 /** Diner-facing routes never show the app splash — they must feel instant. */
 const SKIP_PREFIXES = ["/r/", "/o/", "/staff/badge"];
 
