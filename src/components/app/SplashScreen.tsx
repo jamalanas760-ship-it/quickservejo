@@ -1,5 +1,5 @@
-import { ClipboardCheck, Table2, UsersRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Activity, CheckCircle2, Layers3, Zap } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useI18n } from "@/lib/i18n";
@@ -14,18 +14,46 @@ export function SplashScreen() {
   const [phase, setPhase] = useState<"hidden" | "visible" | "leaving">("hidden");
   const [step, setStep] = useState(0);
 
+  const steps = useMemo(
+    () => [
+      {
+        icon: Layers3,
+        en: "Loading your workspace",
+        ar: "تحميل مساحة العمل",
+        detailEn: "Preparing your restaurant tools and navigation",
+        detailAr: "تجهيز أدوات المطعم والتنقل",
+      },
+      {
+        icon: Activity,
+        en: "Syncing live operations",
+        ar: "مزامنة العمليات المباشرة",
+        detailEn: "Orders, tables and workforce are connecting",
+        detailAr: "ربط الطلبات والطاولات والقوى العاملة",
+      },
+      {
+        icon: CheckCircle2,
+        en: "Ready to serve",
+        ar: "جاهز للتشغيل",
+        detailEn: "QuickServe is ready",
+        detailAr: "QuickServe جاهز",
+      },
+    ],
+    [],
+  );
+
   useEffect(() => {
     const path = window.location.pathname;
-    if (SKIP_PREFIXES.some((p) => path.startsWith(p))) return;
+    if (SKIP_PREFIXES.some((prefix) => path.startsWith(prefix))) return;
     if (window.sessionStorage.getItem(FLAG)) return;
     window.sessionStorage.setItem(FLAG, "1");
     setPhase("visible");
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const stepOne = window.setTimeout(() => setStep(1), reduceMotion ? 80 : 260);
-    const stepTwo = window.setTimeout(() => setStep(2), reduceMotion ? 160 : 560);
-    const leave = window.setTimeout(() => setPhase("leaving"), reduceMotion ? 450 : 1050);
-    const done = window.setTimeout(() => setPhase("hidden"), reduceMotion ? 650 : 1450);
+    const stepOne = window.setTimeout(() => setStep(1), reduceMotion ? 100 : 420);
+    const stepTwo = window.setTimeout(() => setStep(2), reduceMotion ? 210 : 820);
+    const leave = window.setTimeout(() => setPhase("leaving"), reduceMotion ? 520 : 1260);
+    const done = window.setTimeout(() => setPhase("hidden"), reduceMotion ? 690 : 1540);
+
     return () => {
       window.clearTimeout(stepOne);
       window.clearTimeout(stepTwo);
@@ -36,56 +64,59 @@ export function SplashScreen() {
 
   if (phase === "hidden") return null;
 
+  const current = steps[Math.min(step, steps.length - 1)];
+  const CurrentIcon = current.icon;
+  const progress = step === 0 ? 28 : step === 1 ? 67 : 100;
+
   return (
     <div
       aria-hidden
-      className={`qs-master-splash fixed inset-0 z-[100] overflow-hidden bg-background transition-opacity duration-400 ${
-        phase === "leaving" ? "pointer-events-none opacity-0" : "opacity-100"
-      }`}
+      className={`qs-launch-screen fixed inset-0 z-[100] overflow-hidden transition-opacity duration-300 ${phase === "leaving" ? "pointer-events-none opacity-0" : "opacity-100"}`}
     >
-      <div className="qs-master-splash-grid" />
-      <div className="qs-master-splash-orbit qs-master-splash-orbit-a" />
-      <div className="qs-master-splash-orbit qs-master-splash-orbit-b" />
+      <div className="qs-launch-aurora qs-launch-aurora-a" />
+      <div className="qs-launch-aurora qs-launch-aurora-b" />
+      <div className="qs-launch-grid" />
 
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-[920px] flex-col items-center justify-center px-5 py-10">
-        <div className="qs-master-splash-brand">
-          <div className="qs-master-splash-logo">
-            <span className="qs-master-splash-logo-ring" />
-            <BrandLogo className="size-14 sm:size-16" textClassName="hidden" />
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-[980px] items-center justify-center px-5 py-10">
+        <div className="qs-launch-shell">
+          <div className="qs-launch-brand">
+            <div className="qs-launch-logo-wrap">
+              <span className="qs-launch-ring qs-launch-ring-a" />
+              <span className="qs-launch-ring qs-launch-ring-b" />
+              <span className="qs-launch-logo-card"><BrandLogo markOnly className="size-12 sm:size-14" /></span>
+              <span className="qs-launch-bolt"><Zap className="size-3.5" /></span>
+            </div>
+            <div className="text-center">
+              <p className="font-display text-3xl font-black tracking-[-.05em] sm:text-4xl">QuickServe</p>
+              <p className="mt-1 text-[11px] font-semibold uppercase tracking-[.16em] text-muted-foreground">
+                {ar ? "تشغيل المطعم بذكاء" : "Restaurant operations, connected"}
+              </p>
+            </div>
           </div>
-          <div className="text-center">
-            <p className="font-display text-2xl font-bold tracking-[-.04em] sm:text-3xl">QuickServe</p>
-            <p className="mt-1 text-xs font-semibold text-muted-foreground sm:text-sm">
-              {ar ? "نحضّر مساحة التشغيل الخاصة بك" : "Preparing your operations workspace"}
-            </p>
+
+          <div className="qs-launch-status">
+            <div className="qs-launch-status-icon"><CurrentIcon className="size-4" /></div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-3">
+                <strong className="truncate text-sm">{ar ? current.ar : current.en}</strong>
+                <span className="text-[10px] font-black tabular-nums text-[#e85d2a]">{progress}%</span>
+              </div>
+              <p className="mt-1 truncate text-[10px] text-muted-foreground">{ar ? current.detailAr : current.detailEn}</p>
+            </div>
           </div>
+
+          <div className="qs-launch-progress" aria-hidden="true"><span style={{ width: `${progress}%` }} /></div>
+
+          <div className="qs-launch-steps">
+            {steps.map((item, index) => {
+              const Icon = item.icon;
+              const active = index <= step;
+              return <div key={item.en} className={`qs-launch-step ${active ? "is-active" : ""} ${index === step ? "is-current" : ""}`}><span><Icon className="size-3.5" /></span><small>{ar ? item.ar : item.en}</small></div>;
+            })}
+          </div>
+
+          <p className="qs-launch-footnote">{ar ? "سريع · مباشر · منظم" : "Fast · Live · Organized"}</p>
         </div>
-
-        <div className="qs-master-splash-board mt-8 w-full max-w-[720px]">
-          <div className="qs-master-splash-board-top">
-            <span className="qs-master-splash-board-title">{ar ? "تشغيل المطعم" : "Restaurant operations"}</span>
-            <span className="qs-master-splash-live"><i />{ar ? "مباشر" : "Live"}</span>
-          </div>
-          <div className="qs-master-splash-cards">
-            <div className={`qs-master-splash-card ${step >= 0 ? "is-active" : ""}`}>
-              <span className="qs-master-splash-icon"><ClipboardCheck className="size-4" /></span>
-              <span><b>{ar ? "الطلبات" : "Orders"}</b><small>{ar ? "مزامنة الخدمة" : "Syncing service"}</small></span>
-            </div>
-            <div className={`qs-master-splash-card ${step >= 1 ? "is-active" : ""}`}>
-              <span className="qs-master-splash-icon"><Table2 className="size-4" /></span>
-              <span><b>{ar ? "الطاولات" : "Tables"}</b><small>{ar ? "تحديث الحالة" : "Updating status"}</small></span>
-            </div>
-            <div className={`qs-master-splash-card ${step >= 2 ? "is-active" : ""}`}>
-              <span className="qs-master-splash-icon"><UsersRound className="size-4" /></span>
-              <span><b>{ar ? "القوى العاملة" : "Workforce"}</b><small>{ar ? "تحميل ورديات اليوم" : "Loading today's shifts"}</small></span>
-            </div>
-          </div>
-          <div className="qs-master-splash-rail"><span style={{ width: `${34 + step * 33}%` }} /></div>
-        </div>
-
-        <p className="mt-5 text-[10px] font-semibold uppercase tracking-[.16em] text-muted-foreground/80">
-          {ar ? "سريع · مباشر · منظم" : "Fast · Live · Organized"}
-        </p>
       </div>
     </div>
   );
