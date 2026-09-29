@@ -50,7 +50,8 @@ test("approved global search and workspace tools launcher are implemented", () =
   assert.match(nav,/quickserve:open-workspace-tools/);
   assert.match(nav,/qs-workspace-tools-spotlight/);
   assert.match(nav,/Everything you need in one place/);
-  assert.match(nav,/Ctrl K/);
+  assert.match(nav,/qs-command-icon-trigger--tools/);
+  assert.doesNotMatch(nav,/data-shortcut="Ctrl K"/);
   assert.match(styles,/Workspace tools/);
 });
 
