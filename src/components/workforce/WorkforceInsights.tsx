@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, Clock3, Lock, Pencil, RotateCcw, UserRound, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, Lock, Pencil, Plus, RotateCcw, UserRound, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { DetailRow, DetailSheet, formatStamp } from "@/components/operations/DetailSheet";
@@ -222,6 +222,7 @@ export function WorkforceTimesheets({ restaurantId, members, assignments, canMan
   const data = useWorkforceData(restaurantId);
   const [filter, setFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
   const [editing, setEditing] = useState<Entry | null>(null);
+  const [missingOpen, setMissingOpen] = useState(false);
   const reviewSupported = (data.data?.entries ?? []).some((e) => "review_status" in e) || !(data.data?.entries ?? []).length;
   const memberById = new Map(members.map((m) => [m.id, m]));
   const entries = (data.data?.entries ?? []).filter((e) => e.clock_out && (canManage || e.staff_id === currentStaffId) && (filter === "all" || reviewOf(e) === filter));
@@ -243,8 +244,11 @@ export function WorkforceTimesheets({ restaurantId, members, assignments, canMan
 
   return <section className="qs-card overflow-hidden">
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
-      <div><h2 className="qs-section-title">{ar ? "سجلات الدوام" : "Timesheets"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "المجدول ← الدخول ← الخروج ← المراجعة ← الاعتماد. الأرقام تقديرات تشغيلية وليست رواتب." : "Scheduled → Clocked in → Clocked out → Review → Approved. Hours are operational estimates, not payroll."}</p></div>
-      <div className="inline-grid grid-cols-4 rounded-xl border border-border bg-card p-1">{(["pending", "approved", "rejected", "all"] as const).map((f) => <button key={f} type="button" onClick={() => setFilter(f)} className={cn("min-h-10 rounded-lg px-3 text-xs font-bold", filter === f ? "bg-orange-500/10 text-[#cf4818]" : "text-muted-foreground hover:bg-muted")}>{f === "pending" ? (ar ? "للمراجعة" : "Review") : f === "approved" ? (ar ? "معتمد" : "Approved") : f === "rejected" ? (ar ? "مرفوض" : "Rejected") : (ar ? "الكل" : "All")}</button>)}</div>
+      <div className="min-w-0"><h2 className="qs-section-title">{ar ? "سجلات الدوام" : "Timesheets"}</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{ar ? "المجدول ← الدخول ← الخروج ← المراجعة ← الاعتماد. الأرقام تقديرات تشغيلية وليست رواتب." : "Scheduled → Clocked in → Clocked out → Review → Approved. Hours are operational estimates, not payroll."}</p></div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="inline-grid grid-cols-4 rounded-xl border border-border bg-card p-1">{(["pending", "approved", "rejected", "all"] as const).map((f) => <button key={f} type="button" onClick={() => setFilter(f)} className={cn("min-h-10 rounded-lg px-3 text-xs font-bold", filter === f ? "bg-orange-500/10 text-[#cf4818]" : "text-muted-foreground hover:bg-muted")}>{f === "pending" ? (ar ? "للمراجعة" : "Review") : f === "approved" ? (ar ? "معتمد" : "Approved") : f === "rejected" ? (ar ? "مرفوض" : "Rejected") : (ar ? "الكل" : "All")}</button>)}</div>
+        {canManage ? <Button type="button" variant="outline" className="min-h-11 gap-2 border-orange-200 bg-orange-500/[0.045] text-[#cf4818] hover:bg-orange-500/10 dark:border-orange-900/60" onClick={() => setMissingOpen(true)}><Plus className="size-4" />{ar ? "إضافة بصمة ناقصة" : "Add missing punch"}</Button> : null}
+      </div>
     </div>
     {!reviewSupported ? <p className="border-b border-amber-200 bg-amber-500/5 p-3 text-xs text-amber-800">{ar ? "اعتماد السجلات يتطلب تحديث قاعدة البيانات المعلّق. يمكنك عرض الساعات الآن." : "Approval requires a pending database update. Hours are visible now; approve/correct will activate once it is applied."}</p> : null}
     {data.isPending ? <div className="p-4"><Skeleton className="h-40 rounded-xl" /></div> : data.isError ? <p className="p-5 text-xs text-muted-foreground">{ar ? "تعذر تحميل السجلات." : "Timesheets are unavailable right now."}</p> : !entries.length ? <EmptyCard text={ar ? "لا توجد سجلات في هذا الفلتر." : "No timesheets in this view."} /> :
@@ -272,7 +276,79 @@ export function WorkforceTimesheets({ restaurantId, members, assignments, canMan
         </li>;
       })}</ul>}
     {editing ? <CorrectionSheet entry={editing} ar={ar} pending={act.isPending} onClose={() => setEditing(null)} onSave={(p) => act.mutate({ id: editing.id, action: "correct", ...p })} /> : null}
+    {missingOpen ? <MissingPunchSheet restaurantId={restaurantId} members={members} assignments={assignments} ar={ar} lang={lang} onClose={() => setMissingOpen(false)} /> : null}
   </section>;
+}
+
+function MissingPunchSheet({ restaurantId, members, assignments, ar, lang, onClose }: { restaurantId: string; members: WorkforceMember[]; assignments: ShiftAssignment[]; ar: boolean; lang: "en" | "ar"; onClose: () => void }) {
+  const qc = useQueryClient();
+  const activeMembers = members.filter((member) => member.is_active);
+  const [staffId, setStaffId] = useState(activeMembers[0]?.id ?? "");
+  const selectedAssignment = assignments
+    .filter((assignment) => assignment.staff_id === staffId && assignment.status !== "released" && assignment.starts_at && assignment.ends_at)
+    .sort((a, b) => Math.abs(Date.now() - new Date(a.starts_at!).getTime()) - Math.abs(Date.now() - new Date(b.starts_at!).getTime()))[0] ?? null;
+  const defaultIn = selectedAssignment?.starts_at ? toLocalInput(selectedAssignment.starts_at) : "";
+  const defaultOut = selectedAssignment?.ends_at ? toLocalInput(selectedAssignment.ends_at) : "";
+  const [clockIn, setClockIn] = useState("");
+  const [clockOut, setClockOut] = useState("");
+  const [breakMinutes, setBreakMinutes] = useState("0");
+  const [reason, setReason] = useState("");
+
+  const cin = clockIn || defaultIn;
+  const cout = clockOut || defaultOut;
+  const durationMinutes = cin && cout ? Math.round((new Date(cout).getTime() - new Date(cin).getTime()) / 60000) : 0;
+  const invalid = !staffId || !cin || !cout || durationMinutes <= 0 || Number(breakMinutes) < 0 || Number(breakMinutes) >= durationMinutes || !reason.trim() || new Date(cin).getTime() > Date.now() + 5 * 60_000 || new Date(cout).getTime() > Date.now() + 5 * 60_000;
+
+  const create = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase as any).rpc("create_missing_time_entry", {
+        _restaurant_id: restaurantId,
+        _staff_id: staffId,
+        _clock_in: new Date(cin).toISOString(),
+        _clock_out: new Date(cout).toISOString(),
+        _break_minutes: Number(breakMinutes) || 0,
+        _reason: reason.trim(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["workforce"] }),
+        qc.invalidateQueries({ queryKey: ["platform", "staff-schedule", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }),
+      ]);
+      toast.success(ar ? "تمت إضافة البصمة الناقصة للمراجعة" : "Missing punch added for review");
+      onClose();
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  const applySchedule = () => {
+    if (!selectedAssignment?.starts_at || !selectedAssignment.ends_at) return;
+    setClockIn(toLocalInput(selectedAssignment.starts_at));
+    setClockOut(toLocalInput(selectedAssignment.ends_at));
+  };
+
+  return <DetailSheet
+    open
+    onOpenChange={(open) => { if (!open && !create.isPending) onClose(); }}
+    title={ar ? "إضافة بصمة ناقصة" : "Add missing punch"}
+    description={ar ? "أضف وقتاً مفقوداً بأمان مع سبب وتدقيق إداري." : "Add a missing time entry safely with a required reason and audit trail."}
+    footer={<div className="flex gap-2"><Button variant="outline" className="flex-1" disabled={create.isPending} onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button><Button className="flex-1" disabled={invalid || create.isPending} onClick={() => create.mutate()}><Clock3 className="size-4" />{create.isPending ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "إضافة للمراجعة" : "Add for review")}</Button></div>}
+  >
+    <div className="space-y-4 py-2">
+      <div className="rounded-2xl border border-orange-200/70 bg-orange-500/[0.045] p-3 text-xs leading-5 text-muted-foreground dark:border-orange-900/50">
+        <strong className="block text-foreground">{ar ? "إجراء إداري مدقّق" : "Audited manager action"}</strong>
+        <span>{ar ? "سيُنشأ السجل بحالة «للمراجعة» ولن يعتمد تلقائياً." : "The entry is created as Review — it is never auto-approved."}</span>
+      </div>
+      <div className="space-y-2"><Label>{ar ? "الموظف" : "Team member"}</Label><Select value={staffId} onValueChange={(value) => { setStaffId(value); setClockIn(""); setClockOut(""); }}><SelectTrigger className="min-h-11"><SelectValue placeholder={ar ? "اختر موظفاً" : "Choose a team member"} /></SelectTrigger><SelectContent>{activeMembers.map((member) => <SelectItem key={member.id} value={member.id}>{member.name} · {roleLabel(member.role, ar)}</SelectItem>)}</SelectContent></Select></div>
+      {selectedAssignment?.starts_at && selectedAssignment.ends_at ? <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/25 p-3"><span className="min-w-0 text-[11px] text-muted-foreground"><strong className="block truncate text-xs text-foreground">{ar ? "الوردية الأقرب" : "Nearest scheduled shift"}</strong>{fmtTime(selectedAssignment.starts_at, ar)}–{fmtTime(selectedAssignment.ends_at, ar)}</span><Button type="button" size="sm" variant="outline" onClick={applySchedule}>{ar ? "استخدم وقت الجدول" : "Use schedule"}</Button></div> : null}
+      <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>{ar ? "الدخول" : "Clock in"}</Label><Input type="datetime-local" className="min-h-11" value={cin} onChange={(e) => setClockIn(e.target.value)} /></div><div className="space-y-2"><Label>{ar ? "الخروج" : "Clock out"}</Label><Input type="datetime-local" className="min-h-11" value={cout} onChange={(e) => setClockOut(e.target.value)} /></div></div>
+      <div className="space-y-2"><Label>{ar ? "الاستراحة (دقائق)" : "Break (minutes)"}</Label><Input type="number" min={0} className="min-h-11" value={breakMinutes} onChange={(e) => setBreakMinutes(e.target.value)} /></div>
+      <div className="space-y-2"><Label>{ar ? "سبب إضافة البصمة (مطلوب)" : "Reason for missing punch (required)"}</Label><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={ar ? "مثال: نسي الموظف تسجيل الدخول وتم التحقق من المدير" : "e.g. Employee forgot to clock in; manager verified the shift"} /></div>
+      {cin && cout && durationMinutes > 0 ? <p className="text-[11px] font-semibold text-muted-foreground">{ar ? `المدة المسجلة: ${Math.floor(durationMinutes / 60)}س ${durationMinutes % 60}د` : `Recorded duration: ${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`}</p> : null}
+    </div>
+  </DetailSheet>;
 }
 
 function Metric({ l, v, warn }: { l: string; v: string; warn?: boolean }) {
