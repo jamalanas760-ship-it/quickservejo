@@ -454,11 +454,19 @@ function WorkforceClockHero({
         qc.invalidateQueries({ queryKey: ["workforce-clock-history", restaurantId, currentStaffId] }),
         qc.invalidateQueries({ queryKey: ["workforce", restaurantId] }),
       ]);
+      const completedSeconds =
+        isOut && result?.clock_in
+          ? Math.max(0, Math.floor((new Date(at).getTime() - new Date(result.clock_in).getTime()) / 1000))
+          : 0;
       toast.success(
         isOut
-          ? ar
-            ? "تم تسجيل الانصراف"
-            : "Clocked out"
+          ? completedSeconds > 0
+            ? ar
+              ? `تم تسجيل الانصراف · مدة الجلسة ${formatClockDuration(completedSeconds, true)}`
+              : `Clocked out · session ${formatClockDuration(completedSeconds, false)}`
+            : ar
+              ? "تم تسجيل الانصراف"
+              : "Clocked out"
           : ar
             ? "تم تسجيل الحضور"
             : "Clocked in",
