@@ -1733,7 +1733,7 @@ function AssignStaffShiftDialog({
   const [shiftId, setShiftId] = useState(available[0]?.id ?? "");
   const [name, setName] = useState(ar ? "وردية خدمة" : "Service shift");
   const [date, setDate] = useState(today);
-  const [rangeEnd, setRangeEnd] = useState(today);
+  const [rangeEnd, setRangeEnd] = useState(() => addLocalDays(today, 83));
   const [weekdays, setWeekdays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("17:00");
@@ -1879,7 +1879,7 @@ function AssignStaffShiftDialog({
             <div className="space-y-4">
               <div className="grid grid-cols-2 rounded-xl border border-border bg-muted/20 p-1">
                 <button type="button" onClick={() => setNewMode("single")} className={cn("min-h-10 rounded-lg px-3 text-xs font-bold transition sm:text-sm", newMode === "single" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "يوم واحد" : "Single day"}</button>
-                <button type="button" onClick={() => { setNewMode("recurring"); if (rangeEnd < date) setRangeEnd(date); }} className={cn("min-h-10 rounded-lg px-3 text-xs font-bold transition sm:text-sm", newMode === "recurring" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "أيام متكررة" : "Recurring days"}</button>
+                <button type="button" onClick={() => { setNewMode("recurring"); if (rangeEnd <= date) setRangeEnd(addLocalDays(date, 83)); }} className={cn("min-h-10 rounded-lg px-3 text-xs font-bold transition sm:text-sm", newMode === "recurring" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "أيام متكررة" : "Recurring days"}</button>
               </div>
 
               <Field label={ar ? "اسم الوردية" : "Shift name"}>
@@ -1891,7 +1891,7 @@ function AssignStaffShiftDialog({
               ) : (
                 <>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label={ar ? "من تاريخ" : "Start date"}><Input type="date" value={date} min={today} onChange={(event) => { const next = event.target.value; setDate(next); if (rangeEnd < next) setRangeEnd(next); }} /></Field>
+                    <Field label={ar ? "من تاريخ" : "Start date"}><Input type="date" value={date} min={today} onChange={(event) => { const next = event.target.value; setDate(next); if (rangeEnd < next) setRangeEnd(addLocalDays(next, 83)); }} /></Field>
                     <Field label={ar ? "إلى تاريخ" : "End date"}><Input type="date" value={rangeEnd} min={date} onChange={(event) => setRangeEnd(event.target.value)} /></Field>
                   </div>
 
@@ -2198,6 +2198,12 @@ function localDateTimeIso(date: string, time: string, addDays = 0) {
   if (addDays) value.setDate(value.getDate() + addDays);
   if (Number.isNaN(value.getTime())) throw new Error("Invalid shift date or time.");
   return value.toISOString();
+}
+
+function addLocalDays(date: string, days: number) {
+  const value = new Date(`${date}T12:00:00`);
+  value.setDate(value.getDate() + days);
+  return localDateKey(value);
 }
 
 function formatScheduleWindow(value: string | null, ar: boolean) {
