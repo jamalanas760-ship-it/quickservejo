@@ -443,7 +443,7 @@ function RequestRow({
   reason: string;
   status: RequestStatus;
   attachmentName: string | null;
-  onAttachment?: () => void;
+  onAttachment: (() => void) | undefined;
   canReview: boolean;
   pending: boolean;
   onApprove: () => void;
