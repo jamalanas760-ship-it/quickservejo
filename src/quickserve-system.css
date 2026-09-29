@@ -3128,3 +3128,207 @@ html.qs-ios-context-active .qs-ios-haptic-nav-item[data-ios-context-source="true
     scroll-behavior:auto!important;
   }
 }
+
+
+/* Master Workforce polish + theme + loading — 2026-09-29 */
+
+/* Theme changes are deliberately animated only during a user-triggered switch.
+   Geometry never transitions, so there is no layout wobble or hydration flash. */
+html.qs-theme-transitioning,
+html.qs-theme-transitioning body,
+html.qs-theme-transitioning :is(
+  .qs-app,.tenant-app,.restaurant-theme-scope,
+  header,nav,aside,main,section,article,div,button,a,input,textarea,select,
+  [role="dialog"],[role="menu"],[role="tab"]
+){
+  transition-property:background-color,color,border-color,box-shadow,fill,stroke!important;
+  transition-duration:240ms!important;
+  transition-timing-function:cubic-bezier(.22,.8,.28,1)!important;
+}
+@media(prefers-reduced-motion:reduce){
+  html.qs-theme-transitioning,
+  html.qs-theme-transitioning *{transition:none!important}
+}
+
+/* Premium session launch: operational rather than decorative. */
+.qs-master-splash{
+  isolation:isolate;
+  background:
+    radial-gradient(48rem 24rem at 50% 8%,color-mix(in srgb,var(--qs-brand) 10%,transparent),transparent 72%),
+    var(--qs-canvas);
+}
+.qs-master-splash-grid{
+  position:absolute;
+  inset:0;
+  opacity:.22;
+  pointer-events:none;
+  background-image:
+    linear-gradient(color-mix(in srgb,var(--qs-stroke) 55%,transparent) 1px,transparent 1px),
+    linear-gradient(90deg,color-mix(in srgb,var(--qs-stroke) 55%,transparent) 1px,transparent 1px);
+  background-size:44px 44px;
+  -webkit-mask-image:linear-gradient(to bottom,black,transparent 78%);
+  mask-image:linear-gradient(to bottom,black,transparent 78%);
+}
+.qs-master-splash-orbit{
+  position:absolute;
+  left:50%;
+  top:45%;
+  border:1px solid color-mix(in srgb,var(--qs-brand) 18%,transparent);
+  border-radius:999px;
+  pointer-events:none;
+  transform:translate(-50%,-50%);
+}
+.qs-master-splash-orbit-a{width:min(78vw,720px);height:min(78vw,720px);animation:qs-master-orbit 7s linear infinite}
+.qs-master-splash-orbit-b{width:min(56vw,520px);height:min(56vw,520px);opacity:.45;animation:qs-master-orbit 9s linear infinite reverse}
+.qs-master-splash-brand{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:14px;
+  animation:qs-master-splash-enter .52s cubic-bezier(.2,.82,.2,1) both;
+}
+.qs-master-splash-logo{
+  position:relative;
+  display:grid;
+  width:88px;
+  height:88px;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--qs-stroke) 85%,transparent);
+  border-radius:26px;
+  background:color-mix(in srgb,var(--qs-surface) 96%,transparent);
+  box-shadow:0 22px 60px rgb(15 23 42/.10),inset 0 1px 0 rgb(255 255 255/.55);
+}
+.qs-master-splash-logo-ring{
+  position:absolute;
+  inset:-8px;
+  border:1px solid color-mix(in srgb,var(--qs-brand) 38%,transparent);
+  border-radius:31px;
+  animation:qs-master-logo-ring 1.65s ease-out infinite;
+}
+.qs-master-splash-board{
+  overflow:hidden;
+  border:1px solid color-mix(in srgb,var(--qs-stroke) 84%,transparent);
+  border-radius:22px;
+  background:color-mix(in srgb,var(--qs-surface) 94%,transparent);
+  box-shadow:0 24px 70px rgb(15 23 42/.10);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  animation:qs-master-board-enter .62s .08s cubic-bezier(.2,.82,.2,1) both;
+}
+.qs-master-splash-board-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border-bottom:1px solid var(--qs-stroke);
+  padding:13px 15px;
+}
+.qs-master-splash-board-title{font-size:11px;font-weight:800;color:var(--qs-muted)}
+.qs-master-splash-live{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border-radius:999px;
+  background:color-mix(in srgb,var(--qs-success) 10%,transparent);
+  padding:5px 8px;
+  color:var(--qs-success);
+  font-size:9px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.qs-master-splash-live i{width:6px;height:6px;border-radius:999px;background:currentColor;animation:qs-master-live 1.4s ease-in-out infinite}
+.qs-master-splash-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;padding:12px}
+.qs-master-splash-card{
+  display:flex;
+  min-width:0;
+  align-items:center;
+  gap:9px;
+  border:1px solid var(--qs-stroke);
+  border-radius:14px;
+  background:var(--qs-surface-soft);
+  padding:11px;
+  animation:qs-master-card-pulse 1.8s ease-in-out infinite alternate;
+}
+.qs-master-splash-card:nth-child(2){animation-delay:.16s}.qs-master-splash-card:nth-child(3){animation-delay:.32s}
+.qs-master-splash-icon{display:grid;width:30px;height:30px;flex:0 0 auto;place-items:center;border-radius:9px;background:var(--qs-brand-soft);color:var(--qs-brand-strong)}
+.qs-master-splash-card span:last-child{min-width:0}
+.qs-master-splash-card b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}
+.qs-master-splash-card small{display:block;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--qs-muted);font-size:8px}
+.qs-master-splash-rail{height:3px;overflow:hidden;background:var(--qs-stroke)}
+.qs-master-splash-rail span{display:block;width:32%;height:100%;border-radius:999px;background:var(--qs-brand);animation:qs-master-rail 1.05s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes qs-master-splash-enter{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes qs-master-board-enter{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes qs-master-logo-ring{0%{opacity:.8;transform:scale(.9)}100%{opacity:0;transform:scale(1.22)}}
+@keyframes qs-master-live{50%{opacity:.35;transform:scale(.82)}}
+@keyframes qs-master-rail{0%{transform:translateX(-115%)}100%{transform:translateX(340%)}}
+@keyframes qs-master-orbit{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes qs-master-card-pulse{from{border-color:var(--qs-stroke)}to{border-color:color-mix(in srgb,var(--qs-brand) 28%,var(--qs-stroke))}}
+@media(max-width:640px){
+  .qs-master-splash-board{max-width:420px}
+  .qs-master-splash-cards{grid-template-columns:1fr;gap:7px}
+  .qs-master-splash-card{padding:9px 10px}
+  .qs-master-splash-orbit-a{width:96vw;height:96vw}
+  .qs-master-splash-orbit-b{width:74vw;height:74vw}
+}
+@media(prefers-reduced-motion:reduce){
+  .qs-master-splash *{animation:none!important}
+}
+
+/* Recurring shift dialog: viewport-safe scroll body with persistent actions. */
+.qs-shift-dialog-scroll{
+  scrollbar-width:thin;
+  scrollbar-color:color-mix(in srgb,var(--qs-muted) 32%,transparent) transparent;
+}
+.qs-shift-dialog-scroll::-webkit-scrollbar{width:6px}
+.qs-shift-dialog-scroll::-webkit-scrollbar-track{background:transparent}
+.qs-shift-dialog-scroll::-webkit-scrollbar-thumb{border-radius:999px;background:color-mix(in srgb,var(--qs-muted) 28%,transparent)}
+@media(max-width:640px){
+  .qs-shift-dialog-scroll{padding-bottom:24px}
+}
+
+/* Mobile attendance command dock sits above the main nav and never participates
+   in page scroll. It is only mounted on Workforce Overview/Attendance. */
+.qs-mobile-punch-dock{display:none}
+@media(max-width:767px){
+  .qs-mobile-punch-dock{
+    position:fixed;
+    inset-inline:12px;
+    bottom:calc(78px + max(6px,env(safe-area-inset-bottom)));
+    z-index:46;
+    display:flex;
+    min-height:58px;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    border:1px solid color-mix(in srgb,var(--qs-stroke) 88%,transparent);
+    border-radius:17px;
+    background:color-mix(in srgb,var(--qs-surface) 97%,transparent);
+    padding:8px 9px 8px 13px;
+    box-shadow:0 14px 38px rgb(15 23 42/.16),0 1px 2px rgb(15 23 42/.08);
+    backdrop-filter:blur(18px) saturate(1.1);
+    -webkit-backdrop-filter:blur(18px) saturate(1.1);
+    transform:translateZ(0);
+  }
+  .qs-workforce-screen:has(.qs-mobile-punch-dock){
+    padding-bottom:calc(154px + env(safe-area-inset-bottom))!important;
+  }
+}
+@supports (-webkit-touch-callout:none){
+  @media(max-width:767px){
+    .qs-mobile-punch-dock{
+      -webkit-backdrop-filter:none;
+      backdrop-filter:none;
+      background:color-mix(in srgb,var(--qs-surface) 98%,white 2%);
+    }
+    .dark .qs-mobile-punch-dock{background:color-mix(in srgb,var(--qs-surface) 98%,black 2%)}
+  }
+}
+
+/* Workforce overview: tighter, more scan-friendly operational density. */
+.qs-workforce-kpis>article{min-height:116px}
+@media(max-width:767px){
+  .qs-workforce-hero{border-radius:18px;padding:12px}
+  .qs-workforce-kpis{gap:8px!important}
+  .qs-workforce-kpis>article{min-height:104px}
+}
