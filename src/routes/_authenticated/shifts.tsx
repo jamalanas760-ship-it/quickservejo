@@ -42,6 +42,7 @@ import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
 import { membershipHasCapability, ROLE_LABELS, type AppRole } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
+import { MemberWorkforceSheet, WorkforceAttendanceBoard, WorkforceExceptions, WorkforceTeam, WorkforceTimesheets, type WorkforceMember } from "@/components/workforce/WorkforceInsights";
 
 export const Route = createFileRoute("/_authenticated/shifts")({
   head: () => ({ meta: [{ title: "Workforce — QuickServe" }, { name: "description", content: "Restaurant workforce scheduling, attendance, time off and labor control." }] }),
@@ -49,7 +50,7 @@ export const Route = createFileRoute("/_authenticated/shifts")({
 });
 
 type ShiftView = "timeline" | "calendar" | "list";
-type WorkforceSection = "overview" | "schedule" | "attendance" | "time_off" | "labor";
+type WorkforceSection = "overview" | "schedule" | "attendance" | "timesheets" | "time_off" | "team" | "labor";
 
 const HANDOVER_ROLES: AppRole[] = ["restaurant_admin", "operations_manager", "manager", "kitchen", "waiter", "cashier", "host", "inventory", "procurement", "accountant"];
 const SHIFT_WEEKDAYS = [
@@ -84,6 +85,7 @@ function ShiftsPage() {
   const [detailShiftId, setDetailShiftId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ShiftView>("timeline");
   const [workforceSection, setWorkforceSection] = useState<WorkforceSection>("overview");
+  const [memberSheet, setMemberSheet] = useState<WorkforceMember | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toLocaleDateString("en-CA"));
 
   if (scope.isPending || access.isPending) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><Skeleton className="h-[620px] rounded-3xl" /></main></div>;
@@ -168,9 +170,14 @@ function ShiftsPage() {
       <div className={cn(workforceSection !== "overview" && workforceSection !== "schedule" && "hidden")}>
         {openShiftRow ? <CurrentShift shift={openShiftRow} assignments={(assignments.data ?? []).filter((row) => row.shift_id === openShiftRow.id)} members={members.data ?? []} canManage={canManage} currentStaffId={membership.id} ar={ar} lang={lang} onClose={() => setClosingShift(openShiftRow)} /> : <section className="qs-card flex items-center gap-4 p-5"><span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-5" /></span><div><h2 className="font-bold">{ar ? "لا توجد وردية مفتوحة" : "No shift is open"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكن لمدير الوردية فتح وردية مخططة عندما يبدأ التشغيل." : "A shift manager can open a planned shift when service starts."}</p></div></section>}
       </div>
-      {workforceSection !== "schedule" ? <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} lang={lang} mode={workforceSection} /> : null}
+      {workforceSection === "overview" ? <WorkforceExceptions restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} /> : null}
+      {workforceSection === "attendance" ? <WorkforceAttendanceBoard restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} onOpen={setMemberSheet} /> : null}
+      {workforceSection === "timesheets" ? <WorkforceTimesheets restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} canManage={canManage} canReopen={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpenMember={setMemberSheet} /> : null}
+      {workforceSection === "team" ? <WorkforceTeam restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} onOpen={setMemberSheet} canManageTeam={membershipHasCapability(membership.role, membership.permission_overrides, "manage_staff")} /> : null}
+      {workforceSection !== "schedule" && workforceSection !== "timesheets" && workforceSection !== "team" ? <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} lang={lang} mode={workforceSection} /> : null}
     </main>
 
+    <MemberWorkforceSheet member={memberSheet} onClose={() => setMemberSheet(null)} restaurantId={rid} assignments={assignments.data ?? []} ar={ar} canManageTeam={membershipHasCapability(membership.role, membership.permission_overrides, "manage_staff")} />
     <DetailSheet
       open={Boolean(detailShift)}
       onOpenChange={(open) => { if (!open) setDetailShiftId(null); }}
@@ -256,12 +263,14 @@ function WorkforceNavigation({ active, onChange, canManage, ar }: { active: Work
     { id: "overview", label: ar ? "نظرة عامة" : "Overview", icon: UsersRound },
     { id: "schedule", label: ar ? "الجدول" : "Schedule", icon: CalendarClock },
     { id: "attendance", label: ar ? "الحضور" : "Attendance", icon: TimerReset },
+    { id: "timesheets", label: ar ? "سجلات الدوام" : "Timesheets", icon: CheckCircle2 },
     { id: "time_off", label: ar ? "الإجازات" : "Time Off", icon: CalendarDays },
+    { id: "team", label: ar ? "الفريق" : "Team", icon: UserPlus },
     ...(canManage ? [{ id: "labor" as WorkforceSection, label: ar ? "العمالة" : "Labor", icon: Clock3 }] : []),
   ];
 
   return <nav className="qs-card sticky top-[calc(var(--qs-shell-topbar)+.5rem)] z-30 overflow-x-auto p-1.5 shadow-sm" aria-label={ar ? "أقسام القوى العاملة" : "Workforce sections"}>
-    <div className="grid min-w-[520px] grid-cols-4 gap-1 sm:min-w-0 sm:grid-cols-5">
+    <div className="flex gap-1 [&>button]:shrink-0 lg:[&>button]:flex-1">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = active === tab.id;
