@@ -3574,3 +3574,305 @@ html.qs-theme-transitioning :is(svg,path,circle,rect,line,polyline){
 @media(prefers-reduced-motion:reduce){
   .qs-workforce-live-pill>i{animation:none!important}
 }
+
+
+/* Workforce master refinement + atomic theme + topbar microinteractions — 2026-09-29 */
+
+/* The fallback theme path is intentionally atomic. The video showed a split
+   repaint where the hero changed first and the canvas followed later; disable
+   descendant color transitions while the root class changes. */
+html.qs-theme-transitioning,
+html.qs-theme-transitioning *,
+html.qs-theme-view-transition,
+html.qs-theme-view-transition *{
+  transition:none!important;
+}
+::view-transition-group(root){
+  animation-duration:190ms;
+  animation-timing-function:cubic-bezier(.2,.72,.22,1);
+}
+::view-transition-old(root){
+  animation:qs-theme-root-out 190ms cubic-bezier(.2,.72,.22,1) both;
+}
+::view-transition-new(root){
+  animation:qs-theme-root-in 190ms cubic-bezier(.2,.72,.22,1) both;
+  mix-blend-mode:normal;
+}
+@keyframes qs-theme-root-out{
+  from{opacity:1}
+  to{opacity:.82}
+}
+@keyframes qs-theme-root-in{
+  from{opacity:.82}
+  to{opacity:1}
+}
+@media(prefers-reduced-motion:reduce){
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-group(root){animation:none!important}
+}
+
+/* Exact keycap treatment requested for the desktop search shortcut. */
+.qs-topbar-shortcut{
+  display:inline-flex;
+  flex:0 0 auto;
+  align-items:center;
+  gap:4px;
+  border:1px solid color-mix(in srgb,var(--qs-stroke) 92%,transparent);
+  border-radius:10px;
+  background:color-mix(in srgb,var(--qs-surface-soft) 88%,var(--qs-surface));
+  padding:3px;
+  box-shadow:inset 0 1px 0 rgb(255 255 255/.48);
+  white-space:nowrap;
+}
+.qs-topbar-shortcut kbd{
+  display:grid!important;
+  height:27px!important;
+  min-height:27px!important;
+  min-width:27px;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--qs-stroke) 98%,transparent)!important;
+  border-radius:7px!important;
+  background:var(--qs-surface)!important;
+  padding:0 7px!important;
+  box-shadow:0 1px 2px rgb(15 23 42/.05),inset 0 1px 0 rgb(255 255 255/.58)!important;
+  color:var(--qs-ink)!important;
+  font-size:9px!important;
+  font-weight:800!important;
+  line-height:1!important;
+}
+.qs-topbar-shortcut i{
+  color:color-mix(in srgb,var(--qs-muted) 78%,transparent);
+  font-size:9px;
+  font-style:normal;
+  font-weight:800;
+  line-height:1;
+}
+.dark .qs-topbar-shortcut{
+  box-shadow:inset 0 1px 0 rgb(255 255 255/.035);
+}
+.dark .qs-topbar-shortcut kbd{
+  box-shadow:0 1px 2px rgb(0 0 0/.24),inset 0 1px 0 rgb(255 255 255/.055)!important;
+}
+
+/* Language/account menus: small transform distance, spring-like settle, no
+   long blur animation. This keeps the topbar responsive on lower-end devices. */
+.qs-topbar-menu-trigger{
+  transform:translateZ(0);
+  transition:background-color 140ms ease,border-color 140ms ease,color 140ms ease,transform 140ms cubic-bezier(.2,.8,.2,1)!important;
+}
+.qs-topbar-menu-trigger:active{transform:scale(.975)}
+.qs-topbar-menu-trigger[data-state="open"]{
+  border-color:var(--qs-stroke)!important;
+  background:var(--qs-surface-soft)!important;
+  color:var(--qs-ink)!important;
+}
+.qs-topbar-chevron{
+  transition:transform 180ms cubic-bezier(.2,.8,.2,1)!important;
+  transform-origin:center;
+}
+.qs-topbar-menu-trigger[data-state="open"] .qs-topbar-chevron{
+  transform:rotate(180deg);
+}
+.qs-topbar-popover{
+  transform-origin:var(--radix-dropdown-menu-content-transform-origin);
+  will-change:transform,opacity;
+}
+.qs-topbar-popover[data-state="open"]{
+  animation:qs-topbar-popover-in 175ms cubic-bezier(.16,1,.3,1) both!important;
+}
+.qs-topbar-popover[data-state="closed"]{
+  animation:qs-topbar-popover-out 110ms ease both!important;
+}
+@keyframes qs-topbar-popover-in{
+  from{opacity:0;transform:translateY(-4px) scale(.975)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes qs-topbar-popover-out{
+  from{opacity:1;transform:translateY(0) scale(1)}
+  to{opacity:0;transform:translateY(-2px) scale(.985)}
+}
+
+/* Workforce is now one quiet command surface instead of a stack of competing
+   dashboards. Keep hierarchy, separators and actions explicit. */
+.qs-workforce-screen{
+  --qs-workforce-radius:17px;
+}
+.qs-workforce-hero{
+  overflow:hidden;
+  border:1px solid var(--qs-stroke)!important;
+  border-radius:var(--qs-workforce-radius)!important;
+  background:var(--qs-surface)!important;
+  padding:2px!important;
+  box-shadow:0 3px 14px rgb(15 23 42/.035)!important;
+}
+.qs-workforce-hero:before{
+  content:"";
+  position:absolute;
+  inset-block:16px;
+  inset-inline-start:0;
+  width:3px;
+  border-radius:0 999px 999px 0;
+  background:var(--qs-brand);
+  opacity:.72;
+}
+[dir="rtl"] .qs-workforce-hero:before{
+  inset-inline-start:auto;
+  inset-inline-end:0;
+  border-radius:999px 0 0 999px;
+}
+.qs-workforce-hero:after{display:none!important}
+.qs-workforce-snapshot{
+  border-radius:var(--qs-workforce-radius);
+  box-shadow:0 2px 10px rgb(15 23 42/.025);
+}
+.qs-workforce-snapshot-item{
+  position:relative;
+  background:var(--qs-surface);
+  border-inline-end:1px solid var(--qs-stroke);
+}
+.qs-workforce-snapshot-item:last-child{border-inline-end:0}
+.qs-workforce-snapshot-item:hover{background:var(--qs-surface-soft)}
+.qs-workforce-overview-grid{
+  align-items:stretch;
+}
+.qs-workforce-overview-grid>.qs-card{
+  min-width:0;
+  border-radius:var(--qs-workforce-radius);
+  box-shadow:0 2px 10px rgb(15 23 42/.025);
+}
+.qs-workforce-punch-zone .qs-clock-hero{
+  display:grid;
+  grid-template-columns:minmax(0,1.15fr) minmax(300px,.95fr) auto;
+  align-items:center;
+  gap:18px;
+  border:1px solid var(--qs-stroke)!important;
+  border-radius:var(--qs-workforce-radius);
+  background:linear-gradient(90deg,var(--qs-surface),color-mix(in srgb,var(--qs-brand) 2.8%,var(--qs-surface)));
+  padding:16px 18px;
+  box-shadow:0 3px 14px rgb(15 23 42/.035)!important;
+}
+.qs-clock-hero-person{
+  display:flex;
+  min-width:0;
+  align-items:center;
+  gap:12px;
+}
+.qs-clock-avatar{
+  display:grid;
+  width:46px;
+  height:46px;
+  flex:0 0 auto;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--qs-brand) 24%,var(--qs-stroke));
+  border-radius:14px;
+  background:var(--qs-brand-soft);
+  color:var(--qs-brand-strong);
+  font-size:12px;
+  font-weight:900;
+}
+.qs-clock-hero-metrics{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.qs-clock-metric{
+  display:flex;
+  min-width:0;
+  align-items:center;
+  gap:9px;
+  border:1px solid var(--qs-stroke);
+  border-radius:12px;
+  background:var(--qs-surface-soft);
+  padding:9px 10px;
+}
+.qs-clock-metric span{min-width:0}
+.qs-clock-metric small,
+.qs-clock-metric em{
+  display:block;
+  overflow:hidden;
+  color:var(--qs-muted);
+  font-size:8px;
+  font-style:normal;
+  font-weight:700;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.qs-clock-metric strong{
+  display:block;
+  margin-top:1px;
+  font-size:13px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.qs-clock-hero-action{
+  display:flex;
+  min-width:174px;
+  flex-direction:column;
+  align-items:stretch;
+  gap:6px;
+}
+.qs-clock-missing-link{
+  display:inline-flex;
+  min-height:30px;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  border-radius:9px;
+  color:var(--qs-muted);
+  font-size:9px;
+  font-weight:750;
+  transition:background-color 120ms ease,color 120ms ease;
+}
+.qs-clock-missing-link:hover{
+  background:var(--qs-surface-soft);
+  color:var(--qs-brand-strong);
+}
+
+@media(max-width:1279px){
+  .qs-workforce-punch-zone .qs-clock-hero{
+    grid-template-columns:minmax(0,1fr) auto;
+  }
+  .qs-clock-hero-metrics{grid-column:1/-1;grid-row:2}
+}
+@media(max-width:767px){
+  .qs-workforce-hero{border-radius:14px!important}
+  .qs-workforce-snapshot{
+    border-radius:14px;
+  }
+  .qs-workforce-snapshot-item{
+    border-bottom:1px solid var(--qs-stroke);
+  }
+  .qs-workforce-snapshot-item:nth-child(2n){border-inline-end:0}
+  .qs-workforce-snapshot-item:nth-last-child(-n+2){border-bottom:0}
+  .qs-workforce-overview-grid{gap:10px!important}
+  .qs-workforce-punch-zone .qs-clock-hero{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:12px;
+    border-radius:14px;
+    padding:13px;
+  }
+  .qs-clock-hero-metrics{
+    grid-column:auto;
+    grid-row:auto;
+  }
+  .qs-clock-hero-action{
+    min-width:0;
+  }
+  .qs-clock-hero-action>button:first-child{width:100%}
+  .qs-clock-missing-link{min-height:34px}
+  .qs-mobile-punch-dock{
+    gap:8px!important;
+  }
+}
+@media(min-width:768px) and (max-width:1279px){
+  .qs-workforce-snapshot-item:nth-child(3n){border-inline-end:0}
+  .qs-workforce-snapshot-item:nth-child(-n+3){border-bottom:1px solid var(--qs-stroke)}
+}
+@media(prefers-reduced-motion:reduce){
+  .qs-topbar-popover,
+  .qs-topbar-menu-trigger,
+  .qs-topbar-chevron{animation:none!important;transition:none!important}
+}
