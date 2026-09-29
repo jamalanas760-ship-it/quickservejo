@@ -3064,3 +3064,67 @@ html.qs-ios-context-active .qs-ios-haptic-nav-item[data-ios-context-source="true
 @media(prefers-reduced-motion:reduce){
   .qs-ios-context-menu,.qs-ios-context-source-lift,.qs-ios-context-backdrop{animation:none!important}
 }
+
+
+/* Mobile bottom navigation viewport lock — 2026-09-29 */
+/*
+ * Keep the phone dock visually pinned while the mobile browser chrome expands/
+ * collapses during scroll. The previous layout applied the safe-area twice
+ * (outer safe-bottom padding + a dynamic bottom offset), which could make the
+ * floating dock appear to ride up/down with the viewport.
+ */
+@media (max-width:767px){
+  .qs-app nav.qs-mobile-bottom-nav{
+    position:fixed!important;
+    inset-inline:0!important;
+    inset-block-start:auto!important;
+    bottom:0!important;
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:0 8px max(6px,env(safe-area-inset-bottom))!important;
+    transform:translate3d(0,0,0)!important;
+    -webkit-transform:translate3d(0,0,0)!important;
+    -webkit-backface-visibility:hidden;
+    backface-visibility:hidden;
+    will-change:transform;
+    transition:none!important;
+    animation:none!important;
+    pointer-events:none;
+    z-index:50;
+  }
+
+  .qs-app nav.qs-mobile-bottom-nav>.qs-mobile-bottom-nav-shell{
+    width:100%;
+    pointer-events:auto;
+    transform:translateZ(0);
+    -webkit-transform:translateZ(0);
+    -webkit-backface-visibility:hidden;
+    backface-visibility:hidden;
+    background:color-mix(in srgb,var(--qs-surface) 98%,transparent);
+    box-shadow:0 10px 30px rgb(15 23 42/.14),0 1px 3px rgb(15 23 42/.08);
+  }
+}
+
+/* Fixed + backdrop-filter can repaint/jitter while iOS Safari changes its chrome.
+   Prefer a near-opaque native-feeling surface there; the visual quality stays
+   high while the dock remains rock-solid during up/down scrolling. */
+@supports (-webkit-touch-callout:none){
+  @media (max-width:767px){
+    .qs-app nav.qs-mobile-bottom-nav>.qs-mobile-bottom-nav-shell{
+      -webkit-backdrop-filter:none!important;
+      backdrop-filter:none!important;
+      background:color-mix(in srgb,var(--qs-surface) 98%,white 2%);
+    }
+    .dark .qs-app nav.qs-mobile-bottom-nav>.qs-mobile-bottom-nav-shell{
+      background:color-mix(in srgb,var(--qs-surface) 98%,black 2%);
+    }
+  }
+}
+
+@media (prefers-reduced-motion:reduce) and (max-width:767px){
+  .qs-app nav.qs-mobile-bottom-nav,
+  .qs-app nav.qs-mobile-bottom-nav *{
+    scroll-behavior:auto!important;
+  }
+}
