@@ -12,6 +12,7 @@ export function SplashScreen() {
   const { lang } = useI18n();
   const ar = lang === "ar";
   const [phase, setPhase] = useState<"hidden" | "visible" | "leaving">("hidden");
+  const [step, setStep] = useState(0);
 
   useEffect(() => {
     const path = window.location.pathname;
@@ -21,9 +22,13 @@ export function SplashScreen() {
     setPhase("visible");
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const stepOne = window.setTimeout(() => setStep(1), reduceMotion ? 80 : 260);
+    const stepTwo = window.setTimeout(() => setStep(2), reduceMotion ? 160 : 560);
     const leave = window.setTimeout(() => setPhase("leaving"), reduceMotion ? 450 : 1050);
     const done = window.setTimeout(() => setPhase("hidden"), reduceMotion ? 650 : 1450);
     return () => {
+      window.clearTimeout(stepOne);
+      window.clearTimeout(stepTwo);
       window.clearTimeout(leave);
       window.clearTimeout(done);
     };
@@ -62,20 +67,20 @@ export function SplashScreen() {
             <span className="qs-master-splash-live"><i />{ar ? "مباشر" : "Live"}</span>
           </div>
           <div className="qs-master-splash-cards">
-            <div className="qs-master-splash-card">
+            <div className={`qs-master-splash-card ${step >= 0 ? "is-active" : ""}`}>
               <span className="qs-master-splash-icon"><ClipboardCheck className="size-4" /></span>
               <span><b>{ar ? "الطلبات" : "Orders"}</b><small>{ar ? "مزامنة الخدمة" : "Syncing service"}</small></span>
             </div>
-            <div className="qs-master-splash-card">
+            <div className={`qs-master-splash-card ${step >= 1 ? "is-active" : ""}`}>
               <span className="qs-master-splash-icon"><Table2 className="size-4" /></span>
               <span><b>{ar ? "الطاولات" : "Tables"}</b><small>{ar ? "تحديث الحالة" : "Updating status"}</small></span>
             </div>
-            <div className="qs-master-splash-card">
+            <div className={`qs-master-splash-card ${step >= 2 ? "is-active" : ""}`}>
               <span className="qs-master-splash-icon"><UsersRound className="size-4" /></span>
               <span><b>{ar ? "القوى العاملة" : "Workforce"}</b><small>{ar ? "تحميل ورديات اليوم" : "Loading today's shifts"}</small></span>
             </div>
           </div>
-          <div className="qs-master-splash-rail"><span /></div>
+          <div className="qs-master-splash-rail"><span style={{ width: `${34 + step * 33}%` }} /></div>
         </div>
 
         <p className="mt-5 text-[10px] font-semibold uppercase tracking-[.16em] text-muted-foreground/80">
