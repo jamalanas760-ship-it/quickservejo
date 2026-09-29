@@ -114,9 +114,10 @@ test("operations navigation and work board retain the polished interaction contr
   assert.match(router, /defaultPendingMinMs: 0/);
 });
 
-test("authenticated navigation keeps stable chrome without loading flashes", async () => {
+test("authenticated navigation keeps stable chrome with a once-per-session launch experience", async () => {
   const shell = await file("src/routes/_authenticated/route.tsx");
   const root = await file("src/routes/__root.tsx");
+  const splash = await file("src/components/app/SplashScreen.tsx");
   const router = await file("src/router.tsx");
   const skeleton = await file("src/components/ui/skeleton.tsx");
   const notifications = await file("src/components/nav/NotificationBell.tsx");
@@ -129,7 +130,11 @@ test("authenticated navigation keeps stable chrome without loading flashes", asy
   assert.match(shell, /<AppHeader title=\{persistentTitle\}/);
   assert.match(shell, /SuppressNestedAppHeader/);
   assert.doesNotMatch(root, /<RouteProgress/);
-  assert.doesNotMatch(root, /<SplashScreen/);
+  assert.match(root, /<SplashScreen \/>/);
+  assert.match(splash, /quickserve\.splash\.shown/);
+  assert.match(splash, /sessionStorage\.getItem\(FLAG\)/);
+  assert.match(splash, /SKIP_PREFIXES/);
+  assert.match(splash, /prefers-reduced-motion/);
   assert.match(router, /defaultPendingMs: 1_200/);
   assert.match(router, /defaultPreloadStaleTime: 5 \* 60_000/);
   assert.doesNotMatch(skeleton, /animate-pulse/);
@@ -138,6 +143,7 @@ test("authenticated navigation keeps stable chrome without loading flashes", asy
   assert.doesNotMatch(kitchen, /animate-pulse/);
   assert.doesNotMatch(analytics, /<a href=\{`\/manage/);
 });
+
 
 test("runtime hardening is hydration-safe and retries only transient reads", async () => {
   const monitor = await file("src/components/app/AppRuntimeMonitor.tsx");
