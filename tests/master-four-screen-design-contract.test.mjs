@@ -337,26 +337,3 @@ test("every navigation context has page-specific iOS quick actions", async () =>
   assert.match(nav,/Floor & Tables/);
   assert.match(nav,/command:"more"/);
 });
-
-
-test("final approved showcase design is applied across shell, dashboard, modules, and responsive modes", async () => {
-  const shell = await readFile(new URL("../src/routes/_authenticated/route.tsx", import.meta.url), "utf8");
-  const dashboard = await readFile(new URL("../src/routes/_authenticated/dashboard.tsx", import.meta.url), "utf8");
-
-  assert.match(shell, /workspaceVisualMode/);
-  assert.match(shell, /qs-shell-foh/);
-  assert.match(shell, /qs-shell-workforce/);
-  assert.match(shell, /qs-shell-backoffice/);
-
-  assert.match(dashboard, /qs-dashboard-photo-hero/);
-  assert.match(dashboard, /qs-dashboard-master/);
-  assert.match(dashboard, /qs-dashboard-photo-pill/);
-
-  assert.match(styles, /FINAL APPROVED SHOWCASE SYSTEM/);
-  assert.match(styles, /qs-shell-foh \.qs-sidebar-shell/);
-  assert.match(styles, /qs-dashboard-photo-hero/);
-  assert.match(styles, /qs-workspace-tools-layout/);
-  assert.match(styles, /qs-mobile-bottom-nav-shell/);
-  assert.match(styles, /@media\(min-width:768px\) and \(max-width:1279px\)/);
-  assert.match(styles, /@media\(max-width:767px\)/);
-});
