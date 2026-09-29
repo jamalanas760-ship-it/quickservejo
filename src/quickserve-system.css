@@ -4090,3 +4090,189 @@ html.qs-theme-view-transition *{
   .qs-command-icon-trigger,
   .qs-global-search-trigger-approved{transition:none!important}
 }
+
+
+/* Team management dashboard final pass — 2026-09-29 */
+
+/* Global search combines the discoverable Ctrl+K shortcut with the branded
+   QuickServe command mark from the approved composition. */
+.qs-search-shortcut-keys{
+  display:inline-flex;
+  flex:0 0 auto;
+  align-items:center;
+  gap:3px;
+  margin-inline-start:4px;
+  white-space:nowrap;
+}
+.qs-search-shortcut-keys kbd{
+  display:grid;
+  height:25px;
+  min-width:25px;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--qs-stroke) 94%,transparent);
+  border-radius:7px;
+  background:var(--qs-surface-soft);
+  padding-inline:6px;
+  color:var(--qs-ink);
+  box-shadow:inset 0 1px 0 rgb(255 255 255/.55),0 1px 2px rgb(15 23 42/.04);
+  font-family:inherit;
+  font-size:8px;
+  font-weight:800;
+  line-height:1;
+}
+.qs-search-shortcut-keys i{
+  color:var(--qs-muted);
+  font-size:8px;
+  font-style:normal;
+  font-weight:800;
+}
+.dark .qs-search-shortcut-keys kbd{
+  box-shadow:inset 0 1px 0 rgb(255 255 255/.04),0 1px 2px rgb(0 0 0/.2);
+}
+
+/* The approved Team mockup is intentionally table-first. Remove competing
+   dashboard blocks so the directory gets the available width and reads fast. */
+.qs-approved-team-page .qs-approved-team-layout{
+  display:block!important;
+}
+.qs-approved-team-page .qs-workforce-kpis,
+.qs-approved-team-page .qs-team-insights{
+  display:none!important;
+}
+.qs-approved-team-page .qs-approved-page-hero{
+  overflow:visible!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.qs-approved-team-page .qs-approved-page-hero:before{
+  display:none!important;
+}
+.qs-approved-team-page .qs-approved-page-hero>.qs-master-header{
+  padding:6px 2px 12px!important;
+}
+.qs-approved-team-page .qs-workforce-board{
+  overflow:hidden!important;
+  border-radius:16px!important;
+  border:1px solid var(--qs-stroke)!important;
+  background:var(--qs-surface)!important;
+  box-shadow:0 8px 26px rgb(15 23 42/.045)!important;
+}
+
+/* Toolbar/search density from the approved image. */
+.qs-approved-team-page .qs-workforce-board>div:nth-child(1){
+  background:var(--qs-surface)!important;
+}
+.qs-approved-team-page .qs-workforce-board>div:nth-child(2){
+  padding:12px 14px!important;
+  background:var(--qs-surface)!important;
+}
+.qs-team-search-command{
+  border:1px solid color-mix(in srgb,var(--qs-brand) 36%,var(--qs-stroke));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--qs-brand) 6%,var(--qs-surface)),var(--qs-surface));
+  color:var(--qs-brand-strong);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--qs-brand) 6%,transparent),0 3px 10px rgb(232 93 42/.1);
+  transition:transform 140ms cubic-bezier(.2,.8,.2,1),border-color 140ms ease,box-shadow 140ms ease;
+}
+.qs-team-search-command:hover{
+  transform:translateY(-1px);
+  border-color:color-mix(in srgb,var(--qs-brand) 62%,var(--qs-stroke));
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--qs-brand) 7%,transparent),0 6px 16px rgb(232 93 42/.14);
+}
+.qs-team-search-command:active{transform:scale(.96)}
+
+/* Fixed column geometry + horizontal escape hatch prevents the role/status/
+   shift cells from colliding at intermediate desktop widths. */
+.qs-team-table-wrap{
+  overflow-x:auto!important;
+  overflow-y:auto!important;
+  scrollbar-width:thin;
+  scrollbar-color:color-mix(in srgb,var(--qs-muted) 25%,transparent) transparent;
+}
+.qs-team-table{
+  border-collapse:separate!important;
+  border-spacing:0!important;
+}
+.qs-team-table thead th{
+  height:48px;
+  padding:0 14px!important;
+  vertical-align:middle!important;
+  background:color-mix(in srgb,var(--qs-surface-soft) 56%,var(--qs-surface))!important;
+  color:var(--qs-muted)!important;
+  font-size:10px!important;
+  font-weight:800!important;
+  letter-spacing:.01em;
+  white-space:nowrap;
+}
+.qs-team-table tbody td{
+  height:72px;
+  padding:10px 14px!important;
+  vertical-align:middle!important;
+  border-top:1px solid color-mix(in srgb,var(--qs-stroke) 88%,transparent)!important;
+}
+.qs-team-table tbody tr:first-child td{border-top:0!important}
+.qs-team-table .qs-status{
+  max-width:100%;
+  white-space:normal;
+  line-height:1.15;
+}
+.qs-team-table .qs-live-status-card,
+.qs-team-table .qs-last-active{
+  width:100%;
+  max-width:100%;
+  min-width:0!important;
+  border-radius:12px!important;
+}
+.qs-team-actions-clean{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  justify-content:flex-end!important;
+  gap:7px!important;
+}
+.qs-team-actions-clean .qs-team-action-button{
+  min-width:68px!important;
+  height:38px!important;
+  padding-inline:10px!important;
+  border-radius:11px!important;
+  font-size:10px!important;
+}
+
+/* Approved footer/pagination. */
+.qs-team-pagination{
+  min-height:54px;
+}
+.qs-team-page-button{
+  display:grid;
+  width:32px;
+  height:32px;
+  place-items:center;
+  border:1px solid var(--qs-stroke);
+  border-radius:9px;
+  background:var(--qs-surface);
+  color:var(--qs-muted);
+  font-size:10px;
+  font-weight:800;
+  transition:background-color 120ms ease,border-color 120ms ease,color 120ms ease,transform 120ms ease;
+}
+.qs-team-page-button:hover:not(:disabled){
+  border-color:color-mix(in srgb,var(--qs-brand) 28%,var(--qs-stroke));
+  background:var(--qs-brand-soft);
+  color:var(--qs-brand-strong);
+}
+.qs-team-page-button:active:not(:disabled){transform:scale(.96)}
+.qs-team-page-button.is-active{
+  border-color:var(--qs-brand);
+  background:var(--qs-brand);
+  color:white;
+  box-shadow:0 4px 12px color-mix(in srgb,var(--qs-brand) 20%,transparent);
+}
+.qs-team-page-button:disabled{opacity:.35;cursor:not-allowed}
+
+@media(max-width:1100px){
+  .qs-search-shortcut-keys{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .qs-team-search-command,
+  .qs-team-page-button{transition:none!important}
+}
