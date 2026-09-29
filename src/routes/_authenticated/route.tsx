@@ -71,7 +71,6 @@ function AuthenticatedShell() {
   const blocked = frontlineBlocked || managerWrongHome || roleRouteBlocked;
   const usesDedicatedChrome = /^\/(super-admin|kitchen|waiter|cashier)(?:\/|$)/.test(pathname);
   const persistentTitle = routeTitle(pathname, lang === "ar");
-  const visualMode = workspaceVisualMode(pathname);
 
   useEffect(() => {
     if (blocked) void navigate({ to: frontlineHome(roles), replace: true });
@@ -79,7 +78,7 @@ function AuthenticatedShell() {
 
   return (
     <TenantBrandShell>
-      <div className={cn("pb-24 lg:min-h-dvh lg:pb-0 qs-master-shell", visualMode, !access.isSuperAdmin && "lg:ps-[var(--qs-shell-sidebar)]", !usesDedicatedChrome && "qs-persistent-chrome")}>
+      <div className={cn("pb-24 lg:min-h-dvh lg:pb-0", !access.isSuperAdmin && "lg:ps-[var(--qs-shell-sidebar)]", !usesDedicatedChrome && "qs-persistent-chrome")}>
         {!usesDedicatedChrome ? <AppHeader title={persistentTitle} /> : null}
         {blocked ? null : (
           <div className="qs-route-frame">
@@ -92,24 +91,6 @@ function AuthenticatedShell() {
       <BottomNav />
     </TenantBrandShell>
   );
-}
-
-function workspaceVisualMode(pathname: string) {
-  if (
-    /^\/(bookings|waitlist|host|kitchen|waiter|cashier)(?:\/|$)/.test(pathname)
-    || /^\/manage\/[^/]+\/(orders|tables)(?:\/|$)/.test(pathname)
-    || /^\/manage\/[^/]+\/?$/.test(pathname)
-  ) return "qs-shell-foh";
-  if (
-    /^\/shifts(?:\/|$)/.test(pathname)
-    || /^\/work(?:\/|$)/.test(pathname)
-    || /^\/manage\/[^/]+\/staff(?:\/|$)/.test(pathname)
-  ) return "qs-shell-workforce";
-  if (
-    /^\/manage\/[^/]+\/(operations|analytics)(?:\/|$)/.test(pathname)
-    || /^\/(daily-close|approvals|automations|integrations|devices)(?:\/|$)/.test(pathname)
-  ) return "qs-shell-backoffice";
-  return "qs-shell-core";
 }
 
 function routeTitle(pathname: string, ar: boolean) {
