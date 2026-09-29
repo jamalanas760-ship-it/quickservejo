@@ -285,8 +285,8 @@ function MissingPunchSheet({ restaurantId, members, assignments, ar, lang, onClo
   const activeMembers = members.filter((member) => member.is_active);
   const [staffId, setStaffId] = useState(activeMembers[0]?.id ?? "");
   const selectedAssignment = assignments
-    .filter((assignment) => assignment.staff_id === staffId && assignment.status !== "released" && assignment.starts_at && assignment.ends_at)
-    .sort((a, b) => Math.abs(Date.now() - new Date(a.starts_at!).getTime()) - Math.abs(Date.now() - new Date(b.starts_at!).getTime()))[0] ?? null;
+    .filter((assignment) => assignment.staff_id === staffId && assignment.status !== "released" && assignment.starts_at && assignment.ends_at && new Date(assignment.ends_at).getTime() <= Date.now() + 5 * 60_000)
+    .sort((a, b) => new Date(b.ends_at!).getTime() - new Date(a.ends_at!).getTime())[0] ?? null;
   const defaultIn = selectedAssignment?.starts_at ? toLocalInput(selectedAssignment.starts_at) : "";
   const defaultOut = selectedAssignment?.ends_at ? toLocalInput(selectedAssignment.ends_at) : "";
   const [clockIn, setClockIn] = useState("");
