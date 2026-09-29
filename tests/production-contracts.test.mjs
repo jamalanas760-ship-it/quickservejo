@@ -255,8 +255,9 @@ test("theme and topbar interactions use atomic and soft motion", async () => {
   assert.match(theme, /startViewTransition/);
   assert.match(theme, /flushSync/);
   assert.match(header, /qs-command-icon-trigger/);
+  assert.match(header, /qs-search-shortcut-keys/);
   assert.match(header, /<BrandLogo markOnly/);
-  assert.doesNotMatch(header, />Ctrl</);
+  assert.match(header, />Ctrl</);
   assert.match(header, /qs-topbar-popover/);
   assert.match(css, /::view-transition-new\(root\)/);
   assert.match(css, /qs-topbar-popover-in/);
@@ -278,6 +279,28 @@ test("approved Team and Workforce layout uses the command icon search and live T
   assert.match(shifts, /qs-approved-workforce-page/);
   assert.match(css, /Approved Team \+ Workforce image implementation/);
   assert.match(css, /qs-approved-page-hero/);
+});
+
+
+test("Team table is paginated, aligned, and exposes the global search command", async () => {
+  const team = await file("src/components/manage/StaffManagerAdvanced.tsx");
+  const css = await file("src/quickserve-system.css");
+  assert.match(team, /TEAM_PAGE_SIZE = 8/);
+  assert.match(team, /visibleRows/);
+  assert.match(team, /qs-team-pagination/);
+  assert.match(team, /qs-team-search-command/);
+  assert.match(team, /min-w-\[1180px\]/);
+  assert.match(css, /Team management dashboard final pass/);
+  assert.match(css, /qs-team-table-wrap/);
+});
+
+
+test("Workforce navigation badge represents unread workforce alerts, not scheduled shifts", async () => {
+  const counters = await file("src/hooks/useOperationalCounters.ts");
+  const nav = await file("src/components/nav/BottomNav.tsx");
+  assert.match(counters, /workforceUnread/);
+  assert.match(counters, /source_type\.eq\.missing_punch_request/);
+  assert.match(nav, /badge: "workforceUnread"/);
 });
 
 
