@@ -3257,17 +3257,36 @@ html.qs-theme-transitioning :is(svg,path,circle,rect,line,polyline){
   animation:qs-master-card-pulse 1.8s ease-in-out infinite alternate;
 }
 .qs-master-splash-card:nth-child(2){animation-delay:.16s}.qs-master-splash-card:nth-child(3){animation-delay:.32s}
+.qs-master-splash-card{opacity:.62;transform:translateY(2px);transition:opacity .22s ease,transform .22s ease,border-color .22s ease,background-color .22s ease}
+.qs-master-splash-card.is-active{opacity:1;transform:none;border-color:color-mix(in srgb,var(--qs-brand) 24%,var(--qs-stroke));background:color-mix(in srgb,var(--qs-brand) 4%,var(--qs-surface-soft))}
+.qs-master-splash-card.is-active .qs-master-splash-icon{box-shadow:0 0 0 4px color-mix(in srgb,var(--qs-brand) 8%,transparent)}
 .qs-master-splash-icon{display:grid;width:30px;height:30px;flex:0 0 auto;place-items:center;border-radius:9px;background:var(--qs-brand-soft);color:var(--qs-brand-strong)}
 .qs-master-splash-card span:last-child{min-width:0}
 .qs-master-splash-card b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}
 .qs-master-splash-card small{display:block;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--qs-muted);font-size:8px}
 .qs-master-splash-rail{height:3px;overflow:hidden;background:var(--qs-stroke)}
-.qs-master-splash-rail span{display:block;width:32%;height:100%;border-radius:999px;background:var(--qs-brand);animation:qs-master-rail 1.05s cubic-bezier(.4,0,.2,1) infinite}
+.qs-master-splash-rail span{
+  position:relative;
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg,var(--qs-brand),color-mix(in srgb,var(--qs-brand) 72%,#ffb18c 28%));
+  box-shadow:0 0 14px color-mix(in srgb,var(--qs-brand) 32%,transparent);
+  transition:width .3s cubic-bezier(.2,.8,.2,1);
+}
+.qs-master-splash-rail span:after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(90deg,transparent,rgb(255 255 255/.65),transparent);
+  transform:translateX(-120%);
+  animation:qs-master-rail-shine .8s ease-in-out infinite;
+}
 @keyframes qs-master-splash-enter{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
 @keyframes qs-master-board-enter{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:none}}
 @keyframes qs-master-logo-ring{0%{opacity:.8;transform:scale(.9)}100%{opacity:0;transform:scale(1.22)}}
 @keyframes qs-master-live{50%{opacity:.35;transform:scale(.82)}}
-@keyframes qs-master-rail{0%{transform:translateX(-115%)}100%{transform:translateX(340%)}}
+@keyframes qs-master-rail-shine{0%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
 @keyframes qs-master-orbit{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
 @keyframes qs-master-card-pulse{from{border-color:var(--qs-stroke)}to{border-color:color-mix(in srgb,var(--qs-brand) 28%,var(--qs-stroke))}}
 @media(max-width:640px){
