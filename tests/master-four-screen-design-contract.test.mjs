@@ -340,9 +340,8 @@ test("every navigation context has page-specific iOS quick actions", async () =>
 
 
 test("final approved showcase design is applied across shell, dashboard, modules, and responsive modes", async () => {
-  const shell = await file("src/routes/_authenticated/route.tsx");
-  const dashboard = await file("src/routes/_authenticated/dashboard.tsx");
-  const css = await file("src/quickserve-system.css");
+  const shell = await readFile(new URL("../src/routes/_authenticated/route.tsx", import.meta.url), "utf8");
+  const dashboard = await readFile(new URL("../src/routes/_authenticated/dashboard.tsx", import.meta.url), "utf8");
 
   assert.match(shell, /workspaceVisualMode/);
   assert.match(shell, /qs-shell-foh/);
@@ -353,11 +352,11 @@ test("final approved showcase design is applied across shell, dashboard, modules
   assert.match(dashboard, /qs-dashboard-master/);
   assert.match(dashboard, /qs-dashboard-photo-pill/);
 
-  assert.match(css, /FINAL APPROVED SHOWCASE SYSTEM/);
-  assert.match(css, /qs-shell-foh \.qs-sidebar-shell/);
-  assert.match(css, /qs-dashboard-photo-hero/);
-  assert.match(css, /qs-workspace-tools-layout/);
-  assert.match(css, /qs-mobile-bottom-nav-shell/);
-  assert.match(css, /@media\(min-width:768px\) and \(max-width:1279px\)/);
-  assert.match(css, /@media\(max-width:767px\)/);
+  assert.match(styles, /FINAL APPROVED SHOWCASE SYSTEM/);
+  assert.match(styles, /qs-shell-foh \.qs-sidebar-shell/);
+  assert.match(styles, /qs-dashboard-photo-hero/);
+  assert.match(styles, /qs-workspace-tools-layout/);
+  assert.match(styles, /qs-mobile-bottom-nav-shell/);
+  assert.match(styles, /@media\(min-width:768px\) and \(max-width:1279px\)/);
+  assert.match(styles, /@media\(max-width:767px\)/);
 });
