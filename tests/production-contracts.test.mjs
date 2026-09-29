@@ -215,6 +215,54 @@ test("Workforce supports audited manager-created missing punches", async () => {
 });
 
 
+test("Team recurring schedules update Today's Shift immediately in restaurant time", async () => {
+  const team = await file("src/components/manage/StaffManagerAdvanced.tsx");
+  assert.match(team, /todayKey={scheduleDayKey}/);
+  assert.match(team, /team-schedule-live:/);
+  assert.match(team, /refresh_recurring_staff_schedules/);
+  assert.match(team, /Today will appear immediately/);
+  assert.match(team, /refetchQueries\(\{ queryKey: \["platform", "staff-schedule", restaurantId\]/);
+});
+
+
+test("Workforce attention alerts support persistent read acknowledgements", async () => {
+  const workforce = await file("src/components/workforce/WorkforceInsights.tsx");
+  const migration = await file("supabase/migrations/20260929090409_workforce_attention_reads_and_missing_punch_requests.sql");
+  assert.match(workforce, /Mark all read/);
+  assert.match(workforce, /mark_workforce_attention_read/);
+  assert.match(workforce, /workforce_alert_read/);
+  assert.match(migration, /create or replace function public\.mark_workforce_attention_read/);
+});
+
+
+test("Workforce supports employee missing-punch requests and manager approval", async () => {
+  const shifts = await file("src/routes/_authenticated/shifts.tsx");
+  const workforce = await file("src/components/workforce/WorkforceInsights.tsx");
+  const migration = await file("supabase/migrations/20260929090409_workforce_attention_reads_and_missing_punch_requests.sql");
+  assert.match(shifts, /Forgot a punch\?/);
+  assert.match(shifts, /submit_missing_punch_request/);
+  assert.match(workforce, /Missing punch requests/);
+  assert.match(workforce, /review_missing_punch_request/);
+  assert.match(migration, /create table if not exists public\.staff_missing_punch_requests/);
+  assert.match(migration, /missing_punch_requested/);
+});
+
+
+test("theme and topbar interactions use atomic and soft motion", async () => {
+  const theme = await file("src/components/nav/ThemeToggle.tsx");
+  const header = await file("src/components/nav/AppHeader.tsx");
+  const css = await file("src/quickserve-system.css");
+  assert.match(theme, /startViewTransition/);
+  assert.match(theme, /flushSync/);
+  assert.match(header, /qs-topbar-shortcut/);
+  assert.match(header, />Ctrl</);
+  assert.match(header, /qs-topbar-popover/);
+  assert.match(css, /::view-transition-new\(root\)/);
+  assert.match(css, /qs-topbar-popover-in/);
+  assert.match(css, /qs-workforce-snapshot/);
+});
+
+
 test("shifts page places a modern live clock hero above shift coverage", async () => {
   const shifts = await file("src/routes/_authenticated/shifts.tsx");
   assert.match(shifts, /function WorkforceClockHero/);
