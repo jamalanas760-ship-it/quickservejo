@@ -331,6 +331,14 @@ function shiftWeekDays(dateKey: string): ShiftWeekDay[] {
     return { key: date.toLocaleDateString("en-CA"), weekday: date.toLocaleDateString("en-US", { weekday: "short" }), day: String(date.getDate()), shiftCount: 0 };
   });
 }
+function toWorkforceLocalInput(value: string | null | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (number: number) => String(number).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function formatShiftDateLabel(dateKey: string, ar: boolean) {
   return new Date(`${dateKey}T12:00:00`).toLocaleDateString(ar ? "ar-JO" : "en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 }
@@ -450,6 +458,7 @@ function WorkforceClockHero({
 }) {
   const qc = useQueryClient();
   const [clockNow, setClockNow] = useState(() => Date.now());
+  const [missingPunchOpen, setMissingPunchOpen] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockNow(Date.now()), 15_000);
@@ -544,6 +553,18 @@ function WorkforceClockHero({
           )
           .sort((a, b) => new Date(a.starts_at!).getTime() - new Date(b.starts_at!).getTime())[0] ?? null
       : null;
+
+  const recentCompletedAssignment =
+    assignments
+      .filter(
+        (assignment) =>
+          assignment.staff_id === currentStaffId &&
+          assignment.status !== "released" &&
+          assignment.starts_at &&
+          assignment.ends_at &&
+          new Date(assignment.ends_at).getTime() <= clockNow + 5 * 60_000,
+      )
+      .sort((a, b) => new Date(b.ends_at!).getTime() - new Date(a.ends_at!).getTime())[0] ?? null;
 
   const toggleClock = useMutation({
     mutationFn: async () => {
@@ -690,6 +711,10 @@ function WorkforceClockHero({
                 ? "تسجيل الحضور"
                 : "Clock in"}
         </Button>
+        <button type="button" className="qs-clock-missing-link" onClick={() => setMissingPunchOpen(true)}>
+          <AlertTriangle className="size-3.5" />
+          <span>{ar ? "نسيت تسجيل الحضور/الانصراف؟" : "Forgot a punch?"}</span>
+        </button>
       </div>
     </section>
     <div className="qs-mobile-punch-dock md:hidden" aria-live="polite">
@@ -697,7 +722,11 @@ function WorkforceClockHero({
         <span className="block text-[9px] font-bold uppercase tracking-[.08em] text-muted-foreground">{openEntry ? (ar ? "أنت على رأس العمل" : "Clocked in") : (ar ? "الحضور" : "Attendance")}</span>
         <strong className="mt-0.5 block truncate text-xs">{openEntry ? formatClockDuration(currentSessionSeconds, ar) : (ar ? "جاهز للبدء" : "Ready to start")}</strong>
       </div>
-      <Button
+      <div className="flex shrink-0 items-center gap-1.5">
+        <Button type="button" variant="ghost" size="icon" className="size-9 rounded-xl text-muted-foreground" onClick={() => setMissingPunchOpen(true)} aria-label={ar ? "طلب بصمة ناقصة" : "Report missing punch"} title={ar ? "نسيت البصمة؟" : "Forgot a punch?"}>
+          <AlertTriangle className="size-4" />
+        </Button>
+              <Button
         size="sm"
         className={cn("min-w-[126px] shadow-sm", openEntry ? "bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950" : "bg-[#ff5722] text-white hover:bg-[#ed4f1d]")}
         aria-busy={toggleClock.isPending}
@@ -707,9 +736,81 @@ function WorkforceClockHero({
         {openEntry ? <StopCircle className="size-4" /> : <TimerReset className="size-4" />}
         {toggleClock.isPending ? (ar ? "جارٍ التحديث…" : "Updating…") : openEntry ? (ar ? "انصراف" : "Clock out") : (ar ? "حضور" : "Clock in")}
       </Button>
+      </div>
     </div>
+    {missingPunchOpen ? <SelfMissingPunchRequestSheet restaurantId={restaurantId} assignment={recentCompletedAssignment} ar={ar} lang={lang} onClose={() => setMissingPunchOpen(false)} /> : null}
   </>
   );
+}
+
+function SelfMissingPunchRequestSheet({ restaurantId, assignment, ar, lang, onClose }: { restaurantId: string; assignment: ShiftAssignment | null; ar: boolean; lang: "en" | "ar"; onClose: () => void }) {
+  const qc = useQueryClient();
+  const scheduledIn = assignment?.starts_at ? toWorkforceLocalInput(assignment.starts_at) : "";
+  const scheduledOut = assignment?.ends_at ? toWorkforceLocalInput(assignment.ends_at) : "";
+  const [clockIn, setClockIn] = useState(scheduledIn);
+  const [clockOut, setClockOut] = useState(scheduledOut);
+  const [breakMinutes, setBreakMinutes] = useState("0");
+  const [reason, setReason] = useState("");
+  const durationMinutes = clockIn && clockOut ? Math.round((new Date(clockOut).getTime() - new Date(clockIn).getTime()) / 60000) : 0;
+  const invalid =
+    !clockIn ||
+    !clockOut ||
+    durationMinutes <= 0 ||
+    durationMinutes > 2160 ||
+    Number(breakMinutes) < 0 ||
+    Number(breakMinutes) >= durationMinutes ||
+    reason.trim().length < 3 ||
+    new Date(clockIn).getTime() > Date.now() + 5 * 60_000 ||
+    new Date(clockOut).getTime() > Date.now() + 5 * 60_000;
+
+  const submit = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase as any).rpc("submit_missing_punch_request", {
+        _restaurant_id: restaurantId,
+        _clock_in: new Date(clockIn).toISOString(),
+        _clock_out: new Date(clockOut).toISOString(),
+        _break_minutes: Number(breakMinutes) || 0,
+        _reason: reason.trim(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["workforce"] }),
+        qc.invalidateQueries({ queryKey: ["notifications"] }),
+        qc.invalidateQueries({ queryKey: ["operations"] }),
+      ]);
+      toast.success(ar ? "تم إرسال طلب البصمة للمدير للمراجعة" : "Missing punch sent to your manager for review");
+      onClose();
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  const applySchedule = () => {
+    if (!assignment?.starts_at || !assignment.ends_at) return;
+    setClockIn(toWorkforceLocalInput(assignment.starts_at));
+    setClockOut(toWorkforceLocalInput(assignment.ends_at));
+  };
+
+  return <DetailSheet
+    open
+    onOpenChange={(open) => { if (!open && !submit.isPending) onClose(); }}
+    title={ar ? "طلب بصمة ناقصة" : "Report missing punch"}
+    description={ar ? "صحّح وقتاً نسيته بدون تعديل سجل الدوام مباشرة." : "Report a forgotten clock-in or clock-out without changing the timesheet directly."}
+    footer={<div className="grid grid-cols-2 gap-2"><Button variant="outline" disabled={submit.isPending} onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button><Button disabled={invalid || submit.isPending} onClick={() => submit.mutate()}><Clock3 className="size-4" />{submit.isPending ? (ar ? "جارٍ الإرسال…" : "Sending…") : (ar ? "إرسال للمراجعة" : "Send for review")}</Button></div>}
+  >
+    <div className="space-y-4 py-2">
+      <div className="rounded-2xl border border-blue-200/70 bg-blue-500/[.045] p-3 text-xs leading-5 text-muted-foreground dark:border-blue-900/50">
+        <strong className="block text-foreground">{ar ? "طلب آمن بموافقة المدير" : "Manager-approved correction"}</strong>
+        <span>{ar ? "لن تتغير ساعاتك مباشرة. بعد موافقة المدير تُضاف البصمة تلقائياً مع سجل تدقيق." : "Your hours do not change immediately. Once approved, the punch is added automatically with an audit trail."}</span>
+      </div>
+      {assignment?.starts_at && assignment.ends_at ? <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/25 p-3"><span className="min-w-0"><strong className="block text-xs">{ar ? "آخر وردية مكتملة" : "Latest completed shift"}</strong><span className="mt-1 block text-[10px] tabular-nums text-muted-foreground">{formatStamp(assignment.starts_at, ar)} → {formatStamp(assignment.ends_at, ar)}</span></span><Button type="button" size="sm" variant="outline" onClick={applySchedule}>{ar ? "استخدم الجدول" : "Use schedule"}</Button></div> : null}
+      <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>{ar ? "وقت الدخول" : "Clock in"}</Label><Input type="datetime-local" className="min-h-11" value={clockIn} onChange={(event) => setClockIn(event.target.value)} /></div><div className="space-y-2"><Label>{ar ? "وقت الخروج" : "Clock out"}</Label><Input type="datetime-local" className="min-h-11" value={clockOut} onChange={(event) => setClockOut(event.target.value)} /></div></div>
+      <div className="space-y-2"><Label>{ar ? "الاستراحة (دقائق)" : "Break (minutes)"}</Label><Input type="number" min={0} className="min-h-11" value={breakMinutes} onChange={(event) => setBreakMinutes(event.target.value)} /></div>
+      <div className="space-y-2"><Label>{ar ? "ما الذي نسيته؟ (مطلوب)" : "What was missed? (required)"}</Label><Textarea rows={3} value={reason} onChange={(event) => setReason(event.target.value)} placeholder={ar ? "مثال: نسيت تسجيل الانصراف بعد انتهاء ورديتي." : "e.g. I forgot to clock out after my shift ended."} /></div>
+      {durationMinutes > 0 ? <p className="text-[11px] font-semibold text-muted-foreground">{ar ? `المدة المقترحة: ${Math.floor(durationMinutes / 60)}س ${durationMinutes % 60}د` : `Proposed duration: ${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`}</p> : null}
+    </div>
+  </DetailSheet>;
 }
 
 function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, assignments, ar, lang, mode }: { restaurantId: string; currentStaffId: string; canManage: boolean; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; assignments: ShiftAssignment[]; ar: boolean; lang: "en" | "ar"; mode: WorkforceSection }) {
