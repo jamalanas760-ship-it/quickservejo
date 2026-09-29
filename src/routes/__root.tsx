@@ -18,6 +18,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationPrompt } from "@/components/app/NotificationPrompt";
 import { AppRuntimeMonitor } from "@/components/app/AppRuntimeMonitor";
+import { SplashScreen } from "@/components/app/SplashScreen";
 import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-bridge";
 
 const RUNTIME_RECOVERY_PREFIX = "quickserve:runtime-recovery:";
@@ -240,6 +241,7 @@ function RootComponent() {
       <I18nProvider>
         <a href="#main-content" className="sr-only fixed start-3 top-3 z-[200] rounded-lg bg-background px-3 py-2 text-sm font-bold text-foreground shadow-lg focus:not-sr-only">Skip to main content</a>
         <MenuThemeBridgeSync />
+        <SplashScreen />
         <NavigationProgress />
         <AppRuntimeMonitor />
         <div id="main-content" tabIndex={-1}>
