@@ -113,20 +113,20 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
         >
           <Search className="size-4 shrink-0" />
           <span className="min-w-0 flex-1 truncate text-start">{lang === "ar" ? "ابحث في الطلبات، الفريق، التحليلات..." : "Search orders, team, analytics..."}</span>
-          <kbd>⌘ K</kbd>
+          <span className="qs-topbar-shortcut" aria-hidden="true"><kbd>Ctrl</kbd><i>+</i><kbd>K</kbd></span>
         </button>
 
         <div className="qs-topbar-controls ms-auto flex min-w-0 items-center gap-1 sm:gap-1.5">
           <ThemeToggle compact className="qs-topbar-theme-control inline-flex" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button type="button" className="qs-topbar-language inline-flex min-h-9 items-center gap-1.5 rounded-[9px] border border-transparent px-2 text-muted-foreground transition hover:border-border hover:bg-muted/55 hover:text-foreground lg:min-h-10 lg:px-2.5" aria-label={lang === "ar" ? "اختيار اللغة" : "Choose language"}>
+              <button type="button" className="qs-topbar-menu-trigger qs-topbar-language inline-flex min-h-9 items-center gap-1.5 rounded-[9px] border border-transparent px-2 text-muted-foreground transition hover:border-border hover:bg-muted/55 hover:text-foreground lg:min-h-10 lg:px-2.5" aria-label={lang === "ar" ? "اختيار اللغة" : "Choose language"}>
                 <Globe2 className="size-4" />
                 <span className="hidden text-xs font-semibold xl:inline">{lang === "ar" ? "العربية" : "English"}</span>
-                <ChevronDown className="hidden size-3.5 xl:block" />
+                <ChevronDown className="qs-topbar-chevron hidden size-3.5 xl:block" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 p-2">
+            <DropdownMenuContent align="end" sideOffset={8} className="qs-topbar-popover w-56 p-2">
               <DropdownMenuLabel className="flex items-center gap-2 text-xs text-muted-foreground"><Languages className="size-4" />{lang === "ar" ? "لغة الواجهة" : "Interface language"}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => setLang("en")} className="min-h-11 cursor-pointer">
@@ -144,13 +144,13 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
           <NotificationBell restaurantId={restaurantId} count={notificationCount} ar={lang === "ar"} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button type="button" aria-label={lang === "ar" ? "قائمة الحساب" : "Account menu"} className="group flex min-h-8 items-center gap-1.5 rounded-[9px] border border-transparent px-1.5 transition hover:border-border hover:bg-muted/55 sm:px-2">
+              <button type="button" aria-label={lang === "ar" ? "قائمة الحساب" : "Account menu"} className="qs-topbar-menu-trigger group flex min-h-8 items-center gap-1.5 rounded-[9px] border border-transparent px-1.5 transition hover:border-border hover:bg-muted/55 sm:px-2">
                 <span className="grid size-7.5 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border/90 shadow-sm group-hover:ring-primary/30">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : <RoleAvatarFallback role={membership?.role} superAdmin={access.isSuperAdmin} />}</span>
                 <span className="hidden min-w-0 text-start xl:block"><span className="block max-w-24 truncate text-[11px] font-bold">{displayName}</span><span className="block text-[9px] text-muted-foreground">{roleLabel}</span></span>
-                <ChevronDown className="hidden size-3.5 text-muted-foreground xl:block" />
+                <ChevronDown className="qs-topbar-chevron hidden size-3.5 text-muted-foreground xl:block" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64 p-2">
+            <DropdownMenuContent align="end" sideOffset={8} className="qs-topbar-popover w-64 p-2">
               <DropdownMenuLabel className="flex items-center gap-3 py-2">
                 <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : <RoleAvatarFallback role={membership?.role} superAdmin={access.isSuperAdmin} />}</span>
                 <span className="min-w-0"><strong className="block truncate text-sm text-foreground">{displayName}</strong><span className="block truncate text-[11px] font-medium text-muted-foreground">{roleLabel}</span></span>
