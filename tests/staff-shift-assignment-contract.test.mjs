@@ -157,3 +157,18 @@ test("team actions remove the three-dot menu while preserving shift cancellation
   assert.match(rowActions, /Cancel shift/);
   assert.match(rowActions, /qs-team-actions-clean/);
 });
+
+
+test("Today's Shift automatically rolls to the current local calendar day", () => {
+  assert.match(source, /const scheduleDayKey = localDateKey\(new Date\(presenceNow\)\)/);
+  assert.match(source, /\["platform", "staff-schedule", restaurantId, scheduleDayKey\]/);
+  assert.match(source, /const today = scheduleDayKey/);
+  assert.match(source, /shift\.shift_date === scheduleDayKey/);
+  assert.match(source, /shift\.status !== "closed"/);
+  assert.match(source, /assignment\.status === "released"/);
+  assert.match(source, /\[presenceNow, schedule\.data, scheduleDayKey\]/);
+  assert.match(source, /visibilitychange/);
+  assert.match(source, /window\.addEventListener\("focus", refreshClock\)/);
+  assert.match(source, /formatTodayShiftWindow/);
+  assert.match(source, /No shift today/);
+});

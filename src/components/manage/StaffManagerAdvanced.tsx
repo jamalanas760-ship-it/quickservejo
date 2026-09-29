@@ -204,6 +204,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const [badge, setBadge] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", role: "waiter" as AppRole });
   const [presenceNow, setPresenceNow] = useState(() => Date.now());
+  const scheduleDayKey = localDateKey(new Date(presenceNow));
   const [shiftMember, setShiftMember] = useState<StaffRow | null>(null);
   const [cancelShiftTarget, setCancelShiftTarget] = useState<{
     member: StaffRow;
@@ -211,8 +212,18 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   } | null>(null);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setPresenceNow(Date.now()), 15_000);
-    return () => window.clearInterval(timer);
+    const refreshClock = () => setPresenceNow(Date.now());
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refreshClock();
+    };
+    const timer = window.setInterval(refreshClock, 15_000);
+    window.addEventListener("focus", refreshClock);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshClock);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
 
   const staff = useQuery<StaffRow[]>({
@@ -234,13 +245,19 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     time: StaffTimeRow[];
     leave: StaffLeaveRow[];
   }>({
-    queryKey: ["platform", "staff-schedule", restaurantId],
+    queryKey: ["platform", "staff-schedule", restaurantId, scheduleDayKey],
     refetchInterval: 20_000,
+    refetchIntervalInBackground: false,
     queryFn: async () => {
-      const today = new Date().toISOString().slice(0, 10);
-      const historyStart = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
-      const horizon = new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10);
-      const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+      const now = new Date(presenceNow);
+      const historyDate = new Date(now);
+      historyDate.setDate(historyDate.getDate() - 7);
+      const horizonDate = new Date(now);
+      horizonDate.setDate(horizonDate.getDate() + 60);
+      const today = scheduleDayKey;
+      const historyStart = localDateKey(historyDate);
+      const horizon = localDateKey(horizonDate);
+      const since = new Date(presenceNow - 7 * 86_400_000).toISOString();
       const [shiftsResult, assignmentsResult, timeResult, leaveResult] = await Promise.all([
         (supabase.from("shifts" as any) as any)
           .select("id,name,shift_date,planned_start,planned_end,status")
@@ -311,9 +328,14 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const staffOnly = (staff.data ?? []).length - admins;
   const scheduleByStaff = useMemo(() => {
     const result = new Map<string, StaffScheduleSummary>();
-    const shiftsById = new Map((schedule.data?.shifts ?? []).map((shift) => [shift.id, shift]));
+    const todayShiftsById = new Map(
+      (schedule.data?.shifts ?? [])
+        .filter((shift) => shift.shift_date === scheduleDayKey && shift.status !== "closed")
+        .map((shift) => [shift.id, shift]),
+    );
     for (const assignment of schedule.data?.assignments ?? []) {
-      const shift = shiftsById.get(assignment.shift_id);
+      if (assignment.status === "released") continue;
+      const shift = todayShiftsById.get(assignment.shift_id);
       if (!shift) continue;
       const existing = result.get(assignment.staff_id);
       const start = assignment.starts_at ?? shift.planned_start;
@@ -328,7 +350,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       const plannedStartMs = new Date(start ?? 0).getTime();
       const plannedEndMs = new Date(end ?? 0).getTime();
       const actualStartMs = entry ? new Date(entry.clock_in).getTime() : Number.NaN;
-      const actualEndMs = entry?.clock_out ? new Date(entry.clock_out).getTime() : Date.now();
+      const actualEndMs = entry?.clock_out ? new Date(entry.clock_out).getTime() : presenceNow;
       const attendanceMinutes =
         attendance === "late" && Number.isFinite(actualStartMs) && Number.isFinite(plannedStartMs)
           ? Math.max(0, Math.round((actualStartMs - plannedStartMs) / 60_000))
@@ -340,7 +362,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       const attendanceAt = entry?.clock_in ?? null;
       const startMs = new Date(start ?? shift.shift_date).getTime();
       const endMs = new Date(end ?? shift.shift_date).getTime();
-      const now = Date.now();
+      const now = presenceNow;
       const distance = now < startMs ? startMs - now : now > endMs ? now - endMs : 0;
       const count = (existing?.count ?? 0) + 1;
       if (!existing || distance < existing.distance)
@@ -358,7 +380,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       else result.set(assignment.staff_id, { ...existing, count });
     }
     return result;
-  }, [schedule.data]);
+  }, [presenceNow, schedule.data, scheduleDayKey]);
   const cancellableShiftByStaff = useMemo(() => {
     const result = new Map<string, StaffCancelableShift>();
     const shiftsById = new Map((schedule.data?.shifts ?? []).map((shift) => [shift.id, shift]));
@@ -1313,8 +1335,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
 }
 
 function StaffShiftSummaryCell({ schedule, ar }: { schedule: StaffScheduleSummary | undefined; ar: boolean }) {
-  if (!schedule) return <span className="text-xs text-muted-foreground">{ar ? "لا توجد وردية" : "No shift assigned"}</span>;
-  return <div className="flex min-w-0 items-center gap-2"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-3.5" /></span><div className="min-w-0"><strong className="block truncate text-xs">{schedule.name}</strong><p className="mt-0.5 truncate text-[10px] text-muted-foreground">{formatScheduleWindow(schedule.start, ar)}{schedule.count > 1 ? ` · +${schedule.count - 1}` : ""}</p></div></div>;
+  if (!schedule) return <span className="text-xs text-muted-foreground">{ar ? "لا توجد وردية اليوم" : "No shift today"}</span>;
+  return <div className="flex min-w-0 items-center gap-2"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-3.5" /></span><div className="min-w-0"><strong className="block truncate text-xs">{schedule.name}</strong><p className="mt-0.5 truncate text-[10px] text-muted-foreground">{formatTodayShiftWindow(schedule.start, ar)}{schedule.count > 1 ? ` · +${schedule.count - 1}` : ""}</p></div></div>;
 }
 
 function StaffLiveStatus({ clockEntry, schedule, onLeave, now, ar }: { clockEntry: StaffTimeRow | undefined; schedule: StaffScheduleSummary | undefined; onLeave: boolean; now: number; ar: boolean }) {
@@ -1525,7 +1547,7 @@ function StaffShiftCell({
               <strong className="truncate text-xs">{schedule.name}</strong>
             </div>
             <p className="mt-1 truncate text-[10px] text-muted-foreground">
-              {formatScheduleWindow(schedule.start, ar)}
+              {formatTodayShiftWindow(schedule.start, ar)}
               {schedule.count > 1 ? ` · +${schedule.count - 1}` : ""}
             </p>
             <span
@@ -2150,6 +2172,15 @@ function formatScheduleWindow(value: string | null, ar: boolean) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatTodayShiftWindow(value: string | null, ar: boolean) {
+  if (!value) return ar ? "اليوم" : "Today";
+  const time = new Date(value).toLocaleTimeString(ar ? "ar-JO" : "en-JO", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return ar ? `اليوم · ${time}` : `Today · ${time}`;
 }
 
 function formatShiftOption(shift: StaffScheduleRow, ar: boolean) {
