@@ -97,7 +97,7 @@ function routeTitle(pathname: string, ar: boolean) {
   const routes: Array<[RegExp, string, string]> = [
     [/^\/dashboard(?:\/|$)/, "Home", "الرئيسية"],
     [/^\/work(?:\/|$)/, "My Work", "عملي"],
-    [/^\/shifts(?:\/|$)/, "Shifts & Handover", "الورديات والتسليم"],
+    [/^\/shifts(?:\/|$)/, "Workforce", "القوى العاملة"],
     [/^\/approvals(?:\/|$)/, "Approvals", "الموافقات"],
     [/^\/automations(?:\/|$)/, "Automation Control Center", "مركز الأتمتة"],
     [/^\/bookings(?:\/|$)/, "Reservations", "الحجوزات"],
