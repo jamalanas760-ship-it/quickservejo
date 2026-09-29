@@ -254,12 +254,30 @@ test("theme and topbar interactions use atomic and soft motion", async () => {
   const css = await file("src/quickserve-system.css");
   assert.match(theme, /startViewTransition/);
   assert.match(theme, /flushSync/);
-  assert.match(header, /qs-topbar-shortcut/);
-  assert.match(header, />Ctrl</);
+  assert.match(header, /qs-command-icon-trigger/);
+  assert.match(header, /<Command className=/);
+  assert.doesNotMatch(header, />Ctrl</);
   assert.match(header, /qs-topbar-popover/);
   assert.match(css, /::view-transition-new\(root\)/);
   assert.match(css, /qs-topbar-popover-in/);
   assert.match(css, /qs-workforce-snapshot/);
+});
+
+
+test("approved Team and Workforce layout uses the command icon search and live Team insights", async () => {
+  const header = await file("src/components/nav/AppHeader.tsx");
+  const team = await file("src/components/manage/StaffManagerAdvanced.tsx");
+  const shifts = await file("src/routes/_authenticated/shifts.tsx");
+  const css = await file("src/quickserve-system.css");
+  assert.match(header, /qs-global-search-trigger-approved/);
+  assert.match(header, /qs-command-icon-trigger/);
+  assert.match(team, /qs-approved-team-page/);
+  assert.match(team, /Today's Attendance/);
+  assert.match(team, /Shift Distribution/);
+  assert.match(team, /Upcoming Shifts/);
+  assert.match(shifts, /qs-approved-workforce-page/);
+  assert.match(css, /Approved Team \+ Workforce image implementation/);
+  assert.match(css, /qs-approved-page-hero/);
 });
 
 
