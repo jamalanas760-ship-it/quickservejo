@@ -153,6 +153,8 @@ type StaffScheduleSummary = {
   start: string | null;
   end: string | null;
   status: string;
+  shiftDate: string;
+  phase: "upcoming" | "active" | "completed" | "late";
   count: number;
   distance: number;
   attendance: "on_time" | "late" | "left_early" | "overtime" | "not_clocked";
@@ -204,7 +206,20 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const [badge, setBadge] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", role: "waiter" as AppRole });
   const [presenceNow, setPresenceNow] = useState(() => Date.now());
-  const scheduleDayKey = localDateKey(new Date(presenceNow));
+  const timezone = useQuery<string>({
+    queryKey: ["restaurant-timezone", restaurantId],
+    staleTime: 30 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("restaurants") as any)
+        .select("timezone")
+        .eq("id", restaurantId)
+        .single();
+      if (error) throw error;
+      return String(data?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+    },
+  });
+  const restaurantTimezone = timezone.data || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const scheduleDayKey = dateKeyInTimeZone(new Date(presenceNow), restaurantTimezone);
   const [shiftMember, setShiftMember] = useState<StaffRow | null>(null);
   const [cancelShiftTarget, setCancelShiftTarget] = useState<{
     member: StaffRow;
@@ -328,59 +343,70 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const staffOnly = (staff.data ?? []).length - admins;
   const scheduleByStaff = useMemo(() => {
     const result = new Map<string, StaffScheduleSummary>();
-    const todayShiftsById = new Map(
-      (schedule.data?.shifts ?? [])
-        .filter((shift) => shift.shift_date === scheduleDayKey && shift.status !== "closed")
-        .map((shift) => [shift.id, shift]),
-    );
+    const shiftsById = new Map((schedule.data?.shifts ?? []).map((shift) => [shift.id, shift]));
+    const now = presenceNow;
+
     for (const assignment of schedule.data?.assignments ?? []) {
       if (assignment.status === "released") continue;
-      const shift = todayShiftsById.get(assignment.shift_id);
+      const shift = shiftsById.get(assignment.shift_id);
       if (!shift) continue;
-      const existing = result.get(assignment.staff_id);
+
       const start = assignment.starts_at ?? shift.planned_start;
       const end = assignment.ends_at ?? shift.planned_end;
+      const startMs = start ? new Date(start).getTime() : Number.NaN;
+      const endMs = end ? new Date(end).getTime() : Number.NaN;
+      const startsToday = Number.isFinite(startMs) && dateKeyInTimeZone(new Date(startMs), restaurantTimezone) === scheduleDayKey;
+      const endsToday = Number.isFinite(endMs) && dateKeyInTimeZone(new Date(Math.max(startMs || 0, endMs - 1)), restaurantTimezone) === scheduleDayKey;
+      const shiftDateToday = shift.shift_date === scheduleDayKey;
+      const activeAcrossMidnight = Number.isFinite(startMs) && Number.isFinite(endMs) && startMs <= now && endMs >= now;
+      if (!shiftDateToday && !startsToday && !endsToday && !activeAcrossMidnight) continue;
+
+      const existing = result.get(assignment.staff_id);
       const entry = (schedule.data?.time ?? []).find(
         (time) =>
           time.staff_id === assignment.staff_id &&
-          new Date(time.clock_in).getTime() <= new Date(end ?? 0).getTime() &&
-          (!time.clock_out || new Date(time.clock_out).getTime() >= new Date(start ?? 0).getTime()),
+          (!Number.isFinite(endMs) || new Date(time.clock_in).getTime() <= endMs) &&
+          (!time.clock_out || !Number.isFinite(startMs) || new Date(time.clock_out).getTime() >= startMs),
       );
       const attendance = scheduleAttendance(start, end, entry);
-      const plannedStartMs = new Date(start ?? 0).getTime();
-      const plannedEndMs = new Date(end ?? 0).getTime();
       const actualStartMs = entry ? new Date(entry.clock_in).getTime() : Number.NaN;
-      const actualEndMs = entry?.clock_out ? new Date(entry.clock_out).getTime() : presenceNow;
+      const actualEndMs = entry?.clock_out ? new Date(entry.clock_out).getTime() : now;
       const attendanceMinutes =
-        attendance === "late" && Number.isFinite(actualStartMs) && Number.isFinite(plannedStartMs)
-          ? Math.max(0, Math.round((actualStartMs - plannedStartMs) / 60_000))
-          : attendance === "left_early" && Number.isFinite(actualEndMs) && Number.isFinite(plannedEndMs)
-            ? Math.max(0, Math.round((plannedEndMs - actualEndMs) / 60_000))
-            : attendance === "overtime" && Number.isFinite(actualEndMs) && Number.isFinite(plannedEndMs)
-              ? Math.max(0, Math.round((actualEndMs - plannedEndMs) / 60_000))
+        attendance === "late" && Number.isFinite(actualStartMs) && Number.isFinite(startMs)
+          ? Math.max(0, Math.round((actualStartMs - startMs) / 60_000))
+          : attendance === "left_early" && Number.isFinite(actualEndMs) && Number.isFinite(endMs)
+            ? Math.max(0, Math.round((endMs - actualEndMs) / 60_000))
+            : attendance === "overtime" && Number.isFinite(actualEndMs) && Number.isFinite(endMs)
+              ? Math.max(0, Math.round((actualEndMs - endMs) / 60_000))
               : 0;
       const attendanceAt = entry?.clock_in ?? null;
-      const startMs = new Date(start ?? shift.shift_date).getTime();
-      const endMs = new Date(end ?? shift.shift_date).getTime();
-      const now = presenceNow;
-      const distance = now < startMs ? startMs - now : now > endMs ? now - endMs : 0;
+      const completed = shift.status === "closed" || assignment.status === "released" || (Number.isFinite(endMs) && endMs < now && Boolean(entry?.clock_out));
+      const active = Boolean(entry && !entry.clock_out) || (Number.isFinite(startMs) && Number.isFinite(endMs) && startMs <= now && endMs >= now && assignment.status === "present");
+      const late = !entry && Number.isFinite(startMs) && Number.isFinite(endMs) && now >= startMs + 15 * 60_000 && now <= endMs;
+      const phase: StaffScheduleSummary["phase"] = completed ? "completed" : active ? "active" : late ? "late" : Number.isFinite(endMs) && endMs < now ? "completed" : "upcoming";
+      const distance = Number.isFinite(startMs) && Number.isFinite(endMs) ? (now < startMs ? startMs - now : now > endMs ? now - endMs : 0) : 0;
       const count = (existing?.count ?? 0) + 1;
-      if (!existing || distance < existing.distance)
+
+      if (!existing || phase === "active" || distance < existing.distance) {
         result.set(assignment.staff_id, {
           name: shift.name,
           start,
           end,
           status: assignment.status,
+          shiftDate: shift.shift_date,
+          phase,
           count,
           distance,
           attendance,
           attendanceMinutes,
           attendanceAt,
         });
-      else result.set(assignment.staff_id, { ...existing, count });
+      } else {
+        result.set(assignment.staff_id, { ...existing, count });
+      }
     }
     return result;
-  }, [presenceNow, schedule.data, scheduleDayKey]);
+  }, [presenceNow, restaurantTimezone, schedule.data, scheduleDayKey]);
   const cancellableShiftByStaff = useMemo(() => {
     const result = new Map<string, StaffCancelableShift>();
     const shiftsById = new Map((schedule.data?.shifts ?? []).map((shift) => [shift.id, shift]));
@@ -1336,7 +1362,17 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
 
 function StaffShiftSummaryCell({ schedule, ar }: { schedule: StaffScheduleSummary | undefined; ar: boolean }) {
   if (!schedule) return <span className="text-xs text-muted-foreground">{ar ? "لا توجد وردية اليوم" : "No shift today"}</span>;
-  return <div className="flex min-w-0 items-center gap-2"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-3.5" /></span><div className="min-w-0"><strong className="block truncate text-xs">{schedule.name}</strong><p className="mt-0.5 truncate text-[10px] text-muted-foreground">{formatTodayShiftWindow(schedule.start, ar)}{schedule.count > 1 ? ` · +${schedule.count - 1}` : ""}</p></div></div>;
+  const phaseLabel =
+    schedule.phase === "active" ? (ar ? "الآن" : "On shift")
+      : schedule.phase === "late" ? (ar ? "متأخر" : "Late")
+        : schedule.phase === "completed" ? (ar ? "مكتملة" : "Completed")
+          : (ar ? "قادمة" : "Upcoming");
+  const phaseTone =
+    schedule.phase === "active" ? "bg-emerald-500/10 text-emerald-700"
+      : schedule.phase === "late" ? "bg-orange-500/10 text-orange-700"
+        : schedule.phase === "completed" ? "bg-slate-500/10 text-slate-600"
+          : "bg-blue-500/10 text-blue-700";
+  return <div className="flex min-w-0 items-center gap-2"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-3.5" /></span><div className="min-w-0"><div className="flex min-w-0 items-center gap-1.5"><strong className="truncate text-xs">{schedule.name}</strong><span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold", phaseTone)}>{phaseLabel}</span></div><p className="mt-0.5 truncate text-[10px] text-muted-foreground">{formatTodayShiftRange(schedule.start, schedule.end, ar)}{schedule.count > 1 ? ` · +${schedule.count - 1}` : ""}</p></div></div>;
 }
 
 function StaffLiveStatus({ clockEntry, schedule, onLeave, now, ar }: { clockEntry: StaffTimeRow | undefined; schedule: StaffScheduleSummary | undefined; onLeave: boolean; now: number; ar: boolean }) {
@@ -2181,6 +2217,29 @@ function formatTodayShiftWindow(value: string | null, ar: boolean) {
     minute: "2-digit",
   });
   return ar ? `اليوم · ${time}` : `Today · ${time}`;
+}
+
+function formatTodayShiftRange(start: string | null, end: string | null, ar: boolean) {
+  if (!start && !end) return ar ? "اليوم" : "Today";
+  const locale = ar ? "ar-JO" : "en-JO";
+  const fmt = (value: string | null) => value ? new Date(value).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "—";
+  return `${ar ? "اليوم" : "Today"} · ${fmt(start)}–${fmt(end)}`;
+}
+
+function dateKeyInTimeZone(value: Date, timeZone: string) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(value);
+    const year = parts.find((part) => part.type === "year")?.value;
+    const month = parts.find((part) => part.type === "month")?.value;
+    const day = parts.find((part) => part.type === "day")?.value;
+    if (year && month && day) return `${year}-${month}-${day}`;
+  } catch {}
+  return localDateKey(value);
 }
 
 function formatShiftOption(shift: StaffScheduleRow, ar: boolean) {
