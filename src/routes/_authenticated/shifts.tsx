@@ -4,7 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Download, Handshake, List, PlayCircle, Plus, Rows3, StopCircle, TimerReset, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
-import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
+import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { DetailRow, DetailSheet, formatStamp } from "@/components/operations/DetailSheet";
 import { Button } from "@/components/ui/button";
@@ -245,18 +245,21 @@ function ShiftsPage() {
         </div>
       </section>
 
-      <section className={cn("qs-workforce-kpis grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 [&>article]:transition-all [&>article]:duration-200 [&>article:hover]:-translate-y-0.5 [&>article:hover]:shadow-md", workforceSection !== "overview" && workforceSection !== "schedule" && "hidden")}>
-        <MasterKpi icon={UsersRound} label={ar ? "المجدولون" : "Scheduled"} value={scheduledStaff} hint={formatShiftDateLabel(selectedDate, ar)} tone="blue" />
-        <MasterKpi icon={PlayCircle} label={ar ? "على رأس العمل" : "On Shift"} value={onShiftNow} hint={ar ? "حالة مباشرة" : "Live now"} tone="green" />
-        <MasterKpi icon={TimerReset} label={ar ? "لم يسجلوا" : "Need Punch"} value={needPunch} hint={ar ? "بعد مهلة 15 دقيقة" : "15 min grace"} tone={needPunch ? "red" : "green"} />
-        <MasterKpi icon={AlertTriangle} label={ar ? "تحتاج انتباه" : "Attention"} value={needsAttention} hint={pendingHandovers ? (ar ? "يشمل تسليمات معلقة" : "Includes handovers") : (ar ? "استثناءات اليوم" : "Today's exceptions")} tone={needsAttention ? "red" : "green"} />
-        <MasterKpi icon={CalendarDays} label={ar ? "طلبات إجازة" : "Time Off"} value={pendingTimeOff} hint={ar ? "بانتظار المراجعة" : "Pending review"} tone="orange" />
-        <MasterKpi icon={Clock3} label={ar ? "خطر وقت إضافي" : "OT Risk"} value={overtimeRisk} hint={ar ? "خلال 30 دقيقة" : "Within 30 min"} tone={overtimeRisk ? "orange" : "green"} />
+      <section className={cn("qs-workforce-snapshot qs-card grid grid-cols-2 overflow-hidden sm:grid-cols-3 xl:grid-cols-6", workforceSection !== "overview" && workforceSection !== "schedule" && "hidden")}>
+        <WorkforceSnapshotStat icon={UsersRound} label={ar ? "المجدولون" : "Scheduled"} value={scheduledStaff} hint={formatShiftDateLabel(selectedDate, ar)} tone="blue" />
+        <WorkforceSnapshotStat icon={PlayCircle} label={ar ? "على رأس العمل" : "On Shift"} value={onShiftNow} hint={ar ? "الآن" : "Live now"} tone="green" />
+        <WorkforceSnapshotStat icon={TimerReset} label={ar ? "لم يسجلوا" : "Need Punch"} value={needPunch} hint={ar ? "بعد 15 دقيقة" : "15 min grace"} tone={needPunch ? "red" : "green"} />
+        <WorkforceSnapshotStat icon={AlertTriangle} label={ar ? "تحتاج انتباه" : "Attention"} value={needsAttention} hint={pendingHandovers ? (ar ? "يشمل تسليمات" : "Includes handovers") : (ar ? "استثناءات اليوم" : "Today's exceptions")} tone={needsAttention ? "red" : "green"} />
+        <WorkforceSnapshotStat icon={CalendarDays} label={ar ? "إجازات" : "Time Off"} value={pendingTimeOff} hint={ar ? "بانتظار المراجعة" : "Pending review"} tone="orange" />
+        <WorkforceSnapshotStat icon={Clock3} label={ar ? "وقت إضافي" : "OT Risk"} value={overtimeRisk} hint={ar ? "خلال 30 دقيقة" : "Within 30 min"} tone={overtimeRisk ? "orange" : "green"} />
       </section>
 
-      {workforceSection === "overview" ? <WorkforcePulse coveragePercent={coveragePercent} scheduledStaff={scheduledStaff} activeMemberCount={activeMemberCount} attentionCount={needsAttention} openWorkCount={openWorkCount} ar={ar} /> : null}
+      {workforceSection === "overview" ? <section className="qs-workforce-overview-grid grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,.95fr)]">
+        <WorkforcePulse coveragePercent={coveragePercent} scheduledStaff={scheduledStaff} activeMemberCount={activeMemberCount} attentionCount={needsAttention} openWorkCount={openWorkCount} ar={ar} />
+        <WorkforceExceptions restaurantId={rid} currentStaffId={membership.id} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} />
+      </section> : null}
 
-      <section className={cn("grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,.65fr)]", workforceSection !== "overview" && workforceSection !== "schedule" && "hidden")}>
+      <section className={cn("grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,.65fr)]", workforceSection !== "schedule" && "hidden")}>
         <div className="qs-workforce-board qs-card min-w-0 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4"><div><h2 className="qs-section-title">{ar ? "تغطية الورديات" : "Shift coverage"}</h2><p className="mt-1 text-xs text-muted-foreground">{formatShiftDateLabel(selectedDate, ar)} · {selectedRows.length} {ar ? "ورديات" : "shifts"}</p></div><div className="flex flex-wrap items-center gap-2"><div className="qs-workforce-view-switch inline-grid grid-cols-3 rounded-xl border border-border bg-muted/35 p-1"><button type="button" onClick={() => setViewMode("timeline")} className={cn("inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[10px] font-bold", viewMode === "timeline" ? "bg-card text-[#cf4818] shadow-sm" : "text-muted-foreground")}><Rows3 className="size-3.5" />{ar ? "زمني" : "Timeline"}</button><button type="button" onClick={() => setViewMode("calendar")} className={cn("inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[10px] font-bold", viewMode === "calendar" ? "bg-card text-[#cf4818] shadow-sm" : "text-muted-foreground")}><CalendarDays className="size-3.5" />{ar ? "تقويم" : "Calendar"}</button><button type="button" onClick={() => setViewMode("list")} className={cn("inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[10px] font-bold", viewMode === "list" ? "bg-card text-[#cf4818] shadow-sm" : "text-muted-foreground")}><List className="size-3.5" />{ar ? "قائمة" : "List"}</button></div><span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-[10px] font-bold text-muted-foreground"><span className="size-1.5 rounded-full bg-emerald-500" />{ar ? "تحديث حي" : "Live preview"}</span></div></div>
           {shifts.isPending ? <div className="p-5"><Skeleton className="h-72 rounded-2xl" /></div> : viewMode === "timeline" ? <CoverageTimeline dateKey={selectedDate} members={members.data ?? []} shifts={selectedRows} assignments={selectedAssignments} ar={ar} onOpen={(shift) => setDetailShiftId(shift.id)} /> : viewMode === "calendar" ? <ShiftWeekCalendar days={weekDays} rows={rows} ar={ar} onSelectDate={(key) => { setSelectedDate(key); setViewMode("timeline"); }} onOpen={(shift) => setDetailShiftId(shift.id)} /> : <div className="divide-y divide-border">{selectedRows.length ? selectedRows.map((shift) => <ShiftRow key={shift.id} shift={shift} assignments={selectedAssignments.filter((row) => row.shift_id === shift.id)} canManage={canManage} canDelete={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpen={() => setDetailShiftId(shift.id)} onClose={() => setClosingShift(shift)} onDelete={() => setDeletingShift(shift)} />) : <EmptyShifts ar={ar} />}</div>}
@@ -273,7 +276,6 @@ function ShiftsPage() {
       <div className={cn(workforceSection !== "overview" && workforceSection !== "schedule" && "hidden")}>
         {openShiftRow ? <CurrentShift shift={openShiftRow} assignments={(assignments.data ?? []).filter((row) => row.shift_id === openShiftRow.id)} members={members.data ?? []} canManage={canManage} currentStaffId={membership.id} ar={ar} lang={lang} onClose={() => setClosingShift(openShiftRow)} /> : <section className="qs-card flex items-center gap-4 p-5"><span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-5" /></span><div><h2 className="font-bold">{ar ? "لا توجد وردية مفتوحة" : "No shift is open"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكن لمدير الوردية فتح وردية مخططة عندما يبدأ التشغيل." : "A shift manager can open a planned shift when service starts."}</p></div></section>}
       </div>
-      {workforceSection === "overview" ? <WorkforceExceptions restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} /> : null}
       {workforceSection === "attendance" ? <WorkforceAttendanceBoard restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} onOpen={setMemberSheet} /> : null}
       {workforceSection === "timesheets" ? <WorkforceTimesheets restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} canManage={canManage} canReopen={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpenMember={setMemberSheet} /> : null}
       {workforceSection === "team" ? <WorkforceTeam restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} onOpen={setMemberSheet} canManageTeam={membershipHasCapability(membership.role, membership.permission_overrides, "manage_staff")} /> : null}
@@ -359,6 +361,16 @@ function ShiftWeekCalendar({ days, rows, ar, onSelectDate, onOpen }: { days: Shi
 
 function shiftBarTone(role: AppRole) {
   return role==="operations_manager"||role==="manager"?"bg-blue-500/12 text-blue-700 ring-blue-200 dark:text-blue-300":role==="host"?"bg-cyan-500/12 text-cyan-700 ring-cyan-200 dark:text-cyan-300":role==="procurement"?"bg-orange-500/12 text-orange-700 ring-orange-200 dark:text-orange-300":role==="accountant"||role==="inventory"?"bg-emerald-500/12 text-emerald-700 ring-emerald-200 dark:text-emerald-300":role==="waiter"?"bg-rose-500/12 text-rose-700 ring-rose-200 dark:text-rose-300":role==="kitchen"?"bg-violet-500/12 text-violet-700 ring-violet-200 dark:text-violet-300":"bg-slate-500/12 text-slate-700 ring-slate-200 dark:text-slate-300";
+}
+
+function WorkforceSnapshotStat({ icon: Icon, label, value, hint, tone }: { icon: typeof CalendarClock; label: string; value: number; hint: string; tone: "blue" | "green" | "red" | "orange" }) {
+  const toneClass = tone === "blue" ? "bg-blue-500/10 text-blue-600" : tone === "green" ? "bg-emerald-500/10 text-emerald-600" : tone === "red" ? "bg-red-500/10 text-red-600" : "bg-orange-500/10 text-orange-600";
+  return <article className="qs-workforce-snapshot-item min-w-0 p-3.5 sm:p-4">
+    <div className="flex min-w-0 items-center gap-3">
+      <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", toneClass)}><Icon className="size-4" /></span>
+      <span className="min-w-0"><span className="block truncate text-[10px] font-bold uppercase tracking-[.06em] text-muted-foreground">{label}</span><span className="mt-0.5 flex items-baseline gap-2"><strong className="font-display text-xl leading-none">{value}</strong><small className="truncate text-[9px] font-medium text-muted-foreground">{hint}</small></span></span>
+    </div>
+  </article>;
 }
 
 function WorkforceNavigation({ active, onChange, canManage, ar }: { active: WorkforceSection; onChange: (value: WorkforceSection) => void; canManage: boolean; ar: boolean }) {
