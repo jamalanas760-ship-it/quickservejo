@@ -500,7 +500,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const maxDistribution = Math.max(1, shiftDistribution.morning, shiftDistribution.afternoon, shiftDistribution.evening, shiftDistribution.night);
   const upcomingTeamShifts = activeTeam
     .map((member) => ({ member, schedule: scheduleByStaff.get(member.id) }))
-    .filter((item): item is { member: StaffRow; schedule: StaffScheduleSummary } => Boolean(item.schedule) && item.schedule.phase !== "missed" && item.schedule.phase !== "completed")
+    .filter((item): item is { member: StaffRow; schedule: StaffScheduleSummary } => item.schedule != null && item.schedule.phase !== "missed" && item.schedule.phase !== "completed")
     .sort((a, b) => new Date(a.schedule.start ?? 0).getTime() - new Date(b.schedule.start ?? 0).getTime())
     .slice(0, 4);
 
@@ -2340,6 +2340,17 @@ function formatTodayShiftWindow(value: string | null, ar: boolean) {
     minute: "2-digit",
   });
   return ar ? `اليوم · ${time}` : `Today · ${time}`;
+}
+
+function formatScheduleDayLabel(value: string, ar: boolean) {
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(ar ? "ar-JO" : "en-JO", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 function formatTodayShiftRange(start: string | null, end: string | null, ar: boolean) {
