@@ -1,3 +1,4 @@
+import { ClipboardCheck, Table2, UsersRound } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
@@ -7,12 +8,9 @@ const FLAG = "quickserve.splash.shown";
 /** Diner-facing routes never show the app splash — they must feel instant. */
 const SKIP_PREFIXES = ["/r/", "/o/", "/staff/badge"];
 
-/**
- * Animated launch screen. Shows once per browser session, fades itself out and
- * never blocks navigation: the app renders underneath while it plays.
- */
 export function SplashScreen() {
   const { lang } = useI18n();
+  const ar = lang === "ar";
   const [phase, setPhase] = useState<"hidden" | "visible" | "leaving">("hidden");
 
   useEffect(() => {
@@ -21,8 +19,10 @@ export function SplashScreen() {
     if (window.sessionStorage.getItem(FLAG)) return;
     window.sessionStorage.setItem(FLAG, "1");
     setPhase("visible");
-    const leave = window.setTimeout(() => setPhase("leaving"), 1000);
-    const done = window.setTimeout(() => setPhase("hidden"), 1500);
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const leave = window.setTimeout(() => setPhase("leaving"), reduceMotion ? 450 : 1050);
+    const done = window.setTimeout(() => setPhase("hidden"), reduceMotion ? 650 : 1450);
     return () => {
       window.clearTimeout(leave);
       window.clearTimeout(done);
@@ -34,29 +34,53 @@ export function SplashScreen() {
   return (
     <div
       aria-hidden
-      className={`fixed inset-0 z-[100] grid place-items-center bg-background transition-opacity duration-500 ${
+      className={`qs-master-splash fixed inset-0 z-[100] overflow-hidden bg-background transition-opacity duration-400 ${
         phase === "leaving" ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
     >
-      <div className="absolute inset-0 opacity-70 [background:radial-gradient(60%_40%_at_50%_35%,color-mix(in_oklab,var(--color-primary)_22%,transparent),transparent_70%)]" />
-      <div className="relative flex flex-col items-center gap-6">
-        <div className="relative grid place-items-center">
-          <span className="absolute size-28 animate-[qs-splash-ring_1.4s_ease-out_infinite] rounded-full border-2 border-primary/40" />
-          <span className="absolute size-28 animate-[qs-splash-ring_1.4s_ease-out_0.35s_infinite] rounded-full border-2 border-primary/25" />
-          <BrandLogo
-            className="size-16 animate-[qs-splash-pop_0.6s_cubic-bezier(0.22,1,0.36,1)]"
-            textClassName="hidden"
-          />
+      <div className="qs-master-splash-grid" />
+      <div className="qs-master-splash-orbit qs-master-splash-orbit-a" />
+      <div className="qs-master-splash-orbit qs-master-splash-orbit-b" />
+
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-[920px] flex-col items-center justify-center px-5 py-10">
+        <div className="qs-master-splash-brand">
+          <div className="qs-master-splash-logo">
+            <span className="qs-master-splash-logo-ring" />
+            <BrandLogo className="size-14 sm:size-16" textClassName="hidden" />
+          </div>
+          <div className="text-center">
+            <p className="font-display text-2xl font-bold tracking-[-.04em] sm:text-3xl">QuickServe</p>
+            <p className="mt-1 text-xs font-semibold text-muted-foreground sm:text-sm">
+              {ar ? "نحضّر مساحة التشغيل الخاصة بك" : "Preparing your operations workspace"}
+            </p>
+          </div>
         </div>
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-lg font-semibold tracking-tight">QuickServe</p>
-          <p className="text-xs text-muted-foreground">
-            {lang === "ar" ? "جارٍ تهيئة مساحة العمل…" : "Preparing your workspace…"}
-          </p>
-          <span className="mt-1 h-1 w-32 overflow-hidden rounded-full bg-muted">
-            <span className="block h-full w-1/3 animate-[qs-splash-bar_1.1s_ease-in-out_infinite] rounded-full bg-primary" />
-          </span>
+
+        <div className="qs-master-splash-board mt-8 w-full max-w-[720px]">
+          <div className="qs-master-splash-board-top">
+            <span className="qs-master-splash-board-title">{ar ? "تشغيل المطعم" : "Restaurant operations"}</span>
+            <span className="qs-master-splash-live"><i />{ar ? "مباشر" : "Live"}</span>
+          </div>
+          <div className="qs-master-splash-cards">
+            <div className="qs-master-splash-card">
+              <span className="qs-master-splash-icon"><ClipboardCheck className="size-4" /></span>
+              <span><b>{ar ? "الطلبات" : "Orders"}</b><small>{ar ? "مزامنة الخدمة" : "Syncing service"}</small></span>
+            </div>
+            <div className="qs-master-splash-card">
+              <span className="qs-master-splash-icon"><Table2 className="size-4" /></span>
+              <span><b>{ar ? "الطاولات" : "Tables"}</b><small>{ar ? "تحديث الحالة" : "Updating status"}</small></span>
+            </div>
+            <div className="qs-master-splash-card">
+              <span className="qs-master-splash-icon"><UsersRound className="size-4" /></span>
+              <span><b>{ar ? "القوى العاملة" : "Workforce"}</b><small>{ar ? "تحميل ورديات اليوم" : "Loading today's shifts"}</small></span>
+            </div>
+          </div>
+          <div className="qs-master-splash-rail"><span /></div>
         </div>
+
+        <p className="mt-5 text-[10px] font-semibold uppercase tracking-[.16em] text-muted-foreground/80">
+          {ar ? "سريع · مباشر · منظم" : "Fast · Live · Organized"}
+        </p>
       </div>
     </div>
   );
