@@ -108,36 +108,73 @@ function EmptyCard({ text }: { text: string }) {
 }
 
 /* ---------------------------- Exceptions feed ---------------------------- */
-export function WorkforceExceptions({ restaurantId, members, assignments, ar }: { restaurantId: string; members: WorkforceMember[]; assignments: ShiftAssignment[]; ar: boolean }) {
+export function WorkforceExceptions({ restaurantId, currentStaffId, members, assignments, ar }: { restaurantId: string; currentStaffId: string; members: WorkforceMember[]; assignments: ShiftAssignment[]; ar: boolean }) {
+  const qc = useQueryClient();
   const data = useWorkforceData(restaurantId);
+  const readFeed = useQuery<Array<{ body: string | null }>>({
+    queryKey: ["workforce", "attention-reads", restaurantId, currentStaffId],
+    enabled: Boolean(currentStaffId),
+    staleTime: 10_000,
+    queryFn: async () => {
+      const { data: rows, error } = await (supabase.from("in_app_notifications" as any) as any)
+        .select("body")
+        .eq("restaurant_id", restaurantId)
+        .eq("staff_id", currentStaffId)
+        .eq("source_type", "workforce_alert_read")
+        .not("read_at", "is", null)
+        .limit(500);
+      if (error) throw error;
+      return (rows ?? []) as Array<{ body: string | null }>;
+    },
+  });
+
   const items = useMemo(() => {
     if (!data.data) return [];
     const today = dayKey(new Date());
     const out: Array<{ key: string; tone: string; title: string; detail: string }> = [];
     for (const m of members.filter((x) => x.is_active)) {
       const d = memberDayStatus(m.id, today, assignments, data.data.entries);
-      if (d.missing) out.push({ key: `miss-${m.id}`, tone: "red", title: ar ? `${m.name}: لم يسجّل الدخول` : `${m.name}: missing clock-in`, detail: ar ? `بداية مجدولة ${fmtTime(d.assignment?.starts_at, ar)}` : `Scheduled start ${fmtTime(d.assignment?.starts_at, ar)}` });
-      else if (d.firstIn && d.lateMin >= LATE_MIN) out.push({ key: `late-${m.id}`, tone: "orange", title: ar ? `${m.name}: وصول متأخر` : `${m.name}: late arrival`, detail: ar ? `${Math.round(d.lateMin)} دقيقة بعد البداية` : `${Math.round(d.lateMin)} min after scheduled start` });
-      if (d.overtimeMin >= OVERTIME_MIN) out.push({ key: `ot-${m.id}`, tone: "amber", title: ar ? `${m.name}: وقت إضافي` : `${m.name}: overtime`, detail: ar ? `${Math.round(d.overtimeMin)} دقيقة بعد نهاية الوردية` : `${Math.round(d.overtimeMin)} min past shift end` });
-      // overlapping assignments = shift conflict
+      if (d.missing) out.push({ key: `miss-${today}-${m.id}`, tone: "red", title: ar ? `${m.name}: لم يسجّل الدخول` : `${m.name}: missing clock-in`, detail: ar ? `بداية مجدولة ${fmtTime(d.assignment?.starts_at, ar)}` : `Scheduled start ${fmtTime(d.assignment?.starts_at, ar)}` });
+      else if (d.firstIn && d.lateMin >= LATE_MIN) out.push({ key: `late-${today}-${m.id}`, tone: "orange", title: ar ? `${m.name}: وصول متأخر` : `${m.name}: late arrival`, detail: ar ? `${Math.round(d.lateMin)} دقيقة بعد البداية` : `${Math.round(d.lateMin)} min after scheduled start` });
+      if (d.overtimeMin >= OVERTIME_MIN) out.push({ key: `ot-${today}-${m.id}`, tone: "amber", title: ar ? `${m.name}: وقت إضافي` : `${m.name}: overtime`, detail: ar ? `${Math.round(d.overtimeMin)} دقيقة بعد نهاية الوردية` : `${Math.round(d.overtimeMin)} min past shift end` });
       const mine = assignments.filter((a) => a.staff_id === m.id && a.status !== "released" && a.starts_at && a.ends_at && a.starts_at.slice(0, 10) >= today).sort((a, b) => a.starts_at!.localeCompare(b.starts_at!));
       for (let i = 1; i < mine.length; i++) if (mine[i].starts_at! < mine[i - 1].ends_at!) { out.push({ key: `cf-${mine[i].id}`, tone: "red", title: ar ? `${m.name}: تعارض ورديات` : `${m.name}: shift conflict`, detail: `${dayKey(mine[i].starts_at!)} · ${fmtTime(mine[i].starts_at, ar)}` }); break; }
     }
-    const unapproved = data.data.entries.filter((e) => e.clock_out && reviewOf(e) === "pending").length;
-    if (unapproved) out.push({ key: "ts", tone: "blue", title: ar ? `${unapproved} سجل دوام بانتظار المراجعة` : `${unapproved} timesheet${unapproved === 1 ? "" : "s"} awaiting review`, detail: ar ? "راجع من تبويب سجلات الدوام" : "Review in the Timesheets tab" });
-    const pendingLeave = data.data.leave.filter((l) => l.status === "pending").length;
-    if (pendingLeave) out.push({ key: "lv", tone: "purple", title: ar ? `${pendingLeave} طلب إجازة معلّق` : `${pendingLeave} pending time-off request${pendingLeave === 1 ? "" : "s"}`, detail: ar ? "بانتظار موافقة المدير" : "Waiting for manager approval" });
+    const pendingTimesheets = data.data.entries.filter((e) => e.clock_out && reviewOf(e) === "pending");
+    if (pendingTimesheets.length) out.push({ key: `ts-${pendingTimesheets.length}-${pendingTimesheets[0]?.id ?? "none"}`, tone: "blue", title: ar ? `${pendingTimesheets.length} سجل دوام بانتظار المراجعة` : `${pendingTimesheets.length} timesheet${pendingTimesheets.length === 1 ? "" : "s"} awaiting review`, detail: ar ? "راجع من تبويب سجلات الدوام" : "Review in the Timesheets tab" });
+    const pendingLeaves = data.data.leave.filter((l) => l.status === "pending");
+    if (pendingLeaves.length) out.push({ key: `lv-${pendingLeaves.length}-${pendingLeaves[0]?.id ?? "none"}`, tone: "purple", title: ar ? `${pendingLeaves.length} طلب إجازة معلّق` : `${pendingLeaves.length} pending time-off request${pendingLeaves.length === 1 ? "" : "s"}`, detail: ar ? "بانتظار موافقة المدير" : "Waiting for manager approval" });
     return out;
   }, [data.data, members, assignments, ar]);
 
+  const readKeys = new Set((readFeed.data ?? []).map((row) => row.body).filter((value): value is string => Boolean(value)));
+  const unreadItems = items.filter((item) => !readKeys.has(item.key));
+  const markRead = useMutation({
+    mutationFn: async (keys: string[]) => {
+      if (!keys.length) return;
+      const { error } = await (supabase as any).rpc("mark_workforce_attention_read", {
+        _restaurant_id: restaurantId,
+        _alert_keys: keys,
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["workforce", "attention-reads", restaurantId, currentStaffId] });
+    },
+    onError: (error) => toast.error(humanError(error, ar ? "ar" : "en")),
+  });
+
   const toneCls: Record<string, string> = { red: "bg-red-500/10 text-red-600", orange: "bg-orange-500/10 text-orange-600", amber: "bg-amber-500/10 text-amber-700", blue: "bg-blue-500/10 text-blue-600", purple: "bg-violet-500/10 text-violet-600" };
   return <section className="qs-card overflow-hidden">
-    <div className="flex items-center justify-between gap-3 border-b border-border p-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
       <div><h2 className="qs-section-title">{ar ? "يحتاج انتباه" : "Needs attention"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? `قواعد تشغيلية: تأخر ≥ ${LATE_MIN} د، وقت إضافي ≥ ${OVERTIME_MIN} د.` : `Operational rules: late ≥ ${LATE_MIN} min, overtime ≥ ${OVERTIME_MIN} min past shift end.`}</p></div>
-      <span className="rounded-full bg-muted px-3 py-1 text-[10px] font-bold">{items.length}</span>
+      <div className="flex items-center gap-2">
+        {unreadItems.length ? <Button size="sm" variant="ghost" className="h-8 px-2.5 text-[10px]" disabled={markRead.isPending} onClick={() => markRead.mutate(unreadItems.map((item) => item.key))}><CheckCircle2 className="size-3.5" />{ar ? "قراءة الكل" : "Mark all read"}</Button> : null}
+        <span className={cn("rounded-full px-3 py-1 text-[10px] font-bold", unreadItems.length ? "bg-orange-500/10 text-orange-700" : "bg-muted text-muted-foreground")}>{unreadItems.length} {ar ? "غير مقروء" : "unread"}</span>
+      </div>
     </div>
-    {data.isPending ? <div className="p-4"><Skeleton className="h-24 rounded-xl" /></div> : data.isError ? <p className="p-5 text-xs text-muted-foreground">{ar ? "تعذر تحميل بيانات الحضور." : "Attendance data is unavailable right now."}</p> : !items.length ? <EmptyCard text={ar ? "لا توجد استثناءات الآن." : "No workforce exceptions right now."} /> :
-      <ul className="divide-y divide-border">{items.slice(0, 12).map((i) => <li key={i.key} className="flex items-start gap-3 p-3"><span className={cn("grid size-8 shrink-0 place-items-center rounded-xl", toneCls[i.tone])}><AlertTriangle className="size-4" /></span><span className="min-w-0"><strong className="block text-xs">{i.title}</strong><span className="mt-0.5 block text-[11px] text-muted-foreground">{i.detail}</span></span></li>)}</ul>}
+    {data.isPending || readFeed.isPending ? <div className="p-4"><Skeleton className="h-24 rounded-xl" /></div> : data.isError ? <p className="p-5 text-xs text-muted-foreground">{ar ? "تعذر تحميل بيانات الحضور." : "Attendance data is unavailable right now."}</p> : !items.length ? <EmptyCard text={ar ? "لا توجد استثناءات الآن." : "No workforce exceptions right now."} /> :
+      <ul className="divide-y divide-border">{items.slice(0, 12).map((item) => { const read = readKeys.has(item.key); return <li key={item.key} className={cn("flex items-start gap-3 p-3 transition-colors", read && "bg-muted/[.14]")}><span className={cn("grid size-8 shrink-0 place-items-center rounded-xl", toneCls[item.tone], read && "opacity-55")}><AlertTriangle className="size-4" /></span><span className={cn("min-w-0 flex-1", read && "opacity-65")}><strong className="block text-xs">{item.title}</strong><span className="mt-0.5 block text-[11px] text-muted-foreground">{item.detail}</span></span>{read ? <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-[9px] font-bold text-emerald-700"><CheckCircle2 className="size-3" />{ar ? "مقروء" : "Read"}</span> : <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2 text-[10px]" disabled={markRead.isPending} onClick={() => markRead.mutate([item.key])}>{ar ? "تعليم كمقروء" : "Mark read"}</Button>}</li>; })}</ul>}
   </section>;
 }
 
