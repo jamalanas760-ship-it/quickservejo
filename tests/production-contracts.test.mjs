@@ -203,6 +203,18 @@ test("team and shifts pages implement the approved modern live workforce design"
 });
 
 
+test("Workforce supports audited manager-created missing punches", async () => {
+  const workforce = await file("src/components/workforce/WorkforceInsights.tsx");
+  const migration = await file("supabase/migrations/20260929083025_workforce_timesheet_review_and_missing_punch.sql");
+  assert.match(workforce, /Add missing punch/);
+  assert.match(workforce, /create_missing_time_entry/);
+  assert.match(workforce, /Audited manager action/);
+  assert.match(migration, /create or replace function public\.create_missing_time_entry/);
+  assert.match(migration, /missing_punch_created/);
+  assert.match(migration, /This missing punch overlaps an existing time entry/);
+});
+
+
 test("shifts page places a modern live clock hero above shift coverage", async () => {
   const shifts = await file("src/routes/_authenticated/shifts.tsx");
   assert.match(shifts, /function WorkforceClockHero/);
