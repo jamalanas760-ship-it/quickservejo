@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { BadgeDollarSign, Check, ChefHat, ChevronDown, Command, Globe2, HandPlatter, Languages, LogOut, Menu as MenuIcon, Search, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
+import { BadgeDollarSign, Check, ChefHat, ChevronDown, Globe2, HandPlatter, Languages, LogOut, Menu as MenuIcon, Search, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
 import { toast } from "sonner";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
@@ -113,7 +113,7 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
         >
           <Search className="size-4 shrink-0" />
           <span className="min-w-0 flex-1 truncate text-start">{lang === "ar" ? "ابحث في كل شيء..." : "Search anything..."}</span>
-          <span className="qs-command-icon-trigger" aria-hidden="true"><Command className="size-[17px]" strokeWidth={2.4} /></span>
+          <span className="qs-command-icon-trigger" aria-hidden="true"><BrandLogo markOnly className="size-[22px]" /></span>
         </button>
 
         <div className="qs-topbar-controls ms-auto flex min-w-0 items-center gap-1 sm:gap-1.5">
