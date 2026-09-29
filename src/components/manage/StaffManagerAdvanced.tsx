@@ -272,14 +272,9 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       });
       if (refreshError && !String(refreshError.message ?? "").includes("Could not find the function")) throw refreshError;
 
-      const now = new Date(presenceNow);
-      const historyDate = new Date(now);
-      historyDate.setDate(historyDate.getDate() - 7);
-      const horizonDate = new Date(now);
-      horizonDate.setDate(horizonDate.getDate() + 60);
       const today = scheduleDayKey;
-      const historyStart = localDateKey(historyDate);
-      const horizon = localDateKey(horizonDate);
+      const historyStart = addLocalDays(today, -7);
+      const horizon = addLocalDays(today, 60);
       const since = new Date(presenceNow - 7 * 86_400_000).toISOString();
       const [shiftsResult, assignmentsResult, timeResult, leaveResult] = await Promise.all([
         (supabase.from("shifts" as any) as any)
@@ -326,6 +321,24 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
         },
         () => void qc.invalidateQueries({ queryKey: ["platform", "staff", restaurantId] }),
       )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [qc, restaurantId]);
+
+  useEffect(() => {
+    const refreshSchedule = () => {
+      void Promise.all([
+        qc.invalidateQueries({ queryKey: ["platform", "staff-schedule", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }),
+      ]);
+    };
+    const channel = supabase
+      .channel(`team-schedule-live:${restaurantId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shifts", filter: `restaurant_id=eq.${restaurantId}` }, refreshSchedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shift_assignments", filter: `restaurant_id=eq.${restaurantId}` }, refreshSchedule)
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
@@ -1349,6 +1362,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           restaurantId={restaurantId}
           shifts={schedule.data?.shifts ?? []}
           assignments={schedule.data?.assignments ?? []}
+          todayKey={scheduleDayKey}
           ar={ar}
           lang={lang}
           onClose={() => setShiftMember(null)}
@@ -1717,6 +1731,7 @@ function AssignStaffShiftDialog({
   restaurantId,
   shifts,
   assignments,
+  todayKey,
   ar,
   lang,
   onClose,
@@ -1725,12 +1740,13 @@ function AssignStaffShiftDialog({
   restaurantId: string;
   shifts: StaffScheduleRow[];
   assignments: StaffAssignmentRow[];
+  todayKey: string;
   ar: boolean;
   lang: "en" | "ar";
   onClose: () => void;
 }) {
   const qc = useQueryClient();
-  const today = localDateKey(new Date());
+  const today = todayKey;
   const available = shifts.filter(
     (shift) =>
       shift.status !== "closed" &&
@@ -1750,6 +1766,12 @@ function AssignStaffShiftDialog({
   const [end, setEnd] = useState("17:00");
   const overnight = Boolean(start && end && end <= start);
   const invalidRange = newMode === "recurring" && rangeEnd < date;
+  const todayWeekday = new Date(`${today}T12:00:00`).getDay();
+  const todayIncluded =
+    newMode === "recurring" &&
+    date <= today &&
+    rangeEnd >= today &&
+    weekdays.includes(todayWeekday);
 
   function toggleWeekday(day: number) {
     setWeekdays((current) =>
@@ -1820,11 +1842,21 @@ function AssignStaffShiftDialog({
   const mutation = useMutation({
     mutationFn: save,
     onSuccess: async (result) => {
+      if (result.recurring) {
+        const { error: refreshError } = await (supabase as any).rpc("refresh_recurring_staff_schedules", {
+          _restaurant_id: restaurantId,
+          _horizon_days: 84,
+        });
+        if (refreshError && !String(refreshError.message ?? "").includes("Could not find the function")) {
+          toast.error(humanError(refreshError, lang));
+        }
+      }
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["platform", "staff-schedule", restaurantId] }),
         qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }),
         qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }),
       ]);
+      await qc.refetchQueries({ queryKey: ["platform", "staff-schedule", restaurantId], type: "active" });
       if (result.recurring) {
         toast.success(
           ar
@@ -1921,7 +1953,10 @@ function AssignStaffShiftDialog({
                         return <button key={day.value} type="button" aria-pressed={selected} onClick={() => toggleWeekday(day.value)} className={cn("min-h-10 rounded-xl border px-2 text-xs font-bold transition", selected ? "border-[#e85d2a] bg-orange-500/10 text-[#cf4818]" : "border-border bg-card text-muted-foreground hover:text-foreground")}>{ar ? day.ar : day.en}</button>;
                       })}
                     </div>
-                    <p className="mt-3 text-xs font-semibold text-muted-foreground">{ar ? `${weekdays.length} أيام بالأسبوع محددة` : `${weekdays.length} day(s) per week selected`}</p>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-muted-foreground">{ar ? `${weekdays.length} أيام بالأسبوع محددة` : `${weekdays.length} day(s) per week selected`}</p>
+                      {date <= today && rangeEnd >= today ? <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-bold", todayIncluded ? "bg-emerald-500/10 text-emerald-700" : "bg-slate-500/10 text-slate-600")}>{todayIncluded ? (ar ? "وردية اليوم ستظهر فوراً" : "Today will appear immediately") : (ar ? "اليوم غير محدد" : "Today is not selected")}</span> : null}
+                    </div>
                   </section>
                   {invalidRange ? <p className="rounded-xl bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300">{ar ? "تاريخ النهاية يجب أن يكون بعد تاريخ البداية." : "End date must be on or after the start date."}</p> : null}
                 </>
