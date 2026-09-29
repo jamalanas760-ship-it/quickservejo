@@ -146,7 +146,7 @@ function ShiftsPage() {
     },
   });
 
-  if (scope.isPending || access.isPending) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><Skeleton className="h-[620px] rounded-3xl" /></main></div>;
+  if (scope.isPending || access.isPending) return <WorkforcePageSkeleton ar={ar} />;
   if (!rid || !membership || !canView) return <Denied ar={ar} />;
 
   const today = liveToday;
@@ -1230,4 +1230,25 @@ function Field({ label, children, className = "" }: { label: string; children: R
 function Status({ status, ar }: { status: Shift["status"]; ar: boolean }) { const label = status === "open" ? (ar ? "مفتوحة" : "Open") : status === "closed" ? (ar ? "مغلقة" : "Closed") : (ar ? "مخططة" : "Planned"); return <span className={cn("rounded-full px-2 py-1 text-[10px] font-bold", status === "open" ? "bg-emerald-500/10 text-emerald-700" : status === "closed" ? "bg-slate-500/10 text-slate-600" : "bg-blue-500/10 text-blue-600")}>{label}</span>; }
 function formatWindow(shift: Shift, ar: boolean) { const fmt = (value: string | null) => value ? new Date(value).toLocaleTimeString(ar ? "ar-JO" : "en-JO", { hour: "2-digit", minute: "2-digit" }) : "—"; return `${fmt(shift.planned_start)} – ${fmt(shift.planned_end)}`; }
 function EmptyShifts({ ar }: { ar: boolean }) { return <div className="p-10 text-center"><CalendarClock className="mx-auto size-9 text-muted-foreground" /><h3 className="mt-3 font-bold">{ar ? "لا توجد ورديات بعد" : "No shifts yet"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "أنشئ أول وردية لبدء الجدولة والتسليم." : "Create the first shift to start scheduling and handover."}</p></div>; }
+function WorkforcePageSkeleton({ ar }: { ar: boolean }) {
+  return <div className="min-h-dvh bg-background">
+    <AppHeader title={ar ? "القوى العاملة" : "Workforce"} />
+    <main className="qs-workforce-screen qs-page space-y-4" aria-busy="true" aria-label={ar ? "جارٍ تحميل القوى العاملة" : "Loading Workforce"}>
+      <section className="qs-card overflow-hidden p-5 sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 flex-1 space-y-3"><Skeleton className="h-5 w-36 rounded-full" /><Skeleton className="h-9 w-64 max-w-full rounded-xl" /><Skeleton className="h-4 w-[460px] max-w-full rounded-lg" /></div>
+          <div className="flex gap-2"><Skeleton className="h-10 w-28 rounded-xl" /><Skeleton className="h-10 w-32 rounded-xl" /></div>
+        </div>
+      </section>
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, index) => <article key={index} className="qs-card p-4"><div className="flex items-start justify-between"><Skeleton className="size-9 rounded-xl" /><Skeleton className="h-4 w-14 rounded-full" /></div><Skeleton className="mt-5 h-7 w-16 rounded-lg" /><Skeleton className="mt-2 h-3 w-24 rounded-lg" /></article>)}
+      </section>
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,.7fr)]">
+        <div className="qs-card overflow-hidden"><div className="flex items-center justify-between border-b border-border p-4"><div className="space-y-2"><Skeleton className="h-5 w-36 rounded-lg" /><Skeleton className="h-3 w-48 rounded-lg" /></div><Skeleton className="h-8 w-20 rounded-full" /></div><div className="space-y-3 p-4">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="grid grid-cols-[76px_minmax(0,1fr)] gap-3"><Skeleton className="h-14 rounded-xl" /><Skeleton className="h-14 rounded-xl" /></div>)}</div></div>
+        <div className="space-y-4"><div className="qs-card p-4"><Skeleton className="h-4 w-28 rounded-lg" /><Skeleton className="mt-3 h-8 w-20 rounded-lg" /><Skeleton className="mt-4 h-2 w-full rounded-full" /></div><div className="qs-card p-4"><Skeleton className="h-4 w-32 rounded-lg" />{Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="mt-3 h-10 w-full rounded-xl" />)}</div></div>
+      </section>
+    </main>
+  </div>;
+}
+
 function Denied({ ar }: { ar: boolean }) { return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><section className="qs-card p-8 text-center"><CalendarClock className="mx-auto size-10 text-muted-foreground" /><h1 className="mt-4 text-xl font-bold">{ar ? "الورديات غير متاحة" : "Shifts are not available"}</h1><p className="mt-2 text-sm text-muted-foreground">{ar ? "هذا الحساب لا يملك وصول مساحة العمل لهذا المطعم." : "This account does not have work access for this restaurant."}</p></section></main></div>; }
