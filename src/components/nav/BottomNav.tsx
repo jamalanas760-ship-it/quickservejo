@@ -91,8 +91,6 @@ export function BottomNav() {
     };
   }, []);
 
-  if (access.isPending || access.isSuperAdmin) return null;
-
   const role = membership?.role ?? access.roles[0] ?? null;
   const overrides = membership?.permission_overrides ?? null;
   const can = (capability: Capability) => Boolean(role && membershipHasCapability(role, overrides, capability));
@@ -365,6 +363,8 @@ export function BottomNav() {
       clearIOSSelection();
     };
   },[iosQuickItem]);
+
+  if (access.isPending || access.isSuperAdmin) return null;
 
   const normalizedToolSearch = toolSearch.trim().toLocaleLowerCase(lang === "ar" ? "ar" : "en");
   const visibleTools = normalizedToolSearch
