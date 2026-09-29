@@ -5,6 +5,8 @@ import {
   CalendarClock,
   CalendarPlus,
   CalendarX2,
+  ChevronLeft,
+  ChevronRight,
   History,
   IdCard,
   KeyRound,
@@ -20,6 +22,7 @@ import {
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -198,6 +201,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const [tab, setTab] = useState<StaffTab>("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [teamPage, setTeamPage] = useState(1);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [drawerTab, setDrawerTab] = useState<DrawerTab>("permissions");
   const [pendingDelete, setPendingDelete] = useState<StaffRow | null>(null);
@@ -519,6 +523,21 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     });
   }, [leaveStaffIds, openClockByStaff, roleFilter, search, staff.data, statusFilter, tab]);
 
+  const TEAM_PAGE_SIZE = 8;
+  const teamPageCount = Math.max(1, Math.ceil(rows.length / TEAM_PAGE_SIZE));
+  const currentTeamPage = Math.min(teamPage, teamPageCount);
+  const visibleRows = rows.slice((currentTeamPage - 1) * TEAM_PAGE_SIZE, currentTeamPage * TEAM_PAGE_SIZE);
+  const firstVisibleIndex = rows.length ? (currentTeamPage - 1) * TEAM_PAGE_SIZE + 1 : 0;
+  const lastVisibleIndex = Math.min(rows.length, currentTeamPage * TEAM_PAGE_SIZE);
+
+  useEffect(() => {
+    setTeamPage(1);
+  }, [search, roleFilter, statusFilter, tab]);
+
+  useEffect(() => {
+    if (teamPage > teamPageCount) setTeamPage(teamPageCount);
+  }, [teamPage, teamPageCount]);
+
   async function refresh() {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["platform"] }),
@@ -735,7 +754,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
         <div className="grid gap-2.5 border-b border-border bg-card p-3 lg:grid-cols-[minmax(0,1fr)_160px_160px]">
           <div className="relative">
             <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ar ? "ابحث بالاسم أو البريد أو الدور..." : "Search staff, role or email..."} className="h-10 rounded-xl ps-10" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ar ? "ابحث بالاسم أو البريد أو الدور..." : "Search staff, role or email..."} className="h-11 rounded-xl ps-10 pe-14" />
+            <button type="button" className="qs-team-search-command absolute end-1.5 top-1/2 grid size-8.5 -translate-y-1/2 place-items-center rounded-[10px]" onClick={() => window.dispatchEvent(new CustomEvent("quickserve:open-workspace-tools"))} aria-label={ar ? "فتح البحث الشامل" : "Open global search"} title={ar ? "البحث الشامل" : "Global search"}><BrandLogo markOnly className="size-5" /></button>
           </div>
           <Select value={roleFilter} onValueChange={setRoleFilter}>
             <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
@@ -751,11 +771,12 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
         ) : (
           <>
             <div className="qs-team-table-wrap hidden min-h-0 flex-1 overflow-hidden xl:block">
-              <table className="qs-team-table qs-table w-full table-fixed">
-                <colgroup><col className="w-[4%]" /><col className="w-[17%]" /><col className="w-[12%]" /><col className="w-[8%]" /><col className="w-[15%]" /><col className="w-[15%]" /><col className="w-[12%]" /><col className="w-[17%]" /></colgroup>
+              <table className="qs-team-table qs-table w-full min-w-[1180px] table-fixed">
+                <colgroup><col className="w-[5%]" /><col className="w-[19%]" /><col className="w-[13%]" /><col className="w-[9%]" /><col className="w-[16%]" /><col className="w-[14%]" /><col className="w-[11%]" /><col className="w-[13%]" /></colgroup>
                 <thead><tr><th>#</th><th>{ar ? "الموظف" : "Staff Member"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "الحالة" : "Status"}</th><th>{ar ? "وردية اليوم" : "Today's Shift"}</th><th>{ar ? "الحالة الحية" : "Live Status"}</th><th>{ar ? "آخر نشاط" : "Last Active"}</th><th className="text-center">{ar ? "إجراءات" : "Actions"}</th></tr></thead>
                 <tbody>
-                  {rows.map((member, index) => {
+                  {visibleRows.map((member, pageIndex) => {
+                    const index = (currentTeamPage - 1) * TEAM_PAGE_SIZE + pageIndex;
                     const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
                     const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
                     const scheduleInfo = scheduleByStaff.get(member.id);
@@ -778,8 +799,16 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                 </tbody>
               </table>
             </div>
+            <div className="qs-team-pagination hidden items-center justify-between border-t border-border bg-card px-4 py-3 xl:flex">
+              <p className="text-[11px] font-medium text-muted-foreground">{ar ? `عرض ${firstVisibleIndex}–${lastVisibleIndex} من ${rows.length} أعضاء` : `Showing ${firstVisibleIndex}–${lastVisibleIndex} of ${rows.length} team members`}</p>
+              <div className="flex items-center gap-1.5">
+                <button type="button" className="qs-team-page-button" disabled={currentTeamPage <= 1} onClick={() => setTeamPage((page) => Math.max(1, page - 1))} aria-label={ar ? "الصفحة السابقة" : "Previous page"}><ChevronLeft className="size-4" /></button>
+                {Array.from({ length: teamPageCount }, (_, page) => page + 1).slice(Math.max(0, currentTeamPage - 3), Math.max(0, currentTeamPage - 3) + 3).map((page) => <button key={page} type="button" className={cn("qs-team-page-button", page === currentTeamPage && "is-active")} onClick={() => setTeamPage(page)}>{page}</button>)}
+                <button type="button" className="qs-team-page-button" disabled={currentTeamPage >= teamPageCount} onClick={() => setTeamPage((page) => Math.min(teamPageCount, page + 1))} aria-label={ar ? "الصفحة التالية" : "Next page"}><ChevronRight className="size-4" /></button>
+              </div>
+            </div>
             <div className="space-y-2 p-3 xl:hidden">
-              {rows.map((member) => {
+              {visibleRows.map((member) => {
                 const locked =
                   member.role === "restaurant_admin" &&
                   !isSuperAdmin &&
