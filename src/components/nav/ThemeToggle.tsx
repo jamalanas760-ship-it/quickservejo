@@ -1,37 +1,83 @@
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const KEY = "quickserve-theme";
+const EVENT = "quickserve:theme-change";
+const TRANSITION_CLASS = "qs-theme-transitioning";
 type Theme = "light" | "dark";
 
-function applyTheme(theme: Theme) {
+function preferredTheme(): Theme {
+  if (typeof window === "undefined") return "light";
+  const stored = window.localStorage.getItem(KEY) as Theme | null;
+  if (stored === "dark" || stored === "light") return stored;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(theme: Theme, animate = false) {
   if (typeof document === "undefined") return;
-  document.documentElement.classList.toggle("dark", theme === "dark");
-  document.documentElement.style.colorScheme = theme;
+  const root = document.documentElement;
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (animate && !reduceMotion) {
+    root.classList.remove(TRANSITION_CLASS);
+    // Force a style boundary so repeated toggles always start from the current theme.
+    void root.offsetWidth;
+    root.classList.add(TRANSITION_CLASS);
+    window.setTimeout(() => root.classList.remove(TRANSITION_CLASS), 280);
+  }
+
+  root.classList.toggle("dark", theme === "dark");
+  root.style.colorScheme = theme;
 }
 
 export function ThemeToggle({ compact = false, className }: { compact?: boolean; className?: string }) {
   const [theme, setTheme] = useState<Theme>("light");
   const [ready, setReady] = useState(false);
+  const themeRef = useRef<Theme>("light");
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(KEY) as Theme | null;
-    const initial: Theme = stored === "dark" || stored === "light"
-      ? stored
-      : window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
+    const initial = preferredTheme();
+    themeRef.current = initial;
     setTheme(initial);
     applyTheme(initial);
     setReady(true);
+
+    const sync = (next: Theme) => {
+      if (next === themeRef.current) return;
+      themeRef.current = next;
+      setTheme(next);
+      applyTheme(next);
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== KEY) return;
+      const next = event.newValue;
+      if (next === "dark" || next === "light") sync(next);
+    };
+    const onThemeEvent = (event: Event) => {
+      const next = (event as CustomEvent<Theme>).detail;
+      if (next === "dark" || next === "light") sync(next);
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(EVENT, onThemeEvent);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(EVENT, onThemeEvent);
+      document.documentElement.classList.remove(TRANSITION_CLASS);
+    };
   }, []);
 
   function choose(next: Theme) {
-    if (next === theme) return;
+    if (next === themeRef.current) return;
+    themeRef.current = next;
     setTheme(next);
     window.localStorage.setItem(KEY, next);
-    applyTheme(next);
+    applyTheme(next, true);
+    window.dispatchEvent(new CustomEvent<Theme>(EVENT, { detail: next }));
   }
 
   if (compact) {
