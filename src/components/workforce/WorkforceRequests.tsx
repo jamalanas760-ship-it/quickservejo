@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -456,6 +457,6 @@ function RequestRow({
   </article>;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return <div className="space-y-2"><Label>{label}</Label>{children}</div>;
 }
