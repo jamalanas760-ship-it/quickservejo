@@ -219,8 +219,8 @@ function DashboardPage() {
   const upcomingReservations = reservationStats.data?.upcoming ?? [];
 
   function renderSection(id: HomeSectionId) {
-    if (id === "hero") return <section className="qs-dashboard-photo-hero h-full min-h-[210px] overflow-hidden">
-      <div className="qs-dashboard-photo-overlay flex h-full min-h-[210px] flex-col justify-between gap-5 p-5 sm:p-6 lg:flex-row lg:items-center">
+    if (id === "hero") return <section className="h-full min-h-[190px] overflow-hidden rounded-[20px] border border-border/80 bg-card shadow-[var(--qs-shadow-card)]">
+      <div className="flex h-full min-h-[190px] flex-col justify-between gap-5 p-5 sm:p-6 lg:flex-row lg:items-center">
         <div className="min-w-0 max-w-3xl">
           <MasterEyebrow icon={TrendingUp}>{ar ? "نظرة اليوم" : "Today at a glance"}</MasterEyebrow>
           <h1 className="mt-4 font-display text-[clamp(2rem,3.2vw,3rem)] font-bold leading-[1.04] tracking-[-.05em]">{ar ? `مرحباً، ${displayName}` : `Good to see you, ${displayName}`}</h1>
@@ -258,30 +258,23 @@ function DashboardPage() {
 
   if (!customize) return <div className="min-h-dvh bg-background">
     <AppHeader />
-    <main className="qs-page qs-dashboard-master space-y-4">
-      <section className="qs-dashboard-photo-hero">
-        <div className="qs-dashboard-photo-overlay">
-          <div className="min-w-0 max-w-3xl">
-            <MasterEyebrow icon={TrendingUp}>{ar ? "تشغيل المطعم اليوم" : "Today at your restaurant"}</MasterEyebrow>
-            <h1 className="mt-3 font-display text-[clamp(2rem,4vw,3.45rem)] font-black leading-[.98] tracking-[-.055em]">{ar ? `صباح الخير، ${displayName}` : `Good morning, ${displayName}`}</h1>
-            <p className="mt-3 max-w-xl text-sm leading-6">{ar ? `كل ما تحتاجه لتشغيل ${restaurant.data?.name ?? scope.restaurantName ?? "المطعم"} بوضوح وسرعة.` : `Everything you need to run ${restaurant.data?.name ?? scope.restaurantName ?? "your restaurant"} with clarity and speed.`}</p>
-            <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-              <span className="qs-dashboard-photo-pill">{today}</span>
-              <span className="qs-dashboard-photo-pill">{restaurant.data?.name ?? scope.restaurantName ?? (ar ? "المطعم" : "Restaurant")}</span>
-            </div>
-          </div>
-          {rid ? <div className="qs-dashboard-hero-actions grid grid-cols-2 gap-2 sm:flex">
-            <Link to="/bookings" className="qs-button-primary"><CalendarCheck2 className="size-4" />{ar ? "حجز جديد" : "Add Booking"}</Link>
-            <Link to="/manage/$restaurantId/orders" params={{restaurantId:rid}} className="qs-dashboard-hero-secondary"><ClipboardList className="size-4" />{ar ? "عرض الطلبات" : "View orders"}</Link>
-          </div> : null}
+    <main className="qs-page space-y-6">
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="qs-page-title">{ar ? `صباح الخير، ${displayName}` : `Good morning, ${displayName}`}</h1>
+          <p className="qs-page-subtitle mt-2">{ar ? "إليك ما يحتاج إلى انتباهك اليوم." : "Here’s what needs your attention today."}</p>
         </div>
-      </section>
+        {rid ? <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+          <Link to="/bookings" className="qs-button-primary"><CalendarCheck2 className="size-4" />{ar ? "حجز جديد" : "Add Booking"}</Link>
+          <Link to="/manage/$restaurantId/orders" params={{restaurantId:rid}} className="qs-button-secondary"><ClipboardList className="size-4" />{ar ? "عرض الطلبات" : "View orders"}</Link>
+        </div> : null}
+      </header>
 
       {report.isPending || tableStats.isPending || reservationStats.isPending
         ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0,1,2,3].map((index)=><Skeleton key={index} className="min-h-[112px] rounded-xl" />)}</div>
         : <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{metrics.slice(0,4).map(({id,label,value,icon,hint,tone})=><MasterKpi key={id} icon={icon} label={label} value={value} hint={hint} tone={tone} action={rid?<Link to="/dashboard/$metric" params={{metric:id}} aria-label={`${label} details`} className="grid size-10 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"><ChevronRight className="size-5" /></Link>:null}/>)}</section>}
 
-      <section className="qs-dashboard-live-grid grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,.75fr)]">
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,.75fr)]">
         <MasterSection title={ar ? "الخدمة المباشرة" : "Live service"} description={ar ? "آخر الطلبات وحالتها الآن" : "Recent orders and their current status"} action={rid?<Link to="/manage/$restaurantId/orders" params={{restaurantId:rid}} className="inline-flex min-h-11 items-center gap-1 px-2 text-sm font-semibold text-muted-foreground hover:text-foreground">{ar?"عرض الكل":"View all"}<ChevronRight className="size-4"/></Link>:null} contentClassName="p-0">
           {recentOrders.length ? <div className="divide-y divide-border">{recentOrders.map((order)=><Link key={order.id} to="/manage/$restaurantId/orders" params={{restaurantId:rid!}} className="grid min-h-[72px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 transition hover:bg-muted/45 sm:grid-cols-[110px_minmax(0,1fr)_130px_auto]">
             <strong className="text-sm">#{order.order_number}</strong>
