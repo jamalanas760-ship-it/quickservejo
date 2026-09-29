@@ -91,8 +91,6 @@ export function BottomNav() {
     };
   }, []);
 
-  if (access.isPending || access.isSuperAdmin) return null;
-
   const role = membership?.role ?? access.roles[0] ?? null;
   const overrides = membership?.permission_overrides ?? null;
   const can = (capability: Capability) => Boolean(role && membershipHasCapability(role, overrides, capability));
@@ -107,7 +105,7 @@ export function BottomNav() {
     { to: homeTo, icon: role === "operations_manager" || role === "manager" ? UserRoundCog : Home, en: role === "operations_manager" ? "Operations" : role === "manager" ? "Shift" : "Home", ar: role === "operations_manager" ? "العمليات" : role === "manager" ? "الوردية" : "الرئيسية", exact: true, group: "overview" },
     { to: "/hq", icon: Building2, en: "HQ", ar: "المجموعة", group: "overview" },
     { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي", capability: "view_work", badge: "tasks", group: "overview" },
-    { to: "/shifts", icon: CalendarClock, en: "Shifts", ar: "الورديات", capability: "view_work", badge: "shifts", group: "operations" },
+    { to: "/shifts", icon: CalendarClock, en: "Workforce", ar: "القوى العاملة", capability: "view_work", badge: "shifts", group: "operations" },
     { to: "/automations", icon: Workflow, en: "Automation", ar: "الأتمتة", capability: "manage_work", group: "operations" },
     { to: `/manage/${restaurantId}/orders`, icon: ClipboardList, en: "Orders", ar: "الطلبات", capability: "view_orders", badge: "orders", group: "service" },
     { to: `/manage/${restaurantId}`, icon: UtensilsCrossed, en: "Menu", ar: "القائمة", exact: true, capability: "manage_menu", group: "service" },
@@ -127,7 +125,7 @@ export function BottomNav() {
 
   const frontlineItem = role ? FRONTLINE_ITEMS[role] : undefined;
   const workItem: Item | null = can("view_work") ? { to: "/work", icon: BriefcaseBusiness, en: "My Work", ar: "عملي", badge: "tasks" } : null;
-  const shiftItem: Item | null = can("view_work") ? { to: "/shifts", icon: CalendarClock, en: "Shifts", ar: "الورديات", badge: "shifts" } : null;
+  const shiftItem: Item | null = can("view_work") ? { to: "/shifts", icon: CalendarClock, en: "Workforce", ar: "القوى العاملة", badge: "shifts" } : null;
   const erpItem: Item | null = restaurantId && can("view_erp") ? { to: `/manage/${restaurantId}/operations`, icon: Boxes, en: "ERP", ar: "ERP" } : null;
   const desktopItems: Item[] = managerial
     ? managementItems
@@ -308,29 +306,29 @@ export function BottomNav() {
 
     switch(item.en){
       case "Home": addBooking(); addTool("home-orders","Orders","Live Orders","الطلبات المباشرة"); addTool("home-tables","Tables","Floor & Tables","الصالة والطاولات"); addTool("home-analytics","Analytics","Today Analytics","تحليلات اليوم"); break;
-      case "Operations": addTool("ops-orders","Orders","Service Orders","طلبات الخدمة"); addTool("ops-shifts","Shifts","Shift Control","إدارة الورديات"); addTool("ops-erp","ERP","Inventory & ERP","المخزون و ERP"); addTool("ops-analytics","Analytics","Operations Analytics","تحليلات العمليات"); break;
-      case "Shift": addTool("shift-schedule","Shifts","Shift Schedule","جدول الورديات"); addTool("shift-team","Team","Team Status","حالة الفريق"); addBooking(); addTool("shift-work","My Work","My Tasks","مهامي"); break;
+      case "Operations": addTool("ops-orders","Orders","Service Orders","طلبات الخدمة"); addTool("ops-shifts","Workforce","Shift Control","إدارة الورديات"); addTool("ops-erp","ERP","Inventory & ERP","المخزون و ERP"); addTool("ops-analytics","Analytics","Operations Analytics","تحليلات العمليات"); break;
+      case "Shift": addTool("shift-schedule","Workforce","Shift Schedule","جدول الورديات"); addTool("shift-team","Team","Team Status","حالة الفريق"); addBooking(); addTool("shift-work","My Work","My Tasks","مهامي"); break;
       case "HQ": addTool("hq-analytics","Analytics","Group Analytics","تحليلات المجموعة"); addTool("hq-team","Team","Restaurant Team","فريق المطعم"); addTool("hq-guests","Guests","Guest Intelligence","بيانات الضيوف"); addTool("hq-profile","Profile","Organization Profile","ملف المؤسسة"); break;
-      case "My Work": addTool("work-shifts","Shifts","My Shifts","وردياتي"); addTool("work-team","Team","Team","الفريق"); addTool("work-alerts","Alerts","Alerts","التنبيهات"); addTool("work-home","Home","Dashboard","لوحة التحكم"); break;
+      case "My Work": addTool("work-shifts","Workforce","My Shifts","وردياتي"); addTool("work-team","Team","Team","الفريق"); addTool("work-alerts","Alerts","Alerts","التنبيهات"); addTool("work-home","Home","Dashboard","لوحة التحكم"); break;
       case "Orders": addTool("orders-tables","Tables","Open Tables","الطاولات المفتوحة"); addTool("orders-menu","Menu","Menu","القائمة"); addBooking(); addTool("orders-analytics","Analytics","Order Analytics","تحليلات الطلبات"); break;
       case "Menu": addTool("menu-orders","Orders","Live Orders","الطلبات المباشرة"); addTool("menu-tables","Tables","Tables","الطاولات"); addTool("menu-analytics","Analytics","Menu Analytics","تحليلات القائمة"); addTool("menu-home","Home","Dashboard","لوحة التحكم"); break;
       case "Tables": addBooking(); addTool("tables-waitlist","Waitlist","Waitlist","قائمة الانتظار"); addTool("tables-orders","Orders","Table Orders","طلبات الطاولات"); addTool("tables-menu","Menu","Menu","القائمة"); break;
       case "Reservations": addBooking(); addTool("reservations-waitlist","Waitlist","Waitlist","قائمة الانتظار"); addTool("reservations-guests","Guests","Guest Profiles","ملفات الضيوف"); addTool("reservations-tables","Tables","Table Availability","توفر الطاولات"); break;
       case "Waitlist": addBooking(); addTool("wait-reservations","Reservations","Reservation Schedule","جدول الحجوزات"); addTool("wait-tables","Tables","Table Availability","توفر الطاولات"); addTool("wait-guests","Guests","Guest Profiles","ملفات الضيوف"); break;
-      case "Shifts": addTool("shifts-team","Team","Team Directory","دليل الفريق"); addTool("shifts-work","My Work","My Work","عملي"); addTool("shifts-close","Daily Close","Daily Close","إقفال اليوم"); addBooking(); break;
-      case "Automation": addTool("auto-work","My Work","Workflow Tasks","مهام سير العمل"); addTool("auto-shifts","Shifts","Shift Rules","قواعد الورديات"); addTool("auto-connect","Connect","Integrations","التكاملات"); addTool("auto-home","Home","Dashboard","لوحة التحكم"); break;
+      case "Workforce": addTool("shifts-team","Team","Team Directory","دليل الفريق"); addTool("shifts-work","My Work","My Work","عملي"); addTool("shifts-close","Daily Close","Daily Close","إقفال اليوم"); addBooking(); break;
+      case "Automation": addTool("auto-work","My Work","Workflow Tasks","مهام سير العمل"); addTool("auto-shifts","Workforce","Shift Rules","قواعد الورديات"); addTool("auto-connect","Connect","Integrations","التكاملات"); addTool("auto-home","Home","Dashboard","لوحة التحكم"); break;
       case "ERP": addTool("erp-analytics","Analytics","ERP Analytics","تحليلات ERP"); addTool("erp-orders","Orders","Orders","الطلبات"); addTool("erp-close","Daily Close","Daily Close","إقفال اليوم"); addTool("erp-home","Home","Dashboard","لوحة التحكم"); break;
       case "Analytics": addTool("analytics-orders","Orders","Orders","الطلبات"); addTool("analytics-erp","ERP","ERP","ERP"); addTool("analytics-guests","Guests","Guest Analytics","تحليلات الضيوف"); addTool("analytics-close","Daily Close","Daily Close","إقفال اليوم"); break;
-      case "Daily Close": addTool("close-analytics","Analytics","Day Analytics","تحليلات اليوم"); addTool("close-orders","Orders","Orders","الطلبات"); addTool("close-shifts","Shifts","Shift Summary","ملخص الورديات"); addTool("close-home","Home","Dashboard","لوحة التحكم"); break;
+      case "Daily Close": addTool("close-analytics","Analytics","Day Analytics","تحليلات اليوم"); addTool("close-orders","Orders","Orders","الطلبات"); addTool("close-shifts","Workforce","Shift Summary","ملخص الورديات"); addTool("close-home","Home","Dashboard","لوحة التحكم"); break;
       case "Guests": addBooking(); addTool("guests-campaigns","Campaigns","Campaigns","الحملات"); addTool("guests-analytics","Analytics","Guest Analytics","تحليلات الضيوف"); addTool("guests-home","Home","Dashboard","لوحة التحكم"); break;
       case "Campaigns": addTool("campaigns-guests","Guests","Guest Segments","شرائح الضيوف"); addTool("campaigns-analytics","Analytics","Campaign Analytics","تحليلات الحملات"); addTool("campaigns-connect","Connect","Messaging Integrations","تكاملات الرسائل"); addTool("campaigns-home","Home","Dashboard","لوحة التحكم"); break;
       case "Connect": addTool("connect-devices","Devices","Devices","الأجهزة"); addTool("connect-auto","Automation","Automation","الأتمتة"); addTool("connect-profile","Profile","Profile","الحساب"); addTool("connect-home","Home","Dashboard","لوحة التحكم"); break;
       case "Devices": addTool("devices-connect","Connect","Integrations","التكاملات"); addTool("devices-tables","Tables","Tables","الطاولات"); addTool("devices-orders","Orders","Orders","الطلبات"); addTool("devices-home","Home","Dashboard","لوحة التحكم"); break;
-      case "Team": addTool("team-shifts","Shifts","Shift Schedule","جدول الورديات"); addTool("team-work","My Work","My Work","عملي"); addTool("team-analytics","Analytics","Labor Analytics","تحليلات الموظفين"); addTool("team-profile","Profile","Profile","الحساب"); break;
+      case "Team": addTool("team-shifts","Workforce","Shift Schedule","جدول الورديات"); addTool("team-work","My Work","My Work","عملي"); addTool("team-analytics","Analytics","Labor Analytics","تحليلات الموظفين"); addTool("team-profile","Profile","Profile","الحساب"); break;
       case "Profile": addTool("profile-connect","Connect","Integrations","التكاملات"); addTool("profile-devices","Devices","Devices","الأجهزة"); addTool("profile-work","My Work","My Work","عملي"); addTool("profile-home","Home","Dashboard","لوحة التحكم"); break;
-      case "Alerts": addTool("alerts-work","My Work","My Work","عملي"); addTool("alerts-shifts","Shifts","Shifts","الورديات"); addTool("alerts-profile","Profile","Profile","الحساب"); addTool("alerts-home","Home","Dashboard","لوحة التحكم"); break;
-      case "Kitchen": addTool("kitchen-orders","Orders","Kitchen Orders","طلبات المطبخ"); addTool("kitchen-menu","Menu","Menu","القائمة"); addTool("kitchen-work","My Work","My Work","عملي"); addTool("kitchen-shifts","Shifts","Shift","الوردية"); break;
-      case "Floor": addTool("floor-tables","Tables","Floor Tables","طاولات الصالة"); addTool("floor-orders","Orders","Floor Orders","طلبات الصالة"); addBooking(); addTool("floor-shifts","Shifts","Shift","الوردية"); break;
+      case "Alerts": addTool("alerts-work","My Work","My Work","عملي"); addTool("alerts-shifts","Workforce","Shifts","الورديات"); addTool("alerts-profile","Profile","Profile","الحساب"); addTool("alerts-home","Home","Dashboard","لوحة التحكم"); break;
+      case "Kitchen": addTool("kitchen-orders","Orders","Kitchen Orders","طلبات المطبخ"); addTool("kitchen-menu","Menu","Menu","القائمة"); addTool("kitchen-work","My Work","My Work","عملي"); addTool("kitchen-shifts","Workforce","Shift","الوردية"); break;
+      case "Floor": addTool("floor-tables","Tables","Floor Tables","طاولات الصالة"); addTool("floor-orders","Orders","Floor Orders","طلبات الصالة"); addBooking(); addTool("floor-shifts","Workforce","Shift","الوردية"); break;
       case "Host": addBooking(); addTool("host-reservations","Reservations","Reservation Schedule","جدول الحجوزات"); addTool("host-waitlist","Waitlist","Waitlist","قائمة الانتظار"); addTool("host-tables","Tables","Table Availability","توفر الطاولات"); break;
       case "Cashier": addTool("cashier-orders","Orders","Orders","الطلبات"); addTool("cashier-close","Daily Close","Daily Close","إقفال اليوم"); addTool("cashier-analytics","Analytics","Sales Analytics","تحليلات المبيعات"); addTool("cashier-work","My Work","My Work","عملي"); break;
       case "Restaurants": addTool("restaurants-home","Home","Dashboard","لوحة التحكم"); addTool("restaurants-profile","Profile","Profile","الحساب"); break;
@@ -366,6 +364,8 @@ export function BottomNav() {
     };
   },[iosQuickItem]);
 
+  if (access.isPending || access.isSuperAdmin) return null;
+
   const normalizedToolSearch = toolSearch.trim().toLocaleLowerCase(lang === "ar" ? "ar" : "en");
   const visibleTools = normalizedToolSearch
     ? desktopItems.filter((item) => `${item.en} ${item.ar}`.toLocaleLowerCase(lang === "ar" ? "ar" : "en").includes(normalizedToolSearch))
@@ -382,7 +382,7 @@ export function BottomNav() {
       Tables: { en: "Table management", ar: "إدارة الطاولات" },
       Reservations: { en: "View and manage reservations", ar: "عرض وإدارة الحجوزات" },
       Waitlist: { en: "Customer queue", ar: "قائمة انتظار العملاء" },
-      Shifts: { en: "Staff scheduling", ar: "جدولة الموظفين" },
+      Workforce: { en: "Scheduling, attendance & labor", ar: "الجدولة والحضور وساعات العمل" },
       Automation: { en: "Rules & workflows", ar: "القواعد وسير العمل" },
       ERP: { en: "Inventory & procurement", ar: "المخزون والمشتريات" },
       Analytics: { en: "Reports & insights", ar: "التقارير والرؤى" },

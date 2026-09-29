@@ -205,5 +205,7 @@ test("shifts page places a modern live clock hero above shift coverage", async (
   assert.match(shifts, /Current session/);
   assert.match(shifts, /Expected end/);
   assert.match(shifts, /Clock out/);
-  assert.match(shifts, /hideAttendance/);
+  assert.match(shifts, /function WorkforceNavigation/);
+  assert.match(shifts, /mode=\{workforceSection\}/);
+  assert.match(shifts, /showAttendance = mode === "attendance"/);
 });

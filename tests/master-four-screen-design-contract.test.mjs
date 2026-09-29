@@ -259,7 +259,7 @@ test("iOS bottom navigation supports long-press quick actions without changing A
   assert.match(nav,/quickserve:haptic/);
   assert.match(nav,/quickserveHaptics/);
   assert.match(nav,/qs-ios-context-layer/);
-  assert.match(nav,/Add Booking/);
+  assert.match(nav,/New Reservation/);
   assert.match(styles,/iOS-like Haptic Touch context menu/);
   assert.match(styles,/-webkit-touch-callout:none/);
 });
@@ -283,9 +283,16 @@ test("iOS long-press navigation uses an anchored native-style context menu with 
   assert.match(nav,/420/);
   assert.match(nav,/qs-ios-context-layer/);
   assert.match(nav,/role="menu"/);
-  assert.match(nav,/Reservations:\["Waitlist","Tables","Guests","Orders"\]/);
-  assert.match(nav,/Campaigns:\["Guests","Analytics","Connect","Home"\]/);
-  assert.match(nav,/Devices:\["Connect","Tables","Orders","Home"\]/);
+  assert.match(nav,/case "Reservations":/);
+  assert.match(nav,/reservations-waitlist/);
+  assert.match(nav,/reservations-guests/);
+  assert.match(nav,/reservations-tables/);
+  assert.match(nav,/case "Campaigns":/);
+  assert.match(nav,/campaigns-guests/);
+  assert.match(nav,/campaigns-analytics/);
+  assert.match(nav,/case "Devices":/);
+  assert.match(nav,/devices-connect/);
+  assert.match(nav,/devices-tables/);
   assert.doesNotMatch(nav,/qs-ios-haptic-sheet/);
   assert.match(styles,/iOS-like Haptic Touch context menu/);
   assert.match(styles,/backdrop-filter:blur\(28px\) saturate\(1\.75\)/);
@@ -299,7 +306,10 @@ test("iOS bottom navigation suppresses native text selection, callouts and the m
   assert.match(nav,/removeAllRanges/);
   assert.match(nav,/selectionchange/);
   assert.match(nav,/qs-ios-context-active/);
-  assert.match(nav,/More:\["Profile","Connect","Devices","Home"\]/);
+  assert.match(nav,/case "More":/);
+  assert.match(nav,/more-profile/);
+  assert.match(nav,/more-connect/);
+  assert.match(nav,/more-devices/);
   assert.match(styles,/iOS native-selection suppression for bottom navigation/);
   assert.match(styles,/-webkit-touch-callout:none!important/);
   assert.match(styles,/-webkit-user-select:none!important/);
@@ -319,7 +329,7 @@ test("iOS Haptic Touch matches the uploaded app-icon reference with a lifted sou
 
 test("every navigation context has page-specific iOS quick actions", async () => {
   const nav = await readFile(new URL("../src/components/nav/BottomNav.tsx", import.meta.url), "utf8");
-  const pages=["Home","Operations","Shift","HQ","My Work","Orders","Menu","Tables","Reservations","Waitlist","Shifts","Automation","ERP","Analytics","Daily Close","Guests","Campaigns","Connect","Devices","Team","Profile","Alerts","Kitchen","Floor","Host","Cashier","Restaurants","Settings","More"];
+  const pages=["Home","Operations","Shift","HQ","My Work","Orders","Menu","Tables","Reservations","Waitlist","Workforce","Automation","ERP","Analytics","Daily Close","Guests","Campaigns","Connect","Devices","Team","Profile","Alerts","Kitchen","Floor","Host","Cashier","Restaurants","Settings","More"];
   for(const page of pages) assert.ok(nav.includes('case "'+page+'":'),"missing quick actions for "+page);
   assert.match(nav,/New Reservation/);
   assert.match(nav,/Reservation Schedule/);
