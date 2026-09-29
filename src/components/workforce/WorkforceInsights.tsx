@@ -29,6 +29,16 @@ type Entry = {
   review_note?: string | null;
 };
 type Leave = { id: string; staff_id: string; start_date: string; end_date: string; status: string; reason: string };
+type MissingPunchRequest = {
+  id: string;
+  staff_id: string;
+  clock_in: string;
+  clock_out: string;
+  break_minutes: number;
+  reason: string;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  created_at: string;
+};
 
 /** Operational thresholds (not payroll rules). */
 const LATE_MIN = 15;
@@ -260,9 +270,26 @@ export function WorkforceTimesheets({ restaurantId, members, assignments, canMan
   const [filter, setFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
   const [editing, setEditing] = useState<Entry | null>(null);
   const [missingOpen, setMissingOpen] = useState(false);
+  const [reviewingMissing, setReviewingMissing] = useState<MissingPunchRequest | null>(null);
   const reviewSupported = (data.data?.entries ?? []).some((e) => "review_status" in e) || !(data.data?.entries ?? []).length;
   const memberById = new Map(members.map((m) => [m.id, m]));
   const entries = (data.data?.entries ?? []).filter((e) => e.clock_out && (canManage || e.staff_id === currentStaffId) && (filter === "all" || reviewOf(e) === filter));
+
+  const missingRequests = useQuery<MissingPunchRequest[]>({
+    queryKey: ["workforce", "missing-punch-requests", restaurantId],
+    enabled: canManage,
+    refetchInterval: 20_000,
+    queryFn: async () => {
+      const { data: rows, error } = await (supabase.from("staff_missing_punch_requests" as any) as any)
+        .select("id,staff_id,clock_in,clock_out,break_minutes,reason,status,created_at")
+        .eq("restaurant_id", restaurantId)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (rows ?? []) as MissingPunchRequest[];
+    },
+  });
 
   const act = useMutation({
     mutationFn: async (p: { id: string; action: "approve" | "reject" | "reopen" | "correct"; note?: string; clock_in?: string; clock_out?: string; break_minutes?: number }) => {
@@ -287,6 +314,10 @@ export function WorkforceTimesheets({ restaurantId, members, assignments, canMan
         {canManage ? <Button type="button" variant="outline" className="min-h-11 gap-2 border-orange-200 bg-orange-500/[0.045] text-[#cf4818] hover:bg-orange-500/10 dark:border-orange-900/60" onClick={() => setMissingOpen(true)}><Plus className="size-4" />{ar ? "إضافة بصمة ناقصة" : "Add missing punch"}</Button> : null}
       </div>
     </div>
+    {canManage && (missingRequests.data?.length ?? 0) > 0 ? <div className="border-b border-border bg-orange-500/[.025] p-3">
+      <div className="mb-2 flex items-center justify-between gap-3"><div><strong className="text-xs">{ar ? "طلبات بصمة ناقصة" : "Missing punch requests"}</strong><p className="mt-0.5 text-[10px] text-muted-foreground">{ar ? "طلبات الموظفين التي تحتاج موافقة قبل إضافتها لسجل الدوام." : "Employee-submitted corrections that require approval before entering the timesheet."}</p></div><span className="rounded-full bg-orange-500/10 px-2.5 py-1 text-[10px] font-bold text-orange-700">{missingRequests.data?.length ?? 0}</span></div>
+      <div className="grid gap-2 lg:grid-cols-2">{(missingRequests.data ?? []).slice(0, 6).map((request) => { const member = memberById.get(request.staff_id); return <button key={request.id} type="button" onClick={() => setReviewingMissing(request)} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 text-start transition hover:border-orange-200 hover:bg-orange-500/[.025]"><span className="min-w-0"><strong className="block truncate text-xs">{member?.name ?? (ar ? "عضو فريق" : "Team member")}</strong><span className="mt-1 block text-[10px] tabular-nums text-muted-foreground">{dayKey(request.clock_in)} · {fmtTime(request.clock_in, ar)}–{fmtTime(request.clock_out, ar)}</span></span><span className="shrink-0 rounded-full bg-blue-500/10 px-2 py-1 text-[9px] font-bold text-blue-700">{ar ? "مراجعة" : "Review"}</span></button>; })}</div>
+    </div> : null}
     {!reviewSupported ? <p className="border-b border-amber-200 bg-amber-500/5 p-3 text-xs text-amber-800">{ar ? "اعتماد السجلات يتطلب تحديث قاعدة البيانات المعلّق. يمكنك عرض الساعات الآن." : "Approval requires a pending database update. Hours are visible now; approve/correct will activate once it is applied."}</p> : null}
     {data.isPending ? <div className="p-4"><Skeleton className="h-40 rounded-xl" /></div> : data.isError ? <p className="p-5 text-xs text-muted-foreground">{ar ? "تعذر تحميل السجلات." : "Timesheets are unavailable right now."}</p> : !entries.length ? <EmptyCard text={ar ? "لا توجد سجلات في هذا الفلتر." : "No timesheets in this view."} /> :
       <ul className="divide-y divide-border">{entries.slice(0, 120).map((e) => {
@@ -314,7 +345,53 @@ export function WorkforceTimesheets({ restaurantId, members, assignments, canMan
       })}</ul>}
     {editing ? <CorrectionSheet entry={editing} ar={ar} pending={act.isPending} onClose={() => setEditing(null)} onSave={(p) => act.mutate({ id: editing.id, action: "correct", ...p })} /> : null}
     {missingOpen ? <MissingPunchSheet restaurantId={restaurantId} members={members} assignments={assignments} ar={ar} lang={lang} onClose={() => setMissingOpen(false)} /> : null}
+    {reviewingMissing ? <MissingPunchRequestReviewSheet request={reviewingMissing} memberName={memberById.get(reviewingMissing.staff_id)?.name ?? (ar ? "عضو فريق" : "Team member")} restaurantId={restaurantId} ar={ar} lang={lang} onClose={() => setReviewingMissing(null)} /> : null}
   </section>;
+}
+
+function MissingPunchRequestReviewSheet({ request, memberName, restaurantId, ar, lang, onClose }: { request: MissingPunchRequest; memberName: string; restaurantId: string; ar: boolean; lang: "en" | "ar"; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [note, setNote] = useState("");
+  const review = useMutation({
+    mutationFn: async (decision: "approved" | "rejected") => {
+      const { error } = await (supabase as any).rpc("review_missing_punch_request", {
+        _request_id: request.id,
+        _decision: decision,
+        _note: note.trim() || null,
+      });
+      if (error) throw error;
+      return decision;
+    },
+    onSuccess: async (decision) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["workforce"] }),
+        qc.invalidateQueries({ queryKey: ["workforce", "missing-punch-requests", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["notifications"] }),
+        qc.invalidateQueries({ queryKey: ["platform", "staff-schedule", restaurantId] }),
+      ]);
+      toast.success(decision === "approved" ? (ar ? "تم اعتماد البصمة وإضافتها لسجل الدوام" : "Missing punch approved and added to the timesheet") : (ar ? "تم رفض طلب البصمة" : "Missing punch request rejected"));
+      onClose();
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  return <DetailSheet
+    open
+    onOpenChange={(open) => { if (!open && !review.isPending) onClose(); }}
+    title={ar ? "مراجعة بصمة ناقصة" : "Review missing punch"}
+    description={memberName}
+    footer={<div className="grid grid-cols-2 gap-2"><Button variant="outline" className="min-h-11 border-red-200 text-red-700 hover:bg-red-500/5" disabled={review.isPending} onClick={() => review.mutate("rejected")}><XCircle className="size-4" />{ar ? "رفض" : "Reject"}</Button><Button className="min-h-11" disabled={review.isPending} onClick={() => review.mutate("approved")}><CheckCircle2 className="size-4" />{ar ? "اعتماد وإضافة" : "Approve & add"}</Button></div>}
+  >
+    <div className="space-y-4 py-2">
+      <div className="rounded-2xl border border-border bg-muted/20 p-4">
+        <div className="grid gap-3 sm:grid-cols-2"><div><span className="text-[10px] font-bold uppercase tracking-[.06em] text-muted-foreground">{ar ? "الدخول" : "Clock in"}</span><strong className="mt-1 block text-sm tabular-nums">{formatStamp(request.clock_in, ar)}</strong></div><div><span className="text-[10px] font-bold uppercase tracking-[.06em] text-muted-foreground">{ar ? "الخروج" : "Clock out"}</span><strong className="mt-1 block text-sm tabular-nums">{formatStamp(request.clock_out, ar)}</strong></div></div>
+        <div className="mt-3 border-t border-border pt-3"><span className="text-[10px] font-bold uppercase tracking-[.06em] text-muted-foreground">{ar ? "سبب الموظف" : "Employee reason"}</span><p className="mt-1 text-sm leading-6">{request.reason}</p></div>
+        <div className="mt-3 text-[11px] text-muted-foreground">{ar ? `استراحة: ${request.break_minutes} دقيقة` : `Break: ${request.break_minutes} min`}</div>
+      </div>
+      <div className="space-y-2"><Label>{ar ? "ملاحظة المدير (اختياري)" : "Manager note (optional)"}</Label><Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder={ar ? "أضف ملاحظة للمراجعة..." : "Add a review note..."} /></div>
+      <p className="text-[11px] leading-5 text-muted-foreground">{ar ? "الاعتماد ينشئ سجل دوام مدقّق. الرفض لا يغيّر سجل الدوام." : "Approval creates an audited time entry. Rejection leaves the timesheet unchanged."}</p>
+    </div>
+  </DetailSheet>;
 }
 
 function MissingPunchSheet({ restaurantId, members, assignments, ar, lang, onClose }: { restaurantId: string; members: WorkforceMember[]; assignments: ShiftAssignment[]; ar: boolean; lang: "en" | "ar"; onClose: () => void }) {
