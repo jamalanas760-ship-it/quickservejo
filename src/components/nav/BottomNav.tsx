@@ -538,6 +538,7 @@ export function BottomNav() {
       ):null}
       <Dialog open={moreOpen} onOpenChange={changeMoreOpen}>
         <DialogContent
+          overlayClassName="qs-workspace-tools-overlay"
           className="qs-workspace-tools-dialog max-h-[min(92dvh,820px)] max-w-[1120px] gap-0 overflow-hidden p-0"
           onOpenAutoFocus={(event) => {
             if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) event.preventDefault();
@@ -566,15 +567,15 @@ export function BottomNav() {
                 <div className="qs-search-field mt-4">
                   <Search />
                   <Input value={toolSearch} inputMode="search" onChange={(event) => setToolSearch(event.target.value)} placeholder={lang === "ar" ? "ابحث عن الطلبات، الفريق، التحليلات…" : "Search orders, team, analytics…"} aria-label={lang === "ar" ? "البحث في الأدوات" : "Search tools"} />
-                  <kbd>Ctrl K</kbd>
+                  <kbd className="qs-search-shortcut" aria-label="Keyboard shortcut Control K"><span>Ctrl</span><i>+</i><span>K</span></kbd>
                 </div>
               </DialogHeader>
-              <div className="qs-scroll max-h-[calc(92dvh-190px)] overflow-y-auto overscroll-contain p-4 pb-[calc(20px+env(safe-area-inset-bottom))] sm:p-6">
-                <div className="space-y-6">
+              <div className="qs-scroll qs-workspace-tools-scroll max-h-[calc(92dvh-190px)] overflow-y-auto overscroll-contain p-4 pb-[calc(20px+env(safe-area-inset-bottom))] sm:p-6">
+                <div className="qs-workspace-tools-groups space-y-6">
                 {(["overview","service","operations","growth","admin"] as NavGroup[]).map(group => {
                   const items = visibleTools.filter(item => item.group === group || (!item.group && group === "overview"));
                   if (items.length === 0) return null;
-                  return <section key={group}>
+                  return <section key={group} className="qs-workspace-tools-group">
                     <p className="mb-2.5 px-1 text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">{groupLabel(group)}</p>
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {items.map(item => {
