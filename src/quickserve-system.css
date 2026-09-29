@@ -3132,18 +3132,24 @@ html.qs-ios-context-active .qs-ios-haptic-nav-item[data-ios-context-source="true
 
 /* Master Workforce polish + theme + loading — 2026-09-29 */
 
-/* Theme changes are deliberately animated only during a user-triggered switch.
-   Geometry never transitions, so there is no layout wobble or hydration flash. */
+/* Theme changes animate only high-level painted surfaces. Avoid applying a
+   transition to every div: that causes a visible hitch on dense restaurant
+   dashboards and can make mobile theme switching feel broken. */
 html.qs-theme-transitioning,
 html.qs-theme-transitioning body,
 html.qs-theme-transitioning :is(
-  .qs-app,.tenant-app,.restaurant-theme-scope,
-  header,nav,aside,main,section,article,div,button,a,input,textarea,select,
-  [role="dialog"],[role="menu"],[role="tab"]
+  .qs-app,.tenant-app,.restaurant-theme-scope,.tenant-theme-scope,
+  .qs-topbar,.qs-sidebar-shell,.qs-mobile-bottom-nav-shell,
+  .qs-card,.panel,.qs-kpi-card,.qs-master-header,.qs-workforce-hero,
+  button,a,input,textarea,select,
+  [role="dialog"],[role="menu"],[role="listbox"],[role="tab"]
 ){
   transition-property:background-color,color,border-color,box-shadow,fill,stroke!important;
-  transition-duration:240ms!important;
-  transition-timing-function:cubic-bezier(.22,.8,.28,1)!important;
+  transition-duration:220ms!important;
+  transition-timing-function:cubic-bezier(.2,.75,.25,1)!important;
+}
+html.qs-theme-transitioning :is(svg,path,circle,rect,line,polyline){
+  transition:fill 180ms ease,stroke 180ms ease,color 180ms ease!important;
 }
 @media(prefers-reduced-motion:reduce){
   html.qs-theme-transitioning,
@@ -3455,4 +3461,97 @@ html.qs-theme-transitioning :is(
 @media(prefers-reduced-motion:reduce){
   .qs-workspace-tools-overlay,
   .qs-workspace-tool-card{animation:none!important;transition:none!important}
+}
+
+
+/* Workforce command-center refinement — 2026-09-29 */
+.qs-workforce-hero{
+  position:relative;
+  overflow:hidden;
+  border:1px solid color-mix(in srgb,var(--qs-stroke) 88%,transparent);
+  border-radius:20px;
+  background:
+    linear-gradient(135deg,color-mix(in srgb,var(--qs-brand) 5%,var(--qs-surface)) 0%,var(--qs-surface) 48%,color-mix(in srgb,#14b86f 3%,var(--qs-surface)) 100%);
+  padding:4px;
+  box-shadow:0 8px 28px rgb(15 23 42/.045);
+}
+.qs-workforce-hero:after{
+  content:"";
+  position:absolute;
+  inset-block:0;
+  inset-inline-end:0;
+  width:180px;
+  pointer-events:none;
+  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--qs-brand) 5%,transparent));
+}
+.qs-workforce-hero>*{position:relative;z-index:1}
+.qs-workforce-live-pill{
+  box-shadow:inset 0 1px 0 rgb(255 255 255/.45);
+}
+.qs-workforce-live-pill>i{
+  box-shadow:0 0 0 4px rgb(16 185 129/.09);
+  animation:qs-workforce-live-pulse 1.8s ease-in-out infinite;
+}
+@keyframes qs-workforce-live-pulse{50%{box-shadow:0 0 0 7px rgb(16 185 129/0)}}
+.qs-workforce-punch-zone{
+  position:relative;
+}
+.qs-workforce-punch-zone .qs-clock-hero{
+  border-color:color-mix(in srgb,var(--qs-brand) 14%,var(--qs-stroke));
+  box-shadow:0 8px 24px rgb(15 23 42/.045);
+}
+.qs-workforce-view-switch{
+  min-width:0;
+}
+.qs-workforce-view-switch button{
+  transition:background-color .14s ease,color .14s ease,box-shadow .14s ease;
+}
+.qs-create-shift-dialog{
+  overscroll-behavior:none;
+}
+.qs-create-shift-dialog .qs-shift-dialog-scroll{
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
+  scroll-behavior:auto!important;
+  scrollbar-gutter:stable;
+}
+.qs-create-shift-dialog .qs-shift-dialog-scroll::-webkit-scrollbar{width:7px}
+.qs-create-shift-dialog .qs-shift-dialog-scroll::-webkit-scrollbar-track{background:transparent}
+.qs-create-shift-dialog .qs-shift-dialog-scroll::-webkit-scrollbar-thumb{
+  border:2px solid transparent;
+  border-radius:999px;
+  background:color-mix(in srgb,var(--qs-muted) 32%,transparent);
+  background-clip:padding-box;
+}
+.qs-create-shift-dialog>[class*="border-t"]{
+  box-shadow:0 -8px 22px rgb(15 23 42/.035);
+}
+@media(max-width:767px){
+  .qs-workforce-hero{
+    border-radius:16px;
+    padding:2px;
+  }
+  .qs-workforce-live-pill{
+    min-height:36px!important;
+    font-size:10px!important;
+  }
+  .qs-workforce-view-switch{
+    width:100%;
+  }
+  .qs-workforce-view-switch button{
+    min-width:0;
+    padding-inline:6px!important;
+  }
+  .qs-create-shift-dialog{
+    height:calc(100dvh - 12px)!important;
+    max-height:calc(100dvh - 12px)!important;
+    border-radius:18px!important;
+  }
+  .qs-create-shift-dialog .qs-shift-dialog-scroll{
+    padding-bottom:28px!important;
+    scrollbar-gutter:auto;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .qs-workforce-live-pill>i{animation:none!important}
 }
