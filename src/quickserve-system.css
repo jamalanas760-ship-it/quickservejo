@@ -3876,3 +3876,217 @@ html.qs-theme-view-transition *{
   .qs-topbar-menu-trigger,
   .qs-topbar-chevron{animation:none!important;transition:none!important}
 }
+
+
+/* Approved Team + Workforce image implementation — 2026-09-29 */
+
+/* Search bar: the command icon itself is the shortcut affordance. */
+.qs-global-search-trigger-approved{
+  position:relative;
+  overflow:visible;
+  border-color:color-mix(in srgb,var(--qs-stroke) 94%,transparent)!important;
+  border-radius:13px!important;
+  background:color-mix(in srgb,var(--qs-surface) 97%,transparent)!important;
+  padding-inline-end:6px!important;
+  box-shadow:0 2px 10px rgb(15 23 42/.035),inset 0 1px 0 rgb(255 255 255/.5)!important;
+}
+.qs-global-search-trigger-approved:hover{
+  border-color:color-mix(in srgb,var(--qs-brand) 30%,var(--qs-stroke))!important;
+  box-shadow:0 6px 20px rgb(232 93 42/.08),0 1px 2px rgb(15 23 42/.04)!important;
+}
+.qs-command-icon-trigger{
+  position:relative;
+  display:grid;
+  width:34px;
+  height:34px;
+  flex:0 0 auto;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--qs-brand) 44%,var(--qs-stroke));
+  border-radius:10px;
+  background:
+    linear-gradient(180deg,color-mix(in srgb,var(--qs-brand) 8%,var(--qs-surface)),var(--qs-surface));
+  color:var(--qs-brand-strong);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb,var(--qs-brand) 7%,transparent),
+    0 3px 10px rgb(232 93 42/.12),
+    inset 0 1px 0 rgb(255 255 255/.72);
+  transition:transform 150ms cubic-bezier(.2,.8,.2,1),box-shadow 150ms ease,border-color 150ms ease;
+}
+.qs-global-search-trigger-approved:hover .qs-command-icon-trigger{
+  transform:translateY(-1px) scale(1.025);
+  border-color:color-mix(in srgb,var(--qs-brand) 65%,var(--qs-stroke));
+  box-shadow:
+    0 0 0 4px color-mix(in srgb,var(--qs-brand) 8%,transparent),
+    0 6px 16px rgb(232 93 42/.16),
+    inset 0 1px 0 rgb(255 255 255/.75);
+}
+.qs-global-search-trigger-approved:active .qs-command-icon-trigger{
+  transform:scale(.96);
+}
+.dark .qs-command-icon-trigger{
+  background:linear-gradient(180deg,color-mix(in srgb,var(--qs-brand) 12%,var(--qs-surface)),var(--qs-surface));
+  box-shadow:0 0 0 3px rgb(232 93 42/.08),0 3px 10px rgb(0 0 0/.22),inset 0 1px 0 rgb(255 255 255/.05);
+}
+
+/* Approved warm QuickServe canvas. The page title lives inside the canvas,
+   without the old white rectangular header card. */
+.qs-approved-team-page,
+.qs-approved-workforce-page{
+  position:relative;
+  isolation:isolate;
+}
+.qs-approved-team-page:before,
+.qs-approved-workforce-page:before{
+  content:"";
+  position:absolute;
+  inset:-18px -24px auto -24px;
+  z-index:-2;
+  height:330px;
+  pointer-events:none;
+  background:
+    radial-gradient(42rem 18rem at 92% 0%,rgb(255 117 49/.11),transparent 68%),
+    radial-gradient(30rem 16rem at 12% 0%,rgb(255 183 132/.085),transparent 70%),
+    linear-gradient(180deg,#fffaf6 0%,transparent 100%);
+}
+.qs-approved-team-page:after,
+.qs-approved-workforce-page:after{
+  content:"";
+  position:absolute;
+  inset:0 -18px auto auto;
+  z-index:-1;
+  width:min(48vw,640px);
+  height:250px;
+  pointer-events:none;
+  opacity:.45;
+  background:
+    repeating-radial-gradient(ellipse at 100% 0%,transparent 0 18px,rgb(255 143 83/.08) 19px 20px,transparent 21px 32px);
+  mask-image:linear-gradient(120deg,transparent 4%,black 56%,transparent 100%);
+}
+.dark .qs-approved-team-page:before,
+.dark .qs-approved-workforce-page:before{
+  background:
+    radial-gradient(42rem 18rem at 92% 0%,rgb(232 93 42/.07),transparent 68%),
+    radial-gradient(30rem 16rem at 12% 0%,rgb(232 93 42/.045),transparent 70%);
+}
+
+.qs-approved-page-hero{
+  position:relative!important;
+  overflow:hidden!important;
+  border:1px solid color-mix(in srgb,var(--qs-brand) 14%,var(--qs-stroke))!important;
+  border-radius:18px!important;
+  background:
+    linear-gradient(110deg,var(--qs-surface) 0%,color-mix(in srgb,#fff2e9 46%,var(--qs-surface)) 100%)!important;
+  box-shadow:0 8px 26px rgb(15 23 42/.045)!important;
+}
+.qs-approved-page-hero:before{
+  content:"";
+  position:absolute;
+  inset:-80px -50px auto auto;
+  width:520px;
+  height:220px;
+  border-radius:50%;
+  background:
+    repeating-radial-gradient(ellipse at 100% 50%,transparent 0 13px,rgb(255 129 65/.085) 14px 15px,transparent 16px 24px);
+  pointer-events:none;
+  opacity:.85;
+}
+.qs-approved-page-hero>.qs-master-header{
+  position:relative;
+  z-index:1;
+  padding:18px 20px!important;
+}
+.dark .qs-approved-page-hero{
+  background:linear-gradient(110deg,var(--qs-surface) 0%,color-mix(in srgb,var(--qs-brand) 5%,var(--qs-surface)) 100%)!important;
+}
+
+/* Team page composition mirrors the approved mockup: operation workspace on
+   the left, compact live insights on the right. */
+.qs-approved-team-layout{
+  align-items:stretch;
+}
+.qs-approved-team-page .qs-workforce-kpis{
+  gap:10px!important;
+}
+.qs-approved-team-page .qs-workforce-kpis>article{
+  min-height:104px!important;
+  border-radius:15px!important;
+  background:color-mix(in srgb,var(--qs-surface) 97%,transparent)!important;
+  box-shadow:0 3px 14px rgb(15 23 42/.035)!important;
+}
+.qs-approved-team-page .qs-workforce-board{
+  border-radius:16px!important;
+  box-shadow:0 5px 18px rgb(15 23 42/.04)!important;
+}
+.qs-team-insights>.qs-card{
+  border-radius:16px!important;
+  background:color-mix(in srgb,var(--qs-surface) 97%,transparent)!important;
+  box-shadow:0 4px 16px rgb(15 23 42/.04)!important;
+}
+.qs-team-attendance-card{
+  background:
+    radial-gradient(22rem 10rem at 95% 0%,rgb(255 122 58/.055),transparent 62%),
+    var(--qs-surface)!important;
+}
+.qs-attendance-donut{
+  box-shadow:inset 0 0 0 1px rgb(255 255 255/.36),0 5px 14px rgb(15 23 42/.055);
+}
+.dark .qs-attendance-donut{
+  filter:saturate(.9) brightness(.9);
+}
+
+/* Workforce approved layout: clean orange hero, compact stat rail, stronger
+   timeline surface, and restrained animation instead of floating cards. */
+.qs-approved-workforce-page .qs-workforce-snapshot{
+  border-radius:15px!important;
+  overflow:hidden;
+  border-color:color-mix(in srgb,var(--qs-brand) 8%,var(--qs-stroke))!important;
+}
+.qs-approved-workforce-page .qs-workforce-snapshot-item{
+  min-height:82px;
+  transition:background-color 130ms ease!important;
+}
+.qs-approved-workforce-page .qs-workforce-board{
+  border-radius:16px!important;
+  box-shadow:0 6px 22px rgb(15 23 42/.04)!important;
+}
+.qs-approved-workforce-page .qs-shift-weekstrip{
+  border-radius:14px!important;
+  background:color-mix(in srgb,var(--qs-surface) 97%,transparent)!important;
+}
+.qs-approved-workforce-page .qs-workforce-view-switch{
+  background:color-mix(in srgb,var(--qs-surface-soft) 92%,transparent)!important;
+}
+.qs-approved-workforce-page .qs-clock-hero{
+  border-radius:15px!important;
+}
+
+@media(max-width:1279px){
+  .qs-approved-team-layout{
+    display:block!important;
+  }
+  .qs-team-insights{
+    display:none!important;
+  }
+}
+@media(max-width:767px){
+  .qs-approved-team-page:before,
+  .qs-approved-workforce-page:before{
+    inset:-12px -16px auto -16px;
+    height:250px;
+  }
+  .qs-approved-page-hero{
+    border-radius:14px!important;
+  }
+  .qs-approved-page-hero>.qs-master-header{
+    padding:14px!important;
+  }
+  .qs-command-icon-trigger{
+    width:32px;
+    height:32px;
+    border-radius:9px;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .qs-command-icon-trigger,
+  .qs-global-search-trigger-approved{transition:none!important}
+}
