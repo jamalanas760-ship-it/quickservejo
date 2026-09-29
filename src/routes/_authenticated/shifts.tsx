@@ -168,7 +168,7 @@ function ShiftsPage() {
       <div className={cn(workforceSection !== "overview" && workforceSection !== "schedule" && "hidden")}>
         {openShiftRow ? <CurrentShift shift={openShiftRow} assignments={(assignments.data ?? []).filter((row) => row.shift_id === openShiftRow.id)} members={members.data ?? []} canManage={canManage} currentStaffId={membership.id} ar={ar} lang={lang} onClose={() => setClosingShift(openShiftRow)} /> : <section className="qs-card flex items-center gap-4 p-5"><span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-5" /></span><div><h2 className="font-bold">{ar ? "لا توجد وردية مفتوحة" : "No shift is open"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكن لمدير الوردية فتح وردية مخططة عندما يبدأ التشغيل." : "A shift manager can open a planned shift when service starts."}</p></div></section>}
       </div>
-      {workforceSection !== "schedule" ? <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} shifts={rows} assignments={assignments.data ?? []} ar={ar} lang={lang} mode={workforceSection} /> : null}
+      {workforceSection !== "schedule" ? <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} lang={lang} mode={workforceSection} /> : null}
     </main>
 
     <DetailSheet
@@ -558,7 +558,7 @@ function WorkforceClockHero({
   );
 }
 
-function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shifts, assignments, ar, lang, mode }: { restaurantId: string; currentStaffId: string; canManage: boolean; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; shifts: Shift[]; assignments: ShiftAssignment[]; ar: boolean; lang: "en" | "ar"; mode: WorkforceSection }) {
+function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, assignments, ar, lang, mode }: { restaurantId: string; currentStaffId: string; canManage: boolean; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; assignments: ShiftAssignment[]; ar: boolean; lang: "en" | "ar"; mode: WorkforceSection }) {
   const qc = useQueryClient();
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaveStart, setLeaveStart] = useState(new Date().toISOString().slice(0, 10));
@@ -638,76 +638,6 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, shif
           ) - Number(latestCompletedEntry.break_minutes || 0) * 60,
         )
       : 0;
-
-  const toggleClock = useMutation({
-    mutationFn: async () => {
-      const rpc = openEntry ? "clock_out_staff" : "clock_in_staff";
-      const { data, error } = await (supabase as any).rpc(rpc, { _restaurant_id: restaurantId });
-      if (error) throw error;
-      return (Array.isArray(data) ? data[0] : data) as ClockResult;
-    },
-    onSuccess: async (result) => {
-      const action = result?.action?.toLowerCase();
-      const at = result?.at ?? new Date().toISOString();
-      const entryId = result?.entry_id ?? null;
-      const staffId = result?.staff_id ?? currentStaffId;
-      const startedAt = result?.clock_in ?? at;
-      const isIn = action === "clocked_in" || action === "already_clocked_in";
-      const isOut = action === "clocked_out" || action === "already_clocked_out";
-
-      if (isIn && entryId && staffId) {
-        qc.setQueryData<ClockStatus | null>(["workforce-clock", restaurantId, currentStaffId], () => ({
-          entry_id: entryId,
-          staff_id: staffId,
-          clock_in: startedAt,
-          server_now: at,
-          elapsed_seconds: Math.max(0, Math.floor((new Date(at).getTime() - new Date(startedAt).getTime()) / 1000)),
-        }) as ClockStatus);
-      } else if (isOut) {
-        qc.setQueryData<ClockStatus | null>(["workforce-clock", restaurantId, currentStaffId], () => null);
-      }
-
-      qc.setQueryData<{ time: TimeEntry[]; leave: LeaveRequest[] }>(["workforce", restaurantId], (current) => {
-        if (!current || !action) return current;
-        if (isIn && entryId && staffId) {
-          const existing = current.time.find((entry) => entry.id === entryId);
-          if (existing && !existing.clock_out) return current;
-          return { ...current, time: [{ id: entryId, staff_id: staffId, clock_in: startedAt, clock_out: null, break_minutes: existing?.break_minutes ?? 0 }, ...current.time.filter((entry) => entry.id !== entryId)] };
-        }
-        if (isOut) {
-          const target = entryId
-            ? current.time.find((entry) => entry.id === entryId)
-            : current.time.find((entry) => entry.staff_id === currentStaffId && !entry.clock_out);
-          if (!target || target.clock_out) return current;
-          return { ...current, time: current.time.map((entry) => entry.id === target.id ? { ...entry, clock_out: at } : entry) };
-        }
-        return current;
-      });
-
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["workforce-clock", restaurantId, currentStaffId] }),
-        qc.invalidateQueries({ queryKey: ["workforce", restaurantId] }),
-      ]);
-      const completedSeconds =
-        isOut && result?.clock_in
-          ? Math.max(0, Math.floor((new Date(at).getTime() - new Date(result.clock_in).getTime()) / 1000))
-          : 0;
-      toast.success(
-        isOut
-          ? completedSeconds > 0
-            ? ar
-              ? `تم تسجيل الانصراف · مدة الجلسة ${formatClockDuration(completedSeconds, true)}`
-              : `Clocked out · session ${formatClockDuration(completedSeconds, false)}`
-            : ar
-              ? "تم تسجيل الانصراف"
-              : "Clocked out"
-          : ar
-            ? "تم تسجيل الحضور"
-            : "Clocked in",
-      );
-    },
-    onError: (error) => toast.error(humanError(error, lang)),
-  });
 
   const submitLeave = useMutation({
     mutationFn: async () => {
