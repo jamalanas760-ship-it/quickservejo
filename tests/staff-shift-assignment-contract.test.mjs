@@ -159,16 +159,20 @@ test("team actions remove the three-dot menu while preserving shift cancellation
 });
 
 
-test("Today's Shift automatically rolls to the current local calendar day", () => {
-  assert.match(source, /const scheduleDayKey = localDateKey\(new Date\(presenceNow\)\)/);
+test("Today's Shift automatically rolls by restaurant timezone and preserves completed or overnight work", () => {
+  assert.match(source, /restaurant-timezone/);
+  assert.match(source, /dateKeyInTimeZone\(new Date\(presenceNow\), restaurantTimezone\)/);
   assert.match(source, /\["platform", "staff-schedule", restaurantId, scheduleDayKey\]/);
   assert.match(source, /const today = scheduleDayKey/);
-  assert.match(source, /shift\.shift_date === scheduleDayKey/);
-  assert.match(source, /shift\.status !== "closed"/);
-  assert.match(source, /assignment\.status === "released"/);
-  assert.match(source, /\[presenceNow, schedule\.data, scheduleDayKey\]/);
+  assert.match(source, /shiftDateToday/);
+  assert.match(source, /activeAcrossMidnight/);
+  assert.match(source, /shift\.status === "closed"/);
+  assert.match(source, /phase: "upcoming" \| "active" \| "completed" \| "late" \| "missed"/);
+  assert.match(source, /schedule\.phase === "completed"/);
+  assert.match(source, /schedule\.phase === "missed"/);
+  assert.match(source, /\[presenceNow, restaurantTimezone, schedule\.data, scheduleDayKey\]/);
   assert.match(source, /visibilitychange/);
   assert.match(source, /window\.addEventListener\("focus", refreshClock\)/);
-  assert.match(source, /formatTodayShiftWindow/);
+  assert.match(source, /formatTodayShiftRange/);
   assert.match(source, /No shift today/);
 });
