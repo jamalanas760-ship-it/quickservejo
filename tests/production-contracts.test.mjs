@@ -255,7 +255,7 @@ test("theme and topbar interactions use atomic and soft motion", async () => {
   assert.match(theme, /startViewTransition/);
   assert.match(theme, /flushSync/);
   assert.match(header, /qs-command-icon-trigger/);
-  assert.match(header, /<Command className=/);
+  assert.match(header, /<BrandLogo markOnly/);
   assert.doesNotMatch(header, />Ctrl</);
   assert.match(header, /qs-topbar-popover/);
   assert.match(css, /::view-transition-new\(root\)/);
