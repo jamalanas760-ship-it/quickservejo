@@ -264,6 +264,14 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     refetchInterval: 20_000,
     refetchIntervalInBackground: false,
     queryFn: async () => {
+      // Keep persisted recurring rules materialized before resolving "Today's Shift".
+      // This is idempotent and also repairs any missing future occurrence.
+      const { error: refreshError } = await (supabase as any).rpc("refresh_recurring_staff_schedules", {
+        _restaurant_id: restaurantId,
+        _horizon_days: 84,
+      });
+      if (refreshError && !String(refreshError.message ?? "").includes("Could not find the function")) throw refreshError;
+
       const now = new Date(presenceNow);
       const historyDate = new Date(now);
       historyDate.setDate(historyDate.getDate() - 7);
