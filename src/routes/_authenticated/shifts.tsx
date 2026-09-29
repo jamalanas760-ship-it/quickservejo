@@ -215,8 +215,8 @@ function ShiftsPage() {
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "القوى العاملة" : "Workforce"} />
-    <main className="qs-workforce-screen qs-workforce-shifts qs-page qs-compact-page space-y-4">
-      <div className="qs-workforce-hero">
+    <main className="qs-workforce-screen qs-workforce-shifts qs-approved-workforce-page qs-page qs-compact-page space-y-4">
+      <div className="qs-workforce-hero qs-approved-page-hero">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={UsersRound}>{ar ? "الأفراد والعمليات" : "People & operations"}</MasterEyebrow>}
         title={ar ? "القوى العاملة" : "Workforce"}
