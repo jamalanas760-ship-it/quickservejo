@@ -8,10 +8,11 @@ export type OperationalCounters = {
   shifts: number;
   orders: number;
   unread: number;
+  workforceUnread: number;
   total: number;
 };
 
-const EMPTY: OperationalCounters = { tasks: 0, shifts: 0, orders: 0, unread: 0, total: 0 };
+const EMPTY: OperationalCounters = { tasks: 0, shifts: 0, orders: 0, unread: 0, workforceUnread: 0, total: 0 };
 
 export function operationalCountersKey(restaurantId: string | null) {
   return ["operational-counters", restaurantId] as const;
@@ -74,13 +75,21 @@ export function useOperationalCounters(restaurantId: string | null) {
         }
       }
 
-      const [unread, tasks, shifts, orders] = await Promise.all([
+      const [unread, workforceUnread, tasks, shifts, orders] = await Promise.all([
         safeCount(
           client
             .from("in_app_notifications")
             .select("id", { count: "exact", head: true })
             .eq("restaurant_id", restaurantId)
             .is("read_at", null),
+        ),
+        safeCount(
+          client
+            .from("in_app_notifications")
+            .select("id", { count: "exact", head: true })
+            .eq("restaurant_id", restaurantId)
+            .is("read_at", null)
+            .or("kind.eq.shift,source_type.eq.missing_punch_request,source_type.eq.staff_leave_request,source_type.eq.workforce,source_type.eq.workforce_alert"),
         ),
         safeCount(
           client
@@ -103,7 +112,7 @@ export function useOperationalCounters(restaurantId: string | null) {
         safeRpcCount("unseen_order_count", { _restaurant_id: restaurantId }),
       ]);
 
-      return { unread, tasks, shifts, orders, total: unread + tasks + shifts + orders };
+      return { unread, workforceUnread, tasks, shifts, orders, total: unread + tasks + orders + workforceUnread };
     },
   });
 
