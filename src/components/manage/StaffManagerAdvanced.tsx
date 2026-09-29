@@ -154,7 +154,7 @@ type StaffScheduleSummary = {
   end: string | null;
   status: string;
   shiftDate: string;
-  phase: "upcoming" | "active" | "completed" | "late";
+  phase: "upcoming" | "active" | "completed" | "late" | "missed";
   count: number;
   distance: number;
   attendance: "on_time" | "late" | "left_early" | "overtime" | "not_clocked";
@@ -380,10 +380,11 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
               ? Math.max(0, Math.round((actualEndMs - endMs) / 60_000))
               : 0;
       const attendanceAt = entry?.clock_in ?? null;
-      const completed = shift.status === "closed" || assignment.status === "released" || (Number.isFinite(endMs) && endMs < now && Boolean(entry?.clock_out));
+      const completed = shift.status === "closed" || Boolean(entry?.clock_out);
       const active = Boolean(entry && !entry.clock_out) || (Number.isFinite(startMs) && Number.isFinite(endMs) && startMs <= now && endMs >= now && assignment.status === "present");
       const late = !entry && Number.isFinite(startMs) && Number.isFinite(endMs) && now >= startMs + 15 * 60_000 && now <= endMs;
-      const phase: StaffScheduleSummary["phase"] = completed ? "completed" : active ? "active" : late ? "late" : Number.isFinite(endMs) && endMs < now ? "completed" : "upcoming";
+      const missed = !entry && Number.isFinite(endMs) && endMs < now;
+      const phase: StaffScheduleSummary["phase"] = completed ? "completed" : active ? "active" : late ? "late" : missed ? "missed" : "upcoming";
       const distance = Number.isFinite(startMs) && Number.isFinite(endMs) ? (now < startMs ? startMs - now : now > endMs ? now - endMs : 0) : 0;
       const count = (existing?.count ?? 0) + 1;
 
@@ -1366,12 +1367,14 @@ function StaffShiftSummaryCell({ schedule, ar }: { schedule: StaffScheduleSummar
     schedule.phase === "active" ? (ar ? "الآن" : "On shift")
       : schedule.phase === "late" ? (ar ? "متأخر" : "Late")
         : schedule.phase === "completed" ? (ar ? "مكتملة" : "Completed")
-          : (ar ? "قادمة" : "Upcoming");
+          : schedule.phase === "missed" ? (ar ? "فاتت" : "Missed")
+            : (ar ? "قادمة" : "Upcoming");
   const phaseTone =
     schedule.phase === "active" ? "bg-emerald-500/10 text-emerald-700"
       : schedule.phase === "late" ? "bg-orange-500/10 text-orange-700"
         : schedule.phase === "completed" ? "bg-slate-500/10 text-slate-600"
-          : "bg-blue-500/10 text-blue-700";
+          : schedule.phase === "missed" ? "bg-rose-500/10 text-rose-700"
+            : "bg-blue-500/10 text-blue-700";
   return <div className="flex min-w-0 items-center gap-2"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-3.5" /></span><div className="min-w-0"><div className="flex min-w-0 items-center gap-1.5"><strong className="truncate text-xs">{schedule.name}</strong><span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold", phaseTone)}>{phaseLabel}</span></div><p className="mt-0.5 truncate text-[10px] text-muted-foreground">{formatTodayShiftRange(schedule.start, schedule.end, ar)}{schedule.count > 1 ? ` · +${schedule.count - 1}` : ""}</p></div></div>;
 }
 
