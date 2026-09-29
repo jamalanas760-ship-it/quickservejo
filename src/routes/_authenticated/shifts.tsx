@@ -68,6 +68,7 @@ function ShiftsPage() {
   const ar = lang === "ar";
   const scope = useWorkspaceScope();
   const access = useAccess();
+  const qc = useQueryClient();
   const rid = scope.restaurantId;
   const membership = rid ? access.membershipFor(rid) : null;
   const canView = Boolean(membership && membershipHasCapability(membership.role, membership.permission_overrides, "view_work"));
@@ -89,6 +90,23 @@ function ShiftsPage() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toLocaleDateString("en-CA"));
   const [liveNow, setLiveNow] = useState(() => Date.now());
   const [liveToday, setLiveToday] = useState(() => new Date().toLocaleDateString("en-CA"));
+
+  useEffect(() => {
+    if (!rid || !canView) return;
+    let cancelled = false;
+    void (async () => {
+      const { error } = await (supabase as any).rpc("refresh_recurring_staff_schedules", {
+        _restaurant_id: rid,
+        _horizon_days: 84,
+      });
+      if (cancelled || error) return;
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["operations", "shifts", rid] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", rid] }),
+      ]);
+    })();
+    return () => { cancelled = true; };
+  }, [canView, qc, rid, liveToday]);
 
   useEffect(() => {
     const refresh = () => {
@@ -203,11 +221,22 @@ function ShiftsPage() {
         eyebrow={<MasterEyebrow icon={UsersRound}>{ar ? "الأفراد والعمليات" : "People & operations"}</MasterEyebrow>}
         title={ar ? "القوى العاملة" : "Workforce"}
         description={ar ? "جدولة الفريق والحضور والإجازات وساعات العمل في مساحة تشغيل واحدة ذكية." : "Run scheduling, attendance, time off and labor from one smart restaurant workforce workspace."}
-        actions={<div className="flex flex-wrap items-center gap-2"><span className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-xs font-bold text-muted-foreground shadow-sm"><i className="size-2 animate-pulse rounded-full bg-emerald-500" />{new Date(liveNow).toLocaleDateString(ar ? "ar-JO" : "en-JO", { weekday: "short", month: "short", day: "numeric" })}<span className="text-emerald-600">{ar ? "مباشر" : "Live"}</span></span><div className="inline-grid grid-cols-3 rounded-xl border border-border bg-card p-1 shadow-sm"><button type="button" onClick={() => setViewMode("timeline")} className={cn("inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition", viewMode === "timeline" ? "bg-orange-500/10 text-[#cf4818]" : "text-muted-foreground hover:bg-muted")}><Rows3 className="size-4" />{ar ? "زمني" : "Timeline"}</button><button type="button" onClick={() => setViewMode("calendar")} className={cn("inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition", viewMode === "calendar" ? "bg-orange-500/10 text-[#cf4818]" : "text-muted-foreground hover:bg-muted")}><CalendarDays className="size-4" />{ar ? "تقويم" : "Calendar"}</button><button type="button" onClick={() => setViewMode("list")} className={cn("inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition", viewMode === "list" ? "bg-orange-500/10 text-[#cf4818]" : "text-muted-foreground hover:bg-muted")}><List className="size-4" />{ar ? "قائمة" : "List"}</button></div>{canManage ? <Button className="min-w-32 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md" onClick={() => setCreateOpen(true)}><Plus className="size-4" />{ar ? "إنشاء وردية" : "Create shift"}</Button> : null}</div>}
+        actions={<div className="flex flex-wrap items-center gap-2"><span className="qs-workforce-live-pill inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-xs font-bold text-muted-foreground"><i className="size-2 rounded-full bg-emerald-500" />{new Date(liveNow).toLocaleDateString(ar ? "ar-JO" : "en-JO", { weekday: "short", month: "short", day: "numeric" })}<span className="text-emerald-600">{ar ? "مباشر" : "Live"}</span></span>{canManage ? <Button className="min-w-32 shadow-sm" onClick={() => setCreateOpen(true)}><Plus className="size-4" />{ar ? "إنشاء وردية" : "Create shift"}</Button> : null}</div>}
       />
       </div>
 
       <WorkforceNavigation active={workforceSection} onChange={setWorkforceSection} canManage={canManage} ar={ar} />
+
+      <div className={cn("qs-workforce-punch-zone", workforceSection !== "overview" && workforceSection !== "attendance" && "hidden")}>
+        <WorkforceClockHero
+          restaurantId={rid}
+          currentStaffId={membership.id}
+          members={members.data ?? []}
+          assignments={assignments.data ?? []}
+          ar={ar}
+          lang={lang}
+        />
+      </div>
 
       <section className={cn("qs-shift-weekstrip qs-card overflow-hidden p-2", workforceSection !== "schedule" && "hidden")}>
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
@@ -227,20 +256,9 @@ function ShiftsPage() {
 
       {workforceSection === "overview" ? <WorkforcePulse coveragePercent={coveragePercent} scheduledStaff={scheduledStaff} activeMemberCount={activeMemberCount} attentionCount={needsAttention} openWorkCount={openWorkCount} ar={ar} /> : null}
 
-      <div className={cn(workforceSection !== "overview" && workforceSection !== "attendance" && "hidden")}>
-        <WorkforceClockHero
-          restaurantId={rid}
-          currentStaffId={membership.id}
-          members={members.data ?? []}
-          assignments={assignments.data ?? []}
-          ar={ar}
-          lang={lang}
-        />
-      </div>
-
       <section className={cn("grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,.65fr)]", workforceSection !== "overview" && workforceSection !== "schedule" && "hidden")}>
         <div className="qs-workforce-board qs-card min-w-0 overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4"><div><h2 className="qs-section-title">{ar ? "تغطية الورديات" : "Shift coverage"}</h2><p className="mt-1 text-xs text-muted-foreground">{formatShiftDateLabel(selectedDate, ar)} · {selectedRows.length} {ar ? "ورديات" : "shifts"}</p></div><span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-[10px] font-bold text-muted-foreground"><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />{ar ? "تحديث حي" : "Live preview"}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4"><div><h2 className="qs-section-title">{ar ? "تغطية الورديات" : "Shift coverage"}</h2><p className="mt-1 text-xs text-muted-foreground">{formatShiftDateLabel(selectedDate, ar)} · {selectedRows.length} {ar ? "ورديات" : "shifts"}</p></div><div className="flex flex-wrap items-center gap-2"><div className="qs-workforce-view-switch inline-grid grid-cols-3 rounded-xl border border-border bg-muted/35 p-1"><button type="button" onClick={() => setViewMode("timeline")} className={cn("inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[10px] font-bold", viewMode === "timeline" ? "bg-card text-[#cf4818] shadow-sm" : "text-muted-foreground")}><Rows3 className="size-3.5" />{ar ? "زمني" : "Timeline"}</button><button type="button" onClick={() => setViewMode("calendar")} className={cn("inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[10px] font-bold", viewMode === "calendar" ? "bg-card text-[#cf4818] shadow-sm" : "text-muted-foreground")}><CalendarDays className="size-3.5" />{ar ? "تقويم" : "Calendar"}</button><button type="button" onClick={() => setViewMode("list")} className={cn("inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[10px] font-bold", viewMode === "list" ? "bg-card text-[#cf4818] shadow-sm" : "text-muted-foreground")}><List className="size-3.5" />{ar ? "قائمة" : "List"}</button></div><span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-[10px] font-bold text-muted-foreground"><span className="size-1.5 rounded-full bg-emerald-500" />{ar ? "تحديث حي" : "Live"}</span></div></div>
           {shifts.isPending ? <div className="p-5"><Skeleton className="h-72 rounded-2xl" /></div> : viewMode === "timeline" ? <CoverageTimeline dateKey={selectedDate} members={members.data ?? []} shifts={selectedRows} assignments={selectedAssignments} ar={ar} onOpen={(shift) => setDetailShiftId(shift.id)} /> : viewMode === "calendar" ? <ShiftWeekCalendar days={weekDays} rows={rows} ar={ar} onSelectDate={(key) => { setSelectedDate(key); setViewMode("timeline"); }} onOpen={(shift) => setDetailShiftId(shift.id)} /> : <div className="divide-y divide-border">{selectedRows.length ? selectedRows.map((shift) => <ShiftRow key={shift.id} shift={shift} assignments={selectedAssignments.filter((row) => row.shift_id === shift.id)} canManage={canManage} canDelete={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpen={() => setDetailShiftId(shift.id)} onClose={() => setClosingShift(shift)} onDelete={() => setDeletingShift(shift)} />) : <EmptyShifts ar={ar} />}</div>}
         </div>
 
@@ -1179,9 +1197,9 @@ function CreateShiftDialog({ open, onOpenChange, restaurantId, ar, lang }: { ope
   const ready = Boolean(name.trim() && date && start && end && !invalidRange && (mode === "single" || weekdays.length));
 
   return <Dialog open={open} onOpenChange={(next) => { if (!create.isPending) onOpenChange(next); }}>
-    <DialogContent className="grid max-h-[92dvh] w-[calc(100vw-1.5rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden p-0 sm:max-w-[680px]">
-      <div className="z-10 border-b border-border bg-card/95 px-5 py-4 backdrop-blur"><DialogHeader><DialogTitle>{ar ? "إنشاء وردية" : "Create shift schedule"}</DialogTitle><DialogDescription>{ar ? "أنشئ وردية واحدة أو جدولاً متكرراً بأيام العمل التي تختارها." : "Create one shift or generate a recurring schedule on the exact workdays you choose."}</DialogDescription></DialogHeader></div>
-      <div className="qs-shift-dialog-scroll min-h-0 space-y-5 overflow-y-auto overscroll-contain px-5 py-5">
+    <DialogContent className="qs-create-shift-dialog flex h-[min(92dvh,860px)] max-h-[92dvh] w-[calc(100vw-1.5rem)] max-w-none flex-col overflow-hidden p-0 sm:max-w-[680px]">
+      <div className="z-10 shrink-0 border-b border-border bg-card px-5 py-4"><DialogHeader><DialogTitle>{ar ? "إنشاء وردية" : "Create shift schedule"}</DialogTitle><DialogDescription>{ar ? "أنشئ وردية واحدة أو جدولاً متكرراً بأيام العمل التي تختارها." : "Create one shift or generate a recurring schedule on the exact workdays you choose."}</DialogDescription></DialogHeader></div>
+      <div className="qs-shift-dialog-scroll min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-5">
         <div className="grid grid-cols-2 rounded-xl border border-border bg-muted/25 p-1">
           <button type="button" onClick={() => setMode("single")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "single" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "وردية واحدة" : "Single shift"}</button>
           <button type="button" onClick={() => { setMode("recurring"); if (rangeEnd <= date) setRangeEnd(addShiftDays(date, 83)); }} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "recurring" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "جدول متكرر" : "Recurring schedule"}</button>
@@ -1201,7 +1219,7 @@ function CreateShiftDialog({ open, onOpenChange, restaurantId, ar, lang }: { ope
         {invalidRange ? <p className="rounded-xl bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-700">{ar ? "تاريخ النهاية يجب أن يكون بعد تاريخ البداية." : "End date must be on or after the start date."}</p> : null}
         <Field label={ar ? "ملاحظات" : "Notes"}><Textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} /></Field>
       </div>
-      <DialogFooter className="z-10 border-t border-border bg-card/95 px-5 py-4 backdrop-blur"><Button variant="outline" disabled={create.isPending} onClick={() => onOpenChange(false)}>{ar ? "إلغاء" : "Cancel"}</Button><Button disabled={!ready || create.isPending} onClick={() => create.mutate()}>{create.isPending ? (ar ? "جارٍ الإنشاء…" : "Creating…") : mode === "recurring" ? (ar ? "إنشاء الجدول" : "Create schedule") : (ar ? "إنشاء الوردية" : "Create shift")}</Button></DialogFooter>
+      <DialogFooter className="z-10 shrink-0 border-t border-border bg-card px-5 py-4"><Button variant="outline" disabled={create.isPending} onClick={() => onOpenChange(false)}>{ar ? "إلغاء" : "Cancel"}</Button><Button disabled={!ready || create.isPending} onClick={() => create.mutate()}>{create.isPending ? (ar ? "جارٍ الإنشاء…" : "Creating…") : mode === "recurring" ? (ar ? "إنشاء الجدول" : "Create schedule") : (ar ? "إنشاء الوردية" : "Create shift")}</Button></DialogFooter>
     </DialogContent>
   </Dialog>;
 }
