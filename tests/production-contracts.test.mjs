@@ -255,9 +255,9 @@ test("theme and topbar interactions use atomic and soft motion", async () => {
   assert.match(theme, /startViewTransition/);
   assert.match(theme, /flushSync/);
   assert.match(header, /qs-command-icon-trigger/);
-  assert.match(header, /qs-search-shortcut-keys/);
   assert.match(header, /<BrandLogo markOnly/);
-  assert.match(header, />Ctrl</);
+  assert.doesNotMatch(header, /qs-search-shortcut-keys/);
+  assert.doesNotMatch(header, />Ctrl</);
   assert.match(header, /qs-topbar-popover/);
   assert.match(css, /::view-transition-new\(root\)/);
   assert.match(css, /qs-topbar-popover-in/);
@@ -301,6 +301,49 @@ test("Workforce navigation badge represents unread workforce alerts, not schedul
   assert.match(counters, /workforceUnread/);
   assert.match(counters, /source_type\.eq\.missing_punch_request/);
   assert.match(nav, /badge: "workforceUnread"/);
+});
+
+
+test("Top navigation and All Tools use the icon-only QuickServe search affordance", async () => {
+  const header = await file("src/components/nav/AppHeader.tsx");
+  const nav = await file("src/components/nav/BottomNav.tsx");
+  assert.match(header, /qs-command-icon-trigger/);
+  assert.doesNotMatch(header, /qs-search-shortcut-keys/);
+  assert.match(nav, /qs-command-icon-trigger--tools/);
+  assert.doesNotMatch(nav, /data-shortcut="Ctrl K"/);
+});
+
+
+test("Workforce Requests supports permissions, leave types, reasons and attachments", async () => {
+  const shifts = await file("src/routes/_authenticated/shifts.tsx");
+  const requests = await file("src/components/workforce/WorkforceRequests.tsx");
+  const migration = await file("supabase/migrations/20260929124843_workforce_permissions_leave_types_documents.sql");
+  assert.match(shifts, /label: ar \? "الطلبات" : "Requests"/);
+  assert.match(shifts, /<WorkforceRequests/);
+  assert.match(requests, /Personal permission/);
+  assert.match(requests, /Lateness permission/);
+  assert.match(requests, /Work permission/);
+  assert.match(requests, /Annual Leave/);
+  assert.match(requests, /Sick Leave/);
+  assert.match(requests, /Hajj Leave/);
+  assert.match(requests, /Bereavement Leave/);
+  assert.match(requests, /1st Degree Family/);
+  assert.match(requests, /2nd Degree Family/);
+  assert.match(requests, /workforce-documents/);
+  assert.match(migration, /create table if not exists public\.staff_permission_requests/);
+  assert.match(migration, /submit_workforce_permission_request/);
+  assert.match(migration, /submit_workforce_leave_request/);
+});
+
+
+test("launch screen uses the new animated QuickServe status experience", async () => {
+  const splash = await file("src/components/app/SplashScreen.tsx");
+  const css = await file("src/quickserve-system.css");
+  assert.match(splash, /qs-launch-screen/);
+  assert.match(splash, /Syncing live operations/);
+  assert.match(splash, /Ready to serve/);
+  assert.match(css, /Modern QuickServe launch experience/);
+  assert.match(css, /qs-launch-progress/);
 });
 
 
