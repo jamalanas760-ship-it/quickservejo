@@ -288,8 +288,8 @@ test("iOS long-press navigation uses an anchored native-style context menu with 
   assert.match(nav,/reservations-guests/);
   assert.match(nav,/reservations-tables/);
   assert.match(nav,/case "Campaigns":/);
-  assert.match(nav,/campaign-guests/);
-  assert.match(nav,/campaign-analytics/);
+  assert.match(nav,/campaigns-guests/);
+  assert.match(nav,/campaigns-analytics/);
   assert.match(nav,/case "Devices":/);
   assert.match(nav,/devices-connect/);
   assert.match(nav,/devices-tables/);
