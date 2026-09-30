@@ -567,7 +567,6 @@ export function BottomNav() {
                 <div className="qs-search-field mt-4">
                   <Search />
                   <Input value={toolSearch} inputMode="search" onChange={(event) => setToolSearch(event.target.value)} placeholder={lang === "ar" ? "ابحث عن الطلبات، الفريق، التحليلات…" : "Search orders, team, analytics…"} aria-label={lang === "ar" ? "البحث في الأدوات" : "Search tools"} />
-                  <kbd className="qs-search-shortcut" data-shortcut="Ctrl K" aria-label="Keyboard shortcut Control K"><span>Ctrl</span><i>+</i><span>K</span></kbd>
                 </div>
               </DialogHeader>
               <div className="qs-scroll qs-workspace-tools-scroll max-h-[calc(92dvh-190px)] overflow-y-auto overscroll-contain p-4 pb-[calc(20px+env(safe-area-inset-bottom))] sm:p-6">

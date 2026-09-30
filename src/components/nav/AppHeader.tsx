@@ -113,8 +113,6 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
         >
           <Search className="size-4 shrink-0" />
           <span className="min-w-0 flex-1 truncate text-start">{lang === "ar" ? "ابحث في كل شيء..." : "Search anything..."}</span>
-          <span className="qs-search-shortcut-keys" aria-hidden="true"><kbd>Ctrl</kbd><i>+</i><kbd>K</kbd></span>
-          <span className="qs-command-icon-trigger" aria-hidden="true"><BrandLogo markOnly className="size-[22px]" /></span>
         </button>
 
         <div className="qs-topbar-controls ms-auto flex min-w-0 items-center gap-1 sm:gap-1.5">

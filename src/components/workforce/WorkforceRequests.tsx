@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { RequestDatePicker, RequestTimePicker } from "@/components/workforce/RequestPickers";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -385,15 +386,23 @@ export function WorkforceRequests({
 
             {kind === "permission" ? <>
               <Field label={ar ? "نوع الإذن" : "Permission type"}><Select value={permissionType} onValueChange={(value) => setPermissionType(value as PermissionType)}><SelectTrigger className="min-h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="personal">{PERMISSION_LABELS.personal[lang]}</SelectItem><SelectItem value="lateness">{PERMISSION_LABELS.lateness[lang]}</SelectItem><SelectItem value="work">{PERMISSION_LABELS.work[lang]}</SelectItem></SelectContent></Select></Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={ar ? "التاريخ" : "Date"}><Input type="date" className="min-h-11" value={requestDate} onChange={(event) => setRequestDate(event.target.value)} /></Field>
-                {permissionType === "lateness" ? <Field label={ar ? "وقت الوصول المتوقع" : "Expected arrival"}><Input type="time" className="min-h-11" value={expectedArrival} onChange={(event) => setExpectedArrival(event.target.value)} /></Field> : null}
-                {permissionType !== "lateness" ? <><Field label={ar ? "من" : "From"}><Input type="time" className="min-h-11" value={startTime} onChange={(event) => setStartTime(event.target.value)} /></Field><Field label={ar ? "إلى" : "To"}><Input type="time" className="min-h-11" value={endTime} onChange={(event) => setEndTime(event.target.value)} /></Field></> : null}
+              <div className="flex flex-col gap-4">
+                <RequestDatePicker label={ar ? "التاريخ" : "Date"} value={requestDate} onChange={setRequestDate} ar={ar} />
+                {permissionType === "lateness" ? <RequestTimePicker label={ar ? "وقت الوصول المتوقع" : "Expected arrival"} value={expectedArrival} onChange={setExpectedArrival} ar={ar} /> : <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <RequestTimePicker label={ar ? "من" : "From"} value={startTime} onChange={setStartTime} ar={ar} />
+                    <RequestTimePicker label={ar ? "إلى" : "To"} value={endTime} onChange={setEndTime} ar={ar} />
+                  </div>
+                  {endTime <= startTime ? <p role="status" className="text-xs text-destructive">{ar ? "اختر وقت انتهاء بعد وقت البداية." : "Choose an end time after the start time."}</p> : null}
+                </>}
               </div>
             </> : <>
               <Field label={ar ? "نوع الإجازة" : "Leave type"}><Select value={leaveType} onValueChange={(value) => setLeaveType(value as LeaveType)}><SelectTrigger className="min-h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="annual">{LEAVE_LABELS.annual[lang]}</SelectItem><SelectItem value="sick">{LEAVE_LABELS.sick[lang]}</SelectItem><SelectItem value="hajj">{LEAVE_LABELS.hajj[lang]}</SelectItem><SelectItem value="bereavement">{LEAVE_LABELS.bereavement[lang]}</SelectItem></SelectContent></Select></Field>
               {leaveType === "bereavement" ? <Field label={ar ? "درجة القرابة" : "Family degree"}><Select value={familyDegree} onValueChange={(value) => setFamilyDegree(value as FamilyDegree)}><SelectTrigger className="min-h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="first_degree">{ar ? "الدرجة الأولى" : "1st Degree Family"}</SelectItem><SelectItem value="second_degree">{ar ? "الدرجة الثانية" : "2nd Degree Family"}</SelectItem></SelectContent></Select></Field> : null}
-              <div className="grid gap-4 sm:grid-cols-2"><Field label={ar ? "من تاريخ" : "Start date"}><Input type="date" className="min-h-11" value={leaveStart} onChange={(event) => { const next = event.target.value; setLeaveStart(next); if (leaveEnd < next) setLeaveEnd(next); }} /></Field><Field label={ar ? "إلى تاريخ" : "End date"}><Input type="date" min={leaveStart} className="min-h-11" value={leaveEnd} onChange={(event) => setLeaveEnd(event.target.value)} /></Field></div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <RequestDatePicker label={ar ? "من تاريخ" : "Start date"} value={leaveStart} onChange={(next) => { setLeaveStart(next); if (leaveEnd < next) setLeaveEnd(next); }} ar={ar} />
+                <RequestDatePicker label={ar ? "إلى تاريخ" : "End date"} value={leaveEnd} onChange={setLeaveEnd} min={leaveStart} ar={ar} />
+              </div>
             </>}
 
             <Field label={ar ? "السبب" : "Reason"}><Textarea rows={4} className="min-h-24" value={reason} onChange={(event) => setReason(event.target.value)} placeholder={ar ? "اكتب سبب الطلب بوضوح..." : "Explain the request clearly..."} /></Field>

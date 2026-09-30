@@ -270,10 +270,8 @@ test("theme and topbar interactions use atomic and soft motion", async () => {
   const css = await file("src/quickserve-system.css");
   assert.match(theme, /startViewTransition/);
   assert.match(theme, /flushSync/);
-  assert.match(header, /qs-command-icon-trigger/);
-  assert.match(header, /qs-search-shortcut-keys/);
-  assert.match(header, /<BrandLogo markOnly/);
-  assert.match(header, />Ctrl</);
+  assert.doesNotMatch(header, /qs-command-icon-trigger|qs-search-shortcut-keys|<BrandLogo markOnly|>Ctrl</);
+  assert.match(header, /quickserve:open-workspace-tools/);
   assert.match(header, /qs-topbar-popover/);
   assert.match(css, /::view-transition-new\(root\)/);
   assert.match(css, /qs-topbar-popover-in/);
@@ -294,7 +292,7 @@ test("approved Team and Workforce layout uses the command icon search and live T
   const shifts = await file("src/routes/_authenticated/shifts.tsx");
   const css = await file("src/quickserve-system.css");
   assert.match(header, /qs-global-search-trigger-approved/);
-  assert.match(header, /qs-command-icon-trigger/);
+  assert.doesNotMatch(header, /qs-command-icon-trigger/);
   assert.match(team, /qs-approved-team-page/);
   assert.match(team, /Today's Attendance/);
   assert.match(team, /Shift Distribution/);

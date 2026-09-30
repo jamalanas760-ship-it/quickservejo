@@ -4336,6 +4336,33 @@ html.qs-theme-view-transition *{
 }
 
 
+/* Whole-field request pickers, shared by every permission and leave type. */
+.qs-request-picker-field{display:flex;min-width:0;flex-direction:column;gap:8px}
+.qs-request-picker-trigger{
+  width:100%;min-height:52px;justify-content:flex-start;gap:10px;
+  border-radius:14px;cursor:pointer;touch-action:manipulation;
+  text-align:start;font-weight:500;
+}
+.qs-request-picker-trigger>span{flex:1;min-width:0;white-space:normal}
+.qs-request-picker-trigger>svg:first-child{color:var(--qs-brand);flex-shrink:0}
+.qs-request-picker-trigger>svg:last-child{color:var(--qs-muted);flex-shrink:0;width:14px;height:14px}
+.qs-request-picker-trigger[data-state=open]{border-color:var(--qs-brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--qs-brand) 12%,transparent)}
+.qs-request-date-popover,.qs-request-time-popover{
+  max-width:calc(100vw - 24px);max-height:var(--radix-popover-content-available-height);
+  overflow-y:auto;overscroll-behavior:contain;border-radius:18px;
+}
+.qs-request-date-popover{width:auto;padding:4px}
+.qs-request-date-popover [data-slot=calendar]{--cell-size:2.5rem}
+.qs-request-date-presets{display:flex;gap:8px;padding:10px;border-top:1px solid var(--qs-stroke)}
+.qs-request-date-presets>button{flex:1;min-height:40px}
+.qs-request-time-popover{display:flex;width:288px;flex-direction:column;gap:16px}
+.qs-request-time-period>button{flex:1;min-height:44px}
+.qs-request-time-period>button[data-state=on]{background:var(--qs-brand);color:var(--qs-brand-contrast,#fff)}
+@media(max-width:400px){
+  .qs-request-date-popover [data-slot=calendar]{--cell-size:2.25rem}
+  .qs-request-picker-trigger{gap:7px;padding-inline:10px;font-size:14px}
+}
+
 /* QuickServe Launch V3 + Topbar Motion — 2026-09-30 */
 
 /* Premium launch: restrained, brand-led, fast, GPU-friendly. */
