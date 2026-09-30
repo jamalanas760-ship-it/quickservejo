@@ -5,7 +5,6 @@ import {
   BarChart3,
   CalendarCheck2,
   ChevronRight,
-  Clock3,
   ClipboardList,
   Receipt,
   RotateCcw,
@@ -24,6 +23,8 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { DashboardGrid, normalizeDashboardSize, reorderDashboardItems, type DashboardItemSize } from "@/components/customization/DashboardGrid";
 import { HomeMetricDetail, isHomeMetricId } from "@/components/dashboard/HomeMetricDetail";
 import { MasterEyebrow, MasterKpi, MasterSection } from "@/components/app/MasterPage";
+import { HomeOverview } from "@/components/home/HomeOverview";
+import { useHomeOverview } from "@/hooks/useHomeOverview";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,7 +38,6 @@ import { humanError } from "@/lib/errors";
 import { formatDateTime, formatMoney, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { ROLE_LABELS } from "@/lib/permissions";
-import { readAppearance } from "@/lib/restaurant-appearance";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Home — QuickServe" }, { name: "description", content: "QuickServe restaurant workspace overview." }] }),
@@ -82,11 +82,15 @@ function DashboardPage() {
   const session = useSupabaseSession();
   const scope = useWorkspaceScope();
   const rid = scope.restaurantId;
-  const report = useWorkspaceReport(rid);
-  const members = useWorkspaceMembers(rid);
   const restaurant = useRestaurant(rid ?? "");
+  const timezone = restaurant.data?.timezone || "Asia/Amman";
+  const report = useWorkspaceReport(rid, timezone);
+  const members = useWorkspaceMembers(rid);
+  const canStaff = Boolean(rid && access.canFor(rid, "manage_staff"));
+  const canInventory = Boolean(rid && access.canFor(rid, "manage_inventory"));
+  const home = useHomeOverview(rid, canStaff, canInventory);
   const qc = useQueryClient();
-  const currency = scope.currency;
+  const currency = restaurant.data?.currency || scope.currency;
   const r = report.data;
   const user = session.data?.user;
   const meta = user?.user_metadata as { full_name?: string; name?: string } | undefined;
@@ -117,7 +121,8 @@ function DashboardPage() {
       if (error) throw error;
       const rows = (data ?? []) as unknown as { service_status?: string | null }[];
       const occupied = rows.filter((row) => ["active","reserved"].includes(String(row.service_status ?? ""))).length;
-      return { total: rows.length, occupied };
+      const available = rows.filter(row => !row.service_status || row.service_status === "free").length;
+      return { total: rows.length, occupied, available };
     },
   });
 
@@ -135,22 +140,23 @@ function DashboardPage() {
   }, [qc, rid]);
 
   const reservationStats = useQuery({
-    queryKey: ["workspace", "reservation-stats", rid],
+    queryKey: ["workspace", "reservation-stats", rid, timezone],
     enabled: Boolean(rid),
     staleTime: 20_000,
+    refetchInterval: 30_000,
     queryFn: async () => {
-      const start = new Date();
-      start.setHours(0,0,0,0);
-      const end = new Date(start);
-      end.setDate(end.getDate()+1);
+      const now = new Date();
+      const dayKey = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+      const start = new Date(now.getTime() - 36 * 60 * 60 * 1000);
+      const end = new Date(now.getTime() + 36 * 60 * 60 * 1000);
       const { data, error } = await (supabase as any).from("table_bookings")
-        .select("id,status,booking_at,guest_count")
+        .select("id,status,booking_at,guest_count,customer_name,table:restaurant_tables(table_number)")
         .eq("restaurant_id", rid!)
         .gte("booking_at", start.toISOString())
         .lt("booking_at", end.toISOString())
         .order("booking_at", { ascending: true });
       if (error) throw error;
-      const rows = data ?? [];
+      const rows = (data ?? []).filter((row: { booking_at: string }) => dayKey(new Date(row.booking_at)) === dayKey(now));
       return {
         total: rows.filter((row:any) => !["cancelled","no_show"].includes(String(row.status))).length,
         upcoming: rows.filter((row:any) => ["pending","confirmed"].includes(String(row.status)) && new Date(row.booking_at).getTime() >= Date.now()).slice(0,5),
@@ -162,7 +168,6 @@ function DashboardPage() {
   if (rid && isHomeMetricId(detailMetric)) return <HomeMetricDetail metric={detailMetric} restaurantId={rid} restaurantName={restaurant.data?.name ?? scope.restaurantName ?? (ar ? "المطعم" : "Restaurant")} currency={currency} />;
 
   const today = new Intl.DateTimeFormat(ar ? "ar-JO" : "en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" }).format(new Date());
-  const appearance = readAppearance(restaurant.data?.menu_theme);
   const occupancy = tableStats.data?.total ? Math.round(((tableStats.data?.occupied ?? 0) / tableStats.data.total) * 100) : 0;
   const metrics = [
     { id: "sales", label: ar ? "مبيعات اليوم" : "Today's Sales", value: formatMoney(r?.salesToday ?? 0, currency, lang), icon: ShoppingBag, tone: "orange" as const, hint: ar ? `7 أيام: ${formatMoney(r?.salesWeek ?? 0,currency,lang)}` : `7 days: ${formatMoney(r?.salesWeek ?? 0,currency,lang)}` },
@@ -215,7 +220,6 @@ function DashboardPage() {
 
   const shown = (customize ? draft : layout).order.filter((id) => !(customize ? draft : layout).hidden.includes(id));
   const working = customize ? draft : layout;
-  const recentOrders = (r?.recent ?? []).slice(0, 5);
   const upcomingReservations = reservationStats.data?.upcoming ?? [];
 
   function renderSection(id: HomeSectionId) {
@@ -256,54 +260,27 @@ function DashboardPage() {
     return <section className="qs-card h-full overflow-hidden"><div className="flex items-center justify-between border-b border-border px-5 py-4"><h2 className="qs-section-title text-lg">{ar ? "النشاط الأخير" : "Recent Activity"}</h2>{rid ? <Link to="/manage/$restaurantId/orders" params={{ restaurantId: rid }} className="text-xs font-bold text-[#e85d2a]">{ar ? "عرض الكل" : "View all"}</Link> : null}</div><div className="divide-y divide-border">{(r?.recent ?? []).slice(0, 5).map((order, index) => <div key={order.id} className="flex items-center gap-3 px-5 py-3.5"><span className={`grid size-9 shrink-0 place-items-center rounded-full ${index % 3 === 0 ? "bg-emerald-50 text-emerald-600" : index % 3 === 1 ? "bg-blue-50 text-blue-600" : "bg-violet-50 text-violet-600"}`}><Receipt className="size-4" /></span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{ar ? "طلب" : "Order"} {order.order_number}</strong><span className="block truncate text-[11px] text-muted-foreground">{order.status} · {order.table ? `${ar ? "طاولة" : "Table"} ${order.table}` : ar ? "خارجي" : "Takeaway"}</span></span><span className="shrink-0 text-[10px] text-muted-foreground">{formatDateTime(order.created_at, lang)}</span></div>)}{(r?.recent ?? []).length === 0 ? <p className="px-5 py-10 text-center text-sm text-muted-foreground">{ar ? "لا يوجد نشاط بعد." : "No recent activity yet."}</p> : null}</div></section>;
   }
 
-  if (!customize) return <div className="min-h-dvh bg-background">
-    <AppHeader />
-    <main className="qs-page space-y-6">
-      <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="qs-page-title">{ar ? `صباح الخير، ${displayName}` : `Good morning, ${displayName}`}</h1>
-          <p className="qs-page-subtitle mt-2">{ar ? "إليك ما يحتاج إلى انتباهك اليوم." : "Here’s what needs your attention today."}</p>
-        </div>
-        {rid ? <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
-          <Link to="/bookings" className="qs-button-primary"><CalendarCheck2 className="size-4" />{ar ? "حجز جديد" : "Add Booking"}</Link>
-          <Link to="/manage/$restaurantId/orders" params={{restaurantId:rid}} className="qs-button-secondary"><ClipboardList className="size-4" />{ar ? "عرض الطلبات" : "View orders"}</Link>
-        </div> : null}
-      </header>
-
-      {report.isPending || tableStats.isPending || reservationStats.isPending
-        ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0,1,2,3].map((index)=><Skeleton key={index} className="min-h-[112px] rounded-xl" />)}</div>
-        : <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{metrics.slice(0,4).map(({id,label,value,icon,hint,tone})=><MasterKpi key={id} icon={icon} label={label} value={value} hint={hint} tone={tone} action={rid?<Link to="/dashboard/$metric" params={{metric:id}} aria-label={`${label} details`} className="grid size-10 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"><ChevronRight className="size-5" /></Link>:null}/>)}</section>}
-
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,.75fr)]">
-        <MasterSection title={ar ? "الخدمة المباشرة" : "Live service"} description={ar ? "آخر الطلبات وحالتها الآن" : "Recent orders and their current status"} action={rid?<Link to="/manage/$restaurantId/orders" params={{restaurantId:rid}} className="inline-flex min-h-11 items-center gap-1 px-2 text-sm font-semibold text-muted-foreground hover:text-foreground">{ar?"عرض الكل":"View all"}<ChevronRight className="size-4"/></Link>:null} contentClassName="p-0">
-          {recentOrders.length ? <div className="divide-y divide-border">{recentOrders.map((order)=><Link key={order.id} to="/manage/$restaurantId/orders" params={{restaurantId:rid!}} className="grid min-h-[72px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 transition hover:bg-muted/45 sm:grid-cols-[110px_minmax(0,1fr)_130px_auto]">
-            <strong className="text-sm">#{order.order_number}</strong>
-            <span className="min-w-0 text-sm text-muted-foreground">{order.table ? `${ar?"طاولة":"Table"} ${order.table}` : ar?"طلب خارجي":"Takeaway"}</span>
-            <span className="hidden text-sm text-muted-foreground sm:block">{formatDateTime(order.created_at,lang)}</span>
-            <span className="flex items-center gap-2"><span className="qs-status capitalize">{order.status}</span><ChevronRight className="size-4 text-muted-foreground"/></span>
-          </Link>)}</div>:<div className="qs-empty-state border-0"><div><ClipboardList className="mx-auto size-8 text-muted-foreground"/><p className="mt-3 text-sm font-semibold">{ar?"لا توجد طلبات اليوم":"No orders yet today"}</p></div></div>}
-        </MasterSection>
-
-        <MasterSection title={ar ? "اليوم" : "Today"} description={ar ? "الحجوزات القادمة" : "Upcoming reservations"} action={<Link to="/bookings" className="inline-flex min-h-11 items-center gap-1 px-2 text-sm font-semibold text-muted-foreground hover:text-foreground">{ar?"عرض الكل":"View all"}<ChevronRight className="size-4"/></Link>} contentClassName="p-0">
-          {upcomingReservations.length ? <div className="divide-y divide-border">{upcomingReservations.map((booking:any)=><Link key={booking.id} to="/bookings" className="flex min-h-[72px] items-center gap-3 px-4 py-3 transition hover:bg-muted/45">
-            <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-orange-50 text-[#cf4818]"><CalendarCheck2 className="size-5"/></span>
-            <span className="min-w-0 flex-1"><strong className="block text-sm">{new Intl.DateTimeFormat(ar?"ar-JO":"en-US",{hour:"numeric",minute:"2-digit"}).format(new Date(booking.booking_at))}</strong><span className="block truncate text-xs text-muted-foreground">{booking.guest_count} {ar?"ضيوف":"guests"} · {booking.status}</span></span>
-            <ChevronRight className="size-4 text-muted-foreground"/>
-          </Link>)}</div>:<div className="px-4 py-8 text-center"><CalendarCheck2 className="mx-auto size-7 text-muted-foreground"/><p className="mt-3 text-sm text-muted-foreground">{ar?"لا توجد حجوزات قادمة":"No upcoming reservations"}</p></div>}
-        </MasterSection>
-      </section>
-
-      <MasterSection title={ar ? "يحتاج إلى انتباه" : "Needs attention"} contentClassName="p-0">
-        <div className="divide-y divide-border">
-          <AttentionRow to={rid?`/manage/${rid}/orders`:"/dashboard"} icon={Clock3} label={ar?`${r?.openOrders??0} طلبات نشطة الآن`:`${r?.openOrders??0} active orders right now`} />
-          <AttentionRow to={rid?`/manage/${rid}/tables`:"/dashboard"} icon={Table2} label={ar?`${tableStats.data?.occupied??0} من ${tableStats.data?.total??0} طاولة مشغولة`:`${tableStats.data?.occupied??0} of ${tableStats.data?.total??0} tables occupied`} />
-          <AttentionRow to={rid?`/manage/${rid}/staff`:"/dashboard"} icon={Users} label={ar?`${(members.data??[]).filter((member)=>member.is_active).length} أعضاء نشطون`:`${(members.data??[]).filter((member)=>member.is_active).length} team members active`} />
-        </div>
-      </MasterSection>
-
-      {canCustomize ? <button type="button" className="mx-auto flex min-h-11 items-center gap-2 px-3 text-sm font-semibold text-muted-foreground transition hover:text-foreground" onClick={()=>{setDraft(layout);setCustomize(true);}}><Settings2 className="size-4"/>{ar?"تخصيص لوحة المعلومات":"Customize dashboard"}</button>:null}
-    </main>
-  </div>;
+  if (!customize) {
+    const value = (query: { isPending: boolean; isError: boolean }, number: number | undefined) => query.isPending ? "…" : query.isError ? "—" : String(number ?? 0);
+    return <div className="qs-home-surface min-h-dvh bg-background">
+      <AppHeader />
+      <HomeOverview name={displayName} lang={lang} currency={currency} restaurantId={rid} timeZone={timezone}
+        sales={report.isPending ? "…" : report.isError ? "—" : formatMoney(r?.salesToday ?? 0, currency, lang)}
+        salesHint={ar ? `${value(report, r?.ordersToday)} طلبات اليوم` : `${value(report, r?.ordersToday)} orders today`}
+        orders={home.orders.data?.rows ?? []} orderTotal={value(home.orders, home.orders.data?.total)}
+        orderHint={home.orders.isError ? (ar ? "تعذر تحميل الطلبات" : "Orders unavailable") : ar ? `${value(home.orders, home.orders.data?.new)} جديدة · ${value(home.orders, home.orders.data?.preparing)} قيد التحضير · ${value(home.orders, home.orders.data?.ready)} جاهزة` : `${value(home.orders, home.orders.data?.new)} new · ${value(home.orders, home.orders.data?.preparing)} preparing · ${value(home.orders, home.orders.data?.ready)} ready`}
+        orderState={home.orders.isPending ? (ar ? "جارٍ تحميل الطلبات…" : "Loading orders…") : home.orders.isError ? (ar ? "تعذر تحميل الطلبات. أعد المحاولة من صفحة الطلبات." : "Couldn't load orders. Try the orders page.") : undefined}
+        tables={`${value(tableStats, tableStats.data?.occupied)} / ${value(tableStats, tableStats.data?.total)}`}
+        tableHint={ar ? `${value(tableStats, tableStats.data?.available)} طاولات متاحة` : `${value(tableStats, tableStats.data?.available)} tables available`}
+        team={`${value(home.workforce, home.workforce.data?.present)} / ${value(home.workforce, home.workforce.data?.total)}`} teamHint={ar ? "على رأس العمل الآن" : "On shift now"}
+        bookings={upcomingReservations} bookingTotal={value(reservationStats, reservationStats.data?.total)}
+        bookingState={reservationStats.isPending ? (ar ? "جارٍ تحميل الحجوزات…" : "Loading bookings…") : reservationStats.isError ? (ar ? "تعذر تحميل الحجوزات. أعد المحاولة من صفحة الحجوزات." : "Couldn't load bookings. Try the schedule page.") : undefined}
+        lowStock={value(home.inventory, home.inventory.data)} pendingRequests={value(home.workforce, home.workforce.data?.pending)} readyOrders={value(home.orders, home.orders.data?.ready)}
+        canStaff={canStaff} canInventory={canInventory} canMenu={Boolean(rid && access.canFor(rid, "manage_menu"))} canAnalytics={Boolean(rid && access.canFor(rid, "view_analytics"))}
+        onCustomize={canCustomize ? () => { setDraft(layout); setCustomize(true); } : undefined}
+      />
+    </div>;
+  }
 
   return <div className="min-h-dvh bg-background">
     <AppHeader />
@@ -334,8 +311,4 @@ function DashboardPage() {
 function LiveLine({icon:Icon,label,value,tone}:{icon:typeof ClipboardList;label:string;value:string;tone:"orange"|"blue"|"green"|"purple"}){
   const cls=tone==="orange"?"bg-orange-500/10 text-[#e34d00]":tone==="blue"?"bg-blue-500/10 text-blue-700":tone==="green"?"bg-emerald-500/10 text-emerald-700":"bg-violet-500/10 text-violet-700";
   return <div className="flex items-center gap-3 rounded-xl border border-border/80 bg-background px-3 py-3"><span className={`grid size-9 shrink-0 place-items-center rounded-xl ${cls}`}><Icon className="size-4"/></span><span className="min-w-0 flex-1 text-xs font-semibold text-muted-foreground">{label}</span><strong className="font-display text-lg tracking-[-.03em]">{value}</strong></div>;
-}
-
-function AttentionRow({to,icon:Icon,label}:{to:string;icon:typeof Clock3;label:string}){
-  return <Link to={to as never} className="flex min-h-[60px] items-center gap-3 px-4 py-3 transition hover:bg-muted/45"><span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"><Icon className="size-4"/></span><span className="min-w-0 flex-1 text-sm font-medium">{label}</span><ChevronRight className="size-4 text-muted-foreground"/></Link>;
 }

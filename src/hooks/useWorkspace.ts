@@ -94,11 +94,12 @@ function buildSeries(orders: { total: number; created_at: string }[]) {
   return days;
 }
 
-export function useWorkspaceReport(restaurantId: string | null) {
+export function useWorkspaceReport(restaurantId: string | null, timeZone?: string) {
   return useQuery<WorkspaceReport>({
-    queryKey: ["workspace", "report", restaurantId],
+    queryKey: ["workspace", "report", restaurantId, ...(timeZone ? [timeZone] : [])],
     enabled: Boolean(restaurantId),
     staleTime: 20_000,
+    refetchInterval: restaurantId ? 30_000 : false,
     queryFn: async () => {
       const today = startOfTodayIso();
       const week = daysAgoIso(7);
@@ -132,7 +133,9 @@ export function useWorkspaceReport(restaurantId: string | null) {
       }[];
 
       const counted = orders.filter((o) => o.status !== "cancelled");
-      const todayOrders = counted.filter((o) => o.created_at >= today);
+      const dayKey = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+      const todayKey = timeZone ? dayKey(new Date()) : null;
+      const todayOrders = counted.filter((o) => todayKey ? dayKey(new Date(o.created_at)) === todayKey : o.created_at >= today);
       const sum = (rows: typeof counted) => rows.reduce((acc, o) => acc + Number(o.total ?? 0), 0);
 
       const tally = new Map<string, number>();

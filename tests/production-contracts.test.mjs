@@ -104,8 +104,10 @@ test("operations navigation and work board retain the polished interaction contr
   const normalStart = dashboard.indexOf("if (!customize)");
   const normalDashboard = dashboard.slice(normalStart, dashboard.indexOf("\n\n  return <div", normalStart + 50));
 
-  assert.match(normalDashboard, /to="\/bookings"/);
-  assert.match(normalDashboard, /Add Booking/);
+  const home = await file("src/components/home/HomeOverview.tsx");
+  assert.match(normalDashboard, /<HomeOverview/);
+  assert.match(home, /to="\/bookings" search=\{\{create:true\}\}/);
+  assert.match(home, /Add booking/);
   assert.match(work, /onMutate: async \(\{ id, status \}\)/);
   assert.match(work, /Release to move the card/);
   assert.match(work, /Approval & source/);

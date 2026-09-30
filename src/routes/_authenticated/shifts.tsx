@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouterState } from "@tanstack/react-router";
 import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Download, Handshake, List, PlayCircle, Plus, Rows3, StopCircle, TimerReset, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
@@ -86,7 +86,9 @@ function ShiftsPage() {
   const [deletingShift, setDeletingShift] = useState<Shift | null>(null);
   const [detailShiftId, setDetailShiftId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ShiftView>("timeline");
-  const [workforceSection, setWorkforceSection] = useState<WorkforceSection>("overview");
+  const requestedSection = useRouterState({ select: state => state.location.hash });
+  const [workforceSection, setWorkforceSection] = useState<WorkforceSection>(requestedSection === "time_off" ? "time_off" : "overview");
+  useEffect(() => { if (requestedSection === "time_off") setWorkforceSection("time_off"); }, [requestedSection]);
   const [memberSheet, setMemberSheet] = useState<WorkforceMember | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toLocaleDateString("en-CA"));
   const [liveNow, setLiveNow] = useState(() => Date.now());

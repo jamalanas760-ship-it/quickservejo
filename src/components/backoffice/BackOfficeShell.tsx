@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouterState } from "@tanstack/react-router";
 import { BarChart3, ChefHat, Coins, FileText, LayoutDashboard, MoreHorizontal, Package, PackageCheck, Printer, ShoppingCart, Truck } from "lucide-react";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
@@ -52,7 +53,9 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
   const allowed = access.isSuperAdmin || can("view_erp") || Object.values(moduleAccess).some(Boolean);
   const restaurant = useRestaurant(restaurantId);
   const query = useBackOffice(restaurantId, moduleAccess, allowed);
-  const [section, setSection] = useState<SectionKey>("overview");
+  const requestedSection = useRouterState({ select: state => state.location.hash });
+  const [section, setSection] = useState<SectionKey>(requestedSection === "inventory" ? "inventory" : "overview");
+  useEffect(() => { if (requestedSection === "inventory") setSection("inventory"); }, [requestedSection]);
   const [request, setRequest] = useState<RecordRequest | null>(null);
 
   if (access.isPending) return <Skeleton className="h-96 rounded-2xl" />;
