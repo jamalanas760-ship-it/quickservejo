@@ -35,7 +35,7 @@ export function HomeOverview(p: HomeOverviewProps) {
         {p.restaurantId ? <Link to="/bookings" search={{create:true}} className="qs-home-booking">{t("Add booking", "حجز جديد")}</Link> : null}</div>
     </header>
     <section className="qs-home-summary qs-home-panel" aria-label={t("Today's overview", "نظرة اليوم")}>
-      {metrics.map(metric => <Link key={metric.label} to={metric.to as never} className="qs-home-metric"><span>{metric.label}</span><strong className={metric.accent ? "qs-home-sales" : undefined}>{metric.value}</strong><small>{metric.hint}</small></Link>)}
+      {metrics.map(metric => <Link key={metric.label} to={metric.to as never} className="qs-home-metric"><span>{metric.label}</span><strong className={metric.accent ? "qs-home-sales" : undefined}><bdi dir={metric.accent ? "auto" : "ltr"}>{metric.value}</bdi></strong><small>{metric.hint}</small></Link>)}
     </section>
     <div className="qs-home-main-grid">
       <section className="qs-home-panel qs-home-orders"><div className="qs-home-panel-heading"><h2>{t("Orders overview", "نظرة على الطلبات")}</h2>{more(path("/orders"), t("View orders", "عرض الطلبات"))}</div>
