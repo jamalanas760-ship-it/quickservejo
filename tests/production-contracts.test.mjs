@@ -281,6 +281,13 @@ test("theme and topbar interactions use atomic and soft motion", async () => {
 });
 
 
+test("topbar language and profile menus are non-modal to prevent scrollbar layout shift", async () => {
+  const header = await file("src/components/nav/AppHeader.tsx");
+  const matches = header.match(/<DropdownMenu modal=\{false\}>/g) ?? [];
+  assert.equal(matches.length, 2);
+});
+
+
 test("approved Team and Workforce layout uses the command icon search and live Team insights", async () => {
   const header = await file("src/components/nav/AppHeader.tsx");
   const team = await file("src/components/manage/StaffManagerAdvanced.tsx");
