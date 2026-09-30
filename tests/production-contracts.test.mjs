@@ -145,6 +145,22 @@ test("authenticated navigation keeps stable chrome with a once-per-session launc
 });
 
 
+test("launch screen v3 and topbar menus use the premium motion system", async () => {
+  const splash = await file("src/components/app/SplashScreen.tsx");
+  const header = await file("src/components/nav/AppHeader.tsx");
+  const css = await file("src/quickserve-system.css");
+  assert.match(splash, /quickserve\.splash\.shown\.v3/);
+  assert.match(splash, /qs-launch-v3/);
+  assert.match(splash, /Syncing live operations/);
+  assert.match(splash, /Ready to serve/);
+  assert.match(header, /qs-topbar-popover/);
+  assert.match(header, /qs-topbar-menu-trigger/);
+  assert.match(css, /QuickServe Launch V3 \+ Topbar Motion/);
+  assert.match(css, /qs-topbar-v3-in/);
+  assert.match(css, /prefers-reduced-motion/);
+});
+
+
 test("runtime hardening is hydration-safe and retries only transient reads", async () => {
   const monitor = await file("src/components/app/AppRuntimeMonitor.tsx");
   const connectivity = await file("src/hooks/useConnectivity.ts");
