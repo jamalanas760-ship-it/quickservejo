@@ -304,6 +304,29 @@ test("Workforce navigation badge represents unread workforce alerts, not schedul
 });
 
 
+
+
+test("Workforce Requests supports permissions, leave types, reasons and attachments", async () => {
+  const shifts = await file("src/routes/_authenticated/shifts.tsx");
+  const requests = await file("src/components/workforce/WorkforceRequests.tsx");
+  const migration = await file("supabase/migrations/20260929124843_workforce_permissions_leave_types_documents.sql");
+  assert.match(shifts, /label: ar \? "الطلبات" : "Requests"/);
+  assert.match(shifts, /<WorkforceRequests/);
+  assert.match(requests, /Personal permission/);
+  assert.match(requests, /Lateness permission/);
+  assert.match(requests, /Work permission/);
+  assert.match(requests, /Annual Leave/);
+  assert.match(requests, /Sick Leave/);
+  assert.match(requests, /Hajj Leave/);
+  assert.match(requests, /Bereavement Leave/);
+  assert.match(requests, /1st Degree Family/);
+  assert.match(requests, /2nd Degree Family/);
+  assert.match(requests, /workforce-documents/);
+  assert.match(migration, /create table if not exists public\.staff_permission_requests/);
+  assert.match(migration, /submit_workforce_permission_request/);
+  assert.match(migration, /submit_workforce_leave_request/);
+});
+
 test("shifts page places a modern live clock hero above shift coverage", async () => {
   const shifts = await file("src/routes/_authenticated/shifts.tsx");
   assert.match(shifts, /function WorkforceClockHero/);
