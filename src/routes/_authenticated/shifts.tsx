@@ -43,6 +43,7 @@ import { useI18n } from "@/lib/i18n";
 import { membershipHasCapability, ROLE_LABELS, type AppRole } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { MemberWorkforceSheet, WorkforceAttendanceBoard, WorkforceExceptions, WorkforceTeam, WorkforceTimesheets, type WorkforceMember } from "@/components/workforce/WorkforceInsights";
+import { WorkforceRequests } from "@/components/workforce/WorkforceRequests";
 
 export const Route = createFileRoute("/_authenticated/shifts")({
   head: () => ({ meta: [{ title: "Workforce — QuickServe" }, { name: "description", content: "Restaurant workforce scheduling, attendance, time off and labor control." }] }),
@@ -279,7 +280,8 @@ function ShiftsPage() {
       {workforceSection === "attendance" ? <WorkforceAttendanceBoard restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} onOpen={setMemberSheet} /> : null}
       {workforceSection === "timesheets" ? <WorkforceTimesheets restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} canManage={canManage} canReopen={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpenMember={setMemberSheet} /> : null}
       {workforceSection === "team" ? <WorkforceTeam restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} onOpen={setMemberSheet} canManageTeam={membershipHasCapability(membership.role, membership.permission_overrides, "manage_staff")} /> : null}
-      {workforceSection !== "schedule" && workforceSection !== "timesheets" && workforceSection !== "team" ? <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} lang={lang} mode={workforceSection} /> : null}
+      {workforceSection === "time_off" ? <WorkforceRequests restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} ar={ar} lang={lang} /> : null}
+      {workforceSection !== "schedule" && workforceSection !== "timesheets" && workforceSection !== "team" && workforceSection !== "time_off" ? <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} lang={lang} mode={workforceSection} /> : null}
     </main>
 
     <MemberWorkforceSheet member={memberSheet} onClose={() => setMemberSheet(null)} restaurantId={rid} assignments={assignments.data ?? []} ar={ar} canManageTeam={membershipHasCapability(membership.role, membership.permission_overrides, "manage_staff")} />
@@ -387,7 +389,7 @@ function WorkforceNavigation({ active, onChange, canManage, ar }: { active: Work
     { id: "schedule", label: ar ? "الجدول" : "Schedule", icon: CalendarClock },
     { id: "attendance", label: ar ? "الحضور" : "Attendance", icon: TimerReset },
     { id: "timesheets", label: ar ? "سجلات الدوام" : "Timesheets", icon: CheckCircle2 },
-    { id: "time_off", label: ar ? "الإجازات" : "Time Off", icon: CalendarDays },
+    { id: "time_off", label: ar ? "الطلبات" : "Requests", icon: CalendarDays },
     { id: "team", label: ar ? "الفريق" : "Team", icon: UserPlus },
     ...(canManage ? [{ id: "labor" as WorkforceSection, label: ar ? "العمالة" : "Labor", icon: Clock3 }] : []),
   ];
@@ -824,7 +826,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, assi
   const [laborOpen, setLaborOpen] = useState(false);
   const [clockNow, setClockNow] = useState(() => Date.now());
   const showAttendance = mode === "attendance";
-  const showLeave = mode === "overview" || mode === "time_off";
+  const showLeave = false;
   const showLabor = canManage && (mode === "overview" || mode === "labor");
 
   const workforce = useQuery({
@@ -979,7 +981,7 @@ function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, assi
     {showAttendance ? <div className="qs-card overflow-hidden">
       <div className="flex flex-col gap-4 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
         <div><h2 className="qs-section-title">{ar ? "الحضور والوقت" : "Attendance & time"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "ساعة حضور فعلية مرتبطة بحساب كل موظف." : "A real time clock tied to each staff account."}</p></div>
-        <Button variant="outline" onClick={() => setLeaveOpen(true)}><CalendarDays className="size-4"/>{ar ? "طلب إجازة" : "Request leave"}</Button>
+        <span className="rounded-full bg-muted px-3 py-1.5 text-[10px] font-bold text-muted-foreground">{ar ? "الطلبات من تبويب الطلبات" : "Requests are managed in Requests"}</span>
       </div>
       <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl bg-muted/45 p-3" aria-live="polite">
