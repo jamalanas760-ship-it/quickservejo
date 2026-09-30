@@ -119,7 +119,7 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
 
         <div className="qs-topbar-controls ms-auto flex min-w-0 items-center gap-1 sm:gap-1.5">
           <ThemeToggle compact className="qs-topbar-theme-control inline-flex" />
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <button type="button" className="qs-topbar-menu-trigger qs-topbar-language inline-flex min-h-9 items-center gap-1.5 rounded-[9px] border border-transparent px-2 text-muted-foreground transition hover:border-border hover:bg-muted/55 hover:text-foreground lg:min-h-10 lg:px-2.5" aria-label={lang === "ar" ? "اختيار اللغة" : "Choose language"}>
                 <Globe2 className="size-4" />
@@ -143,7 +143,7 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
             </DropdownMenuContent>
           </DropdownMenu>
           <NotificationBell restaurantId={restaurantId} count={notificationCount} ar={lang === "ar"} />
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <button type="button" aria-label={lang === "ar" ? "قائمة الحساب" : "Account menu"} className="qs-topbar-menu-trigger group flex min-h-8 items-center gap-1.5 rounded-[9px] border border-transparent px-1.5 transition hover:border-border hover:bg-muted/55 sm:px-2">
                 <span className="grid size-7.5 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border/90 shadow-sm group-hover:ring-primary/30">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : <RoleAvatarFallback role={membership?.role} superAdmin={access.isSuperAdmin} />}</span>
