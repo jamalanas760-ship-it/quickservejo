@@ -22,7 +22,6 @@ import {
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
-import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -754,8 +753,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
         <div className="grid gap-2.5 border-b border-border bg-card p-3 lg:grid-cols-[minmax(0,1fr)_160px_160px]">
           <div className="relative">
             <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ar ? "ابحث بالاسم أو البريد أو الدور..." : "Search staff, role or email..."} className="h-11 rounded-xl ps-10 pe-14" />
-            <button type="button" className="qs-team-search-command absolute end-1.5 top-1/2 grid size-8.5 -translate-y-1/2 place-items-center rounded-[10px]" onClick={() => window.dispatchEvent(new CustomEvent("quickserve:open-workspace-tools"))} aria-label={ar ? "فتح البحث الشامل" : "Open global search"} title={ar ? "البحث الشامل" : "Global search"}><BrandLogo markOnly className="size-5" /></button>
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ar ? "ابحث بالاسم أو البريد أو الدور..." : "Search staff, role or email..."} className="h-11 rounded-xl ps-10 pe-3.5" />
           </div>
           <Select value={roleFilter} onValueChange={setRoleFilter}>
             <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>

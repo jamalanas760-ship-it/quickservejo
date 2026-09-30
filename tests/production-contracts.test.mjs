@@ -303,13 +303,14 @@ test("approved Team and Workforce layout uses the command icon search and live T
 });
 
 
-test("Team table is paginated, aligned, and exposes the global search command", async () => {
+test("Team table is paginated, aligned, and keeps staff search free of the extra command button", async () => {
   const team = await file("src/components/manage/StaffManagerAdvanced.tsx");
   const css = await file("src/quickserve-system.css");
   assert.match(team, /TEAM_PAGE_SIZE = 8/);
   assert.match(team, /visibleRows/);
   assert.match(team, /qs-team-pagination/);
-  assert.match(team, /qs-team-search-command/);
+  assert.doesNotMatch(team, /qs-team-search-command/);
+  assert.match(team, /Search staff, role or email/);
   assert.match(team, /min-w-\[1180px\]/);
   assert.match(css, /Team management dashboard final pass/);
   assert.match(css, /qs-team-table-wrap/);
