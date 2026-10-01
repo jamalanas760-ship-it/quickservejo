@@ -284,7 +284,9 @@ test("theme and topbar interactions use atomic and soft motion", async () => {
 test("topbar language and profile menus are non-modal to prevent scrollbar layout shift", async () => {
   const header = await file("src/components/nav/AppHeader.tsx");
   const matches = header.match(/<DropdownMenu modal=\{false\}>/g) ?? [];
-  assert.equal(matches.length, 2);
+  assert.equal(matches.length, 1);
+  const language = await file("src/components/nav/LanguageSelector.tsx");
+  assert.match(language, /modal=\{false\}/);
 });
 
 

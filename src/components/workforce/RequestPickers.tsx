@@ -23,6 +23,7 @@ type PickerProps = {
   value: string;
   onChange: (value: string) => void;
   ar: boolean;
+  disabled?: boolean;
 };
 
 export function RequestDatePicker({
@@ -138,7 +139,7 @@ function clockParts(value: string) {
   };
 }
 
-export function RequestTimePicker({ label, value, onChange, ar }: PickerProps) {
+export function RequestTimePicker({ label, value, onChange, ar, disabled = false }: PickerProps) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => clockParts(value));
@@ -158,6 +159,7 @@ export function RequestTimePicker({ label, value, onChange, ar }: PickerProps) {
       <Popover
         open={open}
         onOpenChange={(next) => {
+          if (disabled) return;
           if (next) setDraft(clockParts(value));
           setOpen(next);
         }}
@@ -165,6 +167,7 @@ export function RequestTimePicker({ label, value, onChange, ar }: PickerProps) {
         <PopoverTrigger asChild>
           <Button
             id={id}
+            disabled={disabled}
             type="button"
             variant="outline"
             className="qs-request-picker-trigger"

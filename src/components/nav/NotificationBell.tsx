@@ -1,6 +1,18 @@
+import { toast } from "sonner";
+import { humanError } from "@/lib/errors";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Bell, CheckCheck, ClipboardList, ExternalLink, Info, ShieldCheck, TimerReset, UsersRound } from "lucide-react";
+import {
+  Bell,
+  CheckCheck,
+  ClipboardList,
+  ExternalLink,
+  Info,
+  ShieldCheck,
+  TimerReset,
+  UsersRound,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -32,6 +44,7 @@ export function NotificationBell({
   ar: boolean;
 }) {
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
   const feed = useQuery<NotificationRow[]>({
     queryKey: ["notifications", "popover", restaurantId],
     enabled: Boolean(restaurantId),
@@ -51,14 +64,23 @@ export function NotificationBell({
   const markRead = useMutation({
     mutationFn: async (ids: string[]) => {
       if (!ids.length) return;
-      const { error } = await source().update({ read_at: new Date().toISOString() }).in("id", ids);
+      const { error } = await source()
+        .update({ read_at: new Date().toISOString() })
+        .eq("restaurant_id", restaurantId!)
+        .is("read_at", null)
+        .in("id", ids);
       if (error) throw error;
     },
+    onError: (error) => toast.error(humanError(error, ar ? "ar" : "en")),
     onSuccess: async (_data, ids) => {
       qc.setQueryData<OperationalCounters>(operationalCountersKey(restaurantId), (current) => {
         if (!current) return current;
         const removed = Math.min(ids.length, current.unread);
-        return { ...current, unread: Math.max(0, current.unread - removed), total: Math.max(0, current.total - removed) };
+        return {
+          ...current,
+          unread: Math.max(0, current.unread - removed),
+          total: Math.max(0, current.total - removed),
+        };
       });
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["notifications", "popover", restaurantId] }),
@@ -72,7 +94,7 @@ export function NotificationBell({
   const unread = rows.filter((row) => !row.read_at);
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -87,12 +109,22 @@ export function NotificationBell({
           ) : null}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={10} className="w-[min(390px,calc(100vw-20px))] overflow-hidden p-0">
+      <PopoverContent
+        align="end"
+        sideOffset={10}
+        className="w-[min(390px,calc(100vw-20px))] overflow-hidden p-0"
+      >
         <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3.5">
           <div>
             <h2 className="text-sm font-bold">{ar ? "الإشعارات" : "Notifications"}</h2>
             <p className="mt-0.5 text-[10px] text-muted-foreground">
-              {count ? (ar ? `${count} غير مقروء` : `${count} unread`) : (ar ? "لا توجد تنبيهات جديدة" : "You're all caught up")}
+              {count
+                ? ar
+                  ? `${count} غير مقروء`
+                  : `${count} unread`
+                : ar
+                  ? "لا توجد تنبيهات جديدة"
+                  : "You're all caught up"}
             </p>
           </div>
           {unread.length ? (
@@ -109,14 +141,36 @@ export function NotificationBell({
           ) : null}
         </div>
 
-        <div className="max-h-[420px] overflow-y-auto">
+        <div className="max-h-[min(420px,50dvh)] overflow-y-auto">
           {feed.isPending ? (
-            <div className="space-y-3 p-4">{[0,1,2].map((i) => <div key={i} aria-hidden="true" className="qs-skeleton h-16 rounded-xl bg-muted" />)}</div>
+            <div className="space-y-3 p-4">
+              {[0, 1, 2].map((i) => (
+                <div key={i} aria-hidden="true" className="qs-skeleton h-16 rounded-xl bg-muted" />
+              ))}
+            </div>
+          ) : feed.isError ? (
+            <div className="p-6 text-center">
+              <p className="text-xs text-muted-foreground">
+                {ar ? "تعذر تحميل الإشعارات." : "Could not load notifications."}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-3 min-h-11"
+                onClick={() => void feed.refetch()}
+              >
+                {ar ? "إعادة المحاولة" : "Try again"}
+              </Button>
+            </div>
           ) : rows.length === 0 ? (
             <div className="grid min-h-44 place-items-center p-6 text-center">
               <div>
-                <span className="mx-auto grid size-10 place-items-center rounded-xl bg-muted text-muted-foreground"><Bell className="size-4" /></span>
-                <p className="mt-3 text-xs font-bold">{ar ? "كل شيء هادئ" : "Nothing needs attention"}</p>
+                <span className="mx-auto grid size-10 place-items-center rounded-xl bg-muted text-muted-foreground">
+                  <Bell className="size-4" />
+                </span>
+                <p className="mt-3 text-xs font-bold">
+                  {ar ? "كل شيء هادئ" : "Nothing needs attention"}
+                </p>
               </div>
             </div>
           ) : (
@@ -124,22 +178,48 @@ export function NotificationBell({
               {rows.map((row) => {
                 const config = kindConfig(row.kind);
                 const Icon = config.icon;
-                const href = row.kind === "shift" || row.kind === "handover" ? "/shifts" : row.kind === "task" || row.kind === "approval" || row.kind === "alert" ? "/work" : "/dashboard";
+                const href =
+                  row.kind === "shift" || row.kind === "handover"
+                    ? "/shifts"
+                    : row.kind === "task" || row.kind === "approval" || row.kind === "alert"
+                      ? "/work"
+                      : "/dashboard";
                 return (
                   <Link
                     key={row.id}
                     to={href as never}
-                    onClick={() => { if (!row.read_at) markRead.mutate([row.id]); }}
-                    className={cn("flex gap-3 px-4 py-3 transition hover:bg-muted/45", !row.read_at && "bg-orange-500/[.035]")}
+                    onClick={() => {
+                      setOpen(false);
+                      if (!row.read_at) markRead.mutate([row.id]);
+                    }}
+                    className={cn(
+                      "flex gap-3 px-4 py-3 transition hover:bg-muted/45",
+                      !row.read_at && "bg-orange-500/[.035]",
+                    )}
                   >
-                    <span className={cn("mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl", config.tone)}><Icon className="size-4" /></span>
+                    <span
+                      className={cn(
+                        "mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl",
+                        config.tone,
+                      )}
+                    >
+                      <Icon className="size-4" />
+                    </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-start gap-2">
                         <strong className="min-w-0 flex-1 text-xs leading-5">{row.title}</strong>
-                        {!row.read_at ? <i className="mt-1.5 size-2 shrink-0 rounded-full bg-[#e85d2a]" /> : null}
+                        {!row.read_at ? (
+                          <i className="mt-1.5 size-2 shrink-0 rounded-full bg-[#e85d2a]" />
+                        ) : null}
                       </span>
-                      {row.body ? <span className="mt-0.5 block line-clamp-2 text-[10px] leading-4 text-muted-foreground">{row.body}</span> : null}
-                      <span className="mt-1 block text-[9px] font-medium text-muted-foreground">{formatTime(row.created_at, ar)}</span>
+                      {row.body ? (
+                        <span className="mt-0.5 block line-clamp-2 text-[10px] leading-4 text-muted-foreground">
+                          {row.body}
+                        </span>
+                      ) : null}
+                      <span className="mt-1 block text-[9px] font-medium text-muted-foreground">
+                        {formatTime(row.created_at, ar)}
+                      </span>
                     </span>
                   </Link>
                 );
@@ -149,8 +229,12 @@ export function NotificationBell({
         </div>
 
         <div className="border-t border-border bg-muted/20 p-2">
-          <Button asChild variant="ghost" className="h-10 w-full justify-between px-3 text-xs font-bold">
-            <Link to="/notifications">
+          <Button
+            asChild
+            variant="ghost"
+            className="h-10 w-full justify-between px-3 text-xs font-bold"
+          >
+            <Link to="/notifications" onClick={() => setOpen(false)}>
               <span>{ar ? "فتح مركز الإشعارات الكامل" : "Open full notification center"}</span>
               <ExternalLink className="size-3.5" />
             </Link>
@@ -173,5 +257,10 @@ function kindConfig(kind: NotificationKind) {
 function formatTime(value: string, ar: boolean) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat(ar ? "ar-JO" : "en-JO", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
+  return new Intl.DateTimeFormat(ar ? "ar-JO" : "en-JO", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }

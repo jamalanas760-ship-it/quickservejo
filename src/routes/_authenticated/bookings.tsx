@@ -1,3 +1,4 @@
+import { RequestTimePicker } from "@/components/workforce/RequestPickers";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -419,7 +420,7 @@ function BookingSettingsDialog({open,onOpenChange,restaurantId,settings,ar,lang,
             <div><strong>{ar?"التوفر العام":"Availability"}</strong><p>{ar?"تحكم بكيفية استقبال الحجوزات الجديدة.":"Control how new reservations enter the system."}</p></div>
           </div>
           <div className="rs-weekly-hours">
-            {["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"].map((label,index)=>{const key=String(index),row=hours[key]??{closed:true,open:"12:00",close:"23:00"};return <div className="rs-weekday" key={key}><span>{ar?["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"][index]:label}</span><button type="button" role="switch" aria-checked={!row.closed} aria-label={`${label} ${ar?"الحجوزات":"bookings"}`} className="rs-switch" onClick={()=>setHours({...hours,[key]:{...row,closed:!row.closed}})}><i/></button><Input type="time" aria-label={`${label} ${ar?"وقت الفتح":"opening time"}`} disabled={Boolean(row.closed)} value={row.open??"12:00"} onChange={e=>setHours({...hours,[key]:{...row,open:e.target.value}})}/><span>–</span><Input type="time" aria-label={`${label} ${ar?"وقت الإغلاق":"closing time"}`} disabled={Boolean(row.closed)} value={row.close??"23:00"} onChange={e=>setHours({...hours,[key]:{...row,close:e.target.value}})}/></div>;})}
+            {["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"].map((label,index)=>{const key=String(index),row=hours[key]??{closed:true,open:"12:00",close:"23:00"};return <div className="rs-weekday" key={key}><span>{ar?["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"][index]:label}</span><button type="button" role="switch" aria-checked={!row.closed} aria-label={`${label} ${ar?"الحجوزات":"bookings"}`} className="rs-switch" onClick={()=>setHours({...hours,[key]:{...row,closed:!row.closed}})}><i/></button><RequestTimePicker ar={ar} label={`${label} ${ar?"وقت الفتح":"opening time"}`} disabled={Boolean(row.closed)} value={row.open??"12:00"} onChange={value=>setHours({...hours,[key]:{...row,open:value}})}/><span>–</span><RequestTimePicker ar={ar} label={`${label} ${ar?"وقت الإغلاق":"closing time"}`} disabled={Boolean(row.closed)} value={row.close??"23:00"} onChange={value=>setHours({...hours,[key]:{...row,close:value}})}/></div>;})}
           </div>
           <div className="qs-booking-settings-toggle-grid">
             <Toggle label={ar?"الحجز العام":"Public booking"} value={online} onChange={setOnline}/>
@@ -470,7 +471,7 @@ function BookingSettingsDialog({open,onOpenChange,restaurantId,settings,ar,lang,
       </div>
 
     </div>
-    <div className="qs-booking-settings-footer rs-settings-footer"><p>{ar?"تطبق أوقات التوفر حسب المنطقة الزمنية للمطعم.":"Availability uses the restaurant timezone."}</p><Button variant="outline" disabled={save.isPending} onClick={()=>onOpenChange(false)}>{ar?"رجوع للجدول":"Back to schedule"}</Button></div>
+    <div className="qs-booking-settings-footer rs-settings-footer"><p>{ar?"تطبق أوقات التوفر حسب المنطقة الزمنية للمطعم.":"Availability uses the restaurant timezone."}</p><Button variant="outline" disabled={save.isPending} onClick={()=>onOpenChange(false)}>{ar?"رجوع للجدول":"Back to schedule"}</Button><Button disabled={save.isPending||settings===undefined} onClick={()=>save.mutate()}>{save.isPending?(ar?"جارٍ الحفظ…":"Saving…"):(ar?"حفظ التغييرات":"Save changes")}</Button></div>
   </div>;
   if(inline)return content;
   return <Dialog open={open} onOpenChange={value=>!save.isPending&&onOpenChange(value)}><DialogContent className="rs-settings-modal p-0" onOpenAutoFocus={event=>{if(window.matchMedia("(max-width: 767px)").matches)event.preventDefault();}}><DialogHeader className="sr-only"><DialogTitle>{ar?"إعدادات الحجز":"Booking settings"}</DialogTitle><DialogDescription>{ar?"إعدادات الحجز للمطعم":"Restaurant booking settings"}</DialogDescription></DialogHeader>{content}</DialogContent></Dialog>;

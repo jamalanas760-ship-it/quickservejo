@@ -22,6 +22,13 @@ import { ProfileSwitch } from "@/components/profile/NotificationSettings";
 import { ApplicationColorStudio } from "@/components/manage/ApplicationColorStudio";
 import { ImageUploader } from "@/components/media/ImageUploader";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAccess } from "@/hooks/useSession";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
@@ -95,6 +102,7 @@ function RestaurantProfileSettingsForm({
     accent_color: restaurant.accent_color as string,
   });
   const [saving, setSaving] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const field = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
   const pinnedSidebarTools = brand.sidebarPinnedTools;
@@ -192,7 +200,11 @@ function RestaurantProfileSettingsForm({
     ]),
   );
   return (
-    <form onSubmit={save} className="ps-organization-form space-y-4">
+    <form
+      id="organization-settings-form"
+      onSubmit={save}
+      className="ps-organization-form space-y-4"
+    >
       <div className="ps-org-grid">
         <section className="ps-card ps-org-identity">
           <h2>{ar ? "تفاصيل المطعم" : "Restaurant details"}</h2>
@@ -228,18 +240,18 @@ function RestaurantProfileSettingsForm({
           </div>
           <div className="ps-preference !border-0 !p-0">
             <div>
-              <strong>{ar ? "استخدام شعار QuickServe" : "Use QuickServe logo"}</strong>
+              <strong>{ar ? "استخدام شعار المؤسسة" : "Use organization logo"}</strong>
               <p>
                 {ar
-                  ? "أوقفه لإظهار شعار المطعم في مساحة العمل."
-                  : "Turn off to show your restaurant logo in the workspace."}
+                  ? "فعّله لإظهار شعار مطعمك في مساحة العمل."
+                  : "Show your restaurant logo throughout the workspace."}
               </p>
             </div>
             <ProfileSwitch
-              label={ar ? "استخدام شعار QuickServe" : "Use QuickServe logo"}
-              checked={brand.useQuickServeLogo}
+              label={ar ? "استخدام شعار المؤسسة" : "Use organization logo"}
+              checked={!brand.useQuickServeLogo}
               onChange={(value) =>
-                setBrand((current) => ({ ...current, useQuickServeLogo: value }))
+                setBrand((current) => ({ ...current, useQuickServeLogo: !value }))
               }
             />
           </div>
@@ -307,294 +319,344 @@ function RestaurantProfileSettingsForm({
           </section>
         </div>
       </div>
-      <details className="ps-advanced">
-        <summary>
-          <SlidersHorizontal />
-          {ar ? "إعدادات مساحة العمل المتقدمة" : "Advanced workspace settings"}
-        </summary>
-        <section className="qs-interface-visuals qs-card p-4 sm:p-6">
-          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <span className="inline-flex items-center rounded-full bg-orange-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[.14em] text-[#e85d2a]">
-                {ar ? "مرئيات الواجهة" : "Interface visuals"}
-              </span>
-              <h2 className="mt-3 font-display text-xl font-bold tracking-[-.03em]">
-                {ar ? "خصص الصور والأيقونات" : "Customize images & icons"}
-              </h2>
-              <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
-                {ar
-                  ? "خصص لوحة أدوات مساحة العمل وبطاقات اختيار القائمة بدون تغيير شعار المطعم أو صورة الغلاف."
-                  : "Customize the Workspace Tools panel and Menu selector cards without changing the restaurant logo or cover image."}
-              </p>
-            </div>
-            <span className="inline-flex items-center gap-2 self-start rounded-xl border border-border bg-card px-3 py-2 text-[10px] font-semibold text-muted-foreground">
-              <SlidersHorizontal className="size-3.5 text-[#e85d2a]" />
-              {ar ? "تخصيص مباشر" : "Live customization"}
-            </span>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-2">
-            <section className="qs-interface-asset-card">
-              <div className="qs-interface-asset-head">
+      <button
+        type="button"
+        className="ps-advanced-trigger"
+        aria-haspopup="dialog"
+        onClick={() => setAdvancedOpen(true)}
+      >
+        <SlidersHorizontal />
+        {ar ? "إعدادات مساحة العمل المتقدمة" : "Advanced workspace settings"}
+        <ChevronDown />
+      </button>
+      <Dialog
+        open={advancedOpen}
+        onOpenChange={(open) => {
+          if (!saving) setAdvancedOpen(open);
+        }}
+      >
+        <DialogContent
+          className="ps-page ps-advanced-dialog"
+          dir={ar ? "rtl" : "ltr"}
+          onOpenAutoFocus={(event) => event.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {ar ? "إعدادات مساحة العمل المتقدمة" : "Advanced workspace settings"}
+            </DialogTitle>
+            <DialogDescription>
+              {ar
+                ? "خصص أدوات مساحة العمل والألوان والتنقل."
+                : "Customize workspace tools, colors and navigation."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="ps-advanced-body space-y-4">
+            <section className="qs-interface-visuals qs-card p-4 sm:p-6">
+              <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <span>{ar ? "أدوات مساحة العمل" : "Workspace Tools"}</span>
-                  <strong>{ar ? "لوحة الاختصارات" : "Launcher spotlight"}</strong>
-                </div>
-                <div
-                  className="qs-interface-asset-mini qs-interface-asset-mini-tools"
-                  style={
-                    brand.workspaceToolsImage
-                      ? {
-                          backgroundImage: `linear-gradient(180deg,rgba(15,12,10,.08),rgba(15,12,10,.72)),url(${brand.workspaceToolsImage})`,
-                        }
-                      : undefined
-                  }
-                >
-                  {brand.workspaceToolsIcon ? (
-                    <img src={brand.workspaceToolsIcon} alt="" />
-                  ) : form.logo_url ? (
-                    <img src={form.logo_url} alt="" />
-                  ) : (
-                    <span>Q</span>
-                  )}
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_150px]">
-                <ImageUploader
-                  restaurantId={restaurant.id}
-                  kind="cover"
-                  aspect="wide"
-                  value={brand.workspaceToolsImage}
-                  onChange={(value) =>
-                    setBrand((current) => ({ ...current, workspaceToolsImage: value }))
-                  }
-                  label={ar ? "صورة اللوحة" : "Panel image"}
-                />
-                <ImageUploader
-                  restaurantId={restaurant.id}
-                  kind="logo"
-                  value={brand.workspaceToolsIcon}
-                  onChange={(value) =>
-                    setBrand((current) => ({ ...current, workspaceToolsIcon: value }))
-                  }
-                  label={ar ? "أيقونة اللوحة" : "Panel icon"}
-                />
-              </div>
-            </section>
-
-            <section className="qs-interface-asset-card">
-              <div className="qs-interface-asset-head">
-                <div>
-                  <span>{ar ? "استوديو القائمة" : "Menu Studio"}</span>
-                  <strong>{ar ? "بطاقات نوع القائمة" : "Menu type cards"}</strong>
-                </div>
-                <div className="flex gap-1.5">
-                  <span
-                    className="qs-interface-card-swatch"
-                    style={
-                      brand.standardMenuCardImage
-                        ? { backgroundImage: `url(${brand.standardMenuCardImage})` }
-                        : undefined
-                    }
-                  >
-                    <i className="qs-interface-card-system-icon">
-                      <BookOpenText className="size-4" strokeWidth={1.9} />
-                    </i>
+                  <span className="inline-flex items-center rounded-full bg-orange-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[.14em] text-[#e85d2a]">
+                    {ar ? "مرئيات الواجهة" : "Interface visuals"}
                   </span>
-                  <span
-                    className="qs-interface-card-swatch"
-                    style={
-                      brand.pdfMenuCardImage
-                        ? { backgroundImage: `url(${brand.pdfMenuCardImage})` }
-                        : undefined
-                    }
-                  >
-                    <i className="qs-interface-card-system-icon">
-                      <FileText className="size-4" strokeWidth={1.9} />
-                    </i>
-                  </span>
-                </div>
-              </div>
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="qs-interface-upload-group">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="qs-fixed-menu-icon">
-                      <BookOpenText className="size-4" strokeWidth={1.9} />
-                    </span>
-                    <strong className="!mb-0">{ar ? "القائمة العادية" : "Standard Menu"}</strong>
-                  </div>
-                  <ImageUploader
-                    restaurantId={restaurant.id}
-                    kind="cover"
-                    aspect="wide"
-                    value={brand.standardMenuCardImage}
-                    onChange={(value) =>
-                      setBrand((current) => ({ ...current, standardMenuCardImage: value }))
-                    }
-                    label={ar ? "صورة البطاقة" : "Card image"}
-                  />
-                  <p className="mt-2 text-[9px] leading-4 text-muted-foreground">
+                  <h2 className="mt-3 font-display text-xl font-bold tracking-[-.03em]">
+                    {ar ? "خصص الصور والأيقونات" : "Customize images & icons"}
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
                     {ar
-                      ? "الأيقونة ثابتة من نظام QuickServe وتتبع لون النمط تلقائياً."
-                      : "The icon is fixed by QuickServe and automatically follows the active system color."}
+                      ? "خصص لوحة أدوات مساحة العمل وبطاقات اختيار القائمة بدون تغيير شعار المطعم أو صورة الغلاف."
+                      : "Customize the Workspace Tools panel and Menu selector cards without changing the restaurant logo or cover image."}
                   </p>
                 </div>
-                <div className="qs-interface-upload-group">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="qs-fixed-menu-icon">
-                      <FileText className="size-4" strokeWidth={1.9} />
-                    </span>
-                    <strong className="!mb-0">{ar ? "قائمة PDF" : "PDF Menu"}</strong>
-                  </div>
-                  <ImageUploader
-                    restaurantId={restaurant.id}
-                    kind="cover"
-                    aspect="wide"
-                    value={brand.pdfMenuCardImage}
-                    onChange={(value) =>
-                      setBrand((current) => ({ ...current, pdfMenuCardImage: value }))
-                    }
-                    label={ar ? "صورة البطاقة" : "Card image"}
-                  />
-                  <p className="mt-2 text-[9px] leading-4 text-muted-foreground">
-                    {ar
-                      ? "الأيقونة ثابتة من نظام QuickServe وتتبع لون النمط تلقائياً."
-                      : "The icon is fixed by QuickServe and automatically follows the active system color."}
-                  </p>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <section className="qs-sidebar-customizer mt-4">
-            <div className="qs-sidebar-customizer-head">
-              <div className="flex items-start gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                  <LayoutPanelLeft className="size-4" />
+                <span className="inline-flex items-center gap-2 self-start rounded-xl border border-border bg-card px-3 py-2 text-[10px] font-semibold text-muted-foreground">
+                  <SlidersHorizontal className="size-3.5 text-[#e85d2a]" />
+                  {ar ? "تخصيص مباشر" : "Live customization"}
                 </span>
-                <div>
-                  <strong>{ar ? "تخصيص التنقل" : "Customize navigation"}</strong>
-                  <p>
-                    {ar
-                      ? "الرئيسية تبقى دائماً أول عنصر. اختر حتى 5 أدوات للقائمة الجانبية؛ شريط الموبايل يعكس نفس الترتيب ويعرض أول 3 أدوات بعد الرئيسية حتى يبقى مريحاً، والباقي يبقى في All tools."
-                      : "Home always stays first. Choose up to 5 sidebar tools; mobile mirrors the same order and shows the first 3 after Home so the bottom bar stays comfortable, while everything else stays in All tools."}
-                  </p>
-                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="qs-sidebar-count">{pinnedSidebarTools.length}/5</span>
-                <button
-                  type="button"
-                  className="qs-sidebar-reset"
-                  onClick={() => setPinnedSidebarTools([...DEFAULT_SIDEBAR_TOOLS])}
-                >
-                  <RotateCcw className="size-3.5" />
-                  {ar ? "افتراضي ذكي" : "Smart default"}
-                </button>
-              </div>
-            </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="qs-sidebar-bucket">
-                <div className="qs-sidebar-bucket-title">
-                  <span>{ar ? "في القائمة الجانبية" : "In sidebar"}</span>
-                  <small>{ar ? "الترتيب الظاهر" : "Visible order"}</small>
-                </div>
-                <div className="space-y-2">
-                  {pinnedSidebarTools.length ? (
-                    pinnedSidebarTools.map((key, index) => (
-                      <div key={key} className="qs-sidebar-tool-row is-pinned">
-                        <span className="qs-sidebar-tool-index">{index + 2}</span>
-                        <strong>{sidebarLabel(key)}</strong>
-                        <div className="ms-auto flex items-center gap-1">
-                          <button
-                            type="button"
-                            aria-label={ar ? "تحريك للأعلى" : "Move up"}
-                            disabled={index === 0}
-                            onClick={() => moveSidebarTool(index, -1)}
-                          >
-                            <ChevronUp className="size-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            aria-label={ar ? "تحريك للأسفل" : "Move down"}
-                            disabled={index === pinnedSidebarTools.length - 1}
-                            onClick={() => moveSidebarTool(index, 1)}
-                          >
-                            <ChevronDown className="size-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            aria-label={ar ? "إزالة من القائمة الجانبية" : "Remove from sidebar"}
-                            onClick={() => removeSidebarTool(key)}
-                          >
-                            <X className="size-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="qs-sidebar-empty">
-                      {ar
-                        ? "لم تختر أدوات بعد. ستستخدم QuickServe الترتيب الذكي الحالي حتى تختار."
-                        : "No custom tools selected yet. QuickServe keeps the current smart order until you choose."}
+              <div className="grid gap-4 xl:grid-cols-2">
+                <section className="qs-interface-asset-card">
+                  <div className="qs-interface-asset-head">
+                    <div>
+                      <span>{ar ? "أدوات مساحة العمل" : "Workspace Tools"}</span>
+                      <strong>{ar ? "لوحة الاختصارات" : "Launcher spotlight"}</strong>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="qs-sidebar-bucket">
-                <div className="qs-sidebar-bucket-title">
-                  <span>{ar ? "تبقى في All tools" : "Still in All tools"}</span>
-                  <small>{ar ? "أضف أي أداة بنقرة" : "Add with one click"}</small>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {sidebarPool.map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className="qs-sidebar-pool-item"
-                      disabled={pinnedSidebarTools.length >= 5}
-                      onClick={() => addSidebarTool(item.key)}
+                    <div
+                      className="qs-interface-asset-mini qs-interface-asset-mini-tools"
+                      style={
+                        brand.workspaceToolsImage
+                          ? {
+                              backgroundImage: `linear-gradient(180deg,rgba(15,12,10,.08),rgba(15,12,10,.72)),url(${brand.workspaceToolsImage})`,
+                            }
+                          : undefined
+                      }
                     >
-                      <span>{ar ? item.ar : item.en}</span>
-                      <Plus className="size-3.5" />
-                    </button>
-                  ))}
-                </div>
+                      {brand.workspaceToolsIcon ? (
+                        <img src={brand.workspaceToolsIcon} alt="" />
+                      ) : form.logo_url ? (
+                        <img src={form.logo_url} alt="" />
+                      ) : (
+                        <span>Q</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_150px]">
+                    <ImageUploader
+                      restaurantId={restaurant.id}
+                      kind="cover"
+                      aspect="wide"
+                      value={brand.workspaceToolsImage}
+                      onChange={(value) =>
+                        setBrand((current) => ({ ...current, workspaceToolsImage: value }))
+                      }
+                      label={ar ? "صورة اللوحة" : "Panel image"}
+                    />
+                    <ImageUploader
+                      restaurantId={restaurant.id}
+                      kind="logo"
+                      value={brand.workspaceToolsIcon}
+                      onChange={(value) =>
+                        setBrand((current) => ({ ...current, workspaceToolsIcon: value }))
+                      }
+                      label={ar ? "أيقونة اللوحة" : "Panel icon"}
+                    />
+                  </div>
+                </section>
+
+                <section className="qs-interface-asset-card">
+                  <div className="qs-interface-asset-head">
+                    <div>
+                      <span>{ar ? "استوديو القائمة" : "Menu Studio"}</span>
+                      <strong>{ar ? "بطاقات نوع القائمة" : "Menu type cards"}</strong>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <span
+                        className="qs-interface-card-swatch"
+                        style={
+                          brand.standardMenuCardImage
+                            ? { backgroundImage: `url(${brand.standardMenuCardImage})` }
+                            : undefined
+                        }
+                      >
+                        <i className="qs-interface-card-system-icon">
+                          <BookOpenText className="size-4" strokeWidth={1.9} />
+                        </i>
+                      </span>
+                      <span
+                        className="qs-interface-card-swatch"
+                        style={
+                          brand.pdfMenuCardImage
+                            ? { backgroundImage: `url(${brand.pdfMenuCardImage})` }
+                            : undefined
+                        }
+                      >
+                        <i className="qs-interface-card-system-icon">
+                          <FileText className="size-4" strokeWidth={1.9} />
+                        </i>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="qs-interface-upload-group">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="qs-fixed-menu-icon">
+                          <BookOpenText className="size-4" strokeWidth={1.9} />
+                        </span>
+                        <strong className="!mb-0">
+                          {ar ? "القائمة العادية" : "Standard Menu"}
+                        </strong>
+                      </div>
+                      <ImageUploader
+                        restaurantId={restaurant.id}
+                        kind="cover"
+                        aspect="wide"
+                        value={brand.standardMenuCardImage}
+                        onChange={(value) =>
+                          setBrand((current) => ({ ...current, standardMenuCardImage: value }))
+                        }
+                        label={ar ? "صورة البطاقة" : "Card image"}
+                      />
+                      <p className="mt-2 text-[9px] leading-4 text-muted-foreground">
+                        {ar
+                          ? "الأيقونة ثابتة من نظام QuickServe وتتبع لون النمط تلقائياً."
+                          : "The icon is fixed by QuickServe and automatically follows the active system color."}
+                      </p>
+                    </div>
+                    <div className="qs-interface-upload-group">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="qs-fixed-menu-icon">
+                          <FileText className="size-4" strokeWidth={1.9} />
+                        </span>
+                        <strong className="!mb-0">{ar ? "قائمة PDF" : "PDF Menu"}</strong>
+                      </div>
+                      <ImageUploader
+                        restaurantId={restaurant.id}
+                        kind="cover"
+                        aspect="wide"
+                        value={brand.pdfMenuCardImage}
+                        onChange={(value) =>
+                          setBrand((current) => ({ ...current, pdfMenuCardImage: value }))
+                        }
+                        label={ar ? "صورة البطاقة" : "Card image"}
+                      />
+                      <p className="mt-2 text-[9px] leading-4 text-muted-foreground">
+                        {ar
+                          ? "الأيقونة ثابتة من نظام QuickServe وتتبع لون النمط تلقائياً."
+                          : "The icon is fixed by QuickServe and automatically follows the active system color."}
+                      </p>
+                    </div>
+                  </div>
+                </section>
               </div>
-            </div>
 
-            <div className="qs-sidebar-preview-strip">
-              <span className="qs-sidebar-preview-home">1 · {ar ? "الرئيسية" : "Home"}</span>
-              {pinnedSidebarTools.map((key, index) => (
-                <span key={key}>
-                  {index + 2} · {sidebarLabel(key)}
-                </span>
-              ))}
-              <span className="qs-sidebar-preview-mobile">
-                {ar ? "الموبايل: أول 3" : "Mobile: first 3"}
-              </span>
-              <span className="qs-sidebar-preview-more">
-                {ar ? "الباقي → All tools" : "Rest → All tools"}
-              </span>
-            </div>
-          </section>
-        </section>
+              <section className="qs-sidebar-customizer mt-4">
+                <div className="qs-sidebar-customizer-head">
+                  <div className="flex items-start gap-3">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                      <LayoutPanelLeft className="size-4" />
+                    </span>
+                    <div>
+                      <strong>{ar ? "تخصيص التنقل" : "Customize navigation"}</strong>
+                      <p>
+                        {ar
+                          ? "الرئيسية تبقى دائماً أول عنصر. اختر حتى 5 أدوات للقائمة الجانبية؛ شريط الموبايل يعكس نفس الترتيب ويعرض أول 3 أدوات بعد الرئيسية حتى يبقى مريحاً، والباقي يبقى في All tools."
+                          : "Home always stays first. Choose up to 5 sidebar tools; mobile mirrors the same order and shows the first 3 after Home so the bottom bar stays comfortable, while everything else stays in All tools."}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="qs-sidebar-count">{pinnedSidebarTools.length}/5</span>
+                    <button
+                      type="button"
+                      className="qs-sidebar-reset"
+                      onClick={() => setPinnedSidebarTools([...DEFAULT_SIDEBAR_TOOLS])}
+                    >
+                      <RotateCcw className="size-3.5" />
+                      {ar ? "افتراضي ذكي" : "Smart default"}
+                    </button>
+                  </div>
+                </div>
 
-        <section className="qs-card p-4 sm:p-6">
-          <ApplicationColorStudio
-            ar={ar}
-            restaurantName={restaurant.name}
-            brand={brand}
-            setBrand={setBrand}
-            primaryColor={form.primary_color}
-            accentColor={form.accent_color}
-            setPrimaryColor={(value) => field("primary_color", value)}
-            setAccentColor={(value) => field("accent_color", value)}
-          />
-        </section>
-      </details>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="qs-sidebar-bucket">
+                    <div className="qs-sidebar-bucket-title">
+                      <span>{ar ? "في القائمة الجانبية" : "In sidebar"}</span>
+                      <small>{ar ? "الترتيب الظاهر" : "Visible order"}</small>
+                    </div>
+                    <div className="space-y-2">
+                      {pinnedSidebarTools.length ? (
+                        pinnedSidebarTools.map((key, index) => (
+                          <div key={key} className="qs-sidebar-tool-row is-pinned">
+                            <span className="qs-sidebar-tool-index">{index + 2}</span>
+                            <strong>{sidebarLabel(key)}</strong>
+                            <div className="ms-auto flex items-center gap-1">
+                              <button
+                                type="button"
+                                aria-label={ar ? "تحريك للأعلى" : "Move up"}
+                                disabled={index === 0}
+                                onClick={() => moveSidebarTool(index, -1)}
+                              >
+                                <ChevronUp className="size-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={ar ? "تحريك للأسفل" : "Move down"}
+                                disabled={index === pinnedSidebarTools.length - 1}
+                                onClick={() => moveSidebarTool(index, 1)}
+                              >
+                                <ChevronDown className="size-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={
+                                  ar ? "إزالة من القائمة الجانبية" : "Remove from sidebar"
+                                }
+                                onClick={() => removeSidebarTool(key)}
+                              >
+                                <X className="size-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="qs-sidebar-empty">
+                          {ar
+                            ? "لم تختر أدوات بعد. ستستخدم QuickServe الترتيب الذكي الحالي حتى تختار."
+                            : "No custom tools selected yet. QuickServe keeps the current smart order until you choose."}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="qs-sidebar-bucket">
+                    <div className="qs-sidebar-bucket-title">
+                      <span>{ar ? "تبقى في All tools" : "Still in All tools"}</span>
+                      <small>{ar ? "أضف أي أداة بنقرة" : "Add with one click"}</small>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {sidebarPool.map((item) => (
+                        <button
+                          key={item.key}
+                          type="button"
+                          className="qs-sidebar-pool-item"
+                          disabled={pinnedSidebarTools.length >= 5}
+                          onClick={() => addSidebarTool(item.key)}
+                        >
+                          <span>{ar ? item.ar : item.en}</span>
+                          <Plus className="size-3.5" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="qs-sidebar-preview-strip">
+                  <span className="qs-sidebar-preview-home">1 · {ar ? "الرئيسية" : "Home"}</span>
+                  {pinnedSidebarTools.map((key, index) => (
+                    <span key={key}>
+                      {index + 2} · {sidebarLabel(key)}
+                    </span>
+                  ))}
+                  <span className="qs-sidebar-preview-mobile">
+                    {ar ? "الموبايل: أول 3" : "Mobile: first 3"}
+                  </span>
+                  <span className="qs-sidebar-preview-more">
+                    {ar ? "الباقي → All tools" : "Rest → All tools"}
+                  </span>
+                </div>
+              </section>
+            </section>
+
+            <section className="qs-card p-4 sm:p-6">
+              <ApplicationColorStudio
+                ar={ar}
+                restaurantName={restaurant.name}
+                brand={brand}
+                setBrand={setBrand}
+                primaryColor={form.primary_color}
+                accentColor={form.accent_color}
+                setPrimaryColor={(value) => field("primary_color", value)}
+                setAccentColor={(value) => field("accent_color", value)}
+              />
+            </section>
+          </div>
+          <div className="ps-advanced-footer">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              onClick={() => setAdvancedOpen(false)}
+            >
+              {ar ? "إغلاق" : "Close"}
+            </Button>
+            <Button
+              type="submit"
+              form="organization-settings-form"
+              disabled={saving || !validColor || !form.name.trim()}
+            >
+              {saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : ar ? "حفظ التغييرات" : "Save changes"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <div className="ps-actions">
         <small>
           {ar

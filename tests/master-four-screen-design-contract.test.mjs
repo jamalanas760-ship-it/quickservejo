@@ -132,7 +132,7 @@ test("mobile navigation mirrors the configured sidebar and preferences live in t
   assert.doesNotMatch(nav,/toggleLang/);
   assert.doesNotMatch(nav,/ThemeToggle/);
   assert.match(header,/qs-topbar-theme-control/);
-  assert.match(header,/qs-topbar-language/);
+  assert.match(header,/LanguageSelector/);
   assert.match(settings,/Mobile: first 3/);
   assert.match(styles,/Mobile navigation master alignment/);
 });

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Bell, ClipboardList, Info, Mail, Play, Volume2 } from "lucide-react";
 import { toast } from "sonner";
-import { playAlertChime, unlockAlertSound } from "@/lib/order-alert";
+import { playAlertChime } from "@/lib/alert-audio";
 import {
   DEFAULT_NOTIFICATIONS,
   readNotificationPreferences,
@@ -37,6 +37,7 @@ export function ProfileSwitch({
 
 export function NotificationSettings({ userId, ar }: { userId: string | undefined; ar: boolean }) {
   const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIFICATIONS);
+  const [playing, setPlaying] = useState(false);
   const [saved, setSaved] = useState<NotificationPreferences>(DEFAULT_NOTIFICATIONS);
   useEffect(() => {
     const next = readNotificationPreferences(userId);
@@ -180,24 +181,36 @@ export function NotificationSettings({ userId, ar }: { userId: string | undefine
           <button
             className="ps-button"
             type="button"
-            disabled={!prefs.sound}
+            disabled={!prefs.sound || playing}
+            aria-busy={playing}
             onClick={async () => {
+              if (prefs.volume === 0) {
+                toast.info(
+                  ar ? "ارفع مستوى الصوت لتجربة التنبيه" : "Increase the volume to test the sound",
+                );
+                return;
+              }
+              setPlaying(true);
               try {
-                await unlockAlertSound();
-                playAlertChime(prefs.tone, prefs.volume);
+                await playAlertChime(prefs.tone, prefs.volume);
+                toast.success(ar ? "تم تشغيل نغمة الاختبار" : "Test chime played");
               } catch {
-                toast.error(ar ? "تعذر تشغيل الصوت" : "Sound playback is unavailable");
+                toast.error(
+                  ar
+                    ? "تعذر تشغيل الصوت. تحقق من صوت الجهاز وحاول مرة أخرى."
+                    : "Could not play sound. Check device audio and try again.",
+                );
+              } finally {
+                setPlaying(false);
               }
             }}
           >
             <Play />
-            {ar ? "تجربة الصوت" : "Test sound"}
+            {playing ? (ar ? "تشغيل…" : "Playing…") : ar ? "تجربة الصوت" : "Test sound"}
           </button>
         </div>
-        <details className="mt-4">
-          <summary className="text-xs cursor-pointer text-muted-foreground">
-            {ar ? "أصوات حسب الحدث" : "Sounds by event"}
-          </summary>
+        <div className="ps-event-sounds">
+          <h3>{ar ? "أصوات حسب الحدث" : "Sounds by event"}</h3>
           {(
             [
               ["orderSounds", "Order sounds", "أصوات الطلبات"],
@@ -205,8 +218,20 @@ export function NotificationSettings({ userId, ar }: { userId: string | undefine
             ] as const
           ).map(([key, en, arabic]) => (
             <div className="ps-preference" key={key}>
+              <span>
+                <Volume2 />
+              </span>
               <div>
                 <strong>{ar ? arabic : en}</strong>
+                <p>
+                  {key === "orderSounds"
+                    ? ar
+                      ? "تشغيل الصوت للطلبات الجديدة."
+                      : "Play a chime for new orders."
+                    : ar
+                      ? "تشغيل الصوت عند تغير حالة الطاولة."
+                      : "Play a chime when table status changes."}
+                </p>
               </div>
               <ProfileSwitch
                 disabled={!prefs.sound}
@@ -216,7 +241,7 @@ export function NotificationSettings({ userId, ar }: { userId: string | undefine
               />
             </div>
           ))}
-        </details>
+        </div>
       </section>
       <div className="ps-actions">
         <small>

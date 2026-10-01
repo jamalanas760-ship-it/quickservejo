@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, useId, useState, type ReactNode } from "react";
+import { cloneElement, isValidElement, useId, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, CalendarClock, ChevronDown, CirclePlay, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -69,6 +69,7 @@ export function RuleEditor({
   const [tab, setTab] = useState<"configuration" | "history">("configuration"),
     [confirmDelete, setConfirmDelete] = useState(false);
   const formId = useId();
+  const contentRef = useRef<HTMLDivElement>(null);
   const payload = {
     name: name.trim(),
     event_type: eventType,
@@ -174,190 +175,171 @@ export function RuleEditor({
   const busy = save.isPending || remove.isPending || runNow.isPending;
 
   return (
-    <section className="au-editor">
-      <header className="au-heading">
-        <div>
-          <button type="button" className="au-back" disabled={busy} onClick={onClose}>
-            <ArrowLeft size={14} />
-            {ar ? "الأتمتة" : "Automation"}
-          </button>
-          <h1>
-            {editing ? (ar ? "تعديل القاعدة" : "Edit rule") : ar ? "قاعدة جديدة" : "New rule"}
-          </h1>
-          <p>
-            {editing
-              ? ar
-                ? "حدّث تفاصيل هذه القاعدة وطريقة عملها."
-                : "Update the details and behavior of this rule."
-              : ar
-                ? "حوّل حدثاً في المطعم إلى عمل محدد المسؤول."
-                : "Turn a restaurant event into assigned work."}
-          </p>
-        </div>
-        {editing ? (
-          <div className="au-enable">
-            <Switch
-              checked={enabled}
-              disabled={busy}
-              onCheckedChange={setEnabled}
-              aria-label={ar ? "تفعيل القاعدة" : "Enable rule"}
-            />
-            <span>{enabled ? (ar ? "فعالة" : "Active") : ar ? "متوقفة" : "Paused"}</span>
-          </div>
-        ) : null}
-      </header>
-      {editing ? (
-        <div
-          className="au-tabs"
-          role="tablist"
-          aria-label={ar ? "تعديل القاعدة" : "Rule editor views"}
-        >
-          {(["configuration", "history"] as const).map((t) => (
-            <button
-              role="tab"
-              aria-selected={tab === t}
-              aria-controls={`au-editor-${t}`}
-              id={`au-editor-tab-${t}`}
-              key={t}
-              onClick={() => setTab(t)}
-            >
-              {t === "configuration"
-                ? ar
-                  ? "الإعدادات"
-                  : "Configuration"
-                : ar
-                  ? "سجل التشغيل"
-                  : "Run history"}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <form
-        id={formId}
-        onSubmit={(e) => {
-          e.preventDefault();
-          save.mutate();
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !busy) onClose();
+      }}
+    >
+      <DialogContent
+        ref={contentRef}
+        className="au-studio au-rule-dialog"
+        dir={ar ? "rtl" : "ltr"}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          contentRef.current?.focus({ preventScroll: true });
         }}
-        className="au-editor-grid"
+        onEscapeKeyDown={(event) => {
+          if (busy) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (busy) event.preventDefault();
+        }}
       >
-        <div className="au-editor-fields">
-          {tab === "history" ? (
-            <section
-              className="au-panel"
-              role="tabpanel"
-              id="au-editor-history"
-              aria-labelledby="au-editor-tab-history"
+        <DialogHeader className="sr-only">
+          <DialogTitle>
+            {editing ? (ar ? "تعديل القاعدة" : "Edit rule") : ar ? "قاعدة جديدة" : "New rule"}
+          </DialogTitle>
+          <DialogDescription>
+            {ar
+              ? "خصص المشغل والإجراء واحفظ القاعدة."
+              : "Configure the trigger and action, then save your rule."}
+          </DialogDescription>
+        </DialogHeader>
+        <section className="au-editor">
+          <header className="au-heading">
+            <div>
+              <button type="button" className="au-back" disabled={busy} onClick={onClose}>
+                <ArrowLeft size={14} />
+                {ar ? "الأتمتة" : "Automation"}
+              </button>
+              <h1>
+                {editing ? (ar ? "تعديل القاعدة" : "Edit rule") : ar ? "قاعدة جديدة" : "New rule"}
+              </h1>
+              <p>
+                {editing
+                  ? ar
+                    ? "حدّث تفاصيل هذه القاعدة وطريقة عملها."
+                    : "Update the details and behavior of this rule."
+                  : ar
+                    ? "حوّل حدثاً في المطعم إلى عمل محدد المسؤول."
+                    : "Turn a restaurant event into assigned work."}
+              </p>
+            </div>
+            {editing ? (
+              <div className="au-enable">
+                <Switch
+                  checked={enabled}
+                  disabled={busy}
+                  onCheckedChange={setEnabled}
+                  aria-label={ar ? "تفعيل القاعدة" : "Enable rule"}
+                />
+                <span>{enabled ? (ar ? "فعالة" : "Active") : ar ? "متوقفة" : "Paused"}</span>
+              </div>
+            ) : null}
+          </header>
+          {editing ? (
+            <div
+              className="au-tabs"
+              role="tablist"
+              aria-label={ar ? "تعديل القاعدة" : "Rule editor views"}
             >
-              <RunHistory runs={runs} rules={rule ? [rule] : []} ar={ar} />
-              {rule?.last_error ? (
-                <p className="au-rule-error p-4" role="alert">
-                  {rule.last_error}
-                </p>
-              ) : null}
-            </section>
-          ) : (
-            <fieldset
-              className="au-panel au-form-panel"
-              disabled={busy}
-              role={editing ? "tabpanel" : undefined}
-              id="au-editor-configuration"
-              aria-labelledby={editing ? "au-editor-tab-configuration" : undefined}
-            >
-              <section>
-                <h2>{ar ? "1. تفاصيل القاعدة" : "1. Rule details"}</h2>
-                <Field label={ar ? "الاسم" : "Name"}>
-                  <input
-                    required
-                    maxLength={160}
-                    value={name}
-                    placeholder={ar ? "اسم القاعدة" : "Rule name"}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </Field>
-                <Field label={ar ? "الوصف" : "Description"}>
-                  <textarea
-                    rows={3}
-                    value={description}
-                    placeholder={ar ? "ما الذي يجب على الفريق فعله؟" : "What should the team do?"}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
-                </Field>
-              </section>
-              <section>
-                <h2>{ar ? "2. عند وقوع الحدث" : "2. When it happens"}</h2>
-                <Field label={ar ? "المشغّل" : "Trigger"}>
-                  <select
-                    value={eventType}
-                    onChange={(e) => setEventType(e.target.value as OperationalEventType)}
-                  >
-                    {EVENTS.map((e) => (
-                      <option key={e.value} value={e.value}>
-                        {ar ? e.ar : e.en}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </section>
-              <section>
-                <h2>{ar ? "3. الإنشاء والتعيين" : "3. Create and assign"}</h2>
-                <Field label={ar ? "الإجراء" : "Action"}>
-                  <input value={ar ? "إنشاء عنصر عمل" : "Create work task"} readOnly />
-                </Field>
-                <div className="au-three-fields">
-                  <Field label={ar ? "المسؤول" : "Assign to"}>
-                    <select value={role} onChange={(e) => setRole(e.target.value as AppRole)}>
-                      {TARGET_ROLES.map((r) => (
-                        <option key={r} value={r}>
-                          {ROLE_LABELS[r][lang]}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label={ar ? "الأولوية" : "Priority"}>
-                    <select
-                      value={priority}
-                      onChange={(e) => setPriority(e.target.value as WorkPriority)}
-                    >
-                      {PRIORITIES.map((p) => (
-                        <option value={p} key={p}>
-                          {priorityLabel(p, ar)}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label={ar ? "المهلة بالدقائق" : "Due in (min)"}>
-                    <input
-                      required
-                      type="number"
-                      min={0}
-                      max={1440}
-                      step={1}
-                      value={due}
-                      onChange={(e) => setDue(e.target.value)}
-                    />
-                  </Field>
-                </div>
-                {editing ? (
-                  <>
-                    <div className="au-approval">
-                      <span>{ar ? "تحتاج موافقة" : "Requires approval"}</span>
-                      <Switch
-                        checked={approval}
-                        onCheckedChange={setApproval}
-                        aria-label={ar ? "تحتاج موافقة" : "Requires approval"}
+              {(["configuration", "history"] as const).map((t) => (
+                <button
+                  role="tab"
+                  aria-selected={tab === t}
+                  aria-controls={`au-editor-${t}`}
+                  id={`au-editor-tab-${t}`}
+                  key={t}
+                  onClick={() => setTab(t)}
+                >
+                  {t === "configuration"
+                    ? ar
+                      ? "الإعدادات"
+                      : "Configuration"
+                    : ar
+                      ? "سجل التشغيل"
+                      : "Run history"}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <form
+            id={formId}
+            onSubmit={(e) => {
+              e.preventDefault();
+              save.mutate();
+            }}
+            className="au-editor-grid"
+          >
+            <div className="au-editor-fields">
+              {tab === "history" ? (
+                <section
+                  className="au-panel"
+                  role="tabpanel"
+                  id="au-editor-history"
+                  aria-labelledby="au-editor-tab-history"
+                >
+                  <RunHistory runs={runs} rules={rule ? [rule] : []} ar={ar} />
+                  {rule?.last_error ? (
+                    <p className="au-rule-error p-4" role="alert">
+                      {rule.last_error}
+                    </p>
+                  ) : null}
+                </section>
+              ) : (
+                <fieldset
+                  className="au-panel au-form-panel"
+                  disabled={busy}
+                  role={editing ? "tabpanel" : undefined}
+                  id="au-editor-configuration"
+                  aria-labelledby={editing ? "au-editor-tab-configuration" : undefined}
+                >
+                  <section>
+                    <h2>{ar ? "1. تفاصيل القاعدة" : "1. Rule details"}</h2>
+                    <Field label={ar ? "الاسم" : "Name"}>
+                      <input
+                        required
+                        maxLength={160}
+                        value={name}
+                        placeholder={ar ? "اسم القاعدة" : "Rule name"}
+                        onChange={(e) => setName(e.target.value)}
                       />
-                      <small>
-                        {ar
-                          ? "يلزم اعتماد العمل قبل اكتماله."
-                          : "Work must be approved before it’s marked complete."}
-                      </small>
-                    </div>
-                    {approval ? (
-                      <Field label={ar ? "دور الموافق" : "Approval role"}>
-                        <select
-                          value={approvalRole}
-                          onChange={(e) => setApprovalRole(e.target.value as AppRole)}
-                        >
+                    </Field>
+                    <Field label={ar ? "الوصف" : "Description"}>
+                      <textarea
+                        rows={3}
+                        value={description}
+                        placeholder={
+                          ar ? "ما الذي يجب على الفريق فعله؟" : "What should the team do?"
+                        }
+                        onChange={(e) => setDescription(e.target.value)}
+                      />
+                    </Field>
+                  </section>
+                  <section>
+                    <h2>{ar ? "2. عند وقوع الحدث" : "2. When it happens"}</h2>
+                    <Field label={ar ? "المشغّل" : "Trigger"}>
+                      <select
+                        value={eventType}
+                        onChange={(e) => setEventType(e.target.value as OperationalEventType)}
+                      >
+                        {EVENTS.map((e) => (
+                          <option key={e.value} value={e.value}>
+                            {ar ? e.ar : e.en}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </section>
+                  <section>
+                    <h2>{ar ? "3. الإنشاء والتعيين" : "3. Create and assign"}</h2>
+                    <Field label={ar ? "الإجراء" : "Action"}>
+                      <input value={ar ? "إنشاء عنصر عمل" : "Create work task"} readOnly />
+                    </Field>
+                    <div className="au-three-fields">
+                      <Field label={ar ? "المسؤول" : "Assign to"}>
+                        <select value={role} onChange={(e) => setRole(e.target.value as AppRole)}>
                           {TARGET_ROLES.map((r) => (
                             <option key={r} value={r}>
                               {ROLE_LABELS[r][lang]}
@@ -365,199 +347,257 @@ export function RuleEditor({
                           ))}
                         </select>
                       </Field>
+                      <Field label={ar ? "الأولوية" : "Priority"}>
+                        <select
+                          value={priority}
+                          onChange={(e) => setPriority(e.target.value as WorkPriority)}
+                        >
+                          {PRIORITIES.map((p) => (
+                            <option value={p} key={p}>
+                              {priorityLabel(p, ar)}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label={ar ? "المهلة بالدقائق" : "Due in (min)"}>
+                        <input
+                          required
+                          type="number"
+                          min={0}
+                          max={1440}
+                          step={1}
+                          value={due}
+                          onChange={(e) => setDue(e.target.value)}
+                        />
+                      </Field>
+                    </div>
+                    {editing ? (
+                      <>
+                        <div className="au-approval">
+                          <span>{ar ? "تحتاج موافقة" : "Requires approval"}</span>
+                          <Switch
+                            checked={approval}
+                            onCheckedChange={setApproval}
+                            aria-label={ar ? "تحتاج موافقة" : "Requires approval"}
+                          />
+                          <small>
+                            {ar
+                              ? "يلزم اعتماد العمل قبل اكتماله."
+                              : "Work must be approved before it’s marked complete."}
+                          </small>
+                        </div>
+                        {approval ? (
+                          <Field label={ar ? "دور الموافق" : "Approval role"}>
+                            <select
+                              value={approvalRole}
+                              onChange={(e) => setApprovalRole(e.target.value as AppRole)}
+                            >
+                              {TARGET_ROLES.map((r) => (
+                                <option key={r} value={r}>
+                                  {ROLE_LABELS[r][lang]}
+                                </option>
+                              ))}
+                            </select>
+                          </Field>
+                        ) : null}
+                      </>
                     ) : null}
-                  </>
-                ) : null}
-              </section>
-              <details className="au-schedule" open={undefined}>
-                <summary>
-                  <CalendarClock size={16} />
-                  <span>
-                    <strong>{ar ? "الجدولة (اختياري)" : "Schedule (optional)"}</strong>
-                    <small>
-                      {time
-                        ? `${time} · ${recurrence === "daily" ? (ar ? "يومي" : "Every day") : ar ? "أسبوعي" : "Weekly"} · ${timezone}`
-                        : ar
-                          ? "بدون وقت مجدول"
-                          : "No scheduled time"}
-                    </small>
-                  </span>
-                  <ChevronDown size={15} />
-                </summary>
-                <div className="au-schedule-fields">
-                  <Field label={ar ? "الوقت" : "Time"}>
-                    <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-                  </Field>
-                  <Field label={ar ? "التكرار" : "Recurrence"}>
-                    <select
-                      disabled={!time}
-                      value={recurrence}
-                      onChange={(e) => setRecurrence(e.target.value as "daily" | "weekly")}
-                    >
-                      <option value="daily">{ar ? "يومي" : "Daily"}</option>
-                      <option value="weekly">{ar ? "أسبوعي" : "Weekly"}</option>
-                    </select>
-                  </Field>
-                  <Field label={ar ? "المنطقة الزمنية" : "Timezone"}>
-                    <input
-                      dir="ltr"
-                      value={timezone}
-                      onChange={(e) => setTimezone(e.target.value)}
-                    />
-                  </Field>
-                  {time ? (
-                    <button type="button" className="au-text-button" onClick={() => setTime("")}>
-                      {ar ? "إزالة الجدولة" : "Remove schedule"}
-                    </button>
-                  ) : null}
-                </div>
-              </details>
-            </fieldset>
-          )}
-        </div>
-        <aside className="au-panel au-editor-preview">
-          <h2>
-            {editing
-              ? ar
-                ? "ملخص القاعدة"
-                : "Rule summary"
-              : ar
-                ? "معاينة القاعدة"
-                : "Rule preview"}
-          </h2>
-          {!editing ? (
-            <p>
-              {ar
-                ? "إليك ما سيحدث عند تشغيل القاعدة."
-                : "Here’s what will happen when this rule runs."}
-            </p>
-          ) : null}
-          <RulePreview
-            value={{
-              event_type: eventType,
-              target_role: role,
-              priority,
-              due_minutes: Number(due) || 0,
-            }}
-            ar={ar}
-          />
-          {rule ? (
-            <div className="au-run-state">
-              {[
-                [ar ? "آخر تشغيل" : "Last run", formatWhen(rule.last_run_at, ar)],
-                [ar ? "القادم" : "Next run", formatWhen(rule.next_run_at, ar)],
-                [
-                  ar ? "الحالة" : "Status",
-                  rule.last_status === "success"
-                    ? ar
-                      ? "ناجح"
-                      : "Success"
-                    : rule.last_status === "failed"
-                      ? ar
-                        ? "فشل"
-                        : "Failed"
-                      : ar
-                        ? "لم تعمل"
-                        : "Never run",
-                ],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <small>{label}</small>
-                  <strong>{value}</strong>
-                </div>
-              ))}
+                  </section>
+                  <details className="au-schedule" open={undefined}>
+                    <summary>
+                      <CalendarClock size={16} />
+                      <span>
+                        <strong>{ar ? "الجدولة (اختياري)" : "Schedule (optional)"}</strong>
+                        <small>
+                          {time
+                            ? `${time} · ${recurrence === "daily" ? (ar ? "يومي" : "Every day") : ar ? "أسبوعي" : "Weekly"} · ${timezone}`
+                            : ar
+                              ? "بدون وقت مجدول"
+                              : "No scheduled time"}
+                        </small>
+                      </span>
+                      <ChevronDown size={15} />
+                    </summary>
+                    <div className="au-schedule-fields">
+                      <Field label={ar ? "الوقت" : "Time"}>
+                        <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+                      </Field>
+                      <Field label={ar ? "التكرار" : "Recurrence"}>
+                        <select
+                          disabled={!time}
+                          value={recurrence}
+                          onChange={(e) => setRecurrence(e.target.value as "daily" | "weekly")}
+                        >
+                          <option value="daily">{ar ? "يومي" : "Daily"}</option>
+                          <option value="weekly">{ar ? "أسبوعي" : "Weekly"}</option>
+                        </select>
+                      </Field>
+                      <Field label={ar ? "المنطقة الزمنية" : "Timezone"}>
+                        <input
+                          dir="ltr"
+                          value={timezone}
+                          onChange={(e) => setTimezone(e.target.value)}
+                        />
+                      </Field>
+                      {time ? (
+                        <button
+                          type="button"
+                          className="au-text-button"
+                          onClick={() => setTime("")}
+                        >
+                          {ar ? "إزالة الجدولة" : "Remove schedule"}
+                        </button>
+                      ) : null}
+                    </div>
+                  </details>
+                </fieldset>
+              )}
             </div>
-          ) : null}
-        </aside>
-      </form>
-      <footer className="au-editor-footer">
-        {rule ? (
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy || dirty}
-              title={
-                dirty
+            <aside className="au-panel au-editor-preview">
+              <h2>
+                {editing
                   ? ar
-                    ? "احفظ التغييرات قبل التشغيل"
-                    : "Save changes before running"
-                  : undefined
-              }
-              onClick={() => runNow.mutate()}
-            >
-              <CirclePlay size={15} />
-              {ar ? "تشغيل الآن" : "Run now"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="au-delete"
-              disabled={busy}
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 size={15} />
-              {ar ? "حذف" : "Delete"}
-            </Button>
-          </div>
-        ) : (
-          <span />
-        )}
-        <div>
-          <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
-            {ar ? "إلغاء" : "Cancel"}
-          </Button>
-          <Button
-            form={formId}
-            type="submit"
-            className="au-primary"
-            disabled={busy || !name.trim()}
-            aria-busy={save.isPending}
+                    ? "ملخص القاعدة"
+                    : "Rule summary"
+                  : ar
+                    ? "معاينة القاعدة"
+                    : "Rule preview"}
+              </h2>
+              {!editing ? (
+                <p>
+                  {ar
+                    ? "إليك ما سيحدث عند تشغيل القاعدة."
+                    : "Here’s what will happen when this rule runs."}
+                </p>
+              ) : null}
+              <RulePreview
+                value={{
+                  event_type: eventType,
+                  target_role: role,
+                  priority,
+                  due_minutes: Number(due) || 0,
+                }}
+                ar={ar}
+              />
+              {rule ? (
+                <div className="au-run-state">
+                  {[
+                    [ar ? "آخر تشغيل" : "Last run", formatWhen(rule.last_run_at, ar)],
+                    [ar ? "القادم" : "Next run", formatWhen(rule.next_run_at, ar)],
+                    [
+                      ar ? "الحالة" : "Status",
+                      rule.last_status === "success"
+                        ? ar
+                          ? "ناجح"
+                          : "Success"
+                        : rule.last_status === "failed"
+                          ? ar
+                            ? "فشل"
+                            : "Failed"
+                          : ar
+                            ? "لم تعمل"
+                            : "Never run",
+                    ],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <small>{label}</small>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </aside>
+          </form>
+          <footer className="au-editor-footer">
+            {rule ? (
+              <div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy || dirty}
+                  title={
+                    dirty
+                      ? ar
+                        ? "احفظ التغييرات قبل التشغيل"
+                        : "Save changes before running"
+                      : undefined
+                  }
+                  onClick={() => runNow.mutate()}
+                >
+                  <CirclePlay size={15} />
+                  {ar ? "تشغيل الآن" : "Run now"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="au-delete"
+                  disabled={busy}
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 size={15} />
+                  {ar ? "حذف" : "Delete"}
+                </Button>
+              </div>
+            ) : (
+              <span />
+            )}
+            <div>
+              <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
+                {ar ? "إلغاء" : "Cancel"}
+              </Button>
+              <Button
+                form={formId}
+                type="submit"
+                className="au-primary"
+                disabled={busy || !name.trim()}
+                aria-busy={save.isPending}
+              >
+                {editing
+                  ? ar
+                    ? "حفظ التغييرات"
+                    : "Save changes"
+                  : ar
+                    ? "إنشاء القاعدة"
+                    : "Create rule"}
+              </Button>
+            </div>
+          </footer>
+          <Dialog
+            open={confirmDelete}
+            onOpenChange={(v) => {
+              if (!remove.isPending) setConfirmDelete(v);
+            }}
           >
-            {editing
-              ? ar
-                ? "حفظ التغييرات"
-                : "Save changes"
-              : ar
-                ? "إنشاء القاعدة"
-                : "Create rule"}
-          </Button>
-        </div>
-      </footer>
-      <Dialog
-        open={confirmDelete}
-        onOpenChange={(v) => {
-          if (!remove.isPending) setConfirmDelete(v);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{ar ? "حذف هذه القاعدة؟" : "Delete this rule?"}</DialogTitle>
-            <DialogDescription>
-              {ar
-                ? "سيتم حذف القاعدة وسجل تنفيذها. لا يمكن التراجع عن هذه الخطوة."
-                : "The rule and its execution history will be removed. This cannot be undone."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={remove.isPending}
-              onClick={() => setConfirmDelete(false)}
-            >
-              {ar ? "إلغاء" : "Cancel"}
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={remove.isPending}
-              onClick={() => remove.mutate()}
-            >
-              {ar ? "حذف القاعدة" : "Delete rule"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </section>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{ar ? "حذف هذه القاعدة؟" : "Delete this rule?"}</DialogTitle>
+                <DialogDescription>
+                  {ar
+                    ? "سيتم حذف القاعدة وسجل تنفيذها. لا يمكن التراجع عن هذه الخطوة."
+                    : "The rule and its execution history will be removed. This cannot be undone."}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  disabled={remove.isPending}
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  {ar ? "إلغاء" : "Cancel"}
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={remove.isPending}
+                  onClick={() => remove.mutate()}
+                >
+                  {ar ? "حذف القاعدة" : "Delete rule"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </section>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -104,6 +104,274 @@ function AutomationControlCenter() {
     <div className="min-h-dvh bg-background">
       <AppHeader title={ar ? "الأتمتة" : "Automation"} />
       <main className="qs-page qs-compact-page au-studio" dir={ar ? "rtl" : "ltr"}>
+        <>
+          <header className="au-heading">
+            <div>
+              <h1>{ar ? "الأتمتة" : "Automation"}</h1>
+              <p>
+                {ar
+                  ? "حافظ على سلاسة الخدمة. دع القواعد تتولى المهام المتكررة."
+                  : "Keep service moving. Let the rules handle the routine."}
+              </p>
+            </div>
+            <Button className="au-primary" onClick={() => setEditor("new")}>
+              <Plus className="size-4" />
+              {ar ? "قاعدة جديدة" : "New rule"}
+            </Button>
+          </header>
+          <section className="au-metrics" aria-label={ar ? "ملخص الأتمتة" : "Automation summary"}>
+            {[
+              {
+                icon: Workflow,
+                label: ar ? "قواعد فعالة" : "Active rules",
+                count: rows.filter((r) => r.enabled).length,
+                hint: ar ? "مفعلة" : "Enabled",
+                tone: "orange",
+              },
+              {
+                icon: CalendarClock,
+                label: ar ? "مجدولة" : "Scheduled",
+                count: rows.filter((r) => r.enabled && r.schedule_time).length,
+                hint: ar ? "تعمل تلقائياً" : "Run automatically",
+                tone: "blue",
+              },
+              {
+                icon: XCircle,
+                label: ar ? "تشغيلات فاشلة" : "Failed runs",
+                count: runRows.filter((r) => r.status === "failed").length,
+                hint: ar ? "تحتاج مراجعة" : "Need review",
+                tone: "slate",
+              },
+              {
+                icon: Activity,
+                label: ar ? "نفذت اليوم" : "Executed today",
+                count: runRows.filter(
+                  (r) => new Date(r.started_at).toLocaleDateString("en-CA") === today,
+                ).length,
+                hint: ar ? "سجل اليوم" : "Today’s run log",
+                tone: "green",
+              },
+            ].map((m) => (
+              <article key={m.tone}>
+                <span className={`au-icon ${m.tone}`}>
+                  <m.icon size={20} />
+                </span>
+                <div>
+                  <p>{m.label}</p>
+                  <strong>{rules.isPending || runs.isPending ? "—" : m.count}</strong>
+                  <small>{m.hint}</small>
+                </div>
+              </article>
+            ))}
+          </section>
+          <div className="au-workspace">
+            <section className="au-main">
+              <div
+                className="au-tabs"
+                role="tablist"
+                aria-label={ar ? "الأتمتة" : "Automation views"}
+              >
+                {(["rules", "history"] as const).map((t) => (
+                  <button
+                    key={t}
+                    role="tab"
+                    aria-selected={tab === t}
+                    aria-controls={`au-${t}`}
+                    id={`au-tab-${t}`}
+                    onClick={() => setTab(t)}
+                  >
+                    {t === "rules"
+                      ? ar
+                        ? "القواعد"
+                        : "Rules"
+                      : ar
+                        ? "سجل التنفيذ"
+                        : "Execution history"}
+                  </button>
+                ))}
+              </div>
+              {tab === "rules" ? (
+                <div
+                  className="au-panel"
+                  role="tabpanel"
+                  id="au-rules"
+                  aria-labelledby="au-tab-rules"
+                >
+                  <div className="au-toolbar">
+                    <label className="au-search">
+                      <Search size={18} aria-hidden="true" />
+                      <input
+                        aria-label={ar ? "البحث في القواعد" : "Search rules"}
+                        placeholder={ar ? "البحث في القواعد…" : "Search rules…"}
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                      />
+                      {search ? (
+                        <button
+                          type="button"
+                          aria-label={ar ? "مسح البحث" : "Clear search"}
+                          onClick={() => setSearch("")}
+                        >
+                          <XCircle size={17} />
+                        </button>
+                      ) : null}
+                    </label>
+                    <select
+                      aria-label={ar ? "تصفية المشغل" : "Filter trigger"}
+                      value={trigger}
+                      onChange={(e) => setTrigger(e.target.value)}
+                    >
+                      <option value="all">{ar ? "كل المشغلات" : "All triggers"}</option>
+                      {EVENTS.map((e) => (
+                        <option key={e.value} value={e.value}>
+                          {ar ? e.ar : e.en}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label={ar ? "تصفية الحالة" : "Filter status"}
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                    >
+                      <option value="all">{ar ? "كل الحالات" : "All statuses"}</option>
+                      <option value="active">{ar ? "فعالة" : "Active"}</option>
+                      <option value="paused">{ar ? "متوقفة" : "Paused"}</option>
+                    </select>
+                  </div>
+                  {rules.isError ? (
+                    <p className="au-empty text-destructive" role="alert">
+                      {humanError(rules.error, lang)}
+                    </p>
+                  ) : rules.isPending ? (
+                    <div className="p-4">
+                      <Skeleton className="h-60" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="au-table-wrap">
+                        <table className="au-table">
+                          <thead>
+                            <tr>
+                              {[
+                                ar ? "القاعدة" : "Rule",
+                                ar ? "متى" : "When",
+                                ar ? "المسؤول" : "Assigned to",
+                                ar ? "المهلة" : "Due",
+                                ar ? "الحالة" : "Status",
+                                ar ? "تعديل" : "Edit",
+                              ].map((s) => (
+                                <th key={s}>{s}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filtered.map((rule) => (
+                              <RuleRow
+                                key={rule.id}
+                                rule={rule}
+                                ar={ar}
+                                selected={previewId === rule.id}
+                                onPreview={() => setPreviewId(rule.id)}
+                                onEdit={() => setEditor(rule.id)}
+                              />
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {!filtered.length ? (
+                        <div className="au-empty">
+                          <Workflow size={28} />
+                          <strong>
+                            {rows.length
+                              ? ar
+                                ? "لا قواعد تطابق بحثك"
+                                : "No matching rules"
+                              : ar
+                                ? "لا توجد قواعد بعد"
+                                : "No rules yet"}
+                          </strong>
+                          <p>
+                            {rows.length
+                              ? ar
+                                ? "غيّر البحث أو عوامل التصفية."
+                                : "Try another search or filter."
+                              : ar
+                                ? "أنشئ قاعدة لتحويل حدث إلى عمل تلقائي."
+                                : "Create a rule to turn an event into automatic work."}
+                          </p>
+                          {!rows.length ? (
+                            <Button className="au-primary" onClick={() => setEditor("new")}>
+                              {ar ? "قاعدة جديدة" : "New rule"}
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setSearch("");
+                                setTrigger("all");
+                                setStatus("all");
+                              }}
+                            >
+                              {ar ? "مسح التصفية" : "Clear filters"}
+                            </Button>
+                          )}
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              ) : (
+                <section
+                  className="au-panel"
+                  role="tabpanel"
+                  id="au-history"
+                  aria-labelledby="au-tab-history"
+                >
+                  <RunHistory
+                    runs={runRows}
+                    rules={rows}
+                    ar={ar}
+                    pending={runs.isPending}
+                    error={runs.isError ? humanError(runs.error, lang) : undefined}
+                  />
+                </section>
+              )}
+            </section>
+            <aside className="au-panel au-rail">
+              <header>
+                <h2>{ar ? "سجل التنفيذ" : "Execution history"}</h2>
+                <button className="au-text-button" onClick={() => setTab("history")}>
+                  {ar ? "عرض الكل" : "View all"}
+                </button>
+              </header>
+              <RunHistory
+                runs={runRows.slice(0, 3)}
+                rules={rows}
+                ar={ar}
+                pending={runs.isPending}
+                error={runs.isError ? humanError(runs.error, lang) : undefined}
+                compact
+              />
+              {selected ? (
+                <div className="au-selected-preview">
+                  <header>
+                    <h2>{ar ? "معاينة القاعدة المحددة" : "Selected rule preview"}</h2>
+                    <button className="au-text-button" onClick={() => setEditor(selected.id)}>
+                      {ar ? "تعديل" : "Edit"}
+                    </button>
+                  </header>
+                  <div className="au-preview-title">
+                    <strong>{selected.name}</strong>
+                    <span className={`au-pill ${selected.enabled ? "active" : "paused"}`}>
+                      {selected.enabled ? (ar ? "فعالة" : "Active") : ar ? "متوقفة" : "Paused"}
+                    </span>
+                  </div>
+                  <RulePreview value={selected} ar={ar} compact />
+                </div>
+              ) : null}
+            </aside>
+          </div>
+        </>
         {editor === "new" || editingRule ? (
           <RuleEditor
             key={editor}
@@ -113,267 +381,7 @@ function AutomationControlCenter() {
             ar={ar}
             onClose={() => setEditor(null)}
           />
-        ) : (
-          <>
-            <header className="au-heading">
-              <div>
-                <h1>{ar ? "الأتمتة" : "Automation"}</h1>
-                <p>
-                  {ar
-                    ? "حافظ على سلاسة الخدمة. دع القواعد تتولى المهام المتكررة."
-                    : "Keep service moving. Let the rules handle the routine."}
-                </p>
-              </div>
-              <Button className="au-primary" onClick={() => setEditor("new")}>
-                <Plus className="size-4" />
-                {ar ? "قاعدة جديدة" : "New rule"}
-              </Button>
-            </header>
-            <section className="au-metrics" aria-label={ar ? "ملخص الأتمتة" : "Automation summary"}>
-              {[
-                {
-                  icon: Workflow,
-                  label: ar ? "قواعد فعالة" : "Active rules",
-                  count: rows.filter((r) => r.enabled).length,
-                  hint: ar ? "مفعلة" : "Enabled",
-                  tone: "orange",
-                },
-                {
-                  icon: CalendarClock,
-                  label: ar ? "مجدولة" : "Scheduled",
-                  count: rows.filter((r) => r.enabled && r.schedule_time).length,
-                  hint: ar ? "تعمل تلقائياً" : "Run automatically",
-                  tone: "blue",
-                },
-                {
-                  icon: XCircle,
-                  label: ar ? "تشغيلات فاشلة" : "Failed runs",
-                  count: runRows.filter((r) => r.status === "failed").length,
-                  hint: ar ? "تحتاج مراجعة" : "Need review",
-                  tone: "slate",
-                },
-                {
-                  icon: Activity,
-                  label: ar ? "نفذت اليوم" : "Executed today",
-                  count: runRows.filter(
-                    (r) => new Date(r.started_at).toLocaleDateString("en-CA") === today,
-                  ).length,
-                  hint: ar ? "سجل اليوم" : "Today’s run log",
-                  tone: "green",
-                },
-              ].map((m) => (
-                <article key={m.tone}>
-                  <span className={`au-icon ${m.tone}`}>
-                    <m.icon size={20} />
-                  </span>
-                  <div>
-                    <p>{m.label}</p>
-                    <strong>{rules.isPending || runs.isPending ? "—" : m.count}</strong>
-                    <small>{m.hint}</small>
-                  </div>
-                </article>
-              ))}
-            </section>
-            <div className="au-workspace">
-              <section className="au-main">
-                <div
-                  className="au-tabs"
-                  role="tablist"
-                  aria-label={ar ? "الأتمتة" : "Automation views"}
-                >
-                  {(["rules", "history"] as const).map((t) => (
-                    <button
-                      key={t}
-                      role="tab"
-                      aria-selected={tab === t}
-                      aria-controls={`au-${t}`}
-                      id={`au-tab-${t}`}
-                      onClick={() => setTab(t)}
-                    >
-                      {t === "rules"
-                        ? ar
-                          ? "القواعد"
-                          : "Rules"
-                        : ar
-                          ? "سجل التنفيذ"
-                          : "Execution history"}
-                    </button>
-                  ))}
-                </div>
-                {tab === "rules" ? (
-                  <div
-                    className="au-panel"
-                    role="tabpanel"
-                    id="au-rules"
-                    aria-labelledby="au-tab-rules"
-                  >
-                    <div className="au-toolbar">
-                      <label className="au-search">
-                        <Search size={16} />
-                        <input
-                          aria-label={ar ? "البحث في القواعد" : "Search rules"}
-                          placeholder={ar ? "البحث في القواعد…" : "Search rules…"}
-                          value={search}
-                          onChange={(e) => setSearch(e.target.value)}
-                        />
-                      </label>
-                      <select
-                        aria-label={ar ? "تصفية المشغل" : "Filter trigger"}
-                        value={trigger}
-                        onChange={(e) => setTrigger(e.target.value)}
-                      >
-                        <option value="all">{ar ? "كل المشغلات" : "All triggers"}</option>
-                        {EVENTS.map((e) => (
-                          <option key={e.value} value={e.value}>
-                            {ar ? e.ar : e.en}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        aria-label={ar ? "تصفية الحالة" : "Filter status"}
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value)}
-                      >
-                        <option value="all">{ar ? "كل الحالات" : "All statuses"}</option>
-                        <option value="active">{ar ? "فعالة" : "Active"}</option>
-                        <option value="paused">{ar ? "متوقفة" : "Paused"}</option>
-                      </select>
-                    </div>
-                    {rules.isError ? (
-                      <p className="au-empty text-destructive" role="alert">
-                        {humanError(rules.error, lang)}
-                      </p>
-                    ) : rules.isPending ? (
-                      <div className="p-4">
-                        <Skeleton className="h-60" />
-                      </div>
-                    ) : (
-                      <>
-                        <div className="au-table-wrap">
-                          <table className="au-table">
-                            <thead>
-                              <tr>
-                                {[
-                                  ar ? "القاعدة" : "Rule",
-                                  ar ? "متى" : "When",
-                                  ar ? "المسؤول" : "Assigned to",
-                                  ar ? "المهلة" : "Due",
-                                  ar ? "الحالة" : "Status",
-                                  ar ? "تعديل" : "Edit",
-                                ].map((s) => (
-                                  <th key={s}>{s}</th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {filtered.map((rule) => (
-                                <RuleRow
-                                  key={rule.id}
-                                  rule={rule}
-                                  ar={ar}
-                                  selected={previewId === rule.id}
-                                  onPreview={() => setPreviewId(rule.id)}
-                                  onEdit={() => setEditor(rule.id)}
-                                />
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                        {!filtered.length ? (
-                          <div className="au-empty">
-                            <Workflow size={28} />
-                            <strong>
-                              {rows.length
-                                ? ar
-                                  ? "لا قواعد تطابق بحثك"
-                                  : "No matching rules"
-                                : ar
-                                  ? "لا توجد قواعد بعد"
-                                  : "No rules yet"}
-                            </strong>
-                            <p>
-                              {rows.length
-                                ? ar
-                                  ? "غيّر البحث أو عوامل التصفية."
-                                  : "Try another search or filter."
-                                : ar
-                                  ? "أنشئ قاعدة لتحويل حدث إلى عمل تلقائي."
-                                  : "Create a rule to turn an event into automatic work."}
-                            </p>
-                            {!rows.length ? (
-                              <Button className="au-primary" onClick={() => setEditor("new")}>
-                                {ar ? "قاعدة جديدة" : "New rule"}
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                onClick={() => {
-                                  setSearch("");
-                                  setTrigger("all");
-                                  setStatus("all");
-                                }}
-                              >
-                                {ar ? "مسح التصفية" : "Clear filters"}
-                              </Button>
-                            )}
-                          </div>
-                        ) : null}
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <section
-                    className="au-panel"
-                    role="tabpanel"
-                    id="au-history"
-                    aria-labelledby="au-tab-history"
-                  >
-                    <RunHistory
-                      runs={runRows}
-                      rules={rows}
-                      ar={ar}
-                      pending={runs.isPending}
-                      error={runs.isError ? humanError(runs.error, lang) : undefined}
-                    />
-                  </section>
-                )}
-              </section>
-              <aside className="au-panel au-rail">
-                <header>
-                  <h2>{ar ? "سجل التنفيذ" : "Execution history"}</h2>
-                  <button className="au-text-button" onClick={() => setTab("history")}>
-                    {ar ? "عرض الكل" : "View all"}
-                  </button>
-                </header>
-                <RunHistory
-                  runs={runRows.slice(0, 3)}
-                  rules={rows}
-                  ar={ar}
-                  pending={runs.isPending}
-                  error={runs.isError ? humanError(runs.error, lang) : undefined}
-                  compact
-                />
-                {selected ? (
-                  <div className="au-selected-preview">
-                    <header>
-                      <h2>{ar ? "معاينة القاعدة المحددة" : "Selected rule preview"}</h2>
-                      <button className="au-text-button" onClick={() => setEditor(selected.id)}>
-                        {ar ? "تعديل" : "Edit"}
-                      </button>
-                    </header>
-                    <div className="au-preview-title">
-                      <strong>{selected.name}</strong>
-                      <span className={`au-pill ${selected.enabled ? "active" : "paused"}`}>
-                        {selected.enabled ? (ar ? "فعالة" : "Active") : ar ? "متوقفة" : "Paused"}
-                      </span>
-                    </div>
-                    <RulePreview value={selected} ar={ar} compact />
-                  </div>
-                ) : null}
-              </aside>
-            </div>
-          </>
-        )}
+        ) : null}
       </main>
     </div>
   );

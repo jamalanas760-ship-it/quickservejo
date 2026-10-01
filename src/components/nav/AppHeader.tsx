@@ -1,4 +1,4 @@
-import { LanguageFlag } from "./LanguageFlag";
+import { LanguageSelector } from "./LanguageSelector";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { createContext, useContext, useState, type ReactNode } from "react";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { RestaurantSwitcher } from "@/components/manage/RestaurantSwitcher";
 import { NotificationBell } from "@/components/nav/NotificationBell";
+import { useTableAlertSound } from "@/hooks/useTableAlertSound";
 import { ThemeToggle } from "@/components/nav/ThemeToggle";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useOperationalCounters } from "@/hooks/useOperationalCounters";
@@ -68,6 +69,7 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
   const appearance = readAppearance(restaurant?.menu_theme);
   const customLogo = Boolean(restaurant?.logo_url && !appearance.useQuickServeLogo);
   const user = session.data?.user;
+  useTableAlertSound(restaurantId, user?.id);
   const meta = user?.user_metadata as { full_name?: string; name?: string; avatar_url?: string } | undefined;
   const avatarUrl = membership?.avatar_url || avatarPresetUrl(membership?.avatar_preset) || meta?.avatar_url || null;
   const displayName = meta?.full_name || meta?.name || membership?.name || user?.email?.split("@")[0] || "QuickServe";
@@ -118,29 +120,7 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
 
         <div className="qs-topbar-controls ms-auto flex min-w-0 items-center gap-1 sm:gap-1.5">
           <ThemeToggle compact className="qs-topbar-theme-control inline-flex" />
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <button type="button" className="qs-topbar-menu-trigger qs-topbar-language inline-flex min-h-9 items-center gap-1.5 rounded-[9px] border border-transparent px-2 text-muted-foreground transition hover:border-border hover:bg-muted/55 hover:text-foreground lg:min-h-10 lg:px-2.5" aria-label={lang === "ar" ? "اختيار اللغة" : "Choose language"}>
-                <LanguageFlag language={lang} />
-                <span className="hidden text-xs font-semibold xl:inline">{lang === "ar" ? "العربية" : "English"}</span>
-                <ChevronDown className="qs-topbar-chevron hidden size-3.5 xl:block" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={8} className="qs-topbar-popover w-56 p-2">
-              <DropdownMenuLabel className="flex items-center gap-2 text-xs text-muted-foreground"><Languages className="size-4" />{lang === "ar" ? "لغة الواجهة" : "Interface language"}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setLang("en")} className="min-h-11 cursor-pointer">
-                <LanguageFlag language="en" />
-                <span className="min-w-0 flex-1"><strong className="block text-sm">English</strong></span>
-                {lang === "en" ? <Check className="size-4 text-primary" /> : null}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setLang("ar")} className="min-h-11 cursor-pointer">
-                <LanguageFlag language="ar" />
-                <span className="min-w-0 flex-1"><strong className="block text-sm">العربية</strong></span>
-                {lang === "ar" ? <Check className="size-4 text-primary" /> : null}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <LanguageSelector language={lang} onChange={setLang} />
           <NotificationBell restaurantId={restaurantId} count={notificationCount} ar={lang === "ar"} />
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
