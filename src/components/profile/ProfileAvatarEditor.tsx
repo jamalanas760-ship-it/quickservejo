@@ -3,27 +3,34 @@ import { Camera, Check, Loader2, RotateCcw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { useAccess } from "@/hooks/useSession";
 import { supabase } from "@/integrations/supabase/client";
 import { AVATAR_PRESETS, avatarPresetUrl } from "@/lib/avatar-presets";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
 import { uploadProfileImage } from "@/lib/storage";
-import { cn } from "@/lib/utils";
 
 export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | null }) {
   const { lang } = useI18n();
   const access = useAccess();
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
-  const membership = restaurantId ? access.membershipFor(restaurantId) : (access.data ?? []).find((row) => row.restaurant_id) ?? null;
+  const membership = restaurantId
+    ? access.membershipFor(restaurantId)
+    : ((access.data ?? []).find((row) => row.restaurant_id) ?? null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(membership?.avatar_url ?? null);
   const [preset, setPreset] = useState<string | null>(membership?.avatar_preset ?? null);
   const [busy, setBusy] = useState(false);
   const [savingPreset, setSavingPreset] = useState<string | null>(null);
-  const [roleFilter, setRoleFilter] = useState<"all" | (typeof AVATAR_PRESETS)[number]["role"]>("all");
-  const [genderFilter, setGenderFilter] = useState<"all" | "male" | "female">("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | (typeof AVATAR_PRESETS)[number]["role"]>(
+    "all",
+  );
+  const [page, setPage] = useState(0);
+  const ar = lang === "ar";
+  const filtered = AVATAR_PRESETS.filter(
+    (item) => roleFilter === "all" || item.role === roleFilter,
+  );
+  const visible = filtered.slice(page * 6, page * 6 + 6);
 
   useEffect(() => {
     setAvatarUrl(membership?.avatar_url ?? null);
@@ -110,53 +117,135 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-muted/20 p-3 sm:p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <span className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-border bg-card text-xl font-black shadow-sm">
-          {preview ? <img src={preview} alt="" className="size-full object-cover" /> : <Camera className="size-7 text-muted-foreground" />}
+    <div className="ps-avatar-editor">
+      <h2>{ar ? "الصورة الشخصية" : "Profile photo"}</h2>
+      <p>
+        {ar
+          ? "ارفع صورتك أو اختر صورة احترافية. تظهر في حسابك وشريط التطبيق والفريق."
+          : "Upload your photo or choose a professional avatar. This will appear in your account, app header, home page, and team identity."}
+      </p>
+      <div className="ps-avatar-intro">
+        <span>
+          {preview ? (
+            <img src={preview} alt={ar ? "صورتك الشخصية" : "Your profile photo"} />
+          ) : (
+            <Camera className="size-7 text-muted-foreground" />
+          )}
         </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-bold">{lang === "ar" ? "الصورة الشخصية" : "Profile picture"}</h3>
-          <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{lang === "ar" ? "ارفع صورتك أو اختر شخصية احترافية حديثة حسب الدور. يُحفظ الاختيار مباشرة ويظهر في الحساب وشريط التطبيق والصفحة الرئيسية وقائمة الفريق." : "Upload your photo or choose a modern professional role portrait. Your selection saves immediately and appears in your account, app header, home page, and team identity."}</p>
-          <div className="mt-2.5 flex flex-wrap gap-2">
-            <Button type="button" variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}><Camera className="size-4" />{lang === "ar" ? "رفع صورة" : "Upload Photo"}</Button>
-            {(avatarUrl || preset) ? <Button type="button" variant="ghost" disabled={busy} onClick={() => void persist(null, null)}><RotateCcw className="size-4" />{lang === "ar" ? "إزالة" : "Remove"}</Button> : null}
+        <div>
+          <button
+            className="ps-button"
+            type="button"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+          >
+            <Camera />
+            {ar ? "رفع صورة" : "Upload photo"}
+          </button>
+          <button
+            className="ps-button border-transparent"
+            type="button"
+            disabled={busy || !(avatarUrl || preset)}
+            onClick={() => void persist(null, null)}
+          >
+            <RotateCcw />
+            {ar ? "إزالة" : "Remove"}
+          </button>
+        </div>
+      </div>
+      <div className="ps-avatar-picker">
+        <div className="ps-avatar-toolbar">
+          <h3>{ar ? "اختر شخصية" : "Choose an avatar"}</h3>
+          <div className="ps-avatar-filters" aria-label={ar ? "فلاتر الصور" : "Avatar filters"}>
+            {(
+              [
+                ["all", "All", "الكل"],
+                ["owner", "Owner", "المالك"],
+                ["manager", "Manager", "المدير"],
+                ["chef", "Chef", "الطاهي"],
+              ] as const
+            ).map(([key, en, arabic]) => (
+              <button
+                key={key}
+                type="button"
+                className="ps-chip"
+                aria-pressed={roleFilter === key}
+                onClick={() => {
+                  setRoleFilter(key);
+                  setPage(0);
+                }}
+              >
+                {ar ? arabic : en}
+              </button>
+            ))}
           </div>
         </div>
-      </div>
-
-      <div className="mt-4 border-t border-border pt-4">
-        <div className="flex flex-wrap items-end justify-between gap-2"><div><p className="text-sm font-bold">{lang === "ar" ? "اختر شخصية" : "Choose an avatar"}</p><p className="mt-1 text-[11px] text-muted-foreground">{lang === "ar" ? "انقر مرة واحدة للاختيار والحفظ." : "Click once to select and save."}</p></div>{busy ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><Loader2 className="size-3.5 animate-spin" />{lang === "ar" ? "جارٍ الحفظ…" : "Saving…"}</span> : null}</div>
-        <div className="mt-3 flex flex-nowrap gap-1.5 overflow-x-auto pb-1" aria-label={lang === "ar" ? "فلاتر الصور" : "Avatar filters"}>
-          {(["all", "owner", "manager", "operations", "shift_manager", "chef", "cashier", "server", "kitchen", "host", "inventory", "procurement", "finance"] as const).map((role) => <button key={role} type="button" onClick={() => setRoleFilter(role)} className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold capitalize", roleFilter === role ? "border-[#e85d2a] bg-orange-500/10 text-[#e85d2a]" : "border-border text-muted-foreground hover:text-foreground")}>{role}</button>)}
-          <span className="mx-0.5 h-6 w-px shrink-0 bg-border" />
-          {(["all", "male", "female"] as const).map((gender) => <button key={gender} type="button" onClick={() => setGenderFilter(gender)} className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold capitalize", genderFilter === gender ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:text-foreground")}>{gender}</button>)}
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 min-[480px]:grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(116px,1fr))]">
-          {AVATAR_PRESETS.filter((item) => (roleFilter === "all" || item.role === roleFilter) && (genderFilter === "all" || item.gender === genderFilter)).map((item) => {
-            const selected = preset === item.id && !avatarUrl;
-            const saving = savingPreset === item.id;
-            return <button
+        <div className="ps-avatar-grid">
+          {visible.map((item) => (
+            <button
               key={item.id}
               type="button"
+              className="ps-avatar-choice"
               disabled={busy}
               onClick={() => void persist(null, item.id)}
-              aria-pressed={selected}
-              aria-label={`${lang === "ar" ? "اختيار" : "Choose"} ${item.label}`}
-              className={cn(
-                "group relative overflow-hidden rounded-xl border bg-card p-1.5 text-start transition duration-150 hover:-translate-y-0.5 hover:border-[#e85d2a]/45 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d2a]/35 disabled:cursor-wait",
-                selected ? "border-[#e85d2a] ring-2 ring-[#e85d2a]/15" : "border-border",
-                busy && !saving && "opacity-55",
-              )}
+              aria-pressed={preset === item.id && !avatarUrl}
+              aria-label={`${ar ? "اختيار" : "Choose"} ${item.label}`}
+              title={item.label}
             >
-              <div className="relative aspect-square overflow-hidden rounded-lg bg-muted"><img src={item.url} alt={item.label} width="320" height="320" loading="lazy" decoding="async" className="size-full object-cover" />{selected ? <span className="absolute end-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-[#e85d2a] text-white shadow"><Check className="size-3" /></span> : null}{saving ? <span className="absolute inset-0 grid place-items-center bg-background/60 backdrop-blur-[1px]"><Loader2 className="size-4 animate-spin text-[#e85d2a]" /></span> : null}</div>
-              <span className="mt-1.5 block truncate px-0.5 text-[10px] font-bold text-foreground">{item.label}</span>
-              <span className="mt-0.5 block truncate px-0.5 text-[9px] font-medium capitalize text-muted-foreground">{item.role}</span>
-            </button>;
-          })}
+              <img src={item.url} alt={item.label} width="320" height="320" loading="lazy" />
+              {preset === item.id && !avatarUrl ? (
+                <span>
+                  <Check />
+                </span>
+              ) : null}
+              {savingPreset === item.id ? (
+                <span>
+                  <Loader2 className="animate-spin" />
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+        <div className="ps-avatar-footer">
+          <span role="status">
+            {busy
+              ? ar
+                ? "جارٍ الحفظ…"
+                : "Saving…"
+              : ar
+                ? "يُحفظ الاختيار مباشرة."
+                : "Your selection saves immediately."}
+          </span>
+          {filtered.length > 6 ? (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="ps-chip"
+                disabled={page === 0 || busy}
+                onClick={() => setPage((n) => n - 1)}
+              >
+                {ar ? "السابق" : "Previous"}
+              </button>
+              <button
+                type="button"
+                className="ps-chip"
+                disabled={(page + 1) * 6 >= filtered.length || busy}
+                onClick={() => setPage((n) => n + 1)}
+              >
+                {ar ? "المزيد" : "More avatars"}
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
-      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => void upload(event.target.files?.[0])} />
+      <input
+        ref={inputRef}
+        aria-label={ar ? "رفع صورة شخصية" : "Upload profile image"}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(event) => void upload(event.target.files?.[0])}
+      />
     </div>
   );
 }

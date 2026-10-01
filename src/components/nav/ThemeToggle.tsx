@@ -26,7 +26,13 @@ type ViewTransitionDocument = Document & {
   startViewTransition?: (update: () => void) => { finished: Promise<void> };
 };
 
-export function ThemeToggle({ compact = false, className }: { compact?: boolean; className?: string }) {
+export function ThemeToggle({
+  compact = false,
+  className,
+}: {
+  compact?: boolean;
+  className?: string;
+}) {
   const [theme, setTheme] = useState<Theme>("light");
   const [ready, setReady] = useState(false);
   const themeRef = useRef<Theme>("light");
@@ -48,16 +54,23 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
     const onStorage = (event: StorageEvent) => {
       if (event.key !== KEY) return;
       const next = event.newValue;
-      if (next === "dark" || next === "light") sync(next);
+      sync(next === "dark" || next === "light" ? next : preferredTheme());
     };
     const onThemeEvent = (event: Event) => {
       const next = (event as CustomEvent<Theme>).detail;
       if (next === "dark" || next === "light") sync(next);
     };
 
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onSystemChange = () => {
+      if (!["light", "dark"].includes(window.localStorage.getItem(KEY) ?? ""))
+        sync(media.matches ? "dark" : "light");
+    };
+    media.addEventListener("change", onSystemChange);
     window.addEventListener("storage", onStorage);
     window.addEventListener(EVENT, onThemeEvent);
     return () => {
+      media.removeEventListener("change", onSystemChange);
       window.removeEventListener("storage", onStorage);
       window.removeEventListener(EVENT, onThemeEvent);
       document.documentElement.classList.remove(TRANSITION_CLASS);
@@ -65,9 +78,12 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
   }, []);
 
   function choose(next: Theme) {
-    if (next === themeRef.current) return;
-    themeRef.current = next;
     window.localStorage.setItem(KEY, next);
+    if (next === themeRef.current) {
+      window.dispatchEvent(new CustomEvent<Theme>(EVENT, { detail: next }));
+      return;
+    }
+    themeRef.current = next;
 
     const root = document.documentElement;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -96,11 +112,7 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
   if (compact) {
     return (
       <div
-        className={cn(
-          "qs-theme-toggle qs-theme-toggle-compact",
-          !ready && "is-loading",
-          className,
-        )}
+        className={cn("qs-theme-toggle qs-theme-toggle-compact", !ready && "is-loading", className)}
         data-theme={theme}
         role="group"
         aria-label="Color theme"
@@ -128,7 +140,8 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
     );
   }
 
-  const buttonBase = "inline-flex h-full w-full min-w-0 items-center justify-center gap-1.5 rounded-full font-bold leading-none transition-[background-color,color,box-shadow] duration-200";
+  const buttonBase =
+    "inline-flex h-full w-full min-w-0 items-center justify-center gap-1.5 rounded-full font-bold leading-none transition-[background-color,color,box-shadow] duration-200";
 
   return (
     <div
@@ -148,7 +161,9 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
         className={cn(
           buttonBase,
           "px-2 text-xs",
-          theme === "light" ? "bg-background text-foreground shadow-sm ring-1 ring-black/5" : "text-muted-foreground hover:text-foreground",
+          theme === "light"
+            ? "bg-background text-foreground shadow-sm ring-1 ring-black/5"
+            : "text-muted-foreground hover:text-foreground",
         )}
       >
         <Sun className="size-4 shrink-0" />
@@ -162,7 +177,9 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
         className={cn(
           buttonBase,
           "px-2 text-xs",
-          theme === "dark" ? "bg-slate-950 text-white shadow-sm ring-1 ring-white/10" : "text-muted-foreground hover:text-foreground",
+          theme === "dark"
+            ? "bg-slate-950 text-white shadow-sm ring-1 ring-white/10"
+            : "text-muted-foreground hover:text-foreground",
         )}
       >
         <Moon className="size-4 shrink-0" />

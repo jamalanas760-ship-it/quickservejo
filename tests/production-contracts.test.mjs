@@ -182,8 +182,9 @@ test("runtime hardening is hydration-safe and retries only transient reads", asy
 
 test("profile settings selection uses the brand accent instead of a black fill", async () => {
   const profile = await file("src/routes/_authenticated/profile.tsx");
-  assert.match(profile, /active \? "bg-\[#fff3ed\]/);
-  assert.match(profile, /bg-\[#e85d2a\] text-white/);
+  const studio = await file("src/components/profile/profile-studio.css");
+  assert.match(studio, /--ps-tint: #fff3ed/);
+  assert.match(studio, /ps-nav button\.is-active/);
   assert.doesNotMatch(profile, /active \? "bg-foreground text-background/);
 });
 

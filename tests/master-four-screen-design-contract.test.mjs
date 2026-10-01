@@ -23,11 +23,11 @@ test("approved Menu Studio layout is implemented", () => {
 });
 
 test("approved Organization and appearance layout is implemented", () => {
-  assert.match(profile,/organizationFocus/);
-  assert.match(profile,/qs-organization-hero/);
-  assert.match(profile,/qs-organization-tabs/);
-  assert.match(settings,/qs-organization-overview/);
-  assert.match(settings,/Restaurant information/);
+  assert.match(profile,/ps-layout/);
+  assert.match(profile,/ps-section-title/);
+  assert.match(profile,/Profile sections/);
+  assert.match(settings,/ps-org-grid/);
+  assert.match(settings,/Restaurant details/);
   assert.doesNotMatch(settings,/Guest experience/);
   assert.doesNotMatch(settings,/Brand system/);
   assert.doesNotMatch(settings,/Cover & home image/);
