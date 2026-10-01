@@ -27,11 +27,12 @@ test("team actions are aligned as one control group",()=>{
   assert.match(team,/qs-team-action-button/);
 });
 
-test("analytics and ERP expose decision-ready master summaries",()=>{
+test("analytics and ERP expose decision-ready master summaries",async()=>{
   assert.match(analytics,/qs-analytics-approved/);
   assert.match(analytics,/DecisionIntelligencePanel/);
   assert.match(analytics,/peakHour/);
-  assert.match(analytics,/cancelRate/);
+  assert.match(analytics,/buildAnalytics/);
+  assert.match(await readFile(new URL("../src/components/analytics/analytics-data.ts",import.meta.url),"utf8"),/cancelRate/);
   assert.match(erp,/Back Office/);
   assert.match(erp,/Inventory value/);
   assert.match(erp,/Month expenses/);

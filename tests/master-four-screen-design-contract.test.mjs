@@ -40,7 +40,7 @@ test("approved analytics layout places decision intelligence inside analytics", 
   assert.doesNotMatch(analyticsRoute,/DecisionIntelligencePanel/);
   assert.match(analytics,/DecisionIntelligencePanel restaurantId=\{restaurantId\}/);
   assert.match(analytics,/qs-analytics-approved/);
-  assert.match(analytics,/\["revenue", "topProducts", "orders", "channels"/);
+  assert.match(analytics,/\[\s*"revenue",\s*"orders",\s*"channels",\s*"topProducts"/);
   assert.match(styles,/Analytics/);
 });
 
