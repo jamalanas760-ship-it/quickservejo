@@ -101,12 +101,11 @@ test("operations navigation and work board retain the polished interaction contr
   const dashboard = await file("src/routes/_authenticated/dashboard.tsx");
   const work = await file("src/routes/_authenticated/work.tsx");
   const router = await file("src/router.tsx");
-  const normalStart = dashboard.indexOf("if (!customize)");
-  const normalDashboard = dashboard.slice(normalStart, dashboard.indexOf("\n\n  return <div", normalStart + 50));
 
   const home = await file("src/components/home/HomeOverview.tsx");
-  assert.match(normalDashboard, /<HomeOverview/);
-  assert.match(home, /to="\/bookings" search=\{\{create:true\}\}/);
+  assert.match(dashboard, /<HomeOverview/);
+  assert.doesNotMatch(dashboard, /DashboardGrid/);
+  assert.match(home, /to="\/bookings"\s+search=\{\{\s*create:\s*true\s*\}\}/);
   assert.match(home, /Add booking/);
   assert.match(work, /onMutate: async \(\{ id, status \}\)/);
   assert.match(work, /Release to move the card/);
@@ -135,8 +134,8 @@ test("authenticated navigation keeps stable chrome with a once-per-session launc
   assert.match(root, /<SplashScreen \/>/);
   assert.match(splash, /quickserve\.splash\.shown/);
   assert.match(splash, /sessionStorage\.getItem\(FLAG\)/);
-  assert.match(splash, /SKIP_PREFIXES/);
-  assert.match(splash, /prefers-reduced-motion/);
+  assert.match(splash, /WORKSPACE_PATH/);
+  assert.match(await file("src/components/app/splash-screen.css"), /prefers-reduced-motion/);
   assert.match(router, /defaultPendingMs: 1_200/);
   assert.match(router, /defaultPreloadStaleTime: 5 \* 60_000/);
   assert.doesNotMatch(skeleton, /animate-pulse/);
@@ -147,14 +146,15 @@ test("authenticated navigation keeps stable chrome with a once-per-session launc
 });
 
 
-test("launch screen v3 and topbar menus use the premium motion system", async () => {
+test("launch screen follows loading state and preserves accessible topbar menus", async () => {
   const splash = await file("src/components/app/SplashScreen.tsx");
   const header = await file("src/components/nav/AppHeader.tsx");
   const css = await file("src/quickserve-system.css");
-  assert.match(splash, /quickserve\.splash\.shown\.v3/);
-  assert.match(splash, /qs-launch-v3/);
-  assert.match(splash, /Syncing live operations/);
-  assert.match(splash, /Ready to serve/);
+  assert.match(splash, /quickserve\.splash\.shown\.v4/);
+  assert.match(splash, /qs-launch-simple/);
+  assert.match(splash, /state.isLoading/);
+  assert.match(splash, /role="status"/);
+  assert.doesNotMatch(splash, /progress:|Syncing live operations|Ready to serve/);
   assert.match(header, /qs-topbar-popover/);
   assert.match(header, /qs-topbar-menu-trigger/);
   assert.match(css, /QuickServe Launch V3 \+ Topbar Motion/);

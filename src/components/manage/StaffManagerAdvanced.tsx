@@ -1,3 +1,6 @@
+import { workforceLocalTimestamp, workforceLocalInput } from "@/lib/workforce-hours";
+import { useRestaurant } from "@/hooks/useSuperAdmin";
+import { RequestDatePicker, RequestTimePicker } from "@/components/workforce/RequestPickers";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -69,7 +72,7 @@ import { qrDataUrl } from "@/lib/qr";
 import { getStaffAccess } from "@/lib/staff-auth.functions";
 import { inviteStaffMember, removeStaffMember, updateStaffMember } from "@/lib/staff.functions";
 import { cn } from "@/lib/utils";
-import { isLiveTeamPunch, teamPunchesByStaff } from "@/lib/team-attendance";
+import { isLiveTeamPunch, matchingShiftPunch, preferTeamShift, teamPunchesByStaff } from "@/lib/team-attendance";
 
 const ROLES: AppRole[] = [
   "restaurant_admin",
@@ -221,10 +224,10 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
         .eq("id", restaurantId)
         .single();
       if (error) throw error;
-      return String(data?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+      return String(data?.timezone || "Asia/Amman");
     },
   });
-  const restaurantTimezone = timezone.data || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const restaurantTimezone = timezone.data || "Asia/Amman";
   const scheduleDayKey = dateKeyInTimeZone(new Date(presenceNow), restaurantTimezone);
   const [shiftMember, setShiftMember] = useState<StaffRow | null>(null);
   const [cancelShiftTarget, setCancelShiftTarget] = useState<{
@@ -294,7 +297,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           .select("id,shift_id,staff_id,starts_at,ends_at,status")
           .eq("restaurant_id", restaurantId),
         (supabase.from("staff_time_entries" as any) as any)
-          .select("staff_id,clock_in,clock_out")
+          .select("staff_id,clock_in,clock_out,review_status")
           .eq("restaurant_id", restaurantId)
           .or(`clock_out.is.null,clock_in.gte.${since}`),
         (supabase.from("staff_leave_requests" as any) as any)
@@ -376,7 +379,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     for (const assignment of schedule.data?.assignments ?? []) {
       if (assignment.status === "released") continue;
       const shift = shiftsById.get(assignment.shift_id);
-      if (!shift) continue;
+      if (!shift || shift.status === "cancelled") continue;
 
       const start = assignment.starts_at ?? shift.planned_start;
       const end = assignment.ends_at ?? shift.planned_end;
@@ -389,13 +392,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       if (!shiftDateToday && !startsToday && !endsToday && !activeAcrossMidnight) continue;
 
       const existing = result.get(assignment.staff_id);
-      const entry = (schedule.data?.time ?? []).find(
-        (time) =>
-          time.staff_id === assignment.staff_id &&
-          (Boolean(time.clock_out) || isLiveTeamPunch(time, now)) &&
-          (!Number.isFinite(endMs) || new Date(time.clock_in).getTime() <= endMs) &&
-          (!time.clock_out || !Number.isFinite(startMs) || new Date(time.clock_out).getTime() >= startMs),
-      );
+      const entry = matchingShiftPunch(schedule.data?.time ?? [], assignment.staff_id, startMs, endMs, now);
       const attendance = scheduleAttendance(start, end, entry);
       const actualStartMs = entry ? new Date(entry.clock_in).getTime() : Number.NaN;
       const actualEndMs = entry?.clock_out ? new Date(entry.clock_out).getTime() : now;
@@ -416,7 +413,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       const distance = Number.isFinite(startMs) && Number.isFinite(endMs) ? (now < startMs ? startMs - now : now > endMs ? now - endMs : 0) : 0;
       const count = (existing?.count ?? 0) + 1;
 
-      if (!existing || phase === "active" || distance < existing.distance) {
+      if (!existing || preferTeamShift({phase,distance},existing)) {
         result.set(assignment.staff_id, {
           name: shift.name,
           start,
@@ -483,7 +480,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   );
   const activeTeam = (staff.data ?? []).filter((row) => row.is_active);
   const onShiftNow = activeTeam.filter((row) => openClockByStaff.has(row.id)).length;
-  const onLeaveNow = activeTeam.filter((row) => leaveStaffIds.has(row.id)).length;
+  const onLeaveNow = activeTeam.filter((row) => leaveStaffIds.has(row.id) && !openClockByStaff.has(row.id)).length;
   const offShiftNow = Math.max(0, activeTeam.length - onShiftNow - onLeaveNow);
   const scheduledToday = activeTeam.filter((row) => scheduleByStaff.has(row.id)).length;
   const notClockedToday = activeTeam.filter((row) => scheduleByStaff.has(row.id) && !openClockByStaff.has(row.id) && !leaveStaffIds.has(row.id)).length;
@@ -492,7 +489,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     const q = search.trim().toLowerCase();
     return (staff.data ?? []).filter((row) => {
       const isClocked = openClockByStaff.has(row.id);
-      const isOnLeave = leaveStaffIds.has(row.id);
+      const isOnLeave = leaveStaffIds.has(row.id) && !isClocked;
       if (tab === "on_shift" && !isClocked) return false;
       if (tab === "off_shift" && (isClocked || isOnLeave)) return false;
       if (tab === "leave" && !isOnLeave) return false;
@@ -748,7 +745,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
 
                         <td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex min-w-0 items-center gap-3 text-start"><span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold ring-1 ring-border transition group-hover:ring-orange-200">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="min-w-0"><strong className="block truncate text-sm font-bold">{member.name}</strong><span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{member.email ?? "—"}</span></span></button></td>
                         <td><span className="text-xs text-muted-foreground">{ROLE_NAMES[member.role][lang]}</span></td>
-                        <td><StaffShiftSummaryCell schedule={scheduleInfo} ar={ar} /></td>
+                        <td><StaffShiftSummaryCell schedule={scheduleInfo} ar={ar} timeZone={restaurantTimezone} /></td>
                         <td><StaffLiveStatus clockEntry={clockEntry} staleClockEntry={staleClockByStaff.get(member.id)} timezone={restaurantTimezone} schedule={scheduleInfo} onLeave={isOnLeave} now={presenceNow} ar={ar} /></td>
 
                         <td><StaffRowActions member={member} locked={locked} canManageShifts={canManageShifts} canCancelShift={canManageShifts && Boolean(cancelShiftInfo)} ar={ar} onEdit={() => startEdit(member)} onAssign={() => setShiftMember(member)} onCancel={() => cancelShiftInfo && setCancelShiftTarget({ member, shift: cancelShiftInfo })} /></td>
@@ -1409,7 +1406,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   );
 }
 
-function StaffShiftSummaryCell({ schedule, ar }: { schedule: StaffScheduleSummary | undefined; ar: boolean }) {
+function StaffShiftSummaryCell({ schedule, ar, timeZone }: { schedule: StaffScheduleSummary | undefined; ar: boolean; timeZone: string }) {
   if (!schedule) return <span className="text-xs text-muted-foreground">{ar ? "لا توجد وردية اليوم" : "No shift today"}</span>;
   const phaseLabel =
     schedule.phase === "active" ? (ar ? "الآن" : "On shift")
@@ -1423,11 +1420,11 @@ function StaffShiftSummaryCell({ schedule, ar }: { schedule: StaffScheduleSummar
         : schedule.phase === "completed" ? "bg-slate-500/10 text-slate-600"
           : schedule.phase === "missed" ? "bg-rose-500/10 text-rose-700"
             : "bg-blue-500/10 text-blue-700";
-  return <div className="flex min-w-0 items-center gap-2"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-3.5" /></span><div className="min-w-0"><div className="flex min-w-0 items-center gap-1.5"><strong className="truncate text-xs">{schedule.name}</strong><span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold", phaseTone)}>{phaseLabel}</span></div><p className="mt-0.5 truncate text-[10px] text-muted-foreground">{formatTodayShiftRange(schedule.start, schedule.end, ar)}{schedule.count > 1 ? ` · +${schedule.count - 1}` : ""}</p></div></div>;
+  return <div className="flex min-w-0 items-center gap-2"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-3.5" /></span><div className="min-w-0"><div className="flex min-w-0 items-center gap-1.5"><strong className="truncate text-xs">{schedule.name}</strong><span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold", phaseTone)}>{phaseLabel}</span></div><p className="mt-0.5 truncate text-[10px] text-muted-foreground">{formatTodayShiftRange(schedule.start, schedule.end, ar, timeZone)}{schedule.count > 1 ? ` · +${schedule.count - 1}` : ""}</p></div></div>;
 }
 
 function StaffLiveStatus({ clockEntry, staleClockEntry, timezone, schedule, onLeave, now, ar }: { clockEntry: StaffTimeRow | undefined; staleClockEntry: StaffTimeRow | undefined; timezone: string; schedule: StaffScheduleSummary | undefined; onLeave: boolean; now: number; ar: boolean }) {
-  if (onLeave) {
+  if (onLeave && !clockEntry) {
     return (
       <div className="qs-live-status-card qs-live-status-leave">
         <span className="qs-live-status-icon"><UserRound className="size-3.5" /></span>
@@ -1440,7 +1437,7 @@ function StaffLiveStatus({ clockEntry, staleClockEntry, timezone, schedule, onLe
   }
   if (clockEntry) {
     const seconds = Math.max(0, Math.floor((now - new Date(clockEntry.clock_in).getTime()) / 1000));
-    const clockedAt = new Date(clockEntry.clock_in).toLocaleTimeString(ar ? "ar-JO" : "en-JO", { hour: "2-digit", minute: "2-digit" });
+    const clockedAt = new Date(clockEntry.clock_in).toLocaleTimeString(ar ? "ar-JO" : "en-JO", { timeZone: timezone, hour: "2-digit", minute: "2-digit" });
     return (
       <div className="qs-live-status-card qs-live-status-on">
         <span className="qs-live-status-icon"><ShieldCheck className="size-3.5" /></span>
@@ -1776,6 +1773,8 @@ function AssignStaffShiftDialog({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const restaurant = useRestaurant(restaurantId);
+  const timeZone = restaurant.data?.timezone || "Asia/Amman";
   const today = todayKey;
   const available = shifts.filter(
     (shift) =>
@@ -1785,20 +1784,30 @@ function AssignStaffShiftDialog({
         (assignment) => assignment.shift_id === shift.id && assignment.staff_id === member.id,
       ),
   );
-  const [mode, setMode] = useState<"existing" | "new">(available.length ? "existing" : "new");
+  const editable = assignments.filter(assignment => {
+    const shift = shifts.find(row => row.id === assignment.shift_id);
+    const end = assignment.ends_at ?? shift?.planned_end;
+    return assignment.staff_id === member.id && assignment.status !== "released" && shift?.status !== "closed" && Boolean(end && Date.parse(end) > Date.now());
+  }).sort((a,b) => Date.parse(a.starts_at ?? "") - Date.parse(b.starts_at ?? ""))[0];
+  const editingShift = shifts.find(row => row.id === editable?.shift_id);
+  const initialStart = editable?.starts_at ?? editingShift?.planned_start;
+  const initialEnd = editable?.ends_at ?? editingShift?.planned_end;
+  const initialStartLocal = initialStart ? workforceLocalInput(initialStart,timeZone) : "";
+  const initialEndLocal = initialEnd ? workforceLocalInput(initialEnd,timeZone) : "";
+  const [mode, setMode] = useState<"edit" | "existing" | "new">(editable ? "edit" : available.length ? "existing" : "new");
   const [newMode, setNewMode] = useState<"single" | "recurring">("single");
   const [shiftId, setShiftId] = useState(available[0]?.id ?? "");
-  const [name, setName] = useState(ar ? "وردية خدمة" : "Service shift");
-  const [date, setDate] = useState(today);
+  const [name, setName] = useState(editingShift?.name ?? (ar ? "وردية خدمة" : "Service shift"));
+  const [date, setDate] = useState(initialStartLocal.slice(0,10) || today);
   const [rangeEnd, setRangeEnd] = useState(() => addLocalDays(today, 83));
   const [weekdays, setWeekdays] = useState<number[]>([0, 1, 2, 3, 4]);
-  const [start, setStart] = useState("09:00");
-  const [end, setEnd] = useState("17:00");
+  const [start, setStart] = useState(initialStartLocal.slice(11,16) || "09:00");
+  const [end, setEnd] = useState(initialEndLocal.slice(11,16) || "17:00");
   const overnight = Boolean(start && end && end <= start);
-  const invalidRange = newMode === "recurring" && rangeEnd < date;
+  const invalidRange = mode === "new" && newMode === "recurring" && rangeEnd < date;
   const todayWeekday = new Date(`${today}T12:00:00`).getDay();
   const todayIncluded =
-    newMode === "recurring" &&
+    mode === "new" && newMode === "recurring" &&
     date <= today &&
     rangeEnd >= today &&
     weekdays.includes(todayWeekday);
@@ -1810,6 +1819,14 @@ function AssignStaffShiftDialog({
   }
 
   const save = async () => {
+    if (mode === "edit" && editable) {
+      const starts_at = localDateTimeIso(date,start,0,timeZone);
+      const ends_at = localDateTimeIso(date,end,overnight ? 1 : 0,timeZone);
+      if (hasShiftConflict(member.id,starts_at,ends_at,assignments.filter(row => row.id !== editable.id),shifts)) throw new Error(ar ? "يتداخل هذا الوقت مع وردية أخرى." : "This time overlaps another assignment.");
+      const {error} = await (supabase.from("shift_assignments" as any) as any).update({starts_at,ends_at}).eq("id",editable.id).eq("restaurant_id",restaurantId).eq("staff_id",member.id).select("id").single();
+      if (error) throw error;
+      return {assigned:1,skipped:0,recurring:false};
+    }
     if (mode === "existing") {
       const shift = available.find((row) => row.id === shiftId);
       if (!shift) throw new Error(ar ? "اختر وردية متاحة." : "Choose an available shift.");
@@ -1850,8 +1867,8 @@ function AssignStaffShiftDialog({
       return { assigned: result.assigned, skipped: result.skipped, recurring: true };
     }
 
-    const plannedStart = localDateTimeIso(date, start);
-    const plannedEnd = localDateTimeIso(date, end, overnight ? 1 : 0);
+    const plannedStart = localDateTimeIso(date, start, 0, timeZone);
+    const plannedEnd = localDateTimeIso(date, end, overnight ? 1 : 0, timeZone);
     if (hasShiftConflict(member.id, plannedStart, plannedEnd, assignments, shifts))
       throw new Error(
         ar
@@ -1894,7 +1911,7 @@ function AssignStaffShiftDialog({
             : `${result.assigned} shifts assigned to ${member.name}${result.skipped ? ` · ${result.skipped} duplicate(s) skipped` : ""}`,
         );
       } else {
-        toast.success(ar ? `تمت إضافة وردية ${member.name}` : `Shift assigned to ${member.name}`);
+        toast.success(mode === "edit" ? (ar ? `تم تعديل وردية ${member.name}` : `Shift updated for ${member.name}`) : (ar ? `تمت إضافة وردية ${member.name}` : `Shift assigned to ${member.name}`));
       }
       onClose();
     },
@@ -1903,7 +1920,7 @@ function AssignStaffShiftDialog({
 
   const newReady =
     Boolean(name.trim() && date && start && end) &&
-    (newMode === "single" || Boolean(rangeEnd && weekdays.length && !invalidRange));
+    (mode === "edit" || newMode === "single" || Boolean(rangeEnd && weekdays.length && !invalidRange));
   const selectedDaysLabel =
     newMode === "single"
       ? date
@@ -1923,7 +1940,7 @@ function AssignStaffShiftDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <span className="grid size-9 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><CalendarPlus className="size-4" /></span>
-              {ar ? `إضافة وردية لـ ${member.name}` : `Assign shift to ${member.name}`}
+              {mode === "edit" ? (ar ? `تعديل وردية ${member.name}` : `Edit shift for ${member.name}`) : (ar ? `إضافة وردية لـ ${member.name}` : `Assign shift to ${member.name}`)}
             </DialogTitle>
             <DialogDescription>
               {ar ? "اختر وردية موجودة أو أنشئ وردية مفردة أو جدول عمل متكرر بأيام تختارها." : "Choose an existing shift, a single work window, or a recurring weekly schedule."}
@@ -1932,7 +1949,8 @@ function AssignStaffShiftDialog({
         </div>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
-          <div className="grid grid-cols-2 rounded-xl border border-border bg-muted/25 p-1">
+          <div className={cn("grid rounded-xl border border-border bg-muted/25 p-1",editable ? "grid-cols-3" : "grid-cols-2")}>
+            {editable ? <button type="button" onClick={() => setMode("edit")} className={cn("min-h-11 rounded-lg px-2 text-xs font-bold",mode === "edit" ? "bg-card shadow-sm" : "text-muted-foreground")}>{ar ? "تعديل الوردية" : "Edit shift"}</button> : null}
             <button type="button" disabled={!available.length} onClick={() => setMode("existing")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "existing" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground", !available.length && "cursor-not-allowed opacity-45")}>
               {ar ? "وردية موجودة" : "Existing shift"}
             </button>
@@ -1945,27 +1963,27 @@ function AssignStaffShiftDialog({
             <Field label={ar ? "الوردية المتاحة" : "Available shift"}>
               <Select value={shiftId} onValueChange={setShiftId}>
                 <SelectTrigger className="h-12"><SelectValue placeholder={ar ? "اختر وردية" : "Choose a shift"} /></SelectTrigger>
-                <SelectContent>{available.map((shift) => <SelectItem key={shift.id} value={shift.id}>{shift.name} · {formatShiftOption(shift, ar)}</SelectItem>)}</SelectContent>
+                <SelectContent>{available.map((shift) => <SelectItem key={shift.id} value={shift.id}>{shift.name} · {formatShiftOption(shift, ar, timeZone)}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
           ) : (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 rounded-xl border border-border bg-muted/20 p-1">
+              {mode === "new" ? <div className="grid grid-cols-2 rounded-xl border border-border bg-muted/20 p-1">
                 <button type="button" onClick={() => setNewMode("single")} className={cn("min-h-10 rounded-lg px-3 text-xs font-bold transition sm:text-sm", newMode === "single" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "يوم واحد" : "Single day"}</button>
                 <button type="button" onClick={() => { setNewMode("recurring"); if (rangeEnd <= date) setRangeEnd(addLocalDays(date, 83)); }} className={cn("min-h-10 rounded-lg px-3 text-xs font-bold transition sm:text-sm", newMode === "recurring" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "أيام متكررة" : "Recurring days"}</button>
               </div>
-
+              : null}
               <Field label={ar ? "اسم الوردية" : "Shift name"}>
-                <Input value={name} maxLength={80} onChange={(event) => setName(event.target.value)} placeholder={ar ? "مثال: وردية المساء" : "e.g. Evening service"} />
+                <Input disabled={mode === "edit"} value={name} maxLength={80} onChange={(event) => setName(event.target.value)} placeholder={ar ? "مثال: وردية المساء" : "e.g. Evening service"} />
               </Field>
 
-              {newMode === "single" ? (
-                <Field label={ar ? "التاريخ" : "Date"}><Input type="date" value={date} min={today} onChange={(event) => setDate(event.target.value)} /></Field>
+              {mode === "edit" || newMode === "single" ? (
+                <RequestDatePicker timeZone={timeZone} label={ar ? "التاريخ" : "Date"} ar={ar} value={date} min={mode === "edit" && initialStartLocal.slice(0,10) < today ? initialStartLocal.slice(0,10) : today} onChange={setDate} />
               ) : (
                 <>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label={ar ? "من تاريخ" : "Start date"}><Input type="date" value={date} min={today} onChange={(event) => { const next = event.target.value; setDate(next); if (rangeEnd < next) setRangeEnd(addLocalDays(next, 83)); }} /></Field>
-                    <Field label={ar ? "إلى تاريخ" : "End date"}><Input type="date" value={rangeEnd} min={date} onChange={(event) => setRangeEnd(event.target.value)} /></Field>
+                    <RequestDatePicker timeZone={timeZone} label={ar ? "من تاريخ" : "Start date"} ar={ar} value={date} min={today} onChange={next => { setDate(next); if (rangeEnd < next) setRangeEnd(addLocalDays(next, 83)); }} />
+                    <RequestDatePicker timeZone={timeZone} label={ar ? "إلى تاريخ" : "End date"} ar={ar} value={rangeEnd} min={date} onChange={setRangeEnd} />
                   </div>
 
                   <section className="rounded-2xl border border-border bg-muted/10 p-4">
@@ -1993,8 +2011,8 @@ function AssignStaffShiftDialog({
               )}
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={ar ? "وقت البداية" : "Start time"}><Input type="time" value={start} onChange={(event) => setStart(event.target.value)} /></Field>
-                <Field label={ar ? "وقت النهاية" : "End time"}><Input type="time" value={end} onChange={(event) => setEnd(event.target.value)} /></Field>
+                <RequestTimePicker label={ar ? "وقت البداية" : "Start time"} ar={ar} value={start} onChange={setStart} />
+                <RequestTimePicker label={ar ? "وقت النهاية" : "End time"} ar={ar} value={end} onChange={setEnd} />
               </div>
               {overnight ? <p className="rounded-xl bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">{ar ? "ستنتهي كل وردية في اليوم التالي." : "Each shift ends the following day."}</p> : null}
             </div>
@@ -2026,7 +2044,7 @@ function AssignStaffShiftDialog({
           <Button type="button" variant="outline" className="min-w-24" disabled={mutation.isPending} onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button>
           <Button type="button" className="min-w-36 shadow-md" disabled={mutation.isPending || (mode === "existing" ? !shiftId : !newReady)} onClick={() => mutation.mutate()}>
             <CalendarPlus className="size-4" />
-            {mutation.isPending ? (ar ? "جارٍ الحفظ…" : "Saving…") : mode === "new" && newMode === "recurring" ? (ar ? "تعيين الجدول" : "Assign schedule") : (ar ? "إضافة الوردية" : "Assign shift")}
+            {mutation.isPending ? (ar ? "جارٍ الحفظ…" : "Saving…") : mode === "edit" ? (ar ? "حفظ التغييرات" : "Save changes") : mode === "new" && newMode === "recurring" ? (ar ? "تعيين الجدول" : "Assign schedule") : (ar ? "إضافة الوردية" : "Assign shift")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -2269,11 +2287,8 @@ function formatTimeInput(value: string, ar: boolean) {
   return date.toLocaleTimeString(ar ? "ar-JO" : "en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
-function localDateTimeIso(date: string, time: string, addDays = 0) {
-  const value = new Date(`${date}T${time}:00`);
-  if (addDays) value.setDate(value.getDate() + addDays);
-  if (Number.isNaN(value.getTime())) throw new Error("Invalid shift date or time.");
-  return value.toISOString();
+function localDateTimeIso(date: string, time: string, addDays = 0, timeZone = "Asia/Amman") {
+  return new Date(workforceLocalTimestamp(addDays ? addLocalDays(date,addDays) : date,time,timeZone)).toISOString();
 }
 
 function addLocalDays(date: string, days: number) {
@@ -2312,10 +2327,10 @@ function formatScheduleDayLabel(value: string, ar: boolean) {
   });
 }
 
-function formatTodayShiftRange(start: string | null, end: string | null, ar: boolean) {
+function formatTodayShiftRange(start: string | null, end: string | null, ar: boolean, timeZone: string) {
   if (!start && !end) return ar ? "اليوم" : "Today";
   const locale = ar ? "ar-JO" : "en-JO";
-  const fmt = (value: string | null) => value ? new Date(value).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "—";
+  const fmt = (value: string | null) => value ? new Date(value).toLocaleTimeString(locale, { timeZone, hour: "2-digit", minute: "2-digit" }) : "—";
   return `${ar ? "اليوم" : "Today"} · ${fmt(start)}–${fmt(end)}`;
 }
 
@@ -2335,14 +2350,14 @@ function dateKeyInTimeZone(value: Date, timeZone: string) {
   return localDateKey(value);
 }
 
-function formatShiftOption(shift: StaffScheduleRow, ar: boolean) {
+function formatShiftOption(shift: StaffScheduleRow, ar: boolean, timeZone = "Asia/Amman") {
   if (!shift.planned_start) return shift.shift_date;
   const start = new Date(shift.planned_start);
   const end = shift.planned_end ? new Date(shift.planned_end) : null;
   const locale = ar ? "ar-JO" : "en-JO";
-  const date = start.toLocaleDateString(locale, { month: "short", day: "numeric" });
-  const startTime = start.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
-  const endTime = end?.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) ?? "—";
+  const date = start.toLocaleDateString(locale, { timeZone, month: "short", day: "numeric" });
+  const startTime = start.toLocaleTimeString(locale, { timeZone, hour: "2-digit", minute: "2-digit" });
+  const endTime = end?.toLocaleTimeString(locale, { timeZone, hour: "2-digit", minute: "2-digit" }) ?? "—";
   return `${date}, ${startTime}–${endTime}`;
 }
 

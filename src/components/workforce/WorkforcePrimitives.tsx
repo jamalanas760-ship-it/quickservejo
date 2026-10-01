@@ -1,5 +1,6 @@
+import { RequestDatePicker } from "./RequestPickers";
 import { type ReactNode } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { WorkforceButton as Button } from "./WorkforceButton";
 import { Input } from "@/components/ui/input";
 import { DetailSheet } from "@/components/operations/DetailSheet";
@@ -16,9 +17,10 @@ export function weekOf(key: string) {
   const d = new Date(`${key}T12:00:00`);
   return Array.from({ length: 7 }, (_, i) => moveDay(key, i - d.getDay()));
 }
-export const timeLabel = (value: string | null | undefined, ar: boolean) =>
+export const timeLabel = (value: string | null | undefined, ar: boolean, timeZone = "Asia/Amman") =>
   value
     ? new Date(value).toLocaleTimeString(ar ? "ar-JO" : "en-US", {
+        timeZone,
         hour: "numeric",
         minute: "2-digit",
       })
@@ -111,7 +113,6 @@ export function WeekControl({
   onChange: (d: string) => void;
   ar: boolean;
 }) {
-  const days = weekOf(date);
   return (
     <div className="wf-period">
       <Button
@@ -122,12 +123,7 @@ export function WeekControl({
       >
         <ChevronLeft className="size-4" />
       </Button>
-      <span>
-        <CalendarDays className="size-4" />
-        <strong>
-          {dateLabel(days[0], ar)} – {dateLabel(days[6], ar)}, {days[0].slice(0, 4)}
-        </strong>
-      </span>
+      <RequestDatePicker label={ar ? "أسبوع الجدول" : "Schedule week"} ar={ar} value={date} onChange={onChange} />
       <Button
         size="icon"
         variant="outline"

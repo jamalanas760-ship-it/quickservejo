@@ -1,3 +1,6 @@
+import { useRestaurant } from "@/hooks/useSuperAdmin";
+import { workforceLocalTimestamp, workforceDayKey, workforceLocalInput, workforceInputTimestamp } from "@/lib/workforce-hours";
+import { RequestDateTimePicker } from "@/components/workforce/RequestPickers";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouterState } from "@tanstack/react-router";
@@ -139,6 +142,8 @@ function ShiftsPage() {
   const access = useAccess();
   const qc = useQueryClient();
   const rid = scope.restaurantId;
+  const restaurant = useRestaurant(rid ?? "");
+  const timeZone = restaurant.data?.timezone || "Asia/Amman";
   const membership = rid ? access.membershipFor(rid) : null;
   const canView = Boolean(
     membership &&
@@ -176,9 +181,9 @@ function ShiftsPage() {
       setWorkforceSection(requestedSection as WorkforceSection);
   }, [requestedSection]);
   const [memberSheet, setMemberSheet] = useState<WorkforceMember | null>(null);
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toLocaleDateString("en-CA"));
+  const [selectedDate, setSelectedDate] = useState(() => workforceDayKey(new Date(),timeZone));
   const [liveNow, setLiveNow] = useState(() => Date.now());
-  const [liveToday, setLiveToday] = useState(() => new Date().toLocaleDateString("en-CA"));
+  const [liveToday, setLiveToday] = useState(() => workforceDayKey(new Date(),timeZone));
 
   useEffect(() => {
     if (!rid || !canView) return;
@@ -202,7 +207,7 @@ function ShiftsPage() {
   useEffect(() => {
     const refresh = () => {
       const nextNow = Date.now();
-      const nextToday = new Date(nextNow).toLocaleDateString("en-CA");
+      const nextToday = workforceDayKey(new Date(nextNow),timeZone);
       setLiveNow(nextNow);
       setLiveToday((previous) => {
         if (previous !== nextToday) {
@@ -214,6 +219,7 @@ function ShiftsPage() {
     const onVisible = () => {
       if (document.visibilityState === "visible") refresh();
     };
+    refresh();
     const timer = window.setInterval(refresh, 30_000);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", onVisible);
@@ -222,7 +228,7 @@ function ShiftsPage() {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, []);
+  }, [timeZone]);
 
   const workforceSnapshot = useQuery<{
     time: Array<{ staff_id: string; clock_in: string; clock_out: string | null }>;
@@ -370,6 +376,7 @@ function ShiftsPage() {
             <span className="wf-date">
               <CalendarDays className="size-4" />
               {new Date(liveNow).toLocaleDateString(ar ? "ar-JO" : "en-US", {
+                timeZone,
                 weekday: "short",
                 month: "short",
                 day: "2-digit",
@@ -525,6 +532,7 @@ function ShiftsPage() {
         ) : null}
         {workforceSection === "schedule" ? (
           <WorkforceWeekBoard
+            restaurantId={rid}
             date={selectedDate}
             onChangeDate={setSelectedDate}
             shifts={rows}
@@ -784,13 +792,7 @@ function addShiftDays(dateKey: string, amount: number) {
   value.setDate(value.getDate() + amount);
   return value.toLocaleDateString("en-CA");
 }
-function toWorkforceLocalInput(value: string | null | undefined) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (number: number) => String(number).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
+function toWorkforceLocalInput(value: string | null | undefined, timeZone = "Asia/Amman") { return value ? workforceLocalInput(value,timeZone) : ""; }
 
 function formatShiftDateLabel(dateKey: string, ar: boolean) {
   return new Date(`${dateKey}T12:00:00`).toLocaleDateString(ar ? "ar-JO" : "en-US", {
@@ -1248,33 +1250,35 @@ function SelfMissingPunchRequestSheet({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
-  const scheduledIn = assignment?.starts_at ? toWorkforceLocalInput(assignment.starts_at) : "";
-  const scheduledOut = assignment?.ends_at ? toWorkforceLocalInput(assignment.ends_at) : "";
+  const restaurant = useRestaurant(restaurantId);
+  const timeZone = restaurant.data?.timezone || "Asia/Amman";
+  const scheduledIn = assignment?.starts_at ? toWorkforceLocalInput(assignment.starts_at,timeZone) : "";
+  const scheduledOut = assignment?.ends_at ? toWorkforceLocalInput(assignment.ends_at,timeZone) : "";
   const [clockIn, setClockIn] = useState(scheduledIn);
   const [clockOut, setClockOut] = useState(scheduledOut);
   const [breakMinutes, setBreakMinutes] = useState("0");
   const [reason, setReason] = useState("");
   const durationMinutes =
     clockIn && clockOut
-      ? Math.round((new Date(clockOut).getTime() - new Date(clockIn).getTime()) / 60000)
+      ? Math.round((workforceInputTimestamp(clockOut,timeZone) - workforceInputTimestamp(clockIn,timeZone)) / 60000)
       : 0;
   const invalid =
     !clockIn ||
     !clockOut ||
-    durationMinutes <= 0 ||
+    !Number.isFinite(durationMinutes) || durationMinutes <= 0 ||
     durationMinutes > 2160 ||
     Number(breakMinutes) < 0 ||
     Number(breakMinutes) >= durationMinutes ||
     reason.trim().length < 3 ||
-    new Date(clockIn).getTime() > Date.now() + 5 * 60_000 ||
-    new Date(clockOut).getTime() > Date.now() + 5 * 60_000;
+    workforceInputTimestamp(clockIn,timeZone) > Date.now() + 5 * 60_000 ||
+    workforceInputTimestamp(clockOut,timeZone) > Date.now() + 5 * 60_000;
 
   const submit = useMutation({
     mutationFn: async () => {
       const { error } = await (supabase as any).rpc("submit_missing_punch_request", {
         _restaurant_id: restaurantId,
-        _clock_in: new Date(clockIn).toISOString(),
-        _clock_out: new Date(clockOut).toISOString(),
+        _clock_in: new Date(workforceInputTimestamp(clockIn,timeZone)).toISOString(),
+        _clock_out: new Date(workforceInputTimestamp(clockOut,timeZone)).toISOString(),
         _break_minutes: Number(breakMinutes) || 0,
         _reason: reason.trim(),
       });
@@ -1298,8 +1302,8 @@ function SelfMissingPunchRequestSheet({
 
   const applySchedule = () => {
     if (!assignment?.starts_at || !assignment.ends_at) return;
-    setClockIn(toWorkforceLocalInput(assignment.starts_at));
-    setClockOut(toWorkforceLocalInput(assignment.ends_at));
+    setClockIn(toWorkforceLocalInput(assignment.starts_at,timeZone));
+    setClockOut(toWorkforceLocalInput(assignment.ends_at,timeZone));
   };
 
   return (
@@ -1360,21 +1364,15 @@ function SelfMissingPunchRequestSheet({
         ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>{ar ? "وقت الدخول" : "Clock in"}</Label>
-            <Input
-              type="datetime-local"
-              className="min-h-11"
+            <RequestDateTimePicker timeZone={timeZone} label={ar ? "وقت الدخول" : "Clock in"} ar={ar}
               value={clockIn}
-              onChange={(event) => setClockIn(event.target.value)}
+              onChange={(value) => setClockIn(value)}
             />
           </div>
           <div className="space-y-2">
-            <Label>{ar ? "وقت الخروج" : "Clock out"}</Label>
-            <Input
-              type="datetime-local"
-              className="min-h-11"
+            <RequestDateTimePicker timeZone={timeZone} label={ar ? "وقت الخروج" : "Clock out"} ar={ar}
               value={clockOut}
-              onChange={(event) => setClockOut(event.target.value)}
+              onChange={(value) => setClockOut(value)}
             />
           </div>
         </div>
@@ -1427,12 +1425,10 @@ function formatRelativeClock(value: string, nowMs: number, ar: boolean) {
   const minutes = total % 60;
   return ar ? "بعد " + hours + "س " + minutes + "د" : "in " + hours + "h " + minutes + "m";
 }
-function localShiftDateTimeIso(date: string, time: string, addDays = 0) {
-  const value = new Date(`${date}T${time}:00`);
-  if (addDays) value.setDate(value.getDate() + addDays);
-  if (Number.isNaN(value.getTime())) throw new Error("Invalid shift date or time.");
-  return value.toISOString();
+function localShiftDateTimeIso(date: string, time: string, addDays = 0, timeZone = "Asia/Amman") {
+  return new Date(workforceLocalTimestamp(addDays ? addShiftDays(date,addDays) : date,time,timeZone)).toISOString();
 }
+
 function countRecurringDays(startDate: string, endDate: string, weekdays: number[]) {
   const start = new Date(`${startDate}T12:00:00`);
   const end = new Date(`${endDate}T12:00:00`);
@@ -1979,7 +1975,9 @@ function CreateShiftDialog({
   lang: "en" | "ar";
 }) {
   const qc = useQueryClient();
-  const today = new Date().toLocaleDateString("en-CA");
+  const restaurant = useRestaurant(restaurantId);
+  const timeZone = restaurant.data?.timezone || "Asia/Amman";
+  const today = workforceDayKey(new Date(),timeZone);
   const [mode, setMode] = useState<"single" | "recurring">("single");
   const [name, setName] = useState(ar ? "وردية اليوم" : "Service shift");
   const [date, setDate] = useState(today);
@@ -2038,8 +2036,8 @@ function CreateShiftDialog({
           restaurant_id: restaurantId,
           name: name.trim(),
           shift_date: date,
-          planned_start: localShiftDateTimeIso(date, start),
-          planned_end: localShiftDateTimeIso(date, end, overnight ? 1 : 0),
+          planned_start: localShiftDateTimeIso(date, start, 0, timeZone),
+          planned_end: localShiftDateTimeIso(date, end, overnight ? 1 : 0, timeZone),
           notes: savedNotes,
         });
         created = [row];
@@ -2177,6 +2175,7 @@ function CreateShiftDialog({
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <RequestDatePicker
+                  timeZone={timeZone}
                   label={
                     mode === "single"
                       ? ar
@@ -2195,6 +2194,7 @@ function CreateShiftDialog({
                 />
                 {mode === "recurring" ? (
                   <RequestDatePicker
+                  timeZone={timeZone}
                     label={ar ? "تاريخ النهاية" : "End date"}
                     value={rangeEnd}
                     min={date}

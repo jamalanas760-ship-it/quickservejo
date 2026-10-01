@@ -1,3 +1,5 @@
+import { workforceHours, workforceDayKey } from "@/lib/workforce-hours";
+import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useState } from "react";
 import { Download, ChevronRight } from "lucide-react";
 import { WorkforceButton as Button } from "./WorkforceButton";
@@ -46,6 +48,7 @@ export function StatusPill({
   return <span className={cn("wf-pill", lifecycleTone(status))}>{lifecycleLabel(status, ar)}</span>;
 }
 export function WorkforceWeekBoard({
+  restaurantId,
   date,
   onChangeDate,
   shifts,
@@ -56,6 +59,7 @@ export function WorkforceWeekBoard({
   onCreate,
   canManage,
 }: {
+  restaurantId: string;
   date: string;
   onChangeDate: (v: string) => void;
   shifts: Shift[];
@@ -68,8 +72,35 @@ export function WorkforceWeekBoard({
 }) {
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("all");
-  const days = weekOf(date),
-    today = localDay(new Date());
+  const days = weekOf(date);
+  const restaurant = useRestaurant(restaurantId);
+  const timeZone = restaurant.data?.timezone || "Asia/Amman";
+  const today = workforceDayKey(new Date(), timeZone);
+  const attendance = useWorkforceData(restaurantId, { start: days[0]!, end: days[6]! });
+  const effectiveAssignments = assignments.map((a) => ({
+    ...a,
+    starts_at: a.starts_at ?? shifts.find((s) => s.id === a.shift_id)?.planned_start,
+    ends_at: a.ends_at ?? shifts.find((s) => s.id === a.shift_id)?.planned_end,
+  }));
+  const hoursCache = new Map<string, ReturnType<typeof workforceHours>>();
+  const comparisonNow = Date.now();
+  const comparison = (id: string, day: string) => {
+    const key = `${id}:${day}`;
+    if (!hoursCache.has(key))
+      hoursCache.set(
+        key,
+        workforceHours(
+          id,
+          day,
+          effectiveAssignments,
+          attendance.data?.entries ?? [],
+          comparisonNow,
+          timeZone,
+        ),
+      );
+    return hoursCache.get(key)!;
+  };
+
   const rows = members.filter(
     (m) =>
       m.is_active &&
@@ -129,13 +160,35 @@ export function WorkforceWeekBoard({
                 <td>
                   <Person member={m} />
                   <small>{ROLE_LABELS[m.role]?.[ar ? "ar" : "en"]}</small>
+                  <div className="wf-hours-total">
+                    <span>
+                      {ar ? "مخطط" : "Planned"}{" "}
+                      {hourLabel(
+                        days.reduce((sum, d) => sum + comparison(m.id, d).plannedH, 0),
+                        ar,
+                      )}
+                    </span>
+                    <span>
+                      {ar ? "فعلي" : "Actual"}{" "}
+                      {attendance.isPending
+                        ? "…"
+                        : attendance.isError
+                          ? "—"
+                          : hourLabel(
+                              days.reduce((sum, d) => sum + comparison(m.id, d).actualH, 0),
+                              ar,
+                            )}
+                    </span>
+                  </div>
                 </td>
                 {days.map((d) => {
                   const list = assignments.filter(
                     (a) =>
                       a.staff_id === m.id &&
                       a.status !== "released" &&
-                      byId.get(a.shift_id)?.shift_date === d,
+                      (a.starts_at
+                        ? workforceDayKey(new Date(a.starts_at), timeZone)
+                        : byId.get(a.shift_id)?.shift_date) === d,
                   );
                   return (
                     <td key={d} className={d === today ? "is-today" : ""}>
@@ -148,14 +201,33 @@ export function WorkforceWeekBoard({
                             onClick={() => onOpen(s)}
                           >
                             <strong>
-                              {shiftType(s)} · {timeLabel(a.starts_at ?? s.planned_start, ar)} –{" "}
-                              {timeLabel(a.ends_at ?? s.planned_end, ar)}
+                              {shiftType(s)} ·{" "}
+                              {timeLabel(a.starts_at ?? s.planned_start, ar, timeZone)} –{" "}
+                              {timeLabel(a.ends_at ?? s.planned_end, ar, timeZone)}
                             </strong>
                             <small>{s.name}</small>
                           </button>
                         );
                       })}
                       {!list.length ? <span className="wf-empty-cell">—</span> : null}
+                      {list.length || comparison(m.id, d).actualH > 0 ? (
+                        <div className="wf-hours-comparison">
+                          <span>
+                            {ar ? "مخطط" : "Planned"}: {hourLabel(comparison(m.id, d).plannedH, ar)}
+                          </span>
+                          <strong>
+                            {ar ? "فعلي" : "Actual"}:{" "}
+                            {attendance.isPending
+                              ? "…"
+                              : attendance.isError
+                                ? "—"
+                                : hourLabel(comparison(m.id, d).actualH, ar)}{" "}
+                            {comparison(m.id, d).live ? (
+                              <i aria-label={ar ? "مباشر" : "Live"} />
+                            ) : null}
+                          </strong>
+                        </div>
+                      ) : null}
                     </td>
                   );
                 })}
@@ -171,7 +243,11 @@ export function WorkforceWeekBoard({
         <span className="wf-shift-A">A</span>
         <span className="wf-shift-B">B</span>
         <span className="wf-shift-C">C</span>
-        <small>{ar ? "اضغط على وردية لعرض التفاصيل" : "Select a shift to view details"}</small>
+        <small>
+          {ar
+            ? "مقارنة الساعات المخططة والفعلية · تتحدث البصمات تلقائياً"
+            : "Select a shift to view details · Planned vs actual hours refresh automatically"}
+        </small>
       </div>
       {unassigned.length ? (
         <div className="wf-unassigned">
@@ -183,7 +259,8 @@ export function WorkforceWeekBoard({
               <button key={s.id} onClick={() => onOpen(s)}>
                 {dateLabel(s.shift_date, ar)} · {s.name}
                 <small>
-                  {timeLabel(s.planned_start, ar)} – {timeLabel(s.planned_end, ar)}
+                  {timeLabel(s.planned_start, ar, timeZone)} –{" "}
+                  {timeLabel(s.planned_end, ar, timeZone)}
                 </small>
               </button>
             ))}
@@ -216,7 +293,7 @@ export function WorkforceToday({
   onAttendance: () => void;
 }) {
   const data = useWorkforceData(restaurantId),
-    today = localDay(new Date());
+    today = workforceDayKey(new Date(), data.data?.timeZone);
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("all");
   const rows = members
@@ -226,7 +303,17 @@ export function WorkforceToday({
         (role === "all" || role === m.role) &&
         m.name.toLowerCase().includes(search.toLowerCase()),
     )
-    .map((m) => ({ m, d: memberDayStatus(m.id, today, assignments, data.data?.entries ?? []) }))
+    .map((m) => ({
+      m,
+      d: memberDayStatus(
+        m.id,
+        today,
+        assignments,
+        data.data?.entries ?? [],
+        Date.now(),
+        data.data?.timeZone,
+      ),
+    }))
     .filter(({ d }) => d.status !== "off");
   return (
     <section className="wf-panel">

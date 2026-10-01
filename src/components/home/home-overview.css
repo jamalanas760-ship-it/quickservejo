@@ -25,3 +25,8 @@
 
 :root:not(.dark) .qs-home-overview{--foreground:#101828;--muted-foreground:#66738a;--border:#e8eaf0;--card:#fff;--muted:#f6f7f8}
 :root:not(.dark) .qs-home-surface{background:#fbfaf9}
+/* Customization uses the same current Home sections, including the live preview. */
+.qs-home-overview{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px}
+.qs-home-greeting{grid-column:1/-1;order:-1;margin-bottom:4px}.qs-home-summary,.qs-home-glance,.qs-home-shortcuts{grid-column:1/-1;margin-bottom:0}.qs-home-main-grid{display:contents}.qs-home-customize{grid-column:1/-1;order:100}
+.qs-home-editor{max-width:520px;max-height:calc(100dvh - 32px);overflow-y:auto}.qs-home-editor-sections{display:grid;gap:10px}.qs-home-editor-row{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px}.qs-home-editor-row strong{flex:1;font-size:14px}.qs-home-editor-row button{flex-shrink:0;min-height:44px}.qs-home-editor-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+@media(max-width:800px){.qs-home-overview{grid-template-columns:minmax(0,1fr)}}

@@ -216,9 +216,9 @@ test("reservation dialogs are mobile-first and never summon the keyboard on open
 
 
 test("Home Add Booking deep-links directly into the reservation creator", async () => {
-  const dashboard = await readFile(new URL("../src/routes/_authenticated/dashboard.tsx", import.meta.url), "utf8");
+  const dashboard = await readFile(new URL("../src/components/home/HomeOverview.tsx", import.meta.url), "utf8");
   const bookings = await readFile(new URL("../src/routes/_authenticated/bookings.tsx", import.meta.url), "utf8");
-  assert.match(dashboard,/to="\/bookings" search=\{\{create:true\}\}/);
+  assert.match(dashboard,/to="\/bookings"\s+search=\{\{\s*create:\s*true\s*\}\}/);
   assert.match(bookings,/validateSearch/);
   assert.match(bookings,/routeSearch\.create/);
   assert.match(bookings,/setCreateOpen\(true\)/);

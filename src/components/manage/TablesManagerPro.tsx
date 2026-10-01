@@ -1,15 +1,66 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { normalizeCanvasSize } from "@/lib/floor-canvas";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter, Building2, CalendarCheck2, Columns3, Download, DoorOpen, Grid3X3, ImagePlus, LayoutGrid, List, Minus, MoreHorizontal, Pencil, Plus, Printer, RotateCw, Save, Square, Table2, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
+import {
+  AlignHorizontalJustifyCenter,
+  AlignVerticalJustifyCenter,
+  Building2,
+  CalendarCheck2,
+  Columns3,
+  Download,
+  DoorOpen,
+  Grid3X3,
+  ImagePlus,
+  LayoutGrid,
+  List,
+  Minus,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Printer,
+  RotateCw,
+  Save,
+  Square,
+  Table2,
+  Trash2,
+  X,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterPageHeader } from "@/components/app/MasterPage";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,157 +71,2787 @@ import { downloadDataUrl, printQrCards, qrDataUrl, tableMenuUrl } from "@/lib/qr
 import { removeRestaurantImage, uploadRestaurantImage } from "@/lib/storage";
 import { FloorElementLibrary, FloorElementPiece, FloorElementInspector } from "./FloorPlanElements";
 import { TablesStudioList, TableQuickPanel, type StudioTable } from "./TablesStudioPanels";
-import { createFloorElement, normalizeFloorElement, parseFloorElements, type FloorElement, type FloorElementType } from "@/lib/floor-plan-elements";
+import {
+  createFloorElement,
+  normalizeFloorElement,
+  parseFloorElements,
+  type FloorElement,
+  type FloorElementType,
+} from "@/lib/floor-plan-elements";
 import { cn } from "@/lib/utils";
 
-type TableServiceStatus="free"|"reserved"|"active"|"cleaning"|"out_of_service";
-type FloorTable={id:string;restaurant_id:string;table_number:string;table_name:string|null;qr_token:string;qr_code_url:string|null;is_active:boolean;service_status?:TableServiceStatus|null;activated_at?:string|null;service_group_id?:string|null;zone?:string|null;capacity?:number|null;shape?:string|null;layout?:Record<string,unknown>|null};
-type ServiceGroup={id:string;label:string|null;status:string;table_ids:string[];table_numbers:string[];combined_capacity:number;created_at:string};
-type Layout={x:number;y:number;rotation:number;scale:number};
-type Shape="round"|"square"|"rectangle";
-type Material="wood"|"glass"|"aluminum"|"marble"|"neutral";
-type Zone={id:string;en:string;ar:string;x:number;y:number;width:number;height:number;color:string};
-type Entrance={id:string;label:string;x:number;y:number;rotation:number;type:"main"|"service"};
-type FloorConfig={id:string;en:string;ar:string;zones:Zone[];entrances:Entrance[];backgroundUrl:string|null;elements?:FloorElement[]};
-type TableDrag={id:string;pointerId:number;startX:number;startY:number;start:Layout;latest:Layout;mode:"move"|"resize"};
-type ZoneDrag={id:string;pointerId:number;startX:number;startY:number;start:Zone;latest:Zone;mode:"move"|"resize"};
-type EntranceDrag={id:string;pointerId:number;startX:number;startY:number;start:Entrance;latest:Entrance};
+type TableServiceStatus = "free" | "reserved" | "active" | "cleaning" | "out_of_service";
+type FloorTable = {
+  id: string;
+  restaurant_id: string;
+  table_number: string;
+  table_name: string | null;
+  qr_token: string;
+  qr_code_url: string | null;
+  is_active: boolean;
+  service_status?: TableServiceStatus | null;
+  activated_at?: string | null;
+  service_group_id?: string | null;
+  zone?: string | null;
+  capacity?: number | null;
+  shape?: string | null;
+  layout?: Record<string, unknown> | null;
+};
+type ServiceGroup = {
+  id: string;
+  label: string | null;
+  status: string;
+  table_ids: string[];
+  table_numbers: string[];
+  combined_capacity: number;
+  created_at: string;
+};
+type Layout = { x: number; y: number; rotation: number; scale: number };
+type Shape = "round" | "square" | "rectangle";
+type Material = "wood" | "glass" | "aluminum" | "marble" | "neutral";
+type Zone = {
+  id: string;
+  en: string;
+  ar: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+};
+type Entrance = {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  rotation: number;
+  type: "main" | "service";
+};
+type FloorConfig = {
+  id: string;
+  en: string;
+  ar: string;
+  zones: Zone[];
+  entrances: Entrance[];
+  backgroundUrl: string | null;
+  elements?: FloorElement[];
+  canvasSize?: { width: number; height: number };
+};
+type TableDrag = {
+  id: string;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  start: Layout;
+  latest: Layout;
+  mode: "move" | "resize";
+};
+type ZoneDrag = {
+  id: string;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  start: Zone;
+  latest: Zone;
+  mode: "move" | "resize";
+};
+type EntranceDrag = {
+  id: string;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  start: Entrance;
+  latest: Entrance;
+};
 
-const W=1000,H=700;
-const OUTSIDE_ZONE="__outside__";
-const clamp=(value:number,min:number,max:number)=>Math.min(max,Math.max(min,value));
-function objectValue(value:unknown):Record<string,unknown>{return value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{};}
-function asNumber(value:unknown,fallback:number){const n=Number(value);return Number.isFinite(n)?n:fallback;}
-function shapeOf(value:unknown):Shape{return value==="round"||value==="circle"?"round":value==="square"?"square":"rectangle";}
-function materialOf(row:FloorTable):Material{const raw=objectValue(row.layout);const value=raw.material;return value==="glass"||value==="aluminum"||value==="marble"||value==="neutral"||value==="wood"?value:"wood";}
-function floorOf(row:FloorTable){const raw=objectValue(row.layout);return typeof raw.floor==="string"&&raw.floor?raw.floor:"ground";}
-function serviceStatusOf(row:FloorTable):TableServiceStatus{return row.is_active?(row.service_status??"free"):"out_of_service";}
-function serviceStatusLabel(status:TableServiceStatus,ar:boolean){return status==="free"?(ar?"متاحة":"Free"):status==="reserved"?(ar?"محجوزة":"Reserved"):status==="active"?(ar?"مشغولة":"Occupied"):status==="cleaning"?(ar?"تنظيف":"Cleaning"):(ar?"خارج الخدمة":"Out of service");}
-function serviceTone(status:TableServiceStatus){return status==="free"?{dot:"#10b981",ring:"rgba(16,185,129,.38)",bg:"rgba(16,185,129,.13)"}:status==="reserved"?{dot:"#3b82f6",ring:"rgba(59,130,246,.38)",bg:"rgba(59,130,246,.13)"}:status==="active"?{dot:"#e85d2a",ring:"rgba(232,93,42,.42)",bg:"rgba(232,93,42,.14)"}:status==="cleaning"?{dot:"#8b5cf6",ring:"rgba(139,92,246,.36)",bg:"rgba(139,92,246,.12)"}:{dot:"#64748b",ring:"rgba(100,116,139,.34)",bg:"rgba(100,116,139,.12)"};}
-const SLOTS=[[170,180],[360,180],[540,180],[170,350],[360,350],[540,350],[735,185],[870,185],[735,365],[870,365],[330,560],[515,560],[700,560],[850,560]];
-function layoutOf(row:FloorTable,index:number):Layout{const raw=objectValue(row.layout);const slot=SLOTS[index%SLOTS.length]!;return{x:clamp(asNumber(raw.x,slot[0]),50,950),y:clamp(asNumber(raw.y,slot[1]),50,650),rotation:clamp(asNumber(raw.rotation,0),-180,180),scale:clamp(asNumber(raw.scale,1),.65,1.6)};}
-function slug(value:string,fallback:string){return value.toLowerCase().trim().replace(/[^a-z0-9\u0600-\u06ff]+/g,"-").replace(/^-|-$/g,"")||fallback;}
-function zoneContaining(layout:Layout,zones:Zone[]){const x=layout.x/W*100;const y=layout.y/H*100;return zones.find(zone=>x>=zone.x&&x<=zone.x+zone.width&&y>=zone.y&&y<=zone.y+zone.height)??null;}
-const ZONE_COLORS=["#ff6a1a","#3b82f6","#8b5cf6","#10b981","#eab308","#ec4899"];
-const DEFAULT_ZONES:Zone[]=[
- {id:"main",en:"Main Dining",ar:"الصالة الرئيسية",x:5,y:7,width:57,height:53,color:ZONE_COLORS[0]!},
- {id:"patio",en:"Patio",ar:"التراس",x:5,y:64,width:42,height:31,color:ZONE_COLORS[1]!},
- {id:"vip",en:"VIP",ar:"VIP",x:51,y:64,width:43,height:31,color:ZONE_COLORS[2]!},
+const W = 1000,
+  H = 700;
+const OUTSIDE_ZONE = "__outside__";
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+function asNumber(value: unknown, fallback: number) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+function shapeOf(value: unknown): Shape {
+  return value === "round" || value === "circle"
+    ? "round"
+    : value === "square"
+      ? "square"
+      : "rectangle";
+}
+function materialOf(row: FloorTable): Material {
+  const raw = objectValue(row.layout);
+  const value = raw.material;
+  return value === "glass" ||
+    value === "aluminum" ||
+    value === "marble" ||
+    value === "neutral" ||
+    value === "wood"
+    ? value
+    : "wood";
+}
+function floorOf(row: FloorTable) {
+  const raw = objectValue(row.layout);
+  return typeof raw.floor === "string" && raw.floor ? raw.floor : "ground";
+}
+function serviceStatusOf(row: FloorTable): TableServiceStatus {
+  return row.is_active ? (row.service_status ?? "free") : "out_of_service";
+}
+function serviceStatusLabel(status: TableServiceStatus, ar: boolean) {
+  return status === "free"
+    ? ar
+      ? "متاحة"
+      : "Free"
+    : status === "reserved"
+      ? ar
+        ? "محجوزة"
+        : "Reserved"
+      : status === "active"
+        ? ar
+          ? "مشغولة"
+          : "Occupied"
+        : status === "cleaning"
+          ? ar
+            ? "تنظيف"
+            : "Cleaning"
+          : ar
+            ? "خارج الخدمة"
+            : "Out of service";
+}
+function serviceTone(status: TableServiceStatus) {
+  return status === "free"
+    ? { dot: "#10b981", ring: "rgba(16,185,129,.38)", bg: "rgba(16,185,129,.13)" }
+    : status === "reserved"
+      ? { dot: "#3b82f6", ring: "rgba(59,130,246,.38)", bg: "rgba(59,130,246,.13)" }
+      : status === "active"
+        ? { dot: "#e85d2a", ring: "rgba(232,93,42,.42)", bg: "rgba(232,93,42,.14)" }
+        : status === "cleaning"
+          ? { dot: "#8b5cf6", ring: "rgba(139,92,246,.36)", bg: "rgba(139,92,246,.12)" }
+          : { dot: "#64748b", ring: "rgba(100,116,139,.34)", bg: "rgba(100,116,139,.12)" };
+}
+const SLOTS = [
+  [170, 180],
+  [360, 180],
+  [540, 180],
+  [170, 350],
+  [360, 350],
+  [540, 350],
+  [735, 185],
+  [870, 185],
+  [735, 365],
+  [870, 365],
+  [330, 560],
+  [515, 560],
+  [700, 560],
+  [850, 560],
 ];
-const DEFAULT_FLOOR:FloorConfig={id:"ground",en:"Ground Floor",ar:"الطابق الأرضي",zones:DEFAULT_ZONES,entrances:[{id:"main-entrance",label:"Main Entrance",x:91,y:52,rotation:90,type:"main"}],backgroundUrl:null};
-function parseZones(value:unknown):Zone[]{if(!Array.isArray(value))return[];return value.flatMap((entry,index)=>{const raw=objectValue(entry);const id=typeof raw.id==="string"&&raw.id?raw.id:"";if(!id)return[];const d=DEFAULT_ZONES[index%DEFAULT_ZONES.length]??DEFAULT_ZONES[0]!;return[{id,en:typeof raw.en==="string"&&raw.en?raw.en:id,ar:typeof raw.ar==="string"&&raw.ar?raw.ar:(typeof raw.en==="string"?raw.en:id),x:clamp(asNumber(raw.x,d.x),1,92),y:clamp(asNumber(raw.y,d.y),1,92),width:clamp(asNumber(raw.width,d.width),8,92),height:clamp(asNumber(raw.height,d.height),8,92),color:typeof raw.color==="string"?raw.color:ZONE_COLORS[index%ZONE_COLORS.length]!}];});}
-function parseEntrances(value:unknown):Entrance[]{if(!Array.isArray(value))return[];return value.flatMap((entry,index)=>{const raw=objectValue(entry);const id=typeof raw.id==="string"&&raw.id?raw.id:`entrance-${index+1}`;return[{id,label:typeof raw.label==="string"&&raw.label?raw.label:`Entrance ${index+1}`,x:clamp(asNumber(raw.x,90),2,96),y:clamp(asNumber(raw.y,50),2,96),rotation:clamp(asNumber(raw.rotation,90),-180,180),type:raw.type==="service"?"service":"main"}];});}
-function floorsFromTheme(value:unknown):FloorConfig[]{const theme=objectValue(value);const workspace=objectValue(theme.workspace);const legacy=typeof workspace.floorPlanBackgroundUrl==="string"&&workspace.floorPlanBackgroundUrl?workspace.floorPlanBackgroundUrl:null;if(!Array.isArray(workspace.tableFloors)||workspace.tableFloors.length===0)return[{...DEFAULT_FLOOR,zones:DEFAULT_ZONES.map(z=>({...z})),entrances:DEFAULT_FLOOR.entrances.map(e=>({...e})),backgroundUrl:legacy}];return workspace.tableFloors.flatMap((entry,index)=>{const raw=objectValue(entry);const id=typeof raw.id==="string"&&raw.id?raw.id:`floor-${index+1}`;const en=typeof raw.en==="string"&&raw.en?raw.en:`Floor ${index+1}`;const ar=typeof raw.ar==="string"&&raw.ar?raw.ar:en;const zones=parseZones(raw.zones);const entrances=parseEntrances(raw.entrances);const backgroundUrl=typeof raw.backgroundUrl==="string"&&raw.backgroundUrl?raw.backgroundUrl:(id==="ground"?legacy:null);return[{id,en,ar,zones:zones.length?zones:[{...DEFAULT_ZONES[0]!}],entrances,backgroundUrl,elements:parseFloorElements(raw.elements)}];});}
-
-export function TablesManagerPro({restaurantId}:{restaurantId:string}){
- const {lang,t}=useI18n();const ar=lang==="ar";const qc=useQueryClient();const restaurantQuery=useRestaurant(restaurantId);const restaurant=restaurantQuery.data;
- const canvasRef=useRef<HTMLDivElement|null>(null);const uploadRef=useRef<HTMLInputElement|null>(null);const tableDrag=useRef<TableDrag|null>(null);const zoneDrag=useRef<ZoneDrag|null>(null);const entranceDrag=useRef<EntranceDrag|null>(null);
- const [view,setView]=useState<"layout"|"list">("layout");const [floors,setFloors]=useState<FloorConfig[]>([{...DEFAULT_FLOOR}]);const [activeFloor,setActiveFloor]=useState("ground");const [activeZone,setActiveZone]=useState("all");const [selectedTableId,setSelectedTableId]=useState<string|null>(null);const [selectedZoneId,setSelectedZoneId]=useState<string|null>(null);const [selectedEntranceId,setSelectedEntranceId]=useState<string|null>(null);const [draft,setDraft]=useState<Record<string,Layout>>({});const [zoom,setZoom]=useState(1);const [grid,setGrid]=useState(true);const [busy,setBusy]=useState(false);const [floorBusy,setFloorBusy]=useState(false);const [qr,setQr]=useState<string|null>(null);
- const [tableOpen,setTableOpen]=useState(false);const [detailsOpen,setDetailsOpen]=useState(false);const [zoneOpen,setZoneOpen]=useState(false);const [zoneEditing,setZoneEditing]=useState<Zone|null>(null);const [floorOpen,setFloorOpen]=useState(false);const [entranceOpen,setEntranceOpen]=useState(false);const [floorName,setFloorName]=useState("");const [zoneName,setZoneName]=useState("");const [entranceName,setEntranceName]=useState("Main Entrance");
- const [form,setForm]=useState({number:"",name:"",capacity:"4",floor:"ground",zone:"main",shape:"square" as Shape,material:"wood" as Material,active:true,rotation:"0"});
- const [editing,setEditing]=useState(false);const [elementsOpen,setElementsOpen]=useState(false);const [selectedElementId,setSelectedElementId]=useState<string|null>(null);const floorSaveInFlight=useRef(false);
- const [mergeOpen,setMergeOpen]=useState(false);const [mergeIds,setMergeIds]=useState<string[]>([]);const [mergeLabel,setMergeLabel]=useState("");
-
- const tables=useQuery<FloorTable[]>({queryKey:["platform","tables",restaurantId],queryFn:async()=>{const{data,error}=await supabase.from("restaurant_tables").select("*").eq("restaurant_id",restaurantId).order("table_number",{ascending:true});if(error)throw error;return(data??[]) as unknown as FloorTable[];}});
- const groups=useQuery<ServiceGroup[]>({queryKey:["table-service-groups",restaurantId],queryFn:async()=>{const{data,error}=await (supabase as any).rpc("get_table_service_groups",{_restaurant_id:restaurantId});if(error)throw error;return(data??[]) as ServiceGroup[];}});
- useEffect(()=>{const channel=supabase.channel(`table-manager-live:${restaurantId}`).on("postgres_changes",{event:"UPDATE",schema:"public",table:"restaurant_tables",filter:`restaurant_id=eq.${restaurantId}`},()=>{void qc.invalidateQueries({queryKey:["platform","tables",restaurantId],exact:true});}).subscribe();return()=>{void supabase.removeChannel(channel);};},[qc,restaurantId]);
- useEffect(()=>{setDraft(prev=>{const next:Record<string,Layout>={};(tables.data??[]).forEach((row,index)=>next[row.id]=prev[row.id]??layoutOf(row,index));return next;});},[tables.data]);
- useEffect(()=>{const next=floorsFromTheme(restaurant?.menu_theme);setFloors(next);setActiveFloor(current=>next.some(f=>f.id===current)?current:next[0]!.id);},[restaurant?.menu_theme]);
- const currentFloor=floors.find(f=>f.id===activeFloor)??floors[0]??DEFAULT_FLOOR;const floorTables=useMemo(()=>(tables.data??[]).filter(row=>floorOf(row)===activeFloor),[tables.data,activeFloor]);const visibleTables=useMemo(()=>floorTables.filter((row,index)=>activeZone==="all"||zoneContaining(draft[row.id]??layoutOf(row,index),currentFloor.zones)?.id===activeZone),[floorTables,activeZone,currentFloor.zones,draft]);const selectedElement=(currentFloor.elements??[]).find(element=>element.id===selectedElementId)??null;const selected=(tables.data??[]).find(row=>row.id===selectedTableId)??null;const selectedGroup=selected?.service_group_id?(groups.data??[]).find(group=>group.id===selected.service_group_id)??null:null;const selectedZone=currentFloor.zones.find(z=>z.id===selectedZoneId)??null;const selectedEntrance=currentFloor.entrances.find(e=>e.id===selectedEntranceId)??null;
- useEffect(()=>{if(!selected)return;const floor=floorOf(selected);const floorConfig=floors.find(f=>f.id===floor)??currentFloor;const currentLayout=draft[selected.id]??layoutOf(selected,0);const physicalZone=zoneContaining(currentLayout,floorConfig.zones)?.id??OUTSIDE_ZONE;setForm({number:selected.table_number,name:selected.table_name??"",capacity:String(selected.capacity??4),floor,zone:floorConfig.zones.some(zone=>zone.id===selected.zone)?selected.zone!:physicalZone,shape:shapeOf(selected.shape),material:materialOf(selected),active:selected.is_active,rotation:String(Math.round(currentLayout.rotation))});},[selectedTableId,floors]);
- useEffect(()=>{if(!selected||!restaurant)return;let cancelled=false;setQr(null);void qrDataUrl(tableMenuUrl(restaurant.slug,selected.qr_token)).then(value=>{if(!cancelled)setQr(value);});return()=>{cancelled=true};},[selected?.id,selected?.qr_token,restaurant?.slug]);
- useEffect(()=>{setActiveZone("all");setSelectedElementId(null);setSelectedTableId(null);setSelectedZoneId(null);setSelectedEntranceId(null);},[activeFloor]);
- async function refresh(){await Promise.all([qc.invalidateQueries({queryKey:["platform","tables",restaurantId],exact:true}),qc.invalidateQueries({queryKey:["table-service-groups",restaurantId]})]);}
- async function persistFloors(next:FloorConfig[]){const current=await supabase.from("restaurants").select("menu_theme").eq("id",restaurantId).single();if(current.error)throw current.error;const theme=objectValue(current.data.menu_theme);const workspace=objectValue(theme.workspace);const ground=next.find(f=>f.id==="ground")?.backgroundUrl??null;const menuTheme={...theme,workspace:{...workspace,tableFloors:next,floorPlanBackgroundUrl:ground}};const{error}=await supabase.from("restaurants").update({menu_theme:menuTheme}).eq("id",restaurantId).select("id").single();if(error)throw error;setFloors(next);qc.setQueryData(["platform","restaurant",restaurantId],(cached:typeof restaurant)=>cached?{...cached,menu_theme:menuTheme}:cached);await qc.invalidateQueries({queryKey:["platform","restaurant",restaurantId],exact:true});}
- async function persistTableLayout(id:string,layout:Layout,extra?:Record<string,unknown>){const row=(tables.data??[]).find(r=>r.id===id);if(!row)return;const raw=objectValue(row.layout);const floor=floors.find(f=>f.id===floorOf(row))??currentFloor;const zoneId=zoneContaining(layout,floor.zones)?.id??OUTSIDE_ZONE;const nextLayout={...raw,...layout,...extra};const{error}=await(supabase.from("restaurant_tables") as any).update({layout:nextLayout,zone:zoneId}).eq("id",id).eq("restaurant_id",restaurantId);if(error){setDraft(value=>({...value,[id]:layoutOf(row,(tables.data??[]).findIndex(item=>item.id===id))}));toast.error(humanError(error,lang));return;}qc.setQueryData<FloorTable[]>(["platform","tables",restaurantId],current=>(current??[]).map(item=>item.id===id?{...item,zone:zoneId,layout:nextLayout}:item));}
- async function alignTables(mode:"row"|"column"|"grid"){const rows=floorTables;if(rows.length<2){toast.info(ar?"أضف طاولتين على الأقل للمحاذاة":"Add at least two tables to align them");return;}const current=rows.map((row,index)=>({row,layout:draft[row.id]??layoutOf(row,index)}));const nextLayouts:Record<string,Layout>={};if(mode==="row"){const y=current.reduce((sum,item)=>sum+item.layout.y,0)/current.length;for(const item of current)nextLayouts[item.row.id]={...item.layout,y};}else if(mode==="column"){const x=current.reduce((sum,item)=>sum+item.layout.x,0)/current.length;for(const item of current)nextLayouts[item.row.id]={...item.layout,x};}else{const columns=Math.max(2,Math.ceil(Math.sqrt(current.length)));current.forEach((item,index)=>{const col=index%columns;const row=Math.floor(index/columns);nextLayouts[item.row.id]={...item.layout,x:clamp(150+col*190,55,945),y:clamp(150+row*180,55,645)};});}setDraft(value=>({...value,...nextLayouts}));setBusy(true);try{await Promise.all(current.map(async({row})=>{const next=nextLayouts[row.id]!;const raw=objectValue(row.layout);const floor=floors.find(f=>f.id===floorOf(row))??currentFloor;const zoneId=zoneContaining(next,floor.zones)?.id??OUTSIDE_ZONE;const{error}=await(supabase.from("restaurant_tables") as any).update({layout:{...raw,...next},zone:zoneId}).eq("id",row.id).eq("restaurant_id",restaurantId);if(error)throw error;}));await refresh();toast.success(ar?"تم ترتيب الطاولات ومحاذاتها":"Tables aligned and saved");}catch(error){toast.error(humanError(error,lang));}finally{setBusy(false);}}
- function openCreate(){const n=(tables.data??[]).length+1;setForm({number:String(n),name:"",capacity:"4",floor:activeFloor,zone:currentFloor.zones[0]?.id??"main",shape:"square",material:"wood",active:true,rotation:"0"});setTableOpen(true);}
- function openMerge(){if(!selected)return;setMergeIds([selected.id]);setMergeLabel("");setMergeOpen(true);}
- function toggleMergeTable(id:string){setMergeIds(current=>current.includes(id)?current.filter(value=>value!==id):[...current,id]);}
- async function mergeTables(){if(!selected||mergeIds.length<2)return;setBusy(true);try{const{error}=await (supabase as any).rpc("merge_service_tables",{_restaurant_id:restaurantId,_table_ids:mergeIds,_label:mergeLabel.trim()||null});if(error)throw error;setMergeOpen(false);setMergeIds([]);setMergeLabel("");await refresh();toast.success(ar?"تم دمج الطاولات كمجموعة خدمة":"Tables merged into one service group");}catch(error){toast.error(humanError(error,lang));}finally{setBusy(false);}}
- async function splitTables(){if(!selectedGroup)return;setBusy(true);try{const{error}=await (supabase as any).rpc("split_service_tables",{_group_id:selectedGroup.id,_table_id:null});if(error)throw error;await refresh();toast.success(ar?"تم فصل مجموعة الطاولات":"Table group split");}catch(error){toast.error(humanError(error,lang));}finally{setBusy(false);}}
- async function createTable(){setBusy(true);try{const index=floorTables.length;const slot=SLOTS[index%SLOTS.length]!;const floor=floors.find(f=>f.id===form.floor)??currentFloor;const targetZone=floor.zones.find(z=>z.id===form.zone)??floor.zones[0]??null;const zone=targetZone?.id??null;const startX=targetZone?(targetZone.x+targetZone.width/2)*10:slot[0];const startY=targetZone?(targetZone.y+targetZone.height/2)*7:slot[1];const{data,error}=await(supabase.from("restaurant_tables") as any).insert({restaurant_id:restaurantId,table_number:form.number.trim()||String((tables.data??[]).length+1),table_name:form.name.trim()||null,qr_token:crypto.randomUUID().replace(/-/g,""),zone,capacity:clamp(Number(form.capacity)||4,1,30),shape:form.shape,is_active:form.active,layout:{x:startX,y:startY,rotation:0,scale:1,floor:form.floor,material:form.material}}).select("*").single();if(error)throw error;await refresh();setTableOpen(false);setActiveFloor(form.floor);if(data?.id)setSelectedTableId(data.id);toast.success(ar?"تمت إضافة الطاولة":"Table added");}catch(error){toast.error(humanError(error,lang));}finally{setBusy(false);}}
- async function saveSelected(){if(!selected)return;setBusy(true);try{const current=draft[selected.id]??layoutOf(selected,0);const rotation=clamp(Number(form.rotation)||0,-180,180);const floor=floors.find(f=>f.id===form.floor)??currentFloor;const targetZone=floor.zones.find(z=>z.id===form.zone)??floor.zones[0]??null;const outsideZone=form.zone===OUTSIDE_ZONE;const zone=outsideZone?OUTSIDE_ZONE:(targetZone?.id??OUTSIDE_ZONE);const insideTarget=targetZone?zoneContaining(current,[targetZone])!==null:true;const next={...current,rotation,...(!outsideZone&&!insideTarget&&targetZone?{x:(targetZone.x+targetZone.width/2)*10,y:(targetZone.y+targetZone.height/2)*7}:{})};const raw=objectValue(selected.layout);const{error}=await(supabase.from("restaurant_tables") as any).update({table_number:form.number.trim()||selected.table_number,table_name:form.name.trim()||null,capacity:clamp(Number(form.capacity)||4,1,30),zone,shape:form.shape,is_active:form.active,layout:{...raw,...next,floor:form.floor,material:form.material}}).eq("id",selected.id).eq("restaurant_id",restaurantId);if(error)throw error;setDraft(value=>({...value,[selected.id]:next}));await refresh();setActiveFloor(form.floor);toast.success(ar?"تم حفظ التغييرات":"Table changes saved");}catch(error){toast.error(humanError(error,lang));}finally{setBusy(false);}}
- async function deleteSelected(){if(!selected||!confirm(ar?"حذف هذه الطاولة؟":"Delete this table?"))return;setBusy(true);try{const{error}=await supabase.from("restaurant_tables").delete().eq("id",selected.id).eq("restaurant_id",restaurantId);if(error)throw error;setSelectedTableId(null);await refresh();toast.success(ar?"تم حذف الطاولة":"Table deleted");}catch(error){toast.error(humanError(error,lang));}finally{setBusy(false);}}
- async function addFloor(){const clean=floorName.trim();if(!clean)return;const id=slug(clean,`floor-${Date.now()}`);const next:FloorConfig={id,en:clean,ar:clean,zones:[{...DEFAULT_ZONES[0]!}],entrances:[],backgroundUrl:null};try{await persistFloors([...floors.filter(f=>f.id!==id),next]);setFloorName("");setFloorOpen(false);setActiveFloor(id);toast.success(ar?"تمت إضافة الطابق":"Floor added");}catch(error){toast.error(humanError(error,lang));}}
- async function deleteFloor(){if(floors.length<=1){toast.error(ar?"يجب أن يبقى طابق واحد على الأقل.":"At least one floor must remain.");return;}if(floorTables.length){toast.error(ar?"انقل أو احذف طاولات هذا الطابق أولاً.":"Move or delete this floor's tables first.");return;}if(!confirm(ar?`حذف ${currentFloor.ar}؟`:`Delete ${currentFloor.en}?`))return;try{const previous=currentFloor.backgroundUrl;const next=floors.filter(f=>f.id!==activeFloor);await persistFloors(next);setActiveFloor(next[0]!.id);if(previous)void removeRestaurantImage(previous).catch(()=>undefined);toast.success(ar?"تم حذف الطابق":"Floor deleted");}catch(error){toast.error(humanError(error,lang));}}
- function defaultNewZone(index:number):Zone{const col=index%3;const row=Math.floor(index/3);return{id:`zone-${Date.now()}`,en:zoneName.trim(),ar:zoneName.trim(),x:5+col*30,y:8+row*31,width:27,height:27,color:ZONE_COLORS[index%ZONE_COLORS.length]!};}
- async function saveZone(){const clean=zoneName.trim();if(!clean)return;try{let next:FloorConfig[];if(zoneEditing){next=floors.map(f=>f.id===activeFloor?{...f,zones:f.zones.map(z=>z.id===zoneEditing.id?{...z,en:clean,ar:clean}:z)}:f);}else{const normalized=slug(clean,"");if(currentFloor.zones.some(z=>z.id===normalized)){toast.error(ar?"هذه المنطقة موجودة بالفعل.":"This zone already exists.");return;}const zone={...defaultNewZone(currentFloor.zones.length),id:normalized||`zone-${Date.now()}`,en:clean,ar:clean};next=floors.map(f=>f.id===activeFloor?{...f,zones:[...f.zones,zone]}:f);setActiveZone("all");setSelectedElementId(null);setSelectedZoneId(zone.id);}await persistFloors(next);setZoneOpen(false);setZoneName("");setZoneEditing(null);toast.success(ar?"تم حفظ المنطقة":"Zone saved");}catch(error){toast.error(humanError(error,lang));}}
- function openRenameZone(zone:Zone){setZoneEditing(zone);setZoneName(ar?zone.ar:zone.en);setZoneOpen(true);}
- async function deleteZone(zoneId:string){if(floorTables.some((table,index)=>zoneContaining(draft[table.id]??layoutOf(table,index),currentFloor.zones)?.id===zoneId)){toast.error(ar?"انقل الطاولات من المنطقة أولاً.":"Move tables out of this zone first.");return;}if(currentFloor.zones.length<=1){toast.error(ar?"يجب أن تبقى منطقة واحدة على الأقل.":"At least one zone must remain.");return;}try{await persistFloors(floors.map(f=>f.id===activeFloor?{...f,zones:f.zones.filter(z=>z.id!==zoneId)}:f));setSelectedZoneId(null);setActiveZone("all");toast.success(ar?"تم حذف المنطقة":"Zone deleted");}catch(error){toast.error(humanError(error,lang));}}
- async function addEntrance(){const label=entranceName.trim()||"Entrance";const entry:Entrance={id:`entrance-${Date.now()}`,label,x:89,y:50,rotation:90,type:label.toLowerCase().includes("service")?"service":"main"};try{await persistFloors(floors.map(f=>f.id===activeFloor?{...f,entrances:[...f.entrances,entry]}:f));setEntranceOpen(false);setEntranceName("Main Entrance");setSelectedElementId(null);setSelectedEntranceId(entry.id);toast.success(ar?"تمت إضافة المدخل":"Entrance added");}catch(error){toast.error(humanError(error,lang));}}
- async function removeEntrance(){if(!selectedEntrance)return;try{await persistFloors(floors.map(f=>f.id===activeFloor?{...f,entrances:f.entrances.filter(e=>e.id!==selectedEntrance.id)}:f));setSelectedEntranceId(null);toast.success(ar?"تم حذف المدخل":"Entrance removed");}catch(error){toast.error(humanError(error,lang));}}
- async function updateFloorBackground(url:string|null){await persistFloors(floors.map(f=>f.id===activeFloor?{...f,backgroundUrl:url}:f));}
- async function uploadFloor(file:File|undefined){if(!file)return;if(!file.type.startsWith("image/")){toast.error(ar?"اختر صورة.":"Choose an image file.");return;}setFloorBusy(true);const previous=currentFloor.backgroundUrl;try{const url=await uploadRestaurantImage(restaurantId,"floorplan",file);await updateFloorBackground(url);if(previous&&previous!==url)void removeRestaurantImage(previous).catch(()=>undefined);toast.success(ar?"تم تحديث مخطط الطابق":"Floor plan updated");}catch(error){toast.error(humanError(error,lang));}finally{setFloorBusy(false);if(uploadRef.current)uploadRef.current.value="";}}
- async function clearFloor(){const previous=currentFloor.backgroundUrl;if(!previous)return;setFloorBusy(true);try{await updateFloorBackground(null);void removeRestaurantImage(previous).catch(()=>undefined);}catch(error){toast.error(humanError(error,lang));}finally{setFloorBusy(false);}}
- function canvasRect(){return canvasRef.current?.getBoundingClientRect()??null;}
- function beginTableDrag(e:ReactPointerEvent<HTMLElement>,row:FloorTable,mode:"move"|"resize"){if(!editing||floorBusy){e.stopPropagation();setSelectedElementId(null);setSelectedTableId(row.id);setSelectedZoneId(null);setSelectedEntranceId(null);return;}const rect=canvasRect();if(!rect)return;e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture(e.pointerId);const current=draft[row.id]??layoutOf(row,0);tableDrag.current={id:row.id,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,start:current,latest:current,mode};setSelectedElementId(null);setSelectedTableId(row.id);setSelectedZoneId(null);setSelectedEntranceId(null);}
- function moveTable(e:ReactPointerEvent<HTMLElement>){const state=tableDrag.current;const rect=canvasRect();if(!state||!rect||state.pointerId!==e.pointerId)return;e.preventDefault();const dx=(e.clientX-state.startX)/rect.width*W;const dy=(e.clientY-state.startY)/rect.height*H;const next=state.mode==="move"?{...state.start,x:clamp(grid?Math.round((state.start.x+dx)/10)*10:state.start.x+dx,45,955),y:clamp(grid?Math.round((state.start.y+dy)/10)*10:state.start.y+dy,45,655)}:{...state.start,scale:clamp(state.start.scale+(dx+dy)/420,.65,1.6)};state.latest=next;setDraft(value=>({...value,[state.id]:next}));}
- function endTableDrag(e:ReactPointerEvent<HTMLElement>){const state=tableDrag.current;if(!state||state.pointerId!==e.pointerId)return;tableDrag.current=null;try{e.currentTarget.releasePointerCapture(e.pointerId);}catch{}if(e.type==="pointercancel"){setDraft(value=>({...value,[state.id]:state.start}));return;}void persistTableLayout(state.id,state.latest);}
- function beginZoneDrag(e:ReactPointerEvent<HTMLElement>,zone:Zone,mode:"move"|"resize"){if(!editing||floorBusy){e.stopPropagation();setSelectedElementId(null);setSelectedZoneId(zone.id);setSelectedTableId(null);setSelectedEntranceId(null);return;}const rect=canvasRect();if(!rect)return;e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture(e.pointerId);zoneDrag.current={id:zone.id,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,start:zone,latest:zone,mode};setSelectedElementId(null);setSelectedZoneId(zone.id);setSelectedTableId(null);setSelectedEntranceId(null);}
- function moveZone(e:ReactPointerEvent<HTMLElement>){const state=zoneDrag.current;const rect=canvasRect();if(!state||!rect||state.pointerId!==e.pointerId)return;e.preventDefault();const dx=(e.clientX-state.startX)/rect.width*100;const dy=(e.clientY-state.startY)/rect.height*100;const next=state.mode==="move"?{...state.start,x:clamp(state.start.x+dx,0,100-state.start.width),y:clamp(state.start.y+dy,0,100-state.start.height)}:{...state.start,width:clamp(state.start.width+dx,8,100-state.start.x),height:clamp(state.start.height+dy,8,100-state.start.y)};state.latest=next;setFloors(value=>value.map(f=>f.id===activeFloor?{...f,zones:f.zones.map(z=>z.id===state.id?next:z)}:f));}
- function endZoneDrag(e:ReactPointerEvent<HTMLElement>){const state=zoneDrag.current;if(!state||state.pointerId!==e.pointerId)return;zoneDrag.current=null;try{e.currentTarget.releasePointerCapture(e.pointerId);}catch{}if(e.type==="pointercancel"){setFloors(floorsFromTheme(restaurant?.menu_theme));return;}void persistFloors(floors.map(f=>f.id===activeFloor?{...f,zones:f.zones.map(z=>z.id===state.id?state.latest:z)}:f)).catch(error=>{setFloors(floorsFromTheme(restaurant?.menu_theme));toast.error(humanError(error,lang));});}
- function beginEntranceDrag(e:ReactPointerEvent<HTMLElement>,entry:Entrance){if(!editing||floorBusy){e.stopPropagation();setSelectedElementId(null);setSelectedEntranceId(entry.id);setSelectedTableId(null);setSelectedZoneId(null);return;}const rect=canvasRect();if(!rect)return;e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture(e.pointerId);entranceDrag.current={id:entry.id,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,start:entry,latest:entry};setSelectedElementId(null);setSelectedEntranceId(entry.id);setSelectedTableId(null);setSelectedZoneId(null);}
- function moveEntrance(e:ReactPointerEvent<HTMLElement>){const state=entranceDrag.current;const rect=canvasRect();if(!state||!rect||state.pointerId!==e.pointerId)return;const dx=(e.clientX-state.startX)/rect.width*100;const dy=(e.clientY-state.startY)/rect.height*100;const next={...state.start,x:clamp(state.start.x+dx,2,98),y:clamp(state.start.y+dy,2,98)};state.latest=next;setFloors(value=>value.map(f=>f.id===activeFloor?{...f,entrances:f.entrances.map(v=>v.id===state.id?next:v)}:f));}
- function endEntranceDrag(e:ReactPointerEvent<HTMLElement>){const state=entranceDrag.current;if(!state||state.pointerId!==e.pointerId)return;entranceDrag.current=null;try{e.currentTarget.releasePointerCapture(e.pointerId);}catch{}if(e.type==="pointercancel"){setFloors(floorsFromTheme(restaurant?.menu_theme));return;}void persistFloors(floors.map(f=>f.id===activeFloor?{...f,entrances:f.entrances.map(v=>v.id===state.id?state.latest:v)}:f)).catch(error=>{setFloors(floorsFromTheme(restaurant?.menu_theme));toast.error(humanError(error,lang));});}
- function rotate(delta:number){if(!selected)return;const current=draft[selected.id]??layoutOf(selected,0);const next={...current,rotation:clamp(current.rotation+delta,-180,180)};setDraft(v=>({...v,[selected.id]:next}));setForm(v=>({...v,rotation:String(Math.round(next.rotation))}));void persistTableLayout(selected.id,next);}
- function openTable(row:FloorTable){setActiveFloor(floorOf(row));setSelectedElementId(null);setSelectedTableId(row.id);setSelectedZoneId(null);setSelectedEntranceId(null);}
- async function printSingle(){if(!selected||!restaurant)return;const opened=await printQrCards(restaurant.name,t("sa.tables.scan"),[{table_number:selected.table_number,table_name:selected.table_name,url:tableMenuUrl(restaurant.slug,selected.qr_token)}],{back:ar?"← رجوع":"← Back",print:ar?"طباعة":"Print"});if(!opened)toast.error(ar?"اسمح بالنوافذ المنبثقة للطباعة.":"Allow pop-ups to print QR codes.");}
- async function printAll(){if(!restaurant)return;const rows=visibleTables;if(!rows.length){toast.error(ar?"لا توجد طاولات للطباعة.":"There are no tables to print.");return;}const opened=await printQrCards(restaurant.name,t("sa.tables.scan"),rows.map(row=>({table_number:row.table_number,table_name:row.table_name,url:tableMenuUrl(restaurant.slug,row.qr_token)})),{back:ar?"← رجوع":"← Back",print:ar?"طباعة":"Print"});if(!opened)toast.error(ar?"اسمح بالنوافذ المنبثقة للطباعة.":"Allow pop-ups to print QR codes.");}
- if(tables.isPending||restaurantQuery.isPending)return <Skeleton className="h-[720px] rounded-2xl"/>;
-
- function previewElement(next:FloorElement){setFloors(value=>value.map(f=>f.id===activeFloor?{...f,elements:(f.elements??[]).map(e=>e.id===next.id?next:e)}:f));}
- async function saveElements(elements:FloorElement[], rollback?:FloorElement){
-  if(floorSaveInFlight.current){if(rollback)previewElement(rollback);return false;}
-  floorSaveInFlight.current=true;setFloorBusy(true);
-  const previous=floorsFromTheme(restaurant?.menu_theme);
-  try{await persistFloors(floors.map(f=>f.id===activeFloor?{...f,elements}:f));toast.success(ar?"تم حفظ المخطط":"Floor layout saved");return true;}
-  catch(error){setFloors(previous);toast.error(humanError(error,lang));return false;}
-  finally{floorSaveInFlight.current=false;setFloorBusy(false);}
- }
- async function addElement(type:FloorElementType){if((currentFloor.elements??[]).length>=250){toast.error(ar?"الحد الأقصى 250 عنصراً لكل طابق":"Maximum 250 elements per floor");return;}const element=createFloorElement(type,ar);const saved=await saveElements([...(currentFloor.elements??[]),element]);if(!saved)return;setSelectedTableId(null);setSelectedZoneId(null);setSelectedEntranceId(null);setSelectedElementId(element.id);setElementsOpen(false);setEditing(true);}
- function commitElement(next:FloorElement,previous?:FloorElement){void saveElements((currentFloor.elements??[]).map(e=>e.id===next.id?normalizeFloorElement(next):e),previous);}
- function duplicateElement(){if(!selectedElement||floorBusy)return;if((currentFloor.elements??[]).length>=250){toast.error(ar?"الحد الأقصى 250 عنصراً لكل طابق":"Maximum 250 elements per floor");return;}const copy=normalizeFloorElement({...selectedElement,id:crypto.randomUUID(),x:selectedElement.x+4,y:selectedElement.y+4});void saveElements([...(currentFloor.elements??[]),copy]);setSelectedElementId(copy.id);}
- function deleteElement(){if(!selectedElement)return;void saveElements((currentFloor.elements??[]).filter(e=>e.id!==selectedElement.id));setSelectedElementId(null);}
- async function changeStatus(status:string){if(!selected)return;setBusy(true);try{const{error}=await (supabase as any).rpc("set_table_service_status",{_table_id:selected.id,_status:status});if(error)throw error;await refresh();toast.success(ar?"تم تحديث حالة الطاولة":"Table status updated");}catch(error){toast.error(humanError(error,lang));}finally{setBusy(false);}}
- const tableZoneName=(row:StudioTable)=>{const z=currentFloor.zones.find(z=>z.id===row.zone);return z?(ar?z.ar:z.en):(ar?"بدون منطقة":"No zone");};
- const quickPanel=selected&&restaurant?<TableQuickPanel row={selected} zone={tableZoneName(selected)} ar={ar} qr={qr} menuUrl={tableMenuUrl(restaurant.slug,selected.qr_token)} busy={busy} onEdit={()=>setDetailsOpen(true)} onStatus={value=>void changeStatus(value)} onDownload={()=>qr&&downloadDataUrl(qr,`table-${selected.table_number}-qr.png`)} onPrint={()=>void printSingle()}/>:null;
-
- return <div className="qs-tables-page qs-tables-studio flex min-h-0 flex-col gap-4">
-  <MasterPageHeader title={ar?"الطاولات":"Tables"} description={ar?"نظرة واضحة على كل مقعد.":"A clear view of every seat."} actions={<div className="qs-tables-view-switch"><button type="button" aria-pressed={view==="layout"} onClick={()=>setView("layout")} className={cn(view==="layout"&&"is-active")}><Columns3 className="size-4"/>{ar?"المخطط":"Floor Plan"}</button><button type="button" aria-pressed={view==="list"} onClick={()=>setView("list")} className={cn(view==="list"&&"is-active")}><List className="size-4"/>{ar?"قائمة الطاولات":"Table List"}</button></div>}/>
-  <section className="qs-tables-summary">{[{label:ar?"مجموع الطاولات":"tables total",count:floorTables.length,status:"all"},...(["free","active","reserved","cleaning"] as TableServiceStatus[]).map(status=>({label:serviceStatusLabel(status,ar),count:floorTables.filter(row=>row.is_active&&serviceStatusOf(row)===status).length,status}))].map(metric=><div key={metric.status}><span className={`qs-summary-icon is-${metric.status}`}><Table2 className="size-5"/></span><span><strong>{metric.count}</strong><small>{metric.label}</small></span></div>)}</section>
-  <div className="qs-tables-selector-panel qs-tables-studio-filters"><select aria-label={ar?"الطابق":"Floor"} disabled={floorBusy} value={activeFloor} onChange={e=>setActiveFloor(e.target.value)}>{floors.map(f=><option key={f.id} value={f.id}>{ar?f.ar:f.en}</option>)}</select><div className="qs-tables-chip-rail"><button type="button" className={cn("qs-tables-chip",activeZone==="all"&&"is-active")} onClick={()=>setActiveZone("all")}>{ar?"كل المناطق":"All zones"}</button>{currentFloor.zones.map(zone=><button key={zone.id} type="button" className={cn("qs-tables-chip",activeZone===zone.id&&"is-active")} onClick={()=>setActiveZone(zone.id)}>{ar?zone.ar:zone.en}</button>)}</div><button type="button" className="qs-button-primary qs-add-table-button" onClick={openCreate}><Plus className="size-4"/>{ar?"إضافة طاولة":"Add table"}</button></div>
-  <section className="qs-tables-workspace qs-tables-studio-workspace">
-   {view==="list"?<TablesStudioList rows={visibleTables} ar={ar} zoneName={tableZoneName} selectedId={selectedTableId} onSelect={row=>openTable(row as FloorTable)} onEdit={row=>{openTable(row as FloorTable);setDetailsOpen(true)}} onPrint={()=>void printAll()}/>:<div className="qs-floor-studio-panel min-w-0">
-    <div className="qs-floor-toolbar"><div className="min-w-0"><h2 className="font-bold">{ar?currentFloor.ar:currentFloor.en}</h2><p className="text-[11px] text-muted-foreground">{floorTables.length} {ar?"طاولة":"tables"} · {floorTables.reduce((sum,row)=>sum+(row.capacity??4),0)} {ar?"مقعد":"seats"}</p></div><div className="qs-floor-toolbar-actions"><button type="button" className="qs-button-secondary" aria-pressed={editing} disabled={floorBusy} onClick={()=>setEditing(!editing)}><Pencil className="size-4"/>{editing?(ar?"تم":"Done"):(ar?"تعديل المخطط":"Edit layout")}</button>{editing?<><button type="button" className="qs-button-secondary" onClick={()=>setElementsOpen(true)}><Plus className="size-4"/>{ar?"عناصر":"Elements"}</button><DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="qs-button-secondary"><Pencil className="size-4"/>{ar?"المزيد":"Layout tools"}</button></DropdownMenuTrigger><DropdownMenuContent align="start" className="min-w-56"><DropdownMenuItem onSelect={()=>{setZoneEditing(null);setZoneName("");setZoneOpen(true)}}><Grid3X3/>{ar?"إضافة منطقة":"Add zone"}</DropdownMenuItem><DropdownMenuItem onSelect={()=>setFloorOpen(true)}>{ar?"إضافة طابق":"Add floor"}</DropdownMenuItem><DropdownMenuItem disabled={floors.length<2} onSelect={()=>void deleteFloor()}>{ar?"حذف الطابق":"Delete floor"}</DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuItem disabled={busy} onSelect={()=>void alignTables("row")}><AlignHorizontalJustifyCenter/>{ar?"محاذاة أفقية":"Align in one row"}</DropdownMenuItem><DropdownMenuItem disabled={busy} onSelect={()=>void alignTables("column")}><AlignVerticalJustifyCenter/>{ar?"محاذاة عمودية":"Align in one column"}</DropdownMenuItem><DropdownMenuItem disabled={busy} onSelect={()=>void alignTables("grid")}><LayoutGrid/>{ar?"ترتيب شبكي":"Arrange as a grid"}</DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuItem onSelect={()=>setEntranceOpen(true)}><DoorOpen/>{ar?"إضافة مدخل":"Add entrance"}</DropdownMenuItem><DropdownMenuItem disabled={floorBusy} onSelect={()=>uploadRef.current?.click()}><ImagePlus/>{currentFloor.backgroundUrl?(ar?"تغيير الخلفية":"Replace floor plan"):(ar?"رفع مخطط":"Upload floor plan")}</DropdownMenuItem><DropdownMenuItem onSelect={()=>void printAll()}><Printer/>{ar?"طباعة رموز QR":"Print QR codes"}</DropdownMenuItem>{selectedEntrance||currentFloor.backgroundUrl?<DropdownMenuSeparator/>:null}{selectedEntrance?<DropdownMenuItem className="text-red-600" onSelect={()=>void removeEntrance()}><Trash2/>{ar?"حذف المدخل":"Remove entrance"}</DropdownMenuItem>:null}{currentFloor.backgroundUrl?<DropdownMenuItem className="text-red-600" onSelect={()=>void clearFloor()}><Trash2/>{ar?"إزالة الخلفية":"Remove floor plan"}</DropdownMenuItem>:null}</DropdownMenuContent></DropdownMenu></>:null}<button type="button" className={cn("qs-toggle-control",grid&&"is-active")} aria-label={ar?"الشبكة والمحاذاة":"Grid and snapping"} aria-pressed={grid} onClick={()=>setGrid(!grid)}><Grid3X3 className="size-4"/></button><div className="qs-zoom-control"><button type="button" aria-label="Zoom out" onClick={()=>setZoom(value=>clamp(value-.1,.6,1.4))}><Minus className="size-4"/></button><span>{Math.round(zoom*100)}%</span><button type="button" aria-label="Zoom in" onClick={()=>setZoom(value=>clamp(value+.1,.6,1.4))}><Plus className="size-4"/></button></div><button type="button" className="qs-button-secondary" onClick={()=>setZoom(1)}>{ar?"ملاءمة":"Fit"}</button></div></div>
-    <div className="qs-floor-canvas-area min-h-0 flex-1 overflow-hidden bg-[#f7f8fa] p-2 dark:bg-[#101418]"><div className="qs-floor-status-legend">{(["free","reserved","active","cleaning","out_of_service"] as TableServiceStatus[]).map(status=><span key={status} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-bold text-muted-foreground"><i className="size-2 rounded-full" style={{background:serviceTone(status).dot}}/>{serviceStatusLabel(status,ar)}</span>)}</div><div className="qs-floor-canvas-viewport flex h-[calc(100%-32px)] min-h-0 items-center justify-center overflow-hidden"><div ref={canvasRef} className={cn("qs-floor-canvas relative max-h-full w-full max-w-[1040px] origin-center overflow-hidden rounded-xl border border-border bg-white shadow-inner",grid&&"bg-[linear-gradient(to_right,rgba(148,163,184,.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,.12)_1px,transparent_1px)] bg-[size:22px_22px]")} style={{aspectRatio:`${W}/${H}`,transform:`scale(${zoom})`,transformOrigin:zoom>1?"top left":"center",...(currentFloor.backgroundUrl?{backgroundImage:`linear-gradient(rgba(255,255,255,.08),rgba(255,255,255,.08)),url("${currentFloor.backgroundUrl}")`,backgroundSize:"100% 100%, contain",backgroundPosition:"center",backgroundRepeat:"no-repeat"}:{})}} onPointerDown={()=>{setSelectedElementId(null);setSelectedTableId(null);setSelectedZoneId(null);setSelectedEntranceId(null)}}>
-    {currentFloor.zones.map(zone=><ZoneBox key={zone.id} zone={zone} ar={ar} selected={selectedZoneId===zone.id} onDown={(e,m)=>beginZoneDrag(e,zone,m)} onMove={moveZone} onUp={endZoneDrag}/>) }
-    {(currentFloor.elements??[]).map(element=><FloorElementPiece key={element.id} element={element} selected={selectedElementId===element.id} editable={editing} busy={floorBusy} grid={grid} canvasRef={canvasRef} onSelect={()=>{setSelectedElementId(element.id);setSelectedTableId(null);setSelectedZoneId(null);setSelectedEntranceId(null)}} onPreview={previewElement} onCommit={commitElement}/>)}
-    {currentFloor.entrances.map(entry=><EntrancePiece key={entry.id} entry={entry} selected={selectedEntranceId===entry.id} onDown={e=>beginEntranceDrag(e,entry)} onMove={moveEntrance} onUp={endEntranceDrag}/>) }
-    {visibleTables.map((row,index)=>{const live=selectedTableId===row.id;return <TablePiece key={row.id} onSelect={()=>openTable(row)} row={row} layout={draft[row.id]??layoutOf(row,index)} selected={live} previewMaterial={live?form.material:undefined} previewShape={live?form.shape:undefined} previewCapacity={live?Number(form.capacity)||4:undefined} onDown={(e,m)=>beginTableDrag(e,row,m)} onMove={moveTable} onUp={endTableDrag}/>}) }
-   </div></div></div>
-   </div>}
-   <aside className="qs-tables-studio-inspector">{selectedElement?<FloorElementInspector key={selectedElement.id} element={selectedElement} ar={ar} busy={floorBusy} onSave={commitElement} onDuplicate={duplicateElement} onDelete={deleteElement}/>:quickPanel?quickPanel:selectedZone?<ZoneInspector zone={selectedZone} ar={ar} onRename={()=>openRenameZone(selectedZone)} onDelete={()=>void deleteZone(selectedZone.id)}/>:selectedEntrance?<EntranceInspector entry={selectedEntrance} ar={ar} onRemove={()=>void removeEntrance()}/>:<div className="qs-tables-studio-empty"><Table2 className="size-9"/><h2>{ar?"اختر طاولة":"Select a table"}</h2><p>{ar?"شاهد الحالة ورمز QR وتفاصيل الطاولة.":"See its status, QR code and table details."}</p>{editing?<Button type="button" variant="outline" onClick={()=>setElementsOpen(true)}>{ar?"إضافة عنصر للمخطط":"Add floor element"}</Button>:null}</div>}</aside>
-  </section>
-  <input ref={uploadRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e=>void uploadFloor(e.target.files?.[0])}/>
-  <Dialog open={elementsOpen} onOpenChange={setElementsOpen}><DialogContent><DialogHeader><DialogTitle>{ar?"عناصر المخطط":"Floor elements"}</DialogTitle><DialogDescription>{ar?"أضف عنصراً ثم حركه وغير حجمه على المخطط.":"Add an element, then move and resize it on your floor plan."}</DialogDescription></DialogHeader><FloorElementLibrary ar={ar} busy={floorBusy} onAdd={type=>void addElement(type)}/></DialogContent></Dialog>
-
-  <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}><DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle>{selected?`${ar?"طاولة":"Table"} ${selected.table_number}`:(ar?"تفاصيل الطاولة":"Table details")}</DialogTitle><DialogDescription>{ar?"معلومات الطاولة ورمز QR":"Table information and QR code"}</DialogDescription></DialogHeader>{selected?<TableInspector ar={ar} selected={selected} group={selectedGroup} form={form} setForm={setForm} floors={floors} currentFloor={currentFloor} qr={qr} busy={busy} onRotate={()=>rotate(15)} onSave={()=>void saveSelected()} onDelete={()=>void deleteSelected()} onMerge={openMerge} onSplit={()=>void splitTables()} onDownload={()=>qr&&downloadDataUrl(qr,`table-${selected.table_number}-qr.png`)} onPrint={()=>void printSingle()}/>:null}</DialogContent></Dialog>
-
-  <Dialog open={mergeOpen} onOpenChange={setMergeOpen}><DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>{ar?"دمج الطاولات":"Merge tables"}</DialogTitle><DialogDescription>{ar?"ادمج طاولتين أو أكثر في مجموعة خدمة واحدة. السعة تصبح مجموع المقاعد ويمكن فصل المجموعة لاحقاً.":"Combine two or more tables into one service group. Capacity is summed and the group can be split later."}</DialogDescription></DialogHeader><Field label={ar?"اسم المجموعة (اختياري)":"Group label (optional)"}><Input value={mergeLabel} onChange={e=>setMergeLabel(e.target.value)} maxLength={120} placeholder={ar?"مثال: حفلة كبيرة":"e.g. Large party"}/></Field><div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-border p-2">{floorTables.filter(row=>row.id===selected?.id||(!row.service_group_id&&row.is_active&&serviceStatusOf(row)!=="out_of_service")).map(row=>{const checked=mergeIds.includes(row.id);const locked=row.id===selected?.id;return <button type="button" key={row.id} disabled={locked} onClick={()=>toggleMergeTable(row.id)} className={cn("flex w-full items-center gap-3 rounded-xl border p-3 text-start transition",checked?"border-primary/30 bg-primary/8":"border-border bg-card hover:bg-muted/50",locked&&"opacity-80")}><span className={cn("grid size-9 place-items-center rounded-xl text-xs font-black",checked?"bg-primary text-primary-foreground":"bg-muted text-muted-foreground")}>T{row.table_number}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{row.table_name||((ar?"طاولة ":"Table ")+row.table_number)}</strong><span className="text-[10px] text-muted-foreground">{row.capacity??4} {ar?"مقاعد":"seats"} · {serviceStatusLabel(serviceStatusOf(row),ar)}</span></span><span className={cn("grid size-5 place-items-center rounded-full border text-[10px]",checked?"border-primary bg-primary text-primary-foreground":"border-border")}>{checked?"✓":""}</span></button>})}</div><div className="rounded-xl bg-muted/45 p-3 text-xs text-muted-foreground">{ar?"السعة المجمعة: ":"Combined capacity: "}<strong className="text-foreground">{(tables.data??[]).filter(row=>mergeIds.includes(row.id)).reduce((sum,row)=>sum+(row.capacity??4),0)}</strong></div><DialogFooter><Button variant="outline" onClick={()=>setMergeOpen(false)} disabled={busy}>{t("common.cancel")}</Button><Button onClick={()=>void mergeTables()} disabled={busy||mergeIds.length<2}>{ar?"دمج الطاولات":"Merge tables"}</Button></DialogFooter></DialogContent></Dialog>
-  <Dialog open={tableOpen} onOpenChange={setTableOpen}><DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>{ar?"إضافة طاولة":"Add Table"}</DialogTitle><DialogDescription>{ar?"حدد الطابق والمنطقة ومظهر الطاولة.":"Choose the floor, zone and table style."}</DialogDescription></DialogHeader><TableForm ar={ar} form={form} setForm={setForm} floors={floors}/><DialogFooter><Button variant="ghost" onClick={()=>setTableOpen(false)}>{t("common.cancel")}</Button><Button disabled={busy||!form.number.trim()} onClick={()=>void createTable()}>{ar?"إضافة":"Add Table"}</Button></DialogFooter></DialogContent></Dialog>
-  <Dialog open={zoneOpen} onOpenChange={open=>{setZoneOpen(open);if(!open)setZoneEditing(null)}}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>{zoneEditing?(ar?"إعادة تسمية المنطقة":"Rename Zone"):(ar?"إضافة منطقة":"Add Zone")}</DialogTitle><DialogDescription>{ar?"يمكن تحريك المنطقة وتغيير حجمها بعد الحفظ.":"You can move and resize the zone after saving."}</DialogDescription></DialogHeader><Field label={ar?"اسم المنطقة":"Zone name"}><Input autoFocus value={zoneName} onChange={e=>setZoneName(e.target.value)}/></Field><DialogFooter><Button variant="ghost" onClick={()=>setZoneOpen(false)}>{t("common.cancel")}</Button><Button disabled={!zoneName.trim()} onClick={()=>void saveZone()}>{ar?"حفظ":"Save"}</Button></DialogFooter></DialogContent></Dialog>
-  <Dialog open={floorOpen} onOpenChange={setFloorOpen}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>{ar?"إضافة طابق":"Add Floor"}</DialogTitle><DialogDescription>{ar?"أنشئ مخططاً مستقلاً لطابق أو قاعة أخرى.":"Create an independent floor or hall layout."}</DialogDescription></DialogHeader><Field label={ar?"اسم الطابق":"Floor name"}><Input autoFocus value={floorName} onChange={e=>setFloorName(e.target.value)}/></Field><DialogFooter><Button variant="ghost" onClick={()=>setFloorOpen(false)}>{t("common.cancel")}</Button><Button disabled={!floorName.trim()} onClick={()=>void addFloor()}>{ar?"إضافة":"Add Floor"}</Button></DialogFooter></DialogContent></Dialog>
-  <Dialog open={entranceOpen} onOpenChange={setEntranceOpen}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>{ar?"إضافة مدخل":"Add Entrance"}</DialogTitle><DialogDescription>{ar?"أضف مدخل رئيسي أو خدمي ثم اسحبه إلى مكانه.":"Add a main or service entrance, then drag it into position."}</DialogDescription></DialogHeader><Field label={ar?"اسم المدخل":"Entrance label"}><Input value={entranceName} onChange={e=>setEntranceName(e.target.value)} placeholder="Main Entrance"/></Field><DialogFooter><Button variant="ghost" onClick={()=>setEntranceOpen(false)}>{t("common.cancel")}</Button><Button onClick={()=>void addEntrance()}>{ar?"إضافة":"Add Entrance"}</Button></DialogFooter></DialogContent></Dialog>
- </div>;
+function layoutOf(row: FloorTable, index: number): Layout {
+  const raw = objectValue(row.layout);
+  const slot = SLOTS[index % SLOTS.length]!;
+  return {
+    x: clamp(asNumber(raw.x, slot[0]), 50, 950),
+    y: clamp(asNumber(raw.y, slot[1]), 50, 650),
+    rotation: clamp(asNumber(raw.rotation, 0), -180, 180),
+    scale: clamp(asNumber(raw.scale, 1), 0.65, 1.6),
+  };
+}
+function slug(value: string, fallback: string) {
+  return (
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\u0600-\u06ff]+/g, "-")
+      .replace(/^-|-$/g, "") || fallback
+  );
+}
+function zoneContaining(layout: Layout, zones: Zone[]) {
+  const x = (layout.x / W) * 100;
+  const y = (layout.y / H) * 100;
+  return (
+    zones.find(
+      (zone) => x >= zone.x && x <= zone.x + zone.width && y >= zone.y && y <= zone.y + zone.height,
+    ) ?? null
+  );
+}
+const ZONE_COLORS = ["#ff6a1a", "#3b82f6", "#8b5cf6", "#10b981", "#eab308", "#ec4899"];
+const DEFAULT_ZONES: Zone[] = [
+  {
+    id: "main",
+    en: "Main Dining",
+    ar: "الصالة الرئيسية",
+    x: 5,
+    y: 7,
+    width: 57,
+    height: 53,
+    color: ZONE_COLORS[0]!,
+  },
+  {
+    id: "patio",
+    en: "Patio",
+    ar: "التراس",
+    x: 5,
+    y: 64,
+    width: 42,
+    height: 31,
+    color: ZONE_COLORS[1]!,
+  },
+  { id: "vip", en: "VIP", ar: "VIP", x: 51, y: 64, width: 43, height: 31, color: ZONE_COLORS[2]! },
+];
+const DEFAULT_FLOOR: FloorConfig = {
+  id: "ground",
+  en: "Ground Floor",
+  ar: "الطابق الأرضي",
+  zones: DEFAULT_ZONES,
+  entrances: [
+    { id: "main-entrance", label: "Main Entrance", x: 91, y: 52, rotation: 90, type: "main" },
+  ],
+  backgroundUrl: null,
+};
+function parseZones(value: unknown): Zone[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry, index) => {
+    const raw = objectValue(entry);
+    const id = typeof raw.id === "string" && raw.id ? raw.id : "";
+    if (!id) return [];
+    const d = DEFAULT_ZONES[index % DEFAULT_ZONES.length] ?? DEFAULT_ZONES[0]!;
+    return [
+      {
+        id,
+        en: typeof raw.en === "string" && raw.en ? raw.en : id,
+        ar:
+          typeof raw.ar === "string" && raw.ar ? raw.ar : typeof raw.en === "string" ? raw.en : id,
+        x: clamp(asNumber(raw.x, d.x), 1, 92),
+        y: clamp(asNumber(raw.y, d.y), 1, 92),
+        width: clamp(asNumber(raw.width, d.width), 8, 92),
+        height: clamp(asNumber(raw.height, d.height), 8, 92),
+        color: typeof raw.color === "string" ? raw.color : ZONE_COLORS[index % ZONE_COLORS.length]!,
+      },
+    ];
+  });
+}
+function parseEntrances(value: unknown): Entrance[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry, index) => {
+    const raw = objectValue(entry);
+    const id = typeof raw.id === "string" && raw.id ? raw.id : `entrance-${index + 1}`;
+    return [
+      {
+        id,
+        label: typeof raw.label === "string" && raw.label ? raw.label : `Entrance ${index + 1}`,
+        x: clamp(asNumber(raw.x, 90), 2, 96),
+        y: clamp(asNumber(raw.y, 50), 2, 96),
+        rotation: clamp(asNumber(raw.rotation, 90), -180, 180),
+        type: raw.type === "service" ? "service" : "main",
+      },
+    ];
+  });
+}
+function floorsFromTheme(value: unknown): FloorConfig[] {
+  const theme = objectValue(value);
+  const workspace = objectValue(theme.workspace);
+  const legacy =
+    typeof workspace.floorPlanBackgroundUrl === "string" && workspace.floorPlanBackgroundUrl
+      ? workspace.floorPlanBackgroundUrl
+      : null;
+  if (!Array.isArray(workspace.tableFloors) || workspace.tableFloors.length === 0)
+    return [
+      {
+        ...DEFAULT_FLOOR,
+        zones: DEFAULT_ZONES.map((z) => ({ ...z })),
+        entrances: DEFAULT_FLOOR.entrances.map((e) => ({ ...e })),
+        backgroundUrl: legacy,
+      },
+    ];
+  return workspace.tableFloors.flatMap((entry, index) => {
+    const raw = objectValue(entry);
+    const id = typeof raw.id === "string" && raw.id ? raw.id : `floor-${index + 1}`;
+    const en = typeof raw.en === "string" && raw.en ? raw.en : `Floor ${index + 1}`;
+    const ar = typeof raw.ar === "string" && raw.ar ? raw.ar : en;
+    const zones = parseZones(raw.zones);
+    const entrances = parseEntrances(raw.entrances);
+    const backgroundUrl =
+      typeof raw.backgroundUrl === "string" && raw.backgroundUrl
+        ? raw.backgroundUrl
+        : id === "ground"
+          ? legacy
+          : null;
+    return [
+      {
+        id,
+        en,
+        ar,
+        zones: zones.length ? zones : [{ ...DEFAULT_ZONES[0]! }],
+        entrances,
+        backgroundUrl,
+        elements: parseFloorElements(raw.elements),
+        canvasSize: normalizeCanvasSize(raw.canvasSize),
+      },
+    ];
+  });
 }
 
-function ZoneBox({zone,ar,selected,onDown,onMove,onUp}:{zone:Zone;ar:boolean;selected:boolean;onDown:(e:ReactPointerEvent<HTMLElement>,mode:"move"|"resize")=>void;onMove:(e:ReactPointerEvent<HTMLElement>)=>void;onUp:(e:ReactPointerEvent<HTMLElement>)=>void}){return <div className="qs-floor-zone absolute z-[2] rounded-xl border-2 bg-white/28 backdrop-blur-[1px]" style={{left:`${zone.x}%`,top:`${zone.y}%`,width:`${zone.width}%`,height:`${zone.height}%`,borderColor:zone.color,boxShadow:selected?`0 0 0 3px ${zone.color}22`:undefined}}><button type="button" onPointerDown={e=>onDown(e,"move")} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} className="qs-floor-zone-label absolute start-2 top-2 z-10 flex touch-none items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-bold text-white shadow-sm" style={{background:zone.color}}><span className="grid grid-cols-2 gap-[2px]">{[0,1,2,3,4,5].map(i=><i key={i} className="size-[2px] rounded-full bg-white/80"/>)}</span>{ar?zone.ar:zone.en}</button>{selected?<button type="button" aria-label="Resize zone" onPointerDown={e=>onDown(e,"resize")} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} className="absolute -bottom-2 -end-2 size-5 touch-none rounded-full border-2 border-white shadow" style={{background:zone.color}}/>:null}</div>}
-function EntrancePiece({entry,selected,onDown,onMove,onUp}:{entry:Entrance;selected:boolean;onDown:(e:ReactPointerEvent<HTMLElement>)=>void;onMove:(e:ReactPointerEvent<HTMLElement>)=>void;onUp:(e:ReactPointerEvent<HTMLElement>)=>void}){return <button type="button" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} className={cn("qs-floor-entrance absolute z-[8] flex touch-none items-center gap-1.5 rounded-lg border bg-white px-2.5 py-1.5 text-[10px] font-bold text-slate-700 shadow",selected?"border-[#e85d2a] ring-2 ring-orange-500/20":"border-slate-300")} style={{left:`${entry.x}%`,top:`${entry.y}%`,transform:`translate(-50%,-50%) rotate(${entry.rotation}deg)`}}><DoorOpen className="size-3.5"/>{entry.label}</button>}
-function TablePiece({row,layout,selected,previewMaterial,previewShape,previewCapacity,onSelect,onDown,onMove,onUp}:{row:FloorTable;layout:Layout;selected:boolean;previewMaterial?:Material|undefined;previewShape?:Shape|undefined;previewCapacity?:number|undefined;onSelect:()=>void;onDown:(e:ReactPointerEvent<HTMLElement>,mode:"move"|"resize")=>void;onMove:(e:ReactPointerEvent<HTMLElement>)=>void;onUp:(e:ReactPointerEvent<HTMLElement>)=>void}){const shape=previewShape??shapeOf(row.shape);const material=previewMaterial??materialOf(row);const seats=clamp(previewCapacity??row.capacity??4,2,8);const status=serviceStatusOf(row);const tone=serviceTone(status);const styles:Record<Material,{top:string;chair:string;text:string;border:string;shadow:string}>={wood:{top:"linear-gradient(90deg,#875029,#c27c42 46%,#75411f)",chair:"#8b5a3c",text:"#fff",border:"#6f3d20",shadow:"0 8px 16px rgba(99,55,27,.28)"},glass:{top:"linear-gradient(135deg,rgba(215,244,255,.86),rgba(255,255,255,.22) 52%,rgba(173,225,242,.58))",chair:"#93aeb8",text:"#27485b",border:"#78bacf",shadow:"0 8px 18px rgba(73,147,171,.22)"},aluminum:{top:"linear-gradient(135deg,#f7f9fa 0%,#b9c2ca 42%,#eef1f3 60%,#929ea8 100%)",chair:"#77838d",text:"#26323b",border:"#7d8993",shadow:"0 8px 16px rgba(71,85,105,.24)"},marble:{top:"linear-gradient(135deg,#fbfaf7 0 27%,#d8d5cf 28% 32%,#ffffff 33% 56%,#c5c8cc 57% 61%,#f1efe9 62% 82%,#d0ccc3 83% 86%,#faf9f5 87%)",chair:"#59635c",text:"#26312a",border:"#aeb3af",shadow:"0 8px 18px rgba(55,65,60,.18)"},neutral:{top:"linear-gradient(135deg,#d9d6cf,#b7b3aa 55%,#cbc7bf)",chair:"#88847d",text:"#2e2d2a",border:"#9c978e",shadow:"0 8px 16px rgba(80,76,70,.18)"}};const s=styles[material];return <div role="button" tabIndex={0} aria-label={`Table ${row.table_number} · ${serviceStatusLabel(status,false)}`} aria-pressed={selected} onClick={onSelect} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onSelect();}}} data-material={material} data-service-status={status} onPointerDown={e=>onDown(e,"move")} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} className="qs-floor-table-piece absolute z-10 touch-none select-none" data-shape={shape} style={{left:`${layout.x/10}%`,top:`${layout.y/7}%`,width:shape==="rectangle"?"116px":"88px",height:"88px",transform:`translate(-50%,-50%) rotate(${layout.rotation}deg) scale(${layout.scale}) scale(var(--qs-floor-object-scale,1))`}}>{Array.from({length:Math.min(seats,6)},(_,index)=>{const angle=(360/Math.min(seats,6))*index-90;const x=50+Math.cos(angle*Math.PI/180)*50;const y=50+Math.sin(angle*Math.PI/180)*50;return <i key={index} className="qs-floor-chair absolute h-4 w-6 rounded-[5px] border shadow-sm" style={{left:`${x}%`,top:`${y}%`,transform:`translate(-50%,-50%) rotate(${angle+90}deg)`,background:s.chair,borderColor:s.border}}/>})}<span className={cn("qs-floor-table-top absolute inset-[11px] grid place-items-center border-2 font-display text-sm font-bold transition-all",shape==="round"?"rounded-full":shape==="square"?"rounded-xl":"rounded-[14px]")} style={{background:s.top,color:s.text,borderColor:selected?"#2486ff":tone.dot,boxShadow:selected?"0 0 0 4px rgba(36,134,255,.18), "+s.shadow:`0 0 0 4px ${tone.ring}, ${s.shadow}`}}>{row.table_number}</span><span className="qs-floor-table-status absolute -top-3 start-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/70 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-white shadow-sm" style={{background:tone.dot}}>{serviceStatusLabel(status,false)}</span>{row.service_group_id?<span className="absolute -end-2 -top-2 z-30 grid size-5 place-items-center rounded-full border-2 border-white bg-[#111827] text-[9px] font-black text-white shadow">+</span>:null}{selected?<><span className="pointer-events-none absolute -inset-1 rounded-xl border-2 border-[#2486ff]"/><button type="button" aria-label="Resize table" onPointerDown={e=>onDown(e,"resize")} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} className="absolute -bottom-2 -end-2 z-30 size-4 touch-none rounded-full border-2 border-white bg-[#2486ff] shadow"/></>:null}</div>}
-function TableInspector({ar,selected,group,form,setForm,floors,currentFloor,qr,busy,onRotate,onSave,onDelete,onMerge,onSplit,onDownload,onPrint}:{ar:boolean;selected:FloorTable;group:ServiceGroup|null;form:any;setForm:(value:any)=>void;floors:FloorConfig[];currentFloor:FloorConfig;qr:string|null;busy:boolean;onRotate:()=>void;onSave:()=>void;onDelete:()=>void;onMerge:()=>void;onSplit:()=>void;onDownload:()=>void;onPrint:()=>void}){return <><div className="qs-panel-header"><div><h2 className="font-display text-base font-bold">{ar?"طاولة":"Table"} {selected.table_number}</h2><div className="mt-1 flex flex-wrap items-center gap-2"><span className="text-xs text-muted-foreground">{form.active?(ar?"نشطة في النظام":"Enabled"):(ar?"غير نشطة":"Disabled")}</span><span className="rounded-full px-2 py-0.5 text-[9px] font-bold" style={{background:serviceTone(serviceStatusOf(selected)).bg,color:serviceTone(serviceStatusOf(selected)).dot}}>{serviceStatusLabel(serviceStatusOf(selected),ar)}</span></div></div></div><div className="space-y-3 p-3.5">{group?<div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-900/50 dark:bg-blue-950/20"><div className="flex items-start justify-between gap-3"><div><strong className="text-xs text-blue-800 dark:text-blue-200">{ar?"مجموعة طاولات":"Merged table group"}</strong><p className="mt-1 text-[10px] text-muted-foreground">{group.label||group.table_numbers.map(number=>"T"+number).join(" + ")} · {group.combined_capacity} {ar?"مقعد":"seats"}</p></div><Button type="button" size="sm" variant="outline" disabled={busy} onClick={onSplit}>{ar?"فصل":"Split"}</Button></div></div>:<Button type="button" variant="outline" className="w-full" onClick={onMerge} disabled={busy}><Columns3 className="size-4"/>{ar?"دمج مع طاولة أخرى":"Merge with another table"}</Button>}<TableForm ar={ar} form={form} setForm={setForm} floors={floors}/><p className="rounded-lg bg-muted/50 px-3 py-2 text-[10px] leading-4 text-muted-foreground">{ar?"تظهر تغييرات المادة والشكل والمقاعد مباشرة على المخطط. اضغط حفظ التغييرات للاحتفاظ بها.":"Material, shape and seat changes preview instantly on the floor plan. Choose Save Changes to keep them."}</p><Field label={ar?"الدوران":"Rotation"}><div className="flex gap-2"><Input type="number" value={form.rotation} onChange={e=>setForm({...form,rotation:e.target.value})}/><button type="button" className="qs-button-secondary px-3" onClick={onRotate} aria-label={ar?"تدوير الطاولة":"Rotate table"}><RotateCw className="size-4"/></button></div></Field><label className="flex items-center justify-between rounded-xl border border-border p-3"><span className="text-xs font-bold">{ar?"الطاولة نشطة":"Table active"}</span><Switch checked={form.active} onCheckedChange={v=>setForm({...form,active:v})}/></label>{qr?<div className="rounded-xl border border-border p-3"><div className="grid grid-cols-[78px_1fr] items-center gap-3"><img src={qr} alt="QR" className="size-[78px] rounded-lg border bg-white p-1"/><div><strong className="text-xs">{ar?"رمز QR":"QR Code"}</strong><div className="mt-2 grid grid-cols-2 gap-2"><button type="button" className="qs-button-secondary min-h-9 px-2 text-[10px]" onClick={onDownload}><Download className="size-3"/>{ar?"تنزيل":"Download"}</button><button type="button" className="qs-button-secondary min-h-9 px-2 text-[10px]" onClick={onPrint}><Printer className="size-3"/>{ar?"طباعة":"Print"}</button></div></div></div></div>:null}</div><div className="safe-bottom sticky bottom-0 grid grid-cols-2 gap-2 border-t border-border bg-card/96 p-4"><button type="button" onClick={onDelete} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 text-xs font-bold text-red-600"><Trash2 className="size-4"/>{ar?"حذف":"Delete Table"}</button><button type="button" disabled={busy} onClick={onSave} className="qs-button-primary"><Save className="size-4"/>{ar?"حفظ":"Save Changes"}</button></div></>}
-function TableForm({ar,form,setForm,floors}:{ar:boolean;form:any;setForm:(value:any)=>void;floors:FloorConfig[]}){const floor=floors.find(f=>f.id===form.floor)??floors[0];return <div className="grid gap-3 sm:grid-cols-2"><Field label={ar?"رقم الطاولة":"Table ID"}><Input value={form.number} onChange={e=>setForm({...form,number:e.target.value})}/></Field><Field label={ar?"الاسم":"Name"}><Input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></Field><Field label={ar?"الطابق":"Floor"}><Select value={form.floor} onValueChange={v=>{const f=floors.find(x=>x.id===v);setForm({...form,floor:v,zone:f?.zones[0]?.id??"main"})}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{floors.map(f=><SelectItem key={f.id} value={f.id}>{ar?f.ar:f.en}</SelectItem>)}</SelectContent></Select></Field><Field label={ar?"المنطقة":"Zone"}><Select value={form.zone} onValueChange={v=>setForm({...form,zone:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{(floor?.zones??[]).map(z=><SelectItem key={z.id} value={z.id}>{ar?z.ar:z.en}</SelectItem>)}</SelectContent></Select></Field><Field label={ar?"المقاعد":"Capacity"}><div className="grid grid-cols-[42px_1fr_42px] overflow-hidden rounded-xl border border-border"><button type="button" className="grid min-h-10 place-items-center" onClick={()=>setForm({...form,capacity:String(clamp((Number(form.capacity)||1)-1,1,30))})}><Minus className="size-4"/></button><span className="grid place-items-center border-x border-border text-sm font-bold">{form.capacity}</span><button type="button" className="grid min-h-10 place-items-center" onClick={()=>setForm({...form,capacity:String(clamp((Number(form.capacity)||1)+1,1,30))})}><Plus className="size-4"/></button></div></Field><Field label={ar?"المادة":"Material"}><Select value={form.material} onValueChange={v=>setForm({...form,material:v as Material})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="wood">{ar?"خشب":"Wood"}</SelectItem><SelectItem value="glass">{ar?"زجاج":"Glass"}</SelectItem><SelectItem value="aluminum">{ar?"ألمنيوم":"Aluminum"}</SelectItem><SelectItem value="marble">{ar?"رخام":"Marble"}</SelectItem><SelectItem value="neutral">{ar?"محايد":"Neutral"}</SelectItem></SelectContent></Select></Field><Field label={ar?"الشكل":"Shape"}><Select value={form.shape} onValueChange={v=>setForm({...form,shape:v as Shape})}><SelectTrigger><Square className="me-2 size-4"/><SelectValue/></SelectTrigger><SelectContent><SelectItem value="square">{ar?"مربع":"Square"}</SelectItem><SelectItem value="round">{ar?"دائري":"Round"}</SelectItem><SelectItem value="rectangle">{ar?"مستطيل":"Rectangle"}</SelectItem></SelectContent></Select></Field></div>}
-function ZoneInspector({zone,ar,onRename,onDelete}:{zone:Zone;ar:boolean;onRename:()=>void;onDelete:()=>void}){return <div className="p-5"><h2 className="text-lg font-bold">{ar?zone.ar:zone.en}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"اسحب عنوان المنطقة لتحريكها، واسحب المقبض لتغيير حجمها.":"Drag the zone label to move it and the corner handle to resize it."}</p><div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={onRename} className="qs-button-secondary"><Pencil className="size-4"/>{ar?"إعادة تسمية":"Rename"}</button><button type="button" onClick={onDelete} className="qs-button-secondary text-red-600"><Trash2 className="size-4"/>{ar?"حذف":"Delete"}</button></div><div className="mt-5 grid grid-cols-2 gap-3 text-xs"><Read label="X" value={`${zone.x.toFixed(1)}%`}/><Read label="Y" value={`${zone.y.toFixed(1)}%`}/><Read label={ar?"العرض":"Width"} value={`${zone.width.toFixed(1)}%`}/><Read label={ar?"الارتفاع":"Height"} value={`${zone.height.toFixed(1)}%`}/></div></div>}
-function EntranceInspector({entry,ar,onRemove}:{entry:Entrance;ar:boolean;onRemove:()=>void}){return <div className="p-5"><DoorOpen className="size-8 text-[#e85d2a]"/><h2 className="mt-3 text-lg font-bold">{entry.label}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"اسحب المدخل إلى موقعه الصحيح على المخطط.":"Drag the entrance to its correct position on the floor plan."}</p><button type="button" onClick={onRemove} className="mt-5 qs-button-secondary w-full text-red-600"><Trash2 className="size-4"/>{ar?"حذف المدخل":"Remove Entrance"}</button></div>}
-function Field({label,children}:{label:string;children:React.ReactNode}){return <div className="min-w-0 space-y-1.5"><Label className="text-xs font-bold">{label}</Label>{children}</div>}
-function Read({label,value}:{label:string;value:string}){return <div className="rounded-xl border border-border p-3"><div className="text-[10px] text-muted-foreground">{label}</div><strong className="mt-1 block text-sm">{value}</strong></div>}
+export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
+  const { lang, t } = useI18n();
+  const ar = lang === "ar";
+  const qc = useQueryClient();
+  const restaurantQuery = useRestaurant(restaurantId);
+  const restaurant = restaurantQuery.data;
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const [canvasSizeOpen, setCanvasSizeOpen] = useState(false);
+  const [canvasSizeDraft, setCanvasSizeDraft] = useState({ width: "1000", height: "700" });
+  const uploadRef = useRef<HTMLInputElement | null>(null);
+  const tableDrag = useRef<TableDrag | null>(null);
+  const zoneDrag = useRef<ZoneDrag | null>(null);
+  const entranceDrag = useRef<EntranceDrag | null>(null);
+  const [view, setView] = useState<"layout" | "list">("layout");
+  const [floors, setFloors] = useState<FloorConfig[]>([{ ...DEFAULT_FLOOR }]);
+  const [activeFloor, setActiveFloor] = useState("ground");
+  const [activeZone, setActiveZone] = useState("all");
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+  const [selectedEntranceId, setSelectedEntranceId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Record<string, Layout>>({});
+  const [zoom, setZoom] = useState(1);
+  const [grid, setGrid] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [floorBusy, setFloorBusy] = useState(false);
+  const [qr, setQr] = useState<string | null>(null);
+  const [tableOpen, setTableOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [zoneOpen, setZoneOpen] = useState(false);
+  const [zoneEditing, setZoneEditing] = useState<Zone | null>(null);
+  const [floorOpen, setFloorOpen] = useState(false);
+  const [entranceOpen, setEntranceOpen] = useState(false);
+  const [floorName, setFloorName] = useState("");
+  const [zoneName, setZoneName] = useState("");
+  const [entranceName, setEntranceName] = useState("Main Entrance");
+  const [form, setForm] = useState({
+    number: "",
+    name: "",
+    capacity: "4",
+    floor: "ground",
+    zone: "main",
+    shape: "square" as Shape,
+    material: "wood" as Material,
+    active: true,
+    rotation: "0",
+  });
+  const [editing, setEditing] = useState(false);
+  const [elementsOpen, setElementsOpen] = useState(false);
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const floorSaveInFlight = useRef(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeIds, setMergeIds] = useState<string[]>([]);
+  const [mergeLabel, setMergeLabel] = useState("");
+
+  const tables = useQuery<FloorTable[]>({
+    queryKey: ["platform", "tables", restaurantId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("restaurant_tables")
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .order("table_number", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as FloorTable[];
+    },
+  });
+  const groups = useQuery<ServiceGroup[]>({
+    queryKey: ["table-service-groups", restaurantId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("get_table_service_groups", {
+        _restaurant_id: restaurantId,
+      });
+      if (error) throw error;
+      return (data ?? []) as ServiceGroup[];
+    },
+  });
+  useEffect(() => {
+    const channel = supabase
+      .channel(`table-manager-live:${restaurantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "restaurant_tables",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
+        () => {
+          void qc.invalidateQueries({
+            queryKey: ["platform", "tables", restaurantId],
+            exact: true,
+          });
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [qc, restaurantId]);
+  useEffect(() => {
+    setDraft((prev) => {
+      const next: Record<string, Layout> = {};
+      (tables.data ?? []).forEach(
+        (row, index) => (next[row.id] = prev[row.id] ?? layoutOf(row, index)),
+      );
+      return next;
+    });
+  }, [tables.data]);
+  useEffect(() => {
+    const next = floorsFromTheme(restaurant?.menu_theme);
+    setFloors(next);
+    setActiveFloor((current) => (next.some((f) => f.id === current) ? current : next[0]!.id));
+  }, [restaurant?.menu_theme]);
+  const currentFloor = floors.find((f) => f.id === activeFloor) ?? floors[0] ?? DEFAULT_FLOOR;
+  const floorTables = useMemo(
+    () => (tables.data ?? []).filter((row) => floorOf(row) === activeFloor),
+    [tables.data, activeFloor],
+  );
+  const visibleTables = useMemo(
+    () =>
+      floorTables.filter(
+        (row, index) =>
+          activeZone === "all" ||
+          zoneContaining(draft[row.id] ?? layoutOf(row, index), currentFloor.zones)?.id ===
+            activeZone,
+      ),
+    [floorTables, activeZone, currentFloor.zones, draft],
+  );
+  const selectedElement =
+    (currentFloor.elements ?? []).find((element) => element.id === selectedElementId) ?? null;
+  const selected = (tables.data ?? []).find((row) => row.id === selectedTableId) ?? null;
+  const selectedGroup = selected?.service_group_id
+    ? ((groups.data ?? []).find((group) => group.id === selected.service_group_id) ?? null)
+    : null;
+  const selectedZone = currentFloor.zones.find((z) => z.id === selectedZoneId) ?? null;
+  const selectedEntrance = currentFloor.entrances.find((e) => e.id === selectedEntranceId) ?? null;
+  function resetTableForm() {
+    if (!selected) return;
+    const floor = floorOf(selected);
+    const floorConfig = floors.find((f) => f.id === floor) ?? currentFloor;
+    const currentLayout = draft[selected.id] ?? layoutOf(selected, 0);
+    const physicalZone = zoneContaining(currentLayout, floorConfig.zones)?.id ?? OUTSIDE_ZONE;
+    setForm({
+      number: selected.table_number,
+      name: selected.table_name ?? "",
+      capacity: String(selected.capacity ?? 4),
+      floor,
+      zone: floorConfig.zones.some((zone) => zone.id === selected.zone)
+        ? selected.zone!
+        : physicalZone,
+      shape: shapeOf(selected.shape),
+      material: materialOf(selected),
+      active: selected.is_active,
+      rotation: String(Math.round(currentLayout.rotation)),
+    });
+  }
+  useEffect(() => {
+    resetTableForm();
+  }, [selectedTableId, floors]);
+  useEffect(() => {
+    if (!selected || !restaurant) return;
+    let cancelled = false;
+    setQr(null);
+    void qrDataUrl(tableMenuUrl(restaurant.slug, selected.qr_token)).then((value) => {
+      if (!cancelled) setQr(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected?.id, selected?.qr_token, restaurant?.slug]);
+  useEffect(() => {
+    setActiveZone("all");
+    setSelectedElementId(null);
+    setSelectedTableId(null);
+    setSelectedZoneId(null);
+    setSelectedEntranceId(null);
+  }, [activeFloor]);
+  async function refresh() {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["platform", "tables", restaurantId], exact: true }),
+      qc.invalidateQueries({ queryKey: ["table-service-groups", restaurantId] }),
+    ]);
+  }
+  async function persistFloors(next: FloorConfig[]) {
+    const current = await supabase
+      .from("restaurants")
+      .select("menu_theme")
+      .eq("id", restaurantId)
+      .single();
+    if (current.error) throw current.error;
+    const theme = objectValue(current.data.menu_theme);
+    const workspace = objectValue(theme.workspace);
+    const ground = next.find((f) => f.id === "ground")?.backgroundUrl ?? null;
+    const menuTheme = {
+      ...theme,
+      workspace: { ...workspace, tableFloors: next, floorPlanBackgroundUrl: ground },
+    };
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ menu_theme: menuTheme })
+      .eq("id", restaurantId)
+      .select("id")
+      .single();
+    if (error) throw error;
+    setFloors(next);
+    qc.setQueryData(["platform", "restaurant", restaurantId], (cached: typeof restaurant) =>
+      cached ? { ...cached, menu_theme: menuTheme } : cached,
+    );
+    await qc.invalidateQueries({ queryKey: ["platform", "restaurant", restaurantId], exact: true });
+  }
+  async function persistTableLayout(id: string, layout: Layout, extra?: Record<string, unknown>) {
+    const row = (tables.data ?? []).find((r) => r.id === id);
+    if (!row) return;
+    const raw = objectValue(row.layout);
+    const floor = floors.find((f) => f.id === floorOf(row)) ?? currentFloor;
+    const zoneId = zoneContaining(layout, floor.zones)?.id ?? OUTSIDE_ZONE;
+    const nextLayout = { ...raw, ...layout, ...extra };
+    const { error } = await (supabase.from("restaurant_tables") as any)
+      .update({ layout: nextLayout, zone: zoneId })
+      .eq("id", id)
+      .eq("restaurant_id", restaurantId);
+    if (error) {
+      setDraft((value) => ({
+        ...value,
+        [id]: layoutOf(
+          row,
+          (tables.data ?? []).findIndex((item) => item.id === id),
+        ),
+      }));
+      toast.error(humanError(error, lang));
+      return;
+    }
+    qc.setQueryData<FloorTable[]>(["platform", "tables", restaurantId], (current) =>
+      (current ?? []).map((item) =>
+        item.id === id ? { ...item, zone: zoneId, layout: nextLayout } : item,
+      ),
+    );
+  }
+  async function alignTables(mode: "row" | "column" | "grid") {
+    const rows = floorTables;
+    if (rows.length < 2) {
+      toast.info(ar ? "أضف طاولتين على الأقل للمحاذاة" : "Add at least two tables to align them");
+      return;
+    }
+    const current = rows.map((row, index) => ({
+      row,
+      layout: draft[row.id] ?? layoutOf(row, index),
+    }));
+    const nextLayouts: Record<string, Layout> = {};
+    if (mode === "row") {
+      const y = current.reduce((sum, item) => sum + item.layout.y, 0) / current.length;
+      for (const item of current) nextLayouts[item.row.id] = { ...item.layout, y };
+    } else if (mode === "column") {
+      const x = current.reduce((sum, item) => sum + item.layout.x, 0) / current.length;
+      for (const item of current) nextLayouts[item.row.id] = { ...item.layout, x };
+    } else {
+      const columns = Math.max(2, Math.ceil(Math.sqrt(current.length)));
+      current.forEach((item, index) => {
+        const col = index % columns;
+        const row = Math.floor(index / columns);
+        nextLayouts[item.row.id] = {
+          ...item.layout,
+          x: clamp(150 + col * 190, 55, 945),
+          y: clamp(150 + row * 180, 55, 645),
+        };
+      });
+    }
+    setDraft((value) => ({ ...value, ...nextLayouts }));
+    setBusy(true);
+    try {
+      await Promise.all(
+        current.map(async ({ row }) => {
+          const next = nextLayouts[row.id]!;
+          const raw = objectValue(row.layout);
+          const floor = floors.find((f) => f.id === floorOf(row)) ?? currentFloor;
+          const zoneId = zoneContaining(next, floor.zones)?.id ?? OUTSIDE_ZONE;
+          const { error } = await (supabase.from("restaurant_tables") as any)
+            .update({ layout: { ...raw, ...next }, zone: zoneId })
+            .eq("id", row.id)
+            .eq("restaurant_id", restaurantId);
+          if (error) throw error;
+        }),
+      );
+      await refresh();
+      toast.success(ar ? "تم ترتيب الطاولات ومحاذاتها" : "Tables aligned and saved");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setBusy(false);
+    }
+  }
+  function openCreate() {
+    const n = (tables.data ?? []).length + 1;
+    setForm({
+      number: String(n),
+      name: "",
+      capacity: "4",
+      floor: activeFloor,
+      zone: currentFloor.zones[0]?.id ?? "main",
+      shape: "square",
+      material: "wood",
+      active: true,
+      rotation: "0",
+    });
+    setTableOpen(true);
+  }
+  function openMerge() {
+    if (!selected) return;
+    setMergeIds([selected.id]);
+    setMergeLabel("");
+    setMergeOpen(true);
+  }
+  function toggleMergeTable(id: string) {
+    setMergeIds((current) =>
+      current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
+    );
+  }
+  async function mergeTables() {
+    if (!selected || mergeIds.length < 2) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("merge_service_tables", {
+        _restaurant_id: restaurantId,
+        _table_ids: mergeIds,
+        _label: mergeLabel.trim() || null,
+      });
+      if (error) throw error;
+      setMergeOpen(false);
+      setMergeIds([]);
+      setMergeLabel("");
+      await refresh();
+      toast.success(ar ? "تم دمج الطاولات كمجموعة خدمة" : "Tables merged into one service group");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function splitTables() {
+    if (!selectedGroup) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("split_service_tables", {
+        _group_id: selectedGroup.id,
+        _table_id: null,
+      });
+      if (error) throw error;
+      await refresh();
+      toast.success(ar ? "تم فصل مجموعة الطاولات" : "Table group split");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function createTable() {
+    setBusy(true);
+    try {
+      const index = floorTables.length;
+      const slot = SLOTS[index % SLOTS.length]!;
+      const floor = floors.find((f) => f.id === form.floor) ?? currentFloor;
+      const targetZone = floor.zones.find((z) => z.id === form.zone) ?? floor.zones[0] ?? null;
+      const zone = targetZone?.id ?? null;
+      const startX = targetZone ? (targetZone.x + targetZone.width / 2) * 10 : slot[0];
+      const startY = targetZone ? (targetZone.y + targetZone.height / 2) * 7 : slot[1];
+      const { data, error } = await (supabase.from("restaurant_tables") as any)
+        .insert({
+          restaurant_id: restaurantId,
+          table_number: form.number.trim() || String((tables.data ?? []).length + 1),
+          table_name: form.name.trim() || null,
+          qr_token: crypto.randomUUID().replace(/-/g, ""),
+          zone,
+          capacity: clamp(Number(form.capacity) || 4, 1, 30),
+          shape: form.shape,
+          is_active: form.active,
+          layout: {
+            x: startX,
+            y: startY,
+            rotation: 0,
+            scale: 1,
+            floor: form.floor,
+            material: form.material,
+          },
+        })
+        .select("*")
+        .single();
+      if (error) throw error;
+      await refresh();
+      setTableOpen(false);
+      setActiveFloor(form.floor);
+      if (data?.id) setSelectedTableId(data.id);
+      toast.success(ar ? "تمت إضافة الطاولة" : "Table added");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function saveSelected() {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const current = draft[selected.id] ?? layoutOf(selected, 0);
+      const rotation = clamp(Number(form.rotation) || 0, -180, 180);
+      const floor = floors.find((f) => f.id === form.floor) ?? currentFloor;
+      const targetZone = floor.zones.find((z) => z.id === form.zone) ?? floor.zones[0] ?? null;
+      const outsideZone = form.zone === OUTSIDE_ZONE;
+      const zone = outsideZone ? OUTSIDE_ZONE : (targetZone?.id ?? OUTSIDE_ZONE);
+      const insideTarget = targetZone ? zoneContaining(current, [targetZone]) !== null : true;
+      const next = {
+        ...current,
+        rotation,
+        ...(!outsideZone && !insideTarget && targetZone
+          ? {
+              x: (targetZone.x + targetZone.width / 2) * 10,
+              y: (targetZone.y + targetZone.height / 2) * 7,
+            }
+          : {}),
+      };
+      const raw = objectValue(selected.layout);
+      const { error } = await (supabase.from("restaurant_tables") as any)
+        .update({
+          table_number: form.number.trim() || selected.table_number,
+          table_name: form.name.trim() || null,
+          capacity: clamp(Number(form.capacity) || 4, 1, 30),
+          zone,
+          shape: form.shape,
+          is_active: form.active,
+          layout: { ...raw, ...next, floor: form.floor, material: form.material },
+        })
+        .eq("id", selected.id)
+        .eq("restaurant_id", restaurantId)
+        .select("id")
+        .single();
+      if (error) throw error;
+      setDraft((value) => ({ ...value, [selected.id]: next }));
+      await refresh();
+      setActiveFloor(form.floor);
+      toast.success(ar ? "تم حفظ التغييرات" : "Table changes saved");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function deleteSelected() {
+    if (!selected || !confirm(ar ? "حذف هذه الطاولة؟" : "Delete this table?")) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase
+        .from("restaurant_tables")
+        .delete()
+        .eq("id", selected.id)
+        .eq("restaurant_id", restaurantId);
+      if (error) throw error;
+      setSelectedTableId(null);
+      await refresh();
+      toast.success(ar ? "تم حذف الطاولة" : "Table deleted");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function addFloor() {
+    const clean = floorName.trim();
+    if (!clean) return;
+    const id = slug(clean, `floor-${Date.now()}`);
+    const next: FloorConfig = {
+      id,
+      en: clean,
+      ar: clean,
+      zones: [{ ...DEFAULT_ZONES[0]! }],
+      entrances: [],
+      backgroundUrl: null,
+    };
+    try {
+      await persistFloors([...floors.filter((f) => f.id !== id), next]);
+      setFloorName("");
+      setFloorOpen(false);
+      setActiveFloor(id);
+      toast.success(ar ? "تمت إضافة الطابق" : "Floor added");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    }
+  }
+  async function deleteFloor() {
+    if (floors.length <= 1) {
+      toast.error(ar ? "يجب أن يبقى طابق واحد على الأقل." : "At least one floor must remain.");
+      return;
+    }
+    if (floorTables.length) {
+      toast.error(
+        ar ? "انقل أو احذف طاولات هذا الطابق أولاً." : "Move or delete this floor's tables first.",
+      );
+      return;
+    }
+    if (!confirm(ar ? `حذف ${currentFloor.ar}؟` : `Delete ${currentFloor.en}?`)) return;
+    try {
+      const previous = currentFloor.backgroundUrl;
+      const next = floors.filter((f) => f.id !== activeFloor);
+      await persistFloors(next);
+      setActiveFloor(next[0]!.id);
+      if (previous) void removeRestaurantImage(previous).catch(() => undefined);
+      toast.success(ar ? "تم حذف الطابق" : "Floor deleted");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    }
+  }
+  function defaultNewZone(index: number): Zone {
+    const col = index % 3;
+    const row = Math.floor(index / 3);
+    return {
+      id: `zone-${Date.now()}`,
+      en: zoneName.trim(),
+      ar: zoneName.trim(),
+      x: 5 + col * 30,
+      y: 8 + row * 31,
+      width: 27,
+      height: 27,
+      color: ZONE_COLORS[index % ZONE_COLORS.length]!,
+    };
+  }
+  async function saveZone() {
+    const clean = zoneName.trim();
+    if (!clean) return;
+    try {
+      let next: FloorConfig[];
+      if (zoneEditing) {
+        next = floors.map((f) =>
+          f.id === activeFloor
+            ? {
+                ...f,
+                zones: f.zones.map((z) =>
+                  z.id === zoneEditing.id ? { ...z, en: clean, ar: clean } : z,
+                ),
+              }
+            : f,
+        );
+      } else {
+        const normalized = slug(clean, "");
+        if (currentFloor.zones.some((z) => z.id === normalized)) {
+          toast.error(ar ? "هذه المنطقة موجودة بالفعل." : "This zone already exists.");
+          return;
+        }
+        const zone = {
+          ...defaultNewZone(currentFloor.zones.length),
+          id: normalized || `zone-${Date.now()}`,
+          en: clean,
+          ar: clean,
+        };
+        next = floors.map((f) => (f.id === activeFloor ? { ...f, zones: [...f.zones, zone] } : f));
+        setActiveZone("all");
+        setSelectedElementId(null);
+        setSelectedZoneId(zone.id);
+      }
+      await persistFloors(next);
+      setZoneOpen(false);
+      setZoneName("");
+      setZoneEditing(null);
+      toast.success(ar ? "تم حفظ المنطقة" : "Zone saved");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    }
+  }
+  function openRenameZone(zone: Zone) {
+    setZoneEditing(zone);
+    setZoneName(ar ? zone.ar : zone.en);
+    setZoneOpen(true);
+  }
+  async function deleteZone(zoneId: string) {
+    if (
+      floorTables.some(
+        (table, index) =>
+          zoneContaining(draft[table.id] ?? layoutOf(table, index), currentFloor.zones)?.id ===
+          zoneId,
+      )
+    ) {
+      toast.error(ar ? "انقل الطاولات من المنطقة أولاً." : "Move tables out of this zone first.");
+      return;
+    }
+    if (currentFloor.zones.length <= 1) {
+      toast.error(ar ? "يجب أن تبقى منطقة واحدة على الأقل." : "At least one zone must remain.");
+      return;
+    }
+    try {
+      await persistFloors(
+        floors.map((f) =>
+          f.id === activeFloor ? { ...f, zones: f.zones.filter((z) => z.id !== zoneId) } : f,
+        ),
+      );
+      setSelectedZoneId(null);
+      setActiveZone("all");
+      toast.success(ar ? "تم حذف المنطقة" : "Zone deleted");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    }
+  }
+  async function addEntrance() {
+    const label = entranceName.trim() || "Entrance";
+    const entry: Entrance = {
+      id: `entrance-${Date.now()}`,
+      label,
+      x: 89,
+      y: 50,
+      rotation: 90,
+      type: label.toLowerCase().includes("service") ? "service" : "main",
+    };
+    try {
+      await persistFloors(
+        floors.map((f) =>
+          f.id === activeFloor ? { ...f, entrances: [...f.entrances, entry] } : f,
+        ),
+      );
+      setEntranceOpen(false);
+      setEntranceName("Main Entrance");
+      setSelectedElementId(null);
+      setSelectedEntranceId(entry.id);
+      toast.success(ar ? "تمت إضافة المدخل" : "Entrance added");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    }
+  }
+  async function removeEntrance() {
+    if (!selectedEntrance) return;
+    try {
+      await persistFloors(
+        floors.map((f) =>
+          f.id === activeFloor
+            ? { ...f, entrances: f.entrances.filter((e) => e.id !== selectedEntrance.id) }
+            : f,
+        ),
+      );
+      setSelectedEntranceId(null);
+      toast.success(ar ? "تم حذف المدخل" : "Entrance removed");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    }
+  }
+  async function updateFloorBackground(url: string | null) {
+    await persistFloors(
+      floors.map((f) => (f.id === activeFloor ? { ...f, backgroundUrl: url } : f)),
+    );
+  }
+  async function uploadFloor(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error(ar ? "اختر صورة." : "Choose an image file.");
+      return;
+    }
+    setFloorBusy(true);
+    const previous = currentFloor.backgroundUrl;
+    try {
+      const url = await uploadRestaurantImage(restaurantId, "floorplan", file);
+      await updateFloorBackground(url);
+      if (previous && previous !== url) void removeRestaurantImage(previous).catch(() => undefined);
+      toast.success(ar ? "تم تحديث مخطط الطابق" : "Floor plan updated");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setFloorBusy(false);
+      if (uploadRef.current) uploadRef.current.value = "";
+    }
+  }
+  async function clearFloor() {
+    const previous = currentFloor.backgroundUrl;
+    if (!previous) return;
+    setFloorBusy(true);
+    try {
+      await updateFloorBackground(null);
+      void removeRestaurantImage(previous).catch(() => undefined);
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setFloorBusy(false);
+    }
+  }
+  function canvasRect() {
+    return canvasRef.current?.getBoundingClientRect() ?? null;
+  }
+  function beginTableDrag(
+    e: ReactPointerEvent<HTMLElement>,
+    row: FloorTable,
+    mode: "move" | "resize",
+  ) {
+    if (!editing || floorBusy) {
+      e.stopPropagation();
+      setSelectedElementId(null);
+      setSelectedTableId(row.id);
+      setSelectedZoneId(null);
+      setSelectedEntranceId(null);
+      return;
+    }
+    const rect = canvasRect();
+    if (!rect) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const current = draft[row.id] ?? layoutOf(row, 0);
+    tableDrag.current = {
+      id: row.id,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      start: current,
+      latest: current,
+      mode,
+    };
+    setSelectedElementId(null);
+    setSelectedTableId(row.id);
+    setSelectedZoneId(null);
+    setSelectedEntranceId(null);
+  }
+  function moveTable(e: ReactPointerEvent<HTMLElement>) {
+    const state = tableDrag.current;
+    const rect = canvasRect();
+    if (!state || !rect || state.pointerId !== e.pointerId) return;
+    e.preventDefault();
+    const dx = ((e.clientX - state.startX) / rect.width) * W;
+    const dy = ((e.clientY - state.startY) / rect.height) * H;
+    const next =
+      state.mode === "move"
+        ? {
+            ...state.start,
+            x: clamp(
+              grid ? Math.round((state.start.x + dx) / 10) * 10 : state.start.x + dx,
+              45,
+              955,
+            ),
+            y: clamp(
+              grid ? Math.round((state.start.y + dy) / 10) * 10 : state.start.y + dy,
+              45,
+              655,
+            ),
+          }
+        : { ...state.start, scale: clamp(state.start.scale + (dx + dy) / 420, 0.65, 1.6) };
+    state.latest = next;
+    setDraft((value) => ({ ...value, [state.id]: next }));
+  }
+  function endTableDrag(e: ReactPointerEvent<HTMLElement>) {
+    const state = tableDrag.current;
+    if (!state || state.pointerId !== e.pointerId) return;
+    tableDrag.current = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    if (e.type === "pointercancel") {
+      setDraft((value) => ({ ...value, [state.id]: state.start }));
+      return;
+    }
+    void persistTableLayout(state.id, state.latest);
+  }
+  function beginZoneDrag(e: ReactPointerEvent<HTMLElement>, zone: Zone, mode: "move" | "resize") {
+    if (!editing || floorBusy) {
+      e.stopPropagation();
+      setSelectedElementId(null);
+      setSelectedZoneId(zone.id);
+      setSelectedTableId(null);
+      setSelectedEntranceId(null);
+      return;
+    }
+    const rect = canvasRect();
+    if (!rect) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    zoneDrag.current = {
+      id: zone.id,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      start: zone,
+      latest: zone,
+      mode,
+    };
+    setSelectedElementId(null);
+    setSelectedZoneId(zone.id);
+    setSelectedTableId(null);
+    setSelectedEntranceId(null);
+  }
+  function moveZone(e: ReactPointerEvent<HTMLElement>) {
+    const state = zoneDrag.current;
+    const rect = canvasRect();
+    if (!state || !rect || state.pointerId !== e.pointerId) return;
+    e.preventDefault();
+    const dx = ((e.clientX - state.startX) / rect.width) * 100;
+    const dy = ((e.clientY - state.startY) / rect.height) * 100;
+    const next =
+      state.mode === "move"
+        ? {
+            ...state.start,
+            x: clamp(state.start.x + dx, 0, 100 - state.start.width),
+            y: clamp(state.start.y + dy, 0, 100 - state.start.height),
+          }
+        : {
+            ...state.start,
+            width: clamp(state.start.width + dx, 8, 100 - state.start.x),
+            height: clamp(state.start.height + dy, 8, 100 - state.start.y),
+          };
+    state.latest = next;
+    setFloors((value) =>
+      value.map((f) =>
+        f.id === activeFloor
+          ? { ...f, zones: f.zones.map((z) => (z.id === state.id ? next : z)) }
+          : f,
+      ),
+    );
+  }
+  function endZoneDrag(e: ReactPointerEvent<HTMLElement>) {
+    const state = zoneDrag.current;
+    if (!state || state.pointerId !== e.pointerId) return;
+    zoneDrag.current = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    if (e.type === "pointercancel") {
+      setFloors(floorsFromTheme(restaurant?.menu_theme));
+      return;
+    }
+    void persistFloors(
+      floors.map((f) =>
+        f.id === activeFloor
+          ? { ...f, zones: f.zones.map((z) => (z.id === state.id ? state.latest : z)) }
+          : f,
+      ),
+    ).catch((error) => {
+      setFloors(floorsFromTheme(restaurant?.menu_theme));
+      toast.error(humanError(error, lang));
+    });
+  }
+  function beginEntranceDrag(e: ReactPointerEvent<HTMLElement>, entry: Entrance) {
+    if (!editing || floorBusy) {
+      e.stopPropagation();
+      setSelectedElementId(null);
+      setSelectedEntranceId(entry.id);
+      setSelectedTableId(null);
+      setSelectedZoneId(null);
+      return;
+    }
+    const rect = canvasRect();
+    if (!rect) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    entranceDrag.current = {
+      id: entry.id,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      start: entry,
+      latest: entry,
+    };
+    setSelectedElementId(null);
+    setSelectedEntranceId(entry.id);
+    setSelectedTableId(null);
+    setSelectedZoneId(null);
+  }
+  function moveEntrance(e: ReactPointerEvent<HTMLElement>) {
+    const state = entranceDrag.current;
+    const rect = canvasRect();
+    if (!state || !rect || state.pointerId !== e.pointerId) return;
+    const dx = ((e.clientX - state.startX) / rect.width) * 100;
+    const dy = ((e.clientY - state.startY) / rect.height) * 100;
+    const next = {
+      ...state.start,
+      x: clamp(state.start.x + dx, 2, 98),
+      y: clamp(state.start.y + dy, 2, 98),
+    };
+    state.latest = next;
+    setFloors((value) =>
+      value.map((f) =>
+        f.id === activeFloor
+          ? { ...f, entrances: f.entrances.map((v) => (v.id === state.id ? next : v)) }
+          : f,
+      ),
+    );
+  }
+  function endEntranceDrag(e: ReactPointerEvent<HTMLElement>) {
+    const state = entranceDrag.current;
+    if (!state || state.pointerId !== e.pointerId) return;
+    entranceDrag.current = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    if (e.type === "pointercancel") {
+      setFloors(floorsFromTheme(restaurant?.menu_theme));
+      return;
+    }
+    void persistFloors(
+      floors.map((f) =>
+        f.id === activeFloor
+          ? { ...f, entrances: f.entrances.map((v) => (v.id === state.id ? state.latest : v)) }
+          : f,
+      ),
+    ).catch((error) => {
+      setFloors(floorsFromTheme(restaurant?.menu_theme));
+      toast.error(humanError(error, lang));
+    });
+  }
+  function rotate(delta: number) {
+    if (!selected) return;
+    const current = draft[selected.id] ?? layoutOf(selected, 0);
+    const next = { ...current, rotation: clamp(current.rotation + delta, -180, 180) };
+    setDraft((v) => ({ ...v, [selected.id]: next }));
+    setForm((v) => ({ ...v, rotation: String(Math.round(next.rotation)) }));
+    void persistTableLayout(selected.id, next);
+  }
+  function openTable(row: FloorTable) {
+    setActiveFloor(floorOf(row));
+    setSelectedElementId(null);
+    setSelectedTableId(row.id);
+    setSelectedZoneId(null);
+    setSelectedEntranceId(null);
+  }
+  async function printSingle() {
+    if (!selected || !restaurant) return;
+    const opened = await printQrCards(
+      restaurant.name,
+      t("sa.tables.scan"),
+      [
+        {
+          table_number: selected.table_number,
+          table_name: selected.table_name,
+          url: tableMenuUrl(restaurant.slug, selected.qr_token),
+        },
+      ],
+      { back: ar ? "← رجوع" : "← Back", print: ar ? "طباعة" : "Print" },
+    );
+    if (!opened)
+      toast.error(ar ? "اسمح بالنوافذ المنبثقة للطباعة." : "Allow pop-ups to print QR codes.");
+  }
+  async function printAll() {
+    if (!restaurant) return;
+    const rows = visibleTables;
+    if (!rows.length) {
+      toast.error(ar ? "لا توجد طاولات للطباعة." : "There are no tables to print.");
+      return;
+    }
+    const opened = await printQrCards(
+      restaurant.name,
+      t("sa.tables.scan"),
+      rows.map((row) => ({
+        table_number: row.table_number,
+        table_name: row.table_name,
+        url: tableMenuUrl(restaurant.slug, row.qr_token),
+      })),
+      { back: ar ? "← رجوع" : "← Back", print: ar ? "طباعة" : "Print" },
+    );
+    if (!opened)
+      toast.error(ar ? "اسمح بالنوافذ المنبثقة للطباعة." : "Allow pop-ups to print QR codes.");
+  }
+  if (tables.isPending || restaurantQuery.isPending)
+    return <Skeleton className="h-[720px] rounded-2xl" />;
+
+  function previewElement(next: FloorElement) {
+    setFloors((value) =>
+      value.map((f) =>
+        f.id === activeFloor
+          ? { ...f, elements: (f.elements ?? []).map((e) => (e.id === next.id ? next : e)) }
+          : f,
+      ),
+    );
+  }
+  async function saveElements(elements: FloorElement[], rollback?: FloorElement) {
+    if (floorSaveInFlight.current) {
+      if (rollback) previewElement(rollback);
+      return false;
+    }
+    floorSaveInFlight.current = true;
+    setFloorBusy(true);
+    const previous = floorsFromTheme(restaurant?.menu_theme);
+    try {
+      await persistFloors(floors.map((f) => (f.id === activeFloor ? { ...f, elements } : f)));
+      toast.success(ar ? "تم حفظ المخطط" : "Floor layout saved");
+      return true;
+    } catch (error) {
+      setFloors(previous);
+      toast.error(humanError(error, lang));
+      return false;
+    } finally {
+      floorSaveInFlight.current = false;
+      setFloorBusy(false);
+    }
+  }
+  async function addElement(type: FloorElementType) {
+    if ((currentFloor.elements ?? []).length >= 250) {
+      toast.error(ar ? "الحد الأقصى 250 عنصراً لكل طابق" : "Maximum 250 elements per floor");
+      return;
+    }
+    const element = createFloorElement(type, ar);
+    const saved = await saveElements([...(currentFloor.elements ?? []), element]);
+    if (!saved) return;
+    setSelectedTableId(null);
+    setSelectedZoneId(null);
+    setSelectedEntranceId(null);
+    setSelectedElementId(element.id);
+    setElementsOpen(false);
+    setEditing(true);
+  }
+  function commitElement(next: FloorElement, previous?: FloorElement) {
+    void saveElements(
+      (currentFloor.elements ?? []).map((e) =>
+        e.id === next.id ? normalizeFloorElement(next) : e,
+      ),
+      previous,
+    );
+  }
+  function duplicateElement() {
+    if (!selectedElement || floorBusy) return;
+    if ((currentFloor.elements ?? []).length >= 250) {
+      toast.error(ar ? "الحد الأقصى 250 عنصراً لكل طابق" : "Maximum 250 elements per floor");
+      return;
+    }
+    const copy = normalizeFloorElement({
+      ...selectedElement,
+      id: crypto.randomUUID(),
+      x: selectedElement.x + 4,
+      y: selectedElement.y + 4,
+    });
+    void saveElements([...(currentFloor.elements ?? []), copy]);
+    setSelectedElementId(copy.id);
+  }
+  function deleteElement() {
+    if (!selectedElement) return;
+    void saveElements((currentFloor.elements ?? []).filter((e) => e.id !== selectedElement.id));
+    setSelectedElementId(null);
+  }
+  async function changeStatus(status: string) {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("set_table_service_status", {
+        _table_id: selected.id,
+        _status: status,
+      });
+      if (error) throw error;
+      await refresh();
+      toast.success(ar ? "تم تحديث حالة الطاولة" : "Table status updated");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const tableZoneName = (row: StudioTable) => {
+    const z = currentFloor.zones.find((z) => z.id === row.zone);
+    return z ? (ar ? z.ar : z.en) : ar ? "بدون منطقة" : "No zone";
+  };
+  const quickPanel =
+    selected && restaurant ? (
+      <TableQuickPanel
+        row={selected}
+        zone={tableZoneName(selected)}
+        ar={ar}
+        qr={qr}
+        menuUrl={tableMenuUrl(restaurant.slug, selected.qr_token)}
+        busy={busy}
+        onEdit={() => setDetailsOpen(true)}
+        onStatus={(value) => void changeStatus(value)}
+        onDownload={() => qr && downloadDataUrl(qr, `table-${selected.table_number}-qr.png`)}
+        onPrint={() => void printSingle()}
+      />
+    ) : null;
+
+  return (
+    <div className="qs-tables-page qs-tables-studio flex min-h-0 flex-col gap-4">
+      <MasterPageHeader
+        title={ar ? "الطاولات" : "Tables"}
+        description={ar ? "نظرة واضحة على كل مقعد." : "A clear view of every seat."}
+        actions={
+          <div className="qs-tables-view-switch">
+            <button
+              type="button"
+              aria-pressed={view === "layout"}
+              onClick={() => setView("layout")}
+              className={cn(view === "layout" && "is-active")}
+            >
+              <Columns3 className="size-4" />
+              {ar ? "المخطط" : "Floor Plan"}
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === "list"}
+              onClick={() => setView("list")}
+              className={cn(view === "list" && "is-active")}
+            >
+              <List className="size-4" />
+              {ar ? "قائمة الطاولات" : "Table List"}
+            </button>
+          </div>
+        }
+      />
+      <section className="qs-tables-summary">
+        {[
+          {
+            label: ar ? "مجموع الطاولات" : "tables total",
+            count: floorTables.length,
+            status: "all",
+          },
+          ...(["free", "active", "reserved", "cleaning"] as TableServiceStatus[]).map((status) => ({
+            label: serviceStatusLabel(status, ar),
+            count: floorTables.filter((row) => row.is_active && serviceStatusOf(row) === status)
+              .length,
+            status,
+          })),
+        ].map((metric) => (
+          <div key={metric.status}>
+            <span className={`qs-summary-icon is-${metric.status}`}>
+              <Table2 className="size-5" />
+            </span>
+            <span>
+              <strong>{metric.count}</strong>
+              <small>{metric.label}</small>
+            </span>
+          </div>
+        ))}
+      </section>
+      <div className="qs-tables-selector-panel qs-tables-studio-filters">
+        <select
+          aria-label={ar ? "الطابق" : "Floor"}
+          disabled={floorBusy}
+          value={activeFloor}
+          onChange={(e) => setActiveFloor(e.target.value)}
+        >
+          {floors.map((f) => (
+            <option key={f.id} value={f.id}>
+              {ar ? f.ar : f.en}
+            </option>
+          ))}
+        </select>
+        <div className="qs-tables-chip-rail">
+          <button
+            type="button"
+            className={cn("qs-tables-chip", activeZone === "all" && "is-active")}
+            onClick={() => setActiveZone("all")}
+          >
+            {ar ? "كل المناطق" : "All zones"}
+          </button>
+          {currentFloor.zones.map((zone) => (
+            <button
+              key={zone.id}
+              type="button"
+              className={cn("qs-tables-chip", activeZone === zone.id && "is-active")}
+              onClick={() => setActiveZone(zone.id)}
+            >
+              {ar ? zone.ar : zone.en}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="qs-button-primary qs-add-table-button"
+          onClick={openCreate}
+        >
+          <Plus className="size-4" />
+          {ar ? "إضافة طاولة" : "Add table"}
+        </button>
+      </div>
+      <section className="qs-tables-workspace qs-tables-studio-workspace">
+        {view === "list" ? (
+          <TablesStudioList
+            rows={visibleTables}
+            ar={ar}
+            zoneName={tableZoneName}
+            selectedId={selectedTableId}
+            onSelect={(row) => openTable(row as FloorTable)}
+            onEdit={(row) => {
+              openTable(row as FloorTable);
+              setDetailsOpen(true);
+            }}
+            onPrint={() => void printAll()}
+          />
+        ) : (
+          <div className="qs-floor-studio-panel min-w-0">
+            <div className="qs-floor-toolbar">
+              <div className="min-w-0">
+                <h2 className="font-bold">{ar ? currentFloor.ar : currentFloor.en}</h2>
+                <p className="text-[11px] text-muted-foreground">
+                  {floorTables.length} {ar ? "طاولة" : "tables"} ·{" "}
+                  {floorTables.reduce((sum, row) => sum + (row.capacity ?? 4), 0)}{" "}
+                  {ar ? "مقعد" : "seats"}
+                </p>
+              </div>
+              <div className="qs-floor-toolbar-actions">
+                <button
+                  type="button"
+                  className="qs-button-secondary"
+                  disabled={floorBusy}
+                  onClick={() => {
+                    const size = normalizeCanvasSize(currentFloor.canvasSize);
+                    setCanvasSizeDraft({ width: String(size.width), height: String(size.height) });
+                    setCanvasSizeOpen(true);
+                  }}
+                >
+                  {ar ? "حجم المخطط" : "Canvas size"}
+                </button>
+                <button
+                  type="button"
+                  className="qs-button-secondary"
+                  aria-pressed={editing}
+                  disabled={floorBusy}
+                  onClick={() => setEditing(!editing)}
+                >
+                  <Pencil className="size-4" />
+                  {editing ? (ar ? "تم" : "Done") : ar ? "تعديل المخطط" : "Edit layout"}
+                </button>
+                {editing ? (
+                  <>
+                    <button
+                      type="button"
+                      className="qs-button-secondary"
+                      onClick={() => setElementsOpen(true)}
+                    >
+                      <Plus className="size-4" />
+                      {ar ? "عناصر" : "Elements"}
+                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className="qs-button-secondary">
+                          <Pencil className="size-4" />
+                          {ar ? "المزيد" : "Layout tools"}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="min-w-56">
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            setZoneEditing(null);
+                            setZoneName("");
+                            setZoneOpen(true);
+                          }}
+                        >
+                          <Grid3X3 />
+                          {ar ? "إضافة منطقة" : "Add zone"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setFloorOpen(true)}>
+                          {ar ? "إضافة طابق" : "Add floor"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={floors.length < 2}
+                          onSelect={() => void deleteFloor()}
+                        >
+                          {ar ? "حذف الطابق" : "Delete floor"}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem disabled={busy} onSelect={() => void alignTables("row")}>
+                          <AlignHorizontalJustifyCenter />
+                          {ar ? "محاذاة أفقية" : "Align in one row"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={busy}
+                          onSelect={() => void alignTables("column")}
+                        >
+                          <AlignVerticalJustifyCenter />
+                          {ar ? "محاذاة عمودية" : "Align in one column"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled={busy} onSelect={() => void alignTables("grid")}>
+                          <LayoutGrid />
+                          {ar ? "ترتيب شبكي" : "Arrange as a grid"}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => setEntranceOpen(true)}>
+                          <DoorOpen />
+                          {ar ? "إضافة مدخل" : "Add entrance"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={floorBusy}
+                          onSelect={() => uploadRef.current?.click()}
+                        >
+                          <ImagePlus />
+                          {currentFloor.backgroundUrl
+                            ? ar
+                              ? "تغيير الخلفية"
+                              : "Replace floor plan"
+                            : ar
+                              ? "رفع مخطط"
+                              : "Upload floor plan"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => void printAll()}>
+                          <Printer />
+                          {ar ? "طباعة رموز QR" : "Print QR codes"}
+                        </DropdownMenuItem>
+                        {selectedEntrance || currentFloor.backgroundUrl ? (
+                          <DropdownMenuSeparator />
+                        ) : null}
+                        {selectedEntrance ? (
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onSelect={() => void removeEntrance()}
+                          >
+                            <Trash2 />
+                            {ar ? "حذف المدخل" : "Remove entrance"}
+                          </DropdownMenuItem>
+                        ) : null}
+                        {currentFloor.backgroundUrl ? (
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onSelect={() => void clearFloor()}
+                          >
+                            <Trash2 />
+                            {ar ? "إزالة الخلفية" : "Remove floor plan"}
+                          </DropdownMenuItem>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
+                ) : null}
+                <button
+                  type="button"
+                  className={cn("qs-toggle-control", grid && "is-active")}
+                  aria-label={ar ? "الشبكة والمحاذاة" : "Grid and snapping"}
+                  aria-pressed={grid}
+                  onClick={() => setGrid(!grid)}
+                >
+                  <Grid3X3 className="size-4" />
+                </button>
+                <div className="qs-zoom-control">
+                  <button
+                    type="button"
+                    aria-label="Zoom out"
+                    onClick={() => setZoom((value) => clamp(value - 0.1, 0.4, 1.8))}
+                  >
+                    <Minus className="size-4" />
+                  </button>
+                  <span>{Math.round(zoom * 100)}%</span>
+                  <button
+                    type="button"
+                    aria-label="Zoom in"
+                    onClick={() => setZoom((value) => clamp(value + 0.1, 0.4, 1.8))}
+                  >
+                    <Plus className="size-4" />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="qs-button-secondary"
+                  onClick={() => setZoom(W / normalizeCanvasSize(currentFloor.canvasSize).width)}
+                >
+                  {ar ? "ملاءمة" : "Fit"}
+                </button>
+              </div>
+            </div>
+            <div className="qs-floor-canvas-area min-h-0 flex-1 overflow-hidden bg-[#f7f8fa] p-2 dark:bg-[#101418]">
+              <div className="qs-floor-status-legend">
+                {(
+                  [
+                    "free",
+                    "reserved",
+                    "active",
+                    "cleaning",
+                    "out_of_service",
+                  ] as TableServiceStatus[]
+                ).map((status) => (
+                  <span
+                    key={status}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-bold text-muted-foreground"
+                  >
+                    <i
+                      className="size-2 rounded-full"
+                      style={{ background: serviceTone(status).dot }}
+                    />
+                    {serviceStatusLabel(status, ar)}
+                  </span>
+                ))}
+              </div>
+              <div className="qs-floor-canvas-viewport flex h-[calc(100%-32px)] min-h-0 items-center justify-center overflow-hidden">
+                <div
+                  ref={canvasRef}
+                  className={cn(
+                    "qs-floor-canvas relative max-h-full w-full max-w-[1040px] origin-center overflow-hidden rounded-xl border border-border bg-white shadow-inner",
+                    grid &&
+                      "bg-[linear-gradient(to_right,rgba(148,163,184,.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,.12)_1px,transparent_1px)] bg-[size:22px_22px]",
+                  )}
+                  style={{
+                    aspectRatio: `${normalizeCanvasSize(currentFloor.canvasSize).width}/${normalizeCanvasSize(currentFloor.canvasSize).height}`,
+                    width: `${(zoom * 100 * normalizeCanvasSize(currentFloor.canvasSize).width) / W}%`,
+                    ...(currentFloor.backgroundUrl
+                      ? {
+                          backgroundImage: `linear-gradient(rgba(255,255,255,.08),rgba(255,255,255,.08)),url("${currentFloor.backgroundUrl}")`,
+                          backgroundSize: "100% 100%, contain",
+                          backgroundPosition: "center",
+                          backgroundRepeat: "no-repeat",
+                        }
+                      : {}),
+                  }}
+                  onPointerDown={() => {
+                    setSelectedElementId(null);
+                    setSelectedTableId(null);
+                    setSelectedZoneId(null);
+                    setSelectedEntranceId(null);
+                  }}
+                >
+                  {currentFloor.zones.map((zone) => (
+                    <ZoneBox
+                      key={zone.id}
+                      zone={zone}
+                      ar={ar}
+                      selected={selectedZoneId === zone.id}
+                      onDown={(e, m) => beginZoneDrag(e, zone, m)}
+                      onMove={moveZone}
+                      onUp={endZoneDrag}
+                    />
+                  ))}
+                  {(currentFloor.elements ?? []).map((element) => (
+                    <FloorElementPiece
+                      key={element.id}
+                      element={element}
+                      selected={selectedElementId === element.id}
+                      editable={editing}
+                      busy={floorBusy}
+                      grid={grid}
+                      canvasRef={canvasRef}
+                      onSelect={() => {
+                        setSelectedElementId(element.id);
+                        setSelectedTableId(null);
+                        setSelectedZoneId(null);
+                        setSelectedEntranceId(null);
+                      }}
+                      onPreview={previewElement}
+                      onCommit={commitElement}
+                    />
+                  ))}
+                  {currentFloor.entrances.map((entry) => (
+                    <EntrancePiece
+                      key={entry.id}
+                      entry={entry}
+                      selected={selectedEntranceId === entry.id}
+                      onDown={(e) => beginEntranceDrag(e, entry)}
+                      onMove={moveEntrance}
+                      onUp={endEntranceDrag}
+                    />
+                  ))}
+                  {visibleTables.map((row, index) => {
+                    const live = selectedTableId === row.id;
+                    return (
+                      <TablePiece
+                        key={row.id}
+                        onSelect={() => openTable(row)}
+                        row={row}
+                        layout={draft[row.id] ?? layoutOf(row, index)}
+                        selected={live}
+                        previewMaterial={live && detailsOpen ? form.material : undefined}
+                        previewShape={live && detailsOpen ? form.shape : undefined}
+                        previewCapacity={live && detailsOpen ? Number(form.capacity) || 4 : undefined}
+                        onDown={(e, m) => beginTableDrag(e, row, m)}
+                        onMove={moveTable}
+                        onUp={endTableDrag}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        <aside className="qs-tables-studio-inspector">
+          {selectedElement ? (
+            <FloorElementInspector
+              key={selectedElement.id}
+              element={selectedElement}
+              ar={ar}
+              busy={floorBusy}
+              onSave={commitElement}
+              onDuplicate={duplicateElement}
+              onDelete={deleteElement}
+            />
+          ) : quickPanel ? (
+            quickPanel
+          ) : selectedZone ? (
+            <ZoneInspector
+              zone={selectedZone}
+              ar={ar}
+              onRename={() => openRenameZone(selectedZone)}
+              onDelete={() => void deleteZone(selectedZone.id)}
+            />
+          ) : selectedEntrance ? (
+            <EntranceInspector
+              entry={selectedEntrance}
+              ar={ar}
+              onRemove={() => void removeEntrance()}
+            />
+          ) : (
+            <div className="qs-tables-studio-empty">
+              <Table2 className="size-9" />
+              <h2>{ar ? "اختر طاولة" : "Select a table"}</h2>
+              <p>
+                {ar
+                  ? "شاهد الحالة ورمز QR وتفاصيل الطاولة."
+                  : "See its status, QR code and table details."}
+              </p>
+              {editing ? (
+                <Button type="button" variant="outline" onClick={() => setElementsOpen(true)}>
+                  {ar ? "إضافة عنصر للمخطط" : "Add floor element"}
+                </Button>
+              ) : null}
+            </div>
+          )}
+        </aside>
+      </section>
+      <input
+        ref={uploadRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => void uploadFloor(e.target.files?.[0])}
+      />
+      <Dialog open={elementsOpen} onOpenChange={setElementsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{ar ? "عناصر المخطط" : "Floor elements"}</DialogTitle>
+            <DialogDescription>
+              {ar
+                ? "أضف عنصراً ثم حركه وغير حجمه على المخطط."
+                : "Add an element, then move and resize it on your floor plan."}
+            </DialogDescription>
+          </DialogHeader>
+          <FloorElementLibrary ar={ar} busy={floorBusy} onAdd={(type) => void addElement(type)} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={canvasSizeOpen}
+        onOpenChange={(open) => {
+          if (!floorBusy) setCanvasSizeOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{ar ? "حجم المخطط" : "Canvas size"}</DialogTitle>
+            <DialogDescription>
+              {ar
+                ? "غيّر عرض وارتفاع هذا الطابق. تبقى مواقع الطاولات محفوظة بالنسبة للمخطط."
+                : "Set this floor’s width and height. Table positions remain proportional to the plan."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={ar ? "العرض" : "Width"}>
+              <Input
+                type="number"
+                min={600}
+                max={2400}
+                step={50}
+                value={canvasSizeDraft.width}
+                onChange={(e) =>
+                  setCanvasSizeDraft((current) => ({ ...current, width: e.target.value }))
+                }
+              />
+            </Field>
+            <Field label={ar ? "الارتفاع" : "Height"}>
+              <Input
+                type="number"
+                min={400}
+                max={1600}
+                step={50}
+                value={canvasSizeDraft.height}
+                onChange={(e) =>
+                  setCanvasSizeDraft((current) => ({ ...current, height: e.target.value }))
+                }
+              />
+            </Field>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[
+              [1000, 700],
+              [1400, 700],
+              [800, 1100],
+            ].map(([width, height]) => (
+              <Button
+                key={`${width}-${height}`}
+                variant="outline"
+                onClick={() => setCanvasSizeDraft({ width: String(width), height: String(height) })}
+              >
+                {width} × {height}
+              </Button>
+            ))}
+          </div>
+          <Button
+            disabled={floorBusy || !canvasSizeDraft.width || !canvasSizeDraft.height}
+            onClick={async () => {
+              setFloorBusy(true);
+              try {
+                const canvasSize = normalizeCanvasSize({
+                  width: Number(canvasSizeDraft.width),
+                  height: Number(canvasSizeDraft.height),
+                });
+                await persistFloors(
+                  floors.map((floor) =>
+                    floor.id === activeFloor ? { ...floor, canvasSize } : floor,
+                  ),
+                );
+                setZoom(1);
+                setCanvasSizeOpen(false);
+                toast.success(ar ? "تم حفظ حجم المخطط" : "Canvas size saved");
+              } catch (error) {
+                toast.error(humanError(error, lang));
+              } finally {
+                setFloorBusy(false);
+              }
+            }}
+          >
+            {floorBusy ? (ar ? "جارٍ الحفظ…" : "Saving…") : ar ? "حفظ الحجم" : "Save size"}
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={detailsOpen}
+        onOpenChange={(open) => {
+          if (busy) return;
+          setDetailsOpen(open);
+          if (!open) resetTableForm();
+        }}
+      >
+        <DialogContent className="qs-table-details-dialog sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {selected
+                ? `${ar ? "طاولة" : "Table"} ${selected.table_number}`
+                : ar
+                  ? "تفاصيل الطاولة"
+                  : "Table details"}
+            </DialogTitle>
+            <DialogDescription>
+              {ar ? "معلومات الطاولة ورمز QR" : "Table information and QR code"}
+            </DialogDescription>
+          </DialogHeader>
+          {selected ? (
+            <TableInspector
+              ar={ar}
+              selected={selected}
+              group={selectedGroup}
+              form={form}
+              setForm={setForm}
+              floors={floors}
+              currentFloor={currentFloor}
+              qr={qr}
+              busy={busy}
+              onRotate={() => rotate(15)}
+              onSave={() => void saveSelected()}
+              onDelete={() => void deleteSelected()}
+              onMerge={openMerge}
+              onSplit={() => void splitTables()}
+              onDownload={() => qr && downloadDataUrl(qr, `table-${selected.table_number}-qr.png`)}
+              onPrint={() => void printSingle()}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={mergeOpen} onOpenChange={setMergeOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{ar ? "دمج الطاولات" : "Merge tables"}</DialogTitle>
+            <DialogDescription>
+              {ar
+                ? "ادمج طاولتين أو أكثر في مجموعة خدمة واحدة. السعة تصبح مجموع المقاعد ويمكن فصل المجموعة لاحقاً."
+                : "Combine two or more tables into one service group. Capacity is summed and the group can be split later."}
+            </DialogDescription>
+          </DialogHeader>
+          <Field label={ar ? "اسم المجموعة (اختياري)" : "Group label (optional)"}>
+            <Input
+              value={mergeLabel}
+              onChange={(e) => setMergeLabel(e.target.value)}
+              maxLength={120}
+              placeholder={ar ? "مثال: حفلة كبيرة" : "e.g. Large party"}
+            />
+          </Field>
+          <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-border p-2">
+            {floorTables
+              .filter(
+                (row) =>
+                  row.id === selected?.id ||
+                  (!row.service_group_id &&
+                    row.is_active &&
+                    serviceStatusOf(row) !== "out_of_service"),
+              )
+              .map((row) => {
+                const checked = mergeIds.includes(row.id);
+                const locked = row.id === selected?.id;
+                return (
+                  <button
+                    type="button"
+                    key={row.id}
+                    disabled={locked}
+                    onClick={() => toggleMergeTable(row.id)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-xl border p-3 text-start transition",
+                      checked
+                        ? "border-primary/30 bg-primary/8"
+                        : "border-border bg-card hover:bg-muted/50",
+                      locked && "opacity-80",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "grid size-9 place-items-center rounded-xl text-xs font-black",
+                        checked
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      T{row.table_number}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <strong className="block truncate text-sm">
+                        {row.table_name || (ar ? "طاولة " : "Table ") + row.table_number}
+                      </strong>
+                      <span className="text-[10px] text-muted-foreground">
+                        {row.capacity ?? 4} {ar ? "مقاعد" : "seats"} ·{" "}
+                        {serviceStatusLabel(serviceStatusOf(row), ar)}
+                      </span>
+                    </span>
+                    <span
+                      className={cn(
+                        "grid size-5 place-items-center rounded-full border text-[10px]",
+                        checked
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border",
+                      )}
+                    >
+                      {checked ? "✓" : ""}
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+          <div className="rounded-xl bg-muted/45 p-3 text-xs text-muted-foreground">
+            {ar ? "السعة المجمعة: " : "Combined capacity: "}
+            <strong className="text-foreground">
+              {(tables.data ?? [])
+                .filter((row) => mergeIds.includes(row.id))
+                .reduce((sum, row) => sum + (row.capacity ?? 4), 0)}
+            </strong>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMergeOpen(false)} disabled={busy}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={() => void mergeTables()} disabled={busy || mergeIds.length < 2}>
+              {ar ? "دمج الطاولات" : "Merge tables"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={tableOpen} onOpenChange={setTableOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{ar ? "إضافة طاولة" : "Add Table"}</DialogTitle>
+            <DialogDescription>
+              {ar
+                ? "حدد الطابق والمنطقة ومظهر الطاولة."
+                : "Choose the floor, zone and table style."}
+            </DialogDescription>
+          </DialogHeader>
+          <TableForm ar={ar} form={form} setForm={setForm} floors={floors} />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setTableOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button disabled={busy || !form.number.trim()} onClick={() => void createTable()}>
+              {ar ? "إضافة" : "Add Table"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={zoneOpen}
+        onOpenChange={(open) => {
+          setZoneOpen(open);
+          if (!open) setZoneEditing(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {zoneEditing
+                ? ar
+                  ? "إعادة تسمية المنطقة"
+                  : "Rename Zone"
+                : ar
+                  ? "إضافة منطقة"
+                  : "Add Zone"}
+            </DialogTitle>
+            <DialogDescription>
+              {ar
+                ? "يمكن تحريك المنطقة وتغيير حجمها بعد الحفظ."
+                : "You can move and resize the zone after saving."}
+            </DialogDescription>
+          </DialogHeader>
+          <Field label={ar ? "اسم المنطقة" : "Zone name"}>
+            <Input autoFocus value={zoneName} onChange={(e) => setZoneName(e.target.value)} />
+          </Field>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setZoneOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button disabled={!zoneName.trim()} onClick={() => void saveZone()}>
+              {ar ? "حفظ" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={floorOpen} onOpenChange={setFloorOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{ar ? "إضافة طابق" : "Add Floor"}</DialogTitle>
+            <DialogDescription>
+              {ar
+                ? "أنشئ مخططاً مستقلاً لطابق أو قاعة أخرى."
+                : "Create an independent floor or hall layout."}
+            </DialogDescription>
+          </DialogHeader>
+          <Field label={ar ? "اسم الطابق" : "Floor name"}>
+            <Input autoFocus value={floorName} onChange={(e) => setFloorName(e.target.value)} />
+          </Field>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setFloorOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button disabled={!floorName.trim()} onClick={() => void addFloor()}>
+              {ar ? "إضافة" : "Add Floor"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={entranceOpen} onOpenChange={setEntranceOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{ar ? "إضافة مدخل" : "Add Entrance"}</DialogTitle>
+            <DialogDescription>
+              {ar
+                ? "أضف مدخل رئيسي أو خدمي ثم اسحبه إلى مكانه."
+                : "Add a main or service entrance, then drag it into position."}
+            </DialogDescription>
+          </DialogHeader>
+          <Field label={ar ? "اسم المدخل" : "Entrance label"}>
+            <Input
+              value={entranceName}
+              onChange={(e) => setEntranceName(e.target.value)}
+              placeholder="Main Entrance"
+            />
+          </Field>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEntranceOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={() => void addEntrance()}>{ar ? "إضافة" : "Add Entrance"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function ZoneBox({
+  zone,
+  ar,
+  selected,
+  onDown,
+  onMove,
+  onUp,
+}: {
+  zone: Zone;
+  ar: boolean;
+  selected: boolean;
+  onDown: (e: ReactPointerEvent<HTMLElement>, mode: "move" | "resize") => void;
+  onMove: (e: ReactPointerEvent<HTMLElement>) => void;
+  onUp: (e: ReactPointerEvent<HTMLElement>) => void;
+}) {
+  return (
+    <div
+      className="qs-floor-zone absolute z-[2] rounded-xl border-2 bg-white/28 backdrop-blur-[1px]"
+      style={{
+        left: `${zone.x}%`,
+        top: `${zone.y}%`,
+        width: `${zone.width}%`,
+        height: `${zone.height}%`,
+        borderColor: zone.color,
+        boxShadow: selected ? `0 0 0 3px ${zone.color}22` : undefined,
+      }}
+    >
+      <button
+        type="button"
+        onPointerDown={(e) => onDown(e, "move")}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        className="qs-floor-zone-label absolute start-2 top-2 z-10 flex touch-none items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-bold text-white shadow-sm"
+        style={{ background: zone.color }}
+      >
+        <span className="grid grid-cols-2 gap-[2px]">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <i key={i} className="size-[2px] rounded-full bg-white/80" />
+          ))}
+        </span>
+        {ar ? zone.ar : zone.en}
+      </button>
+      {selected ? (
+        <button
+          type="button"
+          aria-label="Resize zone"
+          onPointerDown={(e) => onDown(e, "resize")}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onPointerCancel={onUp}
+          className="absolute -bottom-2 -end-2 size-5 touch-none rounded-full border-2 border-white shadow"
+          style={{ background: zone.color }}
+        />
+      ) : null}
+    </div>
+  );
+}
+function EntrancePiece({
+  entry,
+  selected,
+  onDown,
+  onMove,
+  onUp,
+}: {
+  entry: Entrance;
+  selected: boolean;
+  onDown: (e: ReactPointerEvent<HTMLElement>) => void;
+  onMove: (e: ReactPointerEvent<HTMLElement>) => void;
+  onUp: (e: ReactPointerEvent<HTMLElement>) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+      className={cn(
+        "qs-floor-entrance absolute z-[8] flex touch-none items-center gap-1.5 rounded-lg border bg-white px-2.5 py-1.5 text-[10px] font-bold text-slate-700 shadow",
+        selected ? "border-[#e85d2a] ring-2 ring-orange-500/20" : "border-slate-300",
+      )}
+      style={{
+        left: `${entry.x}%`,
+        top: `${entry.y}%`,
+        transform: `translate(-50%,-50%) rotate(${entry.rotation}deg)`,
+      }}
+    >
+      <DoorOpen className="size-3.5" />
+      {entry.label}
+    </button>
+  );
+}
+function TablePiece({
+  row,
+  layout,
+  selected,
+  previewMaterial,
+  previewShape,
+  previewCapacity,
+  onSelect,
+  onDown,
+  onMove,
+  onUp,
+}: {
+  row: FloorTable;
+  layout: Layout;
+  selected: boolean;
+  previewMaterial?: Material | undefined;
+  previewShape?: Shape | undefined;
+  previewCapacity?: number | undefined;
+  onSelect: () => void;
+  onDown: (e: ReactPointerEvent<HTMLElement>, mode: "move" | "resize") => void;
+  onMove: (e: ReactPointerEvent<HTMLElement>) => void;
+  onUp: (e: ReactPointerEvent<HTMLElement>) => void;
+}) {
+  const shape = previewShape ?? shapeOf(row.shape);
+  const material = previewMaterial ?? materialOf(row);
+  const seats = clamp(previewCapacity ?? row.capacity ?? 4, 2, 8);
+  const status = serviceStatusOf(row);
+  const tone = serviceTone(status);
+  const styles: Record<
+    Material,
+    { top: string; chair: string; text: string; border: string; shadow: string }
+  > = {
+    wood: {
+      top: "linear-gradient(90deg,#875029,#c27c42 46%,#75411f)",
+      chair: "#8b5a3c",
+      text: "#fff",
+      border: "#6f3d20",
+      shadow: "0 8px 16px rgba(99,55,27,.28)",
+    },
+    glass: {
+      top: "linear-gradient(135deg,rgba(215,244,255,.86),rgba(255,255,255,.22) 52%,rgba(173,225,242,.58))",
+      chair: "#93aeb8",
+      text: "#27485b",
+      border: "#78bacf",
+      shadow: "0 8px 18px rgba(73,147,171,.22)",
+    },
+    aluminum: {
+      top: "linear-gradient(135deg,#f7f9fa 0%,#b9c2ca 42%,#eef1f3 60%,#929ea8 100%)",
+      chair: "#77838d",
+      text: "#26323b",
+      border: "#7d8993",
+      shadow: "0 8px 16px rgba(71,85,105,.24)",
+    },
+    marble: {
+      top: "linear-gradient(135deg,#fbfaf7 0 27%,#d8d5cf 28% 32%,#ffffff 33% 56%,#c5c8cc 57% 61%,#f1efe9 62% 82%,#d0ccc3 83% 86%,#faf9f5 87%)",
+      chair: "#59635c",
+      text: "#26312a",
+      border: "#aeb3af",
+      shadow: "0 8px 18px rgba(55,65,60,.18)",
+    },
+    neutral: {
+      top: "linear-gradient(135deg,#d9d6cf,#b7b3aa 55%,#cbc7bf)",
+      chair: "#88847d",
+      text: "#2e2d2a",
+      border: "#9c978e",
+      shadow: "0 8px 16px rgba(80,76,70,.18)",
+    },
+  };
+  const s = styles[material];
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Table ${row.table_number} · ${serviceStatusLabel(status, false)}`}
+      aria-pressed={selected}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      data-material={material}
+      data-service-status={status}
+      onPointerDown={(e) => onDown(e, "move")}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+      className="qs-floor-table-piece absolute z-10 touch-none select-none"
+      data-shape={shape}
+      style={{
+        left: `${layout.x / 10}%`,
+        top: `${layout.y / 7}%`,
+        width: shape === "rectangle" ? "116px" : "88px",
+        height: "88px",
+        transform: `translate(-50%,-50%) rotate(${layout.rotation}deg) scale(${layout.scale}) scale(var(--qs-floor-object-scale,1))`,
+      }}
+    >
+      {Array.from({ length: Math.min(seats, 6) }, (_, index) => {
+        const angle = (360 / Math.min(seats, 6)) * index - 90;
+        const x = 50 + Math.cos((angle * Math.PI) / 180) * 50;
+        const y = 50 + Math.sin((angle * Math.PI) / 180) * 50;
+        return (
+          <i
+            key={index}
+            className="qs-floor-chair absolute h-4 w-6 rounded-[5px] border shadow-sm"
+            style={{
+              left: `${x}%`,
+              top: `${y}%`,
+              transform: `translate(-50%,-50%) rotate(${angle + 90}deg)`,
+              background: s.chair,
+              borderColor: s.border,
+            }}
+          />
+        );
+      })}
+      <span
+        className={cn(
+          "qs-floor-table-top absolute inset-[11px] grid place-items-center border-2 font-display text-sm font-bold transition-all",
+          shape === "round" ? "rounded-full" : shape === "square" ? "rounded-xl" : "rounded-[14px]",
+        )}
+        style={{
+          background: s.top,
+          color: s.text,
+          borderColor: selected ? "#2486ff" : tone.dot,
+          boxShadow: selected
+            ? "0 0 0 4px rgba(36,134,255,.18), " + s.shadow
+            : `0 0 0 4px ${tone.ring}, ${s.shadow}`,
+        }}
+      >
+        {row.table_number}
+      </span>
+      <span
+        className="qs-floor-table-status absolute -top-3 start-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/70 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-white shadow-sm"
+        style={{ background: tone.dot }}
+      >
+        {serviceStatusLabel(status, false)}
+      </span>
+      {row.service_group_id ? (
+        <span className="absolute -end-2 -top-2 z-30 grid size-5 place-items-center rounded-full border-2 border-white bg-[#111827] text-[9px] font-black text-white shadow">
+          +
+        </span>
+      ) : null}
+      {selected ? (
+        <>
+          <span className="pointer-events-none absolute -inset-1 rounded-xl border-2 border-[#2486ff]" />
+          <button
+            type="button"
+            aria-label="Resize table"
+            onPointerDown={(e) => onDown(e, "resize")}
+            onPointerMove={onMove}
+            onPointerUp={onUp}
+            onPointerCancel={onUp}
+            className="absolute -bottom-2 -end-2 z-30 size-4 touch-none rounded-full border-2 border-white bg-[#2486ff] shadow"
+          />
+        </>
+      ) : null}
+    </div>
+  );
+}
+function TableInspector({
+  ar,
+  selected,
+  group,
+  form,
+  setForm,
+  floors,
+  currentFloor,
+  qr,
+  busy,
+  onRotate,
+  onSave,
+  onDelete,
+  onMerge,
+  onSplit,
+  onDownload,
+  onPrint,
+}: {
+  ar: boolean;
+  selected: FloorTable;
+  group: ServiceGroup | null;
+  form: any;
+  setForm: (value: any) => void;
+  floors: FloorConfig[];
+  currentFloor: FloorConfig;
+  qr: string | null;
+  busy: boolean;
+  onRotate: () => void;
+  onSave: () => void;
+  onDelete: () => void;
+  onMerge: () => void;
+  onSplit: () => void;
+  onDownload: () => void;
+  onPrint: () => void;
+}) {
+  return (
+    <div className="qs-table-editor-layout">
+      <div className="qs-panel-header shrink-0">
+        <div>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {form.active ? (ar ? "نشطة في النظام" : "Enabled") : ar ? "غير نشطة" : "Disabled"}
+            </span>
+            <span
+              className="rounded-full px-2 py-0.5 text-[9px] font-bold"
+              style={{
+                background: serviceTone(serviceStatusOf(selected)).bg,
+                color: serviceTone(serviceStatusOf(selected)).dot,
+              }}
+            >
+              {serviceStatusLabel(serviceStatusOf(selected), ar)}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="qs-table-editor-scroll space-y-3 p-3.5">
+        {group ? (
+          <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-900/50 dark:bg-blue-950/20">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <strong className="text-xs text-blue-800 dark:text-blue-200">
+                  {ar ? "مجموعة طاولات" : "Merged table group"}
+                </strong>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  {group.label || group.table_numbers.map((number) => "T" + number).join(" + ")} ·{" "}
+                  {group.combined_capacity} {ar ? "مقعد" : "seats"}
+                </p>
+              </div>
+              <Button type="button" size="sm" variant="outline" disabled={busy} onClick={onSplit}>
+                {ar ? "فصل" : "Split"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={onMerge}
+            disabled={busy}
+          >
+            <Columns3 className="size-4" />
+            {ar ? "دمج مع طاولة أخرى" : "Merge with another table"}
+          </Button>
+        )}
+        <TableForm ar={ar} form={form} setForm={setForm} floors={floors} />
+        <p className="rounded-lg bg-muted/50 px-3 py-2 text-[10px] leading-4 text-muted-foreground">
+          {ar
+            ? "تظهر تغييرات المادة والشكل والمقاعد مباشرة على المخطط. اضغط حفظ التغييرات للاحتفاظ بها."
+            : "Material, shape and seat changes preview instantly on the floor plan. Choose Save Changes to keep them."}
+        </p>
+        <Field label={ar ? "الدوران" : "Rotation"}>
+          <div className="flex gap-2">
+            <Input
+              type="number"
+              value={form.rotation}
+              onChange={(e) => setForm({ ...form, rotation: e.target.value })}
+            />
+            <button
+              type="button"
+              className="qs-button-secondary px-3"
+              onClick={onRotate}
+              aria-label={ar ? "تدوير الطاولة" : "Rotate table"}
+            >
+              <RotateCw className="size-4" />
+            </button>
+          </div>
+        </Field>
+        <label className="flex items-center justify-between rounded-xl border border-border p-3">
+          <span className="text-xs font-bold">{ar ? "الطاولة نشطة" : "Table active"}</span>
+          <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
+        </label>
+        {qr ? (
+          <div className="rounded-xl border border-border p-3">
+            <div className="grid grid-cols-[78px_1fr] items-center gap-3">
+              <img src={qr} alt="QR" className="size-[78px] rounded-lg border bg-white p-1" />
+              <div>
+                <strong className="text-xs">{ar ? "رمز QR" : "QR Code"}</strong>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    className="qs-button-secondary min-h-9 px-2 text-[10px]"
+                    onClick={onDownload}
+                  >
+                    <Download className="size-3" />
+                    {ar ? "تنزيل" : "Download"}
+                  </button>
+                  <button
+                    type="button"
+                    className="qs-button-secondary min-h-9 px-2 text-[10px]"
+                    onClick={onPrint}
+                  >
+                    <Printer className="size-3" />
+                    {ar ? "طباعة" : "Print"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+      <div className="qs-table-editor-footer safe-bottom grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-card p-4">
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={busy}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 text-xs font-bold text-red-600"
+        >
+          <Trash2 className="size-4" />
+          {ar ? "حذف" : "Delete Table"}
+        </button>
+        <button type="button" disabled={busy} onClick={onSave} className="qs-button-primary">
+          <Save className="size-4" />
+          {ar ? "حفظ" : "Save Changes"}
+        </button>
+      </div>
+    </div>
+  );
+}
+function TableForm({
+  ar,
+  form,
+  setForm,
+  floors,
+}: {
+  ar: boolean;
+  form: any;
+  setForm: (value: any) => void;
+  floors: FloorConfig[];
+}) {
+  const floor = floors.find((f) => f.id === form.floor) ?? floors[0];
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label={ar ? "رقم الطاولة" : "Table ID"}>
+        <Input value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} />
+      </Field>
+      <Field label={ar ? "الاسم" : "Name"}>
+        <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      </Field>
+      <Field label={ar ? "الطابق" : "Floor"}>
+        <Select
+          value={form.floor}
+          onValueChange={(v) => {
+            const f = floors.find((x) => x.id === v);
+            setForm({ ...form, floor: v, zone: f?.zones[0]?.id ?? "main" });
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {floors.map((f) => (
+              <SelectItem key={f.id} value={f.id}>
+                {ar ? f.ar : f.en}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field label={ar ? "المنطقة" : "Zone"}>
+        <Select value={form.zone} onValueChange={(v) => setForm({ ...form, zone: v })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(floor?.zones ?? []).map((z) => (
+              <SelectItem key={z.id} value={z.id}>
+                {ar ? z.ar : z.en}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field label={ar ? "المقاعد" : "Capacity"}>
+        <div className="grid grid-cols-[42px_1fr_42px] overflow-hidden rounded-xl border border-border">
+          <button
+            type="button"
+            className="grid min-h-10 place-items-center"
+            onClick={() =>
+              setForm({ ...form, capacity: String(clamp((Number(form.capacity) || 1) - 1, 1, 30)) })
+            }
+          >
+            <Minus className="size-4" />
+          </button>
+          <span className="grid place-items-center border-x border-border text-sm font-bold">
+            {form.capacity}
+          </span>
+          <button
+            type="button"
+            className="grid min-h-10 place-items-center"
+            onClick={() =>
+              setForm({ ...form, capacity: String(clamp((Number(form.capacity) || 1) + 1, 1, 30)) })
+            }
+          >
+            <Plus className="size-4" />
+          </button>
+        </div>
+      </Field>
+      <Field label={ar ? "المادة" : "Material"}>
+        <Select
+          value={form.material}
+          onValueChange={(v) => setForm({ ...form, material: v as Material })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="wood">{ar ? "خشب" : "Wood"}</SelectItem>
+            <SelectItem value="glass">{ar ? "زجاج" : "Glass"}</SelectItem>
+            <SelectItem value="aluminum">{ar ? "ألمنيوم" : "Aluminum"}</SelectItem>
+            <SelectItem value="marble">{ar ? "رخام" : "Marble"}</SelectItem>
+            <SelectItem value="neutral">{ar ? "محايد" : "Neutral"}</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field label={ar ? "الشكل" : "Shape"}>
+        <Select value={form.shape} onValueChange={(v) => setForm({ ...form, shape: v as Shape })}>
+          <SelectTrigger>
+            <Square className="me-2 size-4" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="square">{ar ? "مربع" : "Square"}</SelectItem>
+            <SelectItem value="round">{ar ? "دائري" : "Round"}</SelectItem>
+            <SelectItem value="rectangle">{ar ? "مستطيل" : "Rectangle"}</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+    </div>
+  );
+}
+function ZoneInspector({
+  zone,
+  ar,
+  onRename,
+  onDelete,
+}: {
+  zone: Zone;
+  ar: boolean;
+  onRename: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="p-5">
+      <h2 className="text-lg font-bold">{ar ? zone.ar : zone.en}</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {ar
+          ? "اسحب عنوان المنطقة لتحريكها، واسحب المقبض لتغيير حجمها."
+          : "Drag the zone label to move it and the corner handle to resize it."}
+      </p>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <button type="button" onClick={onRename} className="qs-button-secondary">
+          <Pencil className="size-4" />
+          {ar ? "إعادة تسمية" : "Rename"}
+        </button>
+        <button type="button" onClick={onDelete} className="qs-button-secondary text-red-600">
+          <Trash2 className="size-4" />
+          {ar ? "حذف" : "Delete"}
+        </button>
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-3 text-xs">
+        <Read label="X" value={`${zone.x.toFixed(1)}%`} />
+        <Read label="Y" value={`${zone.y.toFixed(1)}%`} />
+        <Read label={ar ? "العرض" : "Width"} value={`${zone.width.toFixed(1)}%`} />
+        <Read label={ar ? "الارتفاع" : "Height"} value={`${zone.height.toFixed(1)}%`} />
+      </div>
+    </div>
+  );
+}
+function EntranceInspector({
+  entry,
+  ar,
+  onRemove,
+}: {
+  entry: Entrance;
+  ar: boolean;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="p-5">
+      <DoorOpen className="size-8 text-[#e85d2a]" />
+      <h2 className="mt-3 text-lg font-bold">{entry.label}</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {ar
+          ? "اسحب المدخل إلى موقعه الصحيح على المخطط."
+          : "Drag the entrance to its correct position on the floor plan."}
+      </p>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="mt-5 qs-button-secondary w-full text-red-600"
+      >
+        <Trash2 className="size-4" />
+        {ar ? "حذف المدخل" : "Remove Entrance"}
+      </button>
+    </div>
+  );
+}
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <Label className="text-xs font-bold">{label}</Label>
+      {children}
+    </div>
+  );
+}
+function Read({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border p-3">
+      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <strong className="mt-1 block text-sm">{value}</strong>
+    </div>
+  );
+}

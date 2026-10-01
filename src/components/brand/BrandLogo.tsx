@@ -1,3 +1,4 @@
+import { useState } from "react";
 import markAsset from "@/assets/quickserve-mark.png.asset.json";
 import { cn } from "@/lib/utils";
 
@@ -18,13 +19,33 @@ export function BrandLogo({
   markOnly = false,
   textClassName,
 }: Props) {
+  const [failed, setFailed] = useState(false);
   return (
     <span className="inline-flex items-center gap-2">
-      <img
-        src={markAsset.url}
-        alt="QuickServe"
-        className={cn("h-8 w-auto object-contain", className)}
-      />
+      {failed ? (
+        <svg
+          viewBox="0 0 64 64"
+          role="img"
+          aria-label="QuickServe"
+          className={cn("h-8 w-auto text-accent", className)}
+        >
+          <circle cx="30" cy="29" r="17" fill="none" stroke="currentColor" strokeWidth="6" />
+          <path
+            d="M37 37L51 51"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="6"
+            strokeLinecap="round"
+          />
+        </svg>
+      ) : (
+        <img
+          onError={() => setFailed(true)}
+          src={markAsset.url}
+          alt="QuickServe"
+          className={cn("h-8 w-auto object-contain", className)}
+        />
+      )}
       {markOnly ? null : (
         <span className={cn("font-display text-lg font-bold leading-none", textClassName)}>
           Quick<span className={accentClassName}>Serve</span>

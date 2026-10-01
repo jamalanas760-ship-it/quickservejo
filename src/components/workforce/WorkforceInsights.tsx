@@ -1,3 +1,7 @@
+import { isLiveTeamPunch, teamPunchesByStaff } from "@/lib/team-attendance";
+import { useRestaurant } from "@/hooks/useSuperAdmin";
+import { workforceDayStart, workforceNextDay, workforceDayKey, workforceHours, workforceLocalInput, workforceInputTimestamp } from "@/lib/workforce-hours";
+import { RequestDateTimePicker, RequestDatePicker } from "@/components/workforce/RequestPickers";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -79,28 +83,25 @@ const WEEKLY_OVERTIME_RISK_H = 40;
 
 const H = (ms: number) => ms / 3_600_000;
 const fmtH = (h: number, ar: boolean) => `${h.toFixed(1)}${ar ? "س" : "h"}`;
-const fmtTime = (v: string | null | undefined, ar: boolean) =>
+const fmtTime = (v: string | null | undefined, ar: boolean, timeZone = "Asia/Amman") =>
   v
-    ? new Date(v).toLocaleTimeString(ar ? "ar-JO" : "en-US", { hour: "2-digit", minute: "2-digit" })
+    ? new Date(v).toLocaleTimeString(ar ? "ar-JO" : "en-US", { timeZone, hour: "2-digit", minute: "2-digit" })
     : "—";
-const dayKey = (v: string | Date) => new Date(v).toLocaleDateString("en-CA");
-const toLocalInput = (v: string | null) => {
-  if (!v) return "";
-  const d = new Date(v);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
+const dayKey = (v: string | Date, timeZone = "Asia/Amman") => workforceDayKey(new Date(v),timeZone);
+const toLocalInput = (value: string | null, timeZone = "Asia/Amman") => value ? workforceLocalInput(value,timeZone) : "";
 
 export function useWorkforceData(restaurantId: string, range?: { start: string; end: string }) {
+  const restaurant = useRestaurant(restaurantId);
+  const timeZone = restaurant.data?.timezone || "Asia/Amman";
   return useQuery({
-    queryKey: ["workforce", "insights", restaurantId, range?.start ?? "recent", range?.end ?? ""],
+    queryKey: ["workforce", "insights", restaurantId, range?.start ?? "recent", range?.end ?? "", timeZone],
     refetchInterval: 30_000,
     queryFn: async () => {
       const since = range
-        ? new Date(`${range.start}T00:00:00`).toISOString()
+        ? new Date(workforceDayStart(range.start,timeZone)).toISOString()
         : new Date(Date.now() - 35 * 86400000).toISOString();
       const until = range
-        ? new Date(`${moveDay(range.end, 1)}T00:00:00`).toISOString()
+        ? new Date(workforceDayStart(workforceNextDay(range.end),timeZone)).toISOString()
         : new Date(Date.now() + 86400000).toISOString();
       const [timeRes, leaveRes] = await Promise.all([
         (supabase.from as any)("staff_time_entries")
@@ -118,7 +119,7 @@ export function useWorkforceData(restaurantId: string, range?: { start: string; 
       ]);
       if (timeRes.error) throw timeRes.error;
       if (leaveRes.error) throw leaveRes.error;
-      return { entries: (timeRes.data ?? []) as Entry[], leave: (leaveRes.data ?? []) as Leave[] };
+      return { entries: (timeRes.data ?? []) as Entry[], leave: (leaveRes.data ?? []) as Leave[], timeZone };
     },
   });
 }
@@ -133,23 +134,25 @@ export function memberDayStatus(
   assignments: ShiftAssignment[],
   entries: Entry[],
   now = Date.now(),
+  timeZone = "Asia/Amman",
 ) {
+  const dayKey = (value: string | Date) => workforceDayKey(new Date(value),timeZone);
+  const accepted = entries.filter(e => e.review_status !== "rejected" && Date.parse(e.clock_in) <= now && (e.clock_out ? Date.parse(e.clock_out) > Date.parse(e.clock_in) : isLiveTeamPunch(e,now)));
+  const liveEntries = teamPunchesByStaff(accepted,now).live;
+  const validEntries = accepted.filter(e => e.clock_out || liveEntries.get(e.staff_id) === e);
+  const dayStart = workforceDayStart(dateKey,timeZone), dayEnd = workforceDayStart(workforceNextDay(dateKey),timeZone);
   const scheduled = assignments.filter(
     (a) =>
       a.staff_id === memberId &&
       a.status !== "released" &&
       a.starts_at &&
       a.ends_at &&
-      dayKey(a.starts_at) === dateKey,
+      Date.parse(a.starts_at) < dayEnd && Date.parse(a.ends_at) > dayStart,
   );
-  const dayEntries = entries.filter(
-    (e) => e.staff_id === memberId && dayKey(e.clock_in) === dateKey,
+  const dayEntries = validEntries.filter(
+    (e) => e.staff_id === memberId && Date.parse(e.clock_in) < dayEnd && (e.clock_out ? Date.parse(e.clock_out) : now) > dayStart,
   );
-  const open =
-    dayEntries.find((e) => !e.clock_out) ??
-    (dateKey === dayKey(new Date(now))
-      ? entries.find((e) => e.staff_id === memberId && !e.clock_out)
-      : undefined);
+  const open = dateKey === dayKey(new Date(now)) ? teamPunchesByStaff(validEntries,now).live.get(memberId) : undefined;
   const first = scheduled.sort((a, b) => a.starts_at!.localeCompare(b.starts_at!))[0];
   const start = first ? new Date(first.starts_at!).getTime() : null;
   const end = first ? new Date(first.ends_at!).getTime() : null;
@@ -160,21 +163,8 @@ export function memberDayStatus(
     dayEntries.every((e) => e.clock_out) && dayEntries.length
       ? Math.max(...dayEntries.map((e) => new Date(e.clock_out!).getTime()))
       : null;
-  const actualH = dayEntries.reduce(
-    (s, e) =>
-      s +
-      Math.max(
-        0,
-        H((e.clock_out ? new Date(e.clock_out).getTime() : now) - new Date(e.clock_in).getTime()) -
-          (e.break_minutes || 0) / 60,
-      ),
-    0,
-  );
-  const breakMin = dayEntries.reduce((s, e) => s + (e.break_minutes || 0), 0);
-  const scheduledH = scheduled.reduce(
-    (s, a) => s + Math.max(0, H(new Date(a.ends_at!).getTime() - new Date(a.starts_at!).getTime())),
-    0,
-  );
+  const {actualH, plannedH: scheduledH} = workforceHours(memberId,dateKey,assignments,validEntries,now,timeZone);
+  const breakMin = dayEntries.reduce((s,e) => s+(e.break_minutes || 0),0);
   const lateMin =
     start && firstIn
       ? Math.max(0, (firstIn - start) / 60000)
@@ -288,10 +278,10 @@ export function WorkforceExceptions({
 
   const items = useMemo(() => {
     if (!data.data) return [];
-    const today = dayKey(new Date());
+    const today = dayKey(new Date(),data.data?.timeZone);
     const out: Array<{ key: string; tone: string; title: string; detail: string }> = [];
     for (const m of members.filter((x) => x.is_active)) {
-      const d = memberDayStatus(m.id, today, assignments, data.data.entries);
+      const d = memberDayStatus(m.id, today, assignments, data.data.entries, Date.now(), data.data.timeZone);
       if (d.missing)
         out.push({
           key: `miss-${today}-${m.id}`,
@@ -504,10 +494,10 @@ export function MemberWorkforceSheet({
 }) {
   const data = useWorkforceData(restaurantId);
   const now = Date.now();
-  const today = dayKey(new Date());
+  const today = dayKey(new Date(),data.data?.timeZone);
   const d =
     member && data.data
-      ? memberDayStatus(member.id, today, assignments, data.data.entries, now)
+      ? memberDayStatus(member.id, today, assignments, data.data.entries, now, data.data.timeZone)
       : null;
   const weekAgo = now - 7 * 86400000;
   const weekH =
@@ -660,7 +650,7 @@ export function WorkforceTeam({
   const [role, setRole] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const today = dayKey(new Date());
+  const today = dayKey(new Date(),data.data?.timeZone);
   const roles = Array.from(new Set(members.map((m) => m.role)));
   const rows = members.filter(
     (m) =>
@@ -670,7 +660,7 @@ export function WorkforceTeam({
   );
   const selected = members.find((m) => m.id === selectedId);
   const d = selected
-    ? memberDayStatus(selected.id, today, assignments, data.data?.entries ?? [])
+    ? memberDayStatus(selected.id, today, assignments, data.data?.entries ?? [], Date.now(), data.data?.timeZone)
     : null;
   return (
     <div className={cn("wf-detail-layout", selected && "has-detail")}>
@@ -708,7 +698,7 @@ export function WorkforceTeam({
             </thead>
             <tbody>
               {rows.map((m) => {
-                const status = memberDayStatus(m.id, today, assignments, data.data?.entries ?? []);
+                const status = memberDayStatus(m.id, today, assignments, data.data?.entries ?? [], Date.now(), data.data?.timeZone);
                 const last = (data.data?.entries ?? []).find((e) => e.staff_id === m.id);
                 return (
                   <tr key={m.id} className={m.id === selectedId ? "is-selected" : ""}>
@@ -848,7 +838,7 @@ export function WorkforceAttendanceBoard({
   const roles = Array.from(new Set(members.map((m) => m.role)));
   const allRows = members
     .filter((m) => m.is_active && (role === "all" || m.role === role))
-    .map((m) => ({ m, d: memberDayStatus(m.id, date, assignments, data.data?.entries ?? []) }))
+    .map((m) => ({ m, d: memberDayStatus(m.id, date, assignments, data.data?.entries ?? [], Date.now(), data.data?.timeZone) }))
     .filter((r) => r.d.status !== "off" || r.d.actualH > 0);
   const rows = allRows.filter(
     (r) =>
@@ -887,18 +877,7 @@ export function WorkforceAttendanceBoard({
           <div className="wf-toolbar">
             <h2>{ar ? "الحضور" : "Attendance"}</h2>
             <div className="wf-toolbar-actions">
-              <Input
-                type="date"
-                aria-label={ar ? "تاريخ الحضور" : "Attendance date"}
-                value={date}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setDate(e.target.value);
-                    setSelectedId(null);
-                  }
-                }}
-                className="w-40"
-              />
+              <RequestDatePicker label={ar ? "تاريخ الحضور" : "Attendance date"} ar={ar} value={date} onChange={value => { setDate(value); setSelectedId(null); }} />
               <RoleFilter value={role} onChange={setRole} roles={roles} ar={ar} />
             </div>
           </div>
@@ -1463,6 +1442,7 @@ export function WorkforceTimesheets({
       </p>
       {editing ? (
         <CorrectionSheet
+          timeZone={data.data?.timeZone ?? "Asia/Amman"}
           entry={editing}
           ar={ar}
           pending={act.isPending}
@@ -1639,6 +1619,8 @@ function MissingPunchSheet({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const restaurant = useRestaurant(restaurantId);
+  const timeZone = restaurant.data?.timezone || "Asia/Amman";
   const activeMembers = members.filter((member) => member.is_active);
   const [staffId, setStaffId] = useState(activeMembers[0]?.id ?? "");
   const selectedAssignment =
@@ -1652,35 +1634,35 @@ function MissingPunchSheet({
           new Date(assignment.ends_at).getTime() <= Date.now() + 5 * 60_000,
       )
       .sort((a, b) => new Date(b.ends_at!).getTime() - new Date(a.ends_at!).getTime())[0] ?? null;
-  const defaultIn = selectedAssignment?.starts_at ? toLocalInput(selectedAssignment.starts_at) : "";
-  const defaultOut = selectedAssignment?.ends_at ? toLocalInput(selectedAssignment.ends_at) : "";
-  const [clockIn, setClockIn] = useState("");
-  const [clockOut, setClockOut] = useState("");
+  const defaultIn = selectedAssignment?.starts_at ? toLocalInput(selectedAssignment.starts_at,timeZone) : "";
+  const defaultOut = selectedAssignment?.ends_at ? toLocalInput(selectedAssignment.ends_at,timeZone) : "";
+  const [clockIn, setClockIn] = useState<string | null>(null);
+  const [clockOut, setClockOut] = useState<string | null>(null);
   const [breakMinutes, setBreakMinutes] = useState("0");
   const [reason, setReason] = useState("");
 
-  const cin = clockIn || defaultIn;
-  const cout = clockOut || defaultOut;
+  const cin = clockIn ?? defaultIn;
+  const cout = clockOut ?? defaultOut;
   const durationMinutes =
-    cin && cout ? Math.round((new Date(cout).getTime() - new Date(cin).getTime()) / 60000) : 0;
+    cin && cout ? Math.round((workforceInputTimestamp(cout,timeZone) - workforceInputTimestamp(cin,timeZone)) / 60000) : 0;
   const invalid =
     !staffId ||
     !cin ||
     !cout ||
-    durationMinutes <= 0 ||
+    !Number.isFinite(durationMinutes) || durationMinutes <= 0 ||
     Number(breakMinutes) < 0 ||
     Number(breakMinutes) >= durationMinutes ||
     !reason.trim() ||
-    new Date(cin).getTime() > Date.now() + 5 * 60_000 ||
-    new Date(cout).getTime() > Date.now() + 5 * 60_000;
+    workforceInputTimestamp(cin,timeZone) > Date.now() + 5 * 60_000 ||
+    workforceInputTimestamp(cout,timeZone) > Date.now() + 5 * 60_000;
 
   const create = useMutation({
     mutationFn: async () => {
       const { error } = await (supabase as any).rpc("create_missing_time_entry", {
         _restaurant_id: restaurantId,
         _staff_id: staffId,
-        _clock_in: new Date(cin).toISOString(),
-        _clock_out: new Date(cout).toISOString(),
+        _clock_in: new Date(workforceInputTimestamp(cin,timeZone)).toISOString(),
+        _clock_out: new Date(workforceInputTimestamp(cout,timeZone)).toISOString(),
         _break_minutes: Number(breakMinutes) || 0,
         _reason: reason.trim(),
       });
@@ -1700,8 +1682,8 @@ function MissingPunchSheet({
 
   const applySchedule = () => {
     if (!selectedAssignment?.starts_at || !selectedAssignment.ends_at) return;
-    setClockIn(toLocalInput(selectedAssignment.starts_at));
-    setClockOut(toLocalInput(selectedAssignment.ends_at));
+    setClockIn(toLocalInput(selectedAssignment.starts_at,timeZone));
+    setClockOut(toLocalInput(selectedAssignment.ends_at,timeZone));
   };
 
   return (
@@ -1791,21 +1773,15 @@ function MissingPunchSheet({
         ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>{ar ? "الدخول" : "Clock in"}</Label>
-            <Input
-              type="datetime-local"
-              className="min-h-11"
+            <RequestDateTimePicker timeZone={timeZone} label={ar ? "الدخول" : "Clock in"} ar={ar}
               value={cin}
-              onChange={(e) => setClockIn(e.target.value)}
+              onChange={(value) => setClockIn(value)}
             />
           </div>
           <div className="space-y-2">
-            <Label>{ar ? "الخروج" : "Clock out"}</Label>
-            <Input
-              type="datetime-local"
-              className="min-h-11"
+            <RequestDateTimePicker timeZone={timeZone} label={ar ? "الخروج" : "Clock out"} ar={ar}
               value={cout}
-              onChange={(e) => setClockOut(e.target.value)}
+              onChange={(value) => setClockOut(value)}
             />
           </div>
         </div>
@@ -1857,23 +1833,25 @@ function Metric({ l, v, warn }: { l: string; v: string; warn?: boolean }) {
 
 function CorrectionSheet({
   entry,
+  timeZone = "Asia/Amman",
   ar,
   pending,
   onClose,
   onSave,
 }: {
   entry: Entry;
+  timeZone?: string;
   ar: boolean;
   pending: boolean;
   onClose: () => void;
   onSave: (p: { clock_in: string; clock_out: string; break_minutes: number; note: string }) => void;
 }) {
-  const [cin, setCin] = useState(toLocalInput(entry.clock_in));
-  const [cout, setCout] = useState(toLocalInput(entry.clock_out));
+  const [cin, setCin] = useState(toLocalInput(entry.clock_in,timeZone));
+  const [cout, setCout] = useState(toLocalInput(entry.clock_out,timeZone));
   const [brk, setBrk] = useState(String(entry.break_minutes || 0));
   const [reason, setReason] = useState("");
   const invalid =
-    !cin || !cout || new Date(cout) <= new Date(cin) || Number(brk) < 0 || !reason.trim();
+    !cin || !cout || !Number.isFinite(workforceInputTimestamp(cin,timeZone)) || !Number.isFinite(workforceInputTimestamp(cout,timeZone)) || workforceInputTimestamp(cout,timeZone) <= workforceInputTimestamp(cin,timeZone) || Number(brk) < 0 || !reason.trim();
   return (
     <DetailSheet
       open
@@ -1892,8 +1870,8 @@ function CorrectionSheet({
             disabled={invalid || pending}
             onClick={() =>
               onSave({
-                clock_in: new Date(cin).toISOString(),
-                clock_out: new Date(cout).toISOString(),
+                clock_in: new Date(workforceInputTimestamp(cin,timeZone)).toISOString(),
+                clock_out: new Date(workforceInputTimestamp(cout,timeZone)).toISOString(),
                 break_minutes: Number(brk),
                 note: reason.trim(),
               })
@@ -1907,21 +1885,15 @@ function CorrectionSheet({
     >
       <div className="space-y-4 py-2">
         <div className="space-y-2">
-          <Label>{ar ? "الدخول" : "Clock in"}</Label>
-          <Input
-            type="datetime-local"
-            className="min-h-11"
+          <RequestDateTimePicker timeZone={timeZone} label={ar ? "الدخول" : "Clock in"} ar={ar}
             value={cin}
-            onChange={(e) => setCin(e.target.value)}
+            onChange={(value) => setCin(value)}
           />
         </div>
         <div className="space-y-2">
-          <Label>{ar ? "الخروج" : "Clock out"}</Label>
-          <Input
-            type="datetime-local"
-            className="min-h-11"
+          <RequestDateTimePicker timeZone={timeZone} label={ar ? "الخروج" : "Clock out"} ar={ar}
             value={cout}
-            onChange={(e) => setCout(e.target.value)}
+            onChange={(value) => setCout(value)}
           />
         </div>
         <div className="space-y-2">

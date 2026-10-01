@@ -1,3 +1,4 @@
+import { workforceDayKey } from "@/lib/workforce-hours";
 import { useId, useState } from "react";
 import { addDays, format, parseISO } from "date-fns";
 import { arSA, enUS } from "date-fns/locale";
@@ -30,11 +31,12 @@ export function RequestDatePicker({
   onChange,
   ar,
   min,
-}: PickerProps & { min?: string }) {
+  timeZone,
+}: PickerProps & { min?: string; timeZone?: string | undefined }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const selected = value ? parseISO(value) : undefined;
-  const today = new Date();
+  const today = timeZone ? parseISO(workforceDayKey(new Date(), timeZone)) : new Date();
   const minimum = min ? parseISO(min) : undefined;
 
   function choose(date: Date | undefined) {
@@ -125,7 +127,9 @@ export function RequestDatePicker({
 }
 
 function clockParts(value: string) {
-  const [hour, minute] = (value || "09:00").split(":");
+  const [hour, minute = "00"] = (/^([01]\d|2[0-3]):[0-5]\d/.test(value) ? value : "09:00").split(
+    ":",
+  );
   const hour24 = Number(hour);
   return {
     hour: String(hour24 % 12 || 12),
@@ -250,6 +254,61 @@ export function RequestTimePicker({ label, value, onChange, ar }: PickerProps) {
           </div>
         </PopoverContent>
       </Popover>
+    </div>
+  );
+}
+
+/** Keep the existing local datetime value while giving both parts full click targets. */
+export function RequestDateTimePicker({
+  label,
+  value,
+  onChange,
+  ar,
+  timeZone,
+}: PickerProps & { timeZone?: string }) {
+  const [date = "", time = ""] = value.split("T");
+  return (
+    <div
+      className="qs-request-datetime-picker"
+      role="group"
+      aria-label={label || (ar ? "التاريخ والوقت" : "Date and time")}
+    >
+      <div className="flex items-center justify-between gap-2">
+        {label ? <p className="text-sm font-medium">{label}</p> : <span />}
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={!value}
+          onClick={() => onChange("")}
+        >
+          {ar ? "مسح" : "Clear"}
+        </Button>
+      </div>
+      {timeZone ? (
+        <p className="mb-2 text-xs text-muted-foreground">
+          {ar ? "وقت المطعم" : "Restaurant time"} · {timeZone}
+        </p>
+      ) : null}
+      <div className="grid min-w-0 gap-2">
+        <RequestDatePicker
+          label={ar ? "التاريخ" : "Date"}
+          value={date}
+          ar={ar}
+          timeZone={timeZone}
+          onChange={(next) => onChange(`${next}T${time || "09:00"}`)}
+        />
+        <RequestTimePicker
+          label={ar ? "الوقت" : "Time"}
+          value={time}
+          ar={ar}
+          onChange={(next) =>
+            onChange(
+              `${date || (timeZone ? workforceDayKey(new Date(), timeZone) : format(new Date(), "yyyy-MM-dd"))}T${next}`,
+            )
+          }
+        />
+      </div>
     </div>
   );
 }

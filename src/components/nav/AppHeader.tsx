@@ -1,7 +1,8 @@
+import { LanguageFlag } from "./LanguageFlag";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { BadgeDollarSign, Check, ChefHat, ChevronDown, Globe2, HandPlatter, Languages, LogOut, Menu as MenuIcon, Search, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
+import { BadgeDollarSign, Check, ChefHat, ChevronDown, HandPlatter, Languages, LogOut, Menu as MenuIcon, Search, ShieldCheck, UserRound, UserRoundCog } from "lucide-react";
 import { toast } from "sonner";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
@@ -120,7 +121,7 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <button type="button" className="qs-topbar-menu-trigger qs-topbar-language inline-flex min-h-9 items-center gap-1.5 rounded-[9px] border border-transparent px-2 text-muted-foreground transition hover:border-border hover:bg-muted/55 hover:text-foreground lg:min-h-10 lg:px-2.5" aria-label={lang === "ar" ? "اختيار اللغة" : "Choose language"}>
-                <Globe2 className="size-4" />
+                <LanguageFlag language={lang} />
                 <span className="hidden text-xs font-semibold xl:inline">{lang === "ar" ? "العربية" : "English"}</span>
                 <ChevronDown className="qs-topbar-chevron hidden size-3.5 xl:block" />
               </button>
@@ -129,13 +130,13 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
               <DropdownMenuLabel className="flex items-center gap-2 text-xs text-muted-foreground"><Languages className="size-4" />{lang === "ar" ? "لغة الواجهة" : "Interface language"}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => setLang("en")} className="min-h-11 cursor-pointer">
-                <span className="grid size-7 place-items-center rounded-lg bg-muted text-xs font-black">EN</span>
-                <span className="min-w-0 flex-1"><strong className="block text-sm">English</strong><span className="block text-[10px] text-muted-foreground">Left to right</span></span>
+                <LanguageFlag language="en" />
+                <span className="min-w-0 flex-1"><strong className="block text-sm">English</strong></span>
                 {lang === "en" ? <Check className="size-4 text-primary" /> : null}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setLang("ar")} className="min-h-11 cursor-pointer">
-                <span className="grid size-7 place-items-center rounded-lg bg-muted text-xs font-black">ع</span>
-                <span className="min-w-0 flex-1"><strong className="block text-sm">العربية</strong><span className="block text-[10px] text-muted-foreground">من اليمين إلى اليسار</span></span>
+                <LanguageFlag language="ar" />
+                <span className="min-w-0 flex-1"><strong className="block text-sm">العربية</strong></span>
                 {lang === "ar" ? <Check className="size-4 text-primary" /> : null}
               </DropdownMenuItem>
             </DropdownMenuContent>
