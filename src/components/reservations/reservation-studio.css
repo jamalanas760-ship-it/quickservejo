@@ -1,0 +1,232 @@
+/* Reservations: a compact, coordinated host desk, booking form and guest experience. */
+.qs-reservations-studio{--rs-accent:var(--qs-brand);display:flex;flex-direction:column;gap:18px;min-width:0}
+.rs-page-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.rs-page-heading h1{font-size:30px;font-weight:780;letter-spacing:-.035em;line-height:1.2}
+.rs-page-heading p{margin-top:8px;font-size:14px;color:var(--qs-muted)}
+.rs-page-heading>button{height:42px;padding-inline:18px}
+.rs-workspace-tabs{display:flex;gap:32px;overflow-x:auto;border-bottom:1px solid var(--qs-stroke);scrollbar-width:none}
+.rs-workspace-tabs button{flex-shrink:0;padding:8px 4px 14px;font-size:13px;font-weight:650;border-bottom:2px solid transparent;color:var(--qs-muted);transition:color .16s}
+.rs-workspace-tabs button[aria-current]{color:var(--qs-brand);border-bottom-color:var(--qs-brand)}
+.rs-subnav{display:flex;gap:4px;font-size:12px;font-weight:700}
+.rs-subnav>*{padding:9px 20px;border-radius:9px}
+.rs-subnav>span{background:var(--qs-ink);color:var(--qs-surface)}
+.rs-subnav>a{color:var(--qs-muted);background:var(--qs-surface)}
+.rs-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--qs-stroke);border-radius:12px;background:var(--qs-surface);padding:16px 6px}
+.rs-metrics>div{display:flex;align-items:flex-start;gap:14px;padding:0 20px;border-inline-end:1px solid var(--qs-stroke)}
+.rs-metrics>div:last-child{border:0}
+.rs-metrics span{font-size:12px;color:var(--qs-muted);font-weight:550}
+.rs-metrics strong{display:block;color:var(--qs-ink);font-size:26px;font-weight:750;line-height:1.15;margin-top:7px;letter-spacing:-.03em}
+.rs-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--qs-success);flex-shrink:0;margin-top:5px}
+.rs-dot.blue{background:var(--qs-info)}.rs-dot.amber{background:var(--qs-warning)}.rs-dot.purple{background:var(--qs-purple)}
+.rs-schedule-layout{display:grid;gap:16px;min-width:0;align-items:start}
+.rs-schedule-layout.has-detail{grid-template-columns:minmax(0,1fr) 285px}
+.rs-schedule-panel,.rs-detail,.rs-settings-panel,.rs-public-workspace,.rs-messages-workspace{background:var(--qs-surface);border:1px solid var(--qs-stroke);border-radius:12px;min-width:0;overflow:hidden;box-shadow:var(--qs-shadow-card)}
+.rs-schedule-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px;border-bottom:1px solid var(--qs-stroke)}
+.rs-date-nav{display:flex;align-items:center;gap:6px;min-width:0}
+.rs-date-nav input{width:146px;font-size:12px;height:36px}
+.rs-date-nav button{height:36px;font-size:12px}
+.rs-date-nav button[data-size="icon"]{width:32px}
+.rs-filters{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none}
+.rs-filters button{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:650;padding:8px 10px;border:1px solid var(--qs-stroke);border-radius:9px;white-space:nowrap;transition:background .15s}
+.rs-filters button b{font-weight:600;border-radius:5px;background:var(--qs-surface-soft);padding:1px 5px}
+.rs-filters button[aria-pressed="true"]{color:var(--qs-brand);border-color:color-mix(in srgb,var(--qs-brand) 24%,var(--qs-stroke));background:var(--qs-brand-soft)}
+.rs-search{position:relative;margin-inline-start:auto;flex:1;min-width:180px;max-width:250px}
+.rs-search>svg{position:absolute;inset-inline-start:12px;top:11px;color:var(--qs-muted)}
+.rs-search input{padding-inline-start:36px;height:36px;font-size:12px}
+.qs-reservations-studio .qs-reservation-table-wrap{overflow-x:auto}
+.qs-reservations-studio .qs-reservation-table{min-width:790px}
+.qs-reservations-studio :is(.qs-reservation-table-head,.qs-reservation-row){grid-template-columns:minmax(190px,1.55fr) minmax(115px,1fr) 85px 95px 100px minmax(140px,1fr)}
+.qs-reservations-studio .qs-reservation-table-head{min-height:38px;font-size:10px;background:var(--qs-surface-soft)}
+.qs-reservations-studio .qs-reservation-row{min-height:62px;cursor:pointer}
+.qs-reservations-studio .qs-reservation-row.is-selected{background:var(--qs-brand-soft)}
+.qs-reservations-studio .qs-reservation-cell{padding:8px 12px}
+.qs-reservations-studio .qs-reservation-guest-name{font-size:12px;font-weight:700;text-align:start;display:block}
+.qs-reservations-studio .qs-reservation-guest-name:focus-visible{outline:2px solid var(--qs-brand);outline-offset:3px}
+.qs-reservations-studio .qs-reservation-meta-line{display:none}
+.qs-reservations-studio .qs-reservation-guest-head small{font-size:10px}
+.qs-reservations-studio .qs-reservation-avatar{width:36px;height:36px;flex-basis:36px;border-radius:50%;font-size:14px;background:var(--qs-brand-soft);color:var(--qs-brand);border:none}
+.qs-reservations-studio .qs-reservation-cell>span:not(.qs-reservation-avatar){font-size:10px}
+.qs-reservations-studio .qs-reservation-row-note{display:none}
+.qs-reservations-studio .qs-reservation-primary-actions{gap:5px;flex-wrap:wrap}
+.qs-reservations-studio .qs-reservation-primary-actions button{font-size:10px;min-height:30px;height:30px;padding:0 8px}
+.qs-reservations-studio .qs-reservation-primary-actions svg{width:13px;height:13px}
+.rs-status{display:inline-flex!important;align-items:center;gap:5px;border-radius:20px;padding:5px 9px;font-size:10px!important;font-weight:650;line-height:1.2;white-space:nowrap;background:color-mix(in srgb,var(--qs-muted) 12%,var(--qs-surface));color:var(--qs-muted)!important;max-width:100%}
+.rs-status:before{content:"";width:5px;height:5px;background:currentColor;border-radius:50%}
+.rs-status-confirmed,.rs-status-seated{background:color-mix(in srgb,var(--qs-success) 11%,var(--qs-surface));color:var(--qs-success)!important}
+.rs-status-pending{background:color-mix(in srgb,var(--qs-warning) 11%,var(--qs-surface));color:var(--qs-warning)!important}
+.rs-status-cancelled,.rs-status-no_show{background:color-mix(in srgb,var(--qs-danger) 11%,var(--qs-surface));color:var(--qs-danger)!important}
+.rs-table-footer{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-top:1px solid var(--qs-stroke);font-size:11px;color:var(--qs-muted)}
+.rs-table-footer>div{display:flex;align-items:center;gap:10px}
+.rs-table-footer button{height:32px;width:32px}
+.rs-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:280px;padding:25px;text-align:center;color:var(--qs-muted)}
+.rs-empty h3{font-size:15px;font-weight:700;color:var(--qs-ink)}
+.rs-empty p{font-size:12px}
+.rs-detail{padding:18px;animation:rs-reveal .2s ease-out}
+.rs-detail-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:15px}
+.rs-detail h2{font-size:16px;font-weight:750;letter-spacing:-.025em}
+.rs-detail-heading button{height:28px;width:28px}
+.rs-detail-guest{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.rs-detail-guest strong{font-size:13px}.rs-detail-guest small{display:block;font-size:11px;color:var(--qs-muted);margin-top:3px}
+.rs-detail-lines{display:grid;gap:11px;border-bottom:1px solid var(--qs-stroke);padding:20px 0}
+.rs-detail-lines p{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--qs-muted)}
+.rs-guest-note{margin:16px 0;font-size:12px}.rs-guest-note small{color:var(--qs-muted);font-weight:600}
+.rs-guest-note p{padding:10px;margin-top:7px;background:var(--qs-surface-soft);border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+.rs-detail-actions{display:grid;gap:8px;margin-top:15px}.rs-detail-actions button{height:36px;font-size:12px}
+.rs-create-dialog{width:min(850px,calc(100vw - 40px))!important;max-width:850px!important;max-height:92dvh!important;border-radius:14px!important;display:flex;flex-direction:column;background:var(--qs-surface);color:var(--qs-ink)}
+.rs-form-heading{padding:20px 24px;border-bottom:1px solid var(--qs-stroke);text-align:start}
+.rs-form-heading h2{font-size:21px;font-weight:750;letter-spacing:-.025em}.rs-form-heading p{font-size:12px;margin-top:6px;color:var(--qs-muted)}
+.rs-create-dialog .rs-create-form{display:flex!important;flex-direction:column;min-height:0;overflow:hidden!important}
+.rs-create-dialog .rs-create-body{padding:20px 24px;overflow-y:auto;display:flex!important;flex-direction:column;gap:18px;min-height:0}
+.rs-form-guest-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.rs-visit-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+.rs-visit-date,.rs-visit-options{display:flex;flex-direction:column;gap:16px;min-width:0}
+.rs-create-dialog :is(input,textarea,[role="combobox"]){font-size:13px;height:38px;min-height:38px;border-radius:8px}
+.rs-create-dialog textarea{height:auto}
+.rs-create-dialog label,.rs-field>label{font-size:11px;font-weight:600;color:var(--qs-ink)}
+.rs-choice-rail{display:flex;gap:4px;min-width:0}
+.rs-choice-rail button{flex:1;min-width:0;border:1px solid var(--qs-stroke);border-radius:7px;font-size:12px;font-weight:550;padding:8px}
+.rs-choice-rail input{width:56px;flex-shrink:0;text-align:center}
+.rs-choice-rail button[aria-pressed="true"],.rs-time-slots button[aria-pressed="true"],.rs-public-dates button[aria-pressed="true"]{background:var(--qs-brand);border-color:var(--qs-brand);color:white}
+.rs-zone-rail{flex-wrap:wrap}.rs-zone-rail button{flex:1 0 auto;max-width:100%;padding-inline:12px}
+.rs-time-slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.rs-time-slots button{border:1px solid var(--qs-stroke);border-radius:7px;padding:9px 4px;font-size:11px;font-weight:550;white-space:nowrap;transition:background .14s,color .14s}
+.rs-inline-calendar{border:1px solid var(--qs-stroke);border-radius:10px;width:100%;--cell-size:2.1rem!important;padding:12px!important}
+.rs-inline-calendar>div{width:100%}.rs-inline-calendar table{width:100%}
+.rs-live-availability{font-size:11px;color:var(--qs-success);min-height:20px}
+.rs-live-availability span{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.rs-optional-fields{font-size:12px;border-top:1px solid var(--qs-stroke);padding-top:12px}.rs-optional-fields summary{cursor:pointer;color:var(--qs-muted);font-weight:600}
+.rs-duration{max-width:220px;display:block!important;margin:0!important}
+.rs-create-dialog .rs-form-footer{display:flex!important;align-items:center;justify-content:space-between;flex-direction:row!important;padding:14px 24px!important;gap:12px;border-top:1px solid var(--qs-stroke);background:var(--qs-surface);flex-shrink:0;position:static!important}
+.rs-form-footer>span{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--qs-muted)}
+.rs-form-footer>div{display:flex;gap:8px}.rs-form-footer button{height:38px;font-size:12px;min-width:90px}
+.rs-settings-panel{height:auto!important;display:block!important;width:100%!important;max-width:none!important;max-height:none!important;border-radius:12px!important;box-shadow:var(--qs-shadow-card)!important}
+.rs-settings-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:20px 24px;border-bottom:1px solid var(--qs-stroke)}
+.rs-settings-heading h2{font-size:20px;font-weight:750;letter-spacing:-.025em}.rs-settings-heading p{font-size:12px;margin-top:5px;color:var(--qs-muted)}
+.rs-settings-heading button{height:36px;font-size:12px}
+.rs-settings-layout{flex:none;display:grid;grid-template-columns:180px minmax(0,1fr);min-height:420px}
+.rs-settings-nav{display:flex;flex-direction:column;gap:5px;padding:18px 12px;border-inline-end:1px solid var(--qs-stroke);background:var(--qs-surface-soft)}
+.rs-settings-nav button{text-align:start;padding:10px 12px;border-radius:8px;font-size:12px;font-weight:600;color:var(--qs-muted)}
+.rs-settings-nav button[aria-current]{background:var(--qs-brand-soft);color:var(--qs-brand)}
+.rs-settings-panel .rs-settings-content{padding:24px!important;display:block!important;overflow:visible!important}
+.rs-settings-panel .qs-booking-settings-section{border:0!important;padding:0!important;background:transparent!important;box-shadow:none!important;border-radius:0!important}
+.rs-settings-panel .qs-booking-settings-section[hidden]{display:none!important}
+.rs-settings-panel .qs-booking-settings-section-head{margin-bottom:20px}.rs-settings-panel .qs-booking-settings-section-head>span{display:none}
+.rs-settings-panel .qs-booking-settings-section-head strong{font-size:14px}.rs-settings-panel .qs-booking-settings-section-head p{font-size:12px}
+.rs-settings-panel .qs-booking-settings-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.rs-settings-panel :is(input,textarea,[role="combobox"]){font-size:13px;height:38px;min-height:38px;border-radius:8px}.rs-settings-panel textarea{height:auto}
+.rs-settings-panel label{font-size:11px!important}
+.rs-weekly-hours{display:grid;gap:7px;max-width:750px;margin-bottom:24px}
+.rs-weekday{display:grid;grid-template-columns:minmax(100px,1fr) 40px minmax(90px,1fr) 12px minmax(90px,1fr);gap:12px;align-items:center;font-size:12px}
+.rs-switch{width:32px;height:18px;border-radius:20px;background:var(--qs-stroke-strong);padding:3px;display:flex;transition:background .15s}
+.rs-switch i{width:12px;height:12px;border-radius:50%;background:white;transition:transform .15s}
+.rs-switch[aria-checked="true"]{background:var(--qs-brand)}.rs-switch[aria-checked="true"] i{transform:translateX(14px)}[dir="rtl"] .rs-switch[aria-checked="true"] i{transform:translateX(-14px)}
+.rs-settings-panel .qs-booking-settings-toggle-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-width:750px}
+.rs-settings-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 24px;border-top:1px solid var(--qs-stroke);font-size:11px;color:var(--qs-muted)}
+.rs-settings-footer button{height:34px;font-size:12px}
+.rs-settings-modal{max-width:920px!important;max-height:90dvh;overflow-y:auto}
+.rs-public-workspace{display:grid;grid-template-columns:minmax(240px,1fr) 420px;padding:24px;gap:32px;background:var(--qs-surface-soft)}
+.rs-public-copy{display:flex;flex-direction:column;align-items:flex-start;gap:18px;padding:20px;max-width:500px}
+.rs-public-copy>svg{color:var(--qs-brand)}.rs-public-copy h2{font-size:23px;font-weight:750;letter-spacing:-.025em}.rs-public-copy p{font-size:14px;line-height:1.7;color:var(--qs-muted)}
+.rs-public-copy input{font-size:12px;max-width:100%}.rs-public-copy .rs-status{font-size:12px!important}
+.rs-public-preview{width:100%;height:730px;border:1px solid var(--qs-stroke);border-radius:14px;background:white}
+.rs-messages-workspace{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:570px;height:min(650px,75dvh)}
+.rs-message-list{overflow-y:auto;border-inline-end:1px solid var(--qs-stroke);padding:12px}
+.rs-message-list h2{font-size:17px;font-weight:700;padding:8px 10px 18px}
+.rs-message-list button{display:flex;align-items:center;gap:10px;width:100%;text-align:start;padding:14px 10px;border-radius:9px;border-bottom:1px solid var(--qs-stroke)}
+.rs-message-list button[aria-pressed="true"]{background:var(--qs-brand-soft);border-color:transparent}
+.rs-message-list button>span:last-child{min-width:0}.rs-message-list strong{font-size:12px;font-weight:700;display:block;overflow:hidden;text-overflow:ellipsis}
+.rs-message-list small{font-size:10px;color:var(--qs-muted);display:block;margin-top:5px}
+.rs-message-thread{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.rs-thread-heading{display:flex;align-items:center;gap:12px;padding:20px;border-bottom:1px solid var(--qs-stroke);flex-shrink:0}
+.rs-thread-heading .qs-reservation-avatar{display:grid;place-items:center;background:var(--qs-brand-soft);color:var(--qs-brand);height:36px;width:36px;border-radius:50%;flex-shrink:0}
+.rs-thread-heading strong{font-size:13px}.rs-thread-heading small{display:block;font-size:11px;margin-top:4px;color:var(--qs-muted)}
+.rs-whatsapp-label{font-size:11px;color:var(--qs-success);margin-inline-start:auto;font-weight:600}
+.rs-booking-capsule{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--qs-muted);padding:11px 16px;margin:12px 18px;border:1px solid var(--qs-stroke);border-radius:8px;flex-shrink:0}
+.rs-message-history{min-height:150px;background:var(--qs-surface-soft)}
+.rs-template-rail{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.rs-template-rail button{font-size:11px;font-weight:550;border:1px solid var(--qs-stroke);border-radius:8px;padding:7px 12px;background:var(--qs-surface)}
+.rs-template-rail button:disabled{opacity:.4;cursor:not-allowed}
+.rs-draft-label{display:block;font-size:10px;font-weight:650;color:var(--qs-muted);margin-bottom:5px}
+.rs-message-thread .qs-reservation-message-composer{flex-shrink:0}
+.rs-message-thread textarea{font-size:13px;min-height:70px;max-height:130px;resize:vertical}
+.rs-message-thread button{font-size:12px}.rs-message-thread .qs-whatsapp-channel-pill{font-size:10px}
+.rs-message-modal{max-width:670px!important;height:min(700px,90dvh);display:flex;flex-direction:column}
+.rs-message-modal .rs-message-thread{height:100%}
+.rs-public-shell{--qs-brand:#ff5a0a;--qs-brand-soft:#fff0e7;min-height:100dvh;background:var(--qs-canvas);padding:32px 16px;color:var(--qs-ink)}
+.rs-public-card{width:100%;max-width:500px;margin:auto;border:1px solid var(--qs-stroke);border-radius:14px;overflow:hidden;background:var(--qs-surface);box-shadow:0 6px 25px rgb(20 20 20/.04)}
+.rs-restaurant-cover{width:100%;height:156px;object-fit:cover;display:block}
+.rs-public-header{padding:22px 24px 0}.rs-public-brand{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+.rs-public-brand>div:first-child{display:flex;gap:10px;align-items:center}.rs-public-brand img{height:34px;width:34px;object-fit:contain;border-radius:8px}.rs-public-brand strong{font-size:18px;letter-spacing:.05em;font-weight:700}
+.rs-language-switch{display:flex;border:1px solid var(--qs-stroke);border-radius:20px;padding:3px;gap:2px;background:var(--qs-surface-soft)}
+.rs-language-switch button{font-size:10px;padding:5px 10px;border-radius:16px;font-weight:600;color:var(--qs-muted)}
+.rs-language-switch button[aria-pressed="true"]{background:var(--qs-surface);color:var(--qs-ink);box-shadow:0 1px 4px rgb(0 0 0/.08)}
+.rs-public-header h1{font-size:26px;letter-spacing:-.04em;font-weight:750;line-height:1.2}
+.rs-public-header>p{font-size:12px;line-height:1.6;color:var(--qs-muted);margin-top:8px}
+.rs-public-body{padding:24px}.rs-public-visit,.rs-public-details{display:flex;flex-direction:column;gap:20px}
+.rs-field{display:flex;flex-direction:column;gap:8px;text-align:start}.rs-field>label{font-size:12px;font-weight:550}
+.rs-public-shell :is(input,textarea){font-size:14px;border-radius:8px;height:38px}.rs-public-shell textarea{height:auto}
+.rs-public-dates{display:flex;gap:6px;align-items:stretch}.rs-public-dates button{flex:1;min-width:0;padding:10px 8px;border:1px solid var(--qs-stroke);border-radius:8px;min-height:53px;text-align:center;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.rs-public-dates button[data-size="icon"]{flex:0 0 26px;padding:0;border:0}
+.rs-public-dates small{font-size:11px}.rs-public-dates strong{font-size:12px;font-weight:600}
+.rs-public-times{grid-template-columns:repeat(3,minmax(0,1fr));max-height:235px;overflow-y:auto;padding:2px}
+.rs-public-times button{font-size:12px;padding:12px 4px}
+.rs-public-shell .rs-public-continue{width:100%;height:44px;font-size:13px;background:var(--qs-brand);color:white;border-radius:8px;box-shadow:none}
+.rs-public-details h2{font-size:18px;font-weight:700}.rs-public-details .rs-booking-capsule{margin:0}.rs-public-details .rs-form-guest-grid{gap:16px}
+.rs-public-terms{font-size:11px;color:var(--qs-muted);line-height:1.7;white-space:pre-wrap}
+.rs-marketing-opt-in{display:flex;align-items:flex-start;gap:10px;font-size:11px;line-height:1.6;color:var(--qs-muted)}
+.rs-public-footer{padding:16px 24px;border-top:1px solid var(--qs-stroke)}
+.rs-powered-by{text-align:center;color:var(--qs-muted);font-size:10px;margin-top:18px;letter-spacing:.025em}
+.rs-public-no-slots,.rs-public-error{padding:16px;background:var(--qs-surface-soft);border:1px dashed var(--qs-stroke);border-radius:9px;font-size:12px;line-height:1.7}
+.rs-public-no-slots p{margin-top:6px;color:var(--qs-muted)}
+:is(.rs-choice-rail,.rs-time-slots,.rs-workspace-tabs,.rs-filters,.rs-settings-nav,.rs-language-switch,.rs-template-rail) button{cursor:pointer}
+:is(.rs-choice-rail,.rs-time-slots,.rs-workspace-tabs,.rs-filters,.rs-settings-nav,.rs-language-switch,.rs-template-rail) button:focus-visible{outline:2px solid var(--qs-brand);outline-offset:2px}
+@keyframes rs-reveal{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(min-width:1600px){.rs-schedule-layout.has-detail{grid-template-columns:minmax(0,1fr) 320px}}
+@media(max-width:1100px){.rs-schedule-layout.has-detail{grid-template-columns:minmax(0,1fr)}.rs-detail{max-width:none}.rs-public-workspace{grid-template-columns:1fr 380px;gap:16px;padding:16px}.rs-metrics>div{padding:0 14px}}
+@media(max-width:767px){
+  .qs-page.qs-reservations-studio{gap:14px!important;padding-inline:12px!important}
+  .rs-page-heading{gap:10px;align-items:flex-start}.rs-page-heading h1{font-size:23px}.rs-page-heading p{font-size:11px;line-height:1.6;margin-top:5px;max-width:230px}.rs-page-heading>button{height:36px;font-size:11px;padding-inline:10px;flex-shrink:0}
+  .rs-workspace-tabs{gap:20px}.rs-workspace-tabs button{font-size:11px;padding-bottom:12px}
+  .rs-metrics{padding:12px 2px;grid-template-columns:repeat(4,minmax(0,1fr))}.rs-metrics>div{padding:0 8px;gap:5px}.rs-metrics span{font-size:9px}.rs-metrics strong{font-size:22px}.rs-metrics .rs-dot{width:5px;height:5px;margin-top:4px}
+  .rs-subnav{font-size:11px}.rs-subnav>*{padding:8px 14px}
+  .rs-schedule-toolbar{padding:12px;gap:10px}.rs-date-nav{width:100%;justify-content:space-between}.rs-date-nav input{flex:1;width:auto}.rs-filters{width:100%}.rs-search{width:100%;max-width:none;min-width:0;flex:auto}
+  .qs-reservations-studio .qs-reservation-table-wrap{overflow:visible!important}
+  .qs-reservations-studio .qs-reservation-table{min-width:0}
+  .qs-reservations-studio .qs-reservation-table-head{display:none}
+  .qs-reservations-studio .qs-reservation-table-body{padding:10px;background:var(--qs-surface);gap:8px}
+  .qs-reservations-studio .qs-reservation-row{grid-template-columns:repeat(3,minmax(0,1fr));min-height:0!important;padding:12px!important;border:1px solid var(--qs-stroke);border-radius:9px;grid-template-areas:"guest guest guest" "time party table" "actions actions actions"}
+  .qs-reservations-studio .qs-reservation-cell{padding:8px 6px!important}
+  .qs-reservations-studio .qs-reservation-guest{padding:0 0 12px!important;border-bottom:1px solid var(--qs-stroke)}
+  .qs-reservations-studio .qs-reservation-mobile-status{display:block}
+  .qs-reservations-studio .qs-reservation-cell::before{font-size:9px!important}
+  .qs-reservations-studio .qs-reservation-time>strong,.qs-reservations-studio .qs-reservation-table-cell>strong,.qs-reservations-studio .qs-reservation-party>strong{font-size:11px!important}
+  .qs-reservations-studio .qs-reservation-cell>span:not(.qs-reservation-avatar){font-size:9px!important}
+  .qs-reservations-studio .qs-reservation-actions{display:flex;justify-content:space-between;border-top:1px solid var(--qs-stroke);padding-top:9px!important}.qs-reservations-studio .qs-reservation-primary-actions{display:flex!important;flex:1;gap:6px}.qs-reservations-studio .qs-reservation-primary-actions button{font-size:11px!important;height:32px;min-height:32px;padding-inline:12px}
+  .qs-reservations-studio .qs-reservation-guest-name{font-size:12px!important}.qs-reservations-studio .qs-reservation-guest-head small{font-size:10px}
+  .rs-detail{position:fixed;inset:14% 8px calc(75px + env(safe-area-inset-bottom));z-index:40;overflow-y:auto;box-shadow:0 12px 70px rgb(0 0 0/.2)}
+  .rs-create-dialog{width:calc(100vw - 16px)!important;max-width:calc(100vw - 16px)!important;height:auto!important;max-height:calc(100dvh - 24px)!important;border-radius:12px!important}
+  .rs-form-heading{padding:16px}.rs-form-heading h2{font-size:20px}
+  .rs-create-dialog .rs-create-body{padding:16px!important;gap:16px!important}.rs-visit-grid{grid-template-columns:1fr;gap:16px}.rs-form-guest-grid{grid-template-columns:1fr;gap:12px}
+  .rs-create-dialog :is(input,textarea,[role="combobox"]){font-size:16px!important}
+  .rs-create-dialog .rs-inline-calendar{display:none}.rs-create-dialog .rs-duration{max-width:none}
+  .rs-create-dialog .rs-form-footer{flex-wrap:wrap;padding:12px 16px!important}.rs-form-footer>span{width:100%;font-size:11px}.rs-form-footer>div{width:100%}.rs-form-footer button{flex:1}
+  .rs-create-dialog .rs-time-slots{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+  .rs-settings-panel{height:auto!important;display:block!important;width:100%!important;max-width:100%!important;border-radius:12px!important;box-shadow:none!important;max-height:none!important}
+  .rs-settings-heading{padding:16px}.rs-settings-heading h2{font-size:18px}.rs-settings-heading p{font-size:10px}
+  .rs-settings-layout{grid-template-columns:1fr;min-height:0}.rs-settings-nav{flex-direction:row;overflow-x:auto;padding:10px;border-inline-end:0;border-bottom:1px solid var(--qs-stroke);gap:4px;scrollbar-width:none}.rs-settings-nav button{flex-shrink:0;padding:8px 10px;font-size:11px}
+  .rs-settings-panel .rs-settings-content{padding:16px!important}.rs-settings-panel .qs-booking-settings-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important}.rs-settings-panel :is(input,textarea,[role="combobox"]){font-size:16px!important;min-height:38px!important}
+  .rs-weekday{grid-template-columns:minmax(72px,1fr) 32px minmax(85px,1fr) 5px minmax(85px,1fr);gap:6px;font-size:11px}.rs-weekday input{padding:5px;font-size:12px!important;min-width:0}
+  .rs-settings-panel .qs-booking-settings-toggle-grid{grid-template-columns:1fr!important}.rs-settings-footer{padding:12px 16px;flex-wrap:wrap}
+  .rs-public-workspace{grid-template-columns:1fr;padding:14px}.rs-public-copy{padding:4px;gap:14px}.rs-public-copy h2{font-size:19px}.rs-public-copy p{font-size:12px}.rs-public-preview{height:680px}
+  .rs-messages-workspace{display:flex;flex-direction:column;height:auto;min-height:650px}.rs-message-list{border-inline-end:0;border-bottom:1px solid var(--qs-stroke);display:flex;gap:6px;padding:10px;flex-shrink:0;overflow-x:auto}.rs-message-list h2{display:none}.rs-message-list button{width:180px;min-width:180px;padding:10px;border:1px solid var(--qs-stroke)}.rs-message-list .qs-reservation-avatar{height:28px;width:28px;flex-basis:28px}
+  .rs-messages-workspace .rs-message-thread{height:540px}.rs-thread-heading{padding:14px}.rs-message-thread textarea{font-size:16px!important}.rs-booking-capsule{margin:10px 14px;padding:9px;font-size:10px}
+  .rs-message-modal{width:calc(100vw - 16px)!important;max-width:calc(100vw - 16px)!important;max-height:94dvh!important;border-radius:12px!important}
+  .rs-public-shell{padding:12px 10px}.rs-public-header{padding:20px 18px 0}.rs-public-body{padding:20px 18px}.rs-public-header h1{font-size:24px}.rs-public-shell input,.rs-public-shell textarea{font-size:16px}.rs-restaurant-cover{height:145px}.rs-public-details .rs-form-guest-grid{grid-template-columns:1fr}.rs-public-dates button{padding-inline:5px}.rs-public-dates button[data-size="icon"]{flex-basis:22px}
+}
+@media(prefers-reduced-motion:reduce){.rs-detail{animation:none}:is(.rs-switch,.rs-switch i,.rs-time-slots button,.rs-workspace-tabs button){transition:none}}
+
+.qs-reservations-studio .qs-reservation-primary-actions button[aria-label]{width:30px;padding:0}
+
+.rs-settings-panel .rs-weekday input{height:32px;min-height:32px}
+.rs-settings-panel .qs-booking-settings-toggle{padding:10px!important}
+@media(min-width:901px){.qs-reservations-studio .qs-reservation-row{height:62px;min-height:62px}.qs-reservations-studio .qs-reservation-guest-cell{padding:7px 12px}.qs-reservations-studio .qs-reservation-guest-name{line-height:18px}}

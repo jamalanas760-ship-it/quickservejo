@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BadgeDollarSign, CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, Globe2, MessageSquareText, MoreHorizontal, Plus, Send, Settings2, Timer, Trash2, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X, Copy, Table2, BadgeDollarSign, CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, Globe2, MessageSquareText, MoreHorizontal, Plus, Send, Settings2, Timer, Trash2, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
-import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
+import { addReservationDays, reservationDay, restaurantDateTime, bookingTimeLabel, defaultBookingHours, validateBookingHours, type WeeklyHours } from "@/lib/reservation-studio";
+import "@/components/reservations/reservation-studio.css";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ReservationField as Field } from "@/components/reservations/ReservationField";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -52,7 +54,7 @@ type BookingSettings={
   restaurant_id:string;online_enabled:boolean;auto_confirm:boolean;slot_minutes:number;default_duration_minutes:number;
   min_party_size:number;max_party_size:number;min_lead_minutes:number;max_advance_days:number;reminder_hours:number;
   cancellation_cutoff_hours:number;require_phone:boolean;require_email:boolean;deposit_mode:"none"|"fixed"|"per_guest";
-  deposit_amount:number;confirmation_channel:string;reminder_channel:string;terms:string|null;
+  deposit_amount:number;confirmation_channel:string;reminder_channel:string;terms:string|null;weekly_hours?:WeeklyHours;
 };
 
 function BookingsPage(){
@@ -67,6 +69,11 @@ function BookingsPage(){
   const [deleteTarget,setDeleteTarget]=useState<Booking|null>(null);
   const [messageTarget,setMessageTarget]=useState<Booking|null>(null);
   const [search,setSearch]=useState("");
+  const [view,setView]=useState<"schedule"|"public"|"settings"|"messages">("schedule");
+  const [selectedId,setSelectedId]=useState<string|null>(null);
+  const [selectedDay,setSelectedDay]=useState("");
+  const [statusFilter,setStatusFilter]=useState("all");
+  const [pageIndex,setPageIndex]=useState(0);
 
   useEffect(()=>{
     if(routeSearch.create)setCreateOpen(true);
@@ -76,20 +83,26 @@ function BookingsPage(){
     queryKey:["bookings","restaurant",rid],
     enabled:Boolean(rid&&canManage),
     queryFn:async()=>{
-      const {data,error}=await supabase.from("restaurants").select("slug,currency,timezone").eq("id",rid!).single();
+      const {data,error}=await supabase.from("restaurants").select("name,slug,currency,timezone,logo_url,cover_image_url").eq("id",rid!).single();
       if(error)throw error;
       return data;
     },
   });
 
+  const timezone=restaurant.data?.timezone||"UTC";
+  const day=selectedDay||reservationDay(new Date(),timezone);
+
   const bookings=useQuery<Booking[]>({
-    queryKey:["bookings",rid],
-    enabled:Boolean(rid&&canManage),
+    queryKey:["bookings",rid,day,timezone],
+    enabled:Boolean(rid&&canManage&&restaurant.isSuccess),
     staleTime:5_000,refetchInterval:20_000,
     queryFn:async()=>{
       const {data,error}=await (supabase as any).from("table_bookings")
         .select("id,restaurant_id,table_id,customer_name,phone,email,guest_count,booking_at,ends_at,duration_minutes,zone,status,notes,occasion,source,confirmation_code,public_token,deposit_amount,deposit_status,cancel_reason,created_at")
-        .eq("restaurant_id",rid).order("booking_at",{ascending:true}).limit(500);
+        .eq("restaurant_id",rid)
+        .gte("booking_at",restaurantDateTime(day,"00:00",timezone))
+        .lt("booking_at",restaurantDateTime(addReservationDays(day,1),"00:00",timezone))
+        .order("booking_at",{ascending:true}).limit(500);
       if(error)throw error;
       return (data??[]).map((row:any)=>({...row,deposit_amount:Number(row.deposit_amount??0)})) as Booking[];
     },
@@ -158,59 +171,80 @@ function BookingsPage(){
   });
 
   if(scope.isPending||access.isPending)return <div className="min-h-dvh bg-background"><AppHeader/><main className="qs-page"><Skeleton className="h-[560px] rounded-3xl"/></main></div>;
-  if(!rid||!membership||!canManage)return <div className="min-h-dvh bg-background"><AppHeader/><main className="qs-page"><section className="qs-card p-10 text-center"><h1 className="font-display text-xl font-bold">{ar?"الحجوزات غير متاحة لهذا الحساب":"Reservations are not available for this account"}</h1><p className="mt-2 text-sm text-muted-foreground">{ar?"تحتاج صلاحية إدارة الطاولات.":"Table-management access is required."}</p></section></main></div>;
+  if(!rid||(!membership&&!access.isSuperAdmin)||!canManage)return <div className="min-h-dvh bg-background"><AppHeader/><main className="qs-page"><section className="qs-card p-10 text-center"><h1 className="font-display text-xl font-bold">{ar?"الحجوزات غير متاحة لهذا الحساب":"Reservations are not available for this account"}</h1><p className="mt-2 text-sm text-muted-foreground">{ar?"تحتاج صلاحية إدارة الطاولات.":"Table-management access is required."}</p></section></main></div>;
 
-  const now=Date.now();
   const all=bookings.data??[];
   const needle=search.trim().toLowerCase();
-  const rows=all.filter(row=>!needle||[row.customer_name,row.phone,row.email,row.confirmation_code,row.source].filter(Boolean).join(" ").toLowerCase().includes(needle));
-  const active=all.filter(row=>!["completed","cancelled","no_show"].includes(row.status));
-  const today=active.filter(row=>new Date(row.booking_at).toDateString()===new Date().toDateString());
-  const seated=active.filter(row=>row.status==="seated").length;
-  const pending=active.filter(row=>row.status==="pending").length;
-  const upcoming=active.filter(row=>new Date(row.booking_at).getTime()>=now).length;
+  const dayRows=all.filter(row=>reservationDay(row.booking_at,timezone)===day);
+  const active=dayRows.filter(row=>!["completed","cancelled","no_show"].includes(row.status));
+  const awaiting=active.filter(row=>row.status==="confirmed"||row.status==="pending");
+  const rows=dayRows.filter(row=>(statusFilter==="all"||(statusFilter==="upcoming"?awaiting.includes(row):row.status===statusFilter))&&(!needle||[row.customer_name,row.phone,row.email,row.confirmation_code,row.source].filter(Boolean).join(" ").toLowerCase().includes(needle)));
+  const pageCount=Math.max(1,Math.ceil(rows.length/8));
+  const currentPage=Math.min(pageIndex,pageCount-1);
+  const shown=rows.slice(currentPage*8,currentPage*8+8);
+  const selected=all.find(row=>row.id===selectedId)??null;
+  const selectedTable=(tables.data??[]).find(row=>row.id===selected?.table_id)??null;
+  const messageBooking=messageTarget??selected??all.find(row=>Boolean(row.phone))??null;
+  const setDay=(value:string)=>{setSelectedDay(value);setPageIndex(0);};
+  const publicUrl=restaurant.data?.slug?`/book/${encodeURIComponent(restaurant.data.slug)}`:null;
 
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"الحجوزات":"Reservations"}/>
-    <main className="qs-page qs-compact-page qs-viewport-page">
-      <MasterPageHeader
-        eyebrow={<MasterEyebrow icon={CalendarCheck2}>{ar?"مكتب الحجوزات":"Reservation Desk"}</MasterEyebrow>}
-        title={ar?"الحجوزات والوصول والجلوس":"Reservations, Arrivals & Seating"}
-        description={ar?"واجهة تشغيلية واحدة من أول اتصال حتى جلوس الضيف، مع توافر حي ومنع التعارض.":"One operational workspace from first contact to seating, with live availability and conflict protection."}
-        actions={<div className="flex items-center gap-2"><Button onClick={()=>setCreateOpen(true)}><Plus className="size-4"/>{ar?"حجز جديد":"Add Booking"}</Button>{restaurant.data?.slug||canConfigure?<DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline"><MoreHorizontal className="size-4"/>{ar?"المزيد":"More"}</Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-52">{restaurant.data?.slug?<DropdownMenuItem asChild><Link to="/book/$slug" params={{slug:restaurant.data.slug}} target="_blank" rel="noreferrer"><ExternalLink/>{ar?"صفحة الحجز العامة":"Public booking page"}</Link></DropdownMenuItem>:null}{canConfigure?<DropdownMenuItem onSelect={()=>setSettingsOpen(true)}><Settings2/>{ar?"إعدادات الحجز":"Booking settings"}</DropdownMenuItem>:null}</DropdownMenuContent></DropdownMenu>:null}</div>}
-        tabs={<div className="flex gap-1"><Link to="/bookings" className="rounded-[9px] bg-foreground px-4 py-2 text-xs font-bold text-background">{ar?"الحجوزات":"Reservations"}</Link><Link to="/waitlist" className="rounded-[9px] px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-muted">{ar?"قائمة الانتظار":"Waitlist"}</Link></div>}
-      />
-
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MasterKpi icon={CalendarClock} label={ar?"حجوزات اليوم":"Today's Reservations"} value={String(today.length)} hint={ar?"جدول اليوم":"Today's book"} tone="orange"/>
-        <MasterKpi icon={Clock3} label={ar?"قادمة":"Upcoming"} value={String(upcoming)} hint={ar?"لم تصل بعد":"Still to arrive"} tone="blue"/>
-        <MasterKpi icon={CalendarCheck2} label={ar?"بانتظار التأكيد":"Pending"} value={String(pending)} hint={ar?"تحتاج متابعة":"Need follow-up"} tone="purple"/>
-        <MasterKpi icon={UserRoundCheck} label={ar?"جالسين الآن":"Seated Now"} value={String(seated)} hint={ar?"في الخدمة":"In service"} tone="green"/>
-      </section>
-
-      <section className="qs-card qs-viewport-fill flex min-h-0 flex-col overflow-hidden">
-        <div className="flex flex-col gap-2 border-b border-border p-3.5 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="qs-section-title">{ar?"جدول الحجوزات":"Reservation schedule"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar?"التأكيد لا يحجز الطاولة تشغيلياً إلا قرب الموعد؛ منع التعارض يتم دائماً من قاعدة البيانات.":"Future reservations do not block live floor status until arrival nears; time conflicts are always enforced in the database."}</p></div><Input className="sm:max-w-xs" value={search} onChange={e=>setSearch(e.target.value)} placeholder={ar?"بحث بالاسم، الهاتف أو الرمز":"Search guest, phone or code"}/></div>
-        {bookings.isPending||tables.isPending?<div className="p-5"><Skeleton className="h-72 rounded-2xl"/></div>:bookings.isError?<p className="p-6 text-sm text-destructive">{humanError(bookings.error,lang)}</p>:!rows.length?<div className="p-8 text-center"><CalendarCheck2 className="mx-auto size-8 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"لا توجد حجوزات":"No reservations found"}</h3></div>:<div className="qs-reservation-table-wrap qs-scroll-region min-h-0 flex-1">
-          <div className="qs-reservation-table" role="table" aria-label={ar?"جدول حجوزات الضيوف":"Guest reservation schedule"}>
-            <div className="qs-reservation-table-head" role="row">
-              <div role="columnheader">{ar?"الضيف":"Guest"}</div>
-              <div role="columnheader">{ar?"الموعد":"Reservation"}</div>
-              <div role="columnheader">{ar?"الضيوف":"Party"}</div>
-              <div role="columnheader">{ar?"الطاولة":"Table"}</div>
-              <div role="columnheader">{ar?"الحالة":"Status"}</div>
-              <div role="columnheader" className="text-end">{ar?"الإجراءات":"Actions"}</div>
+    <main className="qs-page qs-reservations-studio" dir={ar?"rtl":"ltr"}>
+      <header className="rs-page-heading">
+        <div><h1>{ar?"الحجوزات":"Reservations"}</h1><p>{ar?"ترحيب سلس، من الحجز حتى الجلوس.":"A smooth welcome, from booking to seating."}</p></div>
+        <Button disabled={!restaurant.isSuccess||!settings.isSuccess} onClick={()=>setCreateOpen(true)}><Plus className="size-4"/>{ar?"حجز جديد":"Add Booking"}</Button>
+      </header>
+      <nav className="rs-workspace-tabs" aria-label={ar?"مساحة الحجوزات":"Reservation workspace"}>
+        {([["schedule",ar?"الجدول":"Schedule"],["public",ar?"صفحة الحجز العامة":"Public Booking Page"],...(canConfigure?[["settings",ar?"إعدادات الحجز":"Booking Settings"]]:[]),["messages",ar?"الرسائل":"Messages"]] as [typeof view,string][]).map(([key,label])=><button key={key} type="button" aria-current={view===key?"page":undefined} onClick={()=>setView(key)}>{label}</button>)}
+      </nav>
+      {view==="schedule"?<>
+        <div className="rs-subnav"><span>{ar?"الحجوزات":"Reservations"}</span><Link to="/waitlist">{ar?"قائمة الانتظار":"Waitlist"}</Link></div>
+        <section className="rs-metrics" aria-label={ar?"ملخص اليوم المحدد":"Selected day summary"}>
+          {[[ar?"الحجوزات":"Bookings",dayRows.length,"green"],[ar?"الضيوف المتوقعون":"Expected guests",active.reduce((sum,row)=>sum+row.guest_count,0),"blue"],[ar?"بانتظار الوصول":"Awaiting arrival",awaiting.length,"amber"],[ar?"جالسون":"Seated",active.filter(row=>row.status==="seated").length,"purple"]].map(([label,value,tone])=><div key={String(label)}><i className={`rs-dot ${tone}`}/><span>{label}<strong>{value}</strong></span></div>)}
+        </section>
+        <div className={cn("rs-schedule-layout",selected&&"has-detail")}>
+          <section className="rs-schedule-panel">
+            <div className="rs-schedule-toolbar">
+              <div className="rs-date-nav"><Button variant="outline" size="icon" aria-label={ar?"اليوم السابق":"Previous day"} onClick={()=>setDay(addReservationDays(day,-1))}><ChevronLeft className="size-4"/></Button><Input type="date" aria-label={ar?"تاريخ الجدول":"Schedule date"} value={day} onChange={e=>{if(e.target.value)setDay(e.target.value);}}/><Button variant="outline" size="icon" aria-label={ar?"اليوم التالي":"Next day"} onClick={()=>setDay(addReservationDays(day,1))}><ChevronRight className="size-4"/></Button><Button variant="outline" onClick={()=>setDay(reservationDay(new Date(),timezone))}>{ar?"اليوم":"Today"}</Button></div>
+              <div className="rs-filters">{[["all",ar?"الكل":"All",dayRows.length],["upcoming",ar?"قادمة":"Upcoming",awaiting.length],["seated",ar?"جالسون":"Seated",active.filter(row=>row.status==="seated").length],["pending",ar?"معلقة":"Pending",active.filter(row=>row.status==="pending").length]].map(([key,label,count])=><button key={key} type="button" aria-pressed={statusFilter===key} onClick={()=>{setStatusFilter(String(key));setPageIndex(0);}}>{label}<b>{count}</b></button>)}</div>
+              <div className="rs-search"><Search className="size-4"/><Input aria-label={ar?"بحث عن حجز":"Search reservations"} value={search} onChange={e=>{setSearch(e.target.value);setPageIndex(0);}} placeholder={ar?"اسم الضيف، الهاتف أو الرمز":"Guest, phone or code"}/></div>
             </div>
-            <div className="qs-reservation-table-body" role="rowgroup">
-              {rows.map(booking=><BookingRow key={booking.id} booking={booking} table={(tables.data??[]).find(row=>row.id===booking.table_id)??null} currency={restaurant.data?.currency??"JOD"} ar={ar} lang={lang} busy={transition.isPending||deleteReservation.isPending} onStatus={(status,reason)=>transition.mutate({id:booking.id,status,reason})} onMessage={()=>setMessageTarget(booking)} onDelete={()=>setDeleteTarget(booking)}/>)}
+            {bookings.isPending||tables.isPending?<div className="p-5"><Skeleton className="h-72 rounded-xl"/></div>:bookings.isError||tables.isError?<p role="alert" className="p-6 text-sm text-destructive">{humanError(bookings.error??tables.error,lang)}</p>:!rows.length?<div className="rs-empty"><CalendarCheck2 className="size-8"/><h3>{ar?"لا توجد حجوزات":"No reservations found"}</h3><p>{needle? (ar?"جرّب بحثاً آخر.":"Try another search."):(ar?"اختر يوماً آخر أو أضف حجزاً.":"Choose another day or add a booking.")}</p><Button variant="outline" onClick={()=>setCreateOpen(true)}><Plus className="size-4"/>{ar?"حجز جديد":"Add Booking"}</Button></div>:<div className="qs-reservation-table-wrap">
+              <div className="qs-reservation-table" role="table" aria-label={ar?"جدول حجوزات الضيوف":"Guest reservation schedule"}>
+                <div className="qs-reservation-table-head" role="row">{[ar?"الضيف":"Guest",ar?"الوقت":"Time",ar?"الضيوف":"Guests",ar?"الطاولة":"Table",ar?"الحالة":"Status",ar?"الإجراءات":"Actions"].map(label=><div key={label} role="columnheader">{label}</div>)}</div>
+                <div className="qs-reservation-table-body" role="rowgroup">{shown.map(booking=><BookingRow key={booking.id} booking={booking} table={(tables.data??[]).find(row=>row.id===booking.table_id)??null} currency={restaurant.data?.currency??"JOD"} ar={ar} lang={lang} timezone={timezone} selected={selectedId===booking.id} onSelect={()=>setSelectedId(booking.id)} busy={transition.isPending||deleteReservation.isPending} onStatus={(status,reason)=>transition.mutate({id:booking.id,status,reason})} onMessage={()=>setMessageTarget(booking)} onDelete={()=>setDeleteTarget(booking)}/>)}</div>
+              </div>
+            </div>}
+            <footer className="rs-table-footer"><span>{rows.length?`${currentPage*8+1}–${Math.min((currentPage+1)*8,rows.length)} / ${rows.length}`:0} {ar?"حجز":"bookings"}</span><div><Button size="icon" variant="ghost" disabled={currentPage===0} aria-label={ar?"الصفحة السابقة":"Previous page"} onClick={()=>setPageIndex(currentPage-1)}><ChevronLeft className="size-4"/></Button><span>{currentPage+1} / {pageCount}</span><Button size="icon" variant="ghost" disabled={currentPage>=pageCount-1} aria-label={ar?"الصفحة التالية":"Next page"} onClick={()=>setPageIndex(currentPage+1)}><ChevronRight className="size-4"/></Button></div></footer>
+          </section>
+          {selected?<aside className="rs-detail" aria-label={ar?"تفاصيل الحجز":"Booking details"}>
+            <div className="rs-detail-heading"><h2>{ar?"تفاصيل الحجز":"Booking details"}</h2><Button variant="ghost" size="icon" aria-label={ar?"إغلاق التفاصيل":"Close booking details"} onClick={()=>setSelectedId(null)}><X className="size-4"/></Button></div>
+            <div className="rs-detail-guest"><span className="qs-reservation-avatar">{selected.customer_name.slice(0,1)}</span><div><strong>{selected.customer_name}</strong><small>{selected.phone??selected.email}</small></div></div>
+            <span className={`rs-status rs-status-${selected.status}`}>{statusLabel(selected.status,ar)}</span>
+            <div className="rs-detail-lines"><p><CalendarDays className="size-4"/>{new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{timeZone:timezone,dateStyle:"medium"}).format(new Date(selected.booking_at))}</p><p><Clock3 className="size-4"/>{bookingTimeLabel(selected.booking_at,timezone,ar)} · {selected.duration_minutes} {ar?"دقيقة":"min"}</p><p><UsersRound className="size-4"/>{selected.guest_count} {ar?"ضيوف":"guests"}</p><p><Table2 className="size-4"/>{selectedTable?.table_name??selectedTable?.table_number??(ar?"غير محددة":"Unassigned")} · {selectedTable?.zone??selected.zone??"—"}</p><p className="font-mono text-xs">{selected.confirmation_code}</p></div>
+            {selected.notes?<div className="rs-guest-note"><small>{ar?"ملاحظة الضيف":"Guest note"}</small><p>{selected.notes}</p></div>:null}
+            <div className="rs-detail-actions">
+              {selected.status==="pending"?<Button disabled={transition.isPending} onClick={()=>transition.mutate({id:selected.id,status:"confirmed"})}><CheckCircle2 className="size-4"/>{ar?"تأكيد الحجز":"Confirm booking"}</Button>:null}
+              {selected.status==="confirmed"?<Button disabled={transition.isPending} onClick={()=>transition.mutate({id:selected.id,status:"seated"})}><UserRoundCheck className="size-4"/>{ar?"إجلاس الضيف":"Seat guest"}</Button>:null}
+              {selected.status==="seated"?<Button disabled={transition.isPending} onClick={()=>transition.mutate({id:selected.id,status:"completed"})}>{ar?"إكمال الزيارة":"Complete visit"}</Button>:null}
+              <Button variant="outline" disabled={!selected.phone} onClick={()=>setMessageTarget(selected)}><MessageSquareText className="size-4"/>{ar?"مراسلة الضيف":"Message guest"}</Button>
+              {["pending","confirmed"].includes(selected.status)?<Button variant="outline" className="text-destructive" disabled={transition.isPending} onClick={()=>transition.mutate({id:selected.id,status:"cancelled",reason:ar?"ألغاه الموظف":"Cancelled by staff"})}>{ar?"إلغاء الحجز":"Cancel booking"}</Button>:null}
+              {selected.status!=="seated"&&selected.deposit_status!=="paid"?<Button variant="ghost" className="text-destructive" disabled={deleteReservation.isPending} onClick={()=>setDeleteTarget(selected)}><Trash2 className="size-4"/>{ar?"حذف الحجز":"Delete booking"}</Button>:null}
             </div>
-          </div>
-        </div>}
-      </section>
+          </aside>:null}
+        </div>
+      </>:null}
+      {view==="public"?<section className="rs-public-workspace"><div className="rs-public-copy"><Globe2 className="size-6"/><h2>{ar?"صفحة الحجز العامة":"Public Booking Page"}</h2><p>{ar?"رابط واحد يتيح للضيف اختيار الوقت وإرسال الحجز.":"One link for guests to choose their visit and reserve a table."}</p><span className={`rs-status rs-status-${settings.data?.online_enabled?"confirmed":"pending"}`}>{settings.data?.online_enabled?(ar?"تستقبل الحجوزات":"Accepting bookings"):(ar?"الحجز متوقف":"Bookings paused")}</span>{publicUrl?<><Input aria-label={ar?"رابط الحجز العام":"Public booking link"} readOnly value={typeof window!=="undefined"?window.location.origin+publicUrl:publicUrl}/><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>void navigator.clipboard.writeText(window.location.origin+publicUrl).then(()=>toast.success(ar?"تم نسخ الرابط":"Link copied")).catch(()=>toast.error(ar?"تعذر نسخ الرابط":"Could not copy link"))}><Copy className="size-4"/>{ar?"نسخ الرابط":"Copy link"}</Button><Button asChild><a href={publicUrl} target="_blank" rel="noreferrer"><ExternalLink className="size-4"/>{ar?"فتح الصفحة":"Open page"}</a></Button></div></>:null}{canConfigure?<Button variant="ghost" onClick={()=>setView("settings")}><Settings2 className="size-4"/>{ar?"إعدادات الحجز":"Booking Settings"}</Button>:null}</div>{publicUrl?<iframe title={ar?"معاينة صفحة الحجز":"Public booking page preview"} src={publicUrl} className="rs-public-preview"/>:<p>{ar?"رابط المطعم غير متاح":"Restaurant link unavailable"}</p>}</section>:null}
+      {view==="settings"&&canConfigure?<BookingSettingsDialog open onOpenChange={()=>setView("schedule")} restaurantId={rid} settings={settings.data} ar={ar} lang={lang} inline/>:null}
+      {view==="messages"?<section className="rs-messages-workspace"><div className="rs-message-list"><h2>{ar?"الرسائل":"Messages"}<small>{day}</small></h2>{all.filter(row=>row.phone).map(booking=><button key={booking.id} type="button" aria-pressed={messageBooking?.id===booking.id} onClick={()=>{setSelectedId(booking.id);setMessageTarget(null);}}><span className="qs-reservation-avatar">{booking.customer_name.slice(0,1)}</span><span><strong>{booking.customer_name}</strong><small>{bookingTimeLabel(booking.booking_at,timezone,ar)} · {booking.guest_count} {ar?"ضيوف":"guests"}</small></span></button>)}</div>{messageBooking?<ReservationMessageDialog key={messageBooking.id} booking={messageBooking} restaurantId={rid} ar={ar} lang={lang} timezone={timezone} restaurantName={restaurant.data?.name??""} onOpenChange={()=>{}} inline/>:<div className="rs-empty"><MessageSquareText className="size-8"/><h3>{ar?"لا توجد محادثات بعد":"No conversations yet"}</h3><p>{ar?"أضف حجزاً مع رقم هاتف للبدء.":"Add a booking with a phone number to get started."}</p></div>}</section>:null}
     </main>
-    <CreateBookingDialog open={createOpen} onOpenChange={setCreateOpen} restaurantId={rid} tables={tables.data??[]} settings={settings.data} ar={ar} lang={lang}/>
+    <CreateBookingDialog open={createOpen&&restaurant.isSuccess&&settings.isSuccess} onOpenChange={setCreateOpen} restaurantId={rid} tables={tables.data??[]} settings={settings.data} ar={ar} lang={lang} timezone={timezone}/>
     {canConfigure?<BookingSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} restaurantId={rid} settings={settings.data} ar={ar} lang={lang}/>:null}
     <ReservationMessageDialog
-      booking={messageTarget}
+      booking={view==="messages"?null:messageTarget}
+      timezone={timezone}
+      restaurantName={restaurant.data?.name??""}
       restaurantId={rid}
       ar={ar}
       lang={lang}
@@ -226,10 +260,10 @@ function BookingsPage(){
   </div>;
 }
 
-function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,lang}:{open:boolean;onOpenChange:(open:boolean)=>void;restaurantId:string;tables:FloorTable[];settings:BookingSettings|null|undefined;ar:boolean;lang:"ar"|"en"}){
+function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,lang,timezone}:{open:boolean;onOpenChange:(open:boolean)=>void;restaurantId:string;tables:FloorTable[];settings:BookingSettings|null|undefined;ar:boolean;lang:"ar"|"en";timezone:string}){
   const qc=useQueryClient();
   const [busy,setBusy]=useState(false);
-  const initial=bookingDateParts(new Date(Date.now()+60*60_000));
+  const initial={date:reservationDay(new Date(Date.now()+60*60_000),timezone),time:new Intl.DateTimeFormat("en-GB",{timeZone:timezone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(Date.now()+60*60_000))};
   const [bookingDate,setBookingDate]=useState(initial.date);
   const [bookingTime,setBookingTime]=useState(initial.time);
   const [guests,setGuests]=useState(2);
@@ -237,14 +271,15 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
   const [selectedTable,setSelectedTable]=useState("auto");
   const [status,setStatus]=useState("pending");
   const [source,setSource]=useState("staff");
+  const [zone,setZone]=useState("any");
+  useEffect(()=>{if(open){setBookingDate(initial.date);setBookingTime(initial.time);setGuests(settings?.min_party_size&&settings.min_party_size>2?settings.min_party_size:2);setDuration(settings?.default_duration_minutes??90);setSelectedTable("auto");setZone("any");setStatus(settings?.auto_confirm?"confirmed":"pending");}},[open]);
   const bookingAt=bookingDate&&bookingTime?`${bookingDate}T${bookingTime}`:"";
 
   const available=useQuery<FloorTable[]>({
-    queryKey:["booking-available-tables",restaurantId,bookingAt,guests,duration],
+    queryKey:["booking-available-tables",restaurantId,bookingAt,guests,duration,timezone],
     enabled:open&&Boolean(bookingAt)&&guests>0,
     queryFn:async()=>{
-      const at=new Date(bookingAt);
-      if(Number.isNaN(at.getTime()))throw new Error(ar?"اختر تاريخاً ووقتاً صحيحين":"Choose a valid date and time");
+      const at=new Date(restaurantDateTime(bookingDate,bookingTime,timezone));
       const {data,error}=await (supabase as any).rpc("find_available_booking_tables",{
         _restaurant_id:restaurantId,_booking_at:at.toISOString(),_guest_count:guests,_duration_minutes:duration,
       });
@@ -253,18 +288,18 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
     },
   });
 
-  const availableRows=available.data??[];
+  const availableRows=(available.data??[]).filter(row=>zone==="any"||row.zone===zone);
   const bestFit=availableRows[0]??null;
   const chosen=selectedTable==="auto"?bestFit:availableRows.find(row=>row.id===selectedTable)??null;
-  const canSubmit=Boolean(bookingAt)&&availableRows.length>0&&!busy;
+  const canSubmit=Boolean(bookingAt)&&Boolean(chosen)&&!available.isFetching&&!available.isError&&!busy;
 
   async function submit(event:React.FormEvent<HTMLFormElement>){
     event.preventDefault();
+    if(!canSubmit)return;
     const form=new FormData(event.currentTarget);
     setBusy(true);
     try{
-      const at=new Date(bookingAt);
-      if(Number.isNaN(at.getTime()))throw new Error(ar?"اختر تاريخاً ووقتاً صحيحين":"Choose a valid date and time");
+      const at=new Date(restaurantDateTime(bookingDate,bookingTime,timezone));
       const {error}=await (supabase as any).rpc("create_staff_booking",{
         _restaurant_id:restaurantId,
         _customer_name:String(form.get("customer_name")??"").trim(),
@@ -272,7 +307,7 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
         _email:String(form.get("email")??"").trim(),
         _guest_count:guests,
         _booking_at:at.toISOString(),
-        _table_id:selectedTable==="auto"?null:selectedTable,
+        _table_id:chosen?.id??null,
         _duration_minutes:duration,
         _status:status,
         _notes:String(form.get("notes")??"").trim()||null,
@@ -293,124 +328,33 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
     }
   }
 
+  const dateValue=parseDateOnly(bookingDate);
+  const zones=Array.from(new Set(tables.map(row=>row.zone)));
+  const quickTimes=Array.from({length:8},(_,i)=>`${String(18+Math.floor(i/2)).padStart(2,"0")}:${i%2?"30":"00"}`);
   return <Dialog open={open} onOpenChange={value=>!busy&&onOpenChange(value)}>
-    <DialogContent
-      className="qs-booking-create-dialog max-h-[94dvh] overflow-hidden p-0 sm:max-w-4xl"
-      onOpenAutoFocus={(event)=>{
-        if(typeof window!=="undefined"&&window.matchMedia("(max-width: 767px)").matches)event.preventDefault();
-      }}
-    >
-      <div className="qs-booking-create-hero border-b border-border bg-gradient-to-r from-orange-500/[.09] via-background to-background px-5 py-5 sm:px-7">
-        <DialogHeader>
-          <div className="qs-booking-create-title-row flex items-start gap-3">
-            <span className="qs-booking-create-icon grid size-9 shrink-0 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><CalendarCheck2 className="size-5"/></span>
-            <div className="min-w-0">
-              <DialogTitle className="qs-booking-create-title text-xl sm:text-2xl">{ar?"حجز جديد":"New reservation"}</DialogTitle>
-              <DialogDescription className="qs-booking-create-description mt-1 max-w-2xl">{ar?"أدخل بيانات الضيف ثم اختر التاريخ والوقت بوضوح. يتم فحص التوفر مباشرة ومرة أخيرة عند الحفظ.":"Add the guest, choose date and time clearly, then QuickServe checks availability live and once again when saving."}</DialogDescription>
-              <p className="qs-booking-create-mobile-subtitle hidden">{ar?"بيانات الضيف ← الموعد ← الطاولة":"Guest → time → table"}</p>
-              <div className="qs-booking-create-progress hidden" aria-hidden="true"><i className="is-active"/><i/><i/></div>
-            </div>
+    <DialogContent className="qs-booking-create-dialog rs-create-dialog p-0" onOpenAutoFocus={event=>{if(window.matchMedia("(max-width: 767px)").matches)event.preventDefault();}}>
+      <DialogHeader className="rs-form-heading"><div><DialogTitle>{ar?"حجز جديد":"Add booking"}</DialogTitle><DialogDescription>{ar?"بيانات الضيف · الموعد · التأكيد":"Guest · Visit · Confirm"}</DialogDescription></div></DialogHeader>
+      <form onSubmit={submit} className="qs-booking-create-form rs-create-form">
+        <div className="qs-booking-create-scroll-body rs-create-body">
+          <div className="rs-form-guest-grid"><Field label={ar?"اسم الضيف":"Guest name"}><Input name="customer_name" autoComplete="name" required maxLength={120}/></Field><Field label={ar?"رقم الهاتف":"Phone number"}><Input name="phone" inputMode="tel" autoComplete="tel" required={settings?.require_phone??true} maxLength={40} placeholder="+962"/></Field></div>
+          <div className="rs-visit-grid">
+            <section className="rs-visit-date">
+              <div className="qs-booking-guests-field"><Field label={ar?"عدد الضيوف":"Number of guests"}><div className="rs-choice-rail">{[2,3,4,5,6].map(value=><button key={value} type="button" aria-pressed={guests===value} onClick={()=>{setGuests(value);setSelectedTable("auto");}}>{value}</button>)}<Input aria-label={ar?"عدد آخر للضيوف":"Custom guest count"} type="number" min="1" max="100" value={guests} onChange={e=>{setGuests(Number(e.target.value)||1);setSelectedTable("auto");}}/></div></Field></div>
+              <div className="qs-booking-date-field"><Field label={ar?"التاريخ":"Date"}><ReservationDatePicker timezone={timezone} value={bookingDate} onChange={value=>{setBookingDate(value);setSelectedTable("auto");}} ar={ar} maxAdvanceDays={settings?.max_advance_days??365}/></Field></div>
+              <Calendar mode="single" selected={dateValue} defaultMonth={dateValue??new Date()} onSelect={value=>{if(value){setBookingDate(formatDateOnly(value));setSelectedTable("auto");}}} disabled={{before:parseDateOnly(reservationDay(new Date(),timezone))!,after:parseDateOnly(addReservationDays(reservationDay(new Date(),timezone),settings?.max_advance_days??365))!}} className="rs-inline-calendar"/>
+            </section>
+            <section className="rs-visit-options">
+              <div className="qs-booking-time-field"><Field label={ar?"الوقت":"Time"}><div className="rs-time-slots">{quickTimes.map(time=><button key={time} type="button" aria-pressed={bookingTime===time} onClick={()=>{setBookingTime(time);setSelectedTable("auto");}}>{new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{hour:"numeric",minute:"2-digit",timeZone:"UTC"}).format(new Date(`2000-01-01T${time}:00Z`))}</button>)}</div><Input aria-label={ar?"وقت مخصص":"Custom booking time"} className="mt-2" type="time" step="60" value={bookingTime} onChange={e=>{setBookingTime(e.target.value);setSelectedTable("auto");}} required/></Field></div>
+              <Field label={ar?"منطقة الجلوس":"Seating area"}><div className="rs-choice-rail rs-zone-rail">{["any",...zones].map(value=><button key={value} type="button" aria-pressed={zone===value} onClick={()=>{setZone(value);setSelectedTable("auto");}}>{value==="any"?(ar?"أي منطقة":"Any area"):value}</button>)}</div></Field>
+              <Field label={ar?"الطاولة":"Table"}><Select value={selectedTable} onValueChange={setSelectedTable}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="auto">{ar?"أفضل طاولة تلقائياً":"Auto-assign best fit"}</SelectItem>{availableRows.map(table=><SelectItem key={table.id} value={table.id}>{table.table_name??`#${table.table_number}`} · {table.capacity} {ar?"مقاعد":"seats"}</SelectItem>)}</SelectContent></Select></Field>
+              <div className="rs-live-availability" role="status">{available.isFetching?(ar?"جارٍ فحص التوفر…":"Checking availability…"):available.isError?<span className="text-destructive">{humanError(available.error,lang)}</span>:chosen?<span><CheckCircle2 className="size-4"/>{availableRows.length} {ar?"طاولات متاحة":"tables available"} · {chosen.table_name??`#${chosen.table_number}`}</span>:<span className="text-amber-700">{ar?"لا توجد طاولة مناسبة. اختر وقتاً أو منطقة أخرى.":"No suitable table. Try another time or area."}</span>}</div>
+              <Field label={ar?"طلبات خاصة (اختياري)":"Special requests (optional)"}><Textarea name="notes" maxLength={1000} rows={2}/></Field>
+            </section>
           </div>
-        </DialogHeader>
-      </div>
-
-      <form onSubmit={submit} className="qs-booking-create-form">
-        <div className="qs-booking-create-scroll-body lg:grid lg:grid-cols-[minmax(0,1fr)_290px]">
-        <div className="qs-booking-create-main space-y-4 p-4 sm:p-5">
-          <section className="qs-booking-step">
-            <SectionHeading number="1" title={ar?"بيانات الضيف":"Guest details"} subtitle={ar?"المعلومات الأساسية للحجز والتواصل.":"Core reservation and contact information."}/>
-            <div className="qs-booking-guest-grid mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label={ar?"اسم الضيف":"Guest name"}><Input className="h-11 rounded-xl" name="customer_name" autoComplete="name" required maxLength={120}/></Field>
-              <Field label={ar?"الهاتف":"Phone"}><Input className="h-11 rounded-xl" name="phone" inputMode="tel" autoComplete="tel" maxLength={40}/></Field>
-              <Field label={ar?"البريد الإلكتروني":"Email"}><Input className="h-11 rounded-xl" name="email" type="email" inputMode="email" autoComplete="email" maxLength={160}/></Field>
-              <Field label={ar?"المناسبة":"Occasion"}><Input className="h-11 rounded-xl" name="occasion" maxLength={120} placeholder={ar?"عيد ميلاد، ذكرى...":"Birthday, anniversary..."}/></Field>
-            </div>
-          </section>
-
-          <section className="qs-booking-step">
-            <SectionHeading number="2" title={ar?"الموعد وعدد الضيوف":"Date, time & party"} subtitle={ar?"التاريخ والوقت منفصلان لتكون عملية الاختيار واضحة وسهلة على جميع الأجهزة.":"Date and time are separated for a clearer, reliable picker on every device."}/>
-            <div className="qs-booking-datetime-grid mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="qs-booking-date-field"><Field label={ar?"التاريخ":"Date"}>
-                <ReservationDatePicker
-                  value={bookingDate}
-                  onChange={value=>{setBookingDate(value);setSelectedTable("auto");}}
-                  ar={ar}
-                  maxAdvanceDays={settings?.max_advance_days??365}
-                />
-              </Field></div>
-              <div className="qs-booking-time-field"><Field label={ar?"الوقت":"Time"}>
-                <div className="relative"><Clock3 className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-12 cursor-pointer rounded-xl ps-10" type="time" step="900" value={bookingTime} onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()} onChange={e=>{setBookingTime(e.target.value);setSelectedTable("auto");}} required/></div>
-              </Field></div>
-              <div className="qs-booking-guests-field"><Field label={ar?"عدد الضيوف":"Guests"}>
-                <div className="relative"><UsersRound className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-12 rounded-xl ps-10" type="number" min="1" max="100" value={guests} onChange={e=>{setGuests(Number(e.target.value)||1);setSelectedTable("auto");}} required/></div>
-              </Field></div>
-            </div>
-
-            <div className="qs-booking-duration mt-4">
-              <Label className="text-xs font-bold">{ar?"مدة الحجز":"Reservation duration"}</Label>
-              <div className="qs-booking-duration-rail mt-2 flex flex-wrap gap-2">
-                {[60,90,120,150,180].map(value=><button key={value} type="button" onClick={()=>{setDuration(value);setSelectedTable("auto");}} className={cn("qs-booking-duration-chip rounded-xl border px-3.5 py-2 text-xs font-bold transition",duration===value?"is-active border-[#e85d2a] bg-orange-500/10 text-[#e34d00]":"border-border bg-background hover:bg-muted/50")}>{value<120?`${value} min`:`${value/60} hr`}</button>)}
-                <div className="qs-booking-duration-custom relative w-28"><Timer className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input aria-label={ar?"مدة مخصصة بالدقائق":"Custom duration in minutes"} className="h-9 rounded-xl ps-9 text-xs" type="number" min="30" max="360" step="15" value={duration} onChange={e=>{setDuration(Number(e.target.value)||90);setSelectedTable("auto");}}/></div>
-              </div>
-            </div>
-          </section>
-
-          <section className="qs-booking-step">
-            <SectionHeading number="3" title={ar?"الطاولة وسير العمل":"Table & workflow"} subtitle={ar?"QuickServe يختار أصغر طاولة مناسبة تلقائياً، أو يمكنك اختيار طاولة متاحة.":"QuickServe auto-selects the smallest suitable table, or you can choose an available table."}/>
-            <div className="qs-booking-workflow-grid mt-3 grid gap-3 sm:grid-cols-3">
-              <Field label={ar?"الطاولة":"Table"}>
-                <Select value={selectedTable} onValueChange={setSelectedTable}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue/></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">{ar?"أفضل طاولة تلقائياً":"Auto-assign best fit"}</SelectItem>
-                    {availableRows.map(table=><SelectItem key={table.id} value={table.id}>{table.table_name??`#${table.table_number}`} · {table.capacity} · {table.zone}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label={ar?"الحالة":"Status"}>
-                <Select value={status} onValueChange={setStatus}><SelectTrigger className="h-11 rounded-xl"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="pending">{statusLabel("pending",ar)}</SelectItem><SelectItem value="confirmed">{statusLabel("confirmed",ar)}</SelectItem></SelectContent></Select>
-              </Field>
-              <Field label={ar?"المصدر":"Source"}>
-                <Select value={source} onValueChange={setSource}><SelectTrigger className="h-11 rounded-xl"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="staff">{ar?"موظف":"Staff"}</SelectItem><SelectItem value="phone">{ar?"هاتف":"Phone"}</SelectItem><SelectItem value="walk_in">{ar?"حضور مباشر":"Walk-in"}</SelectItem></SelectContent></Select>
-              </Field>
-            </div>
-            <Field label={ar?"ملاحظات":"Notes"}><Textarea className="mt-2 min-h-24 rounded-xl" name="notes" maxLength={1000} placeholder={ar?"طلبات خاصة، كرسي أطفال، ملاحظات الوصول...":"Special requests, high chair, arrival notes..."}/></Field>
-          </section>
+          <details className="rs-optional-fields" open={settings?.require_email}><summary>{ar?"خيارات إضافية":"Additional details"}</summary><div className="rs-form-guest-grid mt-3"><Field label={ar?"البريد الإلكتروني":"Email"}><Input name="email" type="email" autoComplete="email" required={settings?.require_email??false} maxLength={160}/></Field><Field label={ar?"المناسبة":"Occasion"}><Input name="occasion" maxLength={120}/></Field><Field label={ar?"الحالة":"Status"}><Select value={status} onValueChange={setStatus}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="pending">{statusLabel("pending",ar)}</SelectItem><SelectItem value="confirmed">{statusLabel("confirmed",ar)}</SelectItem></SelectContent></Select></Field><Field label={ar?"المصدر":"Source"}><Select value={source} onValueChange={setSource}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="staff">{ar?"موظف":"Staff"}</SelectItem><SelectItem value="phone">{ar?"هاتف":"Phone"}</SelectItem><SelectItem value="walk_in">{ar?"حضور مباشر":"Walk-in"}</SelectItem></SelectContent></Select></Field></div></details>
+          <div className="qs-booking-duration-rail rs-duration"><Field label={ar?"مدة الزيارة":"Visit duration"}><Select value={String(duration)} onValueChange={v=>{setDuration(Number(v));setSelectedTable("auto");}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{[30,60,90,120,150,180,240,300,360].map(value=><SelectItem key={value} value={String(value)}>{value} {ar?"دقيقة":"min"}</SelectItem>)}</SelectContent></Select></Field></div>
         </div>
-
-        <aside className="qs-booking-live-aside border-t border-border bg-muted/20 p-4 lg:border-s lg:border-t-0 sm:p-4">
-          <div className="sticky top-0 space-y-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[.15em] text-muted-foreground">{ar?"التوفر المباشر":"Live availability"}</p>
-              {available.isPending?<div className="mt-3 space-y-2"><Skeleton className="h-16 rounded-2xl"/><Skeleton className="h-10 rounded-xl"/></div>
-                :available.isError?<div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-700">{humanError(available.error,lang)}</div>
-                :availableRows.length>0?<div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="size-4"/><strong className="text-sm">{availableRows.length} {ar?"طاولة متاحة":"tables available"}</strong></div>
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">{chosen?(ar?`الاختيار: ${chosen.table_name??`#${chosen.table_number}`} · سعة ${chosen.capacity}`:`Selected: ${chosen.table_name??`#${chosen.table_number}`} · capacity ${chosen.capacity}`):(ar?"سيتم اختيار أفضل طاولة عند الحفظ.":"Best-fit table will be chosen at save time.")}</p>
-                </div>
-                :<div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/20"><strong className="text-sm text-amber-800 dark:text-amber-200">{ar?"لا توجد طاولة متاحة":"No table available"}</strong><p className="mt-2 text-xs leading-5 text-muted-foreground">{ar?"غيّر الوقت أو المدة أو عدد الضيوف، أو استخدم قائمة الانتظار.":"Try another time, duration or party size, or use the waitlist."}</p><Button asChild variant="outline" size="sm" className="mt-3 w-full rounded-xl"><Link to="/waitlist">{ar?"فتح قائمة الانتظار":"Open waitlist"}</Link></Button></div>}
-            </div>
-
-            <div className="rounded-2xl border border-border bg-background p-4">
-              <p className="text-[10px] font-black uppercase tracking-[.15em] text-muted-foreground">{ar?"ملخص الحجز":"Reservation summary"}</p>
-              <div className="mt-3 space-y-3 text-sm">
-                <SummaryLine label={ar?"التاريخ":"Date"} value={bookingDate||"—"}/>
-                <SummaryLine label={ar?"الوقت":"Time"} value={bookingTime||"—"}/>
-                <SummaryLine label={ar?"الضيوف":"Guests"} value={String(guests)}/>
-                <SummaryLine label={ar?"المدة":"Duration"} value={`${duration} min`}/>
-                <SummaryLine label={ar?"الطاولة":"Table"} value={chosen?(chosen.table_name??`#${chosen.table_number}`):(selectedTable==="auto"?(ar?"تلقائي":"Auto"):"—")}/>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-dashed border-border p-4 text-[11px] leading-5 text-muted-foreground">{ar?"يتم إعادة فحص التوفر داخل قاعدة البيانات عند إنشاء الحجز، لذلك لا يمكن لحجزين متزامنين حجز نفس الطاولة لنفس الوقت.":"Availability is rechecked inside the database when creating the reservation, preventing concurrent double-booking."}</div>
-          </div>
-        </aside>
-        </div>
-
-        <DialogFooter className="qs-booking-create-footer border-t border-border bg-background/95 px-5 py-4 backdrop-blur sm:px-7">
-          <Button type="button" variant="outline" className="qs-booking-cancel rounded-xl" onClick={()=>onOpenChange(false)} disabled={busy}>{ar?"إلغاء":"Cancel"}</Button>
-          <Button type="submit" className="qs-booking-submit min-w-40 rounded-xl" disabled={!canSubmit}>{busy?(ar?"جارٍ الحفظ…":"Saving…"):(ar?"إنشاء الحجز":"Create reservation")}</Button>
-        </DialogFooter>
+        <DialogFooter className="qs-booking-create-footer rs-form-footer"><span><UsersRound className="size-4"/>{guests} {ar?"ضيوف":"guests"} · {bookingTime} · {chosen?.table_name??chosen?.table_number??"—"}</span><div><Button type="button" variant="outline" disabled={busy} onClick={()=>onOpenChange(false)}>{ar?"إلغاء":"Cancel"}</Button><Button type="submit" disabled={!canSubmit}>{busy?(ar?"جارٍ الحفظ…":"Saving…"):(ar?"إنشاء الحجز":"Create booking")}</Button></div></DialogFooter>
       </form>
     </DialogContent>
   </Dialog>;
@@ -424,8 +368,12 @@ function SummaryLine({label,value}:{label:string;value:string}){
   return <div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">{label}</span><strong className="text-end text-xs">{value}</strong></div>;
 }
 
-function BookingSettingsDialog({open,onOpenChange,restaurantId,settings,ar,lang}:{open:boolean;onOpenChange:(open:boolean)=>void;restaurantId:string;settings:BookingSettings|null|undefined;ar:boolean;lang:"ar"|"en"}){
+function BookingSettingsDialog({open,onOpenChange,restaurantId,settings,ar,lang,inline=false}:{open:boolean;onOpenChange:(open:boolean)=>void;restaurantId:string;settings:BookingSettings|null|undefined;ar:boolean;lang:"ar"|"en";inline?:boolean}){
   const qc=useQueryClient();
+  const [pane,setPane]=useState("availability");
+  const [hours,setHours]=useState<WeeklyHours>(settings?.weekly_hours??defaultBookingHours());
+  const [requirePhone,setRequirePhone]=useState(settings?.require_phone??true);
+  const [requireEmail,setRequireEmail]=useState(settings?.require_email??false);
   const [online,setOnline]=useState(settings?.online_enabled??true);
   const [autoConfirm,setAutoConfirm]=useState(settings?.auto_confirm??false);
   const [slot,setSlot]=useState(settings?.slot_minutes??30);
@@ -437,17 +385,19 @@ function BookingSettingsDialog({open,onOpenChange,restaurantId,settings,ar,lang}
   const [depositMode,setDepositMode]=useState<"none"|"fixed"|"per_guest">(settings?.deposit_mode??"none");
   const [deposit,setDeposit]=useState(Number(settings?.deposit_amount??0));
   const [terms,setTerms]=useState(settings?.terms??"");
-  const [confirmationChannel,setConfirmationChannel]=useState(settings?.confirmation_channel??"none");
-  const [reminderChannel,setReminderChannel]=useState(settings?.reminder_channel??"none");
+  const [confirmationChannel,setConfirmationChannel]=useState(settings?.confirmation_channel==="sms"?"none":settings?.confirmation_channel??"none");
+  const [reminderChannel,setReminderChannel]=useState(settings?.reminder_channel==="sms"?"none":settings?.reminder_channel??"none");
   const [reminderHours,setReminderHours]=useState(settings?.reminder_hours??24);
   const [cancelCutoff,setCancelCutoff]=useState(settings?.cancellation_cutoff_hours??2);
 
-  useEffect(()=>{if(open&&settings){setOnline(settings.online_enabled);setAutoConfirm(settings.auto_confirm);setSlot(settings.slot_minutes);setDuration(settings.default_duration_minutes);setLead(settings.min_lead_minutes);setAdvance(settings.max_advance_days);setMinParty(settings.min_party_size);setMaxParty(settings.max_party_size);setDepositMode(settings.deposit_mode);setDeposit(Number(settings.deposit_amount));setTerms(settings.terms??"");setConfirmationChannel(settings.confirmation_channel??"none");setReminderChannel(settings.reminder_channel??"none");setReminderHours(settings.reminder_hours??24);setCancelCutoff(settings.cancellation_cutoff_hours??2);}},[open,settings]);
+  useEffect(()=>{if(open&&settings){setHours(settings.weekly_hours??defaultBookingHours());setRequirePhone(settings.require_phone);setRequireEmail(settings.require_email);setOnline(settings.online_enabled);setAutoConfirm(settings.auto_confirm);setSlot(settings.slot_minutes);setDuration(settings.default_duration_minutes);setLead(settings.min_lead_minutes);setAdvance(settings.max_advance_days);setMinParty(settings.min_party_size);setMaxParty(settings.max_party_size);setDepositMode(settings.deposit_mode);setDeposit(Number(settings.deposit_amount));setTerms(settings.terms??"");setConfirmationChannel(settings.confirmation_channel==="sms"?"none":settings.confirmation_channel??"none");setReminderChannel(settings.reminder_channel==="sms"?"none":settings.reminder_channel??"none");setReminderHours(settings.reminder_hours??24);setCancelCutoff(settings.cancellation_cutoff_hours??2);}},[open,settings]);
 
   const save=useMutation({
     mutationFn:async()=>{
+      if(!validateBookingHours(hours))throw new Error(ar?"اختر وقت إغلاق بعد وقت الفتح لكل يوم.":"Closing time must be after opening time for each day.");
+      if(!Number.isInteger(minParty)||!Number.isInteger(maxParty)||minParty<1||maxParty<minParty||maxParty>100||duration<30||duration>360||advance<1||advance>365||lead<0||reminderHours<1||reminderHours>168||cancelCutoff<0||cancelCutoff>168||deposit<0)throw new Error(ar?"راجع حدود الحجز والقيم المدخلة.":"Review booking limits and entered values.");
       const {error}=await (supabase as any).from("booking_settings").upsert({
-        restaurant_id:restaurantId,online_enabled:online,auto_confirm:autoConfirm,slot_minutes:slot,
+        restaurant_id:restaurantId,weekly_hours:hours,require_phone:requirePhone,require_email:requireEmail,online_enabled:online,auto_confirm:autoConfirm,slot_minutes:slot,
         default_duration_minutes:duration,min_lead_minutes:lead,max_advance_days:advance,min_party_size:minParty,max_party_size:maxParty,
         deposit_mode:depositMode,deposit_amount:Math.max(0,deposit),terms:terms.trim()||null,
         confirmation_channel:confirmationChannel,reminder_channel:reminderChannel,
@@ -455,43 +405,29 @@ function BookingSettingsDialog({open,onOpenChange,restaurantId,settings,ar,lang}
       },{onConflict:"restaurant_id"});
       if(error)throw error;
     },
-    onSuccess:async()=>{await qc.invalidateQueries({queryKey:["booking-settings",restaurantId]});toast.success(ar?"تم حفظ إعدادات الحجز":"Booking settings saved");onOpenChange(false);},
+    onSuccess:async()=>{await qc.invalidateQueries({queryKey:["booking-settings",restaurantId]});toast.success(ar?"تم حفظ إعدادات الحجز":"Booking settings saved");if(!inline)onOpenChange(false);},
     onError:(error)=>toast.error(humanError(error,lang)),
   });
 
-  return <Dialog open={open} onOpenChange={value=>!save.isPending&&onOpenChange(value)}>
-    <DialogContent
-      className="qs-booking-settings-dialog max-h-[92dvh] overflow-hidden p-0 sm:max-w-3xl"
-      onOpenAutoFocus={(event)=>{
-        if(typeof window!=="undefined"&&window.matchMedia("(max-width: 767px)").matches)event.preventDefault();
-      }}
-    >
-      <div className="qs-booking-settings-hero border-b border-border bg-gradient-to-r from-orange-500/[.08] via-background to-background px-5 py-5 sm:px-7">
-        <DialogHeader>
-          <div className="flex items-center gap-3 pe-8">
-            <span className="qs-booking-settings-icon grid size-10 shrink-0 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><Settings2 className="size-5"/></span>
-            <div className="min-w-0">
-              <DialogTitle className="qs-booking-settings-title text-xl">{ar?"إعدادات الحجز":"Booking settings"}</DialogTitle>
-              <DialogDescription className="qs-booking-settings-description mt-1">{ar?"تحكم بالتوفر العام، أوقات الحجز، التأكيد والعربون.":"Control availability, timing, messaging and deposits from one organized setup."}</DialogDescription>
-              <p className="qs-booking-settings-mobile-subtitle hidden">{ar?"التوفر · القواعد · الرسائل · العربون":"Availability · rules · messaging · deposits"}</p>
-            </div>
-          </div>
-        </DialogHeader>
-      </div>
-
-      <div className="qs-booking-settings-body min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-        <section className="qs-booking-settings-section">
+  const content=<div className="rs-settings-panel qs-booking-settings-dialog">
+    <div className="rs-settings-heading"><div><h2>{ar?"إعدادات الحجز":"Booking settings"}</h2><p>{ar?"التوفر · قواعد الحجز · الإشعارات":"Availability · booking rules · notifications"}</p></div><Button disabled={save.isPending||settings===undefined} onClick={()=>save.mutate()}>{save.isPending?(ar?"جارٍ الحفظ…":"Saving…"):(ar?"حفظ التغييرات":"Save changes")}</Button></div>
+    <div className="rs-settings-layout"><nav aria-label={ar?"أقسام الإعدادات":"Settings sections"} className="rs-settings-nav">{[["availability",ar?"التوفر":"Availability"],["rules",ar?"قواعد الحجز":"Booking rules"],["notifications",ar?"الإشعارات":"Notifications"],["deposits",ar?"العربون والشروط":"Deposits & terms"]].map(([key,label])=><button key={key} type="button" aria-current={pane===key?"page":undefined} onClick={()=>setPane(key)}>{label}</button>)}</nav>
+      <div className="qs-booking-settings-body rs-settings-content">
+        <section className="qs-booking-settings-section" hidden={pane!=="availability"}>
           <div className="qs-booking-settings-section-head">
             <span><Globe2 className="size-4"/></span>
             <div><strong>{ar?"التوفر العام":"Availability"}</strong><p>{ar?"تحكم بكيفية استقبال الحجوزات الجديدة.":"Control how new reservations enter the system."}</p></div>
           </div>
+          <div className="rs-weekly-hours">
+            {["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"].map((label,index)=>{const key=String(index),row=hours[key]??{closed:true,open:"12:00",close:"23:00"};return <div className="rs-weekday" key={key}><span>{ar?["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"][index]:label}</span><button type="button" role="switch" aria-checked={!row.closed} aria-label={`${label} ${ar?"الحجوزات":"bookings"}`} className="rs-switch" onClick={()=>setHours({...hours,[key]:{...row,closed:!row.closed}})}><i/></button><Input type="time" aria-label={`${label} ${ar?"وقت الفتح":"opening time"}`} disabled={Boolean(row.closed)} value={row.open??"12:00"} onChange={e=>setHours({...hours,[key]:{...row,open:e.target.value}})}/><span>–</span><Input type="time" aria-label={`${label} ${ar?"وقت الإغلاق":"closing time"}`} disabled={Boolean(row.closed)} value={row.close??"23:00"} onChange={e=>setHours({...hours,[key]:{...row,close:e.target.value}})}/></div>;})}
+          </div>
           <div className="qs-booking-settings-toggle-grid">
             <Toggle label={ar?"الحجز العام":"Public booking"} value={online} onChange={setOnline}/>
-            <Toggle label={ar?"تأكيد تلقائي":"Auto-confirm"} value={autoConfirm} onChange={setAutoConfirm}/>
+            <Toggle label={ar?"تأكيد تلقائي":"Auto-confirm"} value={autoConfirm} onChange={setAutoConfirm}/><Toggle label={ar?"الهاتف مطلوب":"Require phone"} value={requirePhone} onChange={setRequirePhone}/><Toggle label={ar?"البريد مطلوب":"Require email"} value={requireEmail} onChange={setRequireEmail}/>
           </div>
         </section>
 
-        <section className="qs-booking-settings-section">
+        <section className="qs-booking-settings-section" hidden={pane!=="rules"}>
           <div className="qs-booking-settings-section-head">
             <span><Clock3 className="size-4"/></span>
             <div><strong>{ar?"قواعد الوقت والسعة":"Timing & capacity"}</strong><p>{ar?"اضبط الفترات والمدة ومهلة الحجز وحدود عدد الضيوف.":"Set slots, duration, booking windows and party limits."}</p></div>
@@ -506,21 +442,21 @@ function BookingSettingsDialog({open,onOpenChange,restaurantId,settings,ar,lang}
           </div>
         </section>
 
-        <section className="qs-booking-settings-section">
+        <section className="qs-booking-settings-section" hidden={pane!=="notifications"}>
           <div className="qs-booking-settings-section-head">
             <span><MessageSquareText className="size-4"/></span>
             <div><strong>{ar?"تواصل الضيف":"Guest messaging"}</strong><p>{ar?"اختر قنوات التأكيد والتذكير ومواعيدها.":"Choose confirmation and reminder channels and timing."}</p></div>
           </div>
           <div className="qs-booking-settings-grid">
-            <Field label={ar?"قناة تأكيد الحجز":"Confirmation channel"}><Select value={confirmationChannel} onValueChange={setConfirmationChannel}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">{ar?"بدون رسالة":"No message"}</SelectItem><SelectItem value="sms">SMS</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></Field>
-            <Field label={ar?"قناة التذكير":"Reminder channel"}><Select value={reminderChannel} onValueChange={setReminderChannel}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">{ar?"بدون تذكير":"No reminder"}</SelectItem><SelectItem value="sms">SMS</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></Field>
+            <Field label={ar?"قناة تأكيد الحجز":"Confirmation channel"}><Select value={confirmationChannel} onValueChange={setConfirmationChannel}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">{ar?"بدون رسالة":"No message"}</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></Field>
+            <Field label={ar?"قناة التذكير":"Reminder channel"}><Select value={reminderChannel} onValueChange={setReminderChannel}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">{ar?"بدون تذكير":"No reminder"}</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></Field>
             <Field label={ar?"التذكير قبل الموعد بالساعات":"Reminder hours before"}><Input inputMode="numeric" type="number" min="1" max="168" value={reminderHours} onChange={e=>setReminderHours(Number(e.target.value)||24)}/></Field>
             <Field label={ar?"مهلة الإلغاء بالساعات":"Cancellation cutoff hours"}><Input inputMode="numeric" type="number" min="0" max="168" value={cancelCutoff} onChange={e=>setCancelCutoff(Number(e.target.value)||0)}/></Field>
           </div>
-          <div className="qs-booking-settings-note">{ar?"رسائل التأكيد والتذكير معاملات تشغيلية فقط. يتم الإرسال الحقيقي عندما تكون خدمة Twilio/Resend مضبوطة، بدون تسجيل نجاح وهمي.":"Confirmation and reminder messages are transactional. Delivery is recorded only when Twilio/Resend is actually configured—never as a fake success."}</div>
+          <div className="qs-booking-settings-note">{ar?"اختر طريقة إرسال التأكيدات والتذكيرات، أو راسل الضيف مباشرة من الحجز.":"Choose how guests receive confirmations and reminders. You can also message a guest directly from their booking."}</div>
         </section>
 
-        <section className="qs-booking-settings-section">
+        <section className="qs-booking-settings-section" hidden={pane!=="deposits"}>
           <div className="qs-booking-settings-section-head">
             <span><BadgeDollarSign className="size-4"/></span>
             <div><strong>{ar?"العربون والشروط":"Deposits & terms"}</strong><p>{ar?"حدد سياسة العربون والشروط التي تظهر للحجز.":"Define the deposit policy and booking terms."}</p></div>
@@ -533,32 +469,31 @@ function BookingSettingsDialog({open,onOpenChange,restaurantId,settings,ar,lang}
         </section>
       </div>
 
-      <DialogFooter className="qs-booking-settings-footer border-t border-border bg-background/95 px-5 py-4 backdrop-blur sm:px-7">
-        <Button type="button" variant="outline" className="qs-booking-settings-cancel rounded-xl" onClick={()=>onOpenChange(false)} disabled={save.isPending}>{ar?"إلغاء":"Cancel"}</Button>
-        <Button type="button" className="qs-booking-settings-save rounded-xl" disabled={save.isPending} onClick={()=>save.mutate()}>{save.isPending?(ar?"جارٍ الحفظ…":"Saving…"):(ar?"حفظ الإعدادات":"Save settings")}</Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>;
+    </div>
+    <div className="qs-booking-settings-footer rs-settings-footer"><p>{ar?"تطبق أوقات التوفر حسب المنطقة الزمنية للمطعم.":"Availability uses the restaurant timezone."}</p><Button variant="outline" disabled={save.isPending} onClick={()=>onOpenChange(false)}>{ar?"رجوع للجدول":"Back to schedule"}</Button></div>
+  </div>;
+  if(inline)return content;
+  return <Dialog open={open} onOpenChange={value=>!save.isPending&&onOpenChange(value)}><DialogContent className="rs-settings-modal p-0" onOpenAutoFocus={event=>{if(window.matchMedia("(max-width: 767px)").matches)event.preventDefault();}}><DialogHeader className="sr-only"><DialogTitle>{ar?"إعدادات الحجز":"Booking settings"}</DialogTitle><DialogDescription>{ar?"إعدادات الحجز للمطعم":"Restaurant booking settings"}</DialogDescription></DialogHeader>{content}</DialogContent></Dialog>;
 }
 
-function BookingRow({booking,table,currency,ar,lang,busy,onStatus,onMessage,onDelete}:{booking:Booking;table:FloorTable|null;currency:string;ar:boolean;lang:"ar"|"en";busy:boolean;onStatus:(status:BookingStatus,reason?:string)=>void;onMessage:()=>void;onDelete:()=>void}){
+function BookingRow({booking,table,currency,ar,lang,busy,onStatus,onMessage,onDelete,timezone,selected,onSelect}:{booking:Booking;table:FloorTable|null;currency:string;ar:boolean;lang:"ar"|"en";busy:boolean;onStatus:(status:BookingStatus,reason?:string)=>void;onMessage:()=>void;onDelete:()=>void;timezone:string;selected:boolean;onSelect:()=>void}){
   const at=new Date(booking.booking_at);
-  const dateLabel=new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{month:"short",day:"numeric",year:"numeric"}).format(at);
-  const timeLabel=new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{hour:"numeric",minute:"2-digit"}).format(at);
+  const dateLabel=new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{month:"short",day:"numeric",year:"numeric",timeZone:timezone}).format(at);
+  const timeLabel=new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{hour:"numeric",minute:"2-digit",timeZone:timezone}).format(at);
   const tableLabel=table?(table.table_name??`#${table.table_number}`):(ar?"غير محددة":"Unassigned");
   const zoneLabel=table?.zone??booking.zone??(ar?"تعيين تلقائي":"Auto assign");
   const canDelete=booking.status!=="seated"&&booking.deposit_status!=="paid";
   const canCancel=booking.status==="pending"||booking.status==="confirmed";
 
-  return <article className="qs-reservation-row" role="row">
+  return <article className={cn("qs-reservation-row",selected&&"is-selected")} role="row" onClick={onSelect}>
     <div className="qs-reservation-cell qs-reservation-guest" role="cell" data-label={ar?"الضيف":"Guest"}>
       <div className="qs-reservation-guest-head">
         <span className="qs-reservation-avatar">{booking.customer_name.trim().slice(0,1).toUpperCase()||"G"}</span>
         <span className="min-w-0 flex-1">
-          <strong className="qs-reservation-guest-name">{booking.customer_name}</strong>
+          <button type="button" className="qs-reservation-guest-name" aria-label={`${ar?"تفاصيل حجز":"Booking details for"} ${booking.customer_name}`} onClick={onSelect}>{booking.customer_name}</button>
           <small>{booking.phone??booking.email??(ar?"لا توجد وسيلة اتصال":"No contact")}</small>
         </span>
-        <span className="qs-reservation-mobile-status"><Badge variant={booking.status==="seated"?"default":booking.status==="cancelled"||booking.status==="no_show"?"destructive":"secondary"}>{statusLabel(booking.status,ar)}</Badge></span>
+        <span className="qs-reservation-mobile-status"><span className={`rs-status rs-status-${booking.status}`}>{statusLabel(booking.status,ar)}</span></span>
       </div>
       <div className="qs-reservation-meta-line">
         <span>{ar?"رمز":"Code"} <b>{booking.confirmation_code}</b></span>
@@ -582,17 +517,14 @@ function BookingRow({booking,table,currency,ar,lang,busy,onStatus,onMessage,onDe
     </div>
 
     <div className="qs-reservation-cell qs-reservation-status" role="cell" data-label={ar?"الحالة":"Status"}>
-      <Badge variant={booking.status==="seated"?"default":booking.status==="cancelled"||booking.status==="no_show"?"destructive":"secondary"}>{statusLabel(booking.status,ar)}</Badge>
+      <span className={`rs-status rs-status-${booking.status}`}>{statusLabel(booking.status,ar)}</span>
       {booking.deposit_amount>0?<span className="qs-reservation-deposit">{ar?"عربون":"Deposit"} · {formatMoney(booking.deposit_amount,currency,lang)}</span>:null}
       {booking.cancel_reason?<span className="qs-reservation-warning">{booking.cancel_reason}</span>:null}
     </div>
 
     <div className="qs-reservation-cell qs-reservation-actions" role="cell" data-label={ar?"الإجراءات":"Actions"}>
       <div className="qs-reservation-primary-actions">
-        {booking.status==="pending"?<Button size="sm" disabled={busy} onClick={()=>onStatus("confirmed")}><CheckCircle2 className="size-4"/>{ar?"تأكيد":"Confirm"}</Button>:null}
-        {booking.status==="confirmed"?<Button size="sm" disabled={busy} onClick={()=>onStatus("seated")}><UserRoundCheck className="size-4"/>{ar?"جلوس":"Seat"}</Button>:null}
-        {booking.status==="seated"?<Button size="sm" variant="outline" disabled={busy} onClick={()=>onStatus("completed")}><CheckCircle2 className="size-4"/>{ar?"اكتمال":"Complete"}</Button>:null}
-        {booking.phone?<Button size="sm" variant="outline" disabled={busy} onClick={onMessage}><MessageSquareText className="size-4"/>{ar?"رسالة":"Message"}</Button>:null}
+        <Button size="icon" variant="outline" disabled={busy||!booking.phone} aria-label={`${ar?"مراسلة":"Message"} ${booking.customer_name}`} onClick={event=>{event.stopPropagation();onMessage();}}><MessageSquareText className="size-4"/></Button>
       </div>
       {(booking.status==="confirmed"||canCancel||canDelete)?<DropdownMenu>
         <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="qs-reservation-more" disabled={busy} aria-label={ar?"إجراءات إضافية":"More reservation actions"}><MoreHorizontal className="size-4"/></Button></DropdownMenuTrigger>
@@ -613,10 +545,21 @@ type BookingMessage={
   provider_status:string;last_error:string|null;sent_at:string|null;received_at:string|null;created_at:string;
 };
 
-function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{booking:Booking|null;restaurantId:string;ar:boolean;lang:"ar"|"en";onOpenChange:(open:boolean)=>void}){
+function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange,inline=false,timezone,restaurantName}:{booking:Booking|null;restaurantId:string;ar:boolean;lang:"ar"|"en";onOpenChange:(open:boolean)=>void;inline?:boolean;timezone:string;restaurantName:string}){
   const qc=useQueryClient();
   const channel="whatsapp" as const;
   const [body,setBody]=useState("");
+  const template=(kind:string)=>{
+    if(!booking)return "";
+    const time=bookingTimeLabel(booking.booking_at,timezone,ar);
+    const date=new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{timeZone:timezone,dateStyle:"medium"}).format(new Date(booking.booking_at));
+    const link=typeof window!=="undefined"?`${window.location.origin}/booking/${booking.public_token}`:"";
+    if(kind==="cancellation")return ar?`مرحباً ${booking.customer_name}، تم إلغاء حجزك في ${restaurantName} بتاريخ ${date} الساعة ${time}. تواصل معنا إذا احتجت مساعدة.`:`Hi ${booking.customer_name}, your booking at ${restaurantName} on ${date} at ${time} has been cancelled. Please contact us if you need help.`;
+    if(kind==="reminder")return ar?`مرحباً ${booking.customer_name}، تذكير بحجزك لـ ${booking.guest_count} ضيوف في ${restaurantName} بتاريخ ${date} الساعة ${time}. ${link}`:`Hi ${booking.customer_name}, a reminder of your reservation for ${booking.guest_count} guests at ${restaurantName} on ${date} at ${time}. ${link}`;
+    const confirmed=["confirmed","seated","completed"].includes(booking.status);
+    return ar?`مرحباً ${booking.customer_name}، ${confirmed?"حجزك مؤكد":"تم استلام حجزك وهو قيد التأكيد"} لـ ${booking.guest_count} ضيوف في ${restaurantName} بتاريخ ${date} الساعة ${time}. ${link}`:`Hi ${booking.customer_name}, your booking for ${booking.guest_count} guests at ${restaurantName} on ${date} at ${time} ${confirmed?"is confirmed":"has been received and is awaiting confirmation"}. ${link}`;
+  };
+  useEffect(()=>{setBody("");},[booking?.id]);
 
   const providerStatus=useQuery<{
     whatsapp:{configured:boolean;mode:"provider"|"handoff"};
@@ -646,7 +589,7 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{b
         .order("created_at",{ascending:true})
         .limit(200);
       if(error)throw error;
-      return (data??[]) as BookingMessage[];
+      return ((data??[]) as BookingMessage[]).filter(row=>row.channel==="whatsapp");
     },
   });
 
@@ -691,11 +634,7 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{b
 
   async function openWhatsApp(){
     if(!whatsappLink)return;
-    const opened=window.open(whatsappLink,"_blank","noopener,noreferrer");
-    if(!opened){
-      toast.error(ar?"المتصفح منع نافذة WhatsApp. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.":"Your browser blocked the WhatsApp window. Allow pop-ups and try again.");
-      return;
-    }
+    window.open(whatsappLink,"_blank","noopener,noreferrer");
     await recordWhatsAppHandoff();
     toast.success(ar?"تم فتح WhatsApp والرسالة جاهزة. اضغط إرسال داخل WhatsApp لإيصالها.":"WhatsApp opened with the message ready. Press Send in WhatsApp to deliver it.");
   }
@@ -708,20 +647,14 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{b
     send.mutate();
   }
 
-  return <Dialog open={Boolean(booking)} onOpenChange={onOpenChange}>
-    <DialogContent className="qs-reservation-message-dialog flex max-h-[88dvh] flex-col overflow-hidden p-0 sm:max-w-xl">
-      <div className="border-b border-border bg-muted/25 px-5 py-4 sm:px-6">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><MessageSquareText className="size-5 text-[#e85d2a]"/>{ar?"محادثة الحجز":"Reservation conversation"}</DialogTitle>
-          <DialogDescription>{booking?.customer_name} · {booking?.phone??(ar?"بدون هاتف":"No phone")}</DialogDescription>
-        </DialogHeader>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto bg-muted/15 p-4 sm:p-5">
+  const content=<div className="rs-message-thread">
+    <header className="rs-thread-heading"><span className="qs-reservation-avatar">{booking?.customer_name.slice(0,1)}</span><div><strong>{booking?.customer_name}</strong><small>{booking?.phone??(ar?"بدون هاتف":"No phone")}</small></div><span className="rs-whatsapp-label">WhatsApp</span></header>
+    {booking?<div className="rs-booking-capsule"><CalendarDays className="size-4"/>{new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{timeZone:timezone,dateStyle:"medium"}).format(new Date(booking.booking_at))} · {bookingTimeLabel(booking.booking_at,timezone,ar)} · {booking.guest_count} {ar?"ضيوف":"guests"}</div>:null}
+      <div className="min-h-0 flex-1 overflow-y-auto rs-message-history p-4 sm:p-5">
         {messages.isPending?<Skeleton className="h-64 rounded-2xl"/>
           :messages.isError?<div className="rounded-xl bg-red-500/10 p-3 text-sm text-red-700">{humanError(messages.error,lang)}</div>
-          :(messages.data??[]).length===0?<div className="grid min-h-52 place-items-center text-center"><div><MessageSquareText className="mx-auto size-8 text-muted-foreground"/><p className="mt-2 text-sm font-semibold">{ar?"ابدأ المحادثة مع الضيف":"Start the guest conversation"}</p><p className="mt-1 text-xs text-muted-foreground">{ar?"الردود الواردة من Twilio ستظهر هنا تلقائياً.":"Inbound Twilio replies appear here automatically."}</p></div></div>
-          :<div className="space-y-2">{(messages.data??[]).map(message=><div key={message.id} className={cn("flex",message.direction==="outbound"?"justify-end":"justify-start")}><div className={cn("max-w-[84%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm",message.direction==="outbound"?"rounded-ee-md bg-foreground text-background":"rounded-es-md border border-border bg-card text-foreground")}><p className="whitespace-pre-wrap leading-5">{message.body}</p><div className={cn("mt-1.5 flex flex-wrap items-center gap-2 text-[9px]",message.direction==="outbound"?"text-background/60":"text-muted-foreground")}><span>{message.channel.toUpperCase()}</span><span>{new Date(message.created_at).toLocaleString(ar?"ar-JO":"en-JO",{hour:"2-digit",minute:"2-digit",month:"short",day:"numeric"})}</span><span className="capitalize">{message.provider_status}</span>{message.last_error?<span className="text-red-500">{friendlyBookingMessageError(message.last_error,ar)}</span>:null}</div></div></div>)}</div>}
+          :(messages.data??[]).length===0?<div className="grid min-h-52 place-items-center text-center"><div><MessageSquareText className="mx-auto size-8 text-muted-foreground"/><p className="mt-2 text-sm font-semibold">{ar?"ابدأ المحادثة مع الضيف":"Start the guest conversation"}</p><p className="mt-1 text-xs text-muted-foreground">{ar?"تظهر هنا الرسائل الواردة عبر حساب WhatsApp المتصل.":"Messages received through your connected WhatsApp account appear here."}</p></div></div>
+          :<div className="space-y-2">{(messages.data??[]).map(message=><div key={message.id} className={cn("flex",message.direction==="outbound"?"justify-end":"justify-start")}><div className={cn("max-w-[84%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm",message.direction==="outbound"?"rounded-ee-md bg-orange-500/10 text-foreground":"rounded-es-md border border-border bg-card text-foreground")}><p className="whitespace-pre-wrap leading-5">{message.body}</p><div className={cn("mt-1.5 flex flex-wrap items-center gap-2 text-[9px]",message.direction==="outbound"?"text-muted-foreground":"text-muted-foreground")}><span>{message.channel.toUpperCase()}</span><span>{new Date(message.created_at).toLocaleString(ar?"ar-JO":"en-JO",{hour:"2-digit",minute:"2-digit",month:"short",day:"numeric"})}</span><span className="capitalize">{message.provider_status}</span>{message.last_error?<span className="text-red-500">{friendlyBookingMessageError(message.last_error,ar)}</span>:null}</div></div></div>)}</div>}
       </div>
 
       <div className="qs-reservation-message-composer border-t border-border bg-card p-4 sm:p-5">
@@ -731,26 +664,25 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange}:{b
             {providerStatus.isPending?(ar?"فحص الاتصال…":"Checking provider…"):whatsappConfigured?(ar?"الإرسال التلقائي جاهز":"Automatic ready"):(ar?"وضع WhatsApp المباشر":"Direct WhatsApp mode")}
           </span>
         </div>
-        {!providerStatus.isPending&&!whatsappConfigured?<div className="mb-3 rounded-2xl border border-amber-200/70 bg-amber-50/80 p-3 text-xs leading-5 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/25 dark:text-amber-200">
-          <strong className="block">{ar?"الإرسال التلقائي غير متصل حالياً":"Automatic WhatsApp is not connected yet"}</strong>
-          <span>{ar?"سيقوم زر الإرسال بفتح محادثة العميل في WhatsApp مع الرسالة جاهزة. أكمل الإرسال من WhatsApp نفسه بدون رسالة خطأ داخل QuickServe.":"Send will open the customer chat in WhatsApp with the message prefilled. Complete delivery in WhatsApp without a failed-message error inside QuickServe."}</span>
-        </div>:null}
+        <div className="rs-template-rail">{[["confirmation",ar?"التأكيد":"Confirmation"],["reminder",ar?"تذكير":"Reminder"],["cancellation",ar?"إلغاء":"Cancellation"]].map(([key,label])=><button key={key} type="button" disabled={key==="cancellation"&&booking?.status!=="cancelled"} onClick={()=>setBody(template(key))}>{label}</button>)}</div>
+        <span className="rs-draft-label">{ar?"مسودة":"Draft"}</span>
         <Textarea rows={3} maxLength={2000} value={body} onChange={e=>setBody(e.target.value)} placeholder={ar?"اكتب رسالة للضيف…":"Write a message to the guest…"}/>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-sm text-[10px] font-semibold leading-4 text-muted-foreground">
-            {ar?"هذه المحادثة تستخدم WhatsApp فقط. عند عدم إعداد المزود، يفتح QuickServe محادثة WhatsApp والرسالة جاهزة.":"This conversation uses WhatsApp only. When the provider is not configured, QuickServe opens the WhatsApp chat with the message ready."}
+            {ar?"راجع الرسالة وأرسلها في WhatsApp.":"Review and send in WhatsApp."}
           </p>
           <div className="flex items-center gap-2">
             {whatsappConfigured?<Button type="button" variant="outline" disabled={!whatsappLink||body.trim().length===0} onClick={()=>void openWhatsApp()}><ExternalLink className="size-4"/>{ar?"فتح WhatsApp":"Open WhatsApp"}</Button>:null}
-            <Button disabled={send.isPending||providerStatus.isPending||body.trim().length===0||!booking?.phone} onClick={()=>void handlePrimarySend()}>
+            <Button disabled={send.isPending||providerStatus.isPending||body.trim().length===0||!booking?.phone} aria-label={!whatsappConfigured?(ar?"إرسال عبر WhatsApp":"Send via WhatsApp"):undefined} onClick={()=>void handlePrimarySend()}>
               {!whatsappConfigured?<ExternalLink className="size-4"/>:<Send className="size-4"/>}
-              {send.isPending?(ar?"جارٍ الإرسال…":"Sending…"):!whatsappConfigured?(ar?"إرسال عبر WhatsApp":"Send via WhatsApp"):(ar?"إرسال":"Send")}
+              {send.isPending?(ar?"جارٍ الإرسال…":"Sending…"):!whatsappConfigured?(ar?"فتح WhatsApp":"Open WhatsApp"):(ar?"إرسال":"Send")}
             </Button>
           </div>
         </div>
       </div>
-    </DialogContent>
-  </Dialog>;
+  </div>;
+  if(inline)return content;
+  return <Dialog open={Boolean(booking)} onOpenChange={onOpenChange}><DialogContent className="qs-reservation-message-dialog rs-message-modal p-0"><DialogHeader className="sr-only"><DialogTitle>{ar?"رسائل الحجز":"Booking messages"}</DialogTitle><DialogDescription>{booking?.customer_name}</DialogDescription></DialogHeader>{content}</DialogContent></Dialog>;
 }
 
 function friendlyBookingMessageError(value:string,ar:boolean){
@@ -769,9 +701,9 @@ function buildWhatsAppLink(phone:string,message:string){
   return "https://wa.me/"+digits+"?text="+encodeURIComponent(message.trim());
 }
 
-function ReservationDatePicker({value,onChange,ar,maxAdvanceDays}:{value:string;onChange:(value:string)=>void;ar:boolean;maxAdvanceDays:number}){
+function ReservationDatePicker({value,onChange,ar,maxAdvanceDays,timezone}:{value:string;onChange:(value:string)=>void;ar:boolean;maxAdvanceDays:number;timezone:string}){
   const selected=parseDateOnly(value);
-  const today=startOfLocalDay(new Date());
+  const today=parseDateOnly(reservationDay(new Date(),timezone))!;
   const maxDate=new Date(today);
   maxDate.setDate(maxDate.getDate()+Math.max(1,maxAdvanceDays));
 
@@ -851,7 +783,6 @@ function startOfLocalDay(date:Date){
 }
 
 function Metric({icon:Icon,label,value}:{icon:typeof CalendarCheck2;label:string;value:number}){return <article className="flex min-h-[88px] items-center gap-3 bg-card p-3.5"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-2xl tracking-[-.04em]">{value}</strong></div></article>;}
-function Field({label,children}:{label:string;children:React.ReactNode}){return <div className="space-y-1.5"><Label className="text-xs font-bold">{label}</Label>{children}</div>;}
 function Toggle({label,value,onChange}:{label:string;value:boolean;onChange:(v:boolean)=>void}){return <button type="button" aria-pressed={value} onClick={()=>onChange(!value)} className={cn("qs-booking-setting-toggle",value&&"is-active")}><span><strong>{label}</strong><small>{value?"On":"Off"}</small></span><i aria-hidden="true"><b/></i></button>;}
 function bookingDateParts(d:Date){const local=new Date(d.getTime()-d.getTimezoneOffset()*60_000);local.setMinutes(Math.ceil(local.getMinutes()/15)*15,0,0);const value=local.toISOString();return {date:value.slice(0,10),time:value.slice(11,16)};}
 function statusLabel(status:string,ar:boolean){const labels:Record<string,[string,string]>={pending:["Pending","قيد الانتظار"],confirmed:["Confirmed","مؤكد"],seated:["Seated","تم الجلوس"],completed:["Completed","مكتمل"],cancelled:["Cancelled","ملغي"],no_show:["No-show","لم يحضر"],free:["Free","متاحة"],reserved:["Reserved","محجوزة"],active:["Active","نشطة"],cleaning:["Cleaning","تنظيف"],out_of_service:["Out of service","خارج الخدمة"]};return labels[status]?.[ar?1:0]??status;}

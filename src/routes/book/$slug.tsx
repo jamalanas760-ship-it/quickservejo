@@ -1,10 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CalendarCheck2, CalendarDays, Clock3, UsersRound } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarCheck2, CalendarDays, Clock3, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { PublicGuestShell, PublicInfoCard } from "@/components/public/PublicGuestShell";
+import { PublicReservationShell } from "@/components/reservations/PublicReservationShell";
+import { addReservationDays, reservationDay } from "@/lib/reservation-studio";
+import { PublicInfoCard } from "@/components/public/PublicGuestShell";
+import { ReservationField as Field } from "@/components/reservations/ReservationField";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -42,6 +45,7 @@ type Waitlisted={id:string;public_token:string;status:string;desired_date:string
 function PublicBookingPage(){
   const {slug}=Route.useParams();
   const {lang}=useI18n();
+  const [step,setStep]=useState<"visit"|"details">("visit");
   const ar=lang==="ar";
   const [date,setDate]=useState("");
   const [guests,setGuests]=useState(2);
@@ -81,7 +85,7 @@ function PublicBookingPage(){
 
   const create=useMutation({
     mutationFn:async()=>{
-      if(!slot)throw new Error(ar?"اختر موعداً متاحاً":"Choose an available time");
+      if(!slot||(slots.data??[]).every(row=>row.slot_at!==slot)||!slots.isSuccess||slots.isFetching)throw new Error(ar?"اختر موعداً متاحاً":"Choose an available time");
       const {data,error}=await (supabase as any).rpc("create_public_booking",{
         _slug:slug,_customer_name:name.trim(),_phone:phone.trim(),_email:email.trim(),_guest_count:effectiveGuests,
         _booking_at:slot,_notes:notes.trim()||null,_occasion:occasion.trim()||null,_marketing_opt_in:marketing,
@@ -90,7 +94,7 @@ function PublicBookingPage(){
       return data as Created;
     },
     onSuccess:(data)=>{setCreated(data);toast.success(ar?"تم إرسال الحجز":"Booking submitted");},
-    onError:(error)=>toast.error(humanError(error,lang)),
+    onError:(error)=>{void slots.refetch();toast.error(humanError(error,lang));},
   });
 
   const joinWaitlist=useMutation({
@@ -108,17 +112,16 @@ function PublicBookingPage(){
 
   const maxDate=useMemo(()=>{
     if(!settings||!restaurant)return "";
-    const base=new Date(new Date().toLocaleString("en-US",{timeZone:restaurant.timezone}));
-    base.setDate(base.getDate()+settings.max_advance_days);
-    return base.toLocaleDateString("en-CA");
+    return addReservationDays(todayInZone(restaurant.timezone),settings.max_advance_days);
   },[restaurant,settings]);
 
   if(page.isPending)return <main className="min-h-dvh bg-[#f6f7f9] p-4 sm:p-8"><Skeleton className="mx-auto h-[720px] max-w-2xl rounded-[24px]"/></main>;
-  if(page.isError||!restaurant||!settings)return <PublicGuestShell title={ar?"الحجز غير متاح":"Booking unavailable"} description={ar?"تعذر تحميل صفحة الحجز لهذا المطعم.":"This restaurant booking page could not be loaded."}><div/></PublicGuestShell>;
-  if(!settings.online_enabled)return <PublicGuestShell logoUrl={restaurant.logo_url} brandName={restaurant.name} title={ar?"الحجز الإلكتروني متوقف":"Online reservations are paused"} description={ar?"يرجى التواصل مع المطعم مباشرة في الوقت الحالي.":"Please contact the restaurant directly for now."}><div/></PublicGuestShell>;
+  if(page.isError||!restaurant||!settings)return <PublicReservationShell title={ar?"الحجز غير متاح":"Booking unavailable"} description={ar?"تعذر تحميل صفحة الحجز لهذا المطعم.":"This restaurant booking page could not be loaded."}><div/></PublicReservationShell>;
+  if(!settings.online_enabled)return <PublicReservationShell logoUrl={restaurant.logo_url} brandName={restaurant.name} title={ar?"الحجز الإلكتروني متوقف":"Online reservations are paused"} description={ar?"يرجى التواصل مع المطعم مباشرة في الوقت الحالي.":"Please contact the restaurant directly for now."}><div/></PublicReservationShell>;
 
-  if(waitlisted)return <PublicGuestShell
+  if(waitlisted)return <PublicReservationShell
     logoUrl={restaurant.logo_url}
+    coverUrl={restaurant.cover_image_url}
     brandName={restaurant.name}
     eyebrow={ar?"QuickServe · قائمة الانتظار":"QuickServe · Waitlist"}
     title={ar?"تمت إضافتك لقائمة الانتظار":"You're on the waitlist"}
@@ -131,10 +134,11 @@ function PublicBookingPage(){
       <PublicInfoCard icon={UsersRound} label={ar?"عدد الضيوف":"Guests"} value={String(waitlisted.guest_count)} tone="blue"/>
       <PublicInfoCard icon={Clock3} label={ar?"ترتيب تقريبي":"Approx. position"} value={"#"+String(waitlisted.position)} tone="slate"/>
     </div>
-  </PublicGuestShell>;
+  </PublicReservationShell>;
 
-  if(created)return <PublicGuestShell
+  if(created)return <PublicReservationShell
     logoUrl={restaurant.logo_url}
+    coverUrl={restaurant.cover_image_url}
     brandName={restaurant.name}
     eyebrow={ar?"QuickServe · الحجز":"QuickServe · Reservation"}
     title={ar?"تم استلام الحجز":"Reservation received"}
@@ -151,55 +155,31 @@ function PublicBookingPage(){
       <PublicInfoCard icon={UsersRound} label={ar?"عدد الضيوف":"Guests"} value={String(created.guest_count)} tone="blue"/>
     </div>
     {created.deposit_amount>0?<div className="mt-3 rounded-[18px] border border-amber-200 bg-amber-50/70 p-4 text-xs leading-5 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">{ar?"يتطلب الحجز عربوناً بقيمة ":"A reservation deposit is required: "}{formatMoney(created.deposit_amount,created.currency,lang)}. {ar?"استخدم إدارة الحجز للدفع بأمان.":"Use Manage booking to pay securely."}</div>:null}
-  </PublicGuestShell>;
+  </PublicReservationShell>;
 
-  return <PublicGuestShell
-    logoUrl={restaurant.logo_url}
-    brandName={restaurant.name}
-    eyebrow={ar?"QuickServe · حجز طاولة":"QuickServe · Table reservation"}
-    title={ar?"احجز طاولتك":"Reserve your table"}
-    description={ar?"اختر التاريخ وعدد الضيوف ثم اختر وقتاً متاحاً. يتم فحص التوفر مباشرة قبل تأكيد الحجز.":"Choose a date and party size, then pick a live available time. Availability is checked again before confirmation."}
-    footer={<p className="text-center text-[10px] text-muted-foreground">{ar?"التوفر يتحدث مباشرة وقد يتغير حتى لحظة التأكيد.":"Live availability can change until the reservation is confirmed."}</p>}
-  >
-    <div className="space-y-6">
-      <section>
-        <StepHeading number="1" icon={CalendarDays} title={ar?"التاريخ وعدد الضيوف":"Date & party size"}/>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Field label={ar?"التاريخ":"Date"}><Input type="date" min={todayInZone(restaurant.timezone)} max={maxDate} value={effectiveDate} onChange={e=>{setDate(e.target.value);setSlot("");}}/></Field>
-          <Field label={ar?"عدد الضيوف":"Guests"}><Input type="number" min={settings.min_party_size} max={settings.max_party_size} value={effectiveGuests} onChange={e=>{setGuests(Number(e.target.value)||settings.min_party_size);setSlot("");}}/></Field>
-        </div>
-      </section>
-
-      <section className="border-t border-border/80 pt-5">
-        <StepHeading number="2" icon={Clock3} title={ar?"الأوقات المتاحة":"Live availability"}/>
-        {slots.isPending?<Skeleton className="mt-3 h-28 rounded-2xl"/>:slots.isError?<p className="mt-3 text-sm text-destructive">{humanError(slots.error,lang)}</p>:(slots.data??[]).length===0
-          ?<div className="mt-3 rounded-2xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground"><strong className="block text-foreground">{ar?"لا توجد طاولة متاحة حالياً":"No table is currently available"}</strong><span className="mt-1 block">{ar?"أدخل بياناتك أدناه وانضم لقائمة الانتظار لهذا اليوم.":"Enter your details below and join the waitlist for this day."}</span></div>
-          :<div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">{(slots.data??[]).map(row=><button key={row.slot_at} type="button" onClick={()=>setSlot(row.slot_at)} className={cn("rounded-xl border px-3 py-3 text-sm font-bold transition",slot===row.slot_at?"border-[#e85d2a] bg-orange-500/10 text-[#e34d00] shadow-sm":"border-border bg-background hover:border-foreground/15 hover:bg-muted/40")}><span className="block">{new Intl.DateTimeFormat(ar?"ar-JO":"en-US",{hour:"2-digit",minute:"2-digit",timeZone:restaurant.timezone}).format(new Date(row.slot_at))}</span><span className="mt-1 block text-[9px] font-medium text-muted-foreground">{row.available_tables} {ar?"طاولات":"tables"}</span></button>)}</div>}
-      </section>
-
-      <section className="border-t border-border/80 pt-5">
-        <StepHeading number="3" icon={UsersRound} title={ar?"بيانات الحجز":"Guest details"}/>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Field label={ar?"الاسم":"Name"}><Input value={name} onChange={e=>setName(e.target.value)} maxLength={120} required/></Field>
-          <Field label={ar?"الهاتف":"Phone"}><Input value={phone} onChange={e=>setPhone(e.target.value)} inputMode="tel" maxLength={40} required={settings.require_phone}/></Field>
-          <Field label={ar?"البريد الإلكتروني":"Email"}><Input value={email} onChange={e=>setEmail(e.target.value)} type="email" maxLength={160} required={settings.require_email}/></Field>
-          <Field label={ar?"المناسبة":"Occasion"}><Input value={occasion} onChange={e=>setOccasion(e.target.value)} maxLength={120} placeholder={ar?"عيد ميلاد، ذكرى...":"Birthday, anniversary..."}/></Field>
-        </div>
-        <Field label={ar?"طلبات أو ملاحظات خاصة":"Special requests"} className="mt-3"><Textarea value={notes} onChange={e=>setNotes(e.target.value)} maxLength={1000} rows={3}/></Field>
-        <label className="mt-4 flex items-start gap-3 rounded-xl border border-border/80 bg-muted/20 p-3 text-xs leading-5 text-muted-foreground"><Checkbox checked={marketing} onCheckedChange={value=>setMarketing(value===true)} className="mt-0.5"/><span>{ar?"أوافق على استقبال عروض ورسائل تسويقية من المطعم. هذا اختياري ولا يؤثر على الحجز.":"I agree to receive restaurant marketing messages. This is optional and does not affect the reservation."}</span></label>
-      </section>
-
-      {settings.terms?<div className="rounded-xl bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">{settings.terms}</div>:null}
-
-      {(slots.data??[]).length===0
-        ?<Button className="h-12 w-full text-sm" variant="outline" disabled={joinWaitlist.isPending||name.trim().length<1||(settings.require_phone&&phone.trim().length<5)||(settings.require_email&&!email.includes("@"))} onClick={()=>joinWaitlist.mutate()}>{joinWaitlist.isPending?(ar?"جارٍ الانضمام…":"Joining waitlist…"):(ar?"انضم لقائمة الانتظار":"Join waitlist")}</Button>
-        :<Button className="h-12 w-full text-sm" disabled={create.isPending||!slot||name.trim().length<1||(settings.require_phone&&phone.trim().length<5)||(settings.require_email&&!email.includes("@"))} onClick={()=>create.mutate()}>{create.isPending?(ar?"جارٍ تأكيد التوفر…":"Confirming availability…"):(ar?"احجز الطاولة":"Reserve table")}</Button>}
-    </div>
-  </PublicGuestShell>;
+  const visitReady=slots.isSuccess&&!slots.isFetching&&Boolean(slot&&(slots.data??[]).some(row=>row.slot_at===slot));
+  const soldOut=slots.isSuccess&&!slots.isFetching&&(slots.data??[]).length===0;
+  const dates=Array.from({length:3},(_,i)=>addReservationDays(effectiveDate,i)).filter(value=>!maxDate||value<=maxDate);
+  function submit(event:React.FormEvent<HTMLFormElement>){event.preventDefault();if(soldOut)joinWaitlist.mutate();else if(visitReady)create.mutate();}
+  return <PublicReservationShell logoUrl={restaurant.logo_url} coverUrl={restaurant.cover_image_url} brandName={restaurant.name} title={ar?"احجز طاولتك":"Reserve your table"} description={ar?"اختر موعد زيارتك ثم أضف بياناتك.":"Choose your visit, then add your details."}>
+    {step==="visit"?<div className="rs-public-visit">
+      <Field label={ar?"الضيوف":"Guests"}><div className="rs-choice-rail">{[2,3,4,5,6].filter(value=>value>=settings.min_party_size&&value<=settings.max_party_size).map(value=><button key={value} type="button" aria-pressed={effectiveGuests===value} onClick={()=>{setGuests(value);setSlot("");}}>{value}</button>)}<Input aria-label={ar?"عدد آخر للضيوف":"Custom guest count"} type="number" min={settings.min_party_size} max={settings.max_party_size} value={effectiveGuests} onChange={e=>{setGuests(Number(e.target.value)||settings.min_party_size);setSlot("");}}/></div></Field>
+      <Field label={ar?"اختر التاريخ":"Select a date"}><div className="rs-public-dates"><Button variant="ghost" size="icon" disabled={effectiveDate<=todayInZone(restaurant.timezone)} aria-label={ar?"اليوم السابق":"Previous day"} onClick={()=>{setDate(addReservationDays(effectiveDate,-1));setSlot("");}}><ChevronLeft className="size-4"/></Button>{dates.map(value=><button key={value} type="button" aria-pressed={effectiveDate===value} onClick={()=>{setDate(value);setSlot("");}}><small>{new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{weekday:"short",timeZone:"UTC"}).format(new Date(value+"T12:00:00Z"))}</small><strong>{new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{month:ar?"2-digit":"short",day:"2-digit",timeZone:"UTC"}).format(new Date(value+"T12:00:00Z"))}</strong></button>)}<Button variant="ghost" size="icon" disabled={effectiveDate>=maxDate} aria-label={ar?"أيام تالية":"Next dates"} onClick={()=>{setDate(addReservationDays(effectiveDate,Math.min(3,Math.max(1,Math.round((Date.parse(maxDate)-Date.parse(effectiveDate))/86400000)))));setSlot("");}}><ChevronRight className="size-4"/></Button></div><Input aria-label={ar?"تاريخ آخر":"Choose another date"} className="mt-2" type="date" min={todayInZone(restaurant.timezone)} max={maxDate} value={effectiveDate} onChange={e=>{if(e.target.value){setDate(e.target.value);setSlot("");}}}/></Field>
+      <Field label={ar?"الأوقات المتاحة":"Available times"}>{slots.isPending||slots.isFetching?<Skeleton className="h-24 rounded-xl"/>:slots.isError?<div role="alert" className="rs-public-error"><p>{humanError(slots.error,lang)}</p><Button variant="outline" onClick={()=>void slots.refetch()}>{ar?"إعادة المحاولة":"Try again"}</Button></div>:soldOut?<div className="rs-public-no-slots"><strong>{ar?"لا توجد طاولة متاحة":"No table available"}</strong><p>{ar?"اختر يوماً آخر أو انضم لقائمة الانتظار.":"Choose another date or join the waitlist."}</p></div>:<div className="rs-time-slots rs-public-times">{(slots.data??[]).map(row=><button key={row.slot_at} type="button" aria-pressed={slot===row.slot_at} onClick={()=>setSlot(row.slot_at)}>{new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{hour:"numeric",minute:"2-digit",timeZone:restaurant.timezone}).format(new Date(row.slot_at))}</button>)}</div>}</Field>
+      <Button className="rs-public-continue" disabled={!visitReady&&!soldOut} onClick={()=>setStep("details")}>{soldOut?(ar?"الانضمام لقائمة الانتظار":"Join waitlist"):(ar?"متابعة":"Continue")}<ChevronRight className="size-4"/></Button>
+    </div>:<form onSubmit={submit} className="rs-public-details">
+      <Button variant="ghost" type="button" onClick={()=>setStep("visit")}><ChevronLeft className="size-4"/>{ar?"تغيير الموعد":"Change visit"}</Button>
+      <div className="rs-booking-capsule"><CalendarDays className="size-4"/>{effectiveDate} · {effectiveGuests} {ar?"ضيوف":"guests"}{slot?` · ${new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{hour:"numeric",minute:"2-digit",timeZone:restaurant.timezone}).format(new Date(slot))}`:""}</div>
+      <h2>{ar?"بياناتك":"Your details"}</h2>
+      <div className="rs-form-guest-grid"><Field label={ar?"اسم الضيف":"Guest name"}><Input autoComplete="name" value={name} onChange={e=>setName(e.target.value)} maxLength={120} required/></Field><Field label={ar?"رقم الهاتف":"Phone number"}><Input autoComplete="tel" value={phone} onChange={e=>setPhone(e.target.value)} inputMode="tel" maxLength={40} required={settings.require_phone}/></Field><Field label={ar?"البريد الإلكتروني":"Email"}><Input autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} type="email" maxLength={160} required={settings.require_email}/></Field><Field label={ar?"المناسبة (اختياري)":"Occasion (optional)"}><Input value={occasion} onChange={e=>setOccasion(e.target.value)} maxLength={120}/></Field></div>
+      <Field label={ar?"طلبات خاصة (اختياري)":"Special requests (optional)"}><Textarea value={notes} onChange={e=>setNotes(e.target.value)} maxLength={1000} rows={2}/></Field>
+      <label className="rs-marketing-opt-in"><Checkbox checked={marketing} onCheckedChange={value=>setMarketing(value===true)}/><span>{ar?"أرغب باستقبال عروض المطعم (اختياري).":"I'd like to receive restaurant offers (optional)."}</span></label>
+      {settings.terms?<p className="rs-public-terms">{settings.terms}</p>:null}
+      {settings.deposit_mode!=="none"&&settings.deposit_amount>0?<p className="rs-public-terms">{ar?"العربون المطلوب: ":"Required deposit: "}{formatMoney(settings.deposit_amount*(settings.deposit_mode==="per_guest"?effectiveGuests:1),restaurant.currency,lang)}</p>:null}
+      {!visitReady&&!soldOut?<p role="status" className="text-sm text-muted-foreground">{ar?"راجع الأوقات المتاحة قبل التأكيد.":"Review available times before confirming."}</p>:null}
+      <Button type="submit" className="rs-public-continue" disabled={create.isPending||joinWaitlist.isPending||(!visitReady&&!soldOut)||name.trim().length<1||(settings.require_phone&&phone.trim().length<5)}>{create.isPending||joinWaitlist.isPending?(ar?"جارٍ الحفظ…":"Saving…"):soldOut?(ar?"انضم لقائمة الانتظار":"Join waitlist"):(ar?"تأكيد الحجز":"Confirm booking")}</Button>
+    </form>}
+  </PublicReservationShell>;
 }
 
-function todayInZone(timezone?:string){
-  try{return new Date().toLocaleDateString("en-CA",{timeZone:timezone||"UTC"});}catch{return new Date().toLocaleDateString("en-CA");}
-}
-function Field({label,children,className}:{label:string;children:React.ReactNode;className?:string}){return <div className={cn("space-y-1.5",className)}><Label className="text-xs font-bold">{label}</Label>{children}</div>;}
-function StepHeading({number,icon:Icon,title}:{number:string;icon:typeof CalendarCheck2;title:string}){return <div className="flex items-center gap-3"><span className="grid size-8 place-items-center rounded-xl bg-orange-500/10 text-xs font-black text-[#e34d00]">{number}</span><Icon className="size-4 text-[#e85d2a]"/><h2 className="font-bold">{title}</h2></div>;}
+function todayInZone(timezone?:string){return reservationDay(new Date(),timezone||"UTC");}
