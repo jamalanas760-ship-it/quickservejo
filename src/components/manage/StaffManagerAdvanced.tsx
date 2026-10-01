@@ -69,6 +69,7 @@ import { qrDataUrl } from "@/lib/qr";
 import { getStaffAccess } from "@/lib/staff-auth.functions";
 import { inviteStaffMember, removeStaffMember, updateStaffMember } from "@/lib/staff.functions";
 import { cn } from "@/lib/utils";
+import { isLiveTeamPunch, teamPunchesByStaff } from "@/lib/team-attendance";
 
 const ROLES: AppRole[] = [
   "restaurant_admin",
@@ -295,7 +296,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
         (supabase.from("staff_time_entries" as any) as any)
           .select("staff_id,clock_in,clock_out")
           .eq("restaurant_id", restaurantId)
-          .gte("clock_in", since),
+          .or(`clock_out.is.null,clock_in.gte.${since}`),
         (supabase.from("staff_leave_requests" as any) as any)
           .select("staff_id,start_date,end_date,status")
           .eq("restaurant_id", restaurantId)
@@ -391,6 +392,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       const entry = (schedule.data?.time ?? []).find(
         (time) =>
           time.staff_id === assignment.staff_id &&
+          (Boolean(time.clock_out) || isLiveTeamPunch(time, now)) &&
           (!Number.isFinite(endMs) || new Date(time.clock_in).getTime() <= endMs) &&
           (!time.clock_out || !Number.isFinite(startMs) || new Date(time.clock_out).getTime() >= startMs),
       );
@@ -407,7 +409,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
               : 0;
       const attendanceAt = entry?.clock_in ?? null;
       const completed = shift.status === "closed" || Boolean(entry?.clock_out);
-      const active = Boolean(entry && !entry.clock_out) || (Number.isFinite(startMs) && Number.isFinite(endMs) && startMs <= now && endMs >= now && assignment.status === "present");
+      const active = Boolean(entry && isLiveTeamPunch(entry, now));
       const late = !entry && Number.isFinite(startMs) && Number.isFinite(endMs) && now >= startMs + 15 * 60_000 && now <= endMs;
       const missed = !entry && Number.isFinite(endMs) && endMs < now;
       const phase: StaffScheduleSummary["phase"] = completed ? "completed" : active ? "active" : late ? "late" : missed ? "missed" : "upcoming";
@@ -471,13 +473,10 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     return result;
   }, [presenceNow, schedule.data]);
 
-  const openClockByStaff = useMemo(() => {
-    const result = new Map<string, StaffTimeRow>();
-    for (const entry of schedule.data?.time ?? []) {
-      if (!entry.clock_out && !result.has(entry.staff_id)) result.set(entry.staff_id, entry);
-    }
-    return result;
-  }, [schedule.data?.time]);
+  const { live: openClockByStaff, missingClockOut: staleClockByStaff } = useMemo(
+    () => teamPunchesByStaff(schedule.data?.time ?? [], presenceNow),
+    [schedule.data?.time, presenceNow],
+  );
   const leaveStaffIds = useMemo(
     () => new Set((schedule.data?.leave ?? []).map((row) => row.staff_id)),
     [schedule.data?.leave],
@@ -750,7 +749,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                         <td><button type="button" disabled={locked} onClick={() => !locked && startEdit(member)} className="flex min-w-0 items-center gap-3 text-start"><span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-bold ring-1 ring-border transition group-hover:ring-orange-200">{avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}</span><span className="min-w-0"><strong className="block truncate text-sm font-bold">{member.name}</strong><span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{member.email ?? "—"}</span></span></button></td>
                         <td><span className="text-xs text-muted-foreground">{ROLE_NAMES[member.role][lang]}</span></td>
                         <td><StaffShiftSummaryCell schedule={scheduleInfo} ar={ar} /></td>
-                        <td><StaffLiveStatus clockEntry={clockEntry} schedule={scheduleInfo} onLeave={isOnLeave} now={presenceNow} ar={ar} /></td>
+                        <td><StaffLiveStatus clockEntry={clockEntry} staleClockEntry={staleClockByStaff.get(member.id)} timezone={restaurantTimezone} schedule={scheduleInfo} onLeave={isOnLeave} now={presenceNow} ar={ar} /></td>
 
                         <td><StaffRowActions member={member} locked={locked} canManageShifts={canManageShifts} canCancelShift={canManageShifts && Boolean(cancelShiftInfo)} ar={ar} onEdit={() => startEdit(member)} onAssign={() => setShiftMember(member)} onCancel={() => cancelShiftInfo && setCancelShiftTarget({ member, shift: cancelShiftInfo })} /></td>
                       </tr>
@@ -816,6 +815,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                       <div className="mt-3 grid gap-3 border-t border-border/70 pt-3 sm:grid-cols-3">
                         <StaffLiveStatus
                           clockEntry={clockEntry}
+                          staleClockEntry={staleClockByStaff.get(member.id)}
+                          timezone={restaurantTimezone}
                           schedule={scheduleInfo}
                           onLeave={isOnLeave}
                           now={presenceNow}
@@ -1425,7 +1426,7 @@ function StaffShiftSummaryCell({ schedule, ar }: { schedule: StaffScheduleSummar
   return <div className="flex min-w-0 items-center gap-2"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-3.5" /></span><div className="min-w-0"><div className="flex min-w-0 items-center gap-1.5"><strong className="truncate text-xs">{schedule.name}</strong><span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold", phaseTone)}>{phaseLabel}</span></div><p className="mt-0.5 truncate text-[10px] text-muted-foreground">{formatTodayShiftRange(schedule.start, schedule.end, ar)}{schedule.count > 1 ? ` · +${schedule.count - 1}` : ""}</p></div></div>;
 }
 
-function StaffLiveStatus({ clockEntry, schedule, onLeave, now, ar }: { clockEntry: StaffTimeRow | undefined; schedule: StaffScheduleSummary | undefined; onLeave: boolean; now: number; ar: boolean }) {
+function StaffLiveStatus({ clockEntry, staleClockEntry, timezone, schedule, onLeave, now, ar }: { clockEntry: StaffTimeRow | undefined; staleClockEntry: StaffTimeRow | undefined; timezone: string; schedule: StaffScheduleSummary | undefined; onLeave: boolean; now: number; ar: boolean }) {
   if (onLeave) {
     return (
       <div className="qs-live-status-card qs-live-status-leave">
@@ -1450,6 +1451,10 @@ function StaffLiveStatus({ clockEntry, schedule, onLeave, now, ar }: { clockEntr
         </span>
       </div>
     );
+  }
+  if (staleClockEntry) {
+    const clockedAt = new Date(staleClockEntry.clock_in).toLocaleString(ar ? "ar-JO" : "en-GB", { timeZone: timezone, dateStyle: "medium", timeStyle: "short" });
+    return <div className="qs-live-status-card qs-live-status-alert"><span className="min-w-0"><strong>{ar ? "انصراف غير مسجّل" : "Missing clock-out"}</strong><small>{ar ? `آخر حضور ${clockedAt}` : `Last clock-in ${clockedAt}`}</small><Link to="/shifts" className="mt-1 inline-block text-[10px] font-semibold text-primary underline">{ar ? "مراجعة سجل الدوام" : "Review timesheet"}</Link></span></div>;
   }
   if (schedule?.attendance === "late") {
     return (
