@@ -4884,3 +4884,4 @@ html.qs-theme-view-transition *{
  .qs-studio-table-scroll .qs-table-icon-action svg{width:14px;height:14px}
 }
 @media(max-width:360px){.qs-studio-table-scroll th:nth-child(2),.qs-studio-table-scroll td:nth-child(2){display:none}}
+@media(min-width:901px){.qs-tables-studio .qs-floor-canvas-viewport{height:clamp(300px,calc(100dvh - 500px),520px)!important}}
