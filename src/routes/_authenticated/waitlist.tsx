@@ -1,14 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellRing, CalendarCheck2, CalendarDays, CheckCircle2, Clock3, RefreshCw, Send, TimerReset, RotateCcw, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
-import { useState } from "react";
+import { ChevronLeft, ChevronRight, Search, X, Clock3, RefreshCw, UsersRound } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { ReservationField as Field } from "@/components/reservations/ReservationField";
+import { addReservationDays, reservationDay, restaurantDateTime } from "@/lib/reservation-studio";
+import { defaultWaitlistVisit } from "@/lib/waitlist-studio";
+import "@/components/reservations/reservation-studio.css";
+import "@/components/reservations/waitlist-studio.css";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useAccess } from "@/hooks/useSession";
 import { useWorkspaceScope } from "@/hooks/useWorkspace";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/waitlist")({
 
 type WaitlistStatus="waiting"|"notified"|"converted"|"cancelled"|"expired";
 type WaitlistFilter="active"|"waiting"|"notified"|"history";
-type ConversionValue={date:string;time:string};
+type ConversionValue={date:string;time:string;hold:number};
 type WaitlistRow={
   id:string;
   customer_name:string;
@@ -55,24 +62,15 @@ type WaitlistRow={
   created_at:string;
 };
 
-function defaultConversion(row:WaitlistRow):ConversionValue {
-  const now=new Date();
-  const today=now.toLocaleDateString("en-CA");
-  const baseDate=row.desired_date||today;
-  let hour=18;
-  let minute=0;
-  if(baseDate===today){
-    const future=new Date(now.getTime()+60*60_000);
-    future.setMinutes(Math.ceil(future.getMinutes()/15)*15,0,0);
-    hour=future.getHours();
-    minute=future.getMinutes();
-  }
-  return {date:baseDate,time:`${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}`};
+function defaultConversion(row:WaitlistRow,timezone:string):ConversionValue {
+  return {...defaultWaitlistVisit(row.desired_date,row.preferred_time,timezone),hold:15};
 }
 
 function WaitlistPage(){
   const {lang}=useI18n();
   const ar=lang==="ar";
+  const isMobile=useIsMobile();
+  const pageSize=isMobile?4:6;
   const scope=useWorkspaceScope();
   const access=useAccess();
   const qc=useQueryClient();
@@ -84,6 +82,16 @@ function WaitlistPage(){
   )));
   const [search,setSearch]=useState("");
   const [filter,setFilter]=useState<WaitlistFilter>("active");
+  const [selectedId,setSelectedId]=useState<string|null>(null);
+  const [sheetOpen,setSheetOpen]=useState(false);
+  const [cancelTarget,setCancelTarget]=useState<WaitlistRow|null>(null);
+  const [dateFilter,setDateFilter]=useState("");
+  const [pageIndex,setPageIndex]=useState(0);
+  const [now,setNow]=useState(()=>Date.now());
+  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),30_000);return ()=>clearInterval(timer);},[]);
+  const restaurant=useQuery({queryKey:["waitlist-restaurant",rid],enabled:Boolean(rid&&canManage),queryFn:async()=>{const {data,error}=await supabase.from("restaurants").select("timezone").eq("id",rid!).single();if(error)throw error;return data;}});
+  const settings=useQuery<{default_duration_minutes:number}|null>({queryKey:["waitlist-booking-settings",rid],enabled:Boolean(rid&&canManage),queryFn:async()=>{const {data,error}=await (supabase as any).from("booking_settings").select("default_duration_minutes").eq("restaurant_id",rid!).maybeSingle();if(error)throw error;return data;}});
+  const timezone=restaurant.data?.timezone||"UTC";
   const [convertValues,setConvertValues]=useState<Record<string,ConversionValue>>({});
 
   const query=useQuery<WaitlistRow[]>({
@@ -131,29 +139,29 @@ function WaitlistPage(){
 
   const offer=useMutation({
     mutationFn:async(row:WaitlistRow)=>{
-      const value=convertValues[row.id]??defaultConversion(row);
-      const date=new Date(`${value.date}T${value.time}`);
+      const value=convertValues[row.id]??defaultConversion(row,timezone);
+      const date=new Date(restaurantDateTime(value.date,value.time,timezone));
       if(!Number.isFinite(date.getTime()))throw new Error(ar?"اختر تاريخاً ووقتاً صحيحين":"Choose a valid offer date and time");
       const {data,error}=await (supabase as any).rpc("offer_waitlist_entry",{
         _waitlist_id:row.id,
         _booking_at:date.toISOString(),
         _table_id:null,
-        _hold_minutes:10,
+        _hold_minutes:value.hold,
       });
       if(error)throw error;
-      return data as {expires_at?:string;channel?:string};
+      return {...data,hold:value.hold} as {expires_at?:string;channel?:string;hold:number};
     },
     onSuccess:async(data)=>{
       await qc.invalidateQueries({queryKey:["booking-waitlist",rid]});
-      toast.success(ar?"تم إرسال عرض الطاولة للضيف لمدة 10 دقائق":`Table offer queued via ${data.channel??"configured channel"} for a 10-minute hold`);
+      toast.success(ar?`تمت إضافة عرض الطاولة للإرسال لمدة ${data.hold} دقيقة`:`Table offer queued for a ${data.hold}-minute hold`);
     },
     onError:(error)=>toast.error(humanError(error,lang)),
   });
 
   const convert=useMutation({
     mutationFn:async(row:WaitlistRow)=>{
-      const value=convertValues[row.id]??defaultConversion(row);
-      const date=new Date(`${value.date}T${value.time}`);
+      const value=convertValues[row.id]??defaultConversion(row,timezone);
+      const date=new Date(restaurantDateTime(value.date,value.time,timezone));
       if(!Number.isFinite(date.getTime()))throw new Error(ar?"اختر تاريخاً ووقتاً صحيحين":"Choose a valid reservation date and time");
       const {data,error}=await (supabase as any).rpc("convert_booking_waitlist",{
         _waitlist_id:row.id,
@@ -168,149 +176,76 @@ function WaitlistPage(){
         qc.invalidateQueries({queryKey:["booking-waitlist",rid]}),
         qc.invalidateQueries({queryKey:["bookings",rid]}),
       ]);
+      setSheetOpen(false);
       toast.success(ar?"تم تحويل الضيف إلى حجز مؤكد":"Guest converted to a confirmed reservation");
     },
     onError:(error)=>toast.error(humanError(error,lang)),
   });
 
   if(scope.isPending||access.isPending)return <div className="min-h-dvh bg-background"><AppHeader/><main className="qs-page"><Skeleton className="h-[560px] rounded-3xl"/></main></div>;
-  if(!rid||!membership||!canManage)return <div className="min-h-dvh bg-background"><AppHeader/><main className="qs-page"><section className="qs-card p-10 text-center"><Clock3 className="mx-auto size-10 text-muted-foreground"/><h1 className="mt-4 font-display text-xl font-bold">{ar?"قائمة الانتظار غير متاحة":"Waitlist is not available"}</h1><p className="mt-2 text-sm text-muted-foreground">{ar?"تحتاج صلاحية إدارة الطاولات أو المطعم.":"Table or restaurant management access is required."}</p></section></main></div>;
+  if(!rid||(!membership&&!access.isSuperAdmin)||!canManage)return <div className="min-h-dvh bg-background"><AppHeader/><main className="qs-page"><section className="qs-card p-10 text-center"><Clock3 className="mx-auto size-10 text-muted-foreground"/><h1 className="mt-4 font-display text-xl font-bold">{ar?"قائمة الانتظار غير متاحة":"Waitlist is not available"}</h1><p className="mt-2 text-sm text-muted-foreground">{ar?"تحتاج صلاحية إدارة الطاولات أو المطعم.":"Table or restaurant management access is required."}</p></section></main></div>;
 
   const all=query.data??[];
   const active=all.filter(row=>row.status==="waiting"||row.status==="notified");
   const waiting=active.filter(row=>row.status==="waiting");
   const notified=active.filter(row=>row.status==="notified");
   const history=all.filter(row=>!["waiting","notified"].includes(row.status));
-  const today=new Date().toLocaleDateString("en-CA");
-  const todayCount=active.filter(row=>row.desired_date===today).length;
-  const oldestMinutes=active.length?Math.max(...active.map(row=>Math.max(0,Math.floor((Date.now()-new Date(row.created_at).getTime())/60_000)))):0;
+  const today=reservationDay(new Date(now),timezone);
   const needle=search.trim().toLowerCase();
   const rows=all.filter(row=>{
     const matchSearch=!needle||[row.customer_name,row.phone,row.email,row.occasion,row.status,row.source].filter(Boolean).join(" ").toLowerCase().includes(needle);
-    if(!matchSearch)return false;
+    if(!matchSearch||(dateFilter&&row.desired_date!==dateFilter))return false;
     if(filter==="active")return row.status==="waiting"||row.status==="notified";
     if(filter==="waiting")return row.status==="waiting";
     if(filter==="notified")return row.status==="notified";
     return !["waiting","notified"].includes(row.status);
   });
 
+  const maxPage=Math.max(0,Math.ceil(rows.length/pageSize)-1);
+  const currentPage=Math.min(pageIndex,maxPage);
+  const visible=rows.slice(currentPage*pageSize,currentPage*pageSize+pageSize);
+  const selected=rows.find(row=>row.id===selectedId)??visible[0]??null;
+  const busy=offer.isPending||convert.isPending||transition.isPending;
+  function openGuest(row:WaitlistRow){setSelectedId(row.id);if(window.matchMedia("(max-width: 1000px)").matches)setSheetOpen(true);}
+  function visitLabel(row:WaitlistRow){const date=row.desired_date===today?(ar?"اليوم":"Today"):row.desired_date===addReservationDays(today,1)?(ar?"غداً":"Tomorrow"):new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{month:"short",day:"numeric",timeZone:"UTC"}).format(new Date(row.desired_date+"T12:00:00Z"));return date+(row.preferred_time?" · "+timeLabel(row.preferred_time,ar):"");}
+  const details=selected?<WaitlistDetails key={selected.id} row={selected} value={convertValues[selected.id]??defaultConversion(selected,timezone)} onChange={value=>setConvertValues(prev=>({...prev,[selected.id]:value}))} ar={ar} visitLabel={visitLabel(selected)} now={now} duration={settings.data?.default_duration_minutes??90} ready={restaurant.isSuccess&&settings.isSuccess&&!busy} busy={busy} onClose={()=>{setSelectedId(null);setSheetOpen(false);}} onOffer={()=>offer.mutate(selected)} onBook={()=>convert.mutate(selected)} onNotify={()=>transition.mutate({id:selected.id,next:selected.status==="waiting"?"notified":"waiting"})} onCancel={()=>setCancelTarget(selected)} onRefresh={()=>refreshEstimate.mutate(selected)} refreshing={refreshEstimate.isPending}/>:null;
+
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}/>
-    <main className="qs-page qs-compact-page qs-viewport-page">
-      <MasterPageHeader
-        eyebrow={<MasterEyebrow icon={Clock3}>{ar?"إدارة الطلب":"Demand Control"}</MasterEyebrow>}
-        title={ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}
-        description={ar?"رتّب الطلبات غير المتاحة، تواصل مع الضيف، وحوّل الفرصة إلى حجز مؤكد من نفس شاشة التشغيل.":"Prioritize unavailable demand, contact guests and convert opportunities into confirmed reservations from one desk."}
-        actions={<Input className="h-10 w-full sm:w-[280px]" value={search} onChange={e=>setSearch(e.target.value)} placeholder={ar?"ابحث بالاسم أو الهاتف":"Search guest or phone"}/>}
-        tabs={<div className="flex gap-1"><Link to="/bookings" className="rounded-[9px] px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-muted">{ar?"الحجوزات":"Reservations"}</Link><Link to="/waitlist" className="rounded-[9px] bg-foreground px-4 py-2 text-xs font-bold text-background">{ar?"قائمة الانتظار":"Waitlist"}</Link></div>}
-      />
-
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MasterKpi icon={UsersRound} label={ar?"طلبات نشطة":"Active Requests"} value={String(active.length)} hint={ar?"في الطابور":"In queue"} tone="orange"/>
-        <MasterKpi icon={Clock3} label={ar?"بانتظار التواصل":"Waiting"} value={String(waiting.length)} hint={ar?"لم يتم التواصل":"Not contacted"} tone="blue"/>
-        <MasterKpi icon={BellRing} label={ar?"تم التواصل":"Notified"} value={String(notified.length)} hint={ar?"بانتظار رد":"Waiting response"} tone="purple"/>
-        <MasterKpi icon={CalendarCheck2} label={ar?"طلبات اليوم":"Today"} value={String(todayCount)} hint={active.length?(ar?"أقدم "+formatAge(oldestMinutes,ar):"Oldest "+formatAge(oldestMinutes,ar)):undefined} tone="green"/>
-      </section>
-
-      <section className="qs-card qs-viewport-fill flex min-h-0 flex-col overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-border p-3.5 lg:flex-row lg:items-center lg:justify-between">
-          <div><h2 className="qs-section-title">{ar?"طابور الانتظار":"Waitlist queue"}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar?"رتّب الطلبات حسب الحالة، ثم اختر تاريخ ووقت التحويل بشكل واضح. يتم إعادة فحص التوفر عند الإنشاء.":"Filter by status, then choose a clear conversion date and time. Availability is checked again when the reservation is created."}</p></div>
-          <div className="flex flex-wrap gap-2">
-            <FilterChip active={filter==="active"} onClick={()=>setFilter("active")} label={ar?"نشطة":"Active"} count={active.length}/>
-            <FilterChip active={filter==="waiting"} onClick={()=>setFilter("waiting")} label={ar?"انتظار":"Waiting"} count={waiting.length}/>
-            <FilterChip active={filter==="notified"} onClick={()=>setFilter("notified")} label={ar?"تم التواصل":"Notified"} count={notified.length}/>
-            <FilterChip active={filter==="history"} onClick={()=>setFilter("history")} label={ar?"السجل":"History"} count={history.length}/>
-          </div>
-        </div>
-        {query.isPending?<div className="p-5"><Skeleton className="h-[420px] rounded-xl"/></div>
-          :query.isError?<div className="p-5 text-sm text-destructive">{humanError(query.error,lang)}</div>
-          :rows.length===0?<div className="grid min-h-[220px] place-items-center p-6 text-center"><div><Clock3 className="mx-auto size-10 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"لا توجد طلبات بهذا الفلتر":"No waitlist requests in this view"}</h3><p className="mt-1 text-sm text-muted-foreground">{ar?"غيّر الفلتر أو ابحث عن ضيف آخر.":"Try another filter or search for another guest."}</p></div></div>
-          :<div className="qs-scroll-region min-h-0 flex-1 divide-y divide-border">{rows.map(row=>{
-            const live=row.status==="waiting"||row.status==="notified";
-            const value=convertValues[row.id]??defaultConversion(row);
-            const ageMinutes=Math.max(0,Math.floor((Date.now()-new Date(row.created_at).getTime())/60_000));
-            return <article key={row.id} className="p-2.5 sm:p-3">
-              <div className="grid gap-3 rounded-xl border border-border/80 bg-card p-3.5 shadow-sm transition hover:shadow-md sm:p-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
-                <div className="min-w-0">
-                  <div className="flex items-start gap-3">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-sm font-black">{initials(row.customer_name)}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2"><strong className="text-base">{row.customer_name}</strong><Status value={row.status}/></div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <Meta icon={UsersRound} text={String(row.guest_count)+" "+(ar?"ضيوف":"guests")}/>
-                        <Meta icon={CalendarDays} text={row.desired_date}/>
-                        {row.preferred_time?<Meta icon={Clock3} text={row.preferred_time}/>:null}
-                        {row.estimated_wait_minutes!=null&&live?<Meta icon={TimerReset} text={ar?`≈ ${row.estimated_wait_minutes} دقيقة`:`≈ ${row.estimated_wait_minutes} min`}/>:null}
-                        {live?<span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold",ageMinutes>=120?"bg-red-500/10 text-red-700":ageMinutes>=45?"bg-amber-500/10 text-amber-700":"bg-muted text-muted-foreground")}>{ar?"منذ ":"Waiting "}{formatAge(ageMinutes,ar)}</span>:null}
-                      </div>
-                      <div className="mt-3 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
-                        {row.phone?<span>{ar?"هاتف: ":"Phone: "}<strong className="font-semibold text-foreground">{row.phone}</strong></span>:null}
-                        {row.email?<span>{ar?"بريد: ":"Email: "}<strong className="font-semibold text-foreground">{row.email}</strong></span>:null}
-                        {row.occasion?<span>{ar?"المناسبة: ":"Occasion: "}<strong className="font-semibold text-foreground">{row.occasion}</strong></span>:null}
-                        <span>{ar?"المصدر: ":"Source: "}<strong className="font-semibold capitalize text-foreground">{row.source.replaceAll("_"," ")}</strong></span>
-                      </div>
-                      {row.notes?<div className="mt-3 rounded-xl bg-muted/45 px-3 py-2 text-xs leading-5 text-muted-foreground">{row.notes}</div>:null}
-                      {row.cancellation_reason?<div className="mt-3 rounded-xl bg-red-500/8 px-3 py-2 text-xs text-red-700">{row.cancellation_reason}</div>:null}
-                    </div>
-                  </div>
-                </div>
-
-                {live?<div className="rounded-2xl border border-border bg-muted/20 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div><div className="flex items-center gap-2"><UserRoundCheck className="size-4 text-[#e85d2a]"/><strong className="text-sm">{ar?"إدارة فرصة الطاولة":"Manage table opportunity"}</strong></div><p className="mt-1 text-[11px] leading-5 text-muted-foreground">{ar?"أرسل عرضاً مؤقتاً للضيف أو حوّله مباشرة إلى حجز مؤكد.":"Send a timed table offer to the guest or convert directly to a confirmed reservation."}</p></div>
-                    <Button type="button" size="sm" variant="ghost" disabled={refreshEstimate.isPending} onClick={()=>refreshEstimate.mutate(row)} aria-label={ar?"تحديث وقت الانتظار":"Refresh wait estimate"}><RefreshCw className={cn("size-3.5",refreshEstimate.isPending&&"animate-spin")}/></Button>
-                  </div>
-                  {row.status==="notified"&&row.offer_expires_at&&new Date(row.offer_expires_at).getTime()>Date.now()?<div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs dark:border-blue-900/50 dark:bg-blue-950/20"><div className="flex items-center gap-2 font-bold text-blue-700 dark:text-blue-300"><BellRing className="size-3.5"/>{ar?"عرض طاولة نشط":"Active table offer"}</div><p className="mt-1 text-muted-foreground">{ar?"ينتهي: ":"Expires: "}{new Date(row.offer_expires_at).toLocaleTimeString(ar?"ar-JO":"en-JO",{hour:"2-digit",minute:"2-digit"})}{row.last_message_channel?` · ${row.last_message_channel.toUpperCase()}`:""}</p></div>:null}
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <label className="space-y-1.5"><span className="text-[10px] font-bold text-muted-foreground">{ar?"التاريخ":"Date"}</span><Input className="h-11 cursor-pointer rounded-xl bg-background" type="date" value={value.date} onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()} onChange={e=>setConvertValues(prev=>({...prev,[row.id]:{...value,date:e.target.value}}))}/></label>
-                    <label className="space-y-1.5"><span className="text-[10px] font-bold text-muted-foreground">{ar?"الوقت":"Time"}</span><Input className="h-11 cursor-pointer rounded-xl bg-background" type="time" step="900" value={value.time} onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()} onChange={e=>setConvertValues(prev=>({...prev,[row.id]:{...value,time:e.target.value}}))}/></label>
-                  </div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <Button variant="outline" className="rounded-xl" disabled={offer.isPending||Boolean(row.offer_expires_at&&new Date(row.offer_expires_at).getTime()>Date.now())} onClick={()=>offer.mutate(row)}><Send className="size-4"/>{offer.isPending?(ar?"جارٍ إرسال العرض…":"Sending offer…"):(ar?"إرسال عرض 10 دقائق":"Send 10-min offer")}</Button>
-                    <Button className="rounded-xl" disabled={convert.isPending} onClick={()=>convert.mutate(row)}><UserRoundCheck className="size-4"/>{convert.isPending?(ar?"جارٍ فحص التوفر…":"Checking availability…"):(ar?"حجز مباشر":"Book directly")}</Button>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
-                    {row.status==="waiting"?<Button size="sm" variant="outline" className="rounded-xl" disabled={transition.isPending} onClick={()=>transition.mutate({id:row.id,next:"notified"})}><BellRing className="size-3"/>{ar?"تم التواصل":"Mark notified"}</Button>:<Button size="sm" variant="outline" className="rounded-xl" disabled={transition.isPending} onClick={()=>transition.mutate({id:row.id,next:"waiting"})}><RotateCcw className="size-3"/>{ar?"إرجاع للانتظار":"Back to waiting"}</Button>}
-                    <Button size="sm" variant="ghost" className="rounded-xl text-muted-foreground" disabled={transition.isPending} onClick={()=>transition.mutate({id:row.id,next:"cancelled",reason:"Cancelled by restaurant"})}><XCircle className="size-3"/>{ar?"إلغاء الطلب":"Cancel request"}</Button>
-                  </div>
-                </div>:<div className="flex min-h-24 items-center justify-center rounded-2xl border border-dashed border-border bg-muted/15 p-4 text-center">
-                  {row.converted_booking_id?<div><CheckCircle2 className="mx-auto size-5 text-emerald-600"/><strong className="mt-2 block text-xs text-emerald-700">{ar?"تم إنشاء حجز مؤكد":"Confirmed reservation created"}</strong></div>:<span className="text-xs text-muted-foreground">{ar?"هذا الطلب مغلق":"This request is closed"}</span>}
-                </div>}
-              </div>
-            </article>;
-          })}</div>}
-      </section>
+    <main className="qs-page qs-compact-page wl-studio">
+      <header className="wl-heading"><div><h1><span className="wl-title-full">{ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}</span><span className="wl-title-short">{ar?"قائمة الانتظار":"Waitlist"}</span></h1><p>{ar?"قائمة واضحة. وترحيب مدروس.":"A clear queue. A thoughtful welcome."}</p></div><div className="wl-date-filter"><Input aria-label={ar?"تصفية حسب تاريخ الزيارة":"Filter requested date"} type="date" value={dateFilter} onChange={e=>{setDateFilter(e.target.value);setPageIndex(0);}}/><Button variant="outline" aria-pressed={!dateFilter} onClick={()=>{setDateFilter("");setPageIndex(0);}}>{ar?"كل التواريخ":"All dates"}</Button></div></header>
+      <nav className="wl-tabs" aria-label={ar?"الحجوزات وقائمة الانتظار":"Reservations and waitlist"}><Link to="/bookings">{ar?"الحجوزات":"Reservations"}</Link><Link to="/waitlist" aria-current="page">{ar?"قائمة الانتظار":"Waitlist"}</Link></nav>
+      <section className="wl-metrics" aria-label={ar?"ملخص قائمة الانتظار":"Waitlist summary"}>{[[ar?"طلبات نشطة":"Active requests",active.length,"active"],[ar?"انتظار":"Waiting",waiting.length,"waiting"],[ar?"تم التواصل":"Notified",notified.length,"notified"]].map(([label,count,tone])=><div key={String(tone)}><span className={`wl-dot wl-dot-${tone}`}/><div><p>{label}</p><strong>{query.isPending?"—":count}</strong></div></div>)}</section>
+      <div className="wl-workspace">
+        <section className="wl-queue" aria-label={ar?"طابور الانتظار":"Waitlist queue"}>
+          <div className="wl-toolbar"><div className="wl-filters">{([["active",ar?"نشطة":"Active",active.length],["waiting",ar?"انتظار":"Waiting",waiting.length],["notified",ar?"تم التواصل":"Notified",notified.length],["history",ar?"السجل":"History",history.length]] as const).map(([key,label,count])=><button key={key} type="button" aria-pressed={filter===key} onClick={()=>{setFilter(key);setPageIndex(0);}}>{label}<span>{count}</span></button>)}</div><div className="wl-search"><Search aria-hidden="true"/><Input aria-label={ar?"ابحث بالاسم أو الهاتف":"Search guest or phone"} placeholder={ar?"ابحث بالاسم أو الهاتف":"Search guest or phone"} value={search} onChange={e=>{setSearch(e.target.value);setPageIndex(0);}}/></div></div>
+          {query.isPending?<div className="p-5"><Skeleton className="h-[390px] rounded-xl"/></div>:query.isError?<div className="wl-empty" role="alert"><p>{humanError(query.error,lang)}</p><Button variant="outline" onClick={()=>void query.refetch()}>{ar?"إعادة المحاولة":"Try again"}</Button></div>:rows.length===0?<div className="wl-empty"><Clock3/><h2>{ar?"لا توجد طلبات بهذا الفلتر":"No waitlist requests in this view"}</h2><p>{ar?"غيّر الفلتر أو ابحث عن ضيف آخر.":"Try another filter or search for another guest."}</p>{search||dateFilter||filter!=="active"?<Button variant="outline" onClick={()=>{setSearch("");setDateFilter("");setFilter("active");}}>{ar?"مسح الفلاتر":"Clear filters"}</Button>:null}</div>:<>
+            <div className="wl-table-head" aria-hidden="true"><span>{ar?"الضيف":"Guest"}</span><span>{ar?"المجموعة":"Party"}</span><span>{ar?"الزيارة المطلوبة":"Requested visit"}</span><span>{ar?"الحالة":"Status"}</span><span>{ar?"في الانتظار":"Waiting"}</span></div>
+            <div className="wl-rows">{visible.map(row=><button type="button" key={row.id} className={cn("wl-row",selected?.id===row.id&&"is-selected")} aria-label={`${ar?"تفاصيل الضيف":"Guest details for"} ${row.customer_name}`} aria-pressed={selected?.id===row.id} onClick={()=>openGuest(row)}><span className="wl-guest"><span className="wl-avatar">{initials(row.customer_name)}</span><span><strong>{row.customer_name}</strong><small dir="auto">{row.phone??row.email??(ar?"لا توجد وسيلة اتصال":"No contact")}</small></span></span><span className="wl-party"><UsersRound/>{row.guest_count} {ar?"ضيوف":"guests"}</span><span className="wl-visit">{visitLabel(row)}</span><span className="wl-row-status"><Status value={row.status} ar={ar}/></span><span className="wl-age">{row.status==="waiting"||row.status==="notified"?formatAge(Math.max(0,Math.floor((now-new Date(row.created_at).getTime())/60_000)),ar):"—"}</span><ChevronRight className="wl-row-chevron"/></button>)}</div>
+            <footer className="wl-pagination"><span>{currentPage*pageSize+1}–{Math.min((currentPage+1)*pageSize,rows.length)} / {rows.length} {ar?"طلب":"requests"}</span><div><Button variant="ghost" size="icon" aria-label={ar?"الصفحة السابقة":"Previous page"} disabled={currentPage===0} onClick={()=>setPageIndex(currentPage-1)}><ChevronLeft/></Button><span>{currentPage+1} / {maxPage+1}</span><Button variant="ghost" size="icon" aria-label={ar?"الصفحة التالية":"Next page"} disabled={currentPage===maxPage} onClick={()=>setPageIndex(currentPage+1)}><ChevronRight/></Button></div></footer>
+          </>}
+        </section>
+        {details?<aside className="wl-desktop-details" aria-label={ar?"تفاصيل الضيف":"Guest details"}>{details}</aside>:null}
+      </div>
+      <Dialog open={sheetOpen&&Boolean(selected)} onOpenChange={setSheetOpen}><DialogContent className="wl-sheet p-0" onOpenAutoFocus={event=>event.preventDefault()}><DialogHeader className="sr-only"><DialogTitle>{ar?"تفاصيل الضيف":"Guest details"}</DialogTitle><DialogDescription>{ar?"تفاصيل الطلب وعرض الطاولة":"Request details and table offer"}</DialogDescription></DialogHeader>{details}</DialogContent></Dialog>
+      <AlertDialog open={Boolean(cancelTarget)} onOpenChange={open=>{if(!open)setCancelTarget(null);}}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{ar?"إلغاء طلب الانتظار؟":"Cancel waitlist request?"}</AlertDialogTitle><AlertDialogDescription>{cancelTarget?.customer_name} · {ar?"سينتقل الطلب إلى السجل.":"This request will move to History."}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{ar?"رجوع":"Keep request"}</AlertDialogCancel><AlertDialogAction disabled={busy} onClick={()=>{if(cancelTarget){transition.mutate({id:cancelTarget.id,next:"cancelled",reason:"Cancelled by restaurant"});setSheetOpen(false);}}}>{ar?"إلغاء الطلب":"Cancel request"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </main>
   </div>;
 }
 
-function FilterChip({active,onClick,label,count}:{active:boolean;onClick:()=>void;label:string;count:number}){
-  return <button type="button" onClick={onClick} className={cn("inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition",active?"border-foreground bg-foreground text-background shadow-sm":"border-border bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground")}><span>{label}</span><span className={cn("min-w-5 rounded-full px-1.5 py-0.5 text-[9px]",active?"bg-background/15":"bg-muted")}>{count}</span></button>;
+function WaitlistDetails({row,value,onChange,ar,visitLabel,now,duration,ready,busy,onClose,onOffer,onBook,onNotify,onCancel,onRefresh,refreshing}:{row:WaitlistRow;value:ConversionValue;onChange:(value:ConversionValue)=>void;ar:boolean;visitLabel:string;now:number;duration:number;ready:boolean;busy:boolean;onClose:()=>void;onOffer:()=>void;onBook:()=>void;onNotify:()=>void;onCancel:()=>void;onRefresh:()=>void;refreshing:boolean}){
+  const live=row.status==="waiting"||row.status==="notified";
+  const activeOffer=Boolean(row.offer_expires_at&&new Date(row.offer_expires_at).getTime()>now);
+  const valid=ready&&Boolean(value.date)&&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value.time);
+  return <div className="wl-details"><div className="wl-detail-title"><h2>{ar?"تفاصيل الضيف":"Guest details"}</h2><button type="button" aria-label={ar?"إغلاق تفاصيل الضيف":"Close guest details"} onClick={onClose}><X/></button></div><div className="wl-detail-guest"><span className="wl-avatar">{initials(row.customer_name)}</span><div><strong>{row.customer_name}</strong><p dir="auto">{row.phone??row.email??(ar?"لا توجد وسيلة اتصال":"No contact")}</p></div><Status value={row.status} ar={ar}/></div><div className="wl-detail-meta"><div><small>{ar?"عدد الضيوف":"Party size"}</small><strong>{row.guest_count} {ar?"ضيوف":"guests"}</strong></div><div><small>{ar?"الزيارة المطلوبة":"Requested visit"}</small><strong>{visitLabel}</strong></div><div><small>{ar?"انضم منذ":"Joined queue"}</small><strong>{formatAge(Math.max(0,Math.floor((now-new Date(row.created_at).getTime())/60_000)),ar)}</strong></div></div>{row.notes?<div className="wl-note"><small>{ar?"ملاحظة الضيف":"Guest note"}</small><p>{row.notes}</p></div>:null}
+    {live?<><div className="wl-offer"><h3>{ar?"عرض طاولة":"Offer a table"}</h3>{activeOffer?<div className="wl-active-offer" role="status">{ar?"عرض طاولة نشط · ينتهي خلال ":"Active table offer · expires in "}{Math.max(1,Math.ceil((new Date(row.offer_expires_at!).getTime()-Date.now())/60_000))} {ar?"دقيقة":"min"}</div>:null}<div className="wl-offer-fields"><Field label={ar?"التاريخ":"Date"}><Input aria-label={ar?"تاريخ العرض":"Offer date"} type="date" value={value.date} onChange={e=>onChange({...value,date:e.target.value})}/></Field><Field label={ar?"الوقت":"Time"}><div className="wl-time-chips">{["19:00","19:30","20:00","20:30"].map(time=><button type="button" key={time} aria-pressed={value.time===time} onClick={()=>onChange({...value,time})}>{timeLabel(time,ar)}</button>)}</div><Input aria-label={ar?"وقت العرض":"Offer time"} type="time" step="900" value={value.time} onChange={e=>onChange({...value,time:e.target.value})}/></Field><Field label={ar?"المدة":"Duration"}><Input aria-label={ar?"مدة الحجز من إعدادات المطعم":"Duration from restaurant settings"} value={`${duration} ${ar?"دقيقة":"minutes"}`} readOnly/></Field><Field label={ar?"صلاحية العرض":"Offer validity"}><select aria-label={ar?"صلاحية العرض":"Offer validity"} value={value.hold} onChange={e=>onChange({...value,hold:Number(e.target.value)})}>{[5,10,15,20,30].map(minutes=><option key={minutes} value={minutes}>{minutes} {ar?"دقيقة":"minutes"}</option>)}</select></Field></div><div className="wl-offer-footer"><Button disabled={!valid||activeOffer||(!row.phone&&!row.email)} onClick={onOffer}>{busy?(ar?"جارٍ المعالجة…":"Processing…"):(ar?"إرسال عرض الطاولة":"Send table offer")}</Button><p>{ar?"يتم فحص التوفر قبل الحجز.":"Availability is checked before booking."}</p></div><Button variant="outline" className="wl-book-direct" disabled={!valid} onClick={onBook}>{busy?(ar?"جارٍ المعالجة…":"Processing…"):(ar?"حجز مباشر":"Book directly")}</Button><div className="wl-secondary-actions"><button type="button" disabled={busy} onClick={onNotify}>{row.status==="waiting"?(ar?"تم التواصل":"Mark notified"):(ar?"إعادة للانتظار":"Back to waiting")}</button><button type="button" disabled={busy} onClick={onCancel}>{ar?"إلغاء الطلب":"Cancel request"}</button></div>{row.estimated_wait_minutes!=null?<details className="wl-extra"><summary>{ar?"تفاصيل الانتظار":"Wait estimate"}</summary><p>{ar?"التقدير الحالي: ":"Current estimate: "}{row.estimated_wait_minutes} {ar?"دقيقة":"min"}</p><Button size="sm" variant="ghost" disabled={refreshing||busy} onClick={onRefresh}><RefreshCw className="size-3"/>{ar?"تحديث التقدير":"Refresh estimate"}</Button></details>:null}</div></>:<div className="wl-closed"><strong>{row.converted_booking_id?(ar?"تم إنشاء حجز مؤكد":"Confirmed reservation created"):(ar?"هذا الطلب مغلق":"This request is closed")}</strong>{row.cancellation_reason?<p>{row.cancellation_reason}</p>:null}</div>}
+  </div>;
 }
 
-function Metric({icon:Icon,label,value,hint}:{icon:typeof UsersRound;label:string;value:number;hint?:string|undefined}){
-  return <article className="flex min-h-[88px] items-center gap-3 bg-card p-3.5"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-blue-500/10 text-blue-600"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-2xl tracking-[-.04em]">{value}</strong>{hint?<p className="mt-0.5 text-[9px] text-muted-foreground">{hint}</p>:null}</div></article>;
+function Status({value,ar}:{value:WaitlistStatus;ar:boolean}){
+  const labels={waiting:ar?"انتظار":"Waiting",notified:ar?"تم التواصل":"Notified",converted:ar?"تم الحجز":"Booked",cancelled:ar?"ملغى":"Cancelled",expired:ar?"منتهي":"Expired"};
+  return <span className={`wl-status wl-status-${value}`}>{labels[value]}</span>;
 }
-
-function Meta({icon:Icon,text}:{icon:typeof UsersRound;text:string}){
-  return <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold text-muted-foreground"><Icon className="size-3"/>{text}</span>;
-}
-
-function Status({value}:{value:WaitlistStatus}){
-  const classes=value==="converted"?"bg-emerald-500/10 text-emerald-700":value==="notified"?"bg-blue-500/10 text-blue-700":value==="waiting"?"bg-amber-500/10 text-amber-700":"bg-muted text-muted-foreground";
-  return <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-bold capitalize",classes)}>{value.replaceAll("_"," ")}</span>;
-}
-
-
-function initials(name:string){
-  return name.trim().split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()??"").join("")||"?";
-}
-
-function formatAge(minutes:number,ar:boolean){
-  if(minutes<60)return ar?String(minutes)+" د":String(minutes)+"m";
-  const hours=Math.floor(minutes/60);
-  const mins=minutes%60;
-  if(hours<24)return ar?String(hours)+" س"+(mins?" "+String(mins)+" د":""):String(hours)+"h"+(mins?" "+String(mins)+"m":"");
-  const days=Math.floor(hours/24);
-  return ar?String(days)+" يوم":String(days)+"d";
-}
+function initials(name:string){return name.trim().split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()??"").join("")||"?";}
+function timeLabel(time:string,ar:boolean){return new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{hour:"numeric",minute:"2-digit",timeZone:"UTC"}).format(new Date("2000-01-01T"+time.slice(0,5)+":00Z"));}
+function formatAge(minutes:number,ar:boolean){if(minutes<60)return `${minutes} ${ar?"د":"min"}`;const hours=Math.floor(minutes/60),rest=minutes%60;if(hours<24)return `${hours} ${ar?"س":"h"}${rest?` ${rest} ${ar?"د":"min"}`:""}`;return `${Math.floor(hours/24)} ${ar?"يوم":"d"}`;}
