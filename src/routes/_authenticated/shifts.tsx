@@ -1,17 +1,60 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouterState } from "@tanstack/react-router";
-import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Download, Handshake, List, PlayCircle, Plus, Rows3, StopCircle, TimerReset, Trash2, UserPlus, UsersRound } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Download,
+  Handshake,
+  List,
+  PlayCircle,
+  Plus,
+  Rows3,
+  StopCircle,
+  TimerReset,
+  Trash2,
+  UserPlus,
+  UsersRound,
+} from "lucide-react";
 import { toast } from "sonner";
 
-import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
+import { RequestDatePicker, RequestTimePicker } from "@/components/workforce/RequestPickers";
+import {
+  WorkforceToday,
+  WorkforceWeekBoard,
+  WorkforceLabor,
+  weekOf,
+  moveDay,
+  shiftType,
+  timeLabel,
+} from "@/components/workforce/WorkforceStudio";
+import "@/components/workforce/workforce-studio.css";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { DetailRow, DetailSheet, formatStamp } from "@/components/operations/DetailSheet";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { WorkforceButton as Button } from "@/components/workforce/WorkforceButton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
@@ -42,18 +85,43 @@ import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
 import { membershipHasCapability, ROLE_LABELS, type AppRole } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
-import { MemberWorkforceSheet, WorkforceAttendanceBoard, WorkforceExceptions, WorkforceTeam, WorkforceTimesheets, type WorkforceMember } from "@/components/workforce/WorkforceInsights";
+import {
+  MemberWorkforceSheet,
+  WorkforceAttendanceBoard,
+  WorkforceExceptions,
+  WorkforceTeam,
+  WorkforceTimesheets,
+  type WorkforceMember,
+} from "@/components/workforce/WorkforceInsights";
 import { WorkforceRequests } from "@/components/workforce/WorkforceRequests";
 
 export const Route = createFileRoute("/_authenticated/shifts")({
-  head: () => ({ meta: [{ title: "Workforce — QuickServe" }, { name: "description", content: "Restaurant workforce scheduling, attendance, time off and labor control." }] }),
+  head: () => ({
+    meta: [
+      { title: "Workforce — QuickServe" },
+      {
+        name: "description",
+        content: "Restaurant workforce scheduling, attendance, time off and labor control.",
+      },
+    ],
+  }),
   component: ShiftsPage,
 });
+type WorkforceSection =
+  "overview" | "schedule" | "attendance" | "timesheets" | "time_off" | "team" | "labor";
 
-type ShiftView = "timeline" | "calendar" | "list";
-type WorkforceSection = "overview" | "schedule" | "attendance" | "timesheets" | "time_off" | "team" | "labor";
-
-const HANDOVER_ROLES: AppRole[] = ["restaurant_admin", "operations_manager", "manager", "kitchen", "waiter", "cashier", "host", "inventory", "procurement", "accountant"];
+const HANDOVER_ROLES: AppRole[] = [
+  "restaurant_admin",
+  "operations_manager",
+  "manager",
+  "kitchen",
+  "waiter",
+  "cashier",
+  "host",
+  "inventory",
+  "procurement",
+  "accountant",
+];
 const SHIFT_WEEKDAYS = [
   { value: 0, en: "Sun", ar: "الأحد" },
   { value: 1, en: "Mon", ar: "الاثنين" },
@@ -72,8 +140,14 @@ function ShiftsPage() {
   const qc = useQueryClient();
   const rid = scope.restaurantId;
   const membership = rid ? access.membershipFor(rid) : null;
-  const canView = Boolean(membership && membershipHasCapability(membership.role, membership.permission_overrides, "view_work"));
-  const canManage = Boolean(membership && membershipHasCapability(membership.role, membership.permission_overrides, "manage_shifts"));
+  const canView = Boolean(
+    membership &&
+    membershipHasCapability(membership.role, membership.permission_overrides, "view_work"),
+  );
+  const canManage = Boolean(
+    membership &&
+    membershipHasCapability(membership.role, membership.permission_overrides, "manage_shifts"),
+  );
   const canDelete = membership?.role === "restaurant_admin";
   const shifts = useShifts(rid);
   const shiftIds = useMemo(() => (shifts.data ?? []).map((row) => row.id), [shifts.data]);
@@ -85,10 +159,22 @@ function ShiftsPage() {
   const [closingShift, setClosingShift] = useState<Shift | null>(null);
   const [deletingShift, setDeletingShift] = useState<Shift | null>(null);
   const [detailShiftId, setDetailShiftId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ShiftView>("timeline");
-  const requestedSection = useRouterState({ select: state => state.location.hash });
-  const [workforceSection, setWorkforceSection] = useState<WorkforceSection>(requestedSection === "time_off" ? "time_off" : "overview");
-  useEffect(() => { if (requestedSection === "time_off") setWorkforceSection("time_off"); }, [requestedSection]);
+  const requestedSection = useRouterState({ select: (state) => state.location.hash });
+  const [workforceSection, setWorkforceSection] = useState<WorkforceSection>(
+    ["overview", "schedule", "attendance", "timesheets", "time_off", "team", "labor"].includes(
+      requestedSection,
+    )
+      ? (requestedSection as WorkforceSection)
+      : "overview",
+  );
+  useEffect(() => {
+    if (
+      ["overview", "schedule", "attendance", "timesheets", "time_off", "team", "labor"].includes(
+        requestedSection,
+      )
+    )
+      setWorkforceSection(requestedSection as WorkforceSection);
+  }, [requestedSection]);
   const [memberSheet, setMemberSheet] = useState<WorkforceMember | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toLocaleDateString("en-CA"));
   const [liveNow, setLiveNow] = useState(() => Date.now());
@@ -108,7 +194,9 @@ function ShiftsPage() {
         qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", rid] }),
       ]);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [canView, qc, rid, liveToday]);
 
   useEffect(() => {
@@ -118,12 +206,14 @@ function ShiftsPage() {
       setLiveNow(nextNow);
       setLiveToday((previous) => {
         if (previous !== nextToday) {
-          setSelectedDate((current) => current === previous ? nextToday : current);
+          setSelectedDate((current) => (current === previous ? nextToday : current));
         }
         return nextToday;
       });
     };
-    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
     const timer = window.setInterval(refresh, 30_000);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", onVisible);
@@ -137,15 +227,16 @@ function ShiftsPage() {
   const workforceSnapshot = useQuery<{
     time: Array<{ staff_id: string; clock_in: string; clock_out: string | null }>;
     leave: Array<{ status: string }>;
+    permissions: Array<{ status: string }>;
   }>({
     queryKey: ["workforce", "live-snapshot", rid, liveToday],
     enabled: Boolean(rid && canView),
     refetchInterval: 20_000,
     refetchIntervalInBackground: false,
     queryFn: async () => {
-      if (!rid) return { time: [], leave: [] };
+      if (!rid) return { time: [], leave: [], permissions: [] };
       const since = new Date(Date.now() - 36 * 60 * 60_000).toISOString();
-      const [timeResult, leaveResult] = await Promise.all([
+      const [timeResult, leaveResult, permissionsResult] = await Promise.all([
         (supabase.from("staff_time_entries" as any) as any)
           .select("staff_id,clock_in,clock_out")
           .eq("restaurant_id", rid)
@@ -157,12 +248,23 @@ function ShiftsPage() {
           .eq("restaurant_id", rid)
           .eq("status", "pending")
           .limit(200),
+        (supabase.from("staff_permission_requests" as any) as any)
+          .select("status")
+          .eq("restaurant_id", rid)
+          .eq("status", "pending")
+          .limit(200),
       ]);
       if (timeResult.error) throw timeResult.error;
       if (leaveResult.error) throw leaveResult.error;
+      if (permissionsResult.error) throw permissionsResult.error;
       return {
-        time: (timeResult.data ?? []) as Array<{ staff_id: string; clock_in: string; clock_out: string | null }>,
+        time: (timeResult.data ?? []) as Array<{
+          staff_id: string;
+          clock_in: string;
+          clock_out: string | null;
+        }>,
         leave: (leaveResult.data ?? []) as Array<{ status: string }>,
+        permissions: (permissionsResult.data ?? []) as Array<{ status: string }>,
       };
     },
   });
@@ -174,166 +276,513 @@ function ShiftsPage() {
   const rows = shifts.data ?? [];
   const selectedRows = rows.filter((row) => row.shift_date === selectedDate);
   const selectedShiftIds = new Set(selectedRows.map((row) => row.id));
-  const selectedAssignments = (assignments.data ?? []).filter((row) => selectedShiftIds.has(row.shift_id));
+  const selectedAssignments = (assignments.data ?? []).filter((row) =>
+    selectedShiftIds.has(row.shift_id),
+  );
   const openShiftRow = rows.find((row) => row.status === "open") ?? null;
-  const scheduledStaff = new Set(selectedAssignments.filter((row) => row.status !== "released").map((row) => row.staff_id)).size;
+  const scheduledStaff = new Set(
+    selectedAssignments.filter((row) => row.status !== "released").map((row) => row.staff_id),
+  ).size;
   const activeMemberCount = (members.data ?? []).filter((member) => member.is_active).length;
-  const coveragePercent = activeMemberCount ? Math.min(100, Math.round((scheduledStaff / activeMemberCount) * 100)) : 0;
+  const coveragePercent = activeMemberCount
+    ? Math.min(100, Math.round((scheduledStaff / activeMemberCount) * 100))
+    : 0;
   const openWorkCount = openWork.data ?? 0;
-  const onShiftNow = selectedAssignments.filter((row) => row.status === "present").length;
+  const onShiftNow = (workforceSnapshot.data?.time ?? []).filter(
+    (entry) => !entry.clock_out,
+  ).length;
   const upcomingCount = selectedRows.filter((row) => row.status === "planned").length;
   const pendingHandovers = (handovers.data ?? []).filter((row) => !row.acknowledged_at).length;
-  const attentionAssignments = selectedAssignments.filter((row) => row.status === "late" || row.status === "absent").length;
+  const attentionAssignments = new Set(
+    selectedAssignments
+      .filter(
+        (row) =>
+          row.status === "late" ||
+          row.status === "absent" ||
+          (row.starts_at &&
+            (workforceSnapshot.data?.time ?? []).some(
+              (e) =>
+                e.staff_id === row.staff_id &&
+                new Date(e.clock_in).toLocaleDateString("en-CA") === selectedDate &&
+                new Date(e.clock_in).getTime() - new Date(row.starts_at!).getTime() >= 15 * 60000,
+            )),
+      )
+      .map((row) => row.staff_id),
+  ).size;
   const snapshotEntries = workforceSnapshot.data?.time ?? [];
   const openPunches = snapshotEntries.filter((entry) => !entry.clock_out);
-  const needPunch = selectedDate === today
-    ? selectedAssignments.filter((assignment) => {
-        if (assignment.status === "released" || !assignment.starts_at) return false;
-        const startMs = new Date(assignment.starts_at).getTime();
-        const endMs = assignment.ends_at ? new Date(assignment.ends_at).getTime() : Number.POSITIVE_INFINITY;
-        if (!Number.isFinite(startMs) || liveNow < startMs + 15 * 60_000 || liveNow > endMs) return false;
-        return !snapshotEntries.some((entry) => {
-          if (entry.staff_id !== assignment.staff_id) return false;
-          const clockIn = new Date(entry.clock_in).getTime();
-          const clockOut = entry.clock_out ? new Date(entry.clock_out).getTime() : liveNow;
-          return clockIn <= endMs && clockOut >= startMs;
-        });
-      }).length
-    : 0;
-  const overtimeRisk = selectedDate === today
-    ? openPunches.filter((entry) => {
-        const assignment = selectedAssignments.find((row) => row.staff_id === entry.staff_id && row.ends_at);
-        if (!assignment?.ends_at) return false;
-        const endMs = new Date(assignment.ends_at).getTime();
-        return Number.isFinite(endMs) && endMs - liveNow <= 30 * 60_000;
-      }).length
-    : 0;
-  const pendingTimeOff = workforceSnapshot.data?.leave.length ?? 0;
+  const needPunch =
+    selectedDate === today
+      ? selectedAssignments.filter((assignment) => {
+          if (assignment.status === "released" || !assignment.starts_at) return false;
+          const startMs = new Date(assignment.starts_at).getTime();
+          const endMs = assignment.ends_at
+            ? new Date(assignment.ends_at).getTime()
+            : Number.POSITIVE_INFINITY;
+          if (!Number.isFinite(startMs) || liveNow < startMs + 15 * 60_000 || liveNow > endMs)
+            return false;
+          return !snapshotEntries.some((entry) => {
+            if (entry.staff_id !== assignment.staff_id) return false;
+            const clockIn = new Date(entry.clock_in).getTime();
+            const clockOut = entry.clock_out ? new Date(entry.clock_out).getTime() : liveNow;
+            return clockIn <= endMs && clockOut >= startMs;
+          });
+        }).length
+      : 0;
+  const overtimeRisk =
+    selectedDate === today
+      ? openPunches.filter((entry) => {
+          const assignment = selectedAssignments.find(
+            (row) => row.staff_id === entry.staff_id && row.ends_at,
+          );
+          if (!assignment?.ends_at) return false;
+          const endMs = new Date(assignment.ends_at).getTime();
+          return Number.isFinite(endMs) && endMs - liveNow <= 30 * 60_000;
+        }).length
+      : 0;
+  const pendingTimeOff =
+    (workforceSnapshot.data?.leave.length ?? 0) + (workforceSnapshot.data?.permissions.length ?? 0);
   const needsAttention = attentionAssignments + pendingHandovers + needPunch;
-  const weekDays = shiftWeekDays(selectedDate).map((day) => ({ ...day, shiftCount: rows.filter((row) => row.shift_date === day.key).length }));
   const detailShift = rows.find((row) => row.id === detailShiftId) ?? null;
-  const detailAssignments = detailShift ? (assignments.data ?? []).filter((row) => row.shift_id === detailShift.id) : [];
-  const detailHandover = detailShift ? (handovers.data ?? []).find((row) => row.shift_id === detailShift.id) ?? null : null;
-  const memberName = (staffId: string | null) => (staffId ? (members.data ?? []).find((row) => row.id === staffId)?.name ?? null : null);
+  const detailAssignments = detailShift
+    ? (assignments.data ?? []).filter((row) => row.shift_id === detailShift.id)
+    : [];
+  const detailHandover = detailShift
+    ? ((handovers.data ?? []).find((row) => row.shift_id === detailShift.id) ?? null)
+    : null;
+  const memberName = (staffId: string | null) =>
+    staffId ? ((members.data ?? []).find((row) => row.id === staffId)?.name ?? null) : null;
 
-  return <div className="min-h-dvh bg-background">
-    <AppHeader title={ar ? "القوى العاملة" : "Workforce"} />
-    <main className="qs-workforce-screen qs-workforce-shifts qs-approved-workforce-page qs-page qs-compact-page space-y-4">
-      <div className="qs-workforce-hero qs-approved-page-hero">
-      <MasterPageHeader
-        eyebrow={<MasterEyebrow icon={UsersRound}>{ar ? "الأفراد والعمليات" : "People & operations"}</MasterEyebrow>}
-        title={ar ? "القوى العاملة" : "Workforce"}
-        description={ar ? "جدولة الفريق والحضور والإجازات وساعات العمل في مساحة تشغيل واحدة ذكية." : "Run scheduling, attendance, time off and labor from one smart restaurant workforce workspace."}
-        actions={<div className="flex flex-wrap items-center gap-2"><span className="qs-workforce-live-pill inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-xs font-bold text-muted-foreground"><i className="size-2 rounded-full bg-emerald-500" />{new Date(liveNow).toLocaleDateString(ar ? "ar-JO" : "en-JO", { weekday: "short", month: "short", day: "numeric" })}<span className="text-emerald-600">{ar ? "مباشر" : "Live"}</span></span>{canManage ? <Button className="min-w-32 shadow-sm" onClick={() => setCreateOpen(true)}><Plus className="size-4" />{ar ? "إنشاء وردية" : "Create shift"}</Button> : null}</div>}
+  return (
+    <div className="min-h-dvh bg-background">
+      <AppHeader title={ar ? "القوى العاملة" : "Workforce"} />
+      <main className="qs-workforce-screen qs-workforce-shifts wf-studio qs-page qs-compact-page space-y-4">
+        <header className="wf-page-heading">
+          <div>
+            <h1>{ar ? "القوى العاملة" : "Workforce"}</h1>
+            <p>
+              {ar
+                ? "الأفراد والوقت والخدمة — في مساحة عمل واحدة."
+                : "People, time, and service — in one workspace."}
+            </p>
+          </div>
+          <div className="wf-heading-actions">
+            <span className="wf-date">
+              <CalendarDays className="size-4" />
+              {new Date(liveNow).toLocaleDateString(ar ? "ar-JO" : "en-US", {
+                weekday: "short",
+                month: "short",
+                day: "2-digit",
+              })}
+            </span>
+            {canManage ? (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="size-4" />
+                {ar ? "إنشاء وردية" : "Create shift"}
+              </Button>
+            ) : null}
+          </div>
+        </header>
+
+        <WorkforceNavigation
+          active={workforceSection}
+          onChange={setWorkforceSection}
+          canManage={canManage}
+          ar={ar}
+        />
+
+        {workforceSection === "overview" || workforceSection === "attendance" ? (
+          <div className="qs-workforce-punch-zone">
+            <WorkforceClockHero
+              restaurantId={rid}
+              currentStaffId={membership.id}
+              members={members.data ?? []}
+              assignments={assignments.data ?? []}
+              ar={ar}
+              lang={lang}
+            />
+          </div>
+        ) : null}
+
+        <section
+          className={cn(
+            "qs-workforce-snapshot qs-card grid grid-cols-2 overflow-hidden sm:grid-cols-3 xl:grid-cols-6",
+            workforceSection !== "overview" && "hidden",
+          )}
+        >
+          <WorkforceSnapshotStat
+            icon={UsersRound}
+            label={ar ? "المجدولون" : "Scheduled"}
+            value={scheduledStaff}
+            hint={formatShiftDateLabel(selectedDate, ar)}
+            tone="blue"
+          />
+          <WorkforceSnapshotStat
+            icon={PlayCircle}
+            label={ar ? "على رأس العمل" : "On Shift"}
+            value={onShiftNow}
+            hint={ar ? "الآن" : "Live now"}
+            tone="green"
+          />
+          <WorkforceSnapshotStat
+            icon={TimerReset}
+            label={ar ? "لم يسجلوا" : "Need Punch"}
+            value={needPunch}
+            hint={ar ? "بعد 15 دقيقة" : "15 min grace"}
+            tone={needPunch ? "red" : "green"}
+          />
+          <WorkforceSnapshotStat
+            icon={AlertTriangle}
+            label={ar ? "تحتاج انتباه" : "Attention"}
+            value={needsAttention}
+            hint={
+              pendingHandovers
+                ? ar
+                  ? "يشمل تسليمات"
+                  : "Includes handovers"
+                : ar
+                  ? "استثناءات اليوم"
+                  : "Today's exceptions"
+            }
+            tone={needsAttention ? "red" : "green"}
+          />
+          <WorkforceSnapshotStat
+            icon={CalendarDays}
+            label={ar ? "الطلبات" : "Requests"}
+            value={pendingTimeOff}
+            hint={ar ? "بانتظار المراجعة" : "Pending review"}
+            tone="orange"
+          />
+          <WorkforceSnapshotStat
+            icon={Clock3}
+            label={ar ? "وقت إضافي" : "OT Risk"}
+            value={overtimeRisk}
+            hint={ar ? "خلال 30 دقيقة" : "Within 30 min"}
+            tone={overtimeRisk ? "orange" : "green"}
+          />
+        </section>
+
+        {workforceSection === "overview" ? (
+          <section className="wf-split">
+            <WorkforceToday
+              restaurantId={rid}
+              members={members.data ?? []}
+              assignments={assignments.data ?? []}
+              ar={ar}
+              onOpen={setMemberSheet}
+              onAttendance={() => setWorkforceSection("attendance")}
+            />
+            <div className="space-y-4">
+              <WorkforceExceptions
+                restaurantId={rid}
+                currentStaffId={membership.id}
+                members={members.data ?? []}
+                assignments={assignments.data ?? []}
+                ar={ar}
+              />
+              <section className="wf-panel">
+                <header className="wf-toolbar">
+                  <h2>{ar ? "الورديات القادمة" : "Upcoming shifts"}</h2>
+                </header>
+                {rows
+                  .filter(
+                    (row) =>
+                      row.status === "planned" &&
+                      row.planned_start &&
+                      new Date(row.planned_start).getTime() > liveNow,
+                  )
+                  .sort((a, b) => a.planned_start!.localeCompare(b.planned_start!))
+                  .slice(0, 3)
+                  .map((row) => (
+                    <button
+                      className="wf-upcoming"
+                      key={row.id}
+                      onClick={() => setDetailShiftId(row.id)}
+                    >
+                      <span className={`wf-shift-tag wf-shift-${shiftType(row)}`}>
+                        {shiftType(row)}
+                      </span>
+                      <span>
+                        <strong>{row.name}</strong>
+                        <small>
+                          {row.shift_date} · {formatWindow(row, ar)}
+                        </small>
+                      </span>
+                      <ChevronRight className="size-4" />
+                    </button>
+                  ))}
+                {!rows.some(
+                  (row) =>
+                    row.status === "planned" &&
+                    row.planned_start &&
+                    new Date(row.planned_start).getTime() > liveNow,
+                ) ? (
+                  <p className="wf-empty">{ar ? "لا ورديات قادمة." : "No upcoming shifts."}</p>
+                ) : null}
+              </section>
+            </div>
+          </section>
+        ) : null}
+        {workforceSection === "schedule" ? (
+          <WorkforceWeekBoard
+            date={selectedDate}
+            onChangeDate={setSelectedDate}
+            shifts={rows}
+            assignments={assignments.data ?? []}
+            members={members.data ?? []}
+            ar={ar}
+            onOpen={(s) => setDetailShiftId(s.id)}
+            onCreate={() => setCreateOpen(true)}
+            canManage={canManage}
+          />
+        ) : null}
+        {workforceSection === "labor" && canManage ? (
+          <WorkforceLabor
+            restaurantId={rid}
+            members={members.data ?? []}
+            assignments={assignments.data ?? []}
+            ar={ar}
+            onTimesheets={() => setWorkforceSection("timesheets")}
+          />
+        ) : null}
+        {workforceSection === "attendance" ? (
+          <WorkforceAttendanceBoard
+            restaurantId={rid}
+            members={members.data ?? []}
+            assignments={assignments.data ?? []}
+            ar={ar}
+            onOpen={setMemberSheet}
+          />
+        ) : null}
+        {workforceSection === "timesheets" ? (
+          <WorkforceTimesheets
+            restaurantId={rid}
+            members={members.data ?? []}
+            assignments={assignments.data ?? []}
+            canManage={canManage}
+            canReopen={canDelete}
+            currentStaffId={membership.id}
+            ar={ar}
+            lang={lang}
+            onOpenMember={setMemberSheet}
+          />
+        ) : null}
+        {workforceSection === "team" ? (
+          <WorkforceTeam
+            restaurantId={rid}
+            members={members.data ?? []}
+            assignments={assignments.data ?? []}
+            ar={ar}
+            onOpen={setMemberSheet}
+            canManageTeam={membershipHasCapability(
+              membership.role,
+              membership.permission_overrides,
+              "manage_staff",
+            )}
+          />
+        ) : null}
+        {workforceSection === "time_off" ? (
+          <WorkforceRequests
+            restaurantId={rid}
+            currentStaffId={membership.id}
+            canManage={canManage}
+            members={members.data ?? []}
+            ar={ar}
+            lang={lang}
+          />
+        ) : null}
+      </main>
+
+      <MemberWorkforceSheet
+        member={memberSheet}
+        onClose={() => setMemberSheet(null)}
+        restaurantId={rid}
+        assignments={assignments.data ?? []}
+        ar={ar}
+        canManageTeam={membershipHasCapability(
+          membership.role,
+          membership.permission_overrides,
+          "manage_staff",
+        )}
       />
-      </div>
-
-      <WorkforceNavigation active={workforceSection} onChange={setWorkforceSection} canManage={canManage} ar={ar} />
-
-      <div className={cn("qs-workforce-punch-zone", workforceSection !== "overview" && workforceSection !== "attendance" && "hidden")}>
-        <WorkforceClockHero
+      <DetailSheet
+        open={Boolean(detailShift)}
+        onOpenChange={(open) => {
+          if (!open) setDetailShiftId(null);
+        }}
+        title={detailShift?.name ?? ""}
+        description={detailShift ? `${detailShift.shift_date} · ${detailShift.status}` : undefined}
+        footer={
+          detailShift && canDelete && detailShift.status !== "open" ? (
+            <Button
+              variant="destructive"
+              className="w-full gap-2"
+              onClick={() => setDeletingShift(detailShift)}
+            >
+              <Trash2 className="size-4" />
+              {ar ? "حذف الوردية" : "Delete shift"}
+            </Button>
+          ) : undefined
+        }
+      >
+        {detailShift ? (
+          <div className="wf-shift-details">
+            <ShiftRow
+              shift={detailShift}
+              assignments={detailAssignments}
+              canManage={canManage}
+              canDelete={false}
+              currentStaffId={membership.id}
+              ar={ar}
+              lang={lang}
+              onOpen={() => {}}
+              onClose={() => setClosingShift(detailShift)}
+              onDelete={() => setDeletingShift(detailShift)}
+            />
+            <CurrentShift
+              shift={detailShift}
+              assignments={detailAssignments}
+              members={members.data ?? []}
+              canManage={canManage}
+              currentStaffId={membership.id}
+              ar={ar}
+              lang={lang}
+              onClose={() => setClosingShift(detailShift)}
+            />
+            {detailShift.notes ? (
+              <p className="mb-4 whitespace-pre-wrap rounded-2xl bg-muted/40 p-3 text-sm leading-6">
+                {detailShift.notes}
+              </p>
+            ) : null}
+            <DetailRow
+              label={ar ? "الحالة" : "Status"}
+              value={<Status status={detailShift.status} ar={ar} />}
+            />
+            <DetailRow label={ar ? "التاريخ" : "Date"} value={detailShift.shift_date} />
+            <DetailRow
+              label={ar ? "الوقت المخطط" : "Planned window"}
+              value={formatWindow(detailShift, ar)}
+            />
+            <DetailRow
+              label={ar ? "فُتحت" : "Opened"}
+              value={formatStamp(detailShift.actual_opened_at, ar)}
+            />
+            <DetailRow
+              label={ar ? "أُغلقت" : "Closed"}
+              value={formatStamp(detailShift.actual_closed_at, ar)}
+            />
+            <DetailRow
+              label={ar ? "فتح بواسطة" : "Opened by"}
+              value={memberName(detailShift.opened_by_staff_id)}
+            />
+            <DetailRow
+              label={ar ? "أغلق بواسطة" : "Closed by"}
+              value={memberName(detailShift.closed_by_staff_id)}
+            />
+            <DetailRow
+              label={ar ? "أُنشئت" : "Created"}
+              value={formatStamp(detailShift.created_at, ar)}
+            />
+            <DetailRow
+              label={ar ? "آخر تحديث" : "Updated"}
+              value={formatStamp(detailShift.updated_at, ar)}
+            />
+            <div className="mt-5">
+              <h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">
+                {ar ? "أعضاء الوردية" : "Shift team"}
+              </h3>
+              <div className="mt-2 space-y-2">
+                {detailAssignments.length ? (
+                  detailAssignments.map((assignment) => (
+                    <div key={assignment.id} className="rounded-xl border border-border/70 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <strong className="text-sm">
+                          {memberName(assignment.staff_id) ?? (ar ? "عضو فريق" : "Team member")}
+                        </strong>
+                        <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-bold capitalize text-muted-foreground">
+                          {assignment.status}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {assignment.role_snapshot
+                          ? (ROLE_LABELS[assignment.role_snapshot]?.[lang] ??
+                            assignment.role_snapshot)
+                          : ""}
+                      </p>
+                      {assignment.notes ? (
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                          {assignment.notes}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {ar ? "لا يوجد أعضاء معينون." : "No team members assigned."}
+                  </p>
+                )}
+              </div>
+            </div>
+            {detailHandover ? (
+              <div className="mt-5 rounded-2xl border border-border/70 p-4">
+                <div className="flex items-center gap-2">
+                  <Handshake className="size-4 text-[#e85d2a]" />
+                  <strong className="text-sm">{ar ? "تسليم الوردية" : "Shift handover"}</strong>
+                </div>
+                <HandoverItem
+                  handover={detailHandover}
+                  currentStaffId={membership.id}
+                  restaurantId={rid}
+                  ar={ar}
+                  lang={lang}
+                />
+                {detailHandover.unresolved_items ? (
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                    {detailHandover.unresolved_items}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </DetailSheet>
+      {canManage ? (
+        <CreateShiftDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
           restaurantId={rid}
-          currentStaffId={membership.id}
-          members={members.data ?? []}
-          assignments={assignments.data ?? []}
           ar={ar}
           lang={lang}
         />
-      </div>
-
-      <section className={cn("qs-shift-weekstrip qs-card overflow-hidden p-2", workforceSection !== "schedule" && "hidden")}>
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-          <div className="flex items-center gap-1"><Button type="button" variant="ghost" size="icon" className="size-9" onClick={() => setSelectedDate(addShiftDays(selectedDate, -7))}><ChevronLeft className="size-4" /></Button><Button type="button" variant="outline" className="h-9 px-3 text-xs font-bold" onClick={() => setSelectedDate(today)}>{ar ? "اليوم" : "Today"}</Button><Button type="button" variant="ghost" size="icon" className="size-9" onClick={() => setSelectedDate(addShiftDays(selectedDate, 7))}><ChevronRight className="size-4" /></Button></div>
-          <div className="grid flex-1 grid-cols-7 gap-1.5">{weekDays.map((day) => <button key={day.key} type="button" onClick={() => setSelectedDate(day.key)} className={cn("group min-w-0 rounded-xl border px-2 py-2 text-center transition-all duration-200", selectedDate === day.key ? "border-orange-300 bg-orange-500/10 text-[#cf4818] shadow-sm" : "border-transparent bg-muted/30 text-muted-foreground hover:-translate-y-0.5 hover:border-border hover:bg-card hover:text-foreground")}><span className="block truncate text-[9px] font-bold uppercase tracking-[.08em]">{day.weekday}</span><strong className="mt-0.5 block text-sm">{day.day}</strong>{day.shiftCount ? <span className={cn("mx-auto mt-1 block size-1.5 rounded-full", selectedDate === day.key ? "bg-[#e85d2a]" : "bg-blue-500")} /> : <span className="mx-auto mt-1 block size-1.5" />}</button>)}</div>
-        </div>
-      </section>
-
-      <section className={cn("qs-workforce-snapshot qs-card grid grid-cols-2 overflow-hidden sm:grid-cols-3 xl:grid-cols-6", workforceSection !== "overview" && workforceSection !== "schedule" && "hidden")}>
-        <WorkforceSnapshotStat icon={UsersRound} label={ar ? "المجدولون" : "Scheduled"} value={scheduledStaff} hint={formatShiftDateLabel(selectedDate, ar)} tone="blue" />
-        <WorkforceSnapshotStat icon={PlayCircle} label={ar ? "على رأس العمل" : "On Shift"} value={onShiftNow} hint={ar ? "الآن" : "Live now"} tone="green" />
-        <WorkforceSnapshotStat icon={TimerReset} label={ar ? "لم يسجلوا" : "Need Punch"} value={needPunch} hint={ar ? "بعد 15 دقيقة" : "15 min grace"} tone={needPunch ? "red" : "green"} />
-        <WorkforceSnapshotStat icon={AlertTriangle} label={ar ? "تحتاج انتباه" : "Attention"} value={needsAttention} hint={pendingHandovers ? (ar ? "يشمل تسليمات" : "Includes handovers") : (ar ? "استثناءات اليوم" : "Today's exceptions")} tone={needsAttention ? "red" : "green"} />
-        <WorkforceSnapshotStat icon={CalendarDays} label={ar ? "إجازات" : "Time Off"} value={pendingTimeOff} hint={ar ? "بانتظار المراجعة" : "Pending review"} tone="orange" />
-        <WorkforceSnapshotStat icon={Clock3} label={ar ? "وقت إضافي" : "OT Risk"} value={overtimeRisk} hint={ar ? "خلال 30 دقيقة" : "Within 30 min"} tone={overtimeRisk ? "orange" : "green"} />
-      </section>
-
-      {workforceSection === "overview" ? <section className="qs-workforce-overview-grid grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,.95fr)]">
-        <WorkforcePulse coveragePercent={coveragePercent} scheduledStaff={scheduledStaff} activeMemberCount={activeMemberCount} attentionCount={needsAttention} openWorkCount={openWorkCount} ar={ar} />
-        <WorkforceExceptions restaurantId={rid} currentStaffId={membership.id} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} />
-      </section> : null}
-
-      <section className={cn("grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,.65fr)]", workforceSection !== "schedule" && "hidden")}>
-        <div className="qs-workforce-board qs-card min-w-0 overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4"><div><h2 className="qs-section-title">{ar ? "تغطية الورديات" : "Shift coverage"}</h2><p className="mt-1 text-xs text-muted-foreground">{formatShiftDateLabel(selectedDate, ar)} · {selectedRows.length} {ar ? "ورديات" : "shifts"}</p></div><div className="flex flex-wrap items-center gap-2"><div className="qs-workforce-view-switch inline-grid grid-cols-3 rounded-xl border border-border bg-muted/35 p-1"><button type="button" onClick={() => setViewMode("timeline")} className={cn("inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[10px] font-bold", viewMode === "timeline" ? "bg-card text-[#cf4818] shadow-sm" : "text-muted-foreground")}><Rows3 className="size-3.5" />{ar ? "زمني" : "Timeline"}</button><button type="button" onClick={() => setViewMode("calendar")} className={cn("inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[10px] font-bold", viewMode === "calendar" ? "bg-card text-[#cf4818] shadow-sm" : "text-muted-foreground")}><CalendarDays className="size-3.5" />{ar ? "تقويم" : "Calendar"}</button><button type="button" onClick={() => setViewMode("list")} className={cn("inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[10px] font-bold", viewMode === "list" ? "bg-card text-[#cf4818] shadow-sm" : "text-muted-foreground")}><List className="size-3.5" />{ar ? "قائمة" : "List"}</button></div><span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-[10px] font-bold text-muted-foreground"><span className="size-1.5 rounded-full bg-emerald-500" />{ar ? "تحديث حي" : "Live preview"}</span></div></div>
-          {shifts.isPending ? <div className="p-5"><Skeleton className="h-72 rounded-2xl" /></div> : viewMode === "timeline" ? <CoverageTimeline dateKey={selectedDate} members={members.data ?? []} shifts={selectedRows} assignments={selectedAssignments} ar={ar} onOpen={(shift) => setDetailShiftId(shift.id)} /> : viewMode === "calendar" ? <ShiftWeekCalendar days={weekDays} rows={rows} ar={ar} onSelectDate={(key) => { setSelectedDate(key); setViewMode("timeline"); }} onOpen={(shift) => setDetailShiftId(shift.id)} /> : <div className="divide-y divide-border">{selectedRows.length ? selectedRows.map((shift) => <ShiftRow key={shift.id} shift={shift} assignments={selectedAssignments.filter((row) => row.shift_id === shift.id)} canManage={canManage} canDelete={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpen={() => setDetailShiftId(shift.id)} onClose={() => setClosingShift(shift)} onDelete={() => setDeletingShift(shift)} />) : <EmptyShifts ar={ar} />}</div>}
-        </div>
-
-        <div className="space-y-4">
-          <section className="qs-card p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold text-muted-foreground">{ar ? "تغطية الفريق" : "Shift Coverage"}</p><strong className="mt-1 block font-display text-2xl">{members.data?.length ? Math.round((scheduledStaff / Math.max(1, (members.data ?? []).filter((m) => m.is_active).length)) * 100) : 0}%</strong></div><span className="grid size-11 place-items-center rounded-full bg-emerald-500/10 text-emerald-600"><UsersRound className="size-5" /></span></div><div className="mt-4 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${members.data?.length ? Math.min(100, Math.round((scheduledStaff / Math.max(1, (members.data ?? []).filter((m) => m.is_active).length)) * 100)) : 0}%` }} /></div><div className="mt-3 grid grid-cols-3 gap-2 text-center text-[10px] text-muted-foreground"><span>{scheduledStaff}<b className="block text-foreground">{ar ? "مجدول" : "Scheduled"}</b></span><span>{onShiftNow}<b className="block text-foreground">{ar ? "حاضر" : "On shift"}</b></span><span>{Math.max(0, (members.data ?? []).filter((m) => m.is_active).length - scheduledStaff)}<b className="block text-foreground">{ar ? "خارج" : "Off shift"}</b></span></div></section>
-          <section className="qs-card overflow-hidden"><div className="border-b border-border p-4"><h2 className="text-sm font-bold">{ar ? "الورديات القادمة" : "Upcoming Shifts"}</h2></div><div className="divide-y divide-border">{selectedRows.filter((row) => row.status === "planned").slice(0, 4).map((row) => <button key={row.id} type="button" onClick={() => setDetailShiftId(row.id)} className="flex w-full items-center justify-between gap-3 p-3 text-start transition hover:bg-muted/30"><span className="min-w-0"><strong className="block truncate text-xs">{row.name}</strong><span className="mt-1 block text-[10px] text-muted-foreground">{formatWindow(row, ar)}</span></span><ChevronRight className="size-4 shrink-0 text-muted-foreground" /></button>)}{!selectedRows.some((row) => row.status === "planned") ? <p className="p-5 text-center text-xs text-muted-foreground">{ar ? "لا توجد ورديات قادمة." : "No upcoming shifts."}</p> : null}</div></section>
-          <section className={cn("qs-card p-4", needsAttention ? "border-red-200 bg-red-500/[0.025]" : "")}><div className="flex items-center gap-3"><span className={cn("grid size-9 place-items-center rounded-xl", needsAttention ? "bg-red-500/10 text-red-600" : "bg-emerald-500/10 text-emerald-600")}><AlertTriangle className="size-4" /></span><div><p className="text-xs font-bold">{ar ? "تعارضات وتنبيهات" : "Shift Conflicts"}</p><strong className="mt-0.5 block text-lg">{needsAttention}</strong></div></div><p className="mt-3 text-xs leading-5 text-muted-foreground">{needsAttention ? (ar ? "يوجد حضور متأخر/غياب أو تسليم يحتاج متابعة." : "Late/absent attendance or a handover needs review.") : (ar ? "لا توجد تعارضات حرجة في اليوم المحدد." : "No critical conflicts for the selected day.")}</p></section>
-          <section className="qs-card overflow-hidden"><div className="border-b border-border p-4"><h2 className="text-sm font-bold">{ar ? "آخر التسليمات" : "Recent handovers"}</h2></div>{!(handovers.data ?? []).length ? <p className="p-5 text-center text-xs text-muted-foreground">{ar ? "لا توجد تسليمات بعد." : "No handovers yet."}</p> : <div className="divide-y divide-border">{(handovers.data ?? []).slice(0, 3).map((handover) => <HandoverItem key={handover.id} handover={handover} currentStaffId={membership.id} restaurantId={rid} ar={ar} lang={lang} />)}</div>}</section>
-        </div>
-      </section>
-
-      <div className={cn(workforceSection !== "overview" && workforceSection !== "schedule" && "hidden")}>
-        {openShiftRow ? <CurrentShift shift={openShiftRow} assignments={(assignments.data ?? []).filter((row) => row.shift_id === openShiftRow.id)} members={members.data ?? []} canManage={canManage} currentStaffId={membership.id} ar={ar} lang={lang} onClose={() => setClosingShift(openShiftRow)} /> : <section className="qs-card flex items-center gap-4 p-5"><span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]"><CalendarClock className="size-5" /></span><div><h2 className="font-bold">{ar ? "لا توجد وردية مفتوحة" : "No shift is open"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكن لمدير الوردية فتح وردية مخططة عندما يبدأ التشغيل." : "A shift manager can open a planned shift when service starts."}</p></div></section>}
-      </div>
-      {workforceSection === "attendance" ? <WorkforceAttendanceBoard restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} onOpen={setMemberSheet} /> : null}
-      {workforceSection === "timesheets" ? <WorkforceTimesheets restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} canManage={canManage} canReopen={canDelete} currentStaffId={membership.id} ar={ar} lang={lang} onOpenMember={setMemberSheet} /> : null}
-      {workforceSection === "team" ? <WorkforceTeam restaurantId={rid} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} onOpen={setMemberSheet} canManageTeam={membershipHasCapability(membership.role, membership.permission_overrides, "manage_staff")} /> : null}
-      {workforceSection === "time_off" ? <WorkforceRequests restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} ar={ar} lang={lang} /> : null}
-      {workforceSection !== "schedule" && workforceSection !== "timesheets" && workforceSection !== "team" && workforceSection !== "time_off" ? <WorkforcePanel restaurantId={rid} currentStaffId={membership.id} canManage={canManage} members={members.data ?? []} assignments={assignments.data ?? []} ar={ar} lang={lang} mode={workforceSection} /> : null}
-    </main>
-
-    <MemberWorkforceSheet member={memberSheet} onClose={() => setMemberSheet(null)} restaurantId={rid} assignments={assignments.data ?? []} ar={ar} canManageTeam={membershipHasCapability(membership.role, membership.permission_overrides, "manage_staff")} />
-    <DetailSheet
-      open={Boolean(detailShift)}
-      onOpenChange={(open) => { if (!open) setDetailShiftId(null); }}
-      title={detailShift?.name ?? ""}
-      description={detailShift ? `${detailShift.shift_date} · ${detailShift.status}` : undefined}
-      footer={detailShift && canDelete && detailShift.status !== "open" ? <Button variant="destructive" className="w-full gap-2" onClick={() => setDeletingShift(detailShift)}><Trash2 className="size-4" />{ar ? "حذف الوردية" : "Delete shift"}</Button> : undefined}
-    >
-      {detailShift ? <div>
-        {detailShift.notes ? <p className="mb-4 whitespace-pre-wrap rounded-2xl bg-muted/40 p-3 text-sm leading-6">{detailShift.notes}</p> : null}
-        <DetailRow label={ar ? "الحالة" : "Status"} value={<Status status={detailShift.status} ar={ar} />} />
-        <DetailRow label={ar ? "التاريخ" : "Date"} value={detailShift.shift_date} />
-        <DetailRow label={ar ? "الوقت المخطط" : "Planned window"} value={formatWindow(detailShift, ar)} />
-        <DetailRow label={ar ? "فُتحت" : "Opened"} value={formatStamp(detailShift.actual_opened_at, ar)} />
-        <DetailRow label={ar ? "أُغلقت" : "Closed"} value={formatStamp(detailShift.actual_closed_at, ar)} />
-        <DetailRow label={ar ? "فتح بواسطة" : "Opened by"} value={memberName(detailShift.opened_by_staff_id)} />
-        <DetailRow label={ar ? "أغلق بواسطة" : "Closed by"} value={memberName(detailShift.closed_by_staff_id)} />
-        <DetailRow label={ar ? "أُنشئت" : "Created"} value={formatStamp(detailShift.created_at, ar)} />
-        <DetailRow label={ar ? "آخر تحديث" : "Updated"} value={formatStamp(detailShift.updated_at, ar)} />
-        <div className="mt-5">
-          <h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "أعضاء الوردية" : "Shift team"}</h3>
-          <div className="mt-2 space-y-2">{detailAssignments.length ? detailAssignments.map((assignment) => <div key={assignment.id} className="rounded-xl border border-border/70 p-3"><div className="flex items-center justify-between gap-3"><strong className="text-sm">{memberName(assignment.staff_id) ?? (ar ? "عضو فريق" : "Team member")}</strong><span className="rounded-full bg-muted px-2 py-1 text-[10px] font-bold capitalize text-muted-foreground">{assignment.status}</span></div><p className="mt-1 text-xs text-muted-foreground">{assignment.role_snapshot ? ROLE_LABELS[assignment.role_snapshot]?.[lang] ?? assignment.role_snapshot : ""}</p>{assignment.notes ? <p className="mt-2 text-xs leading-5 text-muted-foreground">{assignment.notes}</p> : null}</div>) : <p className="text-xs text-muted-foreground">{ar ? "لا يوجد أعضاء معينون." : "No team members assigned."}</p>}</div>
-        </div>
-        {detailHandover ? <div className="mt-5 rounded-2xl border border-border/70 p-4"><div className="flex items-center gap-2"><Handshake className="size-4 text-[#e85d2a]" /><strong className="text-sm">{ar ? "تسليم الوردية" : "Shift handover"}</strong></div><p className="mt-2 text-sm leading-6">{detailHandover.summary}</p>{detailHandover.unresolved_items ? <p className="mt-2 text-xs leading-5 text-muted-foreground">{detailHandover.unresolved_items}</p> : null}</div> : null}
-      </div> : null}
-    </DetailSheet>
-    {canManage ? <CreateShiftDialog open={createOpen} onOpenChange={setCreateOpen} restaurantId={rid} ar={ar} lang={lang} /> : null}
-    {canManage && closingShift ? <CloseShiftDialog shift={closingShift} openWorkCount={openWork.data ?? 0} restaurantId={rid} currentStaffId={membership.id} onClose={() => setClosingShift(null)} ar={ar} lang={lang} /> : null}
-    {canDelete && deletingShift ? <DeleteShiftDialog shift={deletingShift} restaurantId={rid} onClose={() => setDeletingShift(null)} ar={ar} lang={lang} /> : null}
-  </div>;
+      ) : null}
+      {canManage && closingShift ? (
+        <CloseShiftDialog
+          shift={closingShift}
+          openWorkCount={openWork.data ?? 0}
+          restaurantId={rid}
+          currentStaffId={membership.id}
+          onClose={() => setClosingShift(null)}
+          ar={ar}
+          lang={lang}
+        />
+      ) : null}
+      {canDelete && deletingShift ? (
+        <DeleteShiftDialog
+          shift={deletingShift}
+          restaurantId={rid}
+          onClose={() => setDeletingShift(null)}
+          ar={ar}
+          lang={lang}
+        />
+      ) : null}
+    </div>
+  );
 }
-
-type ShiftWeekDay = { key: string; weekday: string; day: string; shiftCount: number };
 
 function addShiftDays(dateKey: string, amount: number) {
   const value = new Date(`${dateKey}T12:00:00`);
   value.setDate(value.getDate() + amount);
   return value.toLocaleDateString("en-CA");
-}
-function shiftWeekDays(dateKey: string): ShiftWeekDay[] {
-  const selected = new Date(`${dateKey}T12:00:00`);
-  const start = new Date(selected);
-  start.setDate(selected.getDate() - selected.getDay());
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(start);
-    date.setDate(start.getDate() + index);
-    return { key: date.toLocaleDateString("en-CA"), weekday: date.toLocaleDateString("en-US", { weekday: "short" }), day: String(date.getDate()), shiftCount: 0 };
-  });
 }
 function toWorkforceLocalInput(value: string | null | undefined) {
   if (!value) return "";
@@ -344,48 +793,57 @@ function toWorkforceLocalInput(value: string | null | undefined) {
 }
 
 function formatShiftDateLabel(dateKey: string, ar: boolean) {
-  return new Date(`${dateKey}T12:00:00`).toLocaleDateString(ar ? "ar-JO" : "en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  return new Date(`${dateKey}T12:00:00`).toLocaleDateString(ar ? "ar-JO" : "en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
-function CoverageTimeline({ dateKey, members, shifts, assignments, ar, onOpen }: { dateKey: string; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; shifts: Shift[]; assignments: ShiftAssignment[]; ar: boolean; onOpen: (shift: Shift) => void }) {
-  const minHour = 6, maxHour = 22, span = maxHour - minHour;
-  const byShift = new Map(shifts.map((shift) => [shift.id, shift]));
-  const assignedByStaff = new Map<string, { assignment: ShiftAssignment; shift: Shift }>();
-  for (const assignment of assignments) { const shift = byShift.get(assignment.shift_id); if (shift && assignment.status !== "released" && !assignedByStaff.has(assignment.staff_id)) assignedByStaff.set(assignment.staff_id, { assignment, shift }); }
-  const activeMembers = members.filter((member) => member.is_active).slice(0, 14);
-  const now = new Date();
-  const nowHour = now.getHours() + now.getMinutes() / 60;
-  const showNow = dateKey === now.toLocaleDateString("en-CA") && nowHour >= minHour && nowHour <= maxHour;
-  const nowLeft = ((nowHour - minHour) / span) * 100;
-  const labels = [6,8,10,12,14,16,18,20,22];
-  return <div className="overflow-x-auto"><div className="min-w-[860px] p-4">
-    <div className="grid grid-cols-[190px_minmax(0,1fr)] border-b border-border pb-2"><span className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "الموظف" : "Staff Member"}</span><div className="relative h-5">{labels.map((hour)=><span key={hour} className="absolute -translate-x-1/2 text-[9px] font-semibold text-muted-foreground" style={{left:`${((hour-minHour)/span)*100}%`}}>{hour>12?hour-12:hour}:00 {hour>=12?"PM":"AM"}</span>)}</div></div>
-    <div className="relative">
-      {showNow ? <div className="pointer-events-none absolute bottom-0 top-0 z-20 w-px bg-[#e85d2a]" style={{left:`calc(190px + (100% - 190px) * ${nowLeft/100})`}}><span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-[#e85d2a] px-2 py-0.5 text-[8px] font-bold text-white">{now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</span></div> : null}
-      {activeMembers.map((member)=>{ const found=assignedByStaff.get(member.id); const shift=found?.shift; const start=shift?.planned_start?new Date(shift.planned_start):null; const end=shift?.planned_end?new Date(shift.planned_end):null; const startHour=start?start.getHours()+start.getMinutes()/60:minHour; const endHour=end?end.getHours()+end.getMinutes()/60:minHour; const left=Math.max(0,Math.min(100,((startHour-minHour)/span)*100)); const rightHour=endHour<=startHour&&end?maxHour:endHour; const width=Math.max(4,Math.min(100-left,((rightHour-startHour)/span)*100)); return <div key={member.id} className="grid min-h-14 grid-cols-[190px_minmax(0,1fr)] border-b border-border/60 last:border-b-0"><div className="flex min-w-0 items-center gap-2 pe-4"><span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold">{member.name.slice(0,1).toUpperCase()}</span><span className="min-w-0"><strong className="block truncate text-xs">{member.name}</strong><span className="block truncate text-[9px] text-muted-foreground">{ROLE_LABELS[member.role]?.[ar?"ar":"en"]??member.role}</span></span></div><div className="relative flex items-center"><div className="absolute inset-y-0 left-0 right-0 grid grid-cols-8">{Array.from({length:8},(_,i)=><span key={i} className="border-s border-border/40" />)}</div>{shift&&start&&end?<button type="button" onClick={()=>onOpen(shift)} className={cn("relative z-10 flex h-8 items-center justify-between gap-2 overflow-hidden rounded-full px-3 text-[10px] font-bold shadow-sm ring-1 ring-inset transition duration-200 hover:-translate-y-0.5 hover:shadow-md",shiftBarTone(member.role))} style={{marginLeft:`${left}%`,width:`${width}%`}}><span className="truncate">{formatWindow(shift,ar)}</span><span className="shrink-0">{Math.max(0,Math.round((end.getTime()-start.getTime())/3_600_000))}h</span></button>:<span className="relative z-10 ms-3 rounded-full bg-muted/70 px-3 py-1 text-[10px] font-semibold text-muted-foreground">{ar?"غير مجدول":"Not scheduled"}</span>}</div></div>; })}
-    </div>
-  </div></div>;
+function WorkforceSnapshotStat({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  icon: typeof CalendarClock;
+  label: string;
+  value: number;
+  hint: string;
+  tone: "blue" | "green" | "red" | "orange";
+}) {
+  const color =
+    tone === "blue"
+      ? "#3b82f6"
+      : tone === "green"
+        ? "#22c55e"
+        : tone === "red"
+          ? "#ff5a0a"
+          : "#f59e0b";
+  return (
+    <article className="qs-workforce-snapshot-item">
+      <span className="wf-snapshot-label">
+        <i style={{ background: color }} />
+        {label}
+      </span>
+      <strong>{value}</strong>
+    </article>
+  );
 }
 
-function ShiftWeekCalendar({ days, rows, ar, onSelectDate, onOpen }: { days: ShiftWeekDay[]; rows: Shift[]; ar: boolean; onSelectDate: (key: string) => void; onOpen: (shift: Shift) => void }) {
-  return <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">{days.map((day)=>{const dayRows=rows.filter((row)=>row.shift_date===day.key);return <section key={day.key} className="min-h-40 rounded-2xl border border-border bg-card p-3 transition duration-200 hover:-translate-y-0.5 hover:shadow-sm"><button type="button" onClick={()=>onSelectDate(day.key)} className="flex w-full items-center justify-between gap-2 text-start"><span><span className="block text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{day.weekday}</span><strong className="text-lg">{day.day}</strong></span><span className="rounded-full bg-muted px-2 py-1 text-[9px] font-bold text-muted-foreground">{dayRows.length}</span></button><div className="mt-3 space-y-2">{dayRows.slice(0,4).map((shift)=><button type="button" key={shift.id} onClick={()=>onOpen(shift)} className="w-full rounded-xl bg-muted/40 p-2 text-start transition hover:bg-orange-500/8"><strong className="block truncate text-[10px]">{shift.name}</strong><span className="mt-1 block text-[9px] text-muted-foreground">{formatWindow(shift,ar)}</span></button>)}{!dayRows.length?<p className="py-4 text-center text-[10px] text-muted-foreground">{ar?"لا ورديات":"No shifts"}</p>:null}</div></section>;})}</div>;
-}
-
-function shiftBarTone(role: AppRole) {
-  return role==="operations_manager"||role==="manager"?"bg-blue-500/12 text-blue-700 ring-blue-200 dark:text-blue-300":role==="host"?"bg-cyan-500/12 text-cyan-700 ring-cyan-200 dark:text-cyan-300":role==="procurement"?"bg-orange-500/12 text-orange-700 ring-orange-200 dark:text-orange-300":role==="accountant"||role==="inventory"?"bg-emerald-500/12 text-emerald-700 ring-emerald-200 dark:text-emerald-300":role==="waiter"?"bg-rose-500/12 text-rose-700 ring-rose-200 dark:text-rose-300":role==="kitchen"?"bg-violet-500/12 text-violet-700 ring-violet-200 dark:text-violet-300":"bg-slate-500/12 text-slate-700 ring-slate-200 dark:text-slate-300";
-}
-
-function WorkforceSnapshotStat({ icon: Icon, label, value, hint, tone }: { icon: typeof CalendarClock; label: string; value: number; hint: string; tone: "blue" | "green" | "red" | "orange" }) {
-  const toneClass = tone === "blue" ? "bg-blue-500/10 text-blue-600" : tone === "green" ? "bg-emerald-500/10 text-emerald-600" : tone === "red" ? "bg-red-500/10 text-red-600" : "bg-orange-500/10 text-orange-600";
-  return <article className="qs-workforce-snapshot-item min-w-0 p-3.5 sm:p-4">
-    <div className="flex min-w-0 items-center gap-3">
-      <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", toneClass)}><Icon className="size-4" /></span>
-      <span className="min-w-0"><span className="block truncate text-[10px] font-bold uppercase tracking-[.06em] text-muted-foreground">{label}</span><span className="mt-0.5 flex items-baseline gap-2"><strong className="font-display text-xl leading-none">{value}</strong><small className="truncate text-[9px] font-medium text-muted-foreground">{hint}</small></span></span>
-    </div>
-  </article>;
-}
-
-function WorkforceNavigation({ active, onChange, canManage, ar }: { active: WorkforceSection; onChange: (value: WorkforceSection) => void; canManage: boolean; ar: boolean }) {
+function WorkforceNavigation({
+  active,
+  onChange,
+  canManage,
+  ar,
+}: {
+  active: WorkforceSection;
+  onChange: (value: WorkforceSection) => void;
+  canManage: boolean;
+  ar: boolean;
+}) {
   const tabs: Array<{ id: WorkforceSection; label: string; icon: typeof CalendarClock }> = [
     { id: "overview", label: ar ? "نظرة عامة" : "Overview", icon: UsersRound },
     { id: "schedule", label: ar ? "الجدول" : "Schedule", icon: CalendarClock },
@@ -393,57 +851,56 @@ function WorkforceNavigation({ active, onChange, canManage, ar }: { active: Work
     { id: "timesheets", label: ar ? "سجلات الدوام" : "Timesheets", icon: CheckCircle2 },
     { id: "time_off", label: ar ? "الطلبات" : "Requests", icon: CalendarDays },
     { id: "team", label: ar ? "الفريق" : "Team", icon: UserPlus },
-    ...(canManage ? [{ id: "labor" as WorkforceSection, label: ar ? "العمالة" : "Labor", icon: Clock3 }] : []),
+    ...(canManage
+      ? [{ id: "labor" as WorkforceSection, label: ar ? "العمالة" : "Labor", icon: Clock3 }]
+      : []),
   ];
 
-  return <nav className="qs-card sticky top-[calc(var(--qs-shell-topbar)+.5rem)] z-30 overflow-x-auto p-1.5 shadow-sm" aria-label={ar ? "أقسام القوى العاملة" : "Workforce sections"}>
-    <div className="flex gap-1 [&>button]:shrink-0 lg:[&>button]:flex-1">
-      {tabs.map((tab) => {
-        const Icon = tab.icon;
-        const selected = active === tab.id;
-        return <button key={tab.id} type="button" role="tab" aria-selected={selected} onClick={() => onChange(tab.id)} className={cn("inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-xs font-bold transition-all duration-200", selected ? "bg-[#e85d2a] text-white shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
-          <Icon className="size-4 shrink-0" />
-          <span>{tab.label}</span>
-        </button>;
-      })}
-    </div>
-  </nav>;
-}
-
-function WorkforcePulse({ coveragePercent, scheduledStaff, activeMemberCount, attentionCount, openWorkCount, ar }: { coveragePercent: number; scheduledStaff: number; activeMemberCount: number; attentionCount: number; openWorkCount: number; ar: boolean }) {
-  const coverageHealthy = activeMemberCount > 0 && coveragePercent >= 70;
-  const coverageMessage = activeMemberCount === 0
-    ? (ar ? "أضف أعضاء الفريق لبدء تخطيط التغطية." : "Add active team members to start coverage planning.")
-    : coverageHealthy
-      ? (ar ? "التغطية تبدو مستقرة لليوم المحدد." : "Coverage looks healthy for the selected day.")
-      : (ar ? "التغطية منخفضة؛ راجع الجدول قبل ضغط الخدمة." : "Coverage is light; review the schedule before peak service.");
-  const attentionMessage = attentionCount
-    ? (ar ? `${attentionCount} حالة حضور أو تسليم تحتاج مراجعة.` : `${attentionCount} attendance or handover item${attentionCount === 1 ? "" : "s"} need review.`)
-    : (ar ? "لا توجد استثناءات حضور حرجة حالياً." : "No critical attendance exceptions right now.");
-  const workMessage = openWorkCount
-    ? (ar ? `${openWorkCount} مهمة تشغيلية مفتوحة مرتبطة بالفريق.` : `${openWorkCount} open operational task${openWorkCount === 1 ? "" : "s"} may affect the team.`)
-    : (ar ? "لا توجد مهام تشغيلية مفتوحة تؤثر على الفريق." : "No open operational work is currently affecting the team.");
-
-  return <section className="qs-card overflow-hidden">
-    <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <div className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><CheckCircle2 className="size-4" /></span><h2 className="qs-section-title">{ar ? "نبض القوى العاملة" : "Workforce pulse"}</h2></div>
-        <p className="mt-1 text-xs text-muted-foreground">{ar ? "إشارات تشغيلية سريعة مبنية على الجدول والحضور والعمل المفتوح." : "Fast operational signals from schedule coverage, attendance and open work."}</p>
+  return (
+    <nav className="wf-tabs" aria-label={ar ? "أقسام القوى العاملة" : "Workforce sections"}>
+      <div role="tablist">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const selected = active === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => onChange(tab.id)}
+              className={selected ? "is-selected" : ""}
+            >
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
-      <span className={cn("rounded-full px-3 py-1.5 text-[10px] font-bold", coverageHealthy && !attentionCount ? "bg-emerald-500/10 text-emerald-700" : "bg-amber-500/10 text-amber-700")}>{coverageHealthy && !attentionCount ? (ar ? "مستقر" : "Healthy") : (ar ? "راجع اليوم" : "Review today")}</span>
-    </div>
-    <div className="grid gap-3 p-4 md:grid-cols-3">
-      <div className="rounded-2xl border border-border bg-muted/20 p-4"><div className="flex items-center justify-between gap-3"><span className="text-xs font-bold">{ar ? "تغطية الجدول" : "Schedule coverage"}</span><strong className="font-display text-xl">{coveragePercent}%</strong></div><p className="mt-2 text-xs leading-5 text-muted-foreground">{coverageMessage}</p><p className="mt-2 text-[10px] font-semibold text-muted-foreground">{scheduledStaff}/{activeMemberCount} {ar ? "موظف نشط" : "active staff"}</p></div>
-      <div className="rounded-2xl border border-border bg-muted/20 p-4"><div className="flex items-center justify-between gap-3"><span className="text-xs font-bold">{ar ? "استثناءات اليوم" : "Today's exceptions"}</span><strong className={cn("font-display text-xl", attentionCount > 0 && "text-amber-700")}>{attentionCount}</strong></div><p className="mt-2 text-xs leading-5 text-muted-foreground">{attentionMessage}</p></div>
-      <div className="rounded-2xl border border-border bg-muted/20 p-4"><div className="flex items-center justify-between gap-3"><span className="text-xs font-bold">{ar ? "ضغط التشغيل" : "Operational load"}</span><strong className="font-display text-xl">{openWorkCount}</strong></div><p className="mt-2 text-xs leading-5 text-muted-foreground">{workMessage}</p></div>
-    </div>
-  </section>;
+    </nav>
+  );
 }
 
-type TimeEntry = { id: string; staff_id: string; clock_in: string; clock_out: string | null; break_minutes: number };
-type LeaveRequest = { id: string; staff_id: string; start_date: string; end_date: string; start_time?: string | null; end_time?: string | null; reason: string; status: "pending" | "approved" | "rejected" | "cancelled"; created_at: string };
-type ClockStatus = { entry_id: string; staff_id: string; clock_in: string; server_now?: string; elapsed_seconds?: number };
-type ClockResult = { action?: string; entry_id?: string | null; staff_id?: string | null; at?: string; clock_in?: string | null } | null;
+type TimeEntry = {
+  id: string;
+  staff_id: string;
+  clock_in: string;
+  clock_out: string | null;
+  break_minutes: number;
+};
+type ClockStatus = {
+  entry_id: string;
+  staff_id: string;
+  clock_in: string;
+  server_now?: string;
+  elapsed_seconds?: number;
+};
+type ClockResult = {
+  action?: string;
+  entry_id?: string | null;
+  staff_id?: string | null;
+  at?: string;
+  clock_in?: string | null;
+} | null;
 
 function WorkforceClockHero({
   restaurantId,
@@ -518,8 +975,28 @@ function WorkforceClockHero({
     .reduce((sum, entry) => {
       const startMs = new Date(entry.clock_in).getTime();
       const endMs = entry.clock_out ? new Date(entry.clock_out).getTime() : clockNow;
-      return sum + Math.max(0, Math.floor((endMs - startMs) / 1000) - Number(entry.break_minutes || 0) * 60);
+      return (
+        sum +
+        Math.max(0, Math.floor((endMs - startMs) / 1000) - Number(entry.break_minutes || 0) * 60)
+      );
     }, 0);
+
+  const latestCompletedEntry =
+    (history.data ?? [])
+      .filter((entry) => entry.staff_id === currentStaffId && entry.clock_out)
+      .sort((a, b) => new Date(b.clock_out!).getTime() - new Date(a.clock_out!).getTime())[0] ??
+    null;
+  const latestCompletedSeconds = latestCompletedEntry?.clock_out
+    ? Math.max(
+        0,
+        Math.floor(
+          (new Date(latestCompletedEntry.clock_out).getTime() -
+            new Date(latestCompletedEntry.clock_in).getTime()) /
+            1000,
+        ) -
+          Number(latestCompletedEntry.break_minutes || 0) * 60,
+      )
+    : 0;
 
   const staffMember = members.find((member) => member.id === currentStaffId) ?? null;
   const liveAssignment =
@@ -544,19 +1021,19 @@ function WorkforceClockHero({
         return Math.abs(a.startMs - clockNow) - Math.abs(b.startMs - clockNow);
       })[0]?.assignment ?? null;
 
-  const expectedEnd = openEntry ? liveAssignment?.ends_at ?? null : null;
-  const nextShift =
-    !openEntry
-      ? assignments
-          .filter(
-            (assignment) =>
-              assignment.staff_id === currentStaffId &&
-              assignment.status !== "released" &&
-              assignment.starts_at &&
-              new Date(assignment.starts_at).getTime() >= clockNow,
-          )
-          .sort((a, b) => new Date(a.starts_at!).getTime() - new Date(b.starts_at!).getTime())[0] ?? null
-      : null;
+  const expectedEnd = openEntry ? (liveAssignment?.ends_at ?? null) : null;
+  const nextShift = !openEntry
+    ? (assignments
+        .filter(
+          (assignment) =>
+            assignment.staff_id === currentStaffId &&
+            assignment.status !== "released" &&
+            assignment.starts_at &&
+            new Date(assignment.starts_at).getTime() >= clockNow,
+        )
+        .sort((a, b) => new Date(a.starts_at!).getTime() - new Date(b.starts_at!).getTime())[0] ??
+      null)
+    : null;
 
   const recentCompletedAssignment =
     assignments
@@ -600,7 +1077,9 @@ function WorkforceClockHero({
       }
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["workforce-clock", restaurantId, currentStaffId] }),
-        qc.invalidateQueries({ queryKey: ["workforce-clock-history", restaurantId, currentStaffId] }),
+        qc.invalidateQueries({
+          queryKey: ["workforce-clock-history", restaurantId, currentStaffId],
+        }),
         qc.invalidateQueries({ queryKey: ["workforce", restaurantId] }),
         qc.invalidateQueries({ queryKey: ["workforce", "live-snapshot", restaurantId] }),
         qc.invalidateQueries({ queryKey: ["workforce", "insights", restaurantId] }),
@@ -609,7 +1088,10 @@ function WorkforceClockHero({
       ]);
       const completedSeconds =
         isOut && result?.clock_in
-          ? Math.max(0, Math.floor((new Date(at).getTime() - new Date(result.clock_in).getTime()) / 1000))
+          ? Math.max(
+              0,
+              Math.floor((new Date(at).getTime() - new Date(result.clock_in).getTime()) / 1000),
+            )
           : 0;
       toast.success(
         isOut
@@ -629,125 +1111,142 @@ function WorkforceClockHero({
   });
 
   const expectedLabel = expectedEnd
-    ? new Date(expectedEnd).toLocaleTimeString(ar ? "ar-JO" : "en-JO", { hour: "2-digit", minute: "2-digit" })
+    ? new Date(expectedEnd).toLocaleTimeString(ar ? "ar-JO" : "en-JO", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
     : nextShift?.starts_at
-      ? new Date(nextShift.starts_at).toLocaleTimeString(ar ? "ar-JO" : "en-JO", { hour: "2-digit", minute: "2-digit" })
+      ? new Date(nextShift.starts_at).toLocaleTimeString(ar ? "ar-JO" : "en-JO", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
       : "—";
   const expectedHint = expectedEnd
     ? formatRelativeClock(expectedEnd, clockNow, ar)
     : nextShift?.starts_at
-      ? (ar ? "الوردية القادمة" : "Next shift") + " · " + new Date(nextShift.starts_at).toLocaleDateString(ar ? "ar-JO" : "en-JO", { month: "short", day: "numeric" })
+      ? (ar ? "الوردية القادمة" : "Next shift") +
+        " · " +
+        new Date(nextShift.starts_at).toLocaleDateString(ar ? "ar-JO" : "en-JO", {
+          month: "short",
+          day: "numeric",
+        })
       : ar
         ? "لا توجد وردية قادمة"
         : "No upcoming shift";
 
   return (
     <>
-    <section className={cn("qs-clock-hero", openEntry && "is-active")}>
-      <div className="qs-clock-hero-person">
-        <span className="qs-clock-avatar">{(staffMember?.name ?? "T").slice(0, 2).toUpperCase()}</span>
-        <div className="min-w-0">
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold",
-              openEntry
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                : "bg-muted text-muted-foreground",
-            )}
-          >
-            <i className={cn("size-1.5 rounded-full", openEntry ? "bg-emerald-500 animate-pulse" : "bg-slate-400")} />
+      <section className="wf-clock" aria-live="polite">
+        <div className="wf-clock-person">
+          <span className="wf-avatar">
+            {(staffMember?.name ?? "T")
+              .split(" ")
+              .map((v) => v[0])
+              .slice(0, 2)
+              .join("")}
+          </span>
+          <span>
+            <strong>{staffMember?.name ?? (ar ? "عضو الفريق" : "Team member")}</strong>
+            <small>
+              <i className={openEntry ? "is-active" : ""} />
+              {openEntry
+                ? ar
+                  ? "على رأس العمل"
+                  : "On shift"
+                : ar
+                  ? "جاهز للبدء"
+                  : "Ready to clock in"}
+              {openEntry
+                ? " · " +
+                  (ar ? "الدخول " : "Clocked in ") +
+                  new Date(openEntry.clock_in).toLocaleTimeString(ar ? "ar-JO" : "en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })
+                : ""}
+            </small>
+          </span>
+        </div>
+        <div className="wf-clock-metric">
+          <small>
             {openEntry
               ? ar
-                ? "أنت على رأس العمل الآن"
-                : "You are currently on shift"
+                ? "الجلسة الحالية"
+                : "Current session"
               : ar
-                ? "جاهز لتسجيل الحضور"
-                : "Ready to clock in"}
-          </span>
-          <strong className="mt-2 block truncate font-display text-base sm:text-lg">
-            {staffMember?.name ?? (ar ? "عضو الفريق" : "Team member")}
+                ? "آخر جلسة"
+                : "Last session"}
+          </small>
+          <strong>
+            {formatClockDuration(openEntry ? currentSessionSeconds : latestCompletedSeconds, ar)}
           </strong>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {staffMember ? ROLE_LABELS[staffMember.role]?.[lang] ?? staffMember.role : "—"}
+          <small>
+            {ar ? "وقت العمل اليوم" : "Worked today"} ·{" "}
+            {formatClockDuration(todayWorkedSeconds, ar)}
+          </small>
+        </div>
+        <div className="wf-clock-metric">
+          <small>
             {openEntry
-              ? " · " + (ar ? "بدأ" : "Started") + " " + new Date(openEntry.clock_in).toLocaleTimeString(ar ? "ar-JO" : "en-JO", { hour: "2-digit", minute: "2-digit" })
-              : ""}
-          </p>
-        </div>
-      </div>
-
-      <div className="qs-clock-hero-metrics">
-        <div className="qs-clock-metric">
-          <Clock3 className="size-4 text-muted-foreground" />
-          <span>
-            <small>{openEntry ? (ar ? "الجلسة الحالية" : "Current session") : (ar ? "وقت العمل اليوم" : "Worked today")}</small>
-            <strong>{formatClockDuration(openEntry ? currentSessionSeconds : todayWorkedSeconds, ar)}</strong>
-          </span>
-        </div>
-        <div className="qs-clock-metric">
-          <CalendarClock className="size-4 text-muted-foreground" />
-          <span>
-            <small>{openEntry ? (ar ? "النهاية المتوقعة" : "Expected end") : (ar ? "الوردية القادمة" : "Next shift")}</small>
-            <strong>{expectedLabel}</strong>
-            <em>{expectedHint}</em>
-          </span>
-        </div>
-      </div>
-
-      <div className="qs-clock-hero-action">
-        <Button
-          size="lg"
-          className="min-w-[168px] bg-[#ff5722] shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#ed4f1d]"
-          aria-busy={toggleClock.isPending}
-          onClick={() => toggleClock.mutate()}
-          disabled={toggleClock.isPending || clockStatus.isPending}
-        >
-          {openEntry ? <StopCircle className="size-5" /> : <TimerReset className="size-5" />}
-          {toggleClock.isPending
-            ? ar
-              ? "جارٍ التحديث…"
-              : "Updating…"
-            : openEntry
               ? ar
-                ? "تسجيل الانصراف"
-                : "Clock out"
+                ? "نهاية الوردية"
+                : "Shift ends"
               : ar
-                ? "تسجيل الحضور"
-                : "Clock in"}
-        </Button>
-        <button type="button" className="qs-clock-missing-link" onClick={() => setMissingPunchOpen(true)}>
-          <AlertTriangle className="size-3.5" />
-          <span>{ar ? "نسيت تسجيل الحضور/الانصراف؟" : "Forgot a punch?"}</span>
-        </button>
-      </div>
-    </section>
-    <div className="qs-mobile-punch-dock md:hidden" aria-live="polite">
-      <div className="min-w-0">
-        <span className="block text-[9px] font-bold uppercase tracking-[.08em] text-muted-foreground">{openEntry ? (ar ? "أنت على رأس العمل" : "Clocked in") : (ar ? "الحضور" : "Attendance")}</span>
-        <strong className="mt-0.5 block truncate text-xs">{openEntry ? formatClockDuration(currentSessionSeconds, ar) : (ar ? "جاهز للبدء" : "Ready to start")}</strong>
-      </div>
-      <div className="flex shrink-0 items-center gap-1.5">
-        <Button type="button" variant="ghost" size="icon" className="size-9 rounded-xl text-muted-foreground" onClick={() => setMissingPunchOpen(true)} aria-label={ar ? "طلب بصمة ناقصة" : "Report missing punch"} title={ar ? "نسيت البصمة؟" : "Forgot a punch?"}>
-          <AlertTriangle className="size-4" />
-        </Button>
-              <Button
-        size="sm"
-        className={cn("min-w-[126px] shadow-sm", openEntry ? "bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950" : "bg-[#ff5722] text-white hover:bg-[#ed4f1d]")}
-        aria-busy={toggleClock.isPending}
-        onClick={() => toggleClock.mutate()}
-        disabled={toggleClock.isPending || clockStatus.isPending}
-      >
-        {openEntry ? <StopCircle className="size-4" /> : <TimerReset className="size-4" />}
-        {toggleClock.isPending ? (ar ? "جارٍ التحديث…" : "Updating…") : openEntry ? (ar ? "انصراف" : "Clock out") : (ar ? "حضور" : "Clock in")}
-      </Button>
-      </div>
-    </div>
-    {missingPunchOpen ? <SelfMissingPunchRequestSheet restaurantId={restaurantId} assignment={recentCompletedAssignment} ar={ar} lang={lang} onClose={() => setMissingPunchOpen(false)} /> : null}
-  </>
+                ? "الوردية القادمة"
+                : "Next shift"}
+          </small>
+          <strong>{expectedLabel}</strong>
+          <small>{expectedHint}</small>
+        </div>
+        <div className="wf-clock-action">
+          <Button
+            aria-busy={toggleClock.isPending}
+            disabled={toggleClock.isPending || clockStatus.isPending}
+            onClick={() => toggleClock.mutate()}
+          >
+            {toggleClock.isPending
+              ? ar
+                ? "جارٍ التحديث…"
+                : "Updating…"
+              : openEntry
+                ? ar
+                  ? "تسجيل الانصراف"
+                  : "Clock out"
+                : ar
+                  ? "تسجيل الحضور"
+                  : "Clock in"}
+          </Button>
+          <button className="wf-missing" onClick={() => setMissingPunchOpen(true)}>
+            {ar ? "نسيت البصمة؟" : "Forgot a punch?"}
+          </button>
+        </div>
+      </section>
+      {missingPunchOpen ? (
+        <SelfMissingPunchRequestSheet
+          restaurantId={restaurantId}
+          assignment={recentCompletedAssignment}
+          ar={ar}
+          lang={lang}
+          onClose={() => setMissingPunchOpen(false)}
+        />
+      ) : null}
+    </>
   );
 }
 
-function SelfMissingPunchRequestSheet({ restaurantId, assignment, ar, lang, onClose }: { restaurantId: string; assignment: ShiftAssignment | null; ar: boolean; lang: "en" | "ar"; onClose: () => void }) {
+function SelfMissingPunchRequestSheet({
+  restaurantId,
+  assignment,
+  ar,
+  lang,
+  onClose,
+}: {
+  restaurantId: string;
+  assignment: ShiftAssignment | null;
+  ar: boolean;
+  lang: "en" | "ar";
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const scheduledIn = assignment?.starts_at ? toWorkforceLocalInput(assignment.starts_at) : "";
   const scheduledOut = assignment?.ends_at ? toWorkforceLocalInput(assignment.ends_at) : "";
@@ -755,7 +1254,10 @@ function SelfMissingPunchRequestSheet({ restaurantId, assignment, ar, lang, onCl
   const [clockOut, setClockOut] = useState(scheduledOut);
   const [breakMinutes, setBreakMinutes] = useState("0");
   const [reason, setReason] = useState("");
-  const durationMinutes = clockIn && clockOut ? Math.round((new Date(clockOut).getTime() - new Date(clockIn).getTime()) / 60000) : 0;
+  const durationMinutes =
+    clockIn && clockOut
+      ? Math.round((new Date(clockOut).getTime() - new Date(clockIn).getTime()) / 60000)
+      : 0;
   const invalid =
     !clockIn ||
     !clockOut ||
@@ -784,7 +1286,11 @@ function SelfMissingPunchRequestSheet({ restaurantId, assignment, ar, lang, onCl
         qc.invalidateQueries({ queryKey: ["notifications"] }),
         qc.invalidateQueries({ queryKey: ["operations"] }),
       ]);
-      toast.success(ar ? "تم إرسال طلب البصمة للمدير للمراجعة" : "Missing punch sent to your manager for review");
+      toast.success(
+        ar
+          ? "تم إرسال طلب البصمة للمدير للمراجعة"
+          : "Missing punch sent to your manager for review",
+      );
       onClose();
     },
     onError: (error) => toast.error(humanError(error, lang)),
@@ -796,470 +1302,682 @@ function SelfMissingPunchRequestSheet({ restaurantId, assignment, ar, lang, onCl
     setClockOut(toWorkforceLocalInput(assignment.ends_at));
   };
 
-  return <DetailSheet
-    open
-    onOpenChange={(open) => { if (!open && !submit.isPending) onClose(); }}
-    title={ar ? "طلب بصمة ناقصة" : "Report missing punch"}
-    description={ar ? "صحّح وقتاً نسيته بدون تعديل سجل الدوام مباشرة." : "Report a forgotten clock-in or clock-out without changing the timesheet directly."}
-    footer={<div className="grid grid-cols-2 gap-2"><Button variant="outline" disabled={submit.isPending} onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button><Button disabled={invalid || submit.isPending} onClick={() => submit.mutate()}><Clock3 className="size-4" />{submit.isPending ? (ar ? "جارٍ الإرسال…" : "Sending…") : (ar ? "إرسال للمراجعة" : "Send for review")}</Button></div>}
-  >
-    <div className="space-y-4 py-2">
-      <div className="rounded-2xl border border-blue-200/70 bg-blue-500/[.045] p-3 text-xs leading-5 text-muted-foreground dark:border-blue-900/50">
-        <strong className="block text-foreground">{ar ? "طلب آمن بموافقة المدير" : "Manager-approved correction"}</strong>
-        <span>{ar ? "لن تتغير ساعاتك مباشرة. بعد موافقة المدير تُضاف البصمة تلقائياً مع سجل تدقيق." : "Your hours do not change immediately. Once approved, the punch is added automatically with an audit trail."}</span>
+  return (
+    <DetailSheet
+      open
+      onOpenChange={(open) => {
+        if (!open && !submit.isPending) onClose();
+      }}
+      title={ar ? "طلب بصمة ناقصة" : "Report missing punch"}
+      description={
+        ar
+          ? "صحّح وقتاً نسيته بدون تعديل سجل الدوام مباشرة."
+          : "Report a forgotten clock-in or clock-out without changing the timesheet directly."
+      }
+      footer={
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" disabled={submit.isPending} onClick={onClose}>
+            {ar ? "إلغاء" : "Cancel"}
+          </Button>
+          <Button disabled={invalid || submit.isPending} onClick={() => submit.mutate()}>
+            <Clock3 className="size-4" />
+            {submit.isPending
+              ? ar
+                ? "جارٍ الإرسال…"
+                : "Sending…"
+              : ar
+                ? "إرسال للمراجعة"
+                : "Send for review"}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4 py-2">
+        <div className="rounded-2xl border border-blue-200/70 bg-blue-500/[.045] p-3 text-xs leading-5 text-muted-foreground dark:border-blue-900/50">
+          <strong className="block text-foreground">
+            {ar ? "طلب آمن بموافقة المدير" : "Manager-approved correction"}
+          </strong>
+          <span>
+            {ar
+              ? "لن تتغير ساعاتك مباشرة. بعد موافقة المدير تُضاف البصمة تلقائياً مع سجل تدقيق."
+              : "Your hours do not change immediately. Once approved, the punch is added automatically with an audit trail."}
+          </span>
+        </div>
+        {assignment?.starts_at && assignment.ends_at ? (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/25 p-3">
+            <span className="min-w-0">
+              <strong className="block text-xs">
+                {ar ? "آخر وردية مكتملة" : "Latest completed shift"}
+              </strong>
+              <span className="mt-1 block text-[10px] tabular-nums text-muted-foreground">
+                {formatStamp(assignment.starts_at, ar)} → {formatStamp(assignment.ends_at, ar)}
+              </span>
+            </span>
+            <Button type="button" size="sm" variant="outline" onClick={applySchedule}>
+              {ar ? "استخدم الجدول" : "Use schedule"}
+            </Button>
+          </div>
+        ) : null}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>{ar ? "وقت الدخول" : "Clock in"}</Label>
+            <Input
+              type="datetime-local"
+              className="min-h-11"
+              value={clockIn}
+              onChange={(event) => setClockIn(event.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>{ar ? "وقت الخروج" : "Clock out"}</Label>
+            <Input
+              type="datetime-local"
+              className="min-h-11"
+              value={clockOut}
+              onChange={(event) => setClockOut(event.target.value)}
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>{ar ? "الاستراحة (دقائق)" : "Break (minutes)"}</Label>
+          <Input
+            type="number"
+            min={0}
+            className="min-h-11"
+            value={breakMinutes}
+            onChange={(event) => setBreakMinutes(event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>{ar ? "ما الذي نسيته؟ (مطلوب)" : "What was missed? (required)"}</Label>
+          <Textarea
+            rows={3}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder={
+              ar
+                ? "مثال: نسيت تسجيل الانصراف بعد انتهاء ورديتي."
+                : "e.g. I forgot to clock out after my shift ended."
+            }
+          />
+        </div>
+        {durationMinutes > 0 ? (
+          <p className="text-[11px] font-semibold text-muted-foreground">
+            {ar
+              ? `المدة المقترحة: ${Math.floor(durationMinutes / 60)}س ${durationMinutes % 60}د`
+              : `Proposed duration: ${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`}
+          </p>
+        ) : null}
       </div>
-      {assignment?.starts_at && assignment.ends_at ? <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/25 p-3"><span className="min-w-0"><strong className="block text-xs">{ar ? "آخر وردية مكتملة" : "Latest completed shift"}</strong><span className="mt-1 block text-[10px] tabular-nums text-muted-foreground">{formatStamp(assignment.starts_at, ar)} → {formatStamp(assignment.ends_at, ar)}</span></span><Button type="button" size="sm" variant="outline" onClick={applySchedule}>{ar ? "استخدم الجدول" : "Use schedule"}</Button></div> : null}
-      <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>{ar ? "وقت الدخول" : "Clock in"}</Label><Input type="datetime-local" className="min-h-11" value={clockIn} onChange={(event) => setClockIn(event.target.value)} /></div><div className="space-y-2"><Label>{ar ? "وقت الخروج" : "Clock out"}</Label><Input type="datetime-local" className="min-h-11" value={clockOut} onChange={(event) => setClockOut(event.target.value)} /></div></div>
-      <div className="space-y-2"><Label>{ar ? "الاستراحة (دقائق)" : "Break (minutes)"}</Label><Input type="number" min={0} className="min-h-11" value={breakMinutes} onChange={(event) => setBreakMinutes(event.target.value)} /></div>
-      <div className="space-y-2"><Label>{ar ? "ما الذي نسيته؟ (مطلوب)" : "What was missed? (required)"}</Label><Textarea rows={3} value={reason} onChange={(event) => setReason(event.target.value)} placeholder={ar ? "مثال: نسيت تسجيل الانصراف بعد انتهاء ورديتي." : "e.g. I forgot to clock out after my shift ended."} /></div>
-      {durationMinutes > 0 ? <p className="text-[11px] font-semibold text-muted-foreground">{ar ? `المدة المقترحة: ${Math.floor(durationMinutes / 60)}س ${durationMinutes % 60}د` : `Proposed duration: ${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`}</p> : null}
-    </div>
-  </DetailSheet>;
+    </DetailSheet>
+  );
+}
+function formatClockDuration(seconds: number, ar: boolean) {
+  const total = Math.max(0, Math.floor(seconds / 60));
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  return ar
+    ? String(hours) + "س " + String(minutes) + "د"
+    : String(hours) + "h " + String(minutes) + "m";
+}
+function formatRelativeClock(value: string, nowMs: number, ar: boolean) {
+  const diff = Math.max(0, new Date(value).getTime() - nowMs);
+  const total = Math.floor(diff / 60000);
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  return ar ? "بعد " + hours + "س " + minutes + "د" : "in " + hours + "h " + minutes + "m";
+}
+function localShiftDateTimeIso(date: string, time: string, addDays = 0) {
+  const value = new Date(`${date}T${time}:00`);
+  if (addDays) value.setDate(value.getDate() + addDays);
+  if (Number.isNaN(value.getTime())) throw new Error("Invalid shift date or time.");
+  return value.toISOString();
+}
+function countRecurringDays(startDate: string, endDate: string, weekdays: number[]) {
+  const start = new Date(`${startDate}T12:00:00`);
+  const end = new Date(`${endDate}T12:00:00`);
+  if (
+    !weekdays.length ||
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    end < start
+  )
+    return 0;
+  let count = 0;
+  for (const day = new Date(start); day <= end; day.setDate(day.getDate() + 1))
+    if (weekdays.includes(day.getDay())) count += 1;
+  return count;
+}
+function formatTimeInputForSummary(value: string, ar: boolean) {
+  if (!value) return "—";
+  const [hour, minute] = value.split(":").map(Number);
+  const date = new Date(2000, 0, 1, hour || 0, minute || 0);
+  return date.toLocaleTimeString(ar ? "ar-JO" : "en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
-function WorkforcePanel({ restaurantId, currentStaffId, canManage, members, assignments, ar, lang, mode }: { restaurantId: string; currentStaffId: string; canManage: boolean; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; assignments: ShiftAssignment[]; ar: boolean; lang: "en" | "ar"; mode: WorkforceSection }) {
+function CurrentShift({
+  shift,
+  assignments,
+  members,
+  canManage,
+  currentStaffId,
+  ar,
+  lang,
+  onClose,
+}: {
+  shift: Shift;
+  assignments: ShiftAssignment[];
+  members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>;
+  canManage: boolean;
+  currentStaffId: string;
+  ar: boolean;
+  lang: "en" | "ar";
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
-  const [leaveOpen, setLeaveOpen] = useState(false);
-  const [leaveStart, setLeaveStart] = useState(new Date().toISOString().slice(0, 10));
-  const [leaveEnd, setLeaveEnd] = useState(new Date().toISOString().slice(0, 10));
-  const [leaveStartTime, setLeaveStartTime] = useState("09:00");
-  const [leaveEndTime, setLeaveEndTime] = useState("17:00");
-  const [leaveReason, setLeaveReason] = useState("");
-  const [laborOpen, setLaborOpen] = useState(false);
-  const [clockNow, setClockNow] = useState(() => Date.now());
-  const showAttendance = mode === "attendance";
-  const showLeave = false;
-  const showLabor = canManage && (mode === "overview" || mode === "labor");
-
-  const workforce = useQuery({
-    queryKey: ["workforce", restaurantId],
-    refetchInterval: 20_000,
-    queryFn: async () => {
-      const since = new Date(Date.now() - 14 * 86400000).toISOString();
-      const [timeRes, leaveRes] = await Promise.all([
-        supabase.from("staff_time_entries" as any).select("id,staff_id,clock_in,clock_out,break_minutes").eq("restaurant_id", restaurantId).or(`clock_out.is.null,clock_in.gte.${since}`).order("clock_in", { ascending: false }).limit(500),
-        supabase.from("staff_leave_requests" as any).select("id,staff_id,start_date,end_date,start_time,end_time,reason,status,created_at").eq("restaurant_id", restaurantId).order("created_at", { ascending: false }).limit(300),
-      ]);
-      if (timeRes.error) throw timeRes.error;
-      if (leaveRes.error) throw leaveRes.error;
-      return { time: (timeRes.data ?? []) as unknown as TimeEntry[], leave: (leaveRes.data ?? []) as unknown as LeaveRequest[] };
-    },
-  });
-
-  const clockStatus = useQuery<ClockStatus | null>({
-    queryKey: ["workforce-clock", restaurantId, currentStaffId],
-    refetchInterval: 10_000,
-    staleTime: 2_000,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("get_my_time_clock_status", { _restaurant_id: restaurantId });
-      if (error) throw error;
-      const row = (Array.isArray(data) ? data[0] : data) as ClockStatus | null;
-      return row?.entry_id ? row : null;
-    },
-  });
-  const openEntry: TimeEntry | null = clockStatus.data
-    ? { id: clockStatus.data.entry_id, staff_id: clockStatus.data.staff_id, clock_in: clockStatus.data.clock_in, clock_out: null, break_minutes: 0 }
-    : null;
-  const clockedIn = (workforce.data?.time ?? []).filter((entry) => !entry.clock_out && entry.staff_id !== currentStaffId);
-  if (openEntry && !clockedIn.some((entry) => entry.id === openEntry.id)) clockedIn.unshift(openEntry);
-  useEffect(() => {
-    const timer = window.setInterval(() => setClockNow(Date.now()), 30_000);
-    return () => window.clearInterval(timer);
-  }, []);
-  useEffect(() => {
-    if (mode === "labor") setLaborOpen(true);
-  }, [mode]);
-  const pendingLeave = (workforce.data?.leave ?? []).filter((request) => request.status === "pending");
-  const todayKey = new Date(clockNow).toLocaleDateString("en-CA");
-  const myEntries = (workforce.data?.time ?? []).filter((entry) => entry.staff_id === currentStaffId);
-  const myTodayEntries = myEntries.filter(
-    (entry) => new Date(entry.clock_in).toLocaleDateString("en-CA") === todayKey,
-  );
-  const todayWorkedSeconds = myTodayEntries.reduce((sum, entry) => {
-    const startMs = new Date(entry.clock_in).getTime();
-    const endMs = entry.clock_out ? new Date(entry.clock_out).getTime() : clockNow;
-    const breakSeconds = Number(entry.break_minutes || 0) * 60;
-    return sum + Math.max(0, Math.floor((endMs - startMs) / 1000) - breakSeconds);
-  }, 0);
-  const currentSessionSeconds = openEntry
-    ? Math.max(0, Math.floor((clockNow - new Date(openEntry.clock_in).getTime()) / 1000))
-    : 0;
-  const latestCompletedEntry =
-    myEntries.find((entry) => Boolean(entry.clock_out)) ?? null;
-  const latestCompletedSeconds =
-    latestCompletedEntry?.clock_out
-      ? Math.max(
-          0,
-          Math.floor(
-            (new Date(latestCompletedEntry.clock_out).getTime() -
-              new Date(latestCompletedEntry.clock_in).getTime()) /
-              1000,
-          ) - Number(latestCompletedEntry.break_minutes || 0) * 60,
-        )
-      : 0;
-
-  const submitLeave = useMutation({
+  const [memberId, setMemberId] = useState("");
+  const assign = useMutation({
     mutationFn: async () => {
-      const { error } = await (supabase as any).rpc("submit_leave_request", { _restaurant_id: restaurantId, _start: leaveStart, _end: leaveEnd, _start_time: leaveStartTime, _end_time: leaveEndTime, _reason: leaveReason.trim() });
-      if (error) throw error;
+      const member = members.find((row) => row.id === memberId);
+      if (!member) return;
+      await assignStaffToShift({
+        restaurant_id: shift.restaurant_id,
+        shift_id: shift.id,
+        staff_id: member.id,
+        role_snapshot: member.role,
+        starts_at: shift.planned_start,
+        ends_at: shift.planned_end,
+      });
     },
     onSuccess: async () => {
-      setLeaveOpen(false); setLeaveReason("");
-      await qc.invalidateQueries({ queryKey: ["workforce", restaurantId] });
-      toast.success(ar ? "تم إرسال طلب الإجازة" : "Leave request submitted");
+      setMemberId("");
+      await qc.invalidateQueries({
+        queryKey: ["operations", "shift-assignments", shift.restaurant_id],
+      });
+      toast.success(ar ? "تمت إضافة الموظف للوردية" : "Team member assigned");
     },
     onError: (error) => toast.error(humanError(error, lang)),
   });
+  const assignedIds = new Set(assignments.map((row) => row.staff_id));
+  const available = members.filter((row) => row.is_active && !assignedIds.has(row.id));
 
-  const reviewLeave = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: "approved" | "rejected" }) => {
-      const { error } = await (supabase as any).rpc("review_leave_request", { _request_id: id, _status: status });
-      if (error) throw error;
-    },
+  return (
+    <section className="qs-card overflow-hidden border-orange-200/80 bg-card dark:border-orange-900/50">
+      <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center sm:p-6">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.08em] text-emerald-700">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              {ar ? "الفريق المعيّن" : "Assigned team"}
+            </span>
+            <span className="text-xs text-muted-foreground">{shift.shift_date}</span>
+          </div>
+          <h2 className="mt-3 font-display text-2xl font-bold tracking-[-.03em]">{shift.name}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {ar
+              ? `${assignments.length} أعضاء في هذه الوردية`
+              : `${assignments.length} team members on this shift`}
+          </p>
+        </div>
+        {canManage && shift.status === "open" ? (
+          <Button variant="outline" className="gap-2" onClick={onClose}>
+            <StopCircle className="size-4" />
+            {ar ? "إغلاق الوردية" : "Close shift"}
+          </Button>
+        ) : null}
+      </div>
+      <div className="border-t border-border/70 p-5">
+        <div className="flex flex-wrap gap-2">
+          {assignments.map((assignment) => {
+            const member = members.find((row) => row.id === assignment.staff_id);
+            return (
+              <AssignmentChip
+                key={assignment.id}
+                assignment={assignment}
+                name={
+                  member?.name ??
+                  (assignment.staff_id === currentStaffId
+                    ? ar
+                      ? "أنت"
+                      : "You"
+                    : ar
+                      ? "عضو فريق"
+                      : "Team member")
+                }
+                canManage={canManage}
+                isSelf={assignment.staff_id === currentStaffId}
+                restaurantId={shift.restaurant_id}
+                ar={ar}
+                lang={lang}
+              />
+            );
+          })}
+          {!assignments.length ? (
+            <span className="text-xs text-muted-foreground">
+              {ar ? "لم تتم إضافة فريق بعد." : "No team members assigned yet."}
+            </span>
+          ) : null}
+        </div>
+        {canManage && available.length ? (
+          <div className="mt-4 flex max-w-xl flex-col gap-2 sm:flex-row">
+            <Select value={memberId} onValueChange={setMemberId}>
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder={ar ? "اختر موظفاً" : "Choose a team member"} />
+              </SelectTrigger>
+              <SelectContent>
+                {available.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.name} · {ROLE_LABELS[member.role]?.[lang] ?? member.role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              disabled={!memberId || assign.isPending}
+              onClick={() => assign.mutate()}
+              className="gap-2"
+            >
+              <UserPlus className="size-4" />
+              {ar ? "إضافة" : "Assign"}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function ShiftRow({
+  shift,
+  assignments,
+  canManage,
+  canDelete,
+  currentStaffId,
+  ar,
+  lang,
+  onOpen,
+  onClose,
+  onDelete,
+}: {
+  shift: Shift;
+  assignments: ShiftAssignment[];
+  canManage: boolean;
+  canDelete: boolean;
+  currentStaffId: string;
+  ar: boolean;
+  lang: "en" | "ar";
+  onOpen: () => void;
+  onClose: () => void;
+  onDelete: () => void;
+}) {
+  const qc = useQueryClient();
+  const open = useMutation({
+    mutationFn: () => openShift(shift.id, currentStaffId),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["workforce", restaurantId] });
-      toast.success(ar ? "تم تحديث طلب الإجازة" : "Leave request updated");
+      await qc.invalidateQueries({ queryKey: ["operations", "shifts", shift.restaurant_id] });
+      await qc.invalidateQueries({
+        queryKey: ["operations", "automated-alerts", shift.restaurant_id],
+      });
+      toast.success(ar ? "تم فتح الوردية" : "Shift opened");
     },
     onError: (error) => toast.error(humanError(error, lang)),
   });
+  const self = assignments.find((row) => row.staff_id === currentStaffId) ?? null;
+  return (
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      className="grid cursor-pointer gap-4 p-4 outline-none transition hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-[#e85d2a] sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+    >
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="font-bold">{shift.name}</h3>
+          <Status status={shift.status} ar={ar} />
+          {self ? (
+            <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-bold capitalize text-muted-foreground">
+              {self.status}
+            </span>
+          ) : null}
+        </div>
+        {shift.notes ? (
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{shift.notes}</p>
+        ) : null}
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
+          <span>{shift.shift_date}</span>
+          <span>{formatWindow(shift, ar)}</span>
+          <span className="inline-flex items-center gap-1">
+            <UsersRound className="size-3" />
+            {assignments.length}
+          </span>
+        </div>
+      </div>
+      <div
+        className="flex flex-wrap items-center gap-2"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {self && !canManage && shift.status === "open" ? (
+          <SelfShiftControls
+            assignment={self}
+            restaurantId={shift.restaurant_id}
+            ar={ar}
+            lang={lang}
+          />
+        ) : null}
+        {canManage ? (
+          <>
+            {shift.status === "planned" ? (
+              <Button
+                size="sm"
+                disabled={open.isPending}
+                onClick={() => open.mutate()}
+                className="gap-2"
+              >
+                <PlayCircle className="size-4" />
+                {ar ? "فتح" : "Open"}
+              </Button>
+            ) : null}
+            {shift.status === "open" ? (
+              <Button size="sm" variant="outline" onClick={onClose}>
+                {ar ? "إغلاق" : "Close"}
+              </Button>
+            ) : null}
+            {canDelete && shift.status !== "open" ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={onDelete}
+              >
+                <Trash2 className="size-4" />
+                {ar ? "حذف" : "Delete"}
+              </Button>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    </article>
+  );
+}
 
-  const memberName = (id: string) => members.find((row) => row.id === id)?.name ?? (ar ? "عضو فريق" : "Team member");
-  const leaveWindowInvalid = !leaveStart || !leaveEnd || !leaveStartTime || !leaveEndTime || leaveEnd < leaveStart || (leaveEnd === leaveStart && leaveEndTime <= leaveStartTime);
-
-  const weekStart = startOfWeekMonday(new Date());
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 7);
-  const thisWeekEntries = (workforce.data?.time ?? []).filter((entry) => {
-    const clock = new Date(entry.clock_in).getTime();
-    return clock >= weekStart.getTime() && clock < weekEnd.getTime();
+function AssignmentChip({
+  assignment,
+  name,
+  canManage,
+  isSelf,
+  restaurantId,
+  ar,
+  lang,
+}: {
+  assignment: ShiftAssignment;
+  name: string;
+  canManage: boolean;
+  isSelf: boolean;
+  restaurantId: string;
+  ar: boolean;
+  lang: "en" | "ar";
+}) {
+  const qc = useQueryClient();
+  const update = useMutation({
+    mutationFn: (status: ShiftAssignmentStatus) => updateShiftAssignment(assignment.id, { status }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] });
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
   });
-  const staffLabor = members.filter((member) => member.is_active).map((member) => {
-    const memberAssignments = assignments.filter((assignment) => assignment.staff_id === member.id && assignment.starts_at && assignment.ends_at);
-    const actualHours = thisWeekEntries.filter((entry) => entry.staff_id === member.id).reduce((sum, entry) => {
-      const end = entry.clock_out ? Math.min(new Date(entry.clock_out).getTime(), weekEnd.getTime()) : Math.min(Date.now(), weekEnd.getTime());
-      const start = Math.max(new Date(entry.clock_in).getTime(), weekStart.getTime());
-      return sum + Math.max(0, (end - start) / 3_600_000 - Number(entry.break_minutes || 0) / 60);
-    }, 0);
-    const scheduledHours = assignments.filter((assignment) => {
-      if (assignment.staff_id !== member.id || !assignment.starts_at || !assignment.ends_at) return false;
-      const start = new Date(assignment.starts_at).getTime();
-      return start >= weekStart.getTime() && start < weekEnd.getTime();
-    }).reduce((sum, assignment) => {
-      const start = new Date(assignment.starts_at!).getTime();
-      const end = new Date(assignment.ends_at!).getTime();
-      return sum + Math.max(0, (end - start) / 3_600_000);
-    }, 0);
-    return { ...member, actualHours, scheduledHours, variance: actualHours - scheduledHours, attendanceStatus: deriveAttendanceStatus(memberAssignments, thisWeekEntries) };
-  }).filter((member) => member.actualHours > 0 || member.scheduledHours > 0);
-
-  const actualWeekHours = staffLabor.reduce((sum, row) => sum + row.actualHours, 0);
-  const scheduledWeekHours = staffLabor.reduce((sum, row) => sum + row.scheduledHours, 0);
-  const overPlan = staffLabor.filter((row) => row.scheduledHours > 0 && row.actualHours > row.scheduledHours + 0.25);
-  const incompleteClocks = thisWeekEntries.filter((entry) => !entry.clock_out).length;
-
-  function exportPayrollCsv() {
-    const headers = ["Staff","Role","Week start","Scheduled hours","Worked hours","Variance hours"];
-    const lines = staffLabor.map((row) => [
-      row.name,
-      ROLE_LABELS[row.role]?.en ?? row.role,
-      weekStart.toLocaleDateString("en-CA"),
-      row.scheduledHours.toFixed(2),
-      row.actualHours.toFixed(2),
-      row.variance.toFixed(2),
-    ].map(csvCell).join(","));
-    const blob = new Blob(["\uFEFF" + [headers.map(csvCell).join(","), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `quickserve-payroll-${weekStart.toLocaleDateString("en-CA")}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
-
-  return <section className="space-y-4">
-    <div className={cn("grid gap-4", !showAttendance ? "grid-cols-1" : "xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]")}>
-    {showAttendance ? <div className="qs-card overflow-hidden">
-      <div className="flex flex-col gap-4 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div><h2 className="qs-section-title">{ar ? "الحضور والوقت" : "Attendance & time"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "ساعة حضور فعلية مرتبطة بحساب كل موظف." : "A real time clock tied to each staff account."}</p></div>
-        <span className="rounded-full bg-muted px-3 py-1.5 text-[10px] font-bold text-muted-foreground">{ar ? "الطلبات من تبويب الطلبات" : "Requests are managed in Requests"}</span>
+  const remove = useMutation({
+    mutationFn: () => removeShiftAssignment(assignment.id),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] });
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+  if (!canManage)
+    return (
+      <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card p-1 ps-3">
+        <span className="text-xs font-semibold">{name}</span>
+        <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-bold capitalize text-muted-foreground">
+          {assignment.status}
+        </span>
+        {isSelf ? (
+          <SelfShiftControls
+            assignment={assignment}
+            restaurantId={restaurantId}
+            ar={ar}
+            lang={lang}
+            compact
+          />
+        ) : null}
       </div>
-      <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl bg-muted/45 p-3" aria-live="polite">
-          <p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حالتي" : "My status"}</p>
-          <strong className="mt-1 block text-sm">{openEntry ? (ar ? "على رأس العمل" : "Clocked in") : (ar ? "خارج الوردية" : "Clocked out")}</strong>
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            {openEntry
-              ? formatStamp(openEntry.clock_in, ar)
-              : latestCompletedEntry?.clock_out
-                ? `${ar ? "آخر انصراف" : "Last out"} · ${formatStamp(latestCompletedEntry.clock_out, ar)}`
-                : ar
-                  ? "لا يوجد تسجيل اليوم بعد"
-                  : "No time recorded yet"}
-          </p>
-        </div>
-        <div className="rounded-xl bg-muted/45 p-3" aria-live="polite">
-          <p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">
-            {openEntry ? (ar ? "الجلسة الحالية" : "Current session") : (ar ? "آخر جلسة" : "Last session")}
-          </p>
-          <strong className="mt-1 block text-sm">
-            {formatClockDuration(openEntry ? currentSessionSeconds : latestCompletedSeconds, ar)}
-          </strong>
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            {openEntry
-              ? ar
-                ? "يتحدث تلقائياً أثناء الدوام"
-                : "Updates live while clocked in"
-              : latestCompletedEntry
-                ? ar
-                  ? "مدة آخر حضور مكتمل"
-                  : "Duration of your last completed session"
-                : ar
-                  ? "—"
-                  : "—"}
-          </p>
-        </div>
-        <div className="rounded-xl bg-muted/45 p-3" aria-live="polite">
-          <p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "وقت العمل اليوم" : "Worked today"}</p>
-          <strong className="mt-1 block text-sm">{formatClockDuration(todayWorkedSeconds, ar)}</strong>
-          <p className="mt-1 text-[10px] text-muted-foreground">{ar ? "إجمالي الحضور ناقص الاستراحات" : "Total attendance minus breaks"}</p>
-        </div>
-        <div className="rounded-xl bg-muted/45 p-3">
-          <p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "حاضرون الآن" : "Clocked in now"}</p>
-          <strong className="mt-1 block text-sm">{clockedIn.length}</strong>
-          <p className="mt-1 text-[10px] text-muted-foreground">{ar ? "أعضاء الفريق النشطون" : "Active team members"}</p>
-        </div>
-      </div>
-      {canManage && clockedIn.length ? <div className="border-t border-border p-4"><p className="mb-2 text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "الفريق الموجود الآن" : "Team on the clock"}</p><div className="flex flex-wrap gap-2">{clockedIn.slice(0,12).map(entry=><span key={entry.id} className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold">{memberName(entry.staff_id)} · {new Date(entry.clock_in).toLocaleTimeString(ar?"ar-JO":"en-JO",{hour:"2-digit",minute:"2-digit"})}</span>)}</div></div> : null}
-    </div> : null}
-
-    {showLeave ? <div className="qs-card overflow-hidden">
-      <div className="border-b border-border p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="qs-section-title">{ar ? "طلبات الإجازة" : "Leave requests"}</h2><p className="mt-1 text-xs text-muted-foreground">{canManage ? (ar ? "راجع الطلبات المعلقة." : "Review pending requests.") : (ar ? "آخر طلباتك." : "Your recent requests.")}</p></div><div className="flex items-center gap-2">{pendingLeave.length ? <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-700">{pendingLeave.length}</span> : null}<Button size="sm" variant="outline" onClick={() => setLeaveOpen(true)}><CalendarDays className="size-4"/>{ar ? "طلب إجازة" : "Request leave"}</Button></div></div></div>
-      <div className="max-h-[320px] divide-y divide-border overflow-y-auto">{(workforce.data?.leave ?? []).filter(request => canManage || request.staff_id===currentStaffId).slice(0,12).map(request=><div key={request.id} className="p-4"><div className="flex items-start justify-between gap-3"><div><strong className="text-sm">{memberName(request.staff_id)}</strong><p className="mt-1 text-xs text-muted-foreground">{request.start_date} · {formatLeaveTime(request.start_time)} → {request.end_date} · {formatLeaveTime(request.end_time)}</p>{request.reason?<p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{request.reason}</p>:null}</div><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold capitalize",request.status==="approved"?"bg-emerald-500/10 text-emerald-700":request.status==="rejected"?"bg-red-500/10 text-red-700":"bg-amber-500/10 text-amber-700")}>{request.status}</span></div>{canManage&&request.status==="pending"?<div className="mt-3 flex gap-2"><Button size="sm" disabled={reviewLeave.isPending} onClick={()=>reviewLeave.mutate({id:request.id,status:"approved"})}>{ar?"اعتماد":"Approve"}</Button><Button size="sm" variant="outline" disabled={reviewLeave.isPending} onClick={()=>reviewLeave.mutate({id:request.id,status:"rejected"})}>{ar?"رفض":"Reject"}</Button></div>:null}</div>)}{!(workforce.data?.leave ?? []).length?<p className="p-6 text-center text-xs text-muted-foreground">{ar ? "لا توجد طلبات إجازة." : "No leave requests yet."}</p>:null}</div>
-    </div> : null}
-    </div>
-
-    {showLabor ? <section className="qs-card overflow-hidden">
-      <button type="button" aria-expanded={mode === "labor" || laborOpen} onClick={() => { if (mode !== "labor") setLaborOpen((open) => !open); }} className="flex w-full flex-col gap-4 p-5 text-start lg:flex-row lg:items-center lg:justify-between">
-        <div><div className="flex items-center gap-2"><CalendarClock className="size-4 text-[#e85d2a]"/><h2 className="qs-section-title">{ar ? "العمالة هذا الأسبوع" : "Weekly labor control"}</h2></div><p className="mt-1 text-xs text-muted-foreground">{ar ? "مقارنة ساعات الجدول مع الحضور الفعلي. افتح التفاصيل عند الحاجة." : "Scheduled hours versus actual time-clock hours. Open details when needed."}</p></div>
-        <span className="flex items-center gap-3"><span className="grid grid-cols-2 gap-2 sm:grid-cols-4"><LaborMetric label={ar ? "مخطط" : "Scheduled"} value={scheduledWeekHours.toFixed(1) + "h"} /><LaborMetric label={ar ? "فعلي" : "Worked"} value={actualWeekHours.toFixed(1) + "h"} /><LaborMetric label={ar ? "فوق الخطة" : "Over plan"} value={String(overPlan.length)} warning={overPlan.length > 0} /><LaborMetric label={ar ? "دوام مفتوح" : "Open clocks"} value={String(incompleteClocks)} warning={incompleteClocks > 0} /></span>{mode !== "labor" ? <ChevronDown className={cn("size-5 shrink-0 text-muted-foreground transition-transform", laborOpen && "rotate-180")} /> : null}</span>
+    );
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1 ps-3">
+      <span className="text-xs font-semibold">{name}</span>
+      <Select
+        value={assignment.status}
+        onValueChange={(value) => update.mutate(value as ShiftAssignmentStatus)}
+      >
+        <SelectTrigger className="h-7 w-[112px] border-0 bg-transparent px-2 text-[10px] shadow-none">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {(["scheduled", "present", "late", "absent", "released"] as ShiftAssignmentStatus[]).map(
+            (status) => (
+              <SelectItem key={status} value={status}>
+                {status}
+              </SelectItem>
+            ),
+          )}
+        </SelectContent>
+      </Select>
+      <button
+        type="button"
+        onClick={() => remove.mutate()}
+        className="rounded-full px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive"
+        aria-label={ar ? "إزالة" : "Remove"}
+      >
+        ×
       </button>
-      {mode === "labor" || laborOpen ? <div className="border-t border-border">
-        <div className="flex justify-end border-b border-border p-4"><Button variant="outline" disabled={!staffLabor.length} onClick={exportPayrollCsv}><Download className="size-4"/>{ar ? "تصدير CSV للرواتب" : "Export payroll CSV"}</Button></div>
-        {staffLabor.length ? <div className="overflow-x-auto"><table className="qs-table min-w-[860px]"><thead><tr><th>{ar ? "الموظف" : "Staff"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "مخطط" : "Scheduled"}</th><th>{ar ? "فعلي" : "Worked"}</th><th>{ar ? "الفرق" : "Variance"}</th><th>{ar ? "الحضور الفعلي" : "Attendance"}</th></tr></thead><tbody>{[...staffLabor].sort((a,b)=>b.actualHours-a.actualHours).map(row=><tr key={row.id}><td><strong>{row.name}</strong></td><td>{ROLE_LABELS[row.role]?.[lang] ?? row.role}</td><td>{row.scheduledHours.toFixed(1)}h</td><td>{row.actualHours.toFixed(1)}h</td><td className={cn(row.variance>0.25?"text-amber-700":row.variance<-0.25?"text-blue-700":"text-muted-foreground")}>{row.variance>=0?"+":""}{row.variance.toFixed(1)}h</td><td><span className={cn("rounded-full px-2 py-1 text-[9px] font-bold", attendanceTone(row.attendanceStatus))}>{attendanceStatusLabel(row.attendanceStatus, ar)}</span></td></tr>)}</tbody></table></div> : <p className="p-6 text-center text-xs text-muted-foreground">{ar ? "لا توجد ساعات مجدولة أو مسجلة لهذا الأسبوع بعد." : "No scheduled or worked hours recorded for this week yet."}</p>}
-      </div> : null}
-    </section> : null}
+    </div>
+  );
+}
 
-    <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-none gap-0 overflow-hidden p-0 sm:max-w-[560px]">
-        <div className="border-b border-border bg-muted/15 px-4 py-3.5 sm:px-4">
-          <DialogHeader className="space-y-1.5">
-            <DialogTitle className="font-display text-base font-bold sm:text-lg">{ar ? "طلب إجازة" : "Request leave"}</DialogTitle>
-            <DialogDescription className="max-w-2xl text-[10px] leading-4">
-              {ar ? "حدد بداية ونهاية الإجازة بوضوح، ثم أضف السبب وأرسل الطلب للمراجعة." : "Set the leave start and end clearly, add the reason, then send it for review."}
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+function SelfShiftControls({
+  assignment,
+  restaurantId,
+  ar,
+  lang,
+  compact = false,
+}: {
+  assignment: ShiftAssignment;
+  restaurantId: string;
+  ar: boolean;
+  lang: "en" | "ar";
+  compact?: boolean;
+}) {
+  const qc = useQueryClient();
+  const update = useMutation({
+    mutationFn: (status: "present" | "released") =>
+      updateOwnShiftAssignmentStatus(assignment.id, status),
+    onSuccess: async (_data, status) => {
+      await qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] });
+      toast.success(
+        status === "present"
+          ? ar
+            ? "تم بدء الوردية"
+            : "Shift started"
+          : ar
+            ? "تم إنهاء الوردية"
+            : "Shift ended",
+      );
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+  if (assignment.status === "released")
+    return (
+      <span className="px-2 text-[10px] font-bold text-muted-foreground">
+        {ar ? "تم الانتهاء" : "Ended"}
+      </span>
+    );
+  const present = assignment.status === "present";
+  return (
+    <Button
+      size="sm"
+      variant={present ? "outline" : "default"}
+      className={compact ? "h-7 rounded-full px-2 text-[10px]" : "h-9"}
+      disabled={update.isPending}
+      onClick={() => update.mutate(present ? "released" : "present")}
+    >
+      {present ? (ar ? "إنهاء ورديتي" : "End my shift") : ar ? "بدء ورديتي" : "Start my shift"}
+    </Button>
+  );
+}
 
-        <div className="space-y-3 px-4 py-3.5">
-          <section className="overflow-hidden rounded-2xl border border-border bg-card">
-            <div className="grid gap-0 divide-y divide-border">
-              <div className="grid min-w-0 gap-2 p-3 sm:grid-cols-[58px_minmax(0,1.1fr)_minmax(0,.9fr)] sm:items-end">
-                <div className="flex items-center gap-2 self-center text-xs font-black uppercase tracking-[.08em] text-muted-foreground sm:pb-3">
-                  <span className="grid size-7 place-items-center rounded-[8px] bg-orange-500/10 text-[#e85d2a]"><CalendarDays className="size-4"/></span>
-                  <span>{ar ? "من" : "From"}</span>
-                </div>
-                <Field label={ar ? "التاريخ" : "Date"} className="min-w-0">
-                  <Input
-                    type="date"
-                    value={leaveStart}
-                    onChange={e=>{const next=e.target.value;setLeaveStart(next);if(leaveEnd<next)setLeaveEnd(next);}}
-                    onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()}
-                    className="h-9 min-w-0 w-full cursor-pointer rounded-[9px] px-2.5 text-xs font-semibold"
-                  />
-                </Field>
-                <Field label={ar ? "الوقت" : "Time"} className="min-w-0">
-                  <Input
-                    type="time"
-                    value={leaveStartTime}
-                    onChange={e=>setLeaveStartTime(e.target.value)}
-                    onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()}
-                    className="h-9 min-w-0 w-full cursor-pointer rounded-[9px] px-2.5 text-xs font-semibold"
-                  />
-                </Field>
-              </div>
-
-              <div className="grid min-w-0 gap-2 p-3 sm:grid-cols-[58px_minmax(0,1.1fr)_minmax(0,.9fr)] sm:items-end">
-                <div className="flex items-center gap-2 self-center text-xs font-black uppercase tracking-[.08em] text-muted-foreground sm:pb-3">
-                  <span className="grid size-7 place-items-center rounded-[8px] bg-blue-500/10 text-blue-600"><Clock3 className="size-4"/></span>
-                  <span>{ar ? "إلى" : "To"}</span>
-                </div>
-                <Field label={ar ? "التاريخ" : "Date"} className="min-w-0">
-                  <Input
-                    type="date"
-                    min={leaveStart}
-                    value={leaveEnd}
-                    onChange={e=>setLeaveEnd(e.target.value)}
-                    onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()}
-                    className="h-9 min-w-0 w-full cursor-pointer rounded-[9px] px-2.5 text-xs font-semibold"
-                  />
-                </Field>
-                <Field label={ar ? "الوقت" : "Time"} className="min-w-0">
-                  <Input
-                    type="time"
-                    min={leaveEnd===leaveStart?leaveStartTime:undefined}
-                    value={leaveEndTime}
-                    onChange={e=>setLeaveEndTime(e.target.value)}
-                    onClick={e=>(e.currentTarget as HTMLInputElement & {showPicker?:()=>void}).showPicker?.()}
-                    className="h-9 min-w-0 w-full cursor-pointer rounded-[9px] px-2.5 text-xs font-semibold"
-                  />
-                </Field>
-              </div>
-            </div>
-          </section>
-
-          {leaveWindowInvalid && leaveStart && leaveEnd && leaveStartTime && leaveEndTime ? (
-            <p className="rounded-xl border border-red-200 bg-red-500/8 px-3.5 py-2.5 text-xs font-semibold text-red-700 dark:border-red-900/50 dark:text-red-300">
-              {ar ? "يجب أن يكون وقت النهاية بعد وقت البداية." : "End date and time must be after the start."}
+function HandoverItem({
+  handover,
+  currentStaffId,
+  restaurantId,
+  ar,
+  lang,
+}: {
+  handover: ShiftHandover;
+  currentStaffId: string;
+  restaurantId: string;
+  ar: boolean;
+  lang: "en" | "ar";
+}) {
+  const qc = useQueryClient();
+  const acknowledge = useMutation({
+    mutationFn: () => acknowledgeShiftHandover(handover.id, currentStaffId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["operations", "shift-handovers", restaurantId] });
+      toast.success(ar ? "تم استلام التسليم" : "Handover acknowledged");
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+  return (
+    <div className="p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Handshake className="size-4 text-[#e85d2a]" />
+            <strong className="text-sm">{handover.summary}</strong>
+          </div>
+          {handover.unresolved_items ? (
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              {handover.unresolved_items}
             </p>
           ) : null}
-
-          <Field label={ar ? "السبب" : "Reason"} className="min-w-0">
-            <Textarea
-              rows={4}
-              value={leaveReason}
-              onChange={e=>setLeaveReason(e.target.value)}
-              placeholder={ar ? "اكتب سبب الإجازة باختصار..." : "Briefly explain the reason for leave..."}
-              className="min-h-[72px] w-full resize-y rounded-[9px]"
-            />
-          </Field>
         </div>
+        {!handover.acknowledged_at ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={acknowledge.isPending}
+            onClick={() => acknowledge.mutate()}
+          >
+            {ar ? "استلام" : "Acknowledge"}
+          </Button>
+        ) : null}
+      </div>
+      <div className="mt-2 flex justify-between gap-2 text-[10px] text-muted-foreground">
+        <span>
+          {handover.target_role
+            ? (ROLE_LABELS[handover.target_role]?.[lang] ?? handover.target_role)
+            : ar
+              ? "موظف محدد"
+              : "Specific teammate"}
+        </span>
+        <span>
+          {handover.acknowledged_at
+            ? ar
+              ? "تم الاستلام"
+              : "Acknowledged"
+            : ar
+              ? "بانتظار الاستلام"
+              : "Pending"}
+        </span>
+      </div>
+    </div>
+  );
+}
 
-        <DialogFooter className="border-t border-border bg-muted/10 px-4 py-3">
-          <Button variant="outline" className="min-w-20" onClick={()=>setLeaveOpen(false)}>{ar ? "إلغاء" : "Cancel"}</Button>
-          <Button className="min-w-24" disabled={submitLeave.isPending||leaveWindowInvalid} onClick={()=>submitLeave.mutate()}>
-            {submitLeave.isPending ? (ar ? "جارٍ الإرسال…" : "Submitting…") : (ar ? "إرسال الطلب" : "Submit request")}
+function DeleteShiftDialog({
+  shift,
+  restaurantId,
+  onClose,
+  ar,
+  lang,
+}: {
+  shift: Shift;
+  restaurantId: string;
+  onClose: () => void;
+  ar: boolean;
+  lang: "en" | "ar";
+}) {
+  const qc = useQueryClient();
+  const remove = useMutation({
+    mutationFn: () => deleteShift(shift.id),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shift-handovers", restaurantId] }),
+      ]);
+      toast.success(ar ? "تم حذف الوردية" : "Shift deleted");
+      onClose();
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>{ar ? "حذف الوردية؟" : "Delete shift?"}</DialogTitle>
+          <DialogDescription>
+            {ar
+              ? `سيتم حذف ${shift.name} وتعيينات الفريق المرتبطة بها. تبقى سجلات التسليم محفوظة بدون ربط بالوردية.`
+              : `This removes ${shift.name} and its team assignments. Existing handover records are preserved but detached from the deleted shift.`}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {ar ? "إلغاء" : "Cancel"}
+          </Button>
+          <Button variant="destructive" disabled={remove.isPending} onClick={() => remove.mutate()}>
+            <Trash2 className="size-4" />
+            {ar ? "حذف الوردية" : "Delete shift"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  </section>;
+  );
 }
 
-function formatLeaveTime(value: string | null | undefined) { return value ? value.slice(0, 5) : "—"; }
-function formatClockDuration(seconds: number, ar: boolean) { const total = Math.max(0, Math.floor(seconds / 60)); const hours = Math.floor(total / 60); const minutes = total % 60; return ar ? String(hours) + "س " + String(minutes) + "د" : String(hours) + "h " + String(minutes) + "m"; }
-function formatRelativeClock(value: string, nowMs: number, ar: boolean) { const diff = Math.max(0, new Date(value).getTime() - nowMs); const total = Math.floor(diff / 60000); const hours = Math.floor(total / 60); const minutes = total % 60; return ar ? "بعد " + hours + "س " + minutes + "د" : "in " + hours + "h " + minutes + "m"; }
-function localShiftDateTimeIso(date: string, time: string, addDays = 0) { const value = new Date(`${date}T${time}:00`); if (addDays) value.setDate(value.getDate() + addDays); if (Number.isNaN(value.getTime())) throw new Error("Invalid shift date or time."); return value.toISOString(); }
-function countRecurringDays(startDate: string, endDate: string, weekdays: number[]) { const start = new Date(`${startDate}T12:00:00`); const end = new Date(`${endDate}T12:00:00`); if (!weekdays.length || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0; let count = 0; for (const day = new Date(start); day <= end; day.setDate(day.getDate() + 1)) if (weekdays.includes(day.getDay())) count += 1; return count; }
-function formatTimeInputForSummary(value: string, ar: boolean) { if (!value) return "—"; const [hour, minute] = value.split(":").map(Number); const date = new Date(2000, 0, 1, hour || 0, minute || 0); return date.toLocaleTimeString(ar ? "ar-JO" : "en-US", { hour: "2-digit", minute: "2-digit" }); }
-
-function LaborMetric({label,value,warning=false}:{label:string;value:string;warning?:boolean}){
-  return <span className="block min-w-20 rounded-xl bg-muted/45 p-3"><span className="block text-[9px] font-bold uppercase tracking-[.06em] text-muted-foreground">{label}</span><strong className={cn("mt-1 block font-display text-lg",warning&&"text-amber-700")}>{value}</strong></span>;
-}
-
-type AttendanceStatus = "on_time" | "late" | "left_early" | "overtime" | "not_clocked";
-
-function deriveAttendanceStatus(assignments: ShiftAssignment[], entries: TimeEntry[], now = Date.now()): AttendanceStatus {
-  const scheduled = assignments.filter((assignment) => assignment.starts_at && assignment.ends_at);
-  if (!scheduled.length) return "not_clocked";
-  let best: AttendanceStatus = "not_clocked";
-  for (const assignment of scheduled) {
-    const start = new Date(assignment.starts_at!).getTime();
-    const end = new Date(assignment.ends_at!).getTime();
-    const entry = entries
-      .filter((candidate) => candidate.staff_id === assignment.staff_id)
-      .find((candidate) => new Date(candidate.clock_in).getTime() <= end && (!candidate.clock_out || new Date(candidate.clock_out).getTime() >= start));
-    if (!entry) continue;
-    const actualStart = new Date(entry.clock_in).getTime();
-    const actualEnd = entry.clock_out ? new Date(entry.clock_out).getTime() : now;
-    const lateMinutes = Math.max(0, (actualStart - start) / 60_000);
-    const earlyMinutes = entry.clock_out ? Math.max(0, (end - actualEnd) / 60_000) : 0;
-    const overtimeMinutes = Math.max(0, (actualEnd - end) / 60_000);
-    const status: AttendanceStatus = overtimeMinutes >= 30 ? "overtime" : earlyMinutes >= 15 ? "left_early" : lateMinutes >= 15 ? "late" : "on_time";
-    if (status === "overtime" || (status === "left_early" && best !== "overtime") || (status === "late" && best === "not_clocked") || best === "not_clocked") best = status;
-  }
-  return best;
-}
-
-function attendanceStatusLabel(status: AttendanceStatus, ar: boolean) {
-  return status === "overtime" ? (ar ? "وقت إضافي" : "Overtime") : status === "left_early" ? (ar ? "غادر مبكراً" : "Left early") : status === "late" ? (ar ? "متأخر" : "Late") : status === "on_time" ? (ar ? "ضمن الوقت" : "On time") : (ar ? "لم يسجل" : "Not clocked");
-}
-
-function attendanceTone(status: AttendanceStatus) {
-  return status === "overtime" ? "bg-amber-500/10 text-amber-700" : status === "left_early" ? "bg-rose-500/10 text-rose-700" : status === "late" ? "bg-orange-500/10 text-orange-700" : status === "on_time" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-muted-foreground";
-}
-
-function startOfWeekMonday(date:Date){
-  const result=new Date(date);
-  result.setHours(0,0,0,0);
-  const day=result.getDay();
-  result.setDate(result.getDate()-(day===0?6:day-1));
-  return result;
-}
-
-function csvCell(value:unknown){
-  return `"${String(value??"").replaceAll('"','""')}"`;
-}
-
-function CurrentShift({ shift, assignments, members, canManage, currentStaffId, ar, lang, onClose }: { shift: Shift; assignments: ShiftAssignment[]; members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>; canManage: boolean; currentStaffId: string; ar: boolean; lang: "en" | "ar"; onClose: () => void }) {
-  const qc = useQueryClient();
-  const [memberId, setMemberId] = useState("");
-  const assign = useMutation({ mutationFn: async () => { const member = members.find((row) => row.id === memberId); if (!member) return; await assignStaffToShift({ restaurant_id: shift.restaurant_id, shift_id: shift.id, staff_id: member.id, role_snapshot: member.role, starts_at: shift.planned_start, ends_at: shift.planned_end }); }, onSuccess: async () => { setMemberId(""); await qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", shift.restaurant_id] }); toast.success(ar ? "تمت إضافة الموظف للوردية" : "Team member assigned"); }, onError: (error) => toast.error(humanError(error, lang)) });
-  const assignedIds = new Set(assignments.map((row) => row.staff_id));
-  const available = members.filter((row) => row.is_active && !assignedIds.has(row.id));
-
-  return <section className="qs-card overflow-hidden border-orange-200/80 bg-card dark:border-orange-900/50">
-    <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center sm:p-6"><div><div className="flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.08em] text-emerald-700"><span className="size-1.5 rounded-full bg-emerald-500" />{ar ? "مفتوحة الآن" : "Open now"}</span><span className="text-xs text-muted-foreground">{shift.shift_date}</span></div><h2 className="mt-3 font-display text-2xl font-bold tracking-[-.03em]">{shift.name}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? `${assignments.length} أعضاء في هذه الوردية` : `${assignments.length} team members on this shift`}</p></div>{canManage ? <Button variant="outline" className="gap-2" onClick={onClose}><StopCircle className="size-4" />{ar ? "إغلاق الوردية" : "Close shift"}</Button> : null}</div>
-    <div className="border-t border-border/70 p-5"><div className="flex flex-wrap gap-2">{assignments.map((assignment) => { const member = members.find((row) => row.id === assignment.staff_id); return <AssignmentChip key={assignment.id} assignment={assignment} name={member?.name ?? (assignment.staff_id === currentStaffId ? (ar ? "أنت" : "You") : (ar ? "عضو فريق" : "Team member"))} canManage={canManage} isSelf={assignment.staff_id === currentStaffId} restaurantId={shift.restaurant_id} ar={ar} lang={lang} />; })}{!assignments.length ? <span className="text-xs text-muted-foreground">{ar ? "لم تتم إضافة فريق بعد." : "No team members assigned yet."}</span> : null}</div>{canManage && available.length ? <div className="mt-4 flex max-w-xl flex-col gap-2 sm:flex-row"><Select value={memberId} onValueChange={setMemberId}><SelectTrigger className="flex-1"><SelectValue placeholder={ar ? "اختر موظفاً" : "Choose a team member"} /></SelectTrigger><SelectContent>{available.map((member) => <SelectItem key={member.id} value={member.id}>{member.name} · {ROLE_LABELS[member.role]?.[lang] ?? member.role}</SelectItem>)}</SelectContent></Select><Button disabled={!memberId || assign.isPending} onClick={() => assign.mutate()} className="gap-2"><UserPlus className="size-4" />{ar ? "إضافة" : "Assign"}</Button></div> : null}</div>
-  </section>;
-}
-
-function ShiftTimeline({ rows, assignments, canManage, canDelete, currentStaffId, ar, lang, onOpen, onClose, onDelete }: { rows: Shift[]; assignments: ShiftAssignment[]; canManage: boolean; canDelete: boolean; currentStaffId: string; ar: boolean; lang: "en" | "ar"; onOpen: (shift: Shift) => void; onClose: (shift: Shift) => void; onDelete: (shift: Shift) => void }) {
-  const sorted = [...rows].sort((a, b) => {
-    const ad = a.planned_start ? new Date(a.planned_start).getTime() : new Date(a.shift_date).getTime();
-    const bd = b.planned_start ? new Date(b.planned_start).getTime() : new Date(b.shift_date).getTime();
-    return ad - bd;
-  });
-  return <div className="p-4 sm:p-5"><div className="relative space-y-3 before:absolute before:bottom-4 before:start-[45px] before:top-4 before:w-px before:bg-border sm:before:start-[58px]">{sorted.map((shift) => <div key={shift.id} className="relative grid grid-cols-[76px_minmax(0,1fr)] gap-3 sm:grid-cols-[104px_minmax(0,1fr)]"><div className="relative z-10 pt-4 text-end"><span className="inline-block rounded-lg bg-card px-1.5 text-[10px] font-bold text-muted-foreground">{shift.planned_start ? new Date(shift.planned_start).toLocaleTimeString(ar ? "ar-JO" : "en-JO", { hour: "2-digit", minute: "2-digit" }) : shift.shift_date}</span><span className={cn("ms-auto mt-2 block size-2.5 rounded-full ring-4 ring-card", shift.status === "open" ? "bg-emerald-500" : shift.status === "closed" ? "bg-slate-400" : "bg-[#e85d2a]")} /></div><div className="overflow-hidden rounded-2xl border border-border bg-card"><ShiftRow shift={shift} assignments={assignments.filter((row) => row.shift_id === shift.id)} canManage={canManage} canDelete={canDelete} currentStaffId={currentStaffId} ar={ar} lang={lang} onOpen={() => onOpen(shift)} onClose={() => onClose(shift)} onDelete={() => onDelete(shift)} /></div></div>)}</div></div>;
-}
-
-function ShiftRow({ shift, assignments, canManage, canDelete, currentStaffId, ar, lang, onOpen, onClose, onDelete }: { shift: Shift; assignments: ShiftAssignment[]; canManage: boolean; canDelete: boolean; currentStaffId: string; ar: boolean; lang: "en" | "ar"; onOpen: () => void; onClose: () => void; onDelete: () => void }) {
-  const qc = useQueryClient();
-  const open = useMutation({ mutationFn: () => openShift(shift.id, currentStaffId), onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["operations", "shifts", shift.restaurant_id] }); await qc.invalidateQueries({ queryKey: ["operations", "automated-alerts", shift.restaurant_id] }); toast.success(ar ? "تم فتح الوردية" : "Shift opened"); }, onError: (error) => toast.error(humanError(error, lang)) });
-  const self = assignments.find((row) => row.staff_id === currentStaffId) ?? null;
-  return <article role="button" tabIndex={0} onClick={onOpen} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }} className="grid cursor-pointer gap-4 p-4 outline-none transition hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-[#e85d2a] sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{shift.name}</h3><Status status={shift.status} ar={ar} />{self ? <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-bold capitalize text-muted-foreground">{self.status}</span> : null}</div>{shift.notes ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{shift.notes}</p> : null}<div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground"><span>{shift.shift_date}</span><span>{formatWindow(shift, ar)}</span><span className="inline-flex items-center gap-1"><UsersRound className="size-3" />{assignments.length}</span></div></div><div className="flex flex-wrap items-center gap-2" onClick={(event) => event.stopPropagation()}>{self && !canManage && shift.status === "open" ? <SelfShiftControls assignment={self} restaurantId={shift.restaurant_id} ar={ar} lang={lang} /> : null}{canManage ? <>{shift.status === "planned" ? <Button size="sm" disabled={open.isPending} onClick={() => open.mutate()} className="gap-2"><PlayCircle className="size-4" />{ar ? "فتح" : "Open"}</Button> : null}{shift.status === "open" ? <Button size="sm" variant="outline" onClick={onClose}>{ar ? "إغلاق" : "Close"}</Button> : null}{canDelete && shift.status !== "open" ? <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={onDelete}><Trash2 className="size-4" />{ar ? "حذف" : "Delete"}</Button> : null}</> : null}</div></article>;
-}
-
-function AssignmentChip({ assignment, name, canManage, isSelf, restaurantId, ar, lang }: { assignment: ShiftAssignment; name: string; canManage: boolean; isSelf: boolean; restaurantId: string; ar: boolean; lang: "en" | "ar" }) {
-  const qc = useQueryClient();
-  const update = useMutation({ mutationFn: (status: ShiftAssignmentStatus) => updateShiftAssignment(assignment.id, { status }), onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }); }, onError: (error) => toast.error(humanError(error, lang)) });
-  const remove = useMutation({ mutationFn: () => removeShiftAssignment(assignment.id), onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }); }, onError: (error) => toast.error(humanError(error, lang)) });
-  if (!canManage) return <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card p-1 ps-3"><span className="text-xs font-semibold">{name}</span><span className="rounded-full bg-muted px-2 py-1 text-[10px] font-bold capitalize text-muted-foreground">{assignment.status}</span>{isSelf ? <SelfShiftControls assignment={assignment} restaurantId={restaurantId} ar={ar} lang={lang} compact /> : null}</div>;
-  return <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1 ps-3"><span className="text-xs font-semibold">{name}</span><Select value={assignment.status} onValueChange={(value) => update.mutate(value as ShiftAssignmentStatus)}><SelectTrigger className="h-7 w-[112px] border-0 bg-transparent px-2 text-[10px] shadow-none"><SelectValue /></SelectTrigger><SelectContent>{(["scheduled","present","late","absent","released"] as ShiftAssignmentStatus[]).map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent></Select><button type="button" onClick={() => remove.mutate()} className="rounded-full px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive" aria-label={ar ? "إزالة" : "Remove"}>×</button></div>;
-}
-
-function SelfShiftControls({ assignment, restaurantId, ar, lang, compact = false }: { assignment: ShiftAssignment; restaurantId: string; ar: boolean; lang: "en" | "ar"; compact?: boolean }) {
-  const qc = useQueryClient();
-  const update = useMutation({ mutationFn: (status: "present" | "released") => updateOwnShiftAssignmentStatus(assignment.id, status), onSuccess: async (_data, status) => { await qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }); toast.success(status === "present" ? (ar ? "تم بدء الوردية" : "Shift started") : (ar ? "تم إنهاء الوردية" : "Shift ended")); }, onError: (error) => toast.error(humanError(error, lang)) });
-  if (assignment.status === "released") return <span className="px-2 text-[10px] font-bold text-muted-foreground">{ar ? "تم الانتهاء" : "Ended"}</span>;
-  const present = assignment.status === "present";
-  return <Button size="sm" variant={present ? "outline" : "default"} className={compact ? "h-7 rounded-full px-2 text-[10px]" : "h-9"} disabled={update.isPending} onClick={() => update.mutate(present ? "released" : "present")}>{present ? (ar ? "إنهاء ورديتي" : "End my shift") : (ar ? "بدء ورديتي" : "Start my shift")}</Button>;
-}
-
-function HandoverItem({ handover, currentStaffId, restaurantId, ar, lang }: { handover: ShiftHandover; currentStaffId: string; restaurantId: string; ar: boolean; lang: "en" | "ar" }) {
-  const qc = useQueryClient();
-  const acknowledge = useMutation({ mutationFn: () => acknowledgeShiftHandover(handover.id, currentStaffId), onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["operations", "shift-handovers", restaurantId] }); toast.success(ar ? "تم استلام التسليم" : "Handover acknowledged"); }, onError: (error) => toast.error(humanError(error, lang)) });
-  return <div className="p-4"><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2"><Handshake className="size-4 text-[#e85d2a]" /><strong className="text-sm">{handover.summary}</strong></div>{handover.unresolved_items ? <p className="mt-2 text-xs leading-5 text-muted-foreground">{handover.unresolved_items}</p> : null}</div>{!handover.acknowledged_at ? <Button size="sm" variant="outline" disabled={acknowledge.isPending} onClick={() => acknowledge.mutate()}>{ar ? "استلام" : "Acknowledge"}</Button> : null}</div><div className="mt-2 flex justify-between gap-2 text-[10px] text-muted-foreground"><span>{handover.target_role ? ROLE_LABELS[handover.target_role]?.[lang] ?? handover.target_role : (ar ? "موظف محدد" : "Specific teammate")}</span><span>{handover.acknowledged_at ? (ar ? "تم الاستلام" : "Acknowledged") : (ar ? "بانتظار الاستلام" : "Pending")}</span></div></div>;
-}
-
-function DeleteShiftDialog({ shift, restaurantId, onClose, ar, lang }: { shift: Shift; restaurantId: string; onClose: () => void; ar: boolean; lang: "en" | "ar" }) {
-  const qc = useQueryClient();
-  const remove = useMutation({ mutationFn: () => deleteShift(shift.id), onSuccess: async () => { await Promise.all([qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }), qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }), qc.invalidateQueries({ queryKey: ["operations", "shift-handovers", restaurantId] })]); toast.success(ar ? "تم حذف الوردية" : "Shift deleted"); onClose(); }, onError: (error) => toast.error(humanError(error, lang)) });
-  return <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}><DialogContent className="sm:max-w-[460px]"><DialogHeader><DialogTitle>{ar ? "حذف الوردية؟" : "Delete shift?"}</DialogTitle><DialogDescription>{ar ? `سيتم حذف ${shift.name} وتعيينات الفريق المرتبطة بها. تبقى سجلات التسليم محفوظة بدون ربط بالوردية.` : `This removes ${shift.name} and its team assignments. Existing handover records are preserved but detached from the deleted shift.`}</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button><Button variant="destructive" disabled={remove.isPending} onClick={() => remove.mutate()}><Trash2 className="size-4" />{ar ? "حذف الوردية" : "Delete shift"}</Button></DialogFooter></DialogContent></Dialog>;
-}
-
-function CreateShiftDialog({ open, onOpenChange, restaurantId, ar, lang }: { open: boolean; onOpenChange: (open: boolean) => void; restaurantId: string; ar: boolean; lang: "en" | "ar" }) {
+function CreateShiftDialog({
+  open,
+  onOpenChange,
+  restaurantId,
+  ar,
+  lang,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  restaurantId: string;
+  ar: boolean;
+  lang: "en" | "ar";
+}) {
   const qc = useQueryClient();
   const today = new Date().toLocaleDateString("en-CA");
   const [mode, setMode] = useState<"single" | "recurring">("single");
@@ -1270,12 +1988,22 @@ function CreateShiftDialog({ open, onOpenChange, restaurantId, ar, lang }: { ope
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("17:00");
   const [notes, setNotes] = useState("");
+  const [type, setType] = useState<"A" | "B" | "C">("A");
+  const [assigned, setAssigned] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const members = useWorkspaceMembers(restaurantId);
+  const activeMembers = (members.data ?? []).filter((m) => m.is_active);
+
   const overnight = Boolean(start && end && end <= start);
 
   const create = useMutation({
     mutationFn: async () => {
+      const started = new Date().toISOString();
+      const savedNotes = `Shift type: ${type}${notes.trim() ? `\n${notes.trim()}` : ""}`;
+      let created: Shift[] = [];
+      let count = 1;
       if (mode === "recurring") {
-        return createRecurringShifts({
+        count = await createRecurringShifts({
           restaurant_id: restaurantId,
           name: name.trim(),
           start_date: date,
@@ -1283,65 +2011,392 @@ function CreateShiftDialog({ open, onOpenChange, restaurantId, ar, lang }: { ope
           weekdays,
           planned_start: start,
           planned_end: end,
-          notes: notes.trim() || null,
+          notes: savedNotes,
         });
+        if (assigned.length && count) {
+          const result = await supabase
+            .from("shifts" as any)
+            .select("*")
+            .eq("restaurant_id", restaurantId)
+            .eq("name", name.trim())
+            .eq("notes", savedNotes)
+            .gte("created_at", started)
+            .gte("shift_date", date)
+            .lte("shift_date", rangeEnd);
+          if (result.error || (result.data?.length ?? 0) !== count) {
+            toast.warning(
+              ar
+                ? "تم إنشاء الجدول. افتح الورديات لتعيين الفريق."
+                : "Schedule created. Open the shifts to assign your team.",
+            );
+            return count;
+          }
+          created = result.data as unknown as Shift[];
+        }
+      } else {
+        const row = await createShift({
+          restaurant_id: restaurantId,
+          name: name.trim(),
+          shift_date: date,
+          planned_start: localShiftDateTimeIso(date, start),
+          planned_end: localShiftDateTimeIso(date, end, overnight ? 1 : 0),
+          notes: savedNotes,
+        });
+        created = [row];
       }
-      await createShift({
-        restaurant_id: restaurantId,
-        name: name.trim(),
-        shift_date: date,
-        planned_start: start ? localShiftDateTimeIso(date, start) : null,
-        planned_end: end ? localShiftDateTimeIso(date, end, overnight ? 1 : 0) : null,
-        notes: notes.trim() || null,
-      });
-      return 1;
+      let failedAssignments = 0;
+      for (const shift of created) {
+        const results = await Promise.allSettled(
+          assigned.map((id) => {
+            const member = activeMembers.find((m) => m.id === id)!;
+            return assignStaffToShift({
+              restaurant_id: restaurantId,
+              shift_id: shift.id,
+              staff_id: id,
+              role_snapshot: member.role,
+              starts_at: shift.planned_start,
+              ends_at: shift.planned_end,
+            });
+          }),
+        );
+        failedAssignments += results.filter((r) => r.status === "rejected").length;
+      }
+      if (failedAssignments)
+        toast.warning(
+          ar
+            ? "تم إنشاء الورديات، لكن بعض التعيينات تحتاج مراجعة من تفاصيل الوردية."
+            : "Shifts created; some assignments need review in shift details.",
+        );
+      return count;
     },
     onSuccess: async (count) => {
-      await qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] });
-      toast.success(mode === "recurring"
-        ? (ar ? `تم إنشاء ${count} ورديات مجدولة` : `${count} scheduled shifts created`)
-        : (ar ? "تم إنشاء الوردية" : "Shift created"));
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["workforce"] }),
+      ]);
+      setAssigned([]);
+      toast.success(
+        mode === "recurring"
+          ? ar
+            ? `تم إنشاء ${count} ورديات مجدولة`
+            : `${count} scheduled shifts created`
+          : ar
+            ? "تم إنشاء الوردية"
+            : "Shift created",
+      );
       onOpenChange(false);
     },
     onError: (error) => toast.error(humanError(error, lang)),
   });
 
-  function applyDays(days: number[]) { setWeekdays(days); }
-  function toggleDay(day: number) { setWeekdays((current) => current.includes(day) ? current.filter((value) => value !== day) : [...current, day].sort()); }
-  function setRecurringRange(days: number) { setRangeEnd(addShiftDays(date, Math.max(0, days - 1))); }
+  function applyDays(days: number[]) {
+    setWeekdays(days);
+  }
+  function toggleDay(day: number) {
+    setWeekdays((current) =>
+      current.includes(day) ? current.filter((value) => value !== day) : [...current, day].sort(),
+    );
+  }
+  function setRecurringRange(days: number) {
+    setRangeEnd(addShiftDays(date, Math.max(0, days - 1)));
+  }
   const invalidRange = mode === "recurring" && rangeEnd < date;
-  const recurringDays = mode === "recurring" && !invalidRange ? countRecurringDays(date, rangeEnd, weekdays) : 0;
-  const ready = Boolean(name.trim() && date && start && end && !invalidRange && (mode === "single" || weekdays.length));
+  const recurringDays =
+    mode === "recurring" && !invalidRange ? countRecurringDays(date, rangeEnd, weekdays) : 0;
+  const tooLong =
+    mode === "recurring" &&
+    (new Date(`${rangeEnd}T12:00:00`).getTime() - new Date(`${date}T12:00:00`).getTime()) /
+      86400000 >
+      366;
+  const ready = Boolean(
+    name.trim() &&
+    date &&
+    start &&
+    end &&
+    !invalidRange &&
+    !tooLong &&
+    (mode === "single" || recurringDays > 0),
+  );
+  const minutes = (v: string) => Number(v.slice(0, 2)) * 60 + Number(v.slice(3, 5));
+  const durationH = (minutes(end) - minutes(start) + (overnight ? 1440 : 0)) / 60;
+  const count = mode === "single" ? 1 : recurringDays;
+  const previewDates: string[] = [];
+  if (date && rangeEnd && !invalidRange && !tooLong)
+    for (
+      let d = date;
+      d <= (mode === "single" ? date : rangeEnd) && previewDates.length < 3;
+      d = moveDay(d, 1)
+    )
+      if (mode === "single" || weekdays.includes(new Date(`${d}T12:00:00`).getDay()))
+        previewDates.push(d);
 
-  return <Dialog open={open} onOpenChange={(next) => { if (!create.isPending) onOpenChange(next); }}>
-    <DialogContent className="qs-create-shift-dialog flex h-[min(92dvh,860px)] max-h-[92dvh] w-[calc(100vw-1.5rem)] max-w-none flex-col overflow-hidden p-0 sm:max-w-[680px]">
-      <div className="z-10 shrink-0 border-b border-border bg-card px-5 py-4"><DialogHeader><DialogTitle>{ar ? "إنشاء وردية" : "Create shift schedule"}</DialogTitle><DialogDescription>{ar ? "أنشئ وردية واحدة أو جدولاً متكرراً بأيام العمل التي تختارها." : "Create one shift or generate a recurring schedule on the exact workdays you choose."}</DialogDescription></DialogHeader></div>
-      <div className="qs-shift-dialog-scroll min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-5">
-        <div className="grid grid-cols-2 rounded-xl border border-border bg-muted/25 p-1">
-          <button type="button" onClick={() => setMode("single")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "single" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "وردية واحدة" : "Single shift"}</button>
-          <button type="button" onClick={() => { setMode("recurring"); if (rangeEnd <= date) setRangeEnd(addShiftDays(date, 83)); }} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "recurring" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "جدول متكرر" : "Recurring schedule"}</button>
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!create.isPending) onOpenChange(next);
+      }}
+    >
+      <DialogContent
+        className="qs-create-shift-dialog wf-form-dialog wf-shift-dialog"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="wf-dialog-heading">
+          <DialogTitle>{ar ? "إنشاء جدول الورديات" : "Create shift schedule"}</DialogTitle>
+          <DialogDescription>
+            {ar
+              ? "خطط لوردية واحدة أو كررها في أيام العمل المحددة."
+              : "Plan one shift or repeat it across selected workdays."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="wf-dialog-scroll">
+          <div className="wf-filter-tabs wf-form-tabs">
+            <button aria-pressed={mode === "single"} onClick={() => setMode("single")}>
+              {ar ? "وردية واحدة" : "Single shift"}
+            </button>
+            <button aria-pressed={mode === "recurring"} onClick={() => setMode("recurring")}>
+              {ar ? "جدول متكرر" : "Recurring schedule"}
+            </button>
+          </div>
+          <div className="wf-shift-form-layout">
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-[1fr_180px]">
+                <Field label={ar ? "اسم الوردية" : "Shift name"}>
+                  <Input maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+                </Field>
+                <Field label={ar ? "نوع الوردية" : "Shift type"}>
+                  <div className="wf-type-options">
+                    {(["A", "B", "C"] as const).map((t) => (
+                      <button key={t} aria-pressed={t === type} onClick={() => setType(t)}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <RequestDatePicker
+                  label={
+                    mode === "single"
+                      ? ar
+                        ? "التاريخ"
+                        : "Date"
+                      : ar
+                        ? "تاريخ البداية"
+                        : "Start date"
+                  }
+                  value={date}
+                  onChange={(d) => {
+                    setDate(d);
+                    if (rangeEnd < d) setRangeEnd(addShiftDays(d, 27));
+                  }}
+                  ar={ar}
+                />
+                {mode === "recurring" ? (
+                  <RequestDatePicker
+                    label={ar ? "تاريخ النهاية" : "End date"}
+                    value={rangeEnd}
+                    min={date}
+                    onChange={setRangeEnd}
+                    ar={ar}
+                  />
+                ) : null}
+              </div>
+              {mode === "recurring" ? (
+                <Field label={ar ? "أيام العمل" : "Workdays"}>
+                  <div className="wf-workdays">
+                    {SHIFT_WEEKDAYS.map((d) => (
+                      <button
+                        key={d.value}
+                        aria-pressed={weekdays.includes(d.value)}
+                        onClick={() => toggleDay(d.value)}
+                      >
+                        {weekdays.includes(d.value) ? "✓ " : ""}
+                        {ar ? d.ar : d.en}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="wf-quick-days">
+                    <button onClick={() => applyDays([0, 1, 2, 3, 4])}>
+                      {ar ? "الأحد–الخميس" : "Sun–Thu"}
+                    </button>
+                    <button onClick={() => applyDays([5, 6])}>
+                      {ar ? "نهاية الأسبوع" : "Weekend"}
+                    </button>
+                    <button onClick={() => setRecurringRange(28)}>
+                      {ar ? "4 أسابيع" : "4 weeks"}
+                    </button>
+                  </div>
+                </Field>
+              ) : null}
+              <div className="grid grid-cols-2 gap-3">
+                <RequestTimePicker
+                  label={ar ? "وقت البداية" : "Start time"}
+                  value={start}
+                  onChange={setStart}
+                  ar={ar}
+                />
+                <RequestTimePicker
+                  label={ar ? "وقت النهاية" : "End time"}
+                  value={end}
+                  onChange={setEnd}
+                  ar={ar}
+                />
+              </div>
+              <p className="wf-note">
+                {ar
+                  ? "أوقات النهاية قبل البداية تستمر في اليوم التالي."
+                  : "End times before start continue into the next day."}
+              </p>
+              <Field label={ar ? "تعيين أعضاء الفريق" : "Assign team members"}>
+                <Input
+                  aria-label={ar ? "بحث الأعضاء" : "Search members"}
+                  placeholder={ar ? "ابحث باسم الموظف…" : "Search staff by name…"}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <div className="wf-member-options">
+                  {activeMembers
+                    .filter((m) => m.name.toLowerCase().includes(search.toLowerCase()))
+                    .map((m) => (
+                      <button
+                        key={m.id}
+                        aria-pressed={assigned.includes(m.id)}
+                        onClick={() =>
+                          setAssigned((ids) =>
+                            ids.includes(m.id) ? ids.filter((id) => id !== m.id) : [...ids, m.id],
+                          )
+                        }
+                      >
+                        {assigned.includes(m.id) ? (
+                          <CheckCircle2 className="size-3.5" />
+                        ) : (
+                          <Plus className="size-3.5" />
+                        )}
+                        {m.name}
+                      </button>
+                    ))}
+                </div>
+              </Field>
+              <Field label={ar ? "ملاحظات (اختياري)" : "Notes (optional)"}>
+                <Textarea
+                  maxLength={2000}
+                  rows={2}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </Field>
+              {invalidRange || tooLong ? (
+                <p role="alert" className="text-xs text-destructive">
+                  {ar
+                    ? "اختر فترة صالحة لا تتجاوز 366 يوماً."
+                    : "Choose a valid date range of at most 366 days."}
+                </p>
+              ) : null}
+            </div>
+            <aside className="wf-schedule-preview">
+              <h3>{ar ? "معاينة الجدول" : "Schedule preview"}</h3>
+              <div className="wf-preview-metrics">
+                <span>
+                  <strong>{count}</strong>
+                  <small>{ar ? "ورديات" : "shifts"}</small>
+                </span>
+                <span>
+                  <strong>{durationH}h</strong>
+                  <small>{ar ? "لكل وردية" : "per shift"}</small>
+                </span>
+                <span>
+                  <strong>{count * durationH}h</strong>
+                  <small>{ar ? "لكل عضو معيّن" : "per assigned member"}</small>
+                </span>
+              </div>
+              <p>
+                <CalendarDays className="size-4" />
+                {date}
+                {mode === "recurring" ? ` – ${rangeEnd}` : ""}
+              </p>
+              <p>
+                {ar ? "النوع" : "Type"}: {type}
+              </p>
+              <p>
+                <UsersRound className="size-4" />
+                {assigned.length} {ar ? "أعضاء معيّنون" : "members assigned"}
+              </p>
+              <h4>{ar ? "الورديات القادمة" : "Next shifts"}</h4>
+              {previewDates.map((d) => (
+                <div className="wf-preview-shift" key={d}>
+                  <span>
+                    {new Date(`${d}T12:00:00`).toLocaleDateString(ar ? "ar-JO" : "en-US", {
+                      weekday: "short",
+                      month: "short",
+                      day: "2-digit",
+                    })}
+                  </span>
+                  <strong>
+                    {formatTimeInputForSummary(start, ar)} – {formatTimeInputForSummary(end, ar)}
+                    <small>
+                      {durationH} {ar ? "ساعات" : "hours"}
+                    </small>
+                  </strong>
+                </div>
+              ))}
+              <p className="wf-note">
+                {mode === "recurring"
+                  ? ar
+                    ? "يتكرر في أيام العمل المحددة."
+                    : "Repeats on selected workdays."
+                  : ar
+                    ? "ينشئ وردية واحدة فقط."
+                    : "Creates one shift only."}
+              </p>
+            </aside>
+          </div>
         </div>
-        <Field label={ar ? "اسم الوردية" : "Shift name"}><Input value={name} maxLength={80} onChange={(event) => setName(event.target.value)} /></Field>
-        {mode === "single" ? <Field label={ar ? "التاريخ" : "Date"}><Input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></Field> : <>
-          <div className="grid gap-4 sm:grid-cols-2"><Field label={ar ? "من تاريخ" : "Start date"}><Input type="date" value={date} onChange={(event) => { const next=event.target.value; setDate(next); if (rangeEnd < next) setRangeEnd(addShiftDays(next, 83)); }} /></Field><Field label={ar ? "إلى تاريخ" : "End date"}><Input type="date" min={date} value={rangeEnd} onChange={(event) => setRangeEnd(event.target.value)} /></Field></div>
-          <div className="flex flex-wrap items-center gap-2"><span className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "مدة سريعة" : "Quick range"}</span>{[[28, ar ? "4 أسابيع" : "4 weeks"],[84, ar ? "12 أسبوع" : "12 weeks"],[182, ar ? "6 أشهر" : "6 months"]].map(([days,label]) => <button key={String(days)} type="button" onClick={() => setRecurringRange(Number(days))} className={cn("rounded-full border px-3 py-1.5 text-[10px] font-bold transition", addShiftDays(date, Number(days)-1) === rangeEnd ? "border-orange-300 bg-orange-500/10 text-[#cf4818]" : "border-border bg-card text-muted-foreground hover:text-foreground")}>{String(label)}</button>)}</div>
-          <section className="rounded-2xl border border-border bg-muted/10 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-bold">{ar ? "أيام العمل" : "Workdays"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "اختر أي أيام تريدها؛ مثال الأحد إلى الخميس." : "Choose any combination; for example Sunday through Thursday."}</p></div><div className="flex flex-wrap gap-1.5"><Button type="button" size="sm" variant="outline" onClick={() => applyDays([0,1,2,3,4])}>{ar ? "الأحد–الخميس" : "Sun–Thu"}</Button><Button type="button" size="sm" variant="outline" onClick={() => applyDays([5,6])}>{ar ? "عطلة نهاية الأسبوع" : "Weekend"}</Button><Button type="button" size="sm" variant="outline" onClick={() => applyDays([0,1,2,3,4,5,6])}>{ar ? "كل الأيام" : "Every day"}</Button></div></div>
-            <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-7">{SHIFT_WEEKDAYS.map((day) => <button key={day.value} type="button" aria-pressed={weekdays.includes(day.value)} onClick={() => toggleDay(day.value)} className={cn("min-h-10 rounded-xl border px-2 text-xs font-bold transition", weekdays.includes(day.value) ? "border-[#e85d2a] bg-orange-500/10 text-[#cf4818]" : "border-border bg-card text-muted-foreground hover:text-foreground")}>{ar ? day.ar : day.en}</button>)}</div>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-orange-200/70 bg-orange-500/[0.045] px-3 py-2.5 dark:border-orange-900/50"><span className="text-[10px] font-semibold text-muted-foreground">{weekdays.map((day) => SHIFT_WEEKDAYS.find((item) => item.value === day)?.[ar ? "ar" : "en"]).filter(Boolean).join(" · ")} · {formatTimeInputForSummary(start, ar)}–{formatTimeInputForSummary(end, ar)}</span><strong className="text-xs text-[#cf4818]">{recurringDays} {ar ? "يوم مجدول" : recurringDays === 1 ? "scheduled day" : "scheduled days"}</strong></div>
-          </section>
-        </>}
-        <div className="grid gap-4 sm:grid-cols-2"><Field label={ar ? "وقت البداية" : "Start time"}><Input type="time" value={start} onChange={(event) => setStart(event.target.value)} /></Field><Field label={ar ? "وقت النهاية" : "End time"}><Input type="time" value={end} onChange={(event) => setEnd(event.target.value)} /></Field></div>
-        {overnight ? <p className="rounded-xl bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">{ar ? "ستنتهي كل وردية في اليوم التالي." : "Each shift will end on the following day."}</p> : null}
-        {invalidRange ? <p className="rounded-xl bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-700">{ar ? "تاريخ النهاية يجب أن يكون بعد تاريخ البداية." : "End date must be on or after the start date."}</p> : null}
-        <Field label={ar ? "ملاحظات" : "Notes"}><Textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} /></Field>
-      </div>
-      <DialogFooter className="z-10 shrink-0 border-t border-border bg-card px-5 py-4"><Button variant="outline" disabled={create.isPending} onClick={() => onOpenChange(false)}>{ar ? "إلغاء" : "Cancel"}</Button><Button disabled={!ready || create.isPending} onClick={() => create.mutate()}>{create.isPending ? (ar ? "جارٍ الإنشاء…" : "Creating…") : mode === "recurring" ? (ar ? "إنشاء الجدول" : "Create schedule") : (ar ? "إنشاء الوردية" : "Create shift")}</Button></DialogFooter>
-    </DialogContent>
-  </Dialog>;
+        <DialogFooter className="wf-form-footer">
+          <small>
+            {count} {ar ? "ورديات" : "shifts"} · {assigned.length}{" "}
+            {ar ? "أعضاء الفريق" : "team members"}
+          </small>
+          <Button variant="outline" disabled={create.isPending} onClick={() => onOpenChange(false)}>
+            {ar ? "إلغاء" : "Cancel"}
+          </Button>
+          <Button disabled={!ready || create.isPending} onClick={() => create.mutate()}>
+            {create.isPending
+              ? ar
+                ? "جارٍ الإنشاء…"
+                : "Creating…"
+              : mode === "recurring"
+                ? ar
+                  ? "إنشاء الجدول"
+                  : "Create schedule"
+                : ar
+                  ? "إنشاء الوردية"
+                  : "Create shift"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
-function CloseShiftDialog({ shift, openWorkCount, restaurantId, currentStaffId, onClose, ar, lang }: { shift: Shift; openWorkCount: number; restaurantId: string; currentStaffId: string; onClose: () => void; ar: boolean; lang: "en" | "ar" }) {
+function CloseShiftDialog({
+  shift,
+  openWorkCount,
+  restaurantId,
+  currentStaffId,
+  onClose,
+  ar,
+  lang,
+}: {
+  shift: Shift;
+  openWorkCount: number;
+  restaurantId: string;
+  currentStaffId: string;
+  onClose: () => void;
+  ar: boolean;
+  lang: "en" | "ar";
+}) {
   const qc = useQueryClient();
   const [summary, setSummary] = useState("");
   const [unresolved, setUnresolved] = useState("");
@@ -1351,39 +2406,248 @@ function CloseShiftDialog({ shift, openWorkCount, restaurantId, currentStaffId, 
   const mustHandover = openWorkCount > 0;
   const close = useMutation({
     mutationFn: async () => {
-      if (mustHandover || summary.trim()) await createShiftHandover({ restaurant_id: restaurantId, shift_id: shift.id, from_staff_id: currentStaffId, to_staff_id: null, target_role: targetRole, summary: summary.trim() || (ar ? "تسليم نهاية الوردية" : "End-of-shift handover"), unresolved_items: unresolved.trim() || null, cash_note: cash.trim() || null, inventory_note: inventory.trim() || null });
+      if (mustHandover || summary.trim())
+        await createShiftHandover({
+          restaurant_id: restaurantId,
+          shift_id: shift.id,
+          from_staff_id: currentStaffId,
+          to_staff_id: null,
+          target_role: targetRole,
+          summary: summary.trim() || (ar ? "تسليم نهاية الوردية" : "End-of-shift handover"),
+          unresolved_items: unresolved.trim() || null,
+          cash_note: cash.trim() || null,
+          inventory_note: inventory.trim() || null,
+        });
       await closeShift(shift.id, currentStaffId);
     },
-    onSuccess: async () => { await Promise.all([qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }), qc.invalidateQueries({ queryKey: ["operations", "shift-handovers", restaurantId] }), qc.invalidateQueries({ queryKey: ["work", restaurantId] })]); toast.success(ar ? "تم إغلاق الوردية وتسليمها" : "Shift closed and handed over"); onClose(); },
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["operations", "shift-handovers", restaurantId] }),
+        qc.invalidateQueries({ queryKey: ["work", restaurantId] }),
+      ]);
+      toast.success(ar ? "تم إغلاق الوردية وتسليمها" : "Shift closed and handed over");
+      onClose();
+    },
     onError: (error) => toast.error(humanError(error, lang)),
   });
   const ready = !mustHandover || summary.trim().length >= 3;
-  return <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}><DialogContent className="sm:max-w-[620px]"><DialogHeader><DialogTitle>{ar ? `إغلاق ${shift.name}` : `Close ${shift.name}`}</DialogTitle><DialogDescription>{mustHandover ? (ar ? `يوجد ${openWorkCount} عمل غير محلول. يلزم ملخص تسليم قبل الإغلاق.` : `${openWorkCount} work items remain unresolved. Add a handover summary before closing.`) : (ar ? "يمكن إضافة تسليم اختياري قبل الإغلاق." : "You can add an optional handover before closing.")}</DialogDescription></DialogHeader><div className="grid gap-4 py-2 sm:grid-cols-2"><Field label={ar ? "ملخص التسليم" : "Handover summary"} className="sm:col-span-2"><Textarea rows={3} value={summary} onChange={(event) => setSummary(event.target.value)} placeholder={ar ? "ما الذي يجب أن يعرفه الفريق التالي؟" : "What should the next team know?"} /></Field><Field label={ar ? "أعمال غير محلولة" : "Unresolved items"} className="sm:col-span-2"><Textarea rows={2} value={unresolved} onChange={(event) => setUnresolved(event.target.value)} /></Field><Field label={ar ? "ملاحظة الكاش" : "Cash note"}><Input value={cash} onChange={(event) => setCash(event.target.value)} /></Field><Field label={ar ? "ملاحظة المخزون" : "Inventory note"}><Input value={inventory} onChange={(event) => setInventory(event.target.value)} /></Field><Field label={ar ? "تسليم إلى" : "Handover to"} className="sm:col-span-2"><Select value={targetRole} onValueChange={(value) => setTargetRole(value as AppRole)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{HANDOVER_ROLES.map((role) => <SelectItem key={role} value={role}>{ROLE_LABELS[role][lang]}</SelectItem>)}</SelectContent></Select></Field></div><DialogFooter><Button variant="outline" onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button><Button disabled={!ready || close.isPending} onClick={() => close.mutate()}>{ar ? "إغلاق وتسليم" : "Close & hand over"}</Button></DialogFooter></DialogContent></Dialog>;
-}
-
-function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) { return <div className={cn("space-y-2", className)}><Label className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{label}</Label>{children}</div>; }
-function Status({ status, ar }: { status: Shift["status"]; ar: boolean }) { const label = status === "open" ? (ar ? "مفتوحة" : "Open") : status === "closed" ? (ar ? "مغلقة" : "Closed") : (ar ? "مخططة" : "Planned"); return <span className={cn("rounded-full px-2 py-1 text-[10px] font-bold", status === "open" ? "bg-emerald-500/10 text-emerald-700" : status === "closed" ? "bg-slate-500/10 text-slate-600" : "bg-blue-500/10 text-blue-600")}>{label}</span>; }
-function formatWindow(shift: Shift, ar: boolean) { const fmt = (value: string | null) => value ? new Date(value).toLocaleTimeString(ar ? "ar-JO" : "en-JO", { hour: "2-digit", minute: "2-digit" }) : "—"; return `${fmt(shift.planned_start)} – ${fmt(shift.planned_end)}`; }
-function EmptyShifts({ ar }: { ar: boolean }) { return <div className="p-10 text-center"><CalendarClock className="mx-auto size-9 text-muted-foreground" /><h3 className="mt-3 font-bold">{ar ? "لا توجد ورديات بعد" : "No shifts yet"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "أنشئ أول وردية لبدء الجدولة والتسليم." : "Create the first shift to start scheduling and handover."}</p></div>; }
-function WorkforcePageSkeleton({ ar }: { ar: boolean }) {
-  return <div className="min-h-dvh bg-background">
-    <AppHeader title={ar ? "القوى العاملة" : "Workforce"} />
-    <main className="qs-workforce-screen qs-page space-y-4" aria-busy="true" aria-label={ar ? "جارٍ تحميل القوى العاملة" : "Loading Workforce"}>
-      <section className="qs-card overflow-hidden p-5 sm:p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0 flex-1 space-y-3"><Skeleton className="h-5 w-36 rounded-full" /><Skeleton className="h-9 w-64 max-w-full rounded-xl" /><Skeleton className="h-4 w-[460px] max-w-full rounded-lg" /></div>
-          <div className="flex gap-2"><Skeleton className="h-10 w-28 rounded-xl" /><Skeleton className="h-10 w-32 rounded-xl" /></div>
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="sm:max-w-[620px]">
+        <DialogHeader>
+          <DialogTitle>{ar ? `إغلاق ${shift.name}` : `Close ${shift.name}`}</DialogTitle>
+          <DialogDescription>
+            {mustHandover
+              ? ar
+                ? `يوجد ${openWorkCount} عمل غير محلول. يلزم ملخص تسليم قبل الإغلاق.`
+                : `${openWorkCount} work items remain unresolved. Add a handover summary before closing.`
+              : ar
+                ? "يمكن إضافة تسليم اختياري قبل الإغلاق."
+                : "You can add an optional handover before closing."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-2 sm:grid-cols-2">
+          <Field label={ar ? "ملخص التسليم" : "Handover summary"} className="sm:col-span-2">
+            <Textarea
+              rows={3}
+              value={summary}
+              onChange={(event) => setSummary(event.target.value)}
+              placeholder={
+                ar ? "ما الذي يجب أن يعرفه الفريق التالي؟" : "What should the next team know?"
+              }
+            />
+          </Field>
+          <Field label={ar ? "أعمال غير محلولة" : "Unresolved items"} className="sm:col-span-2">
+            <Textarea
+              rows={2}
+              value={unresolved}
+              onChange={(event) => setUnresolved(event.target.value)}
+            />
+          </Field>
+          <Field label={ar ? "ملاحظة الكاش" : "Cash note"}>
+            <Input value={cash} onChange={(event) => setCash(event.target.value)} />
+          </Field>
+          <Field label={ar ? "ملاحظة المخزون" : "Inventory note"}>
+            <Input value={inventory} onChange={(event) => setInventory(event.target.value)} />
+          </Field>
+          <Field label={ar ? "تسليم إلى" : "Handover to"} className="sm:col-span-2">
+            <Select value={targetRole} onValueChange={(value) => setTargetRole(value as AppRole)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {HANDOVER_ROLES.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {ROLE_LABELS[role][lang]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
         </div>
-      </section>
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
-        {Array.from({ length: 6 }).map((_, index) => <article key={index} className="qs-card p-4"><div className="flex items-start justify-between"><Skeleton className="size-9 rounded-xl" /><Skeleton className="h-4 w-14 rounded-full" /></div><Skeleton className="mt-5 h-7 w-16 rounded-lg" /><Skeleton className="mt-2 h-3 w-24 rounded-lg" /></article>)}
-      </section>
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,.7fr)]">
-        <div className="qs-card overflow-hidden"><div className="flex items-center justify-between border-b border-border p-4"><div className="space-y-2"><Skeleton className="h-5 w-36 rounded-lg" /><Skeleton className="h-3 w-48 rounded-lg" /></div><Skeleton className="h-8 w-20 rounded-full" /></div><div className="space-y-3 p-4">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="grid grid-cols-[76px_minmax(0,1fr)] gap-3"><Skeleton className="h-14 rounded-xl" /><Skeleton className="h-14 rounded-xl" /></div>)}</div></div>
-        <div className="space-y-4"><div className="qs-card p-4"><Skeleton className="h-4 w-28 rounded-lg" /><Skeleton className="mt-3 h-8 w-20 rounded-lg" /><Skeleton className="mt-4 h-2 w-full rounded-full" /></div><div className="qs-card p-4"><Skeleton className="h-4 w-32 rounded-lg" />{Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="mt-3 h-10 w-full rounded-xl" />)}</div></div>
-      </section>
-    </main>
-  </div>;
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {ar ? "إلغاء" : "Cancel"}
+          </Button>
+          <Button disabled={!ready || close.isPending} onClick={() => close.mutate()}>
+            {ar ? "إغلاق وتسليم" : "Close & hand over"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
-function Denied({ ar }: { ar: boolean }) { return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><section className="qs-card p-8 text-center"><CalendarClock className="mx-auto size-10 text-muted-foreground" /><h1 className="mt-4 text-xl font-bold">{ar ? "الورديات غير متاحة" : "Shifts are not available"}</h1><p className="mt-2 text-sm text-muted-foreground">{ar ? "هذا الحساب لا يملك وصول مساحة العمل لهذا المطعم." : "This account does not have work access for this restaurant."}</p></section></main></div>; }
+function Field({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("space-y-2", className)}>
+      <Label className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">
+        {label}
+      </Label>
+      {children}
+    </div>
+  );
+}
+function Status({ status, ar }: { status: Shift["status"]; ar: boolean }) {
+  const label =
+    status === "open"
+      ? ar
+        ? "مفتوحة"
+        : "Open"
+      : status === "closed"
+        ? ar
+          ? "مغلقة"
+          : "Closed"
+        : ar
+          ? "مخططة"
+          : "Planned";
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2 py-1 text-[10px] font-bold",
+        status === "open"
+          ? "bg-emerald-500/10 text-emerald-700"
+          : status === "closed"
+            ? "bg-slate-500/10 text-slate-600"
+            : "bg-blue-500/10 text-blue-600",
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+function formatWindow(shift: Shift, ar: boolean) {
+  const fmt = (value: string | null) =>
+    value
+      ? new Date(value).toLocaleTimeString(ar ? "ar-JO" : "en-JO", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "—";
+  return `${fmt(shift.planned_start)} – ${fmt(shift.planned_end)}`;
+}
+function WorkforcePageSkeleton({ ar }: { ar: boolean }) {
+  return (
+    <div className="min-h-dvh bg-background">
+      <AppHeader title={ar ? "القوى العاملة" : "Workforce"} />
+      <main
+        className="qs-workforce-screen qs-page space-y-4"
+        aria-busy="true"
+        aria-label={ar ? "جارٍ تحميل القوى العاملة" : "Loading Workforce"}
+      >
+        <section className="qs-card overflow-hidden p-5 sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0 flex-1 space-y-3">
+              <Skeleton className="h-5 w-36 rounded-full" />
+              <Skeleton className="h-9 w-64 max-w-full rounded-xl" />
+              <Skeleton className="h-4 w-[460px] max-w-full rounded-lg" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-28 rounded-xl" />
+              <Skeleton className="h-10 w-32 rounded-xl" />
+            </div>
+          </div>
+        </section>
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <article key={index} className="qs-card p-4">
+              <div className="flex items-start justify-between">
+                <Skeleton className="size-9 rounded-xl" />
+                <Skeleton className="h-4 w-14 rounded-full" />
+              </div>
+              <Skeleton className="mt-5 h-7 w-16 rounded-lg" />
+              <Skeleton className="mt-2 h-3 w-24 rounded-lg" />
+            </article>
+          ))}
+        </section>
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,.7fr)]">
+          <div className="qs-card overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-4">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-36 rounded-lg" />
+                <Skeleton className="h-3 w-48 rounded-lg" />
+              </div>
+              <Skeleton className="h-8 w-20 rounded-full" />
+            </div>
+            <div className="space-y-3 p-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="grid grid-cols-[76px_minmax(0,1fr)] gap-3">
+                  <Skeleton className="h-14 rounded-xl" />
+                  <Skeleton className="h-14 rounded-xl" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="qs-card p-4">
+              <Skeleton className="h-4 w-28 rounded-lg" />
+              <Skeleton className="mt-3 h-8 w-20 rounded-lg" />
+              <Skeleton className="mt-4 h-2 w-full rounded-full" />
+            </div>
+            <div className="qs-card p-4">
+              <Skeleton className="h-4 w-32 rounded-lg" />
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="mt-3 h-10 w-full rounded-xl" />
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function Denied({ ar }: { ar: boolean }) {
+  return (
+    <div className="min-h-dvh bg-background">
+      <AppHeader />
+      <main className="qs-page">
+        <section className="qs-card p-8 text-center">
+          <CalendarClock className="mx-auto size-10 text-muted-foreground" />
+          <h1 className="mt-4 text-xl font-bold">
+            {ar ? "الورديات غير متاحة" : "Shifts are not available"}
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {ar
+              ? "هذا الحساب لا يملك وصول مساحة العمل لهذا المطعم."
+              : "This account does not have work access for this restaurant."}
+          </p>
+        </section>
+      </main>
+    </div>
+  );
+}

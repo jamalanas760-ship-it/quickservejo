@@ -87,7 +87,7 @@ test("shift clock stays visible and uses server-authoritative attendance state",
   const shifts = await file("src/routes/_authenticated/shifts.tsx");
   assert.match(shifts, /import \{ useEffect, useMemo, useState \} from "react"/);
   assert.doesNotMatch(shifts, /max-h-\[118px\][^>]*overflow-y-auto/);
-  assert.ok(shifts.indexOf("Attendance & time") < shifts.indexOf("Weekly labor control"));
+  assert.ok(shifts.indexOf("<WorkforceClockHero") < shifts.indexOf("<WorkforceToday"));
   assert.match(shifts, /clock_out\.is\.null,clock_in\.gte/);
   assert.match(shifts, /get_my_time_clock_status/);
   assert.match(shifts, /clock_in_staff/);
@@ -211,13 +211,12 @@ test("team and shifts pages implement the approved modern live workforce design"
   assert.match(team, /StaffLiveStatus/);
   assert.match(team, /StaffRowActions/);
   assert.match(team, /On Leave/);
-  assert.match(shifts, /Shift coverage/);
-  assert.match(shifts, /Live preview/);
-  assert.match(shifts, /CoverageTimeline/);
-  assert.match(shifts, /ShiftWeekCalendar/);
-  assert.match(shifts, /Shift Conflicts/);
+  const studio = await file("src/components/workforce/WorkforceStudio.tsx");
+  assert.match(shifts, /<WorkforceWeekBoard/);
+  assert.match(studio, /Unassigned shifts/);
+  assert.match(studio, /Select a shift to view details/);
   assert.match(shifts, /Create shift/);
-  assert.match(shifts, /"timeline" \| "calendar" \| "list"/);
+  assert.match(shifts, /<WorkforceLabor/);
 });
 
 
@@ -299,7 +298,7 @@ test("approved Team and Workforce layout uses the command icon search and live T
   assert.match(team, /Today’s coverage/);
   assert.match(team, /Review requests/);
   assert.match(team, /Recent activity/);
-  assert.match(shifts, /qs-approved-workforce-page/);
+  assert.match(shifts, /wf-studio/);
   assert.match(css, /Approved Team \+ Workforce image implementation/);
   assert.match(css, /qs-approved-page-hero/);
 });
@@ -354,12 +353,12 @@ test("Workforce Requests supports permissions, leave types, reasons and attachme
 test("shifts page places a modern live clock hero above shift coverage", async () => {
   const shifts = await file("src/routes/_authenticated/shifts.tsx");
   assert.match(shifts, /function WorkforceClockHero/);
-  assert.ok(shifts.indexOf("<WorkforceClockHero") < shifts.indexOf("Shift coverage"));
-  assert.match(shifts, /You are currently on shift/);
-  assert.match(shifts, /Current session/);
-  assert.match(shifts, /Expected end/);
+  assert.ok(shifts.indexOf("<WorkforceClockHero") < shifts.indexOf("<WorkforceWeekBoard"));
+  assert.match(shifts, /Clocked in/);
+  assert.match(shifts, /Worked/);
+  assert.match(shifts, /Shift ends/);
   assert.match(shifts, /Clock out/);
   assert.match(shifts, /function WorkforceNavigation/);
-  assert.match(shifts, /mode=\{workforceSection\}/);
-  assert.match(shifts, /showAttendance = mode === "attendance"/);
+  assert.match(shifts, /<WorkforceAttendanceBoard/);
+  assert.match(shifts, /<WorkforceRequests/);
 });
