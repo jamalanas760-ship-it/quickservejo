@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChefHat, Plus, Printer, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
 
-type Station = { id: string; name: string; name_ar: string | null; display_order: number; is_active: boolean };
-type PrinterRow = { id: string; name: string; purpose: string; provider: string; kitchen_station_id: string | null; is_active: boolean };
-type MenuItem = { id: string; name_en: string; name_ar: string; kitchen_station_id: string | null; is_available: boolean };
+type Station = {
+  id: string;
+  name: string;
+  name_ar: string | null;
+  display_order: number;
+  is_active: boolean;
+};
+type PrinterRow = {
+  id: string;
+  name: string;
+  purpose: string;
+  provider: string;
+  kitchen_station_id: string | null;
+  is_active: boolean;
+};
+type MenuItem = {
+  id: string;
+  name_en: string;
+  name_ar: string;
+  kitchen_station_id: string | null;
+  is_available: boolean;
+};
 
 export function KitchenConfigPanel({ restaurantId }: { restaurantId: string }) {
   const { lang } = useI18n();
@@ -28,11 +47,26 @@ export function KitchenConfigPanel({ restaurantId }: { restaurantId: string }) {
     queryKey: ["kitchen-config", restaurantId],
     queryFn: async () => {
       const [stationsRes, printersRes, itemsRes] = await Promise.all([
-        (supabase as any).from("kitchen_stations").select("id,name,name_ar,display_order,is_active").eq("restaurant_id", restaurantId).order("display_order").order("name"),
-        (supabase as any).from("kitchen_printers").select("id,name,purpose,provider,kitchen_station_id,is_active").eq("restaurant_id", restaurantId).order("name"),
-        (supabase as any).from("menu_items").select("id,name_en,name_ar,kitchen_station_id,is_available").eq("restaurant_id", restaurantId).order("display_order").order("name_en"),
+        (supabase as any)
+          .from("kitchen_stations")
+          .select("id,name,name_ar,display_order,is_active")
+          .eq("restaurant_id", restaurantId)
+          .order("display_order")
+          .order("name"),
+        (supabase as any)
+          .from("kitchen_printers")
+          .select("id,name,purpose,provider,kitchen_station_id,is_active")
+          .eq("restaurant_id", restaurantId)
+          .order("name"),
+        (supabase as any)
+          .from("menu_items")
+          .select("id,name_en,name_ar,kitchen_station_id,is_available")
+          .eq("restaurant_id", restaurantId)
+          .order("display_order")
+          .order("name_en"),
       ]);
-      for (const result of [stationsRes, printersRes, itemsRes]) if (result.error) throw result.error;
+      for (const result of [stationsRes, printersRes, itemsRes])
+        if (result.error) throw result.error;
       return {
         stations: (stationsRes.data ?? []) as Station[],
         printers: (printersRes.data ?? []) as PrinterRow[],
@@ -86,11 +120,18 @@ export function KitchenConfigPanel({ restaurantId }: { restaurantId: string }) {
     onError: (error) => toast.error(humanError(error, lang)),
   });
 
-  const stationMap = useMemo(() => new Map((query.data?.stations ?? []).map((station) => [station.id, station])), [query.data?.stations]);
+  const stationMap = useMemo(
+    () => new Map((query.data?.stations ?? []).map((station) => [station.id, station])),
+    [query.data?.stations],
+  );
 
   async function assignItem(itemId: string, stationId: string) {
     try {
-      const { error } = await (supabase as any).from("menu_items").update({ kitchen_station_id: stationId || null }).eq("id", itemId).eq("restaurant_id", restaurantId);
+      const { error } = await (supabase as any)
+        .from("menu_items")
+        .update({ kitchen_station_id: stationId || null })
+        .eq("id", itemId)
+        .eq("restaurant_id", restaurantId);
       if (error) throw error;
       await Promise.all([
         refresh(),
@@ -103,7 +144,11 @@ export function KitchenConfigPanel({ restaurantId }: { restaurantId: string }) {
 
   async function removeStation(id: string) {
     try {
-      const { error } = await (supabase as any).from("kitchen_stations").delete().eq("id", id).eq("restaurant_id", restaurantId);
+      const { error } = await (supabase as any)
+        .from("kitchen_stations")
+        .delete()
+        .eq("id", id)
+        .eq("restaurant_id", restaurantId);
       if (error) throw error;
       await refresh();
       toast.success(ar ? "تم حذف المحطة" : "Station removed");
@@ -114,7 +159,11 @@ export function KitchenConfigPanel({ restaurantId }: { restaurantId: string }) {
 
   async function removePrinter(id: string) {
     try {
-      const { error } = await (supabase as any).from("kitchen_printers").delete().eq("id", id).eq("restaurant_id", restaurantId);
+      const { error } = await (supabase as any)
+        .from("kitchen_printers")
+        .delete()
+        .eq("id", id)
+        .eq("restaurant_id", restaurantId);
       if (error) throw error;
       await refresh();
       toast.success(ar ? "تم حذف إعداد الطابعة" : "Printer configuration removed");
@@ -124,24 +173,223 @@ export function KitchenConfigPanel({ restaurantId }: { restaurantId: string }) {
   }
 
   if (query.isPending) return <Skeleton className="h-[520px] rounded-2xl" />;
-  if (query.isError) return <div role="alert" className="qs-card p-6 text-sm text-destructive">{humanError(query.error, lang)}</div>;
+  if (query.isError)
+    return (
+      <div role="alert" className="qs-card p-6 text-sm text-destructive">
+        {humanError(query.error, lang)}
+      </div>
+    );
 
-  return <div className="space-y-5">
-    <section className="qs-card p-5">
-      <div className="flex items-start gap-3"><span className="grid size-10 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><ChefHat className="size-5" /></span><div><h2 className="font-display text-xl font-bold">{ar ? "محطات المطبخ" : "Kitchen stations"}</h2><p className="mt-1 text-sm text-muted-foreground">{ar ? "وجّه المنتجات للشواية أو البار أو الحلويات أو أي محطة خاصة بك." : "Route menu items to Grill, Bar, Dessert or any station your kitchen uses."}</p></div></div>
-      <div className="mt-5 grid gap-2 md:grid-cols-[1fr_1fr_auto]"><Input value={stationName} onChange={(e) => setStationName(e.target.value)} placeholder={ar ? "اسم المحطة بالإنجليزية" : "Station name"} /><Input value={stationNameAr} onChange={(e) => setStationNameAr(e.target.value)} placeholder={ar ? "اسم المحطة بالعربية (اختياري)" : "Arabic name (optional)"} /><Button disabled={createStation.isPending || !stationName.trim()} onClick={() => createStation.mutate()}><Plus className="size-4" />{ar ? "إضافة" : "Add"}</Button></div>
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{(query.data?.stations ?? []).map((station) => <div key={station.id} className="flex items-center justify-between rounded-xl border p-3"><div><strong className="text-sm">{ar ? station.name_ar || station.name : station.name}</strong><p className="text-[10px] text-muted-foreground">{station.is_active ? (ar ? "نشطة" : "Active") : (ar ? "غير نشطة" : "Inactive")}</p></div><Button variant="ghost" size="icon" onClick={() => void removeStation(station.id)}><Trash2 className="size-4" /></Button></div>)}</div>
-    </section>
-
-    <section className="qs-card p-5">
-      <div className="flex items-start gap-3"><span className="grid size-10 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><Printer className="size-5" /></span><div><h2 className="font-display text-xl font-bold">{ar ? "الطابعات" : "Printers"}</h2><p className="mt-1 text-sm text-muted-foreground">{ar ? "الطباعة عبر المتصفح تعمل الآن؛ ويمكن توصيل محولات الشبكة أو السحابة لاحقاً بدون تغيير تدفق المطبخ." : "Browser printing works now; network/cloud adapters can be connected later without changing the kitchen workflow."}</p></div></div>
-      <div className="mt-5 grid gap-2 lg:grid-cols-[1fr_180px_220px_auto]"><Input value={printerName} onChange={(e) => setPrinterName(e.target.value)} placeholder={ar ? "اسم الطابعة" : "Printer name"} /><select value={printerPurpose} onChange={(e) => setPrinterPurpose(e.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm"><option value="kitchen">{ar ? "مطبخ" : "Kitchen"}</option><option value="cashier">{ar ? "كاشير" : "Cashier"}</option><option value="receipt">{ar ? "إيصال" : "Receipt"}</option></select><select value={printerStation} onChange={(e) => setPrinterStation(e.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm"><option value="">{ar ? "كل المحطات" : "All stations"}</option>{(query.data?.stations ?? []).map((station) => <option key={station.id} value={station.id}>{ar ? station.name_ar || station.name : station.name}</option>)}</select><Button disabled={createPrinter.isPending || !printerName.trim()} onClick={() => createPrinter.mutate()}><Plus className="size-4" />{ar ? "إضافة" : "Add"}</Button></div>
-      <div className="mt-4 divide-y rounded-xl border">{(query.data?.printers ?? []).map((printer) => <div key={printer.id} className="flex items-center justify-between gap-3 p-3"><div><strong className="text-sm">{printer.name}</strong><p className="text-[10px] text-muted-foreground">{printer.purpose} · {printer.provider} · {printer.kitchen_station_id ? stationMap.get(printer.kitchen_station_id)?.name ?? "Station" : (ar ? "كل المحطات" : "All stations")}</p></div><Button variant="ghost" size="icon" onClick={() => void removePrinter(printer.id)}><Trash2 className="size-4" /></Button></div>)}</div>
-    </section>
-
-    <section className="qs-card overflow-hidden">
-      <div className="border-b p-5"><h2 className="font-display text-xl font-bold">{ar ? "توجيه عناصر القائمة" : "Menu item routing"}</h2><p className="mt-1 text-sm text-muted-foreground">{ar ? "حدد المحطة التي يجب أن تستلم كل منتج." : "Choose which station should receive each item."}</p></div>
-      <div className="divide-y">{(query.data?.items ?? []).map((item) => <div key={item.id} className="grid gap-2 p-4 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-center"><div><strong className="text-sm">{ar ? item.name_ar || item.name_en : item.name_en || item.name_ar}</strong><p className="text-[10px] text-muted-foreground">{item.is_available ? (ar ? "متوفر" : "Available") : (ar ? "غير متوفر" : "Unavailable")}</p></div><select value={item.kitchen_station_id ?? ""} onChange={(e) => void assignItem(item.id, e.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm"><option value="">{ar ? "بدون محطة / عام" : "Unassigned / general"}</option>{(query.data?.stations ?? []).map((station) => <option key={station.id} value={station.id}>{ar ? station.name_ar || station.name : station.name}</option>)}</select></div>)}</div>
-    </section>
-  </div>;
+  return (
+    <div className="bo-kitchen-workspace">
+      <header className="bo-section-heading">
+        <div>
+          <h2>{ar ? "إعداد المطبخ" : "Kitchen setup"}</h2>
+          <p>
+            {ar
+              ? "اضبط المحطات والطباعة وتوجيه الأصناف."
+              : "Configure stations, printing and menu item routing."}
+          </p>
+        </div>
+      </header>
+      <section className="bo-panel">
+        <header>
+          <h2>{ar ? "محطات المطبخ" : "Kitchen stations"}</h2>
+        </header>
+        <div className="bo-kitchen-form">
+          <Input
+            aria-label={ar ? "اسم المحطة" : "Station name"}
+            value={stationName}
+            onChange={(e) => setStationName(e.target.value)}
+            placeholder={ar ? "اسم المحطة" : "Station name"}
+          />
+          <Input
+            aria-label={ar ? "الاسم بالعربية" : "Arabic name"}
+            value={stationNameAr}
+            onChange={(e) => setStationNameAr(e.target.value)}
+            placeholder={ar ? "اسم عربي اختياري" : "Arabic name (optional)"}
+          />
+          <Button
+            disabled={createStation.isPending || !stationName.trim()}
+            onClick={() => createStation.mutate()}
+          >
+            <Plus size={15} />
+            {ar ? "إضافة محطة" : "Add station"}
+          </Button>
+        </div>
+        <div className="bo-table-scroll">
+          <table className="bo-data-table">
+            <thead>
+              <tr>
+                <th>{ar ? "المحطة" : "Station"}</th>
+                <th>{ar ? "الحالة" : "Status"}</th>
+                <th>{ar ? "الإجراءات" : "Actions"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(query.data?.stations ?? []).map((station) => (
+                <tr key={station.id}>
+                  <td>
+                    <strong>{ar ? station.name_ar || station.name : station.name}</strong>
+                  </td>
+                  <td>
+                    {station.is_active ? (ar ? "فعالة" : "Active") : ar ? "غير فعالة" : "Inactive"}
+                  </td>
+                  <td>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={ar ? "حذف المحطة" : "Delete station"}
+                      onClick={() => void removeStation(station.id)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section className="bo-panel">
+        <header>
+          <h2>{ar ? "إعداد الطباعة" : "Printing stations"}</h2>
+        </header>
+        <div className="bo-kitchen-form">
+          <Input
+            aria-label={ar ? "اسم الطابعة" : "Printer name"}
+            value={printerName}
+            onChange={(e) => setPrinterName(e.target.value)}
+            placeholder={ar ? "اسم الطابعة" : "Printer name"}
+          />
+          <div className="bo-field-grid">
+            <select
+              aria-label={ar ? "الغرض" : "Printer purpose"}
+              value={printerPurpose}
+              onChange={(e) => setPrinterPurpose(e.target.value)}
+            >
+              <option value="kitchen">{ar ? "مطبخ" : "Kitchen"}</option>
+              <option value="cashier">{ar ? "كاشير" : "Cashier"}</option>
+              <option value="receipt">{ar ? "إيصال" : "Receipt"}</option>
+            </select>
+            <select
+              aria-label={ar ? "المحطة" : "Printer station"}
+              value={printerStation}
+              onChange={(e) => setPrinterStation(e.target.value)}
+            >
+              <option value="">{ar ? "كل المحطات" : "All stations"}</option>
+              {(query.data?.stations ?? []).map((station) => (
+                <option key={station.id} value={station.id}>
+                  {ar ? station.name_ar || station.name : station.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button
+            disabled={createPrinter.isPending || !printerName.trim()}
+            onClick={() => createPrinter.mutate()}
+          >
+            <Plus size={15} />
+            {ar ? "إضافة طابعة" : "Add printer"}
+          </Button>
+        </div>
+        <div className="bo-table-scroll">
+          <table className="bo-data-table">
+            <thead>
+              <tr>
+                <th>{ar ? "الطابعة" : "Printer"}</th>
+                <th>{ar ? "المحطة" : "Station"}</th>
+                <th>{ar ? "الإجراءات" : "Actions"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(query.data?.printers ?? []).map((printer) => (
+                <tr key={printer.id}>
+                  <td>
+                    <strong>{printer.name}</strong>
+                    <small>
+                      {printer.purpose} · {printer.provider}
+                    </small>
+                  </td>
+                  <td>
+                    {printer.kitchen_station_id
+                      ? (stationMap.get(printer.kitchen_station_id)?.name ?? "—")
+                      : ar
+                        ? "كل المحطات"
+                        : "All stations"}
+                  </td>
+                  <td>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={ar ? "حذف الطابعة" : "Delete printer"}
+                      onClick={() => void removePrinter(printer.id)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!query.data?.printers.length ? (
+            <p className="bo-empty">{ar ? "لا طابعات بعد." : "No printers configured yet."}</p>
+          ) : null}
+        </div>
+      </section>
+      <section className="bo-panel bo-kitchen-routing">
+        <header>
+          <h2>{ar ? "توجيه أصناف القائمة" : "Menu item routing"}</h2>
+          <span className="text-xs text-muted-foreground">
+            {ar ? "يُحفظ التغيير تلقائياً" : "Changes save automatically"}
+          </span>
+        </header>
+        <div className="bo-table-scroll">
+          <table className="bo-data-table">
+            <thead>
+              <tr>
+                <th>{ar ? "الصنف" : "Menu item"}</th>
+                <th>{ar ? "الحالة" : "Status"}</th>
+                <th>{ar ? "المحطة" : "Station"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(query.data?.items ?? []).map((item) => (
+                <tr key={item.id}>
+                  <td>
+                    <strong>
+                      {ar ? item.name_ar || item.name_en : item.name_en || item.name_ar}
+                    </strong>
+                  </td>
+                  <td>
+                    {item.is_available
+                      ? ar
+                        ? "متوفر"
+                        : "Available"
+                      : ar
+                        ? "غير متوفر"
+                        : "Unavailable"}
+                  </td>
+                  <td>
+                    <select
+                      aria-label={`${ar ? "محطة" : "Station for"} ${ar ? item.name_ar || item.name_en : item.name_en || item.name_ar}`}
+                      value={item.kitchen_station_id ?? ""}
+                      onChange={(e) => void assignItem(item.id, e.target.value)}
+                    >
+                      <option value="">{ar ? "بدون محطة / عام" : "Unassigned / general"}</option>
+                      {(query.data?.stations ?? []).map((station) => (
+                        <option key={station.id} value={station.id}>
+                          {ar ? station.name_ar || station.name : station.name}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
 }

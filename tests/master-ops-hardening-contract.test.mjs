@@ -32,8 +32,9 @@ test("analytics and ERP expose decision-ready master summaries",()=>{
   assert.match(analytics,/DecisionIntelligencePanel/);
   assert.match(analytics,/peakHour/);
   assert.match(analytics,/cancelRate/);
-  assert.match(erp,/Back Office command/);
-  assert.match(erp,/qs-backoffice-kpis/);
+  assert.match(erp,/Back Office/);
+  assert.match(erp,/Inventory value/);
+  assert.match(erp,/Month expenses/);
 });
 
 test("integrations surface runtime health",()=>{

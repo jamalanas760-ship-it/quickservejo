@@ -1,11 +1,26 @@
-import { BarChart3, Coins, Download, Package, ShoppingCart, TrendingDown } from "lucide-react";
-
+import { useMemo, useState } from "react";
+import { Download } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { DateRangePicker } from "@/components/common/DateRangePicker";
 import { Button } from "@/components/ui/button";
-import { backOfficeSummary, type BackOfficeAccess, type BackOfficeData } from "@/hooks/useBackOffice";
-import { downloadCsv, expenseCategoryLabel } from "@/lib/erp";
+import type { BackOfficeAccess, BackOfficeData } from "@/hooks/useBackOffice";
+import { downloadCsv, expenseCategoryLabel, stockValuation } from "@/lib/erp";
 import { formatMoney, formatNumber } from "@/lib/format";
+import { dayKey, rangeFromPreset, type DateRange } from "@/lib/range";
 import { useI18n } from "@/lib/i18n";
 
+const colors = ["#ff5a0a", "#ffa154", "#568cff", "#a18be7", "#8b97a8"];
 export function ReportsPanel({
   data,
   access,
@@ -17,64 +32,231 @@ export function ReportsPanel({
   currency: string;
   restaurantName: string;
 }) {
-  const { lang } = useI18n();
-  const ar = lang === "ar";
-  const summary = backOfficeSummary(data);
-
-  const procStatus = ["requested","approved","ordered","received","rejected","cancelled"].map((status) => ({
-    status,
-    count: data.procurement.filter((row) => row.status === status).length,
-  }));
-
-  function exportSnapshot() {
-    const rows: (string | number)[][] = [
-      ["Inventory items", summary.itemCount],
-      ["Low stock", summary.lowStock.length],
-      ["Inventory value", summary.valuation.value.toFixed(3)],
-      ["Suppliers", summary.supplierCount],
-      ["Pending approval", summary.pendingApproval],
-      ["Pending receiving", summary.pendingReceiving],
-      ["Open procurement value", summary.openProcurementValue.toFixed(3)],
-      ["Month expenses", summary.monthTotal.toFixed(3)],
-      ["Month expense count", summary.monthCount],
-    ];
+  const { lang } = useI18n(),
+    ar = lang === "ar";
+  const [range, setRange] = useState<DateRange>(() => rangeFromPreset("30d"));
+  const expenses = useMemo(
+    () =>
+      data.expenses.filter(
+        (row) => row.expense_date >= dayKey(range.from) && row.expense_date < dayKey(range.to),
+      ),
+    [data.expenses, range],
+  );
+  const total = expenses.reduce((sum, row) => sum + Number(row.amount), 0);
+  const daily = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const row of expenses)
+      map.set(row.expense_date, (map.get(row.expense_date) ?? 0) + Number(row.amount));
+    return [...map]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, amount]) => ({ date: date.slice(5), amount }));
+  }, [expenses]);
+  const categories = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const row of expenses)
+      map.set(row.category, (map.get(row.category) ?? 0) + Number(row.amount));
+    return [...map]
+      .sort((a, b) => b[1] - a[1])
+      .map(([category, value]) => ({ name: expenseCategoryLabel(category, lang), value }));
+  }, [expenses, lang]);
+  const valuation = stockValuation(data.inventory, data.movements);
+  const costs = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const movement of [...data.movements].sort((a, b) =>
+      b.created_at.localeCompare(a.created_at),
+    ))
+      if (Number(movement.unit_cost) > 0 && !map.has(movement.item_id))
+        map.set(movement.item_id, Number(movement.unit_cost));
+    return map;
+  }, [data.movements]);
+  const stock = [...data.inventory].sort(
+    (a, b) =>
+      Number(b.quantity) * (costs.get(b.id) ?? 0) - Number(a.quantity) * (costs.get(a.id) ?? 0),
+  );
+  function exportReport() {
+    const rows: (string | number)[][] = [];
+    if (access.finance) {
+      rows.push(["Period expenses", total]);
+      for (const entry of categories) rows.push([entry.name, entry.value]);
+    }
+    if (access.inventory) {
+      rows.push(["Inventory value", valuation.value]);
+      for (const item of stock)
+        rows.push([item.name, Number(item.quantity) * (costs.get(item.id) ?? 0)]);
+    }
     downloadCsv(
-      `${restaurantName || "restaurant"}-erp-snapshot.csv`,
-      ["Metric", "Value"],
+      `${restaurantName || "restaurant"}-backoffice-${dayKey(range.from)}.csv`,
+      ["Metric / Item", `Value (${currency})`],
       rows,
     );
   }
-
-  return <section className="space-y-4">
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4">
-      <div><h3 className="font-display text-lg font-bold">{ar ? "تقارير ERP" : "ERP reports"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "ملخص حي مبني على بيانات المخزون والمشتريات والمالية الفعلية." : "A live operational snapshot built from actual inventory, procurement and Finance data."}</p></div>
-      <Button variant="outline" onClick={exportSnapshot}><Download className="size-4" />{ar ? "تصدير الملخص" : "Export snapshot"}</Button>
-    </div>
-
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {access.inventory ? <ReportKpi icon={Package} label={ar ? "قيمة المخزون" : "Inventory value"} value={formatMoney(summary.valuation.value,currency,lang)} /> : null}
-      {access.procurement ? <ReportKpi icon={ShoppingCart} label={ar ? "قيمة مشتريات مفتوحة" : "Open procurement"} value={formatMoney(summary.openProcurementValue,currency,lang)} /> : null}
-      {access.finance ? <ReportKpi icon={Coins} label={ar ? "مصروفات الشهر" : "Month expenses"} value={formatMoney(summary.monthTotal,currency,lang)} /> : null}
-      <ReportKpi icon={BarChart3} label={ar ? "حالات تحتاج انتباه" : "Attention items"} value={formatNumber(summary.lowStock.length + summary.pendingApproval + summary.pendingReceiving,lang)} />
-    </div>
-
-    <div className="grid gap-4 xl:grid-cols-2">
-      {access.procurement ? <section className="rounded-2xl border border-border bg-card p-5"><h4 className="font-bold">{ar ? "مسار المشتريات" : "Procurement status"}</h4><div className="mt-4 space-y-3">{procStatus.map((entry) => {
-        const total=Math.max(1,data.procurement.length);
-        const share=Math.round(entry.count/total*100);
-        return <div key={entry.status}><div className="flex items-center justify-between gap-3 text-xs"><span className="capitalize">{entry.status}</span><strong>{formatNumber(entry.count,lang)}</strong></div><div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-[#e85d2a]" style={{width:`${share}%`}}/></div></div>;
-      })}</div></section> : null}
-
-      {access.finance ? <section className="rounded-2xl border border-border bg-card p-5"><div className="flex items-center gap-2"><TrendingDown className="size-4 text-muted-foreground"/><h4 className="font-bold">{ar ? "المصروف حسب الفئة" : "Spend by category"}</h4></div>{summary.monthByCategory.length ? <div className="mt-4 space-y-3">{summary.monthByCategory.map(([category,amount])=>{
-        const share=summary.monthTotal>0?Math.round(amount/summary.monthTotal*100):0;
-        return <div key={category}><div className="flex items-center justify-between gap-3 text-xs"><span>{expenseCategoryLabel(category,lang)}</span><strong>{formatMoney(amount,currency,lang)}</strong></div><div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-foreground" style={{width:`${share}%`}}/></div></div>;
-      })}</div>:<p className="mt-4 text-xs text-muted-foreground">{ar?"لا توجد مصروفات في هذا الشهر.":"No expenses recorded this month."}</p>}</section> : null}
-    </div>
-
-    {access.inventory ? <section className="rounded-2xl border border-border bg-card p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="font-bold">{ar ? "صحة المخزون" : "Inventory health"}</h4><p className="mt-1 text-xs text-muted-foreground">{ar ? "المواد الأقل من حد إعادة الطلب تظهر أولاً." : "Items at or below reorder level are surfaced first."}</p></div><span className="rounded-full bg-muted px-3 py-1 text-[10px] font-bold text-muted-foreground">{formatNumber(summary.lowStock.length,lang)} {ar?"منخفض":"low"}</span></div>{summary.lowStock.length?<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{summary.lowStock.slice(0,9).map((item)=><div key={item.id} className="rounded-xl border border-border p-3"><strong className="block truncate text-sm">{item.name}</strong><p className="mt-1 text-xs text-muted-foreground">{formatNumber(Number(item.quantity),lang)} {item.unit} · {ar?"حد":"reorder"} {formatNumber(Number(item.reorder_level),lang)}</p></div>)}</div>:<p className="mt-4 text-xs text-muted-foreground">{ar?"كل المواد فوق حد إعادة الطلب.":"All inventory items are above reorder level."}</p>}</section>:null}
-  </section>;
-}
-
-function ReportKpi({icon:Icon,label,value}:{icon:typeof Package;label:string;value:string}) {
-  return <article className="qs-stat min-h-[112px] p-4"><div className="flex items-center gap-2 text-muted-foreground"><Icon className="size-4"/><p className="text-[11px] font-semibold">{label}</p></div><strong className="mt-3 block font-display text-2xl tracking-[-.04em]">{value}</strong></article>;
+  return (
+    <section className="space-y-4">
+      <header className="bo-section-heading">
+        <div>
+          <h2>{ar ? "التقارير" : "Reports"}</h2>
+          <p>
+            {ar
+              ? "رؤى حول المخزون والمشتريات والمصروفات."
+              : "Insights into your inventory, purchasing and expenses."}
+          </p>
+        </div>
+        <div className="bo-toolbar">
+          <DateRangePicker value={range} onChange={setRange} />
+          <Button variant="outline" onClick={exportReport}>
+            <Download size={15} />
+            {ar ? "تصدير التقرير" : "Export report"}
+          </Button>
+        </div>
+      </header>
+      {access.finance ? (
+        <div className="bo-charts">
+          <section className="bo-panel bo-chart">
+            <h3>
+              {ar ? "مصروفات الفترة" : "Period expenses"} ({currency}){" "}
+              <span className="float-end">{formatMoney(total, currency, lang)}</span>
+            </h3>
+            {daily.length ? (
+              <div
+                className="bo-chart-body"
+                aria-label={ar ? "المصروفات حسب اليوم" : "Expenses by day"}
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={daily}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--bo-line)" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10, fill: "var(--bo-muted)" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: "var(--bo-muted)" }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={45}
+                    />
+                    <Tooltip
+                      formatter={(v) => formatMoney(Number(v), currency, lang)}
+                      contentStyle={{
+                        background: "var(--bo-surface)",
+                        borderColor: "var(--bo-line)",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                    />
+                    <Bar
+                      isAnimationActive={false}
+                      dataKey="amount"
+                      fill="#ff5a0a"
+                      radius={[3, 3, 0, 0]}
+                      maxBarSize={28}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="bo-empty">
+                {ar ? "لا مصروفات في هذه الفترة." : "No expenses in this period."}
+              </div>
+            )}
+          </section>
+          <section className="bo-panel bo-chart">
+            <h3>{ar ? "المصروف حسب الفئة" : "Expenses by category"}</h3>
+            {categories.length ? (
+              <div className="bo-category-chart">
+                <div className="bo-chart-body">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        isAnimationActive={false}
+                        data={categories}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius="55%"
+                        outerRadius="85%"
+                        paddingAngle={3}
+                      >
+                        {categories.map((entry, i) => (
+                          <Cell key={entry.name} fill={colors[i % colors.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(v) => formatMoney(Number(v), currency, lang)}
+                        contentStyle={{
+                          background: "var(--bo-surface)",
+                          borderColor: "var(--bo-line)",
+                          fontSize: 12,
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <ul>
+                  {categories.map((entry, i) => (
+                    <li key={entry.name}>
+                      <i style={{ background: colors[i % colors.length] }} />
+                      <span>{entry.name}</span>
+                      <strong>{total > 0 ? Math.round((entry.value / total) * 100) : 0}%</strong>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="bo-empty">
+                {ar ? "لا مصروفات في هذه الفترة." : "No expenses in this period."}
+              </div>
+            )}
+          </section>
+        </div>
+      ) : null}
+      {access.inventory ? (
+        <section className="bo-panel">
+          <header>
+            <h2>{ar ? "قيمة المخزون" : "Stock valuation"}</h2>
+            <strong className="text-sm">{formatMoney(valuation.value, currency, lang)}</strong>
+          </header>
+          <div className="bo-table-scroll">
+            <table className="bo-data-table">
+              <thead>
+                <tr>
+                  {[
+                    ar ? "المادة" : "Item",
+                    ar ? "الكمية" : "Quantity",
+                    ar ? "تكلفة الوحدة" : "Unit cost",
+                    ar ? "القيمة" : "Value",
+                  ].map((label) => (
+                    <th key={label}>{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {stock.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <strong>{item.name}</strong>
+                    </td>
+                    <td>
+                      {formatNumber(Number(item.quantity), lang)} {item.unit}
+                    </td>
+                    <td>
+                      {costs.has(item.id) ? formatMoney(costs.get(item.id)!, currency, lang) : "—"}
+                    </td>
+                    <td>
+                      {costs.has(item.id)
+                        ? formatMoney(Number(item.quantity) * costs.get(item.id)!, currency, lang)
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!stock.length ? (
+              <p className="bo-empty">{ar ? "لا مواد مخزون بعد." : "No inventory items yet."}</p>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+    </section>
+  );
 }

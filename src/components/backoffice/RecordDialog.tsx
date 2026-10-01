@@ -1,31 +1,29 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Calculator } from "lucide-react";
+import { Info } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useBackOfficeWrite } from "@/hooks/useBackOffice";
 import { EXPENSE_CATEGORIES, ERP_UNITS, type InventoryBalance, type Supplier } from "@/lib/erp";
 import { humanError } from "@/lib/errors";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 
 export type RecordRequest =
   | { kind: "item" }
-  | { kind: "supplier" }
+  | { kind: "supplier"; supplierId?: string }
   | { kind: "procurement"; itemId?: string }
   | { kind: "expense" }
   | { kind: "receive"; itemId?: string }
   | { kind: "issue"; itemId?: string };
-
-const selectClass = "flex min-h-11 w-full rounded-xl border bg-background px-3 text-sm";
 
 /** Single dialog for every Back Office write. Ledgers stay append-only. */
 export function RecordDialog({
@@ -49,27 +47,66 @@ export function RecordDialog({
   const [error, setError] = useState<string | null>(null);
   const [movementQuantity, setMovementQuantity] = useState(0);
   const [movementCost, setMovementCost] = useState(0);
+  const [itemId, setItemId] = useState("");
   const busy = write.isPending;
 
+  const requestKind = request?.kind;
+  const initialItemId =
+    request && "itemId" in request
+      ? (request.itemId ?? inventory[0]?.id ?? "")
+      : (inventory[0]?.id ?? "");
   useEffect(() => {
     setMovementQuantity(0);
     setMovementCost(0);
     setError(null);
-  }, [request?.kind, request && "itemId" in request ? request.itemId : null]);
+    setItemId(initialItemId);
+  }, [requestKind, initialItemId]);
 
-  const title = !request
-    ? ""
-    : request.kind === "item"
-      ? t("bo.form.item")
-      : request.kind === "supplier"
-        ? t("bo.form.supplier")
-        : request.kind === "procurement"
-          ? (ar ? "طلب شراء" : "Procurement request")
-          : request.kind === "expense"
-            ? t("bo.form.expense")
-            : request.kind === "receive"
-            ? t("bo.form.receive")
-            : t("bo.form.issue");
+  const selectedSupplier =
+    request?.kind === "supplier"
+      ? suppliers.find((row) => row.id === request.supplierId)
+      : undefined;
+
+  const title = selectedSupplier
+    ? ar
+      ? "تعديل المورد"
+      : "Edit supplier"
+    : request
+      ? {
+          item: ar ? "إضافة مادة" : "Add inventory item",
+          supplier: ar ? "إضافة مورد" : "Add supplier",
+          procurement: ar ? "طلب شراء جديد" : "New procurement request",
+          expense: ar ? "مصروف يدوي" : "Manual expense",
+          receive: ar ? "استلام توريد" : "Receive supplies",
+          issue: ar ? "صرف مخزون" : "Issue stock",
+        }[request.kind]
+      : "";
+  const description = request
+    ? {
+        item: ar ? "أنشئ مادة مخزون جديدة." : "Create a new inventory item.",
+        supplier: ar ? "أضف معلومات المورد." : "Add supplier information.",
+        procurement: ar ? "أرسل طلب شراء للمراجعة." : "Send a procurement request for review.",
+        expense: ar ? "سجّل مصروفاً تجارياً يدوياً." : "Record a business expense manually.",
+        receive: ar
+          ? "سجّل المخزون الوارد من الموردين."
+          : "Record incoming stock from your suppliers.",
+        issue: ar ? "استخدم مواد من المخزون." : "Use items from inventory.",
+      }[request.kind]
+    : "";
+  const submitLabel = selectedSupplier
+    ? ar
+      ? "حفظ التغييرات"
+      : "Save changes"
+    : request
+      ? {
+          item: ar ? "إضافة المادة" : "Add item",
+          supplier: ar ? "إضافة المورد" : "Add supplier",
+          procurement: ar ? "إنشاء الطلب" : "Create request",
+          expense: ar ? "تسجيل المصروف" : "Record expense",
+          receive: ar ? "استلام التوريد" : "Receive supplies",
+          issue: ar ? "صرف المخزون" : "Issue stock",
+        }[request.kind]
+      : "";
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -78,15 +115,30 @@ export function RecordDialog({
     const text = (name: string) => String(values.get(name) ?? "").trim();
     const number = (name: string) => {
       const value = Number(text(name));
-      if (!Number.isFinite(value)) throw new Error(ar ? "أدخل رقماً صحيحاً" : "Enter a valid number");
+      if (!Number.isFinite(value))
+        throw new Error(ar ? "أدخل رقماً صحيحاً" : "Enter a valid number");
       return value;
     };
     setError(null);
     try {
       if (request.kind === "item") {
-        await write.mutateAsync({ kind: "item", name: text("name"), unit: text("unit"), reorder_level: number("reorder") });
+        await write.mutateAsync({
+          kind: "item",
+          name: text("name"),
+          unit: text("unit"),
+          reorder_level: number("reorder"),
+        });
       } else if (request.kind === "supplier") {
-        await write.mutateAsync({ kind: "supplier", name: text("name"), contact: text("contact") });
+        await write.mutateAsync(
+          selectedSupplier
+            ? {
+                kind: "supplier_edit",
+                id: selectedSupplier.id,
+                name: text("name"),
+                contact: text("contact"),
+              }
+            : { kind: "supplier", name: text("name"), contact: text("contact") },
+        );
       } else if (request.kind === "procurement") {
         const itemId = text("item");
         const item = inventory.find((row) => row.id === itemId);
@@ -103,11 +155,29 @@ export function RecordDialog({
           notes: text("notes"),
         });
       } else if (request.kind === "expense") {
-        await write.mutateAsync({ kind: "expense", description: text("description"), category: text("category"), amount: number("amount"), expense_date: text("date"), reference: text("reference") });
+        await write.mutateAsync({
+          kind: "expense",
+          description: text("description"),
+          category: text("category"),
+          amount: number("amount"),
+          expense_date: text("date"),
+          reference: text("reference"),
+        });
       } else {
         const magnitude = Math.abs(number("quantity"));
+        const selectedItem = inventory.find((row) => row.id === text("item"));
+        if (!selectedItem) throw new Error(ar ? "اختر مادة مخزون" : "Choose an inventory item");
+        if (request.kind === "issue" && magnitude > Number(selectedItem.quantity))
+          throw new Error(
+            ar ? "الكمية أكبر من المخزون المتاح." : "Quantity exceeds available stock.",
+          );
         const unitCost = number("cost");
-        if (request.kind === "receive" && unitCost <= 0) throw new Error(ar ? "سعر الوحدة مطلوب لتسجيل المصروف المالي تلقائياً" : "Unit price is required so Finance can record the receipt automatically");
+        if (request.kind === "receive" && unitCost <= 0)
+          throw new Error(
+            ar
+              ? "سعر الوحدة مطلوب لتسجيل المصروف المالي تلقائياً"
+              : "Unit price is required so Finance can record the receipt automatically",
+          );
         await write.mutateAsync({
           kind: "movement",
           item_id: text("item"),
@@ -118,7 +188,13 @@ export function RecordDialog({
           reason: text("reason"),
         });
       }
-      toast.success(request.kind === "receive" ? (ar ? "تم استلام المخزون وتسجيل المصروف في المالية" : "Stock received and Finance expense recorded") : t("bo.form.saved"));
+      toast.success(
+        request.kind === "receive"
+          ? ar
+            ? "تم استلام المخزون وتسجيل المصروف في المالية"
+            : "Stock received and Finance expense recorded"
+          : t("bo.form.saved"),
+      );
       onClose();
     } catch (cause) {
       const message = humanError(cause, lang);
@@ -129,43 +205,341 @@ export function RecordDialog({
 
   const movement = request?.kind === "receive" || request?.kind === "issue";
   const receiving = request?.kind === "receive";
-  const defaultItem = request && "itemId" in request ? request.itemId : undefined;
+  const procurement = request?.kind === "procurement";
+  const selectedItem = inventory.find((row) => row.id === itemId);
   const totalCost = Math.max(0, movementQuantity) * Math.max(0, movementCost);
-
+  const stockAfter =
+    Number(selectedItem?.quantity ?? 0) + (receiving ? movementQuantity : -movementQuantity);
+  const itemField = (
+    <label>
+      <span>{ar ? "مادة المخزون" : "Inventory item"}</span>
+      <select
+        aria-label={ar ? "مادة المخزون" : "Inventory item"}
+        name="item"
+        required
+        value={itemId}
+        onChange={(e) => setItemId(e.target.value)}
+      >
+        <option value="" disabled>
+          {ar ? "اختر مادة" : "Choose an item"}
+        </option>
+        {inventory.map((item) => (
+          <option value={item.id} key={item.id}>
+            {item.name} ({item.unit})
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+  const quantityField = (
+    <label>
+      <span>
+        {ar ? "الكمية" : "Quantity"}
+        {selectedItem ? ` (${selectedItem.unit})` : ""}
+      </span>
+      <Input
+        required
+        name="quantity"
+        type="number"
+        min="0.001"
+        max={request?.kind === "issue" ? Number(selectedItem?.quantity ?? 0) : undefined}
+        step="0.001"
+        value={movementQuantity || ""}
+        onChange={(e) => setMovementQuantity(Number(e.target.value) || 0)}
+      />
+    </label>
+  );
+  const supplierField = (
+    <label>
+      <span>{ar ? "المورد (اختياري)" : "Supplier (optional)"}</span>
+      <select aria-label={ar ? "المورد (اختياري)" : "Supplier (optional)"} name="supplier">
+        <option value="">{ar ? "غير محدد" : "Not selected"}</option>
+        {suppliers.map((supplier) => (
+          <option key={supplier.id} value={supplier.id}>
+            {supplier.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
   return (
-    <Dialog open={request !== null} onOpenChange={(open) => { if (!open && !busy) { setError(null); onClose(); } }}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>{t("bo.form.check")}</DialogDescription></DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
-          {request?.kind === "item" || request?.kind === "supplier" ? <label className="block space-y-2 text-sm"><span>{t("bo.form.name")}</span><Input name="name" required maxLength={160} autoComplete="off" /></label> : null}
-
-          {request?.kind === "procurement" ? <div className="space-y-4">
-            <div className="rounded-2xl border border-border bg-muted/35 p-4"><p className="text-sm font-bold">{ar ? "مسار شراء منظم" : "Structured purchase request"}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar ? "يُرسل الطلب للموافقة، ثم الشراء، ثم الاستلام. عند الاستلام يتم تحديث المخزون وتسجيل المصروف المالي تلقائياً." : "The request moves through approval, ordering and receiving. Receiving updates inventory and posts the Finance expense automatically."}</p></div>
-            <label className="block space-y-2 text-sm"><span>{ar ? "مادة المخزون" : "Inventory item"}</span><select name="item" className={selectClass} required defaultValue={defaultItem ?? ""}><option value="" disabled>{ar ? "اختر مادة" : "Choose an item"}</option>{inventory.map((item) => <option value={item.id} key={item.id}>{item.name} ({item.unit})</option>)}</select></label>
-            <div className="grid gap-4 sm:grid-cols-2"><label className="block space-y-2 text-sm"><span>{ar ? "الكمية" : "Quantity"}</span><Input required name="quantity" type="number" min="0.001" step="0.001" /></label><label className="block space-y-2 text-sm"><span>{ar ? "سعر الوحدة التقديري" : "Estimated unit cost"} ({currency})</span><Input required name="estimatedCost" type="number" min="0" step="0.001" defaultValue="0" /></label></div>
-            <label className="block space-y-2 text-sm"><span>{ar ? "المورد" : "Supplier"}</span><select name="supplier" className={selectClass}><option value="">{ar ? "غير محدد بعد" : "Not selected yet"}</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
-            <label className="block space-y-2 text-sm"><span>{ar ? "مطلوب قبل" : "Needed by"}</span><Input name="neededBy" type="date" /></label>
-            <label className="block space-y-2 text-sm"><span>{ar ? "ملاحظات" : "Notes"}</span><Input name="notes" maxLength={500} /></label>
-          </div> : null}
-
-          {request?.kind === "item" ? <><label className="block space-y-2 text-sm"><span>{t("bo.inv.unit")}</span><select name="unit" className={selectClass}>{ERP_UNITS.map((unit) => <option key={unit}>{unit}</option>)}</select></label><label className="block space-y-2 text-sm"><span>{t("bo.form.reorderLevel")}</span><Input name="reorder" required type="number" min="0" step="0.001" defaultValue="0" /></label></> : null}
-          {request?.kind === "supplier" ? <label className="block space-y-2 text-sm"><span>{t("bo.sup.contact")}</span><Input name="contact" maxLength={250} /></label> : null}
-
-          {movement ? <>
-            <label className="block space-y-2 text-sm"><span>{t("bo.inv.item")}</span><select name="item" className={selectClass} required defaultValue={defaultItem ?? ""}>{inventory.map((item) => <option value={item.id} key={item.id}>{item.name} ({item.unit})</option>)}</select></label>
-            <label className="block space-y-2 text-sm"><span>{t("bo.form.quantity")}</span><Input required name="quantity" type="number" min="0.001" step="0.001" value={movementQuantity || ""} onChange={(event) => setMovementQuantity(Number(event.target.value) || 0)} /></label>
-            {receiving ? <label className="block space-y-2 text-sm"><span>{t("bo.form.supplierOptional")}</span><select name="supplier" className={selectClass}><option value="">—</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label> : <input type="hidden" name="supplier" value="" />}
-            <label className="block space-y-2 text-sm"><span>{t("bo.form.unitCost")} ({currency})</span><Input name="cost" type="number" min={receiving ? "0.001" : "0"} step="0.001" value={movementCost || ""} onChange={(event) => setMovementCost(Number(event.target.value) || 0)} required /></label>
-            {receiving ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/15"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600"><Calculator className="size-4" /></span><div className="min-w-0 flex-1"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-emerald-700 dark:text-emerald-400">{ar ? "التكلفة الإجمالية · الكمية × السعر" : "Total cost · Quantity × Unit price"}</p><strong className="mt-1 block font-display text-2xl tracking-[-.04em]">{formatMoney(totalCost, currency, lang)}</strong></div></div><p className="mt-3 text-xs leading-5 text-muted-foreground">{ar ? "عند الحفظ، سيُنشئ QuickServe مصروفاً مرتبطاً تلقائياً في المالية ضمن فئة المستلزمات. لا حاجة للإدخال اليدوي." : "On save, QuickServe automatically posts a linked Supplies expense to Finance. No manual double entry is required."}</p></div> : null}
-            <label className="block space-y-2 text-sm"><span>{t("bo.form.reason")}</span><Input name="reason" required maxLength={250} defaultValue={receiving ? (ar ? "استلام توريد" : "Supply receipt") : ""} /></label>
-          </> : null}
-
-          {request?.kind === "expense" ? <><label className="block space-y-2 text-sm"><span>{t("bo.form.description")}</span><Input name="description" required maxLength={250} /></label><label className="block space-y-2 text-sm"><span>{t("bo.form.category")}</span><select name="category" className={selectClass}>{EXPENSE_CATEGORIES.map((category) => <option key={category.value} value={category.value}>{ar ? category.ar : category.en}</option>)}</select></label><label className="block space-y-2 text-sm"><span>{t("bo.form.amount")} ({currency})</span><Input name="amount" type="number" min="0.001" step="0.001" required /></label><label className="block space-y-2 text-sm"><span>{t("bo.form.date")}</span><Input name="date" type="date" defaultValue={new Date().toLocaleDateString("en-CA")} required /></label><label className="block space-y-2 text-sm"><span>{t("bo.form.reference")}</span><Input name="reference" maxLength={100} /></label></> : null}
-
-          {error ? <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}
-          <Button className="min-h-11 w-full" disabled={busy}>{busy ? t("bo.form.saving") : t("bo.form.save")}</Button>
+    <Sheet
+      open={request !== null}
+      onOpenChange={(open) => {
+        if (!open && !busy) onClose();
+      }}
+    >
+      <SheetContent
+        side={ar ? "left" : "right"}
+        dir={ar ? "rtl" : "ltr"}
+        className="bo-record"
+        closeLabel={ar ? "إغلاق" : "Close"}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => {
+          if (busy) e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (busy) e.preventDefault();
+        }}
+      >
+        <SheetHeader className="bo-record-header">
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>{description}</SheetDescription>
+        </SheetHeader>
+        <form onSubmit={submit}>
+          <div className="bo-record-body">
+            <fieldset disabled={busy}>
+              {request?.kind === "item" || request?.kind === "supplier" ? (
+                <label>
+                  <span>{ar ? "الاسم" : "Name"}</span>
+                  <Input
+                    name="name"
+                    required
+                    maxLength={160}
+                    autoComplete="off"
+                    defaultValue={selectedSupplier?.name ?? ""}
+                  />
+                </label>
+              ) : null}
+              {request?.kind === "item" ? (
+                <div className="bo-field-grid">
+                  <label>
+                    <span>{ar ? "الوحدة" : "Unit"}</span>
+                    <select aria-label={ar ? "الوحدة" : "Unit"} name="unit">
+                      {ERP_UNITS.map((unit) => (
+                        <option key={unit}>{unit}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>{ar ? "حد إعادة الطلب" : "Reorder level"}</span>
+                    <Input
+                      name="reorder"
+                      required
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      defaultValue="0"
+                    />
+                  </label>
+                </div>
+              ) : null}
+              {request?.kind === "supplier" ? (
+                <label>
+                  <span>{ar ? "معلومات الاتصال" : "Contact"}</span>
+                  <Input
+                    name="contact"
+                    maxLength={250}
+                    defaultValue={selectedSupplier?.contact ?? ""}
+                  />
+                </label>
+              ) : null}
+              {procurement ? (
+                <>
+                  {itemField}
+                  <div className="bo-field-grid">
+                    {quantityField}
+                    <label>
+                      <span>
+                        {ar ? "سعر الوحدة التقديري" : "Estimated unit cost"} ({currency})
+                      </span>
+                      <Input
+                        name="estimatedCost"
+                        required
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        value={movementCost}
+                        onChange={(e) => setMovementCost(Number(e.target.value) || 0)}
+                      />
+                    </label>
+                  </div>
+                  {supplierField}
+                  <div className="bo-field-grid">
+                    <label>
+                      <span>{ar ? "مطلوب قبل" : "Needed by"}</span>
+                      <Input name="neededBy" type="date" />
+                    </label>
+                    <label>
+                      <span>{ar ? "ملاحظات" : "Notes"}</span>
+                      <textarea name="notes" maxLength={500} />
+                    </label>
+                  </div>
+                  <div className="bo-live-summary blue">
+                    <div>
+                      <small>{ar ? "الإجمالي التقديري" : "Estimated total"}</small>
+                      <strong>{formatMoney(totalCost, currency, lang)}</strong>
+                    </div>
+                    <p>
+                      {ar
+                        ? "أرسل الطلب للمراجعة قبل الشراء."
+                        : "Send for review before purchasing."}
+                    </p>
+                  </div>
+                </>
+              ) : null}
+              {movement ? (
+                <>
+                  {itemField}
+                  {!receiving && selectedItem ? (
+                    <div className="bo-available">
+                      <strong>
+                        {formatNumber(Number(selectedItem.quantity), lang)} {selectedItem.unit}{" "}
+                        {ar ? "متاح" : "available"}
+                      </strong>
+                      <small>{ar ? "المخزون الحالي" : "Current stock level"}</small>
+                    </div>
+                  ) : null}
+                  {quantityField}
+                  <div className="bo-field-grid">
+                    <label>
+                      <span>
+                        {ar ? "سعر الوحدة" : "Unit cost"} ({currency})
+                      </span>
+                      <Input
+                        name="cost"
+                        type="number"
+                        min={receiving ? "0.001" : "0"}
+                        step="0.001"
+                        value={movementCost || ""}
+                        onChange={(e) => setMovementCost(Number(e.target.value) || 0)}
+                        required
+                      />
+                    </label>
+                    {receiving ? (
+                      supplierField
+                    ) : (
+                      <label>
+                        <span>{ar ? "السبب" : "Reason"}</span>
+                        <Input name="reason" required maxLength={250} />
+                      </label>
+                    )}
+                  </div>
+                  {receiving ? (
+                    <label>
+                      <span>{ar ? "السبب" : "Reason"}</span>
+                      <Input
+                        name="reason"
+                        required
+                        maxLength={250}
+                        defaultValue={ar ? "استلام توريد" : "Supply receipt"}
+                      />
+                    </label>
+                  ) : (
+                    <input type="hidden" name="supplier" value="" />
+                  )}
+                  <div className="bo-live-summary" aria-live="polite">
+                    <div>
+                      <small>
+                        {receiving
+                          ? ar
+                            ? "المخزون بعد الاستلام"
+                            : "Stock after receipt"
+                          : ar
+                            ? "المخزون بعد الصرف"
+                            : "Stock after issue"}
+                      </small>
+                      <strong>
+                        {formatNumber(stockAfter, lang)} {selectedItem?.unit}
+                      </strong>
+                      <p>
+                        {ar ? "المتاح الآن" : "Currently"}{" "}
+                        {formatNumber(Number(selectedItem?.quantity ?? 0), lang)}{" "}
+                        {selectedItem?.unit}
+                      </p>
+                    </div>
+                    <div>
+                      <small>
+                        {receiving
+                          ? ar
+                            ? "التكلفة الإجمالية"
+                            : "Total cost"
+                          : ar
+                            ? "القيمة"
+                            : "Value"}
+                      </small>
+                      <strong>{formatMoney(totalCost, currency, lang)}</strong>
+                      <p>
+                        {formatNumber(movementQuantity, lang)} ×{" "}
+                        {formatMoney(movementCost, currency, lang)}
+                      </p>
+                    </div>
+                  </div>
+                  {receiving ? (
+                    <p className="text-xs text-muted-foreground">
+                      {ar
+                        ? "يُسجّل وقت الاستلام والمصروف المرتبط تلقائياً عند الحفظ."
+                        : "Receipt time and its linked Finance expense are recorded automatically on save."}
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+              {request?.kind === "expense" ? (
+                <>
+                  <label>
+                    <span>{ar ? "الوصف" : "Description"}</span>
+                    <Input name="description" required maxLength={250} />
+                  </label>
+                  <label>
+                    <span>{ar ? "الفئة" : "Category"}</span>
+                    <select aria-label={ar ? "الفئة" : "Category"} name="category">
+                      {EXPENSE_CATEGORIES.map((category) => (
+                        <option key={category.value} value={category.value}>
+                          {ar ? category.ar : category.en}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="bo-field-grid">
+                    <label>
+                      <span>
+                        {ar ? "المبلغ" : "Amount"} ({currency})
+                      </span>
+                      <Input name="amount" type="number" min="0.001" step="0.001" required />
+                    </label>
+                    <label>
+                      <span>{ar ? "التاريخ" : "Date"}</span>
+                      <Input
+                        name="date"
+                        type="date"
+                        defaultValue={new Date().toLocaleDateString("en-CA")}
+                        required
+                      />
+                    </label>
+                  </div>
+                  <label>
+                    <span>{ar ? "المرجع (اختياري)" : "Reference (optional)"}</span>
+                    <Input name="reference" maxLength={100} />
+                  </label>
+                  <div className="bo-available flex items-center gap-2">
+                    <Info size={16} />
+                    {ar ? "يُسجّل كمصروف يدوي." : "Recorded as a manual expense."}
+                  </div>
+                </>
+              ) : null}
+            </fieldset>
+            {error ? (
+              <p
+                role="alert"
+                className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
+                {error}
+              </p>
+            ) : null}
+          </div>
+          <footer className="bo-record-footer">
+            <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
+              {ar ? "إلغاء" : "Cancel"}
+            </Button>
+            <Button
+              type="submit"
+              disabled={busy || ((movement || procurement) && !inventory.length)}
+            >
+              {busy ? t("bo.form.saving") : submitLabel}
+            </Button>
+          </footer>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

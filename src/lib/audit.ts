@@ -45,12 +45,21 @@ export type AuditAction =
   | "erp.item_created"
   | "erp.item_deleted"
   | "erp.supplier_created"
+  | "erp.supplier_updated"
   | "erp.procurement_requested"
   | "erp.stock_received"
   | "erp.stock_issued"
   | "erp.expense_recorded";
 
-export async function logAudit(action: AuditAction, opts: { restaurantId?: string | null; entity?: string; entityId?: string | null | undefined; metadata?: Record<string, unknown> } = {}): Promise<void> {
+export async function logAudit(
+  action: AuditAction,
+  opts: {
+    restaurantId?: string | null;
+    entity?: string;
+    entityId?: string | null | undefined;
+    metadata?: Record<string, unknown>;
+  } = {},
+): Promise<void> {
   try {
     const { data } = await supabase.auth.getUser();
     const user = data.user;
@@ -58,7 +67,8 @@ export async function logAudit(action: AuditAction, opts: { restaurantId?: strin
     await supabase.from("audit_logs").insert({
       restaurant_id: opts.restaurantId ?? null,
       actor_user_id: user.id,
-      actor_name: (user.user_metadata as { full_name?: string } | null)?.full_name ?? user.email ?? null,
+      actor_name:
+        (user.user_metadata as { full_name?: string } | null)?.full_name ?? user.email ?? null,
       action,
       entity: opts.entity ?? null,
       entity_id: opts.entityId ?? null,

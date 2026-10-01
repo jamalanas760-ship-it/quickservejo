@@ -1,7 +1,8 @@
-import { useMemo } from "react";
-import { CheckCircle2, CircleDollarSign, PackageCheck, ReceiptText, Truck } from "lucide-react";
+import { useMemo, useState } from "react";
+import { PackageCheck, ReceiptText, Truck } from "lucide-react";
 
 import type { RecordRequest } from "@/components/backoffice/RecordDialog";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { BackOfficeData } from "@/hooks/useBackOffice";
 import { formatDateTime, formatMoney, formatNumber } from "@/lib/format";
@@ -21,46 +22,177 @@ export function ReceivingPanel({
 }) {
   const { lang } = useI18n();
   const ar = lang === "ar";
+  const [term, setTerm] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [status, setStatus] = useState("all");
   const receipts = useMemo(
-    () => data.movements.filter((row) => row.movement_type === "receipt" && Number(row.quantity) > 0),
+    () =>
+      data.movements.filter((row) => row.movement_type === "receipt" && Number(row.quantity) > 0),
     [data.movements],
   );
-  const receiptValue = receipts.reduce((sum, row) => sum + Number(row.total_cost ?? Math.abs(Number(row.quantity)) * Number(row.unit_cost)), 0);
-  const financePosted = receipts.filter((row) => Boolean(row.finance_expense_id)).length;
-  const pendingProcurement = data.procurement.filter((row) => row.status === "approved" || row.status === "ordered");
+  const pendingProcurement = data.procurement.filter(
+    (row) => row.status === "approved" || row.status === "ordered",
+  );
 
-  return <section className="space-y-4">
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <ReceiveMetric icon={PackageCheck} label={ar ? "عمليات استلام" : "Receipts"} value={formatNumber(receipts.length, lang)} />
-      <ReceiveMetric icon={CircleDollarSign} label={ar ? "قيمة الاستلام" : "Receipt value"} value={formatMoney(receiptValue, currency, lang)} />
-      <ReceiveMetric icon={CheckCircle2} label={ar ? "مرحّل للمالية" : "Posted to Finance"} value={formatNumber(financePosted, lang)} tone="success" />
-      <ReceiveMetric icon={Truck} label={ar ? "بانتظار الاستلام" : "Awaiting receipt"} value={formatNumber(pendingProcurement.length, lang)} tone={pendingProcurement.length ? "warning" : undefined} />
-    </div>
-
-    {pendingProcurement.length ? <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/60 dark:bg-amber-950/10">
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-bold">{ar ? "توريدات جاهزة للاستلام" : "Supplies ready to receive"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "هذه الطلبات معتمدة أو تم طلبها من المورد." : "These procurement requests are approved or already ordered."}</p></div><Button variant="outline" onClick={onGoProcurement}>{ar ? "فتح المشتريات" : "Open procurement"}</Button></div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{pendingProcurement.slice(0,6).map((row) => <div key={row.id} className="rounded-xl border border-amber-200/70 bg-card p-3 dark:border-amber-900/40"><strong className="block truncate text-sm">{row.item_name_snapshot}</strong><p className="mt-1 text-xs text-muted-foreground">{formatNumber(Number(row.quantity),lang)} {row.unit} · {row.status}</p></div>)}</div>
-    </section> : null}
-
-    <section className="overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
-        <div><h3 className="font-display text-lg font-bold">{ar ? "سجل الاستلام" : "Receiving ledger"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "الكمية × السعر تظهر هنا، مع حالة الترحيل للمالية." : "Quantity × unit price is shown with the linked Finance posting status."}</p></div>
-        <Button onClick={() => onAction({ kind: "receive" })}><PackageCheck className="size-4" />{ar ? "استلام توريد" : "Receive supplies"}</Button>
+  const filtered = receipts.filter((row) => {
+    const item = data.inventory.find((i) => i.id === row.item_id);
+    const supplier = data.suppliers.find((i) => i.id === row.supplier_id);
+    return (
+      (status === "all" ||
+        (status === "posted" ? Boolean(row.finance_expense_id) : !row.finance_expense_id)) &&
+      `${item?.name ?? ""} ${supplier?.name ?? ""} ${row.reason}`
+        .toLowerCase()
+        .includes(term.trim().toLowerCase())
+    );
+  });
+  const selected = filtered.find((row) => row.id === selectedId) ?? filtered[0];
+  const selectedItem = data.inventory.find((i) => i.id === selected?.item_id);
+  return (
+    <section className="space-y-4">
+      <header className="bo-section-heading">
+        <div>
+          <h2>{ar ? "الاستلام" : "Receiving"}</h2>
+          <p>
+            {ar
+              ? "استلم التوريدات وحدّث المخزون."
+              : "Receive supplier deliveries and update inventory."}
+          </p>
+        </div>
+        <Button onClick={() => onAction({ kind: "receive" })}>
+          <PackageCheck size={15} />
+          {ar ? "استلام توريد" : "Receive supplies"}
+        </Button>
+      </header>
+      <div className="bo-toolbar">
+        <Input
+          placeholder={ar ? "بحث في الاستلام" : "Search receipts"}
+          aria-label={ar ? "بحث في الاستلام" : "Search receipts"}
+          value={term}
+          onChange={(e) => setTerm(e.target.value)}
+        />
+        <select
+          aria-label={ar ? "حالة الاستلام" : "Receipt status"}
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="max-w-48"
+        >
+          <option value="all">{ar ? "كل الحالات" : "All statuses"}</option>
+          <option value="posted">{ar ? "مرحّل" : "Posted"}</option>
+          <option value="pending">{ar ? "بانتظار المالية" : "Finance pending"}</option>
+        </select>
       </div>
-      {!receipts.length ? <div className="grid min-h-[260px] place-items-center p-8 text-center"><div><ReceiptText className="mx-auto size-9 text-muted-foreground" /><h4 className="mt-3 font-bold">{ar ? "لا يوجد استلام مسجل" : "No receipts recorded"}</h4><p className="mt-1 text-xs text-muted-foreground">{ar ? "سجل أول استلام وسيظهر الترحيل المالي تلقائياً." : "Record the first receipt and its Finance posting will appear automatically."}</p></div></div> : <div className="divide-y divide-border">{receipts.map((row) => {
-        const item=data.inventory.find((item)=>item.id===row.item_id);
-        const supplier=data.suppliers.find((supplier)=>supplier.id===row.supplier_id);
-        const total=Number(row.total_cost ?? Math.abs(Number(row.quantity))*Number(row.unit_cost));
-        return <article key={row.id} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
-          <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="truncate">{item?.name ?? row.item_id}</strong><span className={cn("rounded-full px-2 py-1 text-[10px] font-bold", row.finance_expense_id ? "bg-emerald-500/10 text-emerald-700" : "bg-amber-500/10 text-amber-700")}>{row.finance_expense_id ? (ar ? "مرحّل تلقائياً" : "AUTO posted") : (ar ? "بانتظار المالية" : "Finance pending")}</span></div><p className="mt-1 text-xs text-muted-foreground">{supplier?.name ?? (ar ? "بدون مورد" : "No supplier")} · {formatDateTime(row.created_at,lang)}</p><p className="mt-1 text-[10px] text-muted-foreground">{row.reason}</p></div>
-          <div className="text-end text-xs"><p className="text-muted-foreground">{formatNumber(Number(row.quantity),lang)} × {formatMoney(Number(row.unit_cost),currency,lang)}</p><strong className="mt-1 block text-sm">{formatMoney(total,currency,lang)}</strong></div>
-          <span className={cn("grid size-10 place-items-center rounded-xl",row.finance_expense_id?"bg-emerald-500/10 text-emerald-600":"bg-amber-500/10 text-amber-700")}>{row.finance_expense_id?<CheckCircle2 className="size-4"/>:<CircleDollarSign className="size-4"/>}</span>
-        </article>;
-      })}</div>}
+      {pendingProcurement.length ? (
+        <button className="bo-alert-row bo-panel" onClick={onGoProcurement}>
+          <span className="bo-icon">
+            <Truck size={17} />
+          </span>
+          <span>
+            <strong>{ar ? "توريدات جاهزة للاستلام" : "Supplies ready to receive"}</strong>
+            <small>
+              {pendingProcurement.length}{" "}
+              {ar ? "طلبات معتمدة أو تم طلبها" : "approved or ordered requests"}
+            </small>
+          </span>
+          <span>{ar ? "فتح" : "Open"}</span>
+        </button>
+      ) : null}
+      <section className="bo-panel bo-table-scroll">
+        <table className="bo-data-table">
+          <thead>
+            <tr>
+              {[
+                ar ? "الاستلام" : "Receipt",
+                ar ? "المادة" : "Item",
+                ar ? "الكمية" : "Quantity",
+                ar ? "المورد" : "Supplier",
+                ar ? "تكلفة الوحدة" : "Unit cost",
+                ar ? "الإجمالي" : "Total",
+                ar ? "التاريخ" : "Received at",
+                ar ? "الحالة" : "Status",
+              ].map((label) => (
+                <th key={label}>{label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((row) => (
+              <tr key={row.id} className={row.id === selected?.id ? "bo-selected-row" : ""}>
+                <td>
+                  <button
+                    className="bo-link"
+                    aria-pressed={row.id === selected?.id}
+                    onClick={() => setSelectedId(row.id)}
+                  >
+                    {row.id.slice(0, 8)}
+                  </button>
+                </td>
+                <td>{data.inventory.find((i) => i.id === row.item_id)?.name ?? row.item_id}</td>
+                <td>
+                  {formatNumber(Number(row.quantity), lang)}{" "}
+                  {data.inventory.find((i) => i.id === row.item_id)?.unit}
+                </td>
+                <td>{data.suppliers.find((i) => i.id === row.supplier_id)?.name ?? "—"}</td>
+                <td>{formatMoney(Number(row.unit_cost), currency, lang)}</td>
+                <td>
+                  {formatMoney(
+                    Number(
+                      row.total_cost ?? Math.abs(Number(row.quantity)) * Number(row.unit_cost),
+                    ),
+                    currency,
+                    lang,
+                  )}
+                </td>
+                <td>{formatDateTime(row.created_at, lang)}</td>
+                <td>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-1 text-[10px]",
+                      row.finance_expense_id
+                        ? "bg-emerald-500/10 text-emerald-700"
+                        : "bg-amber-500/10 text-amber-700",
+                    )}
+                  >
+                    {row.finance_expense_id
+                      ? ar
+                        ? "مرحّل"
+                        : "Posted"
+                      : ar
+                        ? "بانتظار المالية"
+                        : "Finance pending"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!filtered.length ? (
+          <div className="bo-empty">
+            <ReceiptText size={26} />
+            <strong>{ar ? "لا استلام مطابق" : "No matching receipts"}</strong>
+          </div>
+        ) : null}
+      </section>
+      {selected ? (
+        <section className="bo-detail">
+          <h3>
+            {ar ? "تفاصيل الاستلام" : "Receipt details"} · {selected.id.slice(0, 8)}
+          </h3>
+          <dl>
+            <dt>{ar ? "المادة" : "Item"}</dt>
+            <dd>{selectedItem?.name ?? selected.item_id}</dd>
+            <dt>{ar ? "المورد" : "Supplier"}</dt>
+            <dd>{data.suppliers.find((s) => s.id === selected.supplier_id)?.name ?? "—"}</dd>
+            <dt>{ar ? "حركة المخزون" : "Stock movement"}</dt>
+            <dd>
+              +{formatNumber(Number(selected.quantity), lang)} {selectedItem?.unit}
+            </dd>
+            <dt>{ar ? "السبب" : "Reason"}</dt>
+            <dd>{selected.reason}</dd>
+            <dt>{ar ? "التاريخ" : "Received at"}</dt>
+            <dd>{formatDateTime(selected.created_at, lang)}</dd>
+          </dl>
+        </section>
+      ) : null}
     </section>
-  </section>;
-}
-
-function ReceiveMetric({icon:Icon,label,value,tone}:{icon:typeof PackageCheck;label:string;value:string;tone?:"success"|"warning"|undefined}) {
-  return <article className="qs-stat flex min-h-[105px] items-center gap-4 p-4"><span className={cn("grid size-11 place-items-center rounded-2xl",tone==="success"?"bg-emerald-500/10 text-emerald-700":tone==="warning"?"bg-amber-500/10 text-amber-700":"bg-orange-500/10 text-[#e85d2a]")}><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-xl tracking-[-.03em]">{value}</strong></div></article>;
+  );
 }
