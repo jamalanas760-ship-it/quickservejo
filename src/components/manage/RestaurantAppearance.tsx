@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ImageUploader } from "@/components/media/ImageUploader";
 import { cn } from "@/lib/utils";
 
 type DesignVersion = {
@@ -232,28 +233,44 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
   const busy = saveDraft.isPending || publishNow.isPending || schedule.isPending || rollback.isPending || cancelSchedule.isPending || deleteVersion.isPending || deleteAllVersions.isPending;
 
   return (
-    <form onSubmit={submitPublish} className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
+    <form onSubmit={submitPublish} className="qs-menu-appearance grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="min-w-0 space-y-3">
-        <section className="panel qs-menu-home-dashboard p-3.5 sm:p-4">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-            <div className="space-y-3">
-              <div>
-                <h3 className="text-lg font-semibold">{ar ? "الرئيسية ولوحة التحكم" : "Home & dashboard"}</h3>
-                <p className="mt-1 text-xs text-muted-foreground">{ar ? "عدّل الهوية واحفظها كمسودة قبل النشر." : "Edit the brand workspace and save a draft before publishing."}</p>
-              </div>
-              <label className="block space-y-2 text-sm"><span>{ar ? "عنوان الرئيسية" : "Home heading"}</span><Input maxLength={100} value={brand.homeTitle} placeholder={restaurant.name} onChange={(e) => setBrand((p) => ({ ...p, homeTitle: e.target.value }))} /></label>
-              <label className="block space-y-2 text-sm"><span>{ar ? "عنوان لوحة التحكم" : "Dashboard heading"}</span><Input maxLength={100} value={brand.dashboardTitle} placeholder={restaurant.name} onChange={(e) => setBrand((p) => ({ ...p, dashboardTitle: e.target.value }))} /></label>
-            </div>
-            <div className="qs-menu-brand-preview" style={form.cover_image_url ? { backgroundImage: `linear-gradient(180deg,rgba(13,12,10,.08),rgba(13,12,10,.62)),url(${form.cover_image_url})` } : undefined}>
-              <span className="qs-menu-brand-preview-badge">{ar ? "معاينة مباشرة" : "Live preview"}</span>
-              <div>
-                <strong>{brand.homeTitle || restaurant.name}</strong>
-                <small>{ar ? "نكهات تجمع الناس" : "Flavors that bring people together"}</small>
-              </div>
+        <section className="panel qs-menu-brand-editor p-4 sm:p-5">
+          <h3 className="text-lg font-semibold">{ar ? "هوية المطعم" : "Brand identity"}</h3>
+          <p className="mt-1 text-xs text-muted-foreground">{ar ? "خصص شعارك وصورة الغلاف والألوان ثم احفظ مسودة أو انشر." : "Make your menu feel like your restaurant. Save a draft or publish when ready."}</p>
+          <div className="qs-menu-upload-grid mt-5 grid gap-5 sm:grid-cols-[140px_minmax(0,1fr)]">
+            <ImageUploader restaurantId={restaurant.id} kind="logo" value={form.logo_url} onChange={(url) => field("logo_url", url)} label={ar ? "شعار المطعم" : "Restaurant logo"} retainRemovedFile />
+            <ImageUploader restaurantId={restaurant.id} kind="cover" value={form.cover_image_url} onChange={(url) => field("cover_image_url", url)} label={ar ? "صورة الغلاف" : "Cover image"} aspect="wide" retainRemovedFile />
+          </div>
+          <div className="mt-5 border-t pt-4">
+            <h4 className="text-sm font-semibold">{ar ? "ألوان القائمة العادية" : "Standard menu colors"}</h4>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {([{key:"primary", en:"Brand", ar:"الهوية"}, {key:"accent", en:"Accent", ar:"الثانوي"}, {key:"bg", en:"Background", ar:"الخلفية"}, {key:"text", en:"Text", ar:"النص"}] as const).map((color) => {
+                const paletteKey = brand.guestMenuMode === "dark" ? "guestMenuDark" : "guestMenuLight";
+                return <label key={color.key} className="qs-menu-color-field"><span>{ar ? color.ar : color.en}</span><div><input type="color" aria-label={ar ? color.ar : color.en} value={brand[paletteKey][color.key]} onChange={(e) => setBrand((prev) => ({...prev, [paletteKey]: {...prev[paletteKey], [color.key]: e.target.value}}))} /><small>{brand[paletteKey][color.key].toUpperCase()}</small></div></label>;
+              })}
             </div>
           </div>
+          <details className="qs-menu-home-dashboard mt-5 border-t pt-4">
+            <summary className="cursor-pointer text-sm font-semibold">{ar ? "الرئيسية ولوحة التحكم" : "Home & dashboard"}</summary>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="space-y-2 text-sm"><span>{ar ? "عنوان الرئيسية" : "Home heading"}</span><Input maxLength={100} value={brand.homeTitle} placeholder={restaurant.name} onChange={(e) => setBrand((p) => ({ ...p, homeTitle: e.target.value }))} /></label>
+              <label className="space-y-2 text-sm"><span>{ar ? "عنوان لوحة التحكم" : "Dashboard heading"}</span><Input maxLength={100} value={brand.dashboardTitle} placeholder={restaurant.name} onChange={(e) => setBrand((p) => ({ ...p, dashboardTitle: e.target.value }))} /></label>
+            </div>
+          </details>
         </section>
 
+        <section className="panel space-y-2.5 p-4">
+          <h3 className="font-semibold">{ar ? "إدارة النشر" : "Publishing"}</h3>
+          <Input maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} placeholder={ar ? "ملاحظة للإصدار (اختياري)" : "Version note (optional)"} />
+          <div className="grid grid-cols-2 gap-2"><Button type="button" variant="outline" className="w-full" disabled={busy} onClick={() => saveDraft.mutate()}><Save className="size-4" />{ar ? "حفظ مسودة" : "Save Draft"}</Button>
+          <Button className="min-h-10 w-full bg-[#e85d2a] text-white hover:bg-[#e94f00]" disabled={busy} type="submit"><Send className="size-4" />{publishNow.isPending ? (ar ? "جارٍ النشر…" : "Publishing…") : (ar ? "نشر الآن" : "Publish Now")}</Button></div>
+          <details className="rounded-xl border border-dashed p-3"><summary className="cursor-pointer text-xs font-semibold">{ar ? "نشر مجدول" : "Scheduled publish"}</summary>
+            <label className="text-xs font-semibold">{ar ? "نشر مجدول" : "Scheduled publish"}<Input type="datetime-local" className="mt-2" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} /></label>
+            <Button type="button" variant="outline" className="mt-2 w-full" disabled={busy} onClick={() => schedule.mutate()}><CalendarClock className="size-4" />{ar ? "جدولة النشر" : "Schedule Publish"}</Button>
+          </details>
+          <p className="text-[10px] leading-4 text-muted-foreground">{ar ? "حفظ المسودة لا يغيّر القائمة المباشرة. النشر فقط هو الذي يحدّث تجربة الضيف." : "Saving a draft never changes the live menu. Only publishing updates the diner experience."}</p>
+        </section>
         <section className="panel p-3.5 sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><History className="size-4 text-[#e85d2a]" /><h3 className="text-lg font-semibold">{ar ? "سجل إصدارات التصميم" : "Design version history"}</h3></div><Button type="button" size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" disabled={busy || (versions.data ?? []).every((version) => version.status === "published")} onClick={() => deleteAllVersions.mutate()}><Trash2 className="size-3" />{ar ? "حذف الكل" : "Delete all"}</Button></div>
           <p className="mt-1 text-xs text-muted-foreground">{ar ? "يمكنك استعادة أي إصدار سابق بدون حذف التاريخ." : "Restore any prior version without deleting history."}</p>
@@ -296,6 +313,17 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
       </div>
 
       <aside className="min-w-0 space-y-3 xl:sticky xl:top-20 xl:self-start">
+        <section className="panel overflow-hidden">
+          <div className="flex items-center justify-between border-b px-4 py-3"><h3 className="text-sm font-semibold">{ar ? "معاينة الهوية" : "Brand preview"}</h3><span className="text-[10px] text-muted-foreground">{ar ? "مسودة" : "Draft"}</span></div>
+          <div className="qs-menu-draft-preview" style={{backgroundColor: brand[brand.guestMenuMode === "dark" ? "guestMenuDark" : "guestMenuLight"].bg, color: brand[brand.guestMenuMode === "dark" ? "guestMenuDark" : "guestMenuLight"].text}}>
+            <div className="qs-menu-brand-preview" style={form.cover_image_url ? { backgroundImage: `linear-gradient(180deg,rgba(13,12,10,.08),rgba(13,12,10,.62)),url(${form.cover_image_url})` } : undefined}>
+              <span className="qs-menu-brand-preview-badge">{ar ? "معاينة مباشرة" : "Live preview"}</span>
+              <div>{form.logo_url ? <img src={form.logo_url} alt="" className="mb-3 size-12 rounded-lg bg-white object-contain p-1" /> : null}<strong>{restaurant.name}</strong><small>{ar ? restaurant.description_ar : restaurant.description_en}</small></div>
+            </div>
+            <div className="space-y-3 p-4"><h4 className="font-semibold">{ar ? "مرحباً بضيوفنا" : "Welcome to our menu"}</h4><div className="h-2 w-3/4 rounded-full bg-current opacity-10"/><div className="h-2 w-1/2 rounded-full bg-current opacity-10"/><span className="inline-block rounded-lg px-4 py-2 text-xs font-semibold" style={{backgroundColor:brand[brand.guestMenuMode === "dark" ? "guestMenuDark" : "guestMenuLight"].primary,color:brand[brand.guestMenuMode === "dark" ? "guestMenuDark" : "guestMenuLight"].primaryText}}>{ar ? "استكشف القائمة" : "Explore menu"}</span><p className="text-[10px] opacity-60">{ar ? "معاينة للهوية فقط. افتح معاينة القائمة للاطلاع على المنتجات." : "Brand preview only. Open Preview Menu to see your products."}</p></div>
+          </div>
+        </section>
+
         <section className="panel space-y-3 p-4">
           <h3 className="font-semibold">{ar ? "نوع قائمة الضيف" : "Guest menu type"}</h3>
           <p className="text-sm leading-6 text-muted-foreground">{ar ? "اختر القائمة العادية أو PDF. تبقى البيانات منفصلة ومحفوظة." : "Choose Standard Menu or Clickable PDF. Both data sets remain separate and preserved."}</p>
@@ -308,17 +336,7 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
           <label className="block space-y-2 text-sm"><span>{ar ? "الخدمة %" : "Service %"}</span><Input required type="number" min="0" max="100" step="0.01" value={form.service_charge} onChange={(e) => field("service_charge", e.target.value)} /></label>
         </section>
 
-        <section className="panel space-y-2.5 p-4">
-          <h3 className="font-semibold">{ar ? "إدارة النشر" : "Publishing"}</h3>
-          <Input maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} placeholder={ar ? "ملاحظة للإصدار (اختياري)" : "Version note (optional)"} />
-          <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={() => saveDraft.mutate()}><Save className="size-4" />{ar ? "حفظ مسودة" : "Save Draft"}</Button>
-          <Button className="min-h-10 w-full bg-[#e85d2a] text-white hover:bg-[#e94f00]" disabled={busy} type="submit"><Send className="size-4" />{publishNow.isPending ? (ar ? "جارٍ النشر…" : "Publishing…") : (ar ? "نشر الآن" : "Publish Now")}</Button>
-          <div className="rounded-xl border border-dashed p-3">
-            <label className="text-xs font-semibold">{ar ? "نشر مجدول" : "Scheduled publish"}<Input type="datetime-local" className="mt-2" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} /></label>
-            <Button type="button" variant="outline" className="mt-2 w-full" disabled={busy} onClick={() => schedule.mutate()}><CalendarClock className="size-4" />{ar ? "جدولة النشر" : "Schedule Publish"}</Button>
-          </div>
-          <p className="text-[10px] leading-4 text-muted-foreground">{ar ? "حفظ المسودة لا يغيّر القائمة المباشرة. النشر فقط هو الذي يحدّث تجربة الضيف." : "Saving a draft never changes the live menu. Only publishing updates the diner experience."}</p>
-        </section>
+
       </aside>
     </form>
   );

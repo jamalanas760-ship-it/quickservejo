@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BookOpenText, CheckCircle2, ExternalLink, FileText, Image as ImageIcon, Layers3, MoreHorizontal, Moon, Package, Sun, Tags, UtensilsCrossed } from "lucide-react";
+import { BookOpenText, CheckCircle2, ExternalLink, FileText, Image as ImageIcon, Layers3, Moon, Package, Sun, Tags, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
@@ -22,7 +22,6 @@ type StandardSection = "design" | "categories" | "products" | "pricing";
 export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
   const { lang } = useI18n();
   const ar = lang === "ar";
-  const queryClient = useQueryClient();
   const restaurant = useRestaurant(restaurantId);
   const [workflow, setWorkflow] = useState<Workflow>("standard");
   const [section, setSection] = useState<StandardSection>("design");
@@ -58,7 +57,7 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
   ];
 
   return (
-    <section className="qs-menu-studio-master qs-viewport-fill flex h-full min-h-0 flex-col gap-4">
+    <section className="qs-menu-studio-master qs-menu-studio-redesign flex min-h-0 flex-col gap-4">
       <MasterPageHeader
         eyebrow={<MasterEyebrow icon={UtensilsCrossed}>{ar ? "استوديو القائمة" : "Menu Studio"}</MasterEyebrow>}
         title={ar ? "إدارة القائمة" : "Menu Management"}
@@ -69,7 +68,7 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
           {workflow === "standard"
             ? <Link to="/r/$slug" params={{ slug: restaurant.data.slug }} search={{ preview: "1" as const }} target="_blank" rel="noreferrer" className="qs-menu-preview-button qs-button-secondary"><ExternalLink className="size-4" />{ar ? "معاينة القائمة" : "Preview Menu"}</Link>
             : <Link to="/m/$slug" params={{ slug: restaurant.data.slug }} target="_blank" rel="noreferrer" className="qs-menu-preview-button qs-button-secondary"><ExternalLink className="size-4" />{ar ? "معاينة القائمة" : "Preview Menu"}</Link>}
-          <button type="button" className="qs-icon-button hidden sm:grid" aria-label={ar ? "المزيد" : "More options"}><MoreHorizontal className="size-4" /></button>
+
         </div> : null}
       />
 
@@ -77,18 +76,18 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
         <button type="button" aria-pressed={workflow === "standard"} disabled={saveWorkflow.isPending} onClick={() => workflow !== "standard" && saveWorkflow.mutate("standard")} className={cn("qs-menu-workflow-card group relative flex min-h-[84px] items-center gap-3 overflow-hidden rounded-[14px] border bg-card px-4 py-3 text-start shadow-[var(--qs-shadow-card)] transition disabled:cursor-wait disabled:opacity-70", workflow === "standard" ? "is-active border-primary/70 bg-primary/[.045]" : "border-border hover:bg-muted/30")}>
           <span className={cn("qs-menu-type-icon relative z-10 grid size-11 shrink-0 place-items-center overflow-hidden rounded-[11px]", workflow === "standard" ? "is-active bg-primary/10 text-primary" : "bg-primary/[.07] text-primary")}><BookOpenText className="size-5" strokeWidth={1.9} /></span>
           <span className="relative z-10 min-w-0 flex-1"><strong className={cn("block text-sm", workflow === "standard" && "text-primary")}>{ar ? "القائمة العادية" : "Standard Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "أنشئ وخصص قائمتك الإلكترونية" : "Build and customize your menu online"}</span></span>
-          {(appearance.standardMenuCardImage ?? restaurant.data?.cover_image_url) ? <span className="qs-menu-workflow-image" style={{ backgroundImage: `linear-gradient(90deg,transparent,rgba(255,255,255,.08)),url(${appearance.standardMenuCardImage ?? restaurant.data?.cover_image_url})` }} /> : null}
+          {(appearance.standardMenuCardImage ?? restaurant.data?.cover_image_url ?? "/menu-studio-interior.webp") ? <span className="qs-menu-workflow-image" style={{ backgroundImage: `linear-gradient(90deg,transparent,rgba(255,255,255,.08)),url(${appearance.standardMenuCardImage ?? restaurant.data?.cover_image_url ?? "/menu-studio-interior.webp"})` }} /> : null}
           {workflow === "standard" ? <CheckCircle2 className="relative z-10 size-5 shrink-0 text-primary" /> : null}
         </button>
         <button type="button" aria-pressed={workflow === "pdf"} disabled={saveWorkflow.isPending} onClick={() => workflow !== "pdf" && saveWorkflow.mutate("pdf")} className={cn("qs-menu-workflow-card group relative flex min-h-[84px] items-center gap-3 overflow-hidden rounded-[14px] border bg-card px-4 py-3 text-start shadow-[var(--qs-shadow-card)] transition disabled:cursor-wait disabled:opacity-70", workflow === "pdf" ? "is-active border-primary/70 bg-primary/[.045]" : "border-border hover:bg-muted/30")}>
           <span className={cn("qs-menu-type-icon relative z-10 grid size-11 shrink-0 place-items-center overflow-hidden rounded-[11px]", workflow === "pdf" ? "is-active bg-primary/10 text-primary" : "bg-primary/[.07] text-primary")}><FileText className="size-5" strokeWidth={1.9} /></span>
-          <span className="relative z-10 min-w-0 flex-1"><strong className={cn("block text-sm", workflow === "pdf" && "text-primary")}>{ar ? "قائمة PDF" : "PDF Menu"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "ارفع قائمة PDF تفاعلية" : "Upload a clickable PDF menu"}</span></span>
-          {(appearance.pdfMenuCardImage ?? appearance.standardMenuCardImage ?? restaurant.data?.cover_image_url) ? <span className="qs-menu-workflow-image" style={{ backgroundImage: `linear-gradient(90deg,transparent,rgba(255,255,255,.08)),url(${appearance.pdfMenuCardImage ?? appearance.standardMenuCardImage ?? restaurant.data?.cover_image_url})` }} /> : null}
+          <span className="relative z-10 min-w-0 flex-1"><strong className={cn("block text-sm", workflow === "pdf" && "text-primary")}>{ar ? "قائمة PDF تفاعلية" : "Clickable PDF"}</strong><span className="mt-1 block text-xs text-muted-foreground">{ar ? "ارفع قائمة PDF تفاعلية" : "Upload a clickable PDF menu"}</span></span>
+          {(appearance.pdfMenuCardImage ?? appearance.standardMenuCardImage ?? restaurant.data?.cover_image_url ?? "/menu-studio-interior.webp") ? <span className="qs-menu-workflow-image" style={{ backgroundImage: `linear-gradient(90deg,transparent,rgba(255,255,255,.08)),url(${appearance.pdfMenuCardImage ?? appearance.standardMenuCardImage ?? restaurant.data?.cover_image_url ?? "/menu-studio-interior.webp"})` }} /> : null}
           {workflow === "pdf" ? <CheckCircle2 className="relative z-10 size-5 shrink-0 text-primary" /> : null}
         </button>
       </div>
 
-      <div className="qs-viewport-fill min-h-0 overflow-hidden"><Suspense fallback={<Skeleton className="h-full rounded-xl" />}>
+      <div className="min-h-0 min-w-0"><Suspense fallback={<Skeleton className="h-full rounded-xl" />}>
         {workflow === "pdf" ? (pdfEditorOpen ? <PdfEditor restaurantId={restaurantId} /> : (
           <div className="qs-card flex h-full min-h-[240px] flex-col items-center justify-center gap-4 p-6 text-center">
             <span className="grid size-12 place-items-center rounded-xl bg-orange-100 text-[#cf4818] dark:bg-orange-950/30"><FileText className="size-5" /></span>
@@ -99,18 +98,18 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
             <button type="button" onClick={() => setPdfEditorOpen(true)} className="qs-button-primary"><FileText className="size-4" />{ar ? "فتح محرر PDF" : "Open PDF editor"}</button>
           </div>
         )) : (
-          <div className="qs-menu-studio-workspace grid h-full min-h-0 min-w-0 gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
-            <aside className="qs-menu-studio-nav qs-card h-full min-h-0 overflow-hidden">
-              <nav className="grid gap-1 p-1.5 sm:grid-cols-2 xl:grid-cols-1">
-                {standardSections.map(({ id, icon: Icon, en, ar: arabic, hint }) => (
-                  <button key={id} type="button" onClick={() => setSection(id)} aria-current={section === id ? "page" : undefined} className={cn("flex min-h-14 w-full items-start gap-2.5 rounded-[10px] px-3 py-2.5 text-start transition", section === id ? "bg-[#fff1ec] text-[#cf4818]" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")}>
-                    <Icon className="mt-0.5 size-[18px] shrink-0" /><span className="min-w-0"><strong className="block text-sm">{ar ? arabic : en}</strong><span className="mt-0.5 block text-xs leading-4 opacity-70">{hint}</span></span>
+          <div className="qs-menu-studio-workspace grid min-h-0 min-w-0 gap-4">
+            <aside className="qs-menu-studio-nav qs-card min-w-0 overflow-hidden">
+              <nav aria-label={ar ? "أقسام القائمة" : "Menu sections"} className="qs-menu-tab-rail">
+                {standardSections.map(({ id, icon: Icon, en, ar: arabic }) => (
+                  <button key={id} type="button" onClick={() => setSection(id)} aria-current={section === id ? "page" : undefined} className={cn("flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-4 py-2 text-start transition", section === id ? "bg-[#fff1ec] text-[#cf4818]" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")}>
+                    <Icon className="mt-0.5 size-[18px] shrink-0" /><span className="min-w-0"><strong className="block text-sm">{ar ? arabic : en}</strong></span>
                   </button>
                 ))}
               </nav>
             </aside>
 
-            <main className="qs-menu-studio-content qs-scroll-region min-h-0 min-w-0">
+            <main className="qs-menu-studio-content min-h-0 min-w-0">
               {section === "design" ? <Appearance restaurantId={restaurantId} /> : (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2"><span className="grid size-9 place-items-center rounded-full bg-orange-50 text-primary dark:bg-orange-950/30"><Layers3 className="size-4" /></span><div><h2 className="font-display text-lg font-bold">{ar ? standardSections.find((item) => item.id === section)?.ar : standardSections.find((item) => item.id === section)?.en}</h2><p className="text-xs text-muted-foreground">{ar ? "تعديل القائمة العادية فقط — منتجات PDF تبقى منفصلة." : "Standard Menu only — PDF hotspot products remain separate."}</p></div></div>

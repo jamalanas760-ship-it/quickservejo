@@ -14,6 +14,7 @@ export function ImageUploader({
   onChange,
   label,
   aspect = "square",
+  retainRemovedFile = false,
 }: {
   restaurantId: string;
   kind: MediaKind;
@@ -21,6 +22,7 @@ export function ImageUploader({
   onChange: (url: string | null) => void;
   label: string;
   aspect?: "square" | "wide";
+  retainRemovedFile?: boolean;
 }) {
   const { t, lang } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -72,7 +74,7 @@ export function ImageUploader({
             variant="ghost"
             disabled={busy}
             onClick={() => {
-              void removeRestaurantImage(value);
+              if (!retainRemovedFile) void removeRestaurantImage(value);
               onChange(null);
             }}
           >

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Crown,
@@ -53,6 +53,8 @@ import { formatMoney } from "@/lib/format";
 import { humanError } from "@/lib/errors";
 import { logAudit } from "@/lib/audit";
 import { cn } from "@/lib/utils";
+
+const ModifiersDialog = lazy(() => import("./MenuManager").then((module) => ({default: module.ModifiersDialog})));
 
 type CategoryRow = Database["public"]["Tables"]["menu_categories"]["Row"];
 type ItemRow = Database["public"]["Tables"]["menu_items"]["Row"];
@@ -109,6 +111,7 @@ export function MenuCatalogMaster({
   const [status, setStatus] = useState<"all" | "available" | "unavailable">("all");
   const [productForm, setProductForm] = useState<ProductForm | null>(null);
   const [categoryForm, setCategoryForm] = useState<CategoryForm | null>(null);
+  const [modifierProduct, setModifierProduct] = useState<ItemRow | null>(null);
   const [deleteItem, setDeleteItem] = useState<ItemRow | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -319,7 +322,7 @@ export function MenuCatalogMaster({
   const loading = products.isPending || categories.isPending;
 
   return (
-    <div className="space-y-4">
+    <div className="qs-menu-catalog space-y-4">
       {mode === "categories" ? (
         <section className="qs-card overflow-hidden">
           <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -353,7 +356,7 @@ export function MenuCatalogMaster({
               }
             />
           ) : (
-            <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="qs-menu-category-list divide-y divide-border">
               {categoryList.map((category) => {
                 const count = standardProducts.filter(
                   (item) => item.category_id === category.id,
@@ -361,9 +364,9 @@ export function MenuCatalogMaster({
                 return (
                   <article
                     key={category.id}
-                    className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                    className="qs-menu-category-row flex flex-wrap items-center gap-3 bg-card p-4"
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
                       <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#e85d2a] dark:bg-orange-950/30">
                         <Tags className="size-5" />
                       </span>
@@ -384,7 +387,7 @@ export function MenuCatalogMaster({
                     </div>
                     <button
                       type="button"
-                      className="qs-button-secondary mt-4 w-full"
+                      className="qs-button-secondary shrink-0"
                       onClick={() =>
                         setCategoryForm({
                           id: category.id,
@@ -544,6 +547,7 @@ export function MenuCatalogMaster({
                                 ? "غير متاح"
                                 : "Unavailable"}
                           </span>
+                          <button type="button" className="qs-button-secondary" onClick={() => setModifierProduct(item)}>{ar ? "الخيارات" : "Options"}</button>
                           <button
                             type="button"
                             className="qs-button-secondary"
@@ -611,6 +615,7 @@ export function MenuCatalogMaster({
                               </button>
                             </td>
                             <td>
+                              <div className="flex items-center gap-2"><button type="button" className="qs-button-secondary" onClick={() => setModifierProduct(item)}>{ar ? "الخيارات" : "Options"}</button>
                               <button
                                 type="button"
                                 className="grid size-9 place-items-center rounded-lg border border-border hover:bg-muted"
@@ -618,7 +623,7 @@ export function MenuCatalogMaster({
                                 aria-label={ar ? "تعديل" : "Edit"}
                               >
                                 <Pencil className="size-4" />
-                              </button>
+                              </button></div>
                             </td>
                           </tr>
                         );
@@ -635,7 +640,7 @@ export function MenuCatalogMaster({
                     return (
                       <article
                         key={item.id}
-                        className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                        className="qs-menu-category-row flex flex-wrap items-center gap-3 bg-card p-4"
                       >
                         <div className="flex gap-3">
                           <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-xl bg-muted">
@@ -814,7 +819,7 @@ export function MenuCatalogMaster({
       )}
 
       <Dialog open={productForm !== null} onOpenChange={(open) => !open && setProductForm(null)}>
-        <DialogContent className="max-h-[88dvh] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="qs-menu-editor-drawer max-h-[88dvh] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               {productForm?.id
@@ -966,7 +971,7 @@ export function MenuCatalogMaster({
       </Dialog>
 
       <Dialog open={categoryForm !== null} onOpenChange={(open) => !open && setCategoryForm(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="qs-menu-editor-drawer sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {categoryForm?.id
@@ -1027,6 +1032,7 @@ export function MenuCatalogMaster({
         </DialogContent>
       </Dialog>
 
+      {modifierProduct ? <Suspense fallback={<Skeleton className="h-20" />}><ModifiersDialog key={modifierProduct.id} restaurantId={restaurantId} product={modifierProduct} onClose={() => setModifierProduct(null)} /></Suspense> : null}
       <AlertDialog open={deleteItem !== null} onOpenChange={(open) => !open && setDeleteItem(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

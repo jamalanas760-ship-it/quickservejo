@@ -935,7 +935,7 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
 }
 
 /** Modifier groups and their options for a single product. */
-function ModifiersDialog({
+export function ModifiersDialog({
   restaurantId,
   product,
   onClose,

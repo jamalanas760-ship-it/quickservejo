@@ -4742,3 +4742,47 @@ html.qs-theme-view-transition *{
 .qs-team-redesign::before { background:none!important; }
 .qs-team-redesign .qs-workforce-board { animation:none!important; }
 .qs-team-redesign .qs-team-tabs button[aria-pressed=true] { border-bottom:2px solid var(--qs-brand); }
+
+/* Compact Menu Studio: photo cards, horizontal sections and focused editors. */
+.qs-menu-studio-redesign{height:auto!important;min-height:100%;position:relative;padding-bottom:24px}
+.qs-menu-studio-redesign::before{display:none!important}
+.qs-menu-studio-redesign .qs-menu-workflow-card{min-height:82px!important;border-radius:12px;box-shadow:none;background:var(--card)!important;padding:14px 16px}
+.qs-menu-studio-redesign .qs-menu-workflow-card.is-active{box-shadow:0 0 0 1px color-mix(in srgb,var(--primary) 25%,transparent)}
+.qs-menu-studio-redesign .qs-menu-type-icon{width:38px;height:38px;border-radius:10px}
+.qs-menu-studio-redesign .qs-menu-workflow-card>span:nth-child(2){padding-inline-end:22%;flex:none;width:calc(100% - 60px)}
+.qs-menu-studio-redesign .qs-menu-workflow-image{width:34%;opacity:.9}
+.qs-menu-studio-redesign .qs-menu-workflow-card>svg{position:absolute;inset-inline-end:12px;top:10px;background:var(--card);border-radius:50%}
+.qs-menu-studio-redesign .qs-menu-studio-nav{border-radius:10px;box-shadow:none;background:var(--card)!important}
+.qs-menu-tab-rail{display:flex;gap:4px;padding:6px;overflow-x:auto;scrollbar-width:thin}
+.qs-menu-tab-rail>button{flex:1;justify-content:center;white-space:nowrap;min-width:max-content}
+.qs-menu-studio-redesign .qs-menu-studio-content{overflow:visible!important}
+.qs-menu-appearance .panel{border-radius:12px;box-shadow:none;background:var(--card)}
+.qs-menu-color-field{font-size:12px;color:var(--muted-foreground);min-width:0}
+.qs-menu-color-field>div{display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:6px;background:var(--background)}
+.qs-menu-color-field input{width:24px;height:26px;flex-shrink:0;border:0;padding:0;background:none;cursor:pointer}
+.qs-menu-color-field small{font-size:10px;font-variant-numeric:tabular-nums}
+.qs-menu-draft-preview .qs-menu-brand-preview{border-radius:0;min-height:175px;height:175px}
+.qs-menu-draft-preview .qs-menu-brand-preview strong{font-size:20px}
+.qs-menu-upload-grid img{object-fit:contain}
+.qs-menu-upload-grid>div:nth-child(2) img{object-fit:cover}
+.qs-menu-catalog .qs-card{box-shadow:none;border-radius:12px}
+.qs-menu-category-row h4{font-size:14px}
+.qs-menu-catalog .qs-table th{font-size:11px;text-transform:none;letter-spacing:0}
+.qs-menu-catalog .qs-table td{padding-top:14px;padding-bottom:14px}
+.qs-menu-editor-drawer{inset-inline-start:auto!important;inset-inline-end:0!important;top:0!important;transform:none!important;width:min(460px,100vw)!important;max-width:460px!important;height:100dvh;max-height:100dvh!important;border-radius:0!important;align-content:start;padding:24px;padding-bottom:max(24px,env(safe-area-inset-bottom))}
+@media(max-width:767px){
+ .qs-menu-studio-redesign .qs-menu-workflow-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .qs-menu-studio-redesign .qs-menu-workflow-card{min-height:88px!important;align-items:flex-start;gap:8px;padding:12px 10px}
+ .qs-menu-studio-redesign .qs-menu-type-icon{width:28px;height:28px;border-radius:7px}
+ .qs-menu-studio-redesign .qs-menu-type-icon svg{width:16px;height:16px}
+ .qs-menu-studio-redesign .qs-menu-workflow-card>span:nth-child(2){width:calc(100% - 36px);padding-inline-end:0}
+ .qs-menu-studio-redesign .qs-menu-workflow-card strong{font-size:12px;line-height:17px;padding-inline-end:8px}
+ .qs-menu-studio-redesign .qs-menu-workflow-card>span:nth-child(2)>span{font-size:10px;line-height:14px;max-width:115px}
+ .qs-menu-studio-redesign .qs-menu-workflow-image{width:43%;opacity:.25}
+ .qs-menu-studio-redesign .qs-menu-workflow-card>svg{width:14px;height:14px;top:7px;inset-inline-end:7px}
+ .qs-menu-tab-rail>button{padding:9px 12px;min-height:44px}
+ .qs-menu-tab-rail strong{font-size:12px}
+ .qs-menu-tab-rail svg{width:16px;height:16px}
+ .qs-menu-category-row .qs-button-secondary{font-size:11px;padding-inline:10px}
+}
+@media(prefers-reduced-motion:reduce){.qs-menu-studio-redesign *{scroll-behavior:auto!important}}
