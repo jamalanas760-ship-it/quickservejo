@@ -205,9 +205,9 @@ test("attendance shows live, completed-session, and daily hour-minute durations"
 test("team and shifts pages implement the approved modern live workforce design", async () => {
   const team = await file("src/components/manage/StaffManagerAdvanced.tsx");
   const shifts = await file("src/routes/_authenticated/shifts.tsx");
-  assert.match(team, /Team management/);
-  assert.match(team, /On Shift Now/);
-  assert.match(team, /Live Status/);
+  assert.match(team, /WORKFORCE \/ TEAM/);
+  assert.match(team, /on shift/);
+  assert.match(team, /"Status"/);
   assert.match(team, /StaffLiveStatus/);
   assert.match(team, /StaffRowActions/);
   assert.match(team, /On Leave/);
@@ -295,10 +295,10 @@ test("approved Team and Workforce layout uses the command icon search and live T
   const css = await file("src/quickserve-system.css");
   assert.match(header, /qs-global-search-trigger-approved/);
   assert.doesNotMatch(header, /qs-command-icon-trigger/);
-  assert.match(team, /qs-approved-team-page/);
-  assert.match(team, /Today's Attendance/);
-  assert.match(team, /Shift Distribution/);
-  assert.match(team, /Upcoming Shifts/);
+  assert.match(team, /qs-team-redesign/);
+  assert.match(team, /Today’s coverage/);
+  assert.match(team, /Review requests/);
+  assert.match(team, /Recent activity/);
   assert.match(shifts, /qs-approved-workforce-page/);
   assert.match(css, /Approved Team \+ Workforce image implementation/);
   assert.match(css, /qs-approved-page-hero/);
@@ -308,12 +308,12 @@ test("approved Team and Workforce layout uses the command icon search and live T
 test("Team table is paginated, aligned, and keeps staff search free of the extra command button", async () => {
   const team = await file("src/components/manage/StaffManagerAdvanced.tsx");
   const css = await file("src/quickserve-system.css");
-  assert.match(team, /TEAM_PAGE_SIZE = 8/);
+  assert.match(team, /TEAM_PAGE_SIZE = 6/);
   assert.match(team, /visibleRows/);
   assert.match(team, /qs-team-pagination/);
   assert.doesNotMatch(team, /qs-team-search-command/);
-  assert.match(team, /Search staff, role or email/);
-  assert.match(team, /min-w-\[1180px\]/);
+  assert.match(team, /Find a team member/);
+  assert.match(team, /min-w-\[760px\]/);
   assert.match(css, /Team management dashboard final pass/);
   assert.match(css, /qs-team-table-wrap/);
 });

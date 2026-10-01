@@ -4735,3 +4735,10 @@ html.qs-theme-view-transition *{
     transition-duration:.01ms!important;
   }
 }
+.qs-team-redesign .qs-team-actions-clean .qs-team-action-button { min-width:0!important; border-radius:8px!important; }
+.qs-team-redesign .qs-team-actions-clean .qs-team-action-edit { min-width:32px!important; width:32px!important; padding:6px!important; }
+.qs-team-redesign .qs-team-table th { font-weight:500!important; font-size:11px!important; }
+.qs-team-redesign .qs-team-table .qs-live-status-card { border:0!important; background:transparent!important; box-shadow:none!important; padding:0!important; }
+.qs-team-redesign::before { background:none!important; }
+.qs-team-redesign .qs-workforce-board { animation:none!important; }
+.qs-team-redesign .qs-team-tabs button[aria-pressed=true] { border-bottom:2px solid var(--qs-brand); }
