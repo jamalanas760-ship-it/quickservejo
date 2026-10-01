@@ -45,6 +45,7 @@ export function TablesStudioList({
   selectedId,
   onSelect,
   onEdit,
+  onQr,
   onPrint,
 }: {
   rows: StudioTable[];
@@ -53,6 +54,7 @@ export function TablesStudioList({
   selectedId: string | null;
   onSelect: (row: StudioTable) => void;
   onEdit: (row: StudioTable) => void;
+  onQr: (row: StudioTable, trigger: HTMLButtonElement) => void;
   onPrint: () => void;
 }) {
   const [search, setSearch] = useState(""),
@@ -146,7 +148,8 @@ export function TablesStudioList({
                       type="button"
                       className="qs-table-icon-action"
                       aria-label={`${ar ? "رمز QR" : "Show QR"} ${row.table_number}`}
-                      onClick={() => onSelect(row)}
+                      aria-haspopup="dialog"
+                      onClick={(event) => onQr(row, event.currentTarget)}
                     >
                       <QrCode />
                     </button>

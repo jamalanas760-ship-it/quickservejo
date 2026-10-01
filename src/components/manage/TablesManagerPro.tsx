@@ -71,6 +71,7 @@ import { downloadDataUrl, printQrCards, qrDataUrl, tableMenuUrl } from "@/lib/qr
 import { removeRestaurantImage, uploadRestaurantImage } from "@/lib/storage";
 import { FloorElementLibrary, FloorElementPiece, FloorElementInspector } from "./FloorPlanElements";
 import { TablesStudioList, TableQuickPanel, type StudioTable } from "./TablesStudioPanels";
+import { TableQrDialog, type TableQrTarget } from "./TableQrDialog";
 import {
   createFloorElement,
   normalizeFloorElement,
@@ -421,6 +422,8 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
   const [busy, setBusy] = useState(false);
   const [floorBusy, setFloorBusy] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
+  const [qrTarget, setQrTarget] = useState<TableQrTarget | null>(null);
+  const qrTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [tableOpen, setTableOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [zoneOpen, setZoneOpen] = useState(false);
@@ -1561,6 +1564,17 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
             zoneName={tableZoneName}
             selectedId={selectedTableId}
             onSelect={(row) => openTable(row as FloorTable)}
+            onQr={(row, trigger) => {
+              if (!restaurant) return;
+              qrTriggerRef.current = trigger;
+              const table = row as FloorTable;
+              setQrTarget({
+                table_number: table.table_number,
+                table_name: table.table_name,
+                menuUrl: tableMenuUrl(restaurant.slug, table.qr_token),
+                restaurantName: restaurant.name,
+              });
+            }}
             onEdit={(row) => {
               openTable(row as FloorTable);
               setDetailsOpen(true);
@@ -1837,7 +1851,9 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                         selected={live}
                         previewMaterial={live && detailsOpen ? form.material : undefined}
                         previewShape={live && detailsOpen ? form.shape : undefined}
-                        previewCapacity={live && detailsOpen ? Number(form.capacity) || 4 : undefined}
+                        previewCapacity={
+                          live && detailsOpen ? Number(form.capacity) || 4 : undefined
+                        }
                         onDown={(e, m) => beginTableDrag(e, row, m)}
                         onMove={moveTable}
                         onUp={endTableDrag}
@@ -1899,6 +1915,12 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={(e) => void uploadFloor(e.target.files?.[0])}
+      />
+      <TableQrDialog
+        target={qrTarget}
+        ar={ar}
+        triggerRef={qrTriggerRef}
+        onClose={() => setQrTarget(null)}
       />
       <Dialog open={elementsOpen} onOpenChange={setElementsOpen}>
         <DialogContent>
