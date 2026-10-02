@@ -80,6 +80,10 @@ function fixture({ text = "Orders ready", hasForm = false } = {}) {
     stop,
     advance,
     reloads: () => reloads,
+    visibility: (state) => {
+      document.visibilityState = state;
+      events.get("visibilitychange")?.();
+    },
     show: () => events.get("pageshow")?.({ persisted: true }),
   };
 }
@@ -91,6 +95,34 @@ test("foreground recovery retains mounted content and never reloads a healthy pa
   assert.equal(f.main.innerText, "Orders ready");
   assert(!f.nodes.has("qs-resume-recovery"));
   f.stop();
+});
+test("long background suspension retains content and does not run recovery while hidden", () => {
+  const f = fixture();
+  f.show();
+  f.visibility("hidden");
+  f.advance(300000);
+  assert.equal(f.reloads(), 0);
+  assert(!f.nodes.has("qs-resume-recovery"));
+  f.visibility("visible");
+  f.advance(4000);
+  assert.equal(f.main.innerText, "Orders ready");
+  assert.equal(f.reloads(), 0);
+  f.stop();
+});
+test("backgrounding cancels an in-flight blank-page recovery and cleanup stops all retries", () => {
+  const f = fixture({ text: "" });
+  f.show();
+  f.advance(1600);
+  assert(f.nodes.has("qs-resume-recovery"));
+  f.visibility("hidden");
+  assert(!f.nodes.has("qs-resume-recovery"));
+  f.advance(300000);
+  assert.equal(f.reloads(), 0);
+  f.visibility("visible");
+  f.stop();
+  f.advance(4000);
+  assert.equal(f.reloads(), 0);
+  assert(!f.nodes.has("qs-resume-recovery"));
 });
 test("empty pages show recovery then reload once, preventing reload loops", () => {
   const f = fixture({ text: "" });

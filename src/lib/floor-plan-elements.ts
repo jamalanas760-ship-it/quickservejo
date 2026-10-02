@@ -9,6 +9,8 @@ export const FLOOR_ELEMENT_TYPES = [
   "bar",
   "counter",
   "sofa",
+  "chair",
+  "stool",
 ] as const;
 export type FloorElementType = (typeof FLOOR_ELEMENT_TYPES)[number];
 export type FloorElement = {
@@ -32,6 +34,8 @@ export const FLOOR_ELEMENT_LABELS: Record<FloorElementType, [string, string]> = 
   bar: ["Bar", "بار"],
   counter: ["Counter", "كاونتر"],
   sofa: ["Sofa", "أريكة"],
+  chair: ["Chair", "كرسي"],
+  stool: ["Bar stool", "كرسي بار"],
 };
 const bound = (value: unknown, fallback: number, min: number, max: number) => {
   const numeric = typeof value === "number" ? value : Number(value);
@@ -40,14 +44,24 @@ const bound = (value: unknown, fallback: number, min: number, max: number) => {
 export function normalizeFloorElement(value: FloorElement): FloorElement {
   const width = bound(value.width, 10, 1, 80),
     height = bound(value.height, 10, 1, 80);
+  const rotation = bound(value.rotation, 0, -180, 180);
+  const radians = (rotation * Math.PI) / 180;
+  const halfWidth = Math.min(
+    50,
+    (Math.abs(width * Math.cos(radians)) + Math.abs(height * Math.sin(radians))) / 2,
+  );
+  const halfHeight = Math.min(
+    50,
+    (Math.abs(width * Math.sin(radians)) + Math.abs(height * Math.cos(radians))) / 2,
+  );
   return {
     ...value,
     label: value.label.slice(0, 60),
     width,
     height,
-    x: bound(value.x, 50, width / 2, 100 - width / 2),
-    y: bound(value.y, 50, height / 2, 100 - height / 2),
-    rotation: bound(value.rotation, 0, -180, 180),
+    x: bound(value.x, 50, halfWidth, 100 - halfWidth),
+    y: bound(value.y, 50, halfHeight, 100 - halfHeight),
+    rotation,
   };
 }
 export function parseFloorElements(value: unknown): FloorElement[] {
@@ -90,6 +104,8 @@ export function createFloorElement(type: FloorElementType, ar = false): FloorEle
     bar: [25, 8],
     counter: [20, 7],
     sofa: [15, 8],
+    chair: [5, 6],
+    stool: [4, 5],
   };
   return {
     id: crypto.randomUUID(),
@@ -115,4 +131,43 @@ export function moveFloorElement(
       ? { ...element, width: round(element.width + dx * 2), height: round(element.height + dy * 2) }
       : { ...element, x: round(element.x + dx), y: round(element.y + dy) },
   );
+}
+
+/** Find an open place for a new object rather than stacking every addition at center. */
+export function placeFloorElement(
+  element: FloorElement,
+  occupied: { x: number; y: number; width: number; height: number }[],
+) {
+  let best = { x: 50, y: 50 },
+    score = Infinity;
+  const margin = 1.5;
+  const halfW = element.width / 2,
+    halfH = element.height / 2;
+  const startX = halfW + margin,
+    endX = 100 - halfW - margin;
+  const startY = halfH + margin,
+    endY = 100 - halfH - margin;
+  for (let x = startX; x <= endX; x += 5)
+    for (let y = startY; y <= endY; y += 5) {
+      let overlap = 0;
+      for (const other of occupied) {
+        const w = Math.max(
+          0,
+          Math.min(x + halfW + margin, other.x + other.width / 2) -
+            Math.max(x - halfW - margin, other.x - other.width / 2),
+        );
+        const h = Math.max(
+          0,
+          Math.min(y + halfH + margin, other.y + other.height / 2) -
+            Math.max(y - halfH - margin, other.y - other.height / 2),
+        );
+        overlap += w * h;
+      }
+      const candidate = overlap * 1000 + Math.hypot(x - 50, y - 50);
+      if (candidate < score) {
+        score = candidate;
+        best = { x, y };
+      }
+    }
+  return normalizeFloorElement({ ...element, ...best });
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
 import {
+  Armchair,
   CookingPot,
   DoorOpen,
   Fence,
@@ -13,6 +14,7 @@ import {
   RotateCw,
   Trash2,
 } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,27 +36,102 @@ const icons = {
   bar: Wine,
   counter: RectangleHorizontal,
   sofa: Sofa,
+  chair: Armchair,
+  stool: Armchair,
 };
 export function FloorElementLibrary({
   ar,
   busy,
   onAdd,
+  onAddTable,
 }: {
   ar: boolean;
   busy: boolean;
   onAdd: (type: FloorElementType) => void;
+  onAddTable?: ((shape: "round" | "square" | "rectangle") => void) | undefined;
 }) {
+  const [search, setSearch] = useState("");
+  const groups = [
+    { title: ar ? "الجدران والمداخل" : "Architecture", types: ["wall", "door", "window"] },
+    {
+      title: ar ? "الأثاث والتجهيزات" : "Furniture & fixtures",
+      types: ["chair", "stool", "sofa", "bar", "counter", "kitchen", "toilet"],
+    },
+    { title: ar ? "النباتات" : "Plants", types: ["tree", "plant"] },
+  ];
   return (
-    <div className="qs-element-library">
-      {FLOOR_ELEMENT_TYPES.map((type) => {
-        const Icon = icons[type];
+    <div className="qs-element-library-wrap">
+      <label className="qs-element-search">
+        <Search className="size-4" />
+        <input
+          type="search"
+          aria-label={ar ? "ابحث عن عنصر" : "Search elements"}
+          placeholder={ar ? "ابحث عن عنصر…" : "Find an element…"}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </label>
+      {onAddTable && !search && (
+        <section>
+          <h3>{ar ? "الطاولات" : "Tables"}</h3>
+          <div className="qs-element-library">
+            {(["round", "square", "rectangle"] as const).map((shape) => (
+              <button key={shape} type="button" disabled={busy} onClick={() => onAddTable(shape)}>
+                <img src={`/floor-elements/table-${shape}.png`} alt="" width="144" height="120" />
+                <span>
+                  {
+                    {
+                      round: ar ? "دائرية" : "Round",
+                      square: ar ? "مربعة" : "Square",
+                      rectangle: ar ? "مستطيلة" : "Rectangle",
+                    }[shape]
+                  }
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      {groups.map((group) => {
+        const types = group.types.filter((type) =>
+          FLOOR_ELEMENT_LABELS[type as FloorElementType].some((label) =>
+            label.toLowerCase().includes(search.trim().toLowerCase()),
+          ),
+        ) as FloorElementType[];
+        if (!types.length) return null;
         return (
-          <button key={type} type="button" disabled={busy} onClick={() => onAdd(type)}>
-            <Icon />
-            <span>{FLOOR_ELEMENT_LABELS[type][ar ? 1 : 0]}</span>
-          </button>
+          <section key={group.title}>
+            <h3>{group.title}</h3>
+            <div className="qs-element-library">
+              {types.map((type) => {
+                return (
+                  <button key={type} type="button" disabled={busy} onClick={() => onAdd(type)}>
+                    <img
+                      src={`/floor-elements/${type}.png`}
+                      alt=""
+                      loading="lazy"
+                      width="144"
+                      height="120"
+                    />
+                    <span>{FLOOR_ELEMENT_LABELS[type][ar ? 1 : 0]}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
         );
       })}
+      {!groups.some((group) =>
+        group.types.some((type) =>
+          FLOOR_ELEMENT_LABELS[type as FloorElementType].some((label) =>
+            label.toLowerCase().includes(search.trim().toLowerCase()),
+          ),
+        ),
+      ) && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {ar ? "لا توجد عناصر مطابقة" : "No matching elements"}
+        </p>
+      )}
     </div>
   );
 }
@@ -190,11 +267,14 @@ export function FloorElementInspector({
   useEffect(() => setDraft(element), [element]);
   return (
     <div className="space-y-4 p-5">
+      <div className="qs-element-inspector-preview">
+        <img src={`/floor-elements/${element.type}.png`} alt="" width="288" height="240" />
+      </div>
       <h2 className="text-lg font-bold">{FLOOR_ELEMENT_LABELS[element.type][ar ? 1 : 0]}</h2>
       <p className="text-xs text-muted-foreground">
         {ar
-          ? "اسحب للتحريك. استخدم المقبض لتغيير الحجم."
-          : "Drag to move. Use the corner handle to resize."}
+          ? "اسحب للتحريك. عدّل الحجم والدوران بالأسفل."
+          : "Drag to move. Adjust size and rotation below."}
       </p>
       <label className="block text-xs font-semibold">
         {ar ? "الاسم" : "Label"}

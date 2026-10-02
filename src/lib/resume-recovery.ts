@@ -5,7 +5,6 @@ export function installResumeRecovery() {
   let hiddenAt = 0;
   let lastResume = 0;
   let checkTimer = 0;
-  let paintTimer = 0;
   let retryTimer = 0;
   function removeNotice() {
     document.getElementById("qs-resume-recovery")?.remove();
@@ -74,11 +73,8 @@ export function installResumeRecovery() {
           : "light"
         : preference,
     );
-    document.documentElement.dataset.qsResuming = "true";
-    window.clearTimeout(paintTimer);
-    paintTimer = window.setTimeout(() => {
-      delete document.documentElement.dataset.qsResuming;
-    }, 200);
+    // Keep the mounted page and its compositor layers stable. Promoting the
+    // entire page with translateZ on resume can itself flash on mobile WebKit.
     // A real foreground cycle or BFCache restore gets a blank-page watchdog.
     checkTimer = window.setTimeout(check, 1500);
   }
@@ -87,6 +83,7 @@ export function installResumeRecovery() {
       hiddenAt = Date.now();
       window.clearTimeout(checkTimer);
       window.clearTimeout(retryTimer);
+      removeNotice();
     } else if (hiddenAt) {
       hiddenAt = 0;
       resume();
@@ -103,9 +100,7 @@ export function installResumeRecovery() {
     window.removeEventListener("focus", resume);
     document.removeEventListener("visibilitychange", visibility);
     window.clearTimeout(checkTimer);
-    window.clearTimeout(paintTimer);
     window.clearTimeout(retryTimer);
-    delete document.documentElement.dataset.qsResuming;
     removeNotice();
   };
 }

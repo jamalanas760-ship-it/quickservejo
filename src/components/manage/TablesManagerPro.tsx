@@ -1,5 +1,7 @@
 import { normalizeCanvasSize } from "@/lib/floor-canvas";
 import {
+  lazy,
+  Suspense,
   useEffect,
   useMemo,
   useRef,
@@ -32,6 +34,8 @@ import {
   X,
   ZoomIn,
   ZoomOut,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -70,10 +74,13 @@ import { useI18n } from "@/lib/i18n";
 import { downloadDataUrl, printQrCards, qrDataUrl, tableMenuUrl } from "@/lib/qr";
 import { removeRestaurantImage, uploadRestaurantImage } from "@/lib/storage";
 import { FloorElementLibrary, FloorElementPiece, FloorElementInspector } from "./FloorPlanElements";
+const FloorPlan3D = lazy(() => import("./FloorPlan3D"));
+
 import { TablesStudioList, TableQuickPanel, type StudioTable } from "./TablesStudioPanels";
 import { TableQrDialog, type TableQrTarget } from "./TableQrDialog";
 import {
   createFloorElement,
+  placeFloorElement,
   normalizeFloorElement,
   parseFloorElements,
   type FloorElement,
@@ -107,6 +114,9 @@ type ServiceGroup = {
   combined_capacity: number;
   created_at: string;
 };
+type LayoutAction =
+  | { kind: "table"; id: string; before: Record<string, unknown>; after: Record<string, unknown> }
+  | { kind: "elements"; floor: string; before: FloorElement[]; after: FloorElement[] };
 type Layout = { x: number; y: number; rotation: number; scale: number };
 type Shape = "round" | "square" | "rectangle";
 type Material = "wood" | "glass" | "aluminum" | "marble" | "neutral";
@@ -446,6 +456,15 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
   });
   const [editing, setEditing] = useState(false);
   const [depth, setDepth] = useState(true);
+  const [history, setHistory] = useState<{ past: LayoutAction[]; future: LayoutAction[] }>({
+    past: [],
+    future: [],
+  });
+  const applyingHistory = useRef(false);
+  function recordLayout(action: LayoutAction) {
+    if (!applyingHistory.current)
+      setHistory((value) => ({ past: [...value.past.slice(-29), action], future: [] }));
+  }
   const [elementsOpen, setElementsOpen] = useState(false);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const floorSaveInFlight = useRef(false);
@@ -611,7 +630,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
   }
   async function persistTableLayout(id: string, layout: Layout, extra?: Record<string, unknown>) {
     const row = (tables.data ?? []).find((r) => r.id === id);
-    if (!row) return;
+    if (!row) return false;
     const raw = objectValue(row.layout);
     const floor = floors.find((f) => f.id === floorOf(row)) ?? currentFloor;
     const zoneId = zoneContaining(layout, floor.zones)?.id ?? OUTSIDE_ZONE;
@@ -629,13 +648,70 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         ),
       }));
       toast.error(humanError(error, lang));
-      return;
+      return false;
     }
     qc.setQueryData<FloorTable[]>(["platform", "tables", restaurantId], (current) =>
       (current ?? []).map((item) =>
         item.id === id ? { ...item, zone: zoneId, layout: nextLayout } : item,
       ),
     );
+    recordLayout({
+      kind: "table",
+      id,
+      before: {
+        ...raw,
+        ...layoutOf(
+          row,
+          Math.max(
+            0,
+            floorTables.findIndex((item) => item.id === id),
+          ),
+        ),
+        material: materialOf(row),
+      },
+      after: nextLayout,
+    });
+    return true;
+  }
+  async function applyLayoutHistory(redo: boolean) {
+    const action = (redo ? history.future : history.past).at(-1);
+    if (!action || busy || floorBusy) return;
+    applyingHistory.current = true;
+    setBusy(true);
+    setFloorBusy(true);
+    try {
+      const data = redo ? action.after : action.before;
+      if (action.kind === "table") {
+        const row = (tables.data ?? []).find((row) => row.id === action.id);
+        if (!row) throw new Error(ar ? "لم تعد الطاولة موجودة" : "This table no longer exists");
+        const layout = layoutOf({ ...row, layout: data as Record<string, unknown> }, 0);
+        const saved = await persistTableLayout(action.id, layout, data as Record<string, unknown>);
+        if (!saved) return;
+        setDraft((value) => ({ ...value, [action.id]: layout }));
+        setActiveFloor(floorOf(row));
+      } else {
+        if (!floors.some((f) => f.id === action.floor))
+          throw new Error(ar ? "لم يعد الطابق موجوداً" : "This floor no longer exists");
+        await persistFloors(
+          floors.map((f) =>
+            f.id === action.floor ? { ...f, elements: data as FloorElement[] } : f,
+          ),
+        );
+        setActiveFloor(action.floor);
+        setSelectedElementId(null);
+      }
+      setHistory((value) =>
+        redo
+          ? { past: [...value.past, action], future: value.future.slice(0, -1) }
+          : { past: value.past.slice(0, -1), future: [...value.future, action] },
+      );
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      applyingHistory.current = false;
+      setBusy(false);
+      setFloorBusy(false);
+    }
   }
   async function alignTables(mode: "row" | "column" | "grid") {
     const rows = floorTables;
@@ -1372,6 +1448,14 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     const previous = floorsFromTheme(restaurant?.menu_theme);
     try {
       await persistFloors(floors.map((f) => (f.id === activeFloor ? { ...f, elements } : f)));
+      recordLayout({
+        kind: "elements",
+        floor: activeFloor,
+        before: (previous.find((f) => f.id === activeFloor)?.elements ?? []).map((element) =>
+          rollback?.id === element.id ? rollback : element,
+        ),
+        after: elements,
+      });
       toast.success(ar ? "تم حفظ المخطط" : "Floor layout saved");
       return true;
     } catch (error) {
@@ -1388,7 +1472,28 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       toast.error(ar ? "الحد الأقصى 250 عنصراً لكل طابق" : "Maximum 250 elements per floor");
       return;
     }
-    const element = createFloorElement(type, ar);
+    const size = normalizeCanvasSize(currentFloor.canvasSize);
+    const occupied = [
+      ...(currentFloor.elements ?? []).map((e) => {
+        const angle = (e.rotation * Math.PI) / 180;
+        return {
+          x: e.x,
+          y: e.y,
+          width: Math.abs(e.width * Math.cos(angle)) + Math.abs(e.height * Math.sin(angle)),
+          height: Math.abs(e.width * Math.sin(angle)) + Math.abs(e.height * Math.cos(angle)),
+        };
+      }),
+      ...floorTables.map((row, index) => {
+        const layout = draft[row.id] ?? layoutOf(row, index);
+        return {
+          x: layout.x / 10,
+          y: layout.y / 7,
+          width: ((160 * layout.scale) / size.width) * 100,
+          height: ((160 * layout.scale) / size.height) * 100,
+        };
+      }),
+    ];
+    const element = placeFloorElement(createFloorElement(type, ar), occupied);
     const saved = await saveElements([...(currentFloor.elements ?? []), element]);
     if (!saved) return;
     setSelectedTableId(null);
@@ -1557,7 +1662,32 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
           {ar ? "إضافة طاولة" : "Add table"}
         </button>
       </div>
-      <section className="qs-tables-workspace qs-tables-studio-workspace">
+      <section
+        className={cn(
+          "qs-tables-workspace qs-tables-studio-workspace",
+          view !== "list" && depth && "qs-tables-3d-workspace",
+        )}
+      >
+        {view !== "list" && depth && (
+          <aside className="qs-floor-asset-sidebar">
+            <div className="qs-floor-asset-heading">
+              <h2>{ar ? "العناصر" : "Elements"}</h2>
+              <span>3D</span>
+            </div>
+            <FloorElementLibrary
+              ar={ar}
+              busy={floorBusy}
+              onAddTable={(shape) => {
+                openCreate();
+                setForm((value) => ({ ...value, shape }));
+              }}
+              onAdd={(type) => {
+                setEditing(true);
+                void addElement(type);
+              }}
+            />
+          </aside>
+        )}
         {view === "list" ? (
           <TablesStudioList
             rows={visibleTables}
@@ -1594,6 +1724,26 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                 </p>
               </div>
               <div className="qs-floor-toolbar-actions">
+                {depth && (
+                  <div className="qs-floor-history-controls">
+                    <button
+                      type="button"
+                      aria-label={ar ? "التراجع عن تعديل المخطط" : "Undo layout change"}
+                      disabled={!history.past.length || busy || floorBusy}
+                      onClick={() => void applyLayoutHistory(false)}
+                    >
+                      <Undo2 className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={ar ? "إعادة تعديل المخطط" : "Redo layout change"}
+                      disabled={!history.future.length || busy || floorBusy}
+                      onClick={() => void applyLayoutHistory(true)}
+                    >
+                      <Redo2 className="size-4" />
+                    </button>
+                  </div>
+                )}
                 <button
                   type="button"
                   className="qs-button-secondary"
@@ -1608,12 +1758,13 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                 </button>
                 <button
                   type="button"
-                  className="qs-button-secondary"
+                  className="qs-button-secondary qs-floor-mode-toggle"
                   aria-pressed={depth}
+                  aria-label={ar ? "التبديل بين 2D و3D" : "Switch between 2D and 3D"}
                   onClick={() => setDepth(!depth)}
                 >
                   <Building2 className="size-4" />
-                  {depth ? (ar ? "عرض مسطح" : "Flat view") : ar ? "عرض مجسّم" : "Depth view"}
+                  {depth ? "3D" : "2D"}
                 </button>
                 <button
                   type="button"
@@ -1625,6 +1776,20 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                   <Pencil className="size-4" />
                   {editing ? (ar ? "تم" : "Done") : ar ? "تعديل المخطط" : "Edit layout"}
                 </button>
+                {depth && !editing && (
+                  <button
+                    type="button"
+                    className="qs-button-secondary"
+                    disabled={floorBusy}
+                    onClick={() => {
+                      setEditing(true);
+                      setElementsOpen(true);
+                    }}
+                  >
+                    <Plus className="size-4" />
+                    {ar ? "العناصر" : "Elements"}
+                  </button>
+                )}
                 {editing ? (
                   <>
                     <button
@@ -1783,96 +1948,171 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                   </span>
                 ))}
               </div>
-              <div className="qs-floor-canvas-viewport flex h-[calc(100%-32px)] min-h-0 items-center justify-center overflow-hidden">
-                <div
-                  ref={canvasRef}
-                  data-depth={depth}
-                  className={cn(
-                    "qs-floor-canvas relative max-h-full w-full max-w-[1040px] origin-center overflow-hidden rounded-xl border border-border bg-white shadow-inner",
-                    grid &&
-                      "bg-[linear-gradient(to_right,rgba(148,163,184,.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,.12)_1px,transparent_1px)] bg-[size:22px_22px]",
-                  )}
-                  style={{
-                    aspectRatio: `${normalizeCanvasSize(currentFloor.canvasSize).width}/${normalizeCanvasSize(currentFloor.canvasSize).height}`,
-                    width: `${(zoom * 100 * normalizeCanvasSize(currentFloor.canvasSize).width) / W}%`,
-                    ...(currentFloor.backgroundUrl
-                      ? {
-                          backgroundImage: `linear-gradient(rgba(255,255,255,.08),rgba(255,255,255,.08)),url("${currentFloor.backgroundUrl}")`,
-                          backgroundSize: "100% 100%, contain",
-                          backgroundPosition: "center",
-                          backgroundRepeat: "no-repeat",
-                        }
-                      : {}),
-                  }}
-                  onPointerDown={() => {
-                    setSelectedElementId(null);
-                    setSelectedTableId(null);
-                    setSelectedZoneId(null);
-                    setSelectedEntranceId(null);
-                  }}
+              {depth ? (
+                <Suspense
+                  fallback={
+                    <div className="qs-floor-3d-loading" role="status">
+                      {ar ? "جارٍ تجهيز المخطط…" : "Preparing your floor plan…"}
+                    </div>
+                  }
                 >
-                  {currentFloor.zones.map((zone) => (
-                    <ZoneBox
-                      key={zone.id}
-                      zone={zone}
-                      ar={ar}
-                      selected={selectedZoneId === zone.id}
-                      onDown={(e, m) => beginZoneDrag(e, zone, m)}
-                      onMove={moveZone}
-                      onUp={endZoneDrag}
-                    />
-                  ))}
-                  {(currentFloor.elements ?? []).map((element) => (
-                    <FloorElementPiece
-                      key={element.id}
-                      element={element}
-                      selected={selectedElementId === element.id}
-                      editable={editing}
-                      busy={floorBusy}
-                      grid={grid}
-                      canvasRef={canvasRef}
-                      onSelect={() => {
-                        setSelectedElementId(element.id);
-                        setSelectedTableId(null);
-                        setSelectedZoneId(null);
-                        setSelectedEntranceId(null);
-                      }}
-                      onPreview={previewElement}
-                      onCommit={commitElement}
-                    />
-                  ))}
-                  {currentFloor.entrances.map((entry) => (
-                    <EntrancePiece
-                      key={entry.id}
-                      entry={entry}
-                      selected={selectedEntranceId === entry.id}
-                      onDown={(e) => beginEntranceDrag(e, entry)}
-                      onMove={moveEntrance}
-                      onUp={endEntranceDrag}
-                    />
-                  ))}
-                  {visibleTables.map((row, index) => {
-                    const live = selectedTableId === row.id;
-                    return (
-                      <TablePiece
-                        key={row.id}
-                        onSelect={() => openTable(row)}
-                        row={row}
-                        layout={draft[row.id] ?? layoutOf(row, index)}
-                        selected={live}
-                        previewMaterial={live && detailsOpen ? form.material : undefined}
-                        previewShape={live && detailsOpen ? form.shape : undefined}
-                        previewCapacity={
-                          live && detailsOpen ? Number(form.capacity) || 4 : undefined
-                        }
-                        onDown={(e, m) => beginTableDrag(e, row, m)}
-                        onMove={moveTable}
-                        onUp={endTableDrag}
+                  <FloorPlan3D
+                    tables={visibleTables.map((row, index) => ({
+                      id: row.id,
+                      number: row.table_number,
+                      shape:
+                        selectedTableId === row.id && detailsOpen ? form.shape : shapeOf(row.shape),
+                      material:
+                        selectedTableId === row.id && detailsOpen ? form.material : materialOf(row),
+                      capacity:
+                        selectedTableId === row.id && detailsOpen
+                          ? Number(form.capacity) || 4
+                          : (row.capacity ?? 4),
+                      status: serviceStatusOf(row),
+                      layout: draft[row.id] ?? layoutOf(row, index),
+                    }))}
+                    elements={currentFloor.elements ?? []}
+                    zones={currentFloor.zones}
+                    entrances={currentFloor.entrances}
+                    size={normalizeCanvasSize(currentFloor.canvasSize)}
+                    zoom={zoom}
+                    grid={grid}
+                    editable={editing}
+                    busy={floorBusy || busy}
+                    ar={ar}
+                    backgroundUrl={currentFloor.backgroundUrl}
+                    selected={
+                      selectedTableId
+                        ? { kind: "table", id: selectedTableId }
+                        : selectedElementId
+                          ? { kind: "element", id: selectedElementId }
+                          : selectedZoneId
+                            ? { kind: "zone", id: selectedZoneId }
+                            : selectedEntranceId
+                              ? { kind: "entrance", id: selectedEntranceId }
+                              : null
+                    }
+                    onSelect={(selection) => {
+                      setSelectedTableId(selection?.kind === "table" ? selection.id : null);
+                      setSelectedElementId(selection?.kind === "element" ? selection.id : null);
+                      setSelectedZoneId(selection?.kind === "zone" ? selection.id : null);
+                      setSelectedEntranceId(selection?.kind === "entrance" ? selection.id : null);
+                    }}
+                    onTablePreview={(id, layout) =>
+                      setDraft((value) => ({ ...value, [id]: layout }))
+                    }
+                    onTableCommit={async (id, layout) => {
+                      setBusy(true);
+                      try {
+                        await persistTableLayout(id, layout);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                    onElementPreview={previewElement}
+                    onElementCommit={commitElement}
+                    onFallback={() => {
+                      setDepth(false);
+                      toast.info(
+                        ar
+                          ? "تم فتح المخطط ثنائي الأبعاد للحفاظ على عملك."
+                          : "Opened the 2D plan to keep your workspace available.",
+                      );
+                    }}
+                  />
+                </Suspense>
+              ) : (
+                <div className="qs-floor-canvas-viewport flex h-[calc(100%-32px)] min-h-0 items-center justify-center overflow-hidden">
+                  <div
+                    ref={canvasRef}
+                    data-depth={depth}
+                    className={cn(
+                      "qs-floor-canvas relative max-h-full w-full max-w-[1040px] origin-center overflow-hidden rounded-xl border border-border bg-white shadow-inner",
+                      grid &&
+                        "bg-[linear-gradient(to_right,rgba(148,163,184,.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,.12)_1px,transparent_1px)] bg-[size:22px_22px]",
+                    )}
+                    style={{
+                      aspectRatio: `${normalizeCanvasSize(currentFloor.canvasSize).width}/${normalizeCanvasSize(currentFloor.canvasSize).height}`,
+                      width: `${(zoom * 100 * normalizeCanvasSize(currentFloor.canvasSize).width) / W}%`,
+                      ...(currentFloor.backgroundUrl
+                        ? {
+                            backgroundImage: `linear-gradient(rgba(255,255,255,.08),rgba(255,255,255,.08)),url("${currentFloor.backgroundUrl}")`,
+                            backgroundSize: "100% 100%, contain",
+                            backgroundPosition: "center",
+                            backgroundRepeat: "no-repeat",
+                          }
+                        : {}),
+                    }}
+                    onPointerDown={() => {
+                      setSelectedElementId(null);
+                      setSelectedTableId(null);
+                      setSelectedZoneId(null);
+                      setSelectedEntranceId(null);
+                    }}
+                  >
+                    {currentFloor.zones.map((zone) => (
+                      <ZoneBox
+                        key={zone.id}
+                        zone={zone}
+                        ar={ar}
+                        selected={selectedZoneId === zone.id}
+                        onDown={(e, m) => beginZoneDrag(e, zone, m)}
+                        onMove={moveZone}
+                        onUp={endZoneDrag}
                       />
-                    );
-                  })}
+                    ))}
+                    {(currentFloor.elements ?? []).map((element) => (
+                      <FloorElementPiece
+                        key={element.id}
+                        element={element}
+                        selected={selectedElementId === element.id}
+                        editable={editing}
+                        busy={floorBusy}
+                        grid={grid}
+                        canvasRef={canvasRef}
+                        onSelect={() => {
+                          setSelectedElementId(element.id);
+                          setSelectedTableId(null);
+                          setSelectedZoneId(null);
+                          setSelectedEntranceId(null);
+                        }}
+                        onPreview={previewElement}
+                        onCommit={commitElement}
+                      />
+                    ))}
+                    {currentFloor.entrances.map((entry) => (
+                      <EntrancePiece
+                        key={entry.id}
+                        entry={entry}
+                        selected={selectedEntranceId === entry.id}
+                        onDown={(e) => beginEntranceDrag(e, entry)}
+                        onMove={moveEntrance}
+                        onUp={endEntranceDrag}
+                      />
+                    ))}
+                    {visibleTables.map((row, index) => {
+                      const live = selectedTableId === row.id;
+                      return (
+                        <TablePiece
+                          key={row.id}
+                          onSelect={() => openTable(row)}
+                          row={row}
+                          layout={draft[row.id] ?? layoutOf(row, index)}
+                          selected={live}
+                          previewMaterial={live && detailsOpen ? form.material : undefined}
+                          previewShape={live && detailsOpen ? form.shape : undefined}
+                          previewCapacity={
+                            live && detailsOpen ? Number(form.capacity) || 4 : undefined
+                          }
+                          onDown={(e, m) => beginTableDrag(e, row, m)}
+                          onMove={moveTable}
+                          onUp={endTableDrag}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -1888,7 +2128,68 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
               onDelete={deleteElement}
             />
           ) : quickPanel ? (
-            quickPanel
+            <>
+              {depth && selected && (
+                <div className="qs-floor-material-panel">
+                  <h3>{ar ? "المادة" : "Material"}</h3>
+                  <div className="qs-floor-material-swatches">
+                    {(["wood", "marble", "glass", "aluminum"] as Material[]).map((material) => (
+                      <button
+                        key={material}
+                        type="button"
+                        disabled={busy || floorBusy}
+                        aria-pressed={materialOf(selected) === material}
+                        onClick={async () => {
+                          setBusy(true);
+                          try {
+                            await persistTableLayout(
+                              selected.id,
+                              draft[selected.id] ?? layoutOf(selected, 0),
+                              { material },
+                            );
+                          } finally {
+                            setBusy(false);
+                          }
+                        }}
+                      >
+                        <i data-material={material} />
+                        <span>
+                          {
+                            {
+                              wood: ar ? "خشب" : "Walnut",
+                              marble: ar ? "رخام" : "Marble",
+                              glass: ar ? "زجاج" : "Glass",
+                              aluminum: ar ? "معدن" : "Metal",
+                              neutral: "Neutral",
+                            }[material]
+                          }
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="qs-floor-rotation-controls">
+                    <span>{ar ? "الدوران" : "Rotation"}</span>
+                    <button
+                      type="button"
+                      disabled={busy || floorBusy}
+                      aria-label={ar ? "تدوير لليسار" : "Rotate table left"}
+                      onClick={() => rotate(-15)}
+                    >
+                      −15°
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || floorBusy}
+                      aria-label={ar ? "تدوير لليمين" : "Rotate table right"}
+                      onClick={() => rotate(15)}
+                    >
+                      +15°
+                    </button>
+                  </div>
+                </div>
+              )}
+              {quickPanel}
+            </>
           ) : selectedZone ? (
             <ZoneInspector
               zone={selectedZone}
@@ -1943,7 +2244,16 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                 : "Add an element, then move and resize it on your floor plan."}
             </DialogDescription>
           </DialogHeader>
-          <FloorElementLibrary ar={ar} busy={floorBusy} onAdd={(type) => void addElement(type)} />
+          <FloorElementLibrary
+            ar={ar}
+            busy={floorBusy}
+            onAddTable={(shape) => {
+              setElementsOpen(false);
+              openCreate();
+              setForm((value) => ({ ...value, shape }));
+            }}
+            onAdd={(type) => void addElement(type)}
+          />
         </DialogContent>
       </Dialog>
 

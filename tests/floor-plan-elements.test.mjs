@@ -15,6 +15,7 @@ const {
   parseFloorElements,
   moveFloorElement,
   normalizeFloorElement,
+  placeFloorElement,
 } = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
 test("each floor element retains type, geometry and label through a saved JSON round trip", () => {
   for (const type of FLOOR_ELEMENT_TYPES) {
@@ -57,4 +58,34 @@ test("invalid numbers, excessive rotation and labels are normalized", () => {
   assert.equal(normalized.width, 1);
   assert.equal(normalized.height, 80);
   assert.ok(Number.isFinite(normalized.x) && Number.isFinite(normalized.y));
+});
+
+test("new floor objects find free space instead of overlapping the center table", () => {
+  const element = createFloorElement("sofa");
+  const placed = placeFloorElement(element, [{ x: 50, y: 50, width: 30, height: 30 }]);
+  assert(
+    placed.x + placed.width / 2 <= 35 ||
+      placed.x - placed.width / 2 >= 65 ||
+      placed.y + placed.height / 2 <= 35 ||
+      placed.y - placed.height / 2 >= 65,
+  );
+  assert(placed.x >= placed.width / 2 && placed.x <= 100 - placed.width / 2);
+  assert(placed.y >= placed.height / 2 && placed.y <= 100 - placed.height / 2);
+  assert.equal(placed.id, element.id);
+});
+
+test("a rotated wall stays beside the floor edge instead of jumping into the room", () => {
+  const wall = normalizeFloorElement({
+    ...createFloorElement("wall"),
+    width: 55,
+    height: 1.5,
+    rotation: 90,
+    x: 8,
+    y: 41,
+  });
+  assert.equal(wall.x, 8);
+  assert.equal(wall.y, 41);
+  const edge = normalizeFloorElement({ ...wall, x: 0, y: 0 });
+  assert(Math.abs(edge.x - 0.75) < 1e-8);
+  assert(Math.abs(edge.y - 27.5) < 1e-8);
 });
