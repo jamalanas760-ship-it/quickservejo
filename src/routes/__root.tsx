@@ -21,13 +21,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { NotificationPrompt } from "@/components/app/NotificationPrompt";
 import { AppRuntimeMonitor } from "@/components/app/AppRuntimeMonitor";
 import { shouldRefreshAuthAccess, shouldResetThemeForAuth } from "@/lib/auth-event-policy";
-import { SplashScreen } from "@/components/app/SplashScreen";
+import launchCss from "../components/app/splash-screen.css?inline";
+import { LaunchScreenView, SplashScreen } from "@/components/app/SplashScreen";
 import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-bridge";
 
-const BOOT_STYLE = `html,body{min-height:100%;background:#f8f7f4}body{min-height:100dvh;margin:0}.dark,.dark body{background:#14191f}#qs-boot{position:fixed;inset:0;z-index:90;display:grid;place-items:center;background:#f8f7f4;color:#17202a;font:600 15px system-ui}.dark #qs-boot{background:#14191f;color:#f4f5f6}html[data-qs-ready] #qs-boot{display:none}.qs-boot-content{text-align:center}.qs-boot-mark{width:52px;height:52px;margin:0 auto 14px;border:3px solid #e85d2a26;border-top-color:#e85d2a;border-radius:18px;animation:qs-boot-turn 1.2s ease-in-out infinite}.qs-boot-content small{display:block;margin-top:8px;color:#7b8490;font-size:12px;font-weight:400}@keyframes qs-boot-turn{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}@media(prefers-reduced-motion:reduce){.qs-boot-mark{animation:none}}`;
+const BOOT_STYLE = `html,body{min-height:100%;background:#fffdfa}body{min-height:100dvh;margin:0}html[data-qs-ready] #qs-boot{display:none}` + launchCss;
 const RUNTIME_RECOVERY_PREFIX = "quickserve:runtime-recovery:";
 const RUNTIME_RECOVERY_WINDOW_MS = 60_000;
-const THEME_BOOTSTRAP = `(function(){document.documentElement.classList.remove('dark');document.documentElement.style.colorScheme='light';document.documentElement.style.backgroundColor='#f8f7f4';document.querySelectorAll('meta[name=theme-color]').forEach(function(m){m.content='#f8f7f4'});try{localStorage.setItem('quickserve-theme','light')}catch(e){}})();`;
+const THEME_BOOTSTRAP = `(function(){document.documentElement.classList.remove('dark');document.documentElement.style.colorScheme='light';document.documentElement.style.backgroundColor='#fffdfa';document.querySelectorAll('meta[name=theme-color]').forEach(function(m){m.content='#fffdfa'});try{localStorage.setItem('quickserve-theme','light')}catch(e){}})();`;
 
 function runtimeErrorMessage(error: unknown) {
   if (error instanceof Response) return `Response ${error.status}`;
@@ -118,10 +119,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "QuickServe is a multi-tenant QR ordering platform: table QR menus, live kitchen display, waiter calls and cashier tools for every restaurant you run." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "theme-color", content: "#f8f7f4" },
+      { name: "theme-color", content: "#fffdfa" },
       { name: "apple-mobile-web-app-title", content: "QuickServe" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -132,6 +133,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "preload", href: "/loading/cloche-lid.webp", as: "image" },
+      { rel: "preload", href: "/loading/cloche-tray.webp", as: "image" },
+      ...[[402, 874], [393, 852], [390, 844], [430, 932], [440, 956], [428, 926]].map(([width, height]) => ({
+        rel: "apple-touch-startup-image",
+        href: `/loading/startup-${width}x${height}.png`,
+        media: `(device-width: ${width}px) and (device-height: ${height}px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)`,
+      })),
     ],
   }),
   shellComponent: RootShell,
@@ -141,7 +149,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  return <html lang="en" suppressHydrationWarning><head><HeadContent /><script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} /><style dangerouslySetInnerHTML={{ __html: BOOT_STYLE }} /></head><body><div id="qs-boot" role="status" aria-label="Opening QuickServe"><div className="qs-boot-content"><div className="qs-boot-mark" aria-hidden="true" />QuickServe<small>Opening your workspace</small></div></div>{children}<Scripts /></body></html>;
+  return <html lang="en" suppressHydrationWarning><head><HeadContent /><script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} /><style dangerouslySetInnerHTML={{ __html: BOOT_STYLE }} /></head><body><div id="qs-boot"><LaunchScreenView /></div>{children}<Scripts /></body></html>;
 }
 
 function MenuThemeBridgeSync() {

@@ -23,7 +23,8 @@ export function SplashScreen() {
   const [visible, setVisible] = useState(false);
   const [minimumDone, setMinimumDone] = useState(false);
   useEffect(() => {
-    if (started.current || !WORKSPACE_PATH.test(pathname)) return;
+    const installedEntry = pathname === "/" && (window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone);
+    if (started.current || !(WORKSPACE_PATH.test(pathname) || pathname === "/auth" || installedEntry)) return;
     try {
       if (sessionStorage.getItem(FLAG) === String(performance.timeOrigin)) return;
     } catch {
@@ -54,9 +55,14 @@ export function SplashScreen() {
     return () => window.clearTimeout(timer);
   }, [visible, pending, minimumDone]);
   if (!visible) return null;
+  return <LaunchScreenView lang={lang} leaving={minimumDone && !pending} />;
+}
+
+/** Same artwork during server boot, session restoration and client launch. */
+export function LaunchScreenView({ lang = "en", leaving = false }: { lang?: "en" | "ar"; leaving?: boolean }) {
   return (
     <div
-      className={`qs-launch-simple${minimumDone && !pending ? " is-leaving" : ""}`}
+      className={`qs-launch-simple${leaving ? " is-leaving" : ""}`}
       role="status"
       aria-live="polite"
       aria-label={lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}

@@ -20,7 +20,7 @@ test("PWA has a service worker and standalone manifest", async () => {
   assert.match(sw, /addEventListener\("fetch"/);
   assert.match(sw, /Never cache server-rendered HTML/);
   assert.match(sw, /cacheableAsset/);
-  assert.match(sw, /quickserve-runtime-v6/);
+  assert.match(sw, /quickserve-runtime-v7/);
   assert.match(offline, /Connection interrupted/);
   assert.equal(manifest.display, "standalone");
   assert.ok(manifest.icons?.length >= 2);
