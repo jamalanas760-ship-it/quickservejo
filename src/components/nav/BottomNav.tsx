@@ -181,6 +181,7 @@ export function BottomNav() {
       ? mobilePriority.flatMap((to) => desktopItems.find((item) => item.to === to) ?? []).filter((item, index, list) => list.findIndex(candidate => candidate.to === item.to) === index).slice(0, 4)
       : desktopItems;
   const mobileHasMore = desktopItems.some(item => !mobilePrimary.some(primary => primary.to === item.to));
+  const mobileMoreActive = moreOpen || desktopItems.some(item => activeFor(item) && !mobilePrimary.some(primary => primary.to === item.to));
 
   function groupLabel(group: NavGroup) {
     const labels: Record<NavGroup, { en: string; ar: string }> = {
@@ -472,6 +473,7 @@ export function BottomNav() {
                 to={item.to as never}
                 preload="render"
                 aria-current={active?"page":undefined}
+                aria-label={count > 0 ? `${lang === "ar" ? item.ar : item.en}, ${count} ${lang === "ar" ? "تحديثات" : "updates"}` : undefined}
                 data-ios-pressed={pressedNavKey===`${item.to}-${item.en}`||undefined}
                 data-ios-context-source={iosQuickItem?.to===item.to&&iosQuickItem?.en===item.en||undefined}
                 onTouchStart={event=>{const touch=event.touches[0];startLongPress(item,event.currentTarget,touch?.clientX??0,touch?.clientY??0);}}
@@ -482,8 +484,8 @@ export function BottomNav() {
                 onClick={event=>{void consumeLongPressClick(event);}}
                 className={cn("qs-mobile-nav-item qs-ios-haptic-nav-item relative flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition", active ? "is-active text-[var(--restaurant-selected-nav,#e85d2a)]" : "text-muted-foreground")}
               >
-                <span className="qs-mobile-nav-icon relative"><Icon className="size-5" />{count > 0 ? <span className="absolute -end-2.5 -top-2 min-w-[17px] rounded-full bg-red-500 px-1 text-center text-[8px] font-black leading-[17px] text-white">{count > 99 ? "99+" : count}</span> : null}</span>
-                <span className="qs-mobile-nav-label w-full truncate px-1 text-center">{lang === "ar" ? item.ar : item.en}</span>
+                <span className="qs-mobile-nav-icon relative"><Icon className="size-5" />{count > 0 ? <span aria-hidden="true" className="qs-mobile-nav-badge">{count > 99 ? "99+" : count}</span> : null}</span>
+                <span className="qs-mobile-nav-label w-full truncate px-1 text-center">{item.to === "/bookings" && lang === "en" ? "Bookings" : lang === "ar" ? item.ar : item.en}</span>
               </Link>
             );
           })}
@@ -499,10 +501,11 @@ export function BottomNav() {
               onContextMenu={event=>{if(isIOSMobile())event.preventDefault();}}
               onClick={event=>{if(consumeLongPressClick(event))return;setMoreOpen(true);}}
               aria-expanded={moreOpen}
-              className={cn("qs-mobile-nav-item qs-mobile-nav-more qs-ios-haptic-nav-item relative flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 text-[10px] font-semibold text-muted-foreground transition hover:text-foreground")}
+              aria-haspopup="dialog"
+              className={cn("qs-mobile-nav-item qs-mobile-nav-more qs-ios-haptic-nav-item relative flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition", mobileMoreActive ? "is-active" : "text-muted-foreground")}
             >
-              <MoreHorizontal className="size-5" />
-              <span>{lang === "ar" ? "المزيد" : "More"}</span>
+              <span className="qs-mobile-nav-icon"><MoreHorizontal className="size-5" /></span>
+              <span className="qs-mobile-nav-label w-full truncate px-1 text-center">{lang === "ar" ? "المزيد" : "More"}</span>
             </button>
           )})() : null}
         </div>

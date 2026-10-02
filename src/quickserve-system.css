@@ -4926,17 +4926,52 @@ html.qs-theme-view-transition *{
 .qs-floor-canvas[data-depth=true] .qs-floor-element-sofa .qs-floor-element-body{border-width:4px;border-radius:10px;background:#d2beb0;box-shadow:0 7px 0 #8e7463,0 10px 10px rgb(35 28 21 / .22),inset 0 0 0 3px #e8dace}
 .dark .qs-floor-canvas[data-depth=true]{background-color:#292b29!important}
 
-/* The dock owns a viewport layer; route transforms cannot move it. */
+/* Native mobile dock: one opaque surface, with safe-area space owned here. */
 @layer components {
 .qs-nav-portal,.qs-nav-portal>.qs-app{display:contents!important;min-height:0!important}
 @media(max-width:767px){
- .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav{inset-inline:0!important;bottom:0!important;padding:6px 10px max(6px,env(safe-area-inset-bottom))!important;transform:none!important;-webkit-transform:none!important;will-change:auto;isolation:isolate}
- .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav>.qs-mobile-bottom-nav-shell{min-height:64px;border-radius:18px!important;background:var(--qs-surface)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;transform:none!important;-webkit-transform:none!important;will-change:auto;box-shadow:0 3px 16px rgb(15 23 42 / .12)!important;padding:4px}
- .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav :is(a,button){min-height:56px!important}
- .qs-nav-portal .qs-mobile-nav-label{font-size:10px!important;line-height:1.2}
- .qs-persistent-chrome{padding-bottom:calc(88px + env(safe-area-inset-bottom))!important}
+ .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav{
+  inset-inline:0!important;bottom:0!important;
+  padding:6px 8px max(8px,env(safe-area-inset-bottom))!important;
+  background:var(--qs-surface)!important;border:1px solid var(--qs-stroke)!important;
+  border-bottom:0!important;border-radius:22px 22px 0 0!important;
+  box-shadow:0 -4px 20px rgb(15 23 42 / .07)!important;
+  transform:none!important;-webkit-transform:none!important;will-change:auto;isolation:isolate
+ }
+ .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav>.qs-mobile-bottom-nav-shell{
+  min-height:62px;border:0!important;border-radius:0!important;background:transparent!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  transform:none!important;-webkit-transform:none!important;will-change:auto;
+  box-shadow:none!important;padding:0!important;overflow:visible
+ }
+ .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav .qs-mobile-nav-item{
+  min-height:62px!important;gap:3px!important;padding:5px 0!important;border:0!important;
+  border-radius:14px!important;background:transparent!important;color:var(--qs-muted)!important;
+  transition:color .18s ease,transform .18s ease!important;touch-action:manipulation
+ }
+ .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav .qs-mobile-nav-item.is-active{color:var(--restaurant-selected-nav,var(--qs-brand))!important}
+ .qs-nav-portal .qs-mobile-nav-icon{
+  display:flex;align-items:center;justify-content:center;width:44px!important;height:30px!important;
+  border-radius:12px!important;background:transparent;transform:none!important;
+  transition:background-color .18s ease
+ }
+ .qs-nav-portal .qs-mobile-nav-icon>svg{width:22px!important;height:22px!important;stroke-width:1.9}
+ .qs-nav-portal .is-active .qs-mobile-nav-icon{background:var(--qs-brand-soft)!important;transform:none!important}
+ .qs-nav-portal .is-active .qs-mobile-nav-icon>svg{stroke-width:2.25}
+ .qs-nav-portal .qs-mobile-nav-label{font-size:11px!important;line-height:14px!important;font-weight:600}
+ .qs-nav-portal .qs-mobile-nav-badge{
+  position:absolute;inset-inline-end:-3px;top:-3px;min-width:16px;height:16px;padding:0 4px;
+  border:2px solid var(--qs-surface);border-radius:12px;background:#dc2626;color:white;
+  font-size:8px;line-height:12px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums
+ }
+ .qs-nav-portal .qs-mobile-nav-item:focus-visible{outline:2px solid var(--qs-brand)!important;outline-offset:-2px}
+ .qs-nav-portal .qs-mobile-nav-item[data-ios-pressed=true]{transform:scale(.97)!important}
+ .qs-persistent-chrome{padding-bottom:calc(90px + env(safe-area-inset-bottom))!important}
 }
-
+@media(prefers-reduced-motion:reduce){
+ .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav :is(.qs-mobile-nav-item,.qs-mobile-nav-icon){transition:none!important}
+ .qs-nav-portal .qs-mobile-nav-item[data-ios-pressed=true]{transform:none!important}
+}
 }
 
 /* Approved miniature restaurant studio. The WebGL surface owns only the floor. */
