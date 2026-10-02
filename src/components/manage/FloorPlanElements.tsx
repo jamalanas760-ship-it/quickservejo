@@ -1,3 +1,4 @@
+import { FloorPlanSymbol } from "./FloorPlanSymbol";
 import { useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
 import {
   Armchair,
@@ -164,7 +165,6 @@ export function FloorElementPiece({
     next: FloorElement;
     resize: boolean;
   } | null>(null);
-  const Icon = icons[element.type];
   function down(event: PointerEvent<HTMLElement>, resize = false) {
     event.stopPropagation();
     onSelect();
@@ -229,10 +229,7 @@ export function FloorElementPiece({
           onSelect();
         }}
       >
-        <Icon aria-hidden="true" />
-        {!["wall", "window", "tree", "plant", "door"].includes(element.type) && (
-          <span>{element.label}</span>
-        )}
+        <FloorPlanSymbol type={element.type} />
       </button>
       {selected && editable && (
         <button

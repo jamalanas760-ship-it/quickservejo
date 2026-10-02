@@ -183,7 +183,8 @@ test("tables mobile floor plan uses responsive rails, compact controls and scale
   assert.match(tablesPro,/qs-toggle-control/);
   assert.match(tablesPro,/qs-floor-canvas/);
   assert.match(tablesPro,/qs-floor-table-piece/);
-  assert.match(tablesPro,/--qs-floor-object-scale/);
+  assert.match(tablesPro,/canvasSize\.width/);
+  assert.match(tablesPro,/floorSeats\(shape, seats\)/);
   assert.doesNotMatch(tablesPro,/<Switch checked=\{grid\}/);
   assert.match(switchControl,/qs-master-switch/);
   assert.match(styles,/Tables mobile floor-plan master pass/);

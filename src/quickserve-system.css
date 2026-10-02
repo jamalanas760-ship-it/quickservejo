@@ -5017,3 +5017,23 @@ html.qs-theme-view-transition *{
 .qs-floor-3d-object-tools button{width:44px;height:44px;display:grid;place-items:center;border-radius:8px;font-size:19px;color:var(--foreground)}.qs-floor-3d-object-tools button:hover{background:var(--muted)}.qs-floor-3d-object-tools button:focus-visible{outline:2px solid var(--primary)}
 .qs-floor-history-controls{display:flex;gap:2px;border:1px solid var(--border);border-radius:11px;padding:2px;background:var(--card)}.qs-floor-history-controls button{min-width:40px;min-height:40px;display:grid;place-items:center;border-radius:8px}.qs-floor-history-controls button:disabled{opacity:.35;cursor:default}.qs-floor-history-controls button:not(:disabled):hover{color:var(--primary);background:var(--muted)}
 @media(max-width:767px){.qs-floor-history-controls button{min-width:44px;min-height:44px}}
+
+/* Shared architectural floor plan: proportions follow the physical scene. */
+.qs-tables-studio .qs-floor-canvas{background-color:#f4f0e7;box-sizing:border-box;border:2px solid #b8ac98!important;border-radius:8px!important}
+.qs-tables-studio .qs-floor-table-piece{--qs-floor-object-scale:1}
+.qs-floor-table-piece .qs-floor-chair{border:1px solid;border-radius:18% 18% 24% 24%;box-shadow:inset 0 3px 0 rgb(255 255 255/.22),0 1px 2px rgb(60 45 30/.12)}
+.qs-floor-chair:before{content:"";position:absolute;top:0;left:0;right:0;height:24%;border-radius:inherit;background:rgb(0 0 0/.22);border-bottom:1px solid rgb(255 255 255/.24)}
+.qs-floor-table-piece .qs-floor-table-top{font-size:clamp(8px,1vw,14px);border-width:1px}
+.qs-floor-element .qs-floor-element-body{display:block!important;position:relative;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible}
+.qs-floor-element .qs-floor-element-body .qs-plan-symbol{display:block!important;width:100%!important;height:100%!important;filter:drop-shadow(0 1px 1px rgb(70 56 40/.16));overflow:visible}
+.qs-floor-element.is-selected .qs-floor-element-body{outline:2px solid #f97316;outline-offset:4px}
+.qs-floor-element-body:focus-visible{outline:2px solid #f97316;outline-offset:4px}
+.qs-floor-3d-camera{max-width:calc(100% - 24px);flex-wrap:wrap;z-index:30}
+.qs-floor-3d-camera button{min-height:44px!important;min-width:44px!important}
+.qs-floor-3d-camera button[aria-pressed=true]{background:#fff0e4;color:#c54e12}
+.dark .qs-floor-3d-camera button[aria-pressed=true]{background:#4b2e20;color:#ff9e63}
+.qs-floor-3d-label-inner{font-size:11px!important;padding:3px 6px!important;min-width:24px!important}
+
+.qs-tables-studio .qs-floor-table-status{font-size:0!important;width:7px;height:7px;min-width:0;min-height:0;padding:0!important;top:25%;border:1px solid white;box-shadow:0 0 0 1px rgb(70 56 40/.12)}
+
+.qs-floor-3d-camera button{display:flex;align-items:center;justify-content:center;gap:6px}

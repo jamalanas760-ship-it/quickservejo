@@ -1,3 +1,4 @@
+import { floorSeats } from "@/lib/floor-seating";
 import * as T from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
@@ -193,12 +194,10 @@ export function createFurnitureCatalog() {
       for (const x of [-width / 2 + 0.1, width / 2 - 0.1])
         for (const z of [-0.29, 0.29]) box(g, 0.045, 0.72, 0.045, darkWood, x, 0.36, z);
     }
-    const n = Math.max(2, Math.min(8, seats));
-    for (let i = 0; i < n; i++) {
-      const a = (i * 2 * Math.PI) / n;
+    for (const seat of floorSeats(shape, seats)) {
       const c = chair();
-      c.position.set(Math.sin(a) * (shape === "rectangle" ? 0.83 : 0.7), 0, Math.cos(a) * 0.7);
-      c.rotation.y = a;
+      c.position.set(seat.x, 0, seat.y);
+      c.rotation.y = seat.rotation;
       g.add(c);
     }
     // A small vase adds scale and warmth without concealing the table material.

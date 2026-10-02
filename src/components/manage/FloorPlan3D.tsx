@@ -1,3 +1,4 @@
+import { RotateCcw, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import * as T from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -56,10 +57,12 @@ export default function FloorPlan3D(props: Props) {
     update: () => void;
     rotate: (delta: number) => void;
     reset: () => void;
+    orbit: (enabled: boolean) => void;
     beginDrag: (event: PointerEvent, selection: NonNullable<Selection>) => void;
   } | null>(null);
   const labels = useRef(new Map<string, HTMLButtonElement>());
   const [ready, setReady] = useState(false);
+  const [orbit, setOrbit] = useState(false);
   useEffect(() => {
     const container = host.current;
     if (!container) return;
@@ -76,7 +79,7 @@ export default function FloorPlan3D(props: Props) {
     }
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = T.PCFSoftShadowMap;
+    renderer.shadowMap.type = T.PCFShadowMap;
     renderer.outputColorSpace = T.SRGBColorSpace;
     renderer.toneMapping = T.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.35;
@@ -94,13 +97,15 @@ export default function FloorPlan3D(props: Props) {
     camera.lookAt(0, 0.3, 0);
     const controls = new OrbitControls(camera, canvas);
     controls.target.set(0, 0.25, 0);
-    controls.enableRotate = false;
+    controls.enableRotate = true;
+    controls.minPolarAngle = Math.PI / 6;
+    controls.maxPolarAngle = Math.PI / 2.8;
     controls.enableDamping = false;
     controls.enableZoom = true;
     controls.minZoom = 0.55;
     controls.maxZoom = 3;
-    controls.mouseButtons = { LEFT: T.MOUSE.PAN, MIDDLE: T.MOUSE.DOLLY, RIGHT: T.MOUSE.PAN };
-    controls.touches = { ONE: T.TOUCH.PAN, TWO: T.TOUCH.DOLLY_PAN };
+    controls.mouseButtons = { LEFT: T.MOUSE.PAN, MIDDLE: T.MOUSE.DOLLY, RIGHT: T.MOUSE.ROTATE };
+    controls.touches = { ONE: T.TOUCH.PAN, TWO: T.TOUCH.DOLLY_ROTATE };
     controls.update();
     controls.saveState();
     const light = new T.DirectionalLight("#fff6df", 3.2);
@@ -155,11 +160,15 @@ export default function FloorPlan3D(props: Props) {
         },
       );
     }
-    const grid = new T.GridHelper(
-      Math.max(width, depth),
-      Math.round(Math.max(width, depth) * 2),
-      "#bdb3a3",
-      "#d3cabe",
+    // A rectangular grid must share the slab bounds, including after resizing.
+    const lines: number[] = [];
+    for (let x = -width / 2; x <= width / 2 + 0.001; x += 0.5)
+      lines.push(x, 0, -depth / 2, x, 0, depth / 2);
+    for (let z = -depth / 2; z <= depth / 2 + 0.001; z += 0.5)
+      lines.push(-width / 2, 0, z, width / 2, 0, z);
+    const grid = new T.LineSegments(
+      new T.BufferGeometry().setAttribute("position", new T.Float32BufferAttribute(lines, 3)),
+      new T.LineBasicMaterial({ color: "#bdb3a3", transparent: true, opacity: 0.4 }),
     );
     grid.position.y = 0.025;
     scene.add(grid);
@@ -353,7 +362,13 @@ export default function FloorPlan3D(props: Props) {
       }
       const { kind, id } = target;
       p.onSelect({ kind, id });
-      if (!p.editable || p.busy || (kind !== "table" && kind !== "element")) return;
+      if (
+        controls.touches.ONE === T.TOUCH.ROTATE ||
+        !p.editable ||
+        p.busy ||
+        (kind !== "table" && kind !== "element")
+      )
+        return;
       controls.enabled = false;
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -436,8 +451,12 @@ export default function FloorPlan3D(props: Props) {
     runtime.current = {
       update,
       beginDrag: down,
+      orbit: (enabled) => {
+        controls.mouseButtons.LEFT = enabled ? T.MOUSE.ROTATE : T.MOUSE.PAN;
+        controls.touches.ONE = enabled ? T.TOUCH.ROTATE : T.TOUCH.PAN;
+      },
       rotate: (delta) => {
-        angle += delta;
+        angle = controls.getAzimuthalAngle() + delta;
         camera.position.set(Math.sin(angle) * 17, 12, Math.cos(angle) * 17);
         camera.lookAt(controls.target);
         fit();
@@ -450,6 +469,7 @@ export default function FloorPlan3D(props: Props) {
         update();
       },
     };
+    setOrbit(false);
     fit();
     theme();
     update();
@@ -573,14 +593,24 @@ export default function FloorPlan3D(props: Props) {
           onClick={() => runtime.current?.rotate(-Math.PI / 4)}
           aria-label={props.ar ? "تدوير العرض لليسار" : "Rotate view left"}
         >
-          ↶
+          <RotateCcw size={18} aria-hidden="true" />
         </button>
         <button
           type="button"
           onClick={() => runtime.current?.rotate(Math.PI / 4)}
           aria-label={props.ar ? "تدوير العرض لليمين" : "Rotate view right"}
         >
-          ↷
+          <RotateCw size={18} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          aria-pressed={orbit}
+          onClick={() => {
+            setOrbit(!orbit);
+            runtime.current?.orbit(!orbit);
+          }}
+        >
+          {props.ar ? (orbit ? "تحريك" : "تدوير باللمس") : orbit ? "Pan" : "Touch rotate"}
         </button>
         <button type="button" onClick={() => runtime.current?.reset()}>
           {props.ar ? "ملاءمة" : "Reset view"}
@@ -643,10 +673,10 @@ export default function FloorPlan3D(props: Props) {
         {props.editable
           ? props.ar
             ? "اسحب العناصر للتحريك · إصبعان للتكبير والتحريك"
-            : "Drag furniture to move · Two fingers to zoom and pan"
+            : "Drag furniture to move · Two fingers to zoom and rotate"
           : props.ar
             ? "اضغط على طاولة · اسحب لتحريك العرض"
-            : "Tap a table · Drag to pan"}
+            : "Tap a table · Drag to pan · Touch rotate to orbit"}
       </p>
     </div>
   );

@@ -1,3 +1,4 @@
+import { floorSeats } from "@/lib/floor-seating";
 import { normalizeCanvasSize } from "@/lib/floor-canvas";
 import {
   lazy,
@@ -1919,7 +1920,9 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                 <button
                   type="button"
                   className="qs-button-secondary"
-                  onClick={() => setZoom(W / normalizeCanvasSize(currentFloor.canvasSize).width)}
+                  onClick={() =>
+                    setZoom(depth ? 1 : W / normalizeCanvasSize(currentFloor.canvasSize).width)
+                  }
                 >
                   {ar ? "ملاءمة" : "Fit"}
                 </button>
@@ -2097,6 +2100,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                           key={row.id}
                           onSelect={() => openTable(row)}
                           row={row}
+                          canvasSize={normalizeCanvasSize(currentFloor.canvasSize)}
                           layout={draft[row.id] ?? layoutOf(row, index)}
                           selected={live}
                           previewMaterial={live && detailsOpen ? form.material : undefined}
@@ -2685,6 +2689,7 @@ function EntrancePiece({
   );
 }
 export function TablePiece({
+  canvasSize = { width: 1000, height: 700 },
   row,
   layout,
   selected,
@@ -2697,6 +2702,7 @@ export function TablePiece({
   onUp,
 }: {
   row: FloorTable;
+  canvasSize?: { width: number; height: number };
   layout: Layout;
   selected: boolean;
   previewMaterial?: Material | undefined;
@@ -2777,35 +2783,38 @@ export function TablePiece({
       style={{
         left: `${layout.x / 10}%`,
         top: `${layout.y / 7}%`,
-        width: shape === "rectangle" ? "116px" : "88px",
-        height: "88px",
-        transform: `translate(-50%,-50%) rotate(${layout.rotation}deg) scale(${layout.scale}) scale(var(--qs-floor-object-scale,1))`,
+        width: `${(176 / canvasSize.width) * 100}%`,
+        height: `${(160 / canvasSize.height) * 100}%`,
+        transform: `translate(-50%,-50%) rotate(${layout.rotation}deg) scale(${layout.scale})`,
       }}
     >
-      {Array.from({ length: Math.min(seats, 6) }, (_, index) => {
-        const angle = (360 / Math.min(seats, 6)) * index - 90;
-        const x = 50 + Math.cos((angle * Math.PI) / 180) * 50;
-        const y = 50 + Math.sin((angle * Math.PI) / 180) * 50;
-        return (
-          <i
-            key={index}
-            className="qs-floor-chair absolute h-4 w-6 rounded-[5px] border shadow-sm"
-            style={{
-              left: `${x}%`,
-              top: `${y}%`,
-              transform: `translate(-50%,-50%) rotate(${angle + 90}deg)`,
-              background: s.chair,
-              borderColor: s.border,
-            }}
-          />
-        );
-      })}
+      {floorSeats(shape, seats).map((seat, index) => (
+        <i
+          key={index}
+          className="qs-floor-chair absolute"
+          style={{
+            left: `${50 + (seat.x / 2.2) * 100}%`,
+            top: `${50 + (seat.y / 2) * 100}%`,
+            width: `${(0.46 / 2.2) * 100}%`,
+            height: "21%",
+            transform: `translate(-50%,-50%) rotate(${(-seat.rotation * 180) / Math.PI}deg)`,
+            background: s.chair,
+            borderColor: s.border,
+          }}
+        />
+      ))}
       <span
         className={cn(
           "qs-floor-table-top absolute inset-[11px] grid place-items-center border-2 font-display text-sm font-bold transition-all",
           shape === "round" ? "rounded-full" : shape === "square" ? "rounded-xl" : "rounded-[14px]",
         )}
         style={{
+          inset: "auto",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%,-50%)",
+          width: `${((shape === "round" ? 0.92 : shape === "rectangle" ? 1.18 : 0.8) / 2.2) * 100}%`,
+          height: `${((shape === "round" ? 0.92 : 0.8) / 2) * 100}%`,
           background: s.top,
           color: s.text,
           borderColor: selected ? "#2486ff" : tone.dot,
@@ -2819,6 +2828,8 @@ export function TablePiece({
       <span
         className="qs-floor-table-status absolute -top-3 start-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/70 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-white shadow-sm"
         style={{ background: tone.dot }}
+        title={serviceStatusLabel(status, false)}
+        aria-hidden="true"
       >
         {serviceStatusLabel(status, false)}
       </span>
