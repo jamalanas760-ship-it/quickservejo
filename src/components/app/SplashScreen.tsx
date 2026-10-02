@@ -1,5 +1,5 @@
 import { useRouterState } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import "./splash-screen.css";
 
@@ -12,7 +12,6 @@ export function SplashScreen() {
   const { lang } = useI18n();
   const pending = useRouterState({ select: (state) => state.isLoading });
   const [visible, setVisible] = useState(false);
-  const started = useRef(0);
   useEffect(() => {
     if (!WORKSPACE_PATH.test(window.location.pathname)) return;
     try {
@@ -21,8 +20,7 @@ export function SplashScreen() {
     } catch {
       /* Storage restrictions must not block startup. */
     }
-    started.current = Date.now();
-    setVisible(true);
+    setVisible(pending);
     // Reveal the normal page loading/error controls even on a slow connection.
     const safety = window.setTimeout(() => setVisible(false), 8000);
     return () => window.clearTimeout(safety);
@@ -31,7 +29,7 @@ export function SplashScreen() {
     if (!visible || pending) return;
     const timer = window.setTimeout(
       () => setVisible(false),
-      Math.max(0, 320 - (Date.now() - started.current)),
+      0,
     );
     return () => window.clearTimeout(timer);
   }, [visible, pending]);

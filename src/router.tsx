@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import { WorkspacePending } from "./components/app/WorkspacePending";
 import { routeTree } from "./routeTree.gen";
 import { queryRetryDelay, shouldRetryQuery } from "./lib/query-reliability";
 
@@ -30,6 +31,7 @@ export const getRouter = () => {
     // prevents fast navigation from ever swapping to a transient loading frame.
     defaultPendingMs: 1_200,
     defaultPendingMinMs: 0,
+    defaultPendingComponent: WorkspacePending,
   });
 
   return router;

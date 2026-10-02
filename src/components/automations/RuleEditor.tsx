@@ -1,7 +1,8 @@
 import { cloneElement, isValidElement, useId, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarClock, ChevronDown, CirclePlay, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarClock, ChevronDown, CirclePlay, Trash2, Save, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -320,16 +321,8 @@ export function RuleEditor({
                   <section>
                     <h2>{ar ? "2. عند وقوع الحدث" : "2. When it happens"}</h2>
                     <Field label={ar ? "المشغّل" : "Trigger"}>
-                      <select
-                        value={eventType}
-                        onChange={(e) => setEventType(e.target.value as OperationalEventType)}
-                      >
-                        {EVENTS.map((e) => (
-                          <option key={e.value} value={e.value}>
-                            {ar ? e.ar : e.en}
-                          </option>
-                        ))}
-                      </select>
+                      <RuleSelect value={eventType} onChange={(v) => setEventType(v as OperationalEventType)} ar={ar} disabled={busy}
+                        options={EVENTS.map((e) => ({ value: e.value, label: ar ? e.ar : e.en }))} />
                     </Field>
                   </section>
                   <section>
@@ -339,25 +332,12 @@ export function RuleEditor({
                     </Field>
                     <div className="au-three-fields">
                       <Field label={ar ? "المسؤول" : "Assign to"}>
-                        <select value={role} onChange={(e) => setRole(e.target.value as AppRole)}>
-                          {TARGET_ROLES.map((r) => (
-                            <option key={r} value={r}>
-                              {ROLE_LABELS[r][lang]}
-                            </option>
-                          ))}
-                        </select>
+                        <RuleSelect value={role} onChange={(v) => setRole(v as AppRole)} ar={ar} disabled={busy}
+                          options={TARGET_ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r][lang] }))} />
                       </Field>
                       <Field label={ar ? "الأولوية" : "Priority"}>
-                        <select
-                          value={priority}
-                          onChange={(e) => setPriority(e.target.value as WorkPriority)}
-                        >
-                          {PRIORITIES.map((p) => (
-                            <option value={p} key={p}>
-                              {priorityLabel(p, ar)}
-                            </option>
-                          ))}
-                        </select>
+                        <RuleSelect value={priority} onChange={(v) => setPriority(v as WorkPriority)} ar={ar} disabled={busy}
+                          options={PRIORITIES.map((p) => ({ value: p, label: priorityLabel(p, ar), tone: p }))} />
                       </Field>
                       <Field label={ar ? "المهلة بالدقائق" : "Due in (min)"}>
                         <input
@@ -471,6 +451,7 @@ export function RuleEditor({
                 </p>
               ) : null}
               <RulePreview
+                compact
                 value={{
                   event_type: eventType,
                   target_role: role,
@@ -552,7 +533,8 @@ export function RuleEditor({
                 disabled={busy || !name.trim()}
                 aria-busy={save.isPending}
               >
-                {editing
+                {save.isPending ? <LoaderCircle className="animate-spin" size={16} /> : <Save size={16} />}
+                {save.isPending ? (ar ? "جارٍ الحفظ…" : "Saving…") : editing
                   ? ar
                     ? "حفظ التغييرات"
                     : "Save changes"
@@ -609,4 +591,19 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       {isValidElement<{ id?: string }>(children) ? cloneElement(children, { id }) : children}
     </div>
   );
+}
+
+function RuleSelect({ id, value, onChange, options, ar, disabled }: {
+  id?: string; value: string; onChange: (value: string) => void;
+  options: Array<{ value: string; label: string; tone?: string }>;
+  ar: boolean; disabled: boolean;
+}) {
+  return <Select value={value} onValueChange={onChange} dir={ar ? "rtl" : "ltr"} disabled={disabled}>
+    <SelectTrigger id={id} className="au-choice-trigger"><SelectValue /></SelectTrigger>
+    <SelectContent className="au-choice-menu" position="popper" sideOffset={4} collisionPadding={12}>
+      {options.map((option) => <SelectItem key={option.value} value={option.value} className="au-choice-option">
+        <span className="au-choice-label">{option.tone ? <i aria-hidden="true" data-priority={option.tone} /> : null}{option.label}</span>
+      </SelectItem>)}
+    </SelectContent>
+  </Select>;
 }

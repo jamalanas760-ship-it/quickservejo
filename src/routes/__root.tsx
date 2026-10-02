@@ -8,7 +8,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import quickServeSystemCss from "../quickserve-system.css?url";
@@ -18,12 +18,14 @@ import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationPrompt } from "@/components/app/NotificationPrompt";
 import { AppRuntimeMonitor } from "@/components/app/AppRuntimeMonitor";
+import { shouldRefreshAuthAccess } from "@/lib/auth-event-policy";
 import { SplashScreen } from "@/components/app/SplashScreen";
 import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-bridge";
 
+const BOOT_STYLE = `#qs-boot{position:fixed;inset:0;z-index:90;display:grid;place-items:center;background:#f8f7f4;color:#17202a;font:600 15px system-ui}.dark #qs-boot{background:#14191f;color:#f4f5f6}html[data-qs-ready] #qs-boot{display:none}.qs-boot-content{text-align:center}.qs-boot-mark{width:52px;height:52px;margin:0 auto 14px;border:3px solid #e85d2a26;border-top-color:#e85d2a;border-radius:18px;animation:qs-boot-turn 1.2s ease-in-out infinite}.qs-boot-content small{display:block;margin-top:8px;color:#7b8490;font-size:12px;font-weight:400}@keyframes qs-boot-turn{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}@media(prefers-reduced-motion:reduce){.qs-boot-mark{animation:none}}`;
 const RUNTIME_RECOVERY_PREFIX = "quickserve:runtime-recovery:";
 const RUNTIME_RECOVERY_WINDOW_MS = 60_000;
-const THEME_BOOTSTRAP = `(function(){try{var s=localStorage.getItem('quickserve-theme');var d=s==='dark'||(s!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light'}catch(e){}})();`;
+const THEME_BOOTSTRAP = `(function(){try{var s=localStorage.getItem('quickserve-theme');var d=s==='dark'||(s!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';document.documentElement.style.backgroundColor=d?'#14191f':'#f8f7f4'}catch(e){}})();`;
 
 function runtimeErrorMessage(error: unknown) {
   if (error instanceof Response) return `Response ${error.status}`;
@@ -136,7 +138,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  return <html lang="en" suppressHydrationWarning><head><HeadContent /><script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} /></head><body>{children}<Scripts /></body></html>;
+  return <html lang="en" suppressHydrationWarning><head><HeadContent /><script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} /><style dangerouslySetInnerHTML={{ __html: BOOT_STYLE }} /></head><body><div id="qs-boot" role="status" aria-label="Opening QuickServe"><div className="qs-boot-content"><div className="qs-boot-mark" aria-hidden="true" />QuickServe<small>Opening your workspace</small></div></div>{children}<Scripts /></body></html>;
 }
 
 function MenuThemeBridgeSync() {
@@ -190,19 +192,41 @@ function NavigationProgress() {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const authIdentity = useRef<string | null | undefined>(undefined);
   useEffect(() => {
+    document.documentElement.dataset.qsReady = "true";
     let syncTimer: number | null = null;
-    const scheduleAuthSync = (event: string) => {
-      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+    let queuedAccessRefresh = false;
+    let queuedAccountChange = false;
+    const scheduleAuthSync = (event: string, session: import("@supabase/supabase-js").Session | null) => {
+      const previous = authIdentity.current;
+      const next = session?.user.id ?? null;
+      authIdentity.current = next;
+      // Supabase re-emits SIGNED_IN on foregrounding. A token refresh for the
+      // same account must not re-run staff queries or block the mounted page.
+      const changedAccount = previous !== undefined && previous !== next;
+      const refreshAccess = shouldRefreshAuthAccess(event, previous, next);
+      if (event === "INITIAL_SESSION") return;
+      queuedAccessRefresh ||= refreshAccess;
+      queuedAccountChange ||= changedAccount;
       if (syncTimer !== null) window.clearTimeout(syncTimer);
       syncTimer = window.setTimeout(() => {
         syncTimer = null;
 
+        const refresh = queuedAccessRefresh;
+        const changed = queuedAccountChange;
+        queuedAccessRefresh = queuedAccountChange = false;
+        queryClient.setQueryData(["auth", "session"], session);
+        if (!refresh) return;
+        if (changed) {
+          queryClient.removeQueries({ queryKey: ["staff"] });
+          queryClient.removeQueries({ queryKey: ["auth", "route-user"] });
+        }
         // Supabase auth state callbacks run while the auth client holds its own
         // synchronization lock. Starting router loaders or React Query refetches
         // inside that callback can recursively call auth/session APIs and deadlock
         // the client exactly as a user signs in. Always leave the callback first.
-        if (event === "SIGNED_OUT") {
+        if (!session) {
           queryClient.removeQueries({ queryKey: ["auth"] });
           queryClient.removeQueries({ queryKey: ["staff"] });
           void router.invalidate();
@@ -215,24 +239,19 @@ function RootComponent() {
         // /auth performs the SIGNED_IN navigation itself. Avoid racing that
         // transition with a second router.invalidate(). USER_UPDATED, however,
         // needs the current route guards to re-evaluate after profile changes.
-        if (event === "USER_UPDATED") void router.invalidate();
+        if (event === "USER_UPDATED" || (changed && window.location.pathname !== "/auth")) void router.invalidate();
       }, 0);
     };
 
-    const { data } = supabase.auth.onAuthStateChange((event) => {
-      scheduleAuthSync(event);
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      scheduleAuthSync(event, session);
     });
-    const onFocus = () => {
-      if (document.visibilityState !== "visible") return;
-      void supabase.auth.getSession().catch(() => undefined);
-    };
-    document.addEventListener("visibilitychange", onFocus);
-    window.addEventListener("focus", onFocus);
+    // Supabase owns visibility-driven token refresh. Adding getSession() on
+    // focus and visibilitychange created overlapping auth work on iOS resume.
     return () => {
       if (syncTimer !== null) window.clearTimeout(syncTimer);
       data.subscription.unsubscribe();
-      document.removeEventListener("visibilitychange", onFocus);
-      window.removeEventListener("focus", onFocus);
+
     };
   }, [router, queryClient]);
 
