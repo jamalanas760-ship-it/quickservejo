@@ -4928,3 +4928,16 @@ html[data-qs-resuming] #main-content{animation:qs-resume-paint .15s ease-out}
 .qs-floor-canvas[data-depth=true] :is(.qs-floor-element-tree,.qs-floor-element-plant) .qs-floor-element-body{background:radial-gradient(ellipse at 35% 25%,#d8eabb,#83ad66 64%,#56824d);box-shadow:0 5px 0 #596b40,0 12px 14px rgb(35 54 25 / .26);color:#385c2d}
 .qs-floor-canvas[data-depth=true] .qs-floor-element-sofa .qs-floor-element-body{border-width:4px;border-radius:10px;background:#d2beb0;box-shadow:0 7px 0 #8e7463,0 10px 10px rgb(35 28 21 / .22),inset 0 0 0 3px #e8dace}
 .dark .qs-floor-canvas[data-depth=true]{background-color:#292b29!important}
+
+/* The dock owns a viewport layer; route transforms cannot move it. */
+@layer components {
+.qs-nav-portal,.qs-nav-portal>.qs-app{display:contents!important;min-height:0!important}
+@media(max-width:767px){
+ .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav{inset-inline:0!important;bottom:0!important;padding:6px 10px max(6px,env(safe-area-inset-bottom))!important;transform:none!important;will-change:auto;isolation:isolate}
+ .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav>.qs-mobile-bottom-nav-shell{min-height:64px;border-radius:18px!important;background:var(--qs-surface)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:0 3px 16px rgb(15 23 42 / .12)!important;padding:4px}
+ .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav :is(a,button){min-height:56px!important}
+ .qs-nav-portal .qs-mobile-nav-label{font-size:10px!important;line-height:1.2}
+ .qs-persistent-chrome{padding-bottom:calc(88px + env(safe-area-inset-bottom))!important}
+}
+
+}

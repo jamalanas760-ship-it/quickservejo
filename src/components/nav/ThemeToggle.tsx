@@ -13,7 +13,7 @@ function preferredTheme(): Theme {
   if (typeof window === "undefined") return "light";
   const stored = window.localStorage.getItem(KEY) as Theme | null;
   if (stored === "dark" || stored === "light") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return stored === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function applyTheme(theme: Theme) {
@@ -58,7 +58,7 @@ export function ThemeToggle({
 
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const onSystemChange = () => {
-      if (!["light", "dark"].includes(window.localStorage.getItem(KEY) ?? ""))
+      if (window.localStorage.getItem(KEY) === "system")
         sync(media.matches ? "dark" : "light");
     };
     media.addEventListener("change", onSystemChange);

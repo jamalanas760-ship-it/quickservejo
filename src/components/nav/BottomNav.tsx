@@ -1,3 +1,4 @@
+import { ViewportDock } from "./ViewportDock";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -458,6 +459,7 @@ export function BottomNav() {
         </div>
       </aside>
 
+      <ViewportDock dir={lang === "ar" ? "rtl" : "ltr"}>
       <nav aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"} onContextMenu={event=>{if(isIOSMobile())event.preventDefault();}} className="qs-mobile-bottom-nav safe-bottom fixed inset-x-3 bottom-2 z-50 lg:hidden">
         <div className="qs-mobile-bottom-nav-shell grid overflow-hidden" style={{ gridTemplateColumns: `repeat(${Math.max(1, mobilePrimary.length + (mobileHasMore ? 1 : 0))}, minmax(0,1fr))` }}>
           {mobilePrimary.map((item) => {
@@ -505,6 +507,8 @@ export function BottomNav() {
           )})() : null}
         </div>
       </nav>
+
+      </ViewportDock>
 
       {iosQuickItem&&iosQuickAnchor?(
         <div className="qs-ios-context-layer lg:hidden" role="presentation">

@@ -3,9 +3,9 @@ export function readThemePreference(): ThemePreference {
   if (typeof window === "undefined") return "light";
   try {
     const value = localStorage.getItem("quickserve-theme");
-    return value === "light" || value === "dark" ? value : "system";
+    return value === "light" || value === "dark" || value === "system" ? value : "light";
   } catch {
-    return "system";
+    return "light";
   }
 }
 export function applyDocumentTheme(theme: "light" | "dark") {
