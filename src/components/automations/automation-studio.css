@@ -1113,3 +1113,7 @@
 .au-studio.au-studio.au-rule-dialog .au-choice-trigger{min-height:48px!important;height:auto!important}
 .au-studio.au-studio .au-table td:last-child button{height:44px;min-height:44px!important;border-radius:11px;padding-inline:14px}
 .au-studio.au-studio .au-inspector .au-text-button{min-height:44px!important;padding-inline:12px;border-radius:10px}
+
+/* Flex items must never compress the preview into a clipped heading. */
+.au-rule-dialog .au-editor-grid>.au-editor-preview{flex:0 0 auto;min-height:max-content;overflow:visible}
+@media(max-width:680px){.au-rule-dialog .au-editor-grid>div{flex:0 0 auto}.au-rule-dialog .au-editor-grid>.au-editor-preview{height:auto;min-height:fit-content;padding:16px;border-radius:14px}.au-rule-dialog .au-editor-preview h2{margin:0 0 8px;line-height:1.4}.au-rule-dialog .au-editor-grid{scroll-padding-bottom:16px}.au-rule-dialog .au-editor-preview .au-flow-step{min-height:48px}}

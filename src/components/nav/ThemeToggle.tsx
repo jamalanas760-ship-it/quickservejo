@@ -21,10 +21,6 @@ function applyTheme(theme: Theme) {
   applyDocumentTheme(theme);
 }
 
-type ViewTransitionDocument = Document & {
-  startViewTransition?: (update: () => void) => { finished: Promise<void> };
-};
-
 export function ThemeToggle({
   compact = false,
   className,
@@ -85,25 +81,15 @@ export function ThemeToggle({
     themeRef.current = next;
 
     const root = document.documentElement;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const doc = document as ViewTransitionDocument;
     const commit = () => {
       flushSync(() => setTheme(next));
       applyTheme(next);
     };
 
-    if (!reduceMotion && typeof doc.startViewTransition === "function") {
-      root.classList.remove(TRANSITION_CLASS);
-      root.classList.add("qs-theme-view-transition");
-      const transition = doc.startViewTransition(commit);
-      void transition.finished.finally(() => root.classList.remove("qs-theme-view-transition"));
-    } else {
-      // Unsupported browsers switch atomically. A synchronous change is much
-      // better than painting the header, cards and canvas in separate phases.
-      root.classList.add(TRANSITION_CLASS);
-      commit();
-      requestAnimationFrame(() => root.classList.remove(TRANSITION_CLASS));
-    }
+    // Snapshot transitions can retain a black compositor layer after iOS suspension.
+    // Switch the live document atomically; the thumb keeps its own short animation.
+    root.classList.remove("qs-theme-view-transition", TRANSITION_CLASS);
+    commit();
 
     window.dispatchEvent(new CustomEvent<Theme>(EVENT, { detail: next }));
   }

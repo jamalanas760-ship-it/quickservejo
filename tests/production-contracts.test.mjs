@@ -150,7 +150,7 @@ test("launch screen follows loading state and preserves accessible topbar menus"
   const splash = await file("src/components/app/SplashScreen.tsx");
   const header = await file("src/components/nav/AppHeader.tsx");
   const css = await file("src/quickserve-system.css");
-  assert.match(splash, /quickserve\.splash\.shown\.v4/);
+  assert.match(splash, /quickserve\.splash\.shown\.v5/);
   assert.match(splash, /qs-launch-simple/);
   assert.match(splash, /state.isLoading/);
   assert.match(splash, /role="status"/);
@@ -270,12 +270,12 @@ test("theme and topbar interactions use atomic and soft motion", async () => {
   const theme = await file("src/components/nav/ThemeToggle.tsx");
   const header = await file("src/components/nav/AppHeader.tsx");
   const css = await file("src/quickserve-system.css");
-  assert.match(theme, /startViewTransition/);
+  assert.doesNotMatch(theme, /startViewTransition/);
   assert.match(theme, /flushSync/);
   assert.doesNotMatch(header, /qs-command-icon-trigger|qs-search-shortcut-keys|<BrandLogo markOnly|>Ctrl</);
   assert.match(header, /quickserve:open-workspace-tools/);
   assert.match(header, /qs-topbar-popover/);
-  assert.match(css, /::view-transition-new\(root\)/);
+  assert.match(css, /qs-theme-toggle-thumb/);
   assert.match(css, /qs-topbar-popover-in/);
   assert.match(css, /qs-workforce-snapshot/);
 });

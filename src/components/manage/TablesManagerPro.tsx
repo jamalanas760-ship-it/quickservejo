@@ -445,6 +445,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     rotation: "0",
   });
   const [editing, setEditing] = useState(false);
+  const [depth, setDepth] = useState(true);
   const [elementsOpen, setElementsOpen] = useState(false);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const floorSaveInFlight = useRef(false);
@@ -1608,6 +1609,15 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                 <button
                   type="button"
                   className="qs-button-secondary"
+                  aria-pressed={depth}
+                  onClick={() => setDepth(!depth)}
+                >
+                  <Building2 className="size-4" />
+                  {depth ? (ar ? "عرض مسطح" : "Flat view") : ar ? "عرض مجسّم" : "Depth view"}
+                </button>
+                <button
+                  type="button"
+                  className="qs-button-secondary"
                   aria-pressed={editing}
                   disabled={floorBusy}
                   onClick={() => setEditing(!editing)}
@@ -1776,6 +1786,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
               <div className="qs-floor-canvas-viewport flex h-[calc(100%-32px)] min-h-0 items-center justify-center overflow-hidden">
                 <div
                   ref={canvasRef}
+                  data-depth={depth}
                   className={cn(
                     "qs-floor-canvas relative max-h-full w-full max-w-[1040px] origin-center overflow-hidden rounded-xl border border-border bg-white shadow-inner",
                     grid &&
@@ -2363,7 +2374,7 @@ function EntrancePiece({
     </button>
   );
 }
-function TablePiece({
+export function TablePiece({
   row,
   layout,
   selected,

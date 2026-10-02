@@ -1,3 +1,4 @@
+import { installResumeRecovery } from "@/lib/resume-recovery";
 import { useEffect, useRef } from "react";
 import { WifiOff } from "lucide-react";
 
@@ -53,6 +54,7 @@ export function AppRuntimeMonitor() {
   const sent = useRef(new Set<string>());
 
   useEffect(() => {
+    const stopRecovery = installResumeRecovery();
     const idleHandles = new Set<number>();
     let loadHandler: (() => void) | null = null;
     let visibilityHandler: (() => void) | null = null;
@@ -155,6 +157,7 @@ export function AppRuntimeMonitor() {
     } catch {}
 
     return () => {
+      stopRecovery();
       if (loadHandler) window.removeEventListener("load", loadHandler);
       if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
       idleHandles.forEach((handle) => {
