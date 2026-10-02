@@ -1,33 +1,39 @@
 import { useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import "./splash-screen.css";
 
 const FLAG = "quickserve.splash.shown.v5";
 function rememberLaunch() {
   try {
-    sessionStorage.setItem(FLAG, "1");
+    sessionStorage.setItem(FLAG, String(performance.timeOrigin));
   } catch {
     /* Session-only animation still works. */
   }
 }
 const WORKSPACE_PATH =
-  /^\/(dashboard|manage|shifts|profile|bookings|automations|operations|team|settings|tables|menu|orders|analytics|notifications|work)(\/|$)/;
+  /^\/(dashboard|manage|shifts|profile|bookings|automations|operations|team|settings|tables|menu|orders|analytics|notifications|work|manager|kitchen|waiter|host|cashier|hq|devices|integrations|guests|campaigns|approvals|daily-close|super-admin)(\/|$)/;
 
-/** A 3.5 second launch animation. Navigation and resume do not replay it. */
+/** Each new document gets a launch, including entry through sign-in. */
 export function SplashScreen() {
   const { lang } = useI18n();
   const pending = useRouterState({ select: (state) => state.isLoading });
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const started = useRef(false);
   const [visible, setVisible] = useState(false);
   const [minimumDone, setMinimumDone] = useState(false);
   useEffect(() => {
-    if (!WORKSPACE_PATH.test(window.location.pathname)) return;
+    if (started.current || !WORKSPACE_PATH.test(pathname)) return;
     try {
-      if (sessionStorage.getItem(FLAG)) return;
+      if (sessionStorage.getItem(FLAG) === String(performance.timeOrigin)) return;
     } catch {
       /* Storage restrictions must not block startup. */
     }
+    started.current = true;
     setVisible(true);
+  }, [pathname]);
+  useEffect(() => {
+    if (!visible) return;
     const minimum = window.setTimeout(() => setMinimumDone(true), 3500);
     // Reveal the normal page loading/error controls even on a slow connection.
     const safety = window.setTimeout(() => {
@@ -38,7 +44,7 @@ export function SplashScreen() {
       window.clearTimeout(safety);
       window.clearTimeout(minimum);
     };
-  }, []);
+  }, [visible]);
   useEffect(() => {
     if (!visible || pending || !minimumDone) return;
     const timer = window.setTimeout(() => {
