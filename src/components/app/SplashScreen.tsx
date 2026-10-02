@@ -53,30 +53,22 @@ export function SplashScreen() {
       className={`qs-launch-simple${minimumDone && !pending ? " is-leaving" : ""}`}
       role="status"
       aria-live="polite"
-      aria-label={lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Getting everything ready"}
+      aria-label={lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}
     >
       <div className="qs-launch-simple-content">
         <div className="qs-launch-service-art" aria-hidden="true">
-          <svg viewBox="0 0 150 120">
-            <ellipse className="qs-service-shadow" cx="75" cy="98" rx="49" ry="5" />
-            <g className="qs-service-lines">
-              <path d="M26 87H124M35 93H115" />
-              <g className="qs-service-lid">
-                <path className="qs-service-dome" d="M34 77C34 28 116 28 116 77Z" />
-                <path d="M70 38V32Q75 26 80 32V38" />
-              </g>
-              <g className="qs-service-steam">
-                <path d="M60 74q-6-7 0-14q6-7 0-14" />
-                <path d="M76 74q-6-7 0-14q6-7 0-14" />
-                <path d="M92 74q-6-7 0-14q6-7 0-14" />
-              </g>
-            </g>
+          <img className="qs-service-tray" src="/loading/cloche-tray.webp" alt="" width="600" height="200" fetchPriority="high" />
+          <svg className="qs-service-steam" viewBox="0 0 100 100">
+            <path d="M28 93C8 73 45 60 27 36C17 22 29 11 29 5" />
+            <path d="M51 94C32 75 65 59 50 37C40 22 52 11 52 3" />
+            <path d="M74 92C56 73 87 59 73 41C64 29 75 19 75 11" />
           </svg>
+          <img className="qs-service-lid" src="/loading/cloche-lid.webp" alt="" width="540" height="360" fetchPriority="high" />
         </div>
         <strong>
           Quick<span>Serve</span>
         </strong>
-        <p>{lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Getting everything ready"}</p>
+        <p>{lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}</p>
         <div className="qs-launch-simple-dots" aria-hidden="true">
           <i />
           <i />
