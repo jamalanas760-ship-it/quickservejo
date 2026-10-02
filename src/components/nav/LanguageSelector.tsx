@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Check, ChevronDown, Languages, X } from "lucide-react";
+import { Check, ChevronDown, Languages } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LanguageFlag } from "./LanguageFlag";
@@ -33,24 +34,14 @@ export function LanguageSelector({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        sideOffset={10}
+        sideOffset={6}
         collisionPadding={10}
         className="qs-language-menu"
       >
-        <div className="qs-language-heading">
-          <span>
-            <Languages aria-hidden="true" />
-            <strong>{ar ? "اللغة" : "Language"}</strong>
-          </span>
-          <button
-            type="button"
-            aria-label={ar ? "إغلاق" : "Close language selector"}
-            onClick={() => setOpen(false)}
-          >
-            <X />
-          </button>
-        </div>
-        <p>{ar ? "اختر لغة مساحة العمل." : "Choose your workspace language."}</p>
+        <DropdownMenuLabel className="qs-language-heading">
+          <Languages aria-hidden="true" />
+          <span>{ar ? "اللغة" : "Language"}</span>
+        </DropdownMenuLabel>
         {(["en", "ar"] as const).map((value) => (
           <DropdownMenuItem
             key={value}
@@ -66,7 +57,6 @@ export function LanguageSelector({
             </span>
             <span className="qs-language-copy" lang={value}>
               <strong>{value === "en" ? "English" : "العربية"}</strong>
-              <small>{value === "en" ? "United States" : "الأردن"}</small>
             </span>
             <span
               className="qs-language-check"
