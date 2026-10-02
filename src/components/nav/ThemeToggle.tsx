@@ -1,6 +1,7 @@
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { applyDocumentTheme } from "@/lib/theme-preference";
 import { cn } from "@/lib/utils";
 
 const KEY = "quickserve-theme";
@@ -17,9 +18,7 @@ function preferredTheme(): Theme {
 
 function applyTheme(theme: Theme) {
   if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  root.classList.toggle("dark", theme === "dark");
-  root.style.colorScheme = theme;
+  applyDocumentTheme(theme);
 }
 
 type ViewTransitionDocument = Document & {

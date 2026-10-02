@@ -1,3 +1,4 @@
+import { disableDevicePush } from "@/lib/push-notifications";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import {
   Outlet,
@@ -25,7 +26,7 @@ import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-b
 const BOOT_STYLE = `#qs-boot{position:fixed;inset:0;z-index:90;display:grid;place-items:center;background:#f8f7f4;color:#17202a;font:600 15px system-ui}.dark #qs-boot{background:#14191f;color:#f4f5f6}html[data-qs-ready] #qs-boot{display:none}.qs-boot-content{text-align:center}.qs-boot-mark{width:52px;height:52px;margin:0 auto 14px;border:3px solid #e85d2a26;border-top-color:#e85d2a;border-radius:18px;animation:qs-boot-turn 1.2s ease-in-out infinite}.qs-boot-content small{display:block;margin-top:8px;color:#7b8490;font-size:12px;font-weight:400}@keyframes qs-boot-turn{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}@media(prefers-reduced-motion:reduce){.qs-boot-mark{animation:none}}`;
 const RUNTIME_RECOVERY_PREFIX = "quickserve:runtime-recovery:";
 const RUNTIME_RECOVERY_WINDOW_MS = 60_000;
-const THEME_BOOTSTRAP = `(function(){try{var s=localStorage.getItem('quickserve-theme');var d=s==='dark'||(s!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';document.documentElement.style.backgroundColor=d?'#14191f':'#f8f7f4'}catch(e){}})();`;
+const THEME_BOOTSTRAP = `(function(){try{var s=localStorage.getItem('quickserve-theme');var d=s==='dark'||(s!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';document.documentElement.style.backgroundColor=d?'#14191f':'#f8f7f4';document.querySelectorAll('meta[name=theme-color]').forEach(function(m){m.content=d?'#14191f':'#f8f7f4'})}catch(e){}})();`;
 
 function runtimeErrorMessage(error: unknown) {
   if (error instanceof Response) return `Response ${error.status}`;
@@ -111,7 +112,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "QuickServe — QR ordering platform for restaurants" },
       { name: "description", content: "QuickServe is a multi-tenant QR ordering platform: table QR menus, live kitchen display, waiter calls and cashier tools for every restaurant you run." },
       { property: "og:type", content: "website" },
@@ -119,6 +120,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "theme-color", content: "#e85d2a" },
       { name: "apple-mobile-web-app-title", content: "QuickServe" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -244,6 +246,7 @@ function RootComponent() {
     };
 
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") void disableDevicePush().catch(() => undefined);
       scheduleAuthSync(event, session);
     });
     // Supabase owns visibility-driven token refresh. Adding getSession() on

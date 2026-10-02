@@ -55,3 +55,27 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
+
+// Push runs while the installed app is closed. Only open routes on this origin.
+function notificationUrl(value) {
+  try { const url = new URL(value || "/notifications", self.location.origin); return url.origin === self.location.origin ? url.href : self.location.origin + "/notifications"; }
+  catch { return self.location.origin + "/notifications"; }
+}
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data?.json() || {}; } catch { /* still display a safe fallback */ }
+  event.waitUntil(self.registration.showNotification(String(data.title || "QuickServe update").slice(0, 160), {
+    body: String(data.body || "Open QuickServe to see your latest updates.").slice(0, 500),
+    icon: "/icon-192.png", badge: "/icon-192.png", tag: String(data.tag || "quickserve-update"),
+    data: { url: notificationUrl(data.url) },
+  }));
+});
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = notificationUrl(event.notification.data?.url);
+  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async clients => {
+    const client = clients.find(c => new URL(c.url).origin === self.location.origin);
+    if (client) { await client.navigate(url); await client.focus(); }
+    else await self.clients.openWindow(url);
+  }));
+});

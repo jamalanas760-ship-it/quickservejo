@@ -8,6 +8,17 @@ export function readThemePreference(): ThemePreference {
     return "system";
   }
 }
+export function applyDocumentTheme(theme: "light" | "dark") {
+  const dark = theme === "dark";
+  const color = dark ? "#14191f" : "#f8f7f4";
+  document.documentElement.classList.toggle("dark", dark);
+  document.documentElement.style.colorScheme = theme;
+  document.documentElement.style.backgroundColor = color;
+  document.body.style.backgroundColor = color;
+  document
+    .querySelectorAll('meta[name="theme-color"]')
+    .forEach((meta) => meta.setAttribute("content", color));
+}
 export function setThemePreference(preference: ThemePreference) {
   const theme =
     preference === "system"
@@ -20,7 +31,6 @@ export function setThemePreference(preference: ThemePreference) {
   } catch {
     /* Apply for this session even when persistent storage is unavailable. */
   }
-  document.documentElement.classList.toggle("dark", theme === "dark");
-  document.documentElement.style.colorScheme = theme;
+  applyDocumentTheme(theme);
   window.dispatchEvent(new CustomEvent("quickserve:theme-change", { detail: theme }));
 }

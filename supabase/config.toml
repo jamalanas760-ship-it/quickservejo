@@ -26,3 +26,7 @@ verify_jwt = false
 
 [functions.quickserve-twilio-booking-webhook]
 verify_jwt = false
+
+[functions.quickserve-push-worker]
+# The worker validates its private Vault-backed header before processing jobs.
+verify_jwt = false

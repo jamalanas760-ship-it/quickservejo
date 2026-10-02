@@ -4900,3 +4900,8 @@ html.qs-theme-view-transition *{
 @media(max-width:900px){:is(.qs-team-redesign,.qs-menu-studio-redesign,.qs-tables-studio,.wf-studio,.au-studio,.as-studio,.ps-page,.bo-studio) :is(button:not([role=switch]):not([role=checkbox]),[role=combobox],input:not([type=checkbox]),select){min-height:44px}.qs-team-redesign .qs-team-actions-clean .qs-team-action-edit{width:44px!important;min-width:44px!important}.qs-tables-studio .qs-zoom-control button{width:36px;min-height:44px!important}.qs-tables-studio .qs-toggle-control{min-height:44px!important}.qs-request-picker-trigger{min-height:44px}}
 
 .qs-table-editor-layout>.qs-panel-header{padding:0 16px 12px;border-bottom:1px solid var(--border)}
+
+/* Consistent top controls, including the iOS safe-area backdrop. */
+.qs-theme-toggle[data-theme="dark"] .qs-theme-toggle-option.is-active{color:var(--qs-brand)!important}
+.qs-theme-toggle[data-theme="dark"] .qs-theme-toggle-thumb{background:var(--qs-brand-soft);border-color:color-mix(in srgb,var(--qs-brand) 30%,var(--qs-stroke))}
+@media(max-width:767px){.qs-topbar{padding-top:max(12px,env(safe-area-inset-top))!important}.qs-topbar-theme-control.qs-theme-toggle-compact{height:44px!important;min-height:44px!important;border-radius:12px!important}.qs-language-trigger.qs-language-trigger{height:44px;min-height:44px;border-radius:12px;align-self:center}.qs-topbar .qs-theme-toggle-option svg{width:17px!important;height:17px!important}}

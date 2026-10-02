@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { humanError } from "@/lib/errors";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
@@ -24,6 +24,7 @@ type NotificationKind = "task" | "approval" | "handover" | "shift" | "alert" | "
 type NotificationRow = {
   id: string;
   kind: NotificationKind;
+  source_type: string | null;
   title: string;
   body: string | null;
   read_at: string | null;
@@ -52,7 +53,7 @@ export function NotificationBell({
     refetchInterval: 30_000,
     queryFn: async () => {
       const { data, error } = await source()
-        .select("id,kind,title,body,read_at,created_at")
+        .select("id,kind,source_type,title,body,read_at,created_at")
         .eq("restaurant_id", restaurantId!)
         .order("created_at", { ascending: false })
         .limit(8);
@@ -60,6 +61,29 @@ export function NotificationBell({
       return (data ?? []) as NotificationRow[];
     },
   });
+
+  useEffect(() => {
+    if (!restaurantId) return;
+    const channel = supabase
+      .channel(`notification-feed:${restaurantId}:${crypto.randomUUID()}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "in_app_notifications",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
+        () => {
+          void qc.invalidateQueries({ queryKey: ["notifications"] });
+          void qc.invalidateQueries({ queryKey: operationalCountersKey(restaurantId) });
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [restaurantId, qc]);
 
   const markRead = useMutation({
     mutationFn: async (ids: string[]) => {
@@ -111,10 +135,10 @@ export function NotificationBell({
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        sideOffset={10}
-        className="w-[min(390px,calc(100vw-20px))] overflow-hidden p-0"
+        sideOffset={6}
+        className="w-[min(320px,calc(100vw-24px))] overflow-hidden p-0"
       >
-        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3.5">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
           <div>
             <h2 className="text-sm font-bold">{ar ? "الإشعارات" : "Notifications"}</h2>
             <p className="mt-0.5 text-[10px] text-muted-foreground">
@@ -141,8 +165,8 @@ export function NotificationBell({
           ) : null}
         </div>
 
-        <div className="max-h-[min(420px,50dvh)] overflow-y-auto">
-          {feed.isPending ? (
+        <div className="max-h-[min(280px,38dvh)] overflow-y-auto">
+          {restaurantId && feed.isPending ? (
             <div className="space-y-3 p-4">
               {[0, 1, 2].map((i) => (
                 <div key={i} aria-hidden="true" className="qs-skeleton h-16 rounded-xl bg-muted" />
@@ -163,7 +187,7 @@ export function NotificationBell({
               </Button>
             </div>
           ) : rows.length === 0 ? (
-            <div className="grid min-h-44 place-items-center p-6 text-center">
+            <div className="grid min-h-28 place-items-center p-6 text-center">
               <div>
                 <span className="mx-auto grid size-10 place-items-center rounded-xl bg-muted text-muted-foreground">
                   <Bell className="size-4" />
@@ -179,11 +203,13 @@ export function NotificationBell({
                 const config = kindConfig(row.kind);
                 const Icon = config.icon;
                 const href =
-                  row.kind === "shift" || row.kind === "handover"
-                    ? "/shifts"
-                    : row.kind === "task" || row.kind === "approval" || row.kind === "alert"
-                      ? "/work"
-                      : "/dashboard";
+                  row.source_type === "order"
+                    ? "/orders"
+                    : row.kind === "shift" || row.kind === "handover"
+                      ? "/shifts"
+                      : row.kind === "task" || row.kind === "approval" || row.kind === "alert"
+                        ? "/work"
+                        : "/dashboard";
                 return (
                   <Link
                     key={row.id}
@@ -193,13 +219,13 @@ export function NotificationBell({
                       if (!row.read_at) markRead.mutate([row.id]);
                     }}
                     className={cn(
-                      "flex gap-3 px-4 py-3 transition hover:bg-muted/45",
+                      "flex gap-2.5 px-3 py-2.5 transition hover:bg-muted/45",
                       !row.read_at && "bg-orange-500/[.035]",
                     )}
                   >
                     <span
                       className={cn(
-                        "mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl",
+                        "mt-0.5 grid size-8 shrink-0 place-items-center rounded-xl",
                         config.tone,
                       )}
                     >
@@ -213,7 +239,7 @@ export function NotificationBell({
                         ) : null}
                       </span>
                       {row.body ? (
-                        <span className="mt-0.5 block line-clamp-2 text-[10px] leading-4 text-muted-foreground">
+                        <span className="mt-0.5 block line-clamp-1 text-[10px] leading-4 text-muted-foreground">
                           {row.body}
                         </span>
                       ) : null}
@@ -229,6 +255,17 @@ export function NotificationBell({
         </div>
 
         <div className="border-t border-border bg-muted/20 p-2">
+          <Button
+            variant="ghost"
+            className="min-h-11 w-full justify-start px-3 text-xs"
+            onClick={() => {
+              setOpen(false);
+              window.dispatchEvent(new Event("quickserve:enable-notifications"));
+            }}
+          >
+            <Bell className="size-3.5" />
+            {ar ? "تفعيل تنبيهات الجهاز" : "Enable device alerts"}
+          </Button>
           <Button
             asChild
             variant="ghost"
