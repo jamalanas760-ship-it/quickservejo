@@ -4769,23 +4769,27 @@ html.qs-theme-view-transition *{
 .qs-menu-category-row h4{font-size:14px}
 .qs-menu-catalog .qs-table th{font-size:11px;text-transform:none;letter-spacing:0}
 .qs-menu-catalog .qs-table td{padding-top:14px;padding-bottom:14px}
-/* Tailwind v4 applies centering through the individual translate property.
-   Reset it as well as transform when anchoring an editor to the viewport. */
-.qs-menu-editor-drawer{inset-inline-start:auto!important;inset-inline-end:0!important;top:0!important;bottom:0!important;translate:none!important;transform:none!important;width:min(460px,100%)!important;max-width:460px!important;height:100dvh;max-height:100dvh!important;border-radius:0!important;display:flex;flex-direction:column;gap:20px;overflow:hidden!important;padding:24px;padding-top:max(24px,env(safe-area-inset-top));padding-bottom:max(24px,env(safe-area-inset-bottom))}
+/* Positioning rules share the dialog layer; editor internals remain independent
+   of the utility classes used by the common dialog header and footer. */
+@layer components {
+ .qs-menu-editor-drawer[role="dialog"]{inset-inline-start:auto!important;inset-inline-end:0!important;top:0!important;bottom:0!important;translate:none!important;transform:none!important;width:min(460px,100%)!important;max-width:460px!important;height:100dvh!important;max-height:100dvh!important;border-radius:0!important;display:flex!important;flex-direction:column!important;gap:20px!important;overflow:hidden!important;padding:24px!important;padding-top:max(24px,env(safe-area-inset-top))!important;padding-bottom:max(24px,env(safe-area-inset-bottom))!important}
+ @media(max-width:767px){
+  .qs-menu-editor-drawer[role="dialog"]{inset-inline:0!important;top:auto!important;bottom:0!important;width:100%!important;max-width:none!important;height:auto!important;max-height:calc(100dvh - max(12px,env(safe-area-inset-top)))!important;border-radius:22px 22px 0 0!important;gap:16px!important;padding:24px max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))!important;animation:qs-menu-sheet-in .18s ease-out!important}
+  .qs-menu-editor-drawer[role="dialog"][data-state=closed]{animation:qs-menu-sheet-out .15s ease-in!important}
+ }
+ @media(prefers-reduced-motion:reduce){.qs-menu-editor-drawer[role="dialog"]{animation:none!important}}
+}
 .qs-menu-editor-header{flex-shrink:0;text-align:start;padding-inline-end:36px}
 .qs-menu-editor-body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scroll-padding-block:16px;padding-block:2px;-webkit-overflow-scrolling:touch}
 .qs-menu-editor-footer{flex-shrink:0;margin-top:auto;gap:8px;border-top:1px solid var(--border);padding-top:16px}
 .qs-menu-editor-footer>button{min-height:44px}
 @media(max-width:767px){
- .qs-menu-editor-drawer{inset-inline:0!important;top:auto!important;bottom:0!important;width:100%!important;max-width:none!important;height:auto;max-height:calc(100dvh - max(12px,env(safe-area-inset-top)))!important;border-radius:22px 22px 0 0!important;gap:16px;padding:24px 16px max(16px,env(safe-area-inset-bottom));animation:qs-menu-sheet-in .18s ease-out!important}
- .qs-menu-editor-drawer[data-state=closed]{animation:qs-menu-sheet-out .15s ease-in!important}
  .qs-menu-editor-body :is(input,textarea,[role=combobox]){font-size:16px;min-height:44px}
  .qs-menu-editor-footer{flex-direction:row;justify-content:flex-end}
  .qs-menu-editor-footer>button{flex:1}
 }
 @keyframes qs-menu-sheet-in{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
 @keyframes qs-menu-sheet-out{from{opacity:1}to{opacity:0}}
-@media(prefers-reduced-motion:reduce){.qs-menu-editor-drawer{animation:none!important}}
 @media(max-width:767px){
  .qs-menu-studio-redesign .qs-menu-workflow-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
  .qs-menu-studio-redesign .qs-menu-workflow-card{min-height:88px!important;align-items:flex-start;gap:8px;padding:12px 10px}

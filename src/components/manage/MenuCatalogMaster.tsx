@@ -819,7 +819,7 @@ export function MenuCatalogMaster({
       )}
 
       <Dialog open={productForm !== null} onOpenChange={(open) => !open && setProductForm(null)}>
-        <DialogContent className="qs-menu-editor-drawer" dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
+        <DialogContent placement="edge" className="qs-menu-editor-drawer" dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
           <DialogHeader className="qs-menu-editor-header">
             <DialogTitle>
               {productForm?.id
@@ -971,7 +971,7 @@ export function MenuCatalogMaster({
       </Dialog>
 
       <Dialog open={categoryForm !== null} onOpenChange={(open) => !open && setCategoryForm(null)}>
-        <DialogContent className="qs-menu-editor-drawer" dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
+        <DialogContent placement="edge" className="qs-menu-editor-drawer" dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
           <DialogHeader className="qs-menu-editor-header">
             <DialogTitle>
               {categoryForm?.id
