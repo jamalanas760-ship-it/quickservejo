@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Bell, CreditCard, Link2, Palette, Save, Settings, ShieldCheck, UsersRound } from "lucide-react";
+import { Bell, CreditCard, Palette, Save, Settings, ShieldCheck, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
@@ -49,6 +49,7 @@ function PlatformSettingsPage() {
     } catch (error) { toast.error(humanError(error, lang)); } finally { setSaving(false); }
   }
 
+  if (settings.isError) return <div className="qs-card space-y-3 p-5"><p>{humanError(settings.error, lang)}</p><Button variant="outline" onClick={() => void settings.refetch()}>{t("common.retry")}</Button></div>;
   if (settings.isPending || !form) return <Skeleton className="h-[680px] rounded-2xl" />;
   const allRestaurants = restaurants.data ?? [];
   const activeSubs = allRestaurants.filter((restaurant) => restaurant.subscription_status === "active" || restaurant.subscription_status === "trialing").length;
@@ -57,11 +58,10 @@ function PlatformSettingsPage() {
     <div className="space-y-5">
       <MasterPageHeader eyebrow={<MasterEyebrow icon={Settings}>{ar ? "إدارة المنصة" : "Platform administration"}</MasterEyebrow>} title={ar ? "الإعدادات" : "Settings"} description={ar ? "إدارة القيم الافتراضية، الفوترة، التراخيص والتكاملات من مكان واحد." : "Manage platform defaults, billing, licensing and integrations from one control center."} />
 
-      <nav className="flex gap-2 overflow-x-auto border-b border-border pb-0">
+      <nav className="flex flex-wrap gap-2 border-b border-border pb-0">
         <span className="flex min-h-12 items-center gap-2 border-b-2 border-[#e85d2a] px-4 text-sm font-bold text-[#e85d2a]"><Settings className="size-4" />{ar ? "عام" : "General"}</span>
         <Link to="/super-admin/licenses" className="flex min-h-12 items-center gap-2 border-b-2 border-transparent px-4 text-sm font-semibold text-muted-foreground hover:text-foreground"><CreditCard className="size-4" />{ar ? "الفوترة والتراخيص" : "Billing & Licenses"}</Link>
         <Link to="/super-admin/subscriptions" className="flex min-h-12 items-center gap-2 border-b-2 border-transparent px-4 text-sm font-semibold text-muted-foreground hover:text-foreground"><UsersRound className="size-4" />{ar ? "الاشتراكات" : "Subscriptions"}</Link>
-        <span className="flex min-h-12 items-center gap-2 border-b-2 border-transparent px-4 text-sm font-semibold text-muted-foreground"><Link2 className="size-4" />{ar ? "التكاملات" : "Integrations"}</span>
       </nav>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,.8fr)]">

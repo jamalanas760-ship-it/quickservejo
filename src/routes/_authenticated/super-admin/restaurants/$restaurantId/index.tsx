@@ -1,8 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useState } from "react";
 
+import {
+  RestaurantLifecycleDialog,
+  type RestaurantLifecycleAction,
+} from "@/components/superadmin/RestaurantLifecycle";
 import { StatCard } from "@/components/superadmin/StatCard";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -49,14 +53,19 @@ function RestaurantOverview() {
   const { t, lang } = useI18n();
   const queryClient = useQueryClient();
   const restaurant = useRestaurant(restaurantId);
-  const [confirm, setConfirm] = useState<null | "archive" | "restore" | "toggle">(null);
+  const navigate = useNavigate();
+  const [lifecycle, setLifecycle] = useState<RestaurantLifecycleAction | null>(null);
+  const [confirm, setConfirm] = useState<null | "toggle">(null);
 
   const metrics = useQuery({
     queryKey: ["platform", "restaurant-metrics", restaurantId],
     queryFn: async () => {
       const today = startOfTodayIso();
       const [orders, tables, staff, products, calls] = await Promise.all([
-        supabase.from("orders").select("total, status, created_at").eq("restaurant_id", restaurantId),
+        supabase
+          .from("orders")
+          .select("total, status, created_at")
+          .eq("restaurant_id", restaurantId),
         supabase
           .from("restaurant_tables")
           .select("id", { count: "exact", head: true })
@@ -108,27 +117,17 @@ function RestaurantOverview() {
     ? Math.round((steps.filter((s) => s.done).length / steps.length) * 100)
     : 0;
 
-  async function apply(action: "archive" | "restore" | "toggle") {
+  async function apply() {
     if (!r) return;
     try {
-      const patch =
-        action === "archive"
-          ? { archived_at: new Date().toISOString(), is_active: false }
-          : action === "restore"
-            ? { archived_at: null, is_active: true }
-            : { is_active: !r.is_active };
+      const patch = { is_active: !r.is_active };
       const { error } = await supabase.from("restaurants").update(patch).eq("id", r.id);
       if (error) throw error;
-      await logAudit(
-        action === "archive"
-          ? "restaurant.archived"
-          : action === "restore"
-            ? "restaurant.restored"
-            : r.is_active
-              ? "restaurant.deactivated"
-              : "restaurant.activated",
-        { restaurantId: r.id, entity: "restaurants", entityId: r.id },
-      );
+      await logAudit(r.is_active ? "restaurant.deactivated" : "restaurant.activated", {
+        restaurantId: r.id,
+        entity: "restaurants",
+        entityId: r.id,
+      });
       await queryClient.invalidateQueries({ queryKey: ["platform"] });
       toast.success(t("common.saved"));
     } catch (error) {
@@ -215,43 +214,55 @@ function RestaurantOverview() {
           </dl>
 
           <div className="flex flex-wrap gap-2 border-t pt-4">
-            <Button size="sm" variant="outline" onClick={() => setConfirm("toggle")}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!r || Boolean(r.archived_at)}
+              onClick={() => setConfirm("toggle")}
+            >
               {r?.is_active ? t("sa.detail.deactivate") : t("sa.detail.activate")}
             </Button>
             {r?.archived_at ? (
-              <Button size="sm" variant="outline" onClick={() => setConfirm("restore")}>
+              <Button size="sm" variant="outline" onClick={() => setLifecycle("restore")}>
                 {t("sa.detail.restore")}
               </Button>
             ) : (
-              <Button size="sm" variant="destructive" onClick={() => setConfirm("archive")}>
+              <Button size="sm" variant="outline" onClick={() => setLifecycle("archive")}>
                 {t("sa.detail.archive")}
               </Button>
             )}
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={!r}
+              onClick={() => setLifecycle("delete")}
+            >
+              {lang === "ar" ? "حذف نهائي" : "Delete permanently"}
+            </Button>
           </div>
         </div>
       </section>
 
+      <RestaurantLifecycleDialog
+        key={lifecycle ?? "closed"}
+        restaurant={r ?? null}
+        action={lifecycle}
+        onClose={() => setLifecycle(null)}
+        onDeleted={() => void navigate({ to: "/super-admin/restaurants" })}
+      />
       <AlertDialog open={confirm !== null} onOpenChange={(open) => !open && setConfirm(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="qs-admin-dialog">
           <AlertDialogHeader>
             <AlertDialogTitle>{t("common.dangerZone")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirm === "archive"
-                ? lang === "ar"
-                  ? "سيتم أرشفة المطعم وإيقاف الطلبات. تبقى البيانات محفوظة ويمكن الاستعادة."
-                  : "The restaurant will be archived and ordering stops. Data is preserved and can be restored."
-                : confirm === "restore"
-                  ? lang === "ar"
-                    ? "سيتم استعادة المطعم وتنشيطه."
-                    : "The restaurant will be restored and activated."
-                  : lang === "ar"
-                    ? "سيتم تغيير حالة تنشيط المطعم."
-                    : "The restaurant activation status will change."}
+              {lang === "ar"
+                ? "سيتم تغيير حالة تنشيط المطعم."
+                : "The restaurant activation status will change."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void apply(confirm ?? "toggle")}>
+            <AlertDialogAction onClick={() => void apply()}>
               {t("common.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>

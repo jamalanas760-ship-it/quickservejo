@@ -4,6 +4,7 @@ import { SuperAdminLayout } from "@/components/superadmin/SuperAdminLayout";
 import { usePlatformOwner } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { humanError } from "@/lib/errors";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/_authenticated/super-admin")({
@@ -11,8 +12,8 @@ export const Route = createFileRoute("/_authenticated/super-admin")({
 });
 
 function SuperAdminGate() {
-  const { t } = useI18n();
-  const { data: isOwner, isPending } = usePlatformOwner();
+  const { t, lang } = useI18n();
+  const { data: isOwner, isPending, isError, error, refetch } = usePlatformOwner();
 
   if (isPending) {
     return (
@@ -22,6 +23,8 @@ function SuperAdminGate() {
       </div>
     );
   }
+
+  if (isError) return <main className="grid min-h-dvh place-items-center p-6"><div className="panel max-w-md space-y-3 p-6"><h1 className="text-xl font-semibold">{t("common.error")}</h1><p className="text-sm text-muted-foreground">{humanError(error, lang)}</p><Button onClick={() => void refetch()}>{t("common.retry")}</Button></div></main>;
 
   if (!isOwner) {
     return (

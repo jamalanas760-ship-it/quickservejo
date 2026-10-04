@@ -30,3 +30,7 @@ verify_jwt = false
 [functions.quickserve-push-worker]
 # The worker validates its private Vault-backed header before processing jobs.
 verify_jwt = false
+
+[functions.quickserve-restaurant-cleanup]
+# Authenticated using the private Vault-backed worker header.
+verify_jwt = false

@@ -64,7 +64,7 @@ function RestaurantShell() {
           </>
         }
         tabs={
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+          <div className="flex flex-wrap gap-1.5 pb-0.5">
             {PRIMARY_TABS.map((tab) => {
               const href = tab.to.replace("$restaurantId", restaurantId);
               const active = tab.exact ? pathname === base || pathname === `${base}/` : pathname === href;
@@ -75,7 +75,7 @@ function RestaurantShell() {
                   to={tab.to}
                   params={{ restaurantId }}
                   className={cn(
-                    "shrink-0 rounded-xl px-3.5 py-2 text-xs font-bold transition",
+                    "min-h-11 inline-flex items-center rounded-xl px-3.5 py-2 text-xs font-bold transition",
                     active ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
                   )}
                 >

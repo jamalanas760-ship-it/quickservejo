@@ -86,7 +86,7 @@ function EditRestaurantPage() {
   const { restaurantId } = Route.useParams();
   const { t, lang } = useI18n();
   const queryClient = useQueryClient();
-  const { data: restaurant, isPending } = useRestaurant(restaurantId);
+  const { data: restaurant, isPending, isError, error, refetch } = useRestaurant(restaurantId);
   const [form, setForm] = useState<Form | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -194,6 +194,8 @@ function EditRestaurantPage() {
     }
   }
 
+  if (isError) return <div className="qs-card space-y-3 p-5"><p>{humanError(error, lang)}</p><Button variant="outline" onClick={() => void refetch()}>{t("common.retry")}</Button></div>;
+  if (!restaurant && !isPending) return <p>{t("common.notFound")}</p>;
   if (isPending || !form) return <Skeleton className="h-96 rounded-xl" />;
 
   return (

@@ -1,0 +1,339 @@
+.qs-admin-active {
+  --qs-canvas: #f7f8fa;
+  --qs-surface: #fff;
+  --qs-surface-soft: #f6f7f9;
+}
+.qs-super-admin {
+  background: #f7f8fa !important;
+  --qs-canvas: #f7f8fa;
+  --qs-surface: #fff;
+  --qs-surface-soft: #f6f7f9;
+}
+.dark .qs-super-admin,
+.dark .qs-admin-active {
+  --qs-canvas: #101318;
+  --qs-surface: #171b21;
+  --qs-surface-soft: #1d222a;
+}
+.dark .qs-super-admin {
+  background: #101318 !important;
+}
+.qs-super-admin .qs-page {
+  background: var(--qs-canvas) !important;
+}
+/* One responsive system for all platform and tenant admin routes. */
+.qs-super-admin {
+  width: 100%;
+  min-width: 0;
+}
+.qs-super-admin .qs-page {
+  min-width: 0;
+  width: 100%;
+}
+.qs-super-admin .qs-page > *,
+.qs-super-admin section,
+.qs-super-admin form,
+.qs-super-admin .panel {
+  min-width: 0;
+  max-width: 100%;
+}
+.qs-super-admin .qs-page-title {
+  overflow-wrap: anywhere;
+}
+.qs-super-admin .qs-table {
+  min-width: 0 !important;
+  width: 100%;
+  table-layout: fixed;
+}
+.qs-super-admin .qs-table th,
+.qs-super-admin .qs-table td {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  min-width: 0 !important;
+}
+.qs-super-admin input,
+.qs-super-admin textarea,
+.qs-super-admin select {
+  max-width: 100%;
+}
+.qs-super-admin button,
+.qs-super-admin [role="combobox"] {
+  min-height: 44px;
+}
+.qs-super-admin .qs-master-header > .overflow-x-auto {
+  overflow: visible;
+}
+.qs-super-admin .qs-master-header nav,
+.qs-super-admin .qs-master-header [class*="overflow-x-auto"] {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+.qs-admin-directory-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px 160px;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.qs-admin-restaurant-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.qs-admin-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 650;
+  border-radius: 6px;
+  padding: 3px 7px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.qs-admin-status.active {
+  background: rgb(16 185 129 / 0.12);
+  color: #047857;
+}
+.dark .qs-admin-status.active {
+  color: #6ee7b7;
+}
+.qs-admin-menu [role="menuitem"] {
+  min-height: 44px;
+  gap: 10px;
+  font-size: 14px;
+}
+.qs-admin-dialog {
+  width: min(480px, calc(100vw - 24px)) !important;
+  max-height: calc(
+    100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px
+  ) !important;
+}
+.qs-admin-lifecycle {
+  gap: 20px;
+  padding: 24px !important;
+}
+.qs-admin-lifecycle .qs-dialog-header {
+  padding-inline-end: 32px;
+}
+.qs-admin-action-symbol {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  margin-bottom: 8px;
+}
+.qs-admin-action-symbol.destructive {
+  color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+}
+.qs-admin-dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.qs-admin-dialog-actions button {
+  min-height: 46px;
+  padding: 8px 10px;
+  white-space: normal;
+}
+.qs-admin-lifecycle input {
+  height: 46px;
+  font-size: 16px;
+}
+.qs-admin-nav-sheet {
+  padding-top: env(safe-area-inset-top) !important;
+  padding-bottom: env(safe-area-inset-bottom) !important;
+}
+.qs-admin-nav-sheet > button {
+  width: 44px;
+  height: 44px;
+  top: max(12px, env(safe-area-inset-top));
+}
+.qs-admin-mobile-nav {
+  display: none;
+}
+@media (max-width: 1023px) {
+  .qs-super-admin .qs-page {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+  }
+  .qs-admin-mobile-nav {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 45;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -3px 20px rgb(0 0 0 / 0.04);
+  }
+  .qs-admin-mobile-nav a,
+  .qs-admin-mobile-nav button {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 54px;
+    gap: 5px;
+    border-radius: 12px;
+    color: var(--muted-foreground);
+    font-size: 11px;
+    font-weight: 650;
+    min-width: 0;
+  }
+  .qs-admin-mobile-nav [data-active="true"] {
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 8%, transparent);
+  }
+}
+@media (max-width: 767px) {
+  .qs-super-admin .qs-page {
+    padding-inline: 16px !important;
+  }
+  .qs-super-admin .qs-page-title {
+    font-size: 26px;
+    line-height: 1.2;
+  }
+  .qs-super-admin .qs-page-subtitle {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .qs-super-admin .qs-page-actions > * {
+    max-width: 100%;
+  }
+  .qs-super-admin input,
+  .qs-super-admin textarea,
+  .qs-super-admin select {
+    font-size: 16px;
+  }
+  .qs-super-admin .qs-table,
+  .qs-super-admin .qs-table tbody {
+    display: block;
+  }
+  .qs-super-admin .qs-table thead {
+    display: none;
+  }
+  .qs-super-admin .qs-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .qs-super-admin .qs-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 8px 14px;
+    border: 0;
+    font-size: 13px;
+  }
+  .qs-super-admin .qs-table td[data-label]::before {
+    content: attr(data-label);
+    color: var(--muted-foreground);
+    font-size: 12px;
+    font-weight: 500;
+    flex: 0 0 32%;
+  }
+  .qs-admin-directory-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 14px;
+    gap: 10px;
+  }
+  .qs-admin-directory-filters > :first-child {
+    grid-column: 1/-1;
+  }
+  .qs-admin-active .qs-dialog-content {
+    max-width: calc(100vw - 24px) !important;
+    overflow-x: hidden;
+    padding-top: max(20px, env(safe-area-inset-top)) !important;
+    padding-bottom: max(20px, env(safe-area-inset-bottom)) !important;
+  }
+  .qs-admin-active .qs-dialog-header {
+    padding-inline-end: 40px;
+  }
+  .qs-admin-active .qs-dialog-close {
+    width: 44px !important;
+    height: 44px !important;
+  }
+  .qs-admin-active .qs-dialog-close svg {
+    width: 20px;
+    height: 20px;
+  }
+  .qs-admin-active .qs-dialog-content input {
+    min-width: 0;
+    font-size: 16px;
+  }
+}
+.qs-admin-active,
+.qs-super-admin {
+  --foreground: #172033;
+  --muted-foreground: #6b7280;
+  --border: #e2e6ed;
+  --input: #e2e6ed;
+  --card: #fff;
+  --card-foreground: #172033;
+  --popover: #fff;
+  --popover-foreground: #172033;
+  --muted: #f1f3f5;
+  --qs-ink: #172033;
+  --qs-muted: #6b7280;
+  --qs-stroke: #e2e6ed;
+}
+.dark .qs-admin-active,
+.dark .qs-super-admin {
+  --foreground: #eff2f7;
+  --muted-foreground: #a2aab7;
+  --border: #2c323c;
+  --input: #2c323c;
+  --card: #171b21;
+  --card-foreground: #eff2f7;
+  --popover: #171b21;
+  --popover-foreground: #eff2f7;
+  --muted: #222831;
+  --qs-ink: #eff2f7;
+  --qs-muted: #a2aab7;
+  --qs-stroke: #2c323c;
+}
+.qs-admin-mobile-nav {
+  background: var(--qs-surface) !important;
+}
+.dark .qs-super-admin :is(input, textarea, select, [role="combobox"]) {
+  background: var(--qs-surface-soft) !important;
+  color: var(--qs-ink) !important;
+  border-color: var(--qs-stroke) !important;
+}
+.qs-admin-lifecycle .qs-admin-dialog-actions button {
+  font-size: 14px;
+}
+@media (max-width: 767px) {
+  .qs-super-admin section.grid:has(> .qs-kpi-card),
+  .qs-super-admin section.grid[class*="xl:grid-cols-4"]:has(> .panel) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .qs-super-admin section.grid > .qs-kpi-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px;
+    gap: 8px;
+  }
+  .qs-super-admin section.grid > .qs-kpi-card > div {
+    width: 100%;
+  }
+  .qs-super-admin section.grid > .qs-kpi-card p {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .qs-super-admin section.grid > .panel > p.truncate {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+.qs-super-admin dd { min-width:0; overflow-wrap:anywhere; }

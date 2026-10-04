@@ -1,5 +1,7 @@
 import { MoreHorizontal, Users } from "@/components/nav/QuickServeIcons";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import "./super-admin.css";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -22,7 +24,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { BrandLogo } from "@/components/brand/BrandLogo";
@@ -32,7 +41,13 @@ import { GlobalSearch } from "@/components/superadmin/GlobalSearch";
 import { useRestaurantsWithStats } from "@/hooks/useSuperAdmin";
 import { healthOf } from "@/lib/health";
 
-type NavItem = { to: string; en: string; ar: string; icon: typeof LayoutDashboard; exact?: boolean };
+type NavItem = {
+  to: string;
+  en: string;
+  ar: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+};
 const NAV: NavItem[] = [
   { to: "/super-admin", en: "Overview", ar: "الرئيسية", icon: LayoutDashboard, exact: true },
   { to: "/super-admin/restaurants", en: "Restaurants", ar: "المطاعم", icon: Building2 },
@@ -44,19 +59,43 @@ const NAV: NavItem[] = [
   { to: "/super-admin/audit-logs", en: "Audit", ar: "التدقيق", icon: FileClock },
   { to: "/super-admin/settings", en: "Settings", ar: "الإعدادات", icon: Settings },
 ];
-const PRIMARY_NAV = NAV.filter((item) => ["/super-admin", "/super-admin/restaurants", "/super-admin/orders", "/super-admin/analytics", "/super-admin/health", "/super-admin/subscriptions"].includes(item.to));
+const PRIMARY_NAV = NAV.filter((item) =>
+  [
+    "/super-admin",
+    "/super-admin/restaurants",
+    "/super-admin/orders",
+    "/super-admin/analytics",
+    "/super-admin/health",
+    "/super-admin/subscriptions",
+  ].includes(item.to),
+);
 const SECONDARY_NAV = NAV.filter((item) => !PRIMARY_NAV.includes(item));
 
-function NavLinks({ onNavigate, items = NAV }: { onNavigate?: (() => void) | undefined; items?: NavItem[] }) {
+function NavLinks({
+  onNavigate,
+  items = NAV,
+}: {
+  onNavigate?: (() => void) | undefined;
+  items?: NavItem[];
+}) {
   const { lang } = useI18n();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   return (
     <nav className="space-y-1">
       {items.map((item) => {
-        const active = item.exact ? pathname === item.to || pathname === `${item.to}/` : pathname.startsWith(item.to);
+        const active = item.exact
+          ? pathname === item.to || pathname === `${item.to}/`
+          : pathname.startsWith(item.to);
         const Icon = item.icon;
         return (
-          <Link key={item.to} to={item.to as never} onClick={onNavigate} data-active={active} className="qs-sidebar-item" aria-current={active ? "page" : undefined}>
+          <Link
+            key={item.to}
+            to={item.to as never}
+            onClick={onNavigate}
+            data-active={active}
+            className="qs-sidebar-item"
+            aria-current={active ? "page" : undefined}
+          >
             <Icon className="size-[18px] shrink-0" />
             <span className="truncate">{lang === "ar" ? item.ar : item.en}</span>
           </Link>
@@ -66,14 +105,50 @@ function NavLinks({ onNavigate, items = NAV }: { onNavigate?: (() => void) | und
   );
 }
 
-function SidebarContent({ onNavigate, compact = false, onMore }: { onNavigate?: (() => void) | undefined; compact?: boolean; onMore?: () => void }) {
+function SidebarContent({
+  onNavigate,
+  compact = false,
+  onMore,
+}: {
+  onNavigate?: (() => void) | undefined;
+  compact?: boolean;
+  onMore?: () => void;
+}) {
   const { lang } = useI18n();
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-5"><Link to={"/super-admin" as never} onClick={onNavigate} className="text-foreground" aria-label="QuickServe admin"><BrandLogo className="size-9" accentClassName="text-[#e85d2a]" textClassName="text-[20px] text-foreground" /></Link></div>
-      <div className="qs-scroll flex-1 overflow-y-auto px-3 py-4"><NavLinks onNavigate={onNavigate} items={compact ? PRIMARY_NAV : NAV} /></div>
-      {compact ? <div className="border-t border-border px-3 py-3"><button type="button" className="qs-sidebar-item w-full" onClick={onMore}><MoreHorizontal className="size-[18px] shrink-0"/><span className="min-w-0 flex-1 text-start">{lang === "ar" ? "المزيد" : "More"}</span><span className="text-xs text-muted-foreground">{SECONDARY_NAV.length}</span></button></div> : null}
-      <div className="border-t border-border px-4 py-4"><p className="text-[13px] font-bold text-foreground">QuickServe</p><p className="text-[10px] text-muted-foreground">{lang === "ar" ? "إدارة المنصة" : "Platform admin"}</p></div>
+      <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-5">
+        <Link
+          to={"/super-admin" as never}
+          onClick={onNavigate}
+          className="text-foreground"
+          aria-label="QuickServe admin"
+        >
+          <BrandLogo
+            className="size-9"
+            accentClassName="text-[#e85d2a]"
+            textClassName="text-[20px] text-foreground"
+          />
+        </Link>
+      </div>
+      <div className="qs-scroll flex-1 overflow-y-auto px-3 py-4">
+        <NavLinks onNavigate={onNavigate} items={compact ? PRIMARY_NAV : NAV} />
+      </div>
+      {compact ? (
+        <div className="border-t border-border px-3 py-3">
+          <button type="button" className="qs-sidebar-item w-full" onClick={onMore}>
+            <MoreHorizontal className="size-[18px] shrink-0" />
+            <span className="min-w-0 flex-1 text-start">{lang === "ar" ? "المزيد" : "More"}</span>
+            <span className="text-xs text-muted-foreground">{SECONDARY_NAV.length}</span>
+          </button>
+        </div>
+      ) : null}
+      <div className="border-t border-border px-4 py-4">
+        <p className="text-[13px] font-bold text-foreground">QuickServe</p>
+        <p className="text-[10px] text-muted-foreground">
+          {lang === "ar" ? "إدارة المنصة" : "Platform admin"}
+        </p>
+      </div>
     </div>
   );
 }
@@ -81,11 +156,51 @@ function SidebarContent({ onNavigate, compact = false, onMore }: { onNavigate?: 
 function Notifications() {
   const { lang } = useI18n();
   const { data } = useRestaurantsWithStats();
-  const alerts = (data ?? []).map((restaurant) => ({ restaurant, health: healthOf(restaurant) })).filter((entry) => entry.health.level !== "healthy").slice(0, 8);
+  const alerts = (data ?? [])
+    .map((restaurant) => ({ restaurant, health: healthOf(restaurant) }))
+    .filter((entry) => entry.health.level !== "healthy")
+    .slice(0, 8);
   return (
     <Popover>
-      <PopoverTrigger asChild><button type="button" className="relative grid size-10 place-items-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={lang === "ar" ? "الإشعارات" : "Notifications"}><Bell className="size-[19px]" />{alerts.length ? <span className="absolute end-1.5 top-1.5 size-2 rounded-full bg-red-500 ring-2 ring-background" /> : null}</button></PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(22rem,calc(100vw-1.5rem))]"><p className="text-sm font-bold">{lang === "ar" ? "تنبيهات المنصة" : "Platform alerts"}</p>{alerts.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">{lang === "ar" ? "كل شيء يعمل بشكل جيد." : "Everything looks healthy."}</p> : <ul className="mt-3 space-y-3">{alerts.map(({ restaurant, health }) => <li key={restaurant.id}><Link to={"/super-admin/restaurants/$restaurantId" as never} params={{ restaurantId: restaurant.id } as never} className="text-sm font-semibold hover:underline">{restaurant.name}</Link><p className="mt-0.5 text-xs text-muted-foreground">{health.missing.map((item) => lang === "ar" ? item.labelAr : item.labelEn).join(" · ")}</p></li>)}</ul>}</PopoverContent>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="relative grid size-10 place-items-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          aria-label={lang === "ar" ? "الإشعارات" : "Notifications"}
+        >
+          <Bell className="size-[19px]" />
+          {alerts.length ? (
+            <span className="absolute end-1.5 top-1.5 size-2 rounded-full bg-red-500 ring-2 ring-background" />
+          ) : null}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[min(22rem,calc(100vw-1.5rem))]">
+        <p className="text-sm font-bold">{lang === "ar" ? "تنبيهات المنصة" : "Platform alerts"}</p>
+        {alerts.length === 0 ? (
+          <p className="mt-3 text-sm text-muted-foreground">
+            {lang === "ar" ? "كل شيء يعمل بشكل جيد." : "Everything looks healthy."}
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-3">
+            {alerts.map(({ restaurant, health }) => (
+              <li key={restaurant.id}>
+                <Link
+                  to={"/super-admin/restaurants/$restaurantId" as never}
+                  params={{ restaurantId: restaurant.id } as never}
+                  className="text-sm font-semibold hover:underline"
+                >
+                  {restaurant.name}
+                </Link>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {health.missing
+                    .map((item) => (lang === "ar" ? item.labelAr : item.labelEn))
+                    .join(" · ")}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PopoverContent>
     </Popover>
   );
 }
@@ -94,51 +209,210 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
   const { lang, toggleLang } = useI18n();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const contentRef = useRef<HTMLElement>(null);
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const [mounted, setMounted] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
-  useEffect(() => { void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null)); }, []);
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
+  }, []);
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setSearchOpen((value) => !value); }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearchOpen((value) => !value);
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-  async function signOut() { await queryClient.cancelQueries(); queryClient.clear(); await supabase.auth.signOut(); navigate({ to: "/auth", replace: true }); }
+  useEffect(() => {
+    setMounted(true);
+    document.body.classList.add("qs-admin-active");
+    const labelTables = () => {
+      contentRef.current?.querySelectorAll("table").forEach((table) => {
+        const labels = Array.from(table.querySelectorAll("thead th")).map(
+          (th) => th.textContent?.trim() ?? "",
+        );
+        table.querySelectorAll("tbody tr").forEach((row) =>
+          Array.from(row.children).forEach((cell, index) => {
+            if (labels[index]) cell.setAttribute("data-label", labels[index]!);
+          }),
+        );
+      });
+    };
+    labelTables();
+    const observer = new MutationObserver(labelTables);
+    if (contentRef.current)
+      observer.observe(contentRef.current, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      document.body.classList.remove("qs-admin-active");
+    };
+  }, []);
+  async function signOut() {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  }
 
   return (
-    <div className="min-h-dvh bg-background lg:ps-[var(--qs-shell-sidebar)]">
-      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden lg:block"><SidebarContent compact onMore={() => setMoreOpen(true)} /></aside>
+    <div className="qs-super-admin min-h-dvh bg-background lg:ps-[var(--qs-shell-sidebar)]">
+      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden lg:block">
+        <SidebarContent compact onMore={() => setMoreOpen(true)} />
+      </aside>
       <header className="qs-topbar safe-top sticky top-0 z-40">
         <div className="mx-auto flex h-[var(--qs-shell-topbar)] w-full max-w-[1640px] items-center gap-3 px-3 sm:px-5 lg:px-7">
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}><SheetTrigger asChild><Button variant="ghost" size="icon" className="size-10 lg:hidden" aria-label={lang === "ar" ? "فتح التنقل" : "Open navigation"}><MenuIcon className="size-5" /></Button></SheetTrigger><SheetContent side="left" className="w-[88vw] max-w-[320px] border-e border-border bg-card p-0 text-foreground"><SheetTitle className="sr-only">QuickServe</SheetTitle><SidebarContent onNavigate={() => setMobileOpen(false)} /></SheetContent></Sheet>
-          <Link to={"/super-admin" as never} className="lg:hidden"><BrandLogo className="size-8" accentClassName="text-[#e85d2a]" textClassName="hidden sm:inline" /></Link>
-          <button type="button" onClick={() => setSearchOpen(true)} className="qs-topbar-search hidden min-w-0 max-w-[440px] flex-1 items-center gap-3 px-4 text-start text-[13px] text-muted-foreground md:flex"><Search className="size-4" /><span className="min-w-0 flex-1 truncate">{lang === "ar" ? "بحث" : "Search"}</span><kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px]">⌘K</kbd></button>
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-10 lg:hidden"
+                aria-label={lang === "ar" ? "فتح التنقل" : "Open navigation"}
+              >
+                <MenuIcon className="size-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent
+              side={lang === "ar" ? "right" : "left"}
+              className="qs-admin-nav-sheet w-[88vw] max-w-[320px] border-e border-border bg-card p-0 text-foreground"
+            >
+              <SheetTitle className="sr-only">QuickServe</SheetTitle>
+              <SidebarContent onNavigate={() => setMobileOpen(false)} />
+            </SheetContent>
+          </Sheet>
+          <Link to={"/super-admin" as never} className="lg:hidden">
+            <BrandLogo
+              className="size-8"
+              accentClassName="text-[#e85d2a]"
+              textClassName="hidden sm:inline"
+            />
+          </Link>
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="qs-topbar-search hidden min-w-0 max-w-[440px] flex-1 items-center gap-3 px-4 text-start text-[13px] text-muted-foreground md:flex"
+          >
+            <Search className="size-4" />
+            <span className="min-w-0 flex-1 truncate">{lang === "ar" ? "بحث" : "Search"}</span>
+            <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px]">⌘K</kbd>
+          </button>
           <div className="ms-auto flex items-center gap-1 sm:gap-1.5">
+            <button
+              type="button"
+              className="grid size-11 place-items-center rounded-xl md:hidden"
+              onClick={() => setSearchOpen(true)}
+              aria-label={lang === "ar" ? "بحث" : "Search"}
+            >
+              <Search className="size-5" />
+            </button>
             <ThemeToggle compact />
             <Notifications />
-            <button type="button" onClick={toggleLang} className="grid size-10 place-items-center rounded-[11px] text-xs font-bold text-muted-foreground transition hover:bg-muted/60 hover:text-foreground">{lang === "ar" ? "EN" : "ع"}</button>
+            <button
+              type="button"
+              onClick={toggleLang}
+              className="grid size-10 place-items-center rounded-[11px] text-xs font-bold text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
+            >
+              {lang === "ar" ? "EN" : "ع"}
+            </button>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild><button type="button" className="grid size-10 place-items-center rounded-full bg-muted ring-1 ring-border" aria-label={lang === "ar" ? "قائمة الحساب" : "Account menu"}><Users className="size-4" /></button></DropdownMenuTrigger>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="grid size-10 place-items-center rounded-full bg-muted ring-1 ring-border"
+                  aria-label={lang === "ar" ? "قائمة الحساب" : "Account menu"}
+                >
+                  <Users className="size-4" />
+                </button>
+              </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel className="max-w-56 truncate">{email ?? "QuickServe Owner"}</DropdownMenuLabel>
+                <DropdownMenuLabel className="max-w-56 truncate">
+                  {email ?? "QuickServe Owner"}
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild><Link to="/profile"><UserRound className="size-4" />{lang === "ar" ? "الملف الشخصي" : "Profile & Alerts"}</Link></DropdownMenuItem>
-                <DropdownMenuItem asChild><Link to="/dashboard">{lang === "ar" ? "لوحة المطعم" : "Restaurant dashboard"}</Link></DropdownMenuItem>
-                <DropdownMenuItem onClick={() => void signOut()}><LogOut className="size-4" />{lang === "ar" ? "تسجيل الخروج" : "Sign out"}</DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/profile">
+                    <UserRound className="size-4" />
+                    {lang === "ar" ? "الملف الشخصي" : "Profile & Alerts"}
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard">
+                    {lang === "ar" ? "لوحة المطعم" : "Restaurant dashboard"}
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => void signOut()}>
+                  <LogOut className="size-4" />
+                  {lang === "ar" ? "تسجيل الخروج" : "Sign out"}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
       </header>
-      <main className={cn("qs-page min-h-[calc(100dvh-var(--qs-shell-topbar))]")}>{children}</main>
+      <main ref={contentRef} className={cn("qs-page min-h-[calc(100dvh-var(--qs-shell-topbar))]")}>
+        {children}
+      </main>
+      {mounted
+        ? createPortal(
+            <nav
+              className="qs-admin-mobile-nav"
+              dir={lang === "ar" ? "rtl" : "ltr"}
+              aria-label={lang === "ar" ? "تنقل المنصة" : "Platform navigation"}
+            >
+              {NAV.slice(0, 2)
+                .concat(NAV[3]!)
+                .map((item) => {
+                  const Icon = item.icon;
+                  const active = item.exact
+                    ? pathname === item.to || pathname === `${item.to}/`
+                    : pathname.startsWith(item.to);
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to as never}
+                      aria-current={active ? "page" : undefined}
+                      data-active={active}
+                    >
+                      <Icon size={21} />
+                      <span>{lang === "ar" ? item.ar : item.en}</span>
+                    </Link>
+                  );
+                })}
+              <button
+                type="button"
+                onClick={() => setMobileOpen(true)}
+                aria-label={lang === "ar" ? "كل صفحات المنصة" : "All platform pages"}
+              >
+                <MoreHorizontal className="size-5" />
+                <span>{lang === "ar" ? "المزيد" : "More"}</span>
+              </button>
+            </nav>,
+            document.body,
+          )
+        : null}
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side={lang === "ar" ? "left" : "right"} className="w-[min(380px,92vw)] border-border bg-card p-0 text-foreground">
-          <div className="border-b border-border px-5 py-5"><SheetTitle>{lang === "ar" ? "أدوات المنصة" : "Platform tools"}</SheetTitle><p className="mt-1 text-sm text-muted-foreground">{lang === "ar" ? "الإعدادات والتراخيص وسجل التدقيق." : "Settings, licensing and audit history."}</p></div>
-          <div className="p-4"><NavLinks items={SECONDARY_NAV} onNavigate={() => setMoreOpen(false)} /></div>
+        <SheetContent
+          side={lang === "ar" ? "left" : "right"}
+          className="qs-admin-nav-sheet w-[min(380px,92vw)] border-border bg-card p-0 text-foreground"
+        >
+          <div className="border-b border-border px-5 py-5">
+            <SheetTitle>{lang === "ar" ? "أدوات المنصة" : "Platform tools"}</SheetTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {lang === "ar"
+                ? "الإعدادات والتراخيص وسجل التدقيق."
+                : "Settings, licensing and audit history."}
+            </p>
+          </div>
+          <div className="p-4">
+            <NavLinks items={SECONDARY_NAV} onNavigate={() => setMoreOpen(false)} />
+          </div>
         </SheetContent>
       </Sheet>
     </div>
