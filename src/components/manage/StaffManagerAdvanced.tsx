@@ -1935,20 +1935,20 @@ function AssignStaffShiftDialog({
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !mutation.isPending) onClose(); }}>
-      <DialogContent className="flex max-h-[min(92dvh,860px)] w-[calc(100vw-1.5rem)] max-w-none flex-col overflow-hidden p-0 sm:max-w-[680px]">
-        <div className="border-b border-border bg-muted/15 px-5 py-4">
+      <DialogContent className="qs-shift-assign-dialog" onOpenAutoFocus={event => event.preventDefault()}>
+        <div className="qs-shift-assign-header">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span className="grid size-9 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]"><CalendarPlus className="size-4" /></span>
-              {mode === "edit" ? (ar ? `تعديل وردية ${member.name}` : `Edit shift for ${member.name}`) : (ar ? `إضافة وردية لـ ${member.name}` : `Assign shift to ${member.name}`)}
+            <DialogTitle className="flex min-w-0 items-start gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><CalendarPlus className="size-5" /></span>
+              <span className="min-w-0"><span className="block">{mode === "edit" ? (ar ? "تعديل الوردية" : "Edit shift") : (ar ? "تعيين وردية" : "Assign shift")}</span><span className="mt-1 block break-words text-sm font-medium text-muted-foreground">{member.name}</span></span>
             </DialogTitle>
             <DialogDescription>
-              {ar ? "اختر وردية موجودة أو أنشئ وردية مفردة أو جدول عمل متكرر بأيام تختارها." : "Choose an existing shift, a single work window, or a recurring weekly schedule."}
+              {ar ? "اختر وردية أو أنشئ جدول عمل." : "Choose a shift or create a schedule."}
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
+        <div className="qs-shift-assign-body">
           <div className={cn("grid rounded-xl border border-border bg-muted/25 p-1",editable ? "grid-cols-3" : "grid-cols-2")}>
             {editable ? <button type="button" onClick={() => setMode("edit")} className={cn("min-h-11 rounded-lg px-2 text-xs font-bold",mode === "edit" ? "bg-card shadow-sm" : "text-muted-foreground")}>{ar ? "تعديل الوردية" : "Edit shift"}</button> : null}
             <button type="button" disabled={!available.length} onClick={() => setMode("existing")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "existing" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground", !available.length && "cursor-not-allowed opacity-45")}>
@@ -1998,7 +1998,7 @@ function AssignStaffShiftDialog({
                     <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-7">
                       {TEAM_SHIFT_WEEKDAYS.map((day) => {
                         const selected = weekdays.includes(day.value);
-                        return <button key={day.value} type="button" aria-pressed={selected} onClick={() => toggleWeekday(day.value)} className={cn("min-h-10 rounded-xl border px-2 text-xs font-bold transition", selected ? "border-[#e85d2a] bg-orange-500/10 text-[#cf4818]" : "border-border bg-card text-muted-foreground hover:text-foreground")}>{ar ? day.ar : day.en}</button>;
+                        return <button key={day.value} type="button" aria-pressed={selected} onClick={() => toggleWeekday(day.value)} className={cn("min-h-10 rounded-xl border px-2 text-xs font-bold transition", selected ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:text-foreground")}>{ar ? day.ar : day.en}</button>;
                       })}
                     </div>
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -2019,13 +2019,13 @@ function AssignStaffShiftDialog({
           )}
 
           <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5">
-            <span className="grid size-10 place-items-center rounded-full bg-orange-500/10 font-bold text-[#d94a19]">{member.name.slice(0, 1).toUpperCase()}</span>
+            <span className="grid size-10 place-items-center rounded-full bg-primary/10 font-bold text-primary">{member.name.slice(0, 1).toUpperCase()}</span>
             <div className="min-w-0"><strong className="block truncate text-sm">{member.name}</strong><span className="text-xs text-muted-foreground">{ROLE_NAMES[member.role][lang]}</span></div>
           </div>
 
           {mode === "new" && newReady ? (
             <div className="qs-shift-preview-card">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-orange-500/12 text-[#e85d2a]"><CalendarPlus className="size-4" /></span>
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><CalendarPlus className="size-4" /></span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <strong className="text-sm">{ar ? "معاينة الجدول" : "Schedule preview"}</strong>
@@ -2040,9 +2040,9 @@ function AssignStaffShiftDialog({
           ) : null}
         </div>
 
-        <DialogFooter className="sticky bottom-0 z-20 grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-5 py-4 shadow-[0_-18px_34px_-28px_rgba(15,23,42,.45)] backdrop-blur sm:flex sm:justify-end">
-          <Button type="button" variant="outline" className="min-w-24" disabled={mutation.isPending} onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button>
-          <Button type="button" className="min-w-36 shadow-md" disabled={mutation.isPending || (mode === "existing" ? !shiftId : !newReady)} onClick={() => mutation.mutate()}>
+        <DialogFooter className="qs-shift-assign-footer">
+          <Button type="button" variant="outline" className="min-w-0" disabled={mutation.isPending} onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button type="button" className="min-w-0 shadow-sm" disabled={mutation.isPending || (mode === "existing" ? !shiftId : !newReady)} onClick={() => mutation.mutate()}>
             <CalendarPlus className="size-4" />
             {mutation.isPending ? (ar ? "جارٍ الحفظ…" : "Saving…") : mode === "edit" ? (ar ? "حفظ التغييرات" : "Save changes") : mode === "new" && newMode === "recurring" ? (ar ? "تعيين الجدول" : "Assign schedule") : (ar ? "إضافة الوردية" : "Assign shift")}
           </Button>

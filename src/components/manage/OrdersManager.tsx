@@ -8,6 +8,7 @@ import {
   ListFilter,
   Clock3,
   FileText,
+  CreditCard,
   Search,
   ShoppingBag,
   UserRound,
@@ -24,7 +25,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePlatformOrders, useOrderItems, useRestaurant } from "@/hooks/useSuperAdmin";
 import { useI18n } from "@/lib/i18n";
-import { formatDateTime, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { homePeriodRange, type HomePeriod } from "@/lib/home-period";
 import { Button } from "@/components/ui/button";
@@ -381,7 +382,7 @@ export function OrdersManager({
         }}
       >
         <DialogContent
-          className="max-h-[calc(100dvh-16px)] max-w-2xl gap-0 overflow-hidden p-0"
+          className="qs-order-detail-dialog"
           onOpenAutoFocus={(event) => event.preventDefault()}
         >
           <DialogHeader className="sr-only">
@@ -418,150 +419,67 @@ function OrderDetail({ order, currency }: { order: any; currency: string }) {
   const { lang } = useI18n();
   const ar = lang === "ar";
   const items = useOrderItems(order.id);
-  const subtotal = Number(
-    order.subtotal ??
-      (items.data ?? []).reduce((sum, item) => sum + Number(item.total_price ?? 0), 0),
-  );
+  const restaurant = useRestaurant(order.restaurant_id);
+  const timezone = restaurant.data?.timezone || "Asia/Amman";
+  const subtotal = Number(order.subtotal ?? (items.data ?? []).reduce((sum, item) => sum + Number(item.total_price ?? 0), 0));
   const total = Number(order.total ?? subtotal);
-  const tax = Number(order.tax_amount ?? 0);
-
+  const quantity = (items.data ?? []).reduce((sum, item) => sum + Number(item.quantity ?? 0), 0);
+  const paymentLabels: Record<string, [string,string]> = {
+    paid: ["Paid", "مدفوع"], unpaid: ["Payment pending", "بانتظار الدفع"],
+    pending: ["Payment pending", "بانتظار الدفع"], partially_paid: ["Partially paid", "مدفوع جزئياً"],
+    refunded: ["Refunded", "مسترد"], failed: ["Payment failed", "فشل الدفع"],
+  };
+  const service = order.table_id ? (ar ? "داخل المطعم" : "Dine-in")
+    : order.fulfillment_type === "delivery" ? (ar ? "توصيل" : "Delivery") : (ar ? "استلام" : "Takeaway");
+  const costs = [
+    { label: ar ? "المجموع الفرعي" : "Subtotal", amount: subtotal, show: true },
+    { label: ar ? "الضريبة" : "Tax", amount: Number(order.tax_amount ?? 0), show: true },
+    { label: ar ? "الخدمة" : "Service", amount: Number(order.service_amount ?? 0), show: Number(order.service_amount) > 0 },
+    { label: ar ? "التوصيل" : "Delivery", amount: Number(order.delivery_amount ?? 0), show: Number(order.delivery_amount) > 0 },
+    { label: ar ? "الخصم" : "Discount", amount: -Number(order.discount_amount ?? 0), show: Number(order.discount_amount) > 0 },
+    { label: ar ? "الإكرامية" : "Tip", amount: Number(order.tip_amount ?? 0), show: Number(order.tip_amount) > 0 },
+  ];
   return (
-    <aside className="qs-right-panel flex max-h-[calc(100dvh-24px)] min-h-0 flex-col overflow-hidden xl:max-h-none">
-      <div className="qs-panel-header flex shrink-0 items-start justify-between gap-4 p-4 pe-12 xl:pe-4">
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">
-            {ar ? "تفاصيل الطلب" : "Order details"}
-          </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <h2 className="break-all font-display text-lg font-bold">{order.order_number}</h2>
-            <span className={cn("qs-status capitalize", statusClass[order.status] ?? "bg-muted")}>
-              {orderStatus(order.status, ar)}
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {formatDateTime(order.created_at, lang)}
-          </p>
-        </div>
-        <span className="shrink-0 rounded-xl bg-muted px-3 py-2 text-end">
-          <strong className="block whitespace-nowrap text-sm">
-            {elapsed(order.created_at, ar)}
-          </strong>
-          <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {ar ? "المدة" : "Elapsed"}
-          </span>
-        </span>
+    <aside className="qs-right-panel qs-receipt" dir={ar ? "rtl" : "ltr"}>
+      <header className="qs-receipt-header">
+        <h2>{ar ? "طلب" : "Order"} {order.order_number}</h2>
+        <p>{new Intl.DateTimeFormat(ar ? "ar-JO" : "en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: timezone }).format(new Date(order.created_at))}</p>
+      </header>
+      <div className="qs-receipt-status">
+        <span className={cn("qs-status", statusClass[order.status] ?? "bg-muted")}>{orderStatus(order.status, ar)}</span>
+        <span><CreditCard aria-hidden="true" />{paymentLabels[order.payment_status]?.[ar ? 1 : 0] ?? (ar ? "بانتظار الدفع" : "Payment pending")}</span>
       </div>
-
-      <div className="qs-scroll-region min-h-0 flex-1 space-y-3 p-3 sm:p-4">
-        <section className="grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-4 sm:divide-y-0 rtl:divide-x-reverse">
-          <Meta
-            icon={<UtensilsCrossed className="size-3.5" />}
-            label={ar ? "الخدمة" : "Service"}
-            value={
-              order.table?.table_number
-                ? (ar ? "طاولة " : "Table ") + order.table.table_number
-                : ar
-                  ? "طلب خارجي"
-                  : "Takeaway"
-            }
-          />
-          <Meta
-            icon={<UserRound className="size-3.5" />}
-            label={ar ? "العميل" : "Customer"}
-            value={ar ? "ضيف" : "Walk-in Guest"}
-          />
-          <Meta
-            icon={<FileText className="size-3.5" />}
-            label={ar ? "العناصر" : "Items"}
-            value={String(items.data?.length ?? 0) + " " + (ar ? "عنصر" : "items")}
-          />
-          <Meta
-            icon={<ShoppingBag className="size-3.5" />}
-            label={ar ? "نوع الخدمة" : "Service type"}
-            value={order.table_id ? (ar ? "داخل المطعم" : "Dine-in") : ar ? "استلام" : "Takeaway"}
-          />
+      <div className="qs-scroll-region qs-receipt-body">
+        <section className="qs-receipt-meta" aria-label={ar ? "معلومات الطلب" : "Order information"}>
+          <ReceiptMeta icon={<Table2 />} label={ar ? "الطاولة" : "Table"} value={order.table?.table_number ? (ar ? "طاولة " : "Table ") + order.table.table_number : (ar ? "بدون طاولة" : "No table")} />
+          <ReceiptMeta icon={<UtensilsCrossed />} label={ar ? "نوع الخدمة" : "Service type"} value={service} />
+          <ReceiptMeta icon={<UserRound />} label={ar ? "الضيف" : "Guest"} value={order.guest_name || (ar ? "ضيف بدون حجز" : "Walk-in guest")} />
+          <ReceiptMeta icon={<ShoppingBag />} label={ar ? "العناصر" : "Items"} value={items.isPending ? "…" : items.isError ? "—" : `${quantity} ${ar ? "عناصر" : "items"}`} />
         </section>
-
-        <section className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-3 py-2">
-            <h3 className="text-xs font-bold">{ar ? "عناصر الطلب" : "Order Items"}</h3>
-          </div>
-          {items.isPending ? (
-            <Skeleton className="m-3 h-28 rounded-xl" />
-          ) : (
-            <div className="divide-y divide-border">
-              {(items.data ?? []).map((item) => (
-                <div
-                  key={item.id}
-                  className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5"
-                >
-                  <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-orange-50 text-[#e85d2a] dark:bg-orange-950/30">
-                    <UtensilsCrossed className="size-3.5" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold">
-                      {ar
-                        ? item.product_name_snapshot_ar || item.product_name_snapshot_en
-                        : item.product_name_snapshot_en || item.product_name_snapshot_ar}
-                    </p>
-                    <p className="text-[9px] text-muted-foreground">
-                      {item.quantity} × {formatMoney(Number(item.unit_price ?? 0), currency, lang)}
-                    </p>
-                  </div>
-                  <strong className="text-xs">
-                    {formatMoney(item.total_price, currency, lang)}
-                  </strong>
-                </div>
-              ))}
+        <section className="qs-receipt-items">
+          <h3>{ar ? "العناصر" : "Items"}</h3>
+          {items.isPending ? <Skeleton className="h-24 rounded-xl" /> : items.isError ? (
+            <div role="alert" className="py-4 text-sm text-destructive"><p>{ar ? "تعذر تحميل العناصر" : "Could not load items"}</p><Button variant="outline" className="mt-2" onClick={() => void items.refetch()}>{ar ? "إعادة المحاولة" : "Retry"}</Button></div>
+          ) : (items.data ?? []).length ? (items.data ?? []).map(item => (
+            <div className="qs-receipt-item" key={item.id}>
+              <span className="qs-receipt-quantity">{item.quantity} ×</span>
+              <div>
+                <strong>{ar ? item.product_name_snapshot_ar || item.product_name_snapshot_en : item.product_name_snapshot_en || item.product_name_snapshot_ar}</strong>
+                <small>{formatMoney(Number(item.unit_price ?? 0), currency, lang)} {ar ? "للعنصر" : "each"}</small>
+                {item.notes ? <p className="qs-receipt-item-note">{item.notes}</p> : null}
+              </div>
+              <bdi>{formatMoney(Number(item.total_price), currency, lang)}</bdi>
             </div>
-          )}
+          )) : <p className="py-4 text-sm text-muted-foreground">{ar ? "لا توجد عناصر" : "No items"}</p>}
         </section>
+        {order.customer_notes ? <section className="qs-receipt-note"><FileText aria-hidden="true" /><div><h3>{ar ? "ملاحظة العميل" : "Customer note"}</h3><p>{order.customer_notes}</p></div></section> : null}
+        <dl className="qs-receipt-costs">{costs.filter(cost => cost.show).map(cost => <div key={cost.label}><dt>{cost.label}</dt><dd><bdi>{formatMoney(cost.amount, currency, lang)}</bdi></dd></div>)}</dl>
       </div>
-
-      <div className="shrink-0 border-t border-border bg-muted/15 p-3">
-        <div className="space-y-1.5 text-xs">
-          <div className="flex justify-between text-muted-foreground">
-            <span>{ar ? "المجموع الفرعي" : "Subtotal"}</span>
-            <span>{formatMoney(subtotal, currency, lang)}</span>
-          </div>
-          <div className="flex justify-between text-muted-foreground">
-            <span>{ar ? "الضريبة" : "Tax"}</span>
-            <span>{formatMoney(tax, currency, lang)}</span>
-          </div>
-          {Number(order.service_amount) > 0 ? (
-            <div className="flex justify-between text-muted-foreground">
-              <span>{ar ? "الخدمة" : "Service"}</span>
-              <span>{formatMoney(Number(order.service_amount), currency, lang)}</span>
-            </div>
-          ) : null}
-          {Number(order.discount_amount) > 0 ? (
-            <div className="flex justify-between text-muted-foreground">
-              <span>{ar ? "الخصم" : "Discount"}</span>
-              <span>−{formatMoney(Number(order.discount_amount), currency, lang)}</span>
-            </div>
-          ) : null}
-          <div className="flex justify-between pt-1.5 font-display text-base font-bold">
-            <span>{ar ? "الإجمالي" : "Total"}</span>
-            <span>{formatMoney(total, currency, lang)}</span>
-          </div>
-        </div>
-      </div>
+      <footer className="qs-receipt-total"><strong>{ar ? "الإجمالي" : "Total"}</strong><bdi>{formatMoney(total, currency, lang)}</bdi></footer>
     </aside>
   );
 }
 
-function Meta({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="min-w-0 p-3 text-center">
-      <span className="mx-auto grid size-7 place-items-center rounded-lg bg-muted text-muted-foreground">
-        {icon}
-      </span>
-      <p className="mt-2 truncate text-[9px] font-bold uppercase tracking-[.04em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-0.5 truncate text-xs font-semibold text-foreground" title={value}>
-        {value}
-      </p>
-    </div>
-  );
+function ReceiptMeta({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return <div><span aria-hidden="true">{icon}</span><div><small>{label}</small><strong>{value}</strong></div></div>;
 }

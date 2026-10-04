@@ -1,10 +1,10 @@
 /* Approved simple Home: shared summary, two operational panels, compact glance. */
-.qs-home-overview{--home-accent:#ff601f;max-width:1440px;margin:0 auto;padding:32px 24px 24px;color:var(--foreground);font-size:15px}
+.qs-home-overview{--home-accent:var(--primary);max-width:1440px;margin:0 auto;padding:32px 24px 24px;color:var(--foreground);font-size:15px}
 .qs-home-overview *{min-width:0}.qs-home-overview h1,.qs-home-overview h2,.qs-home-overview h3,.qs-home-overview p{margin:0}
 .qs-home-greeting{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:0 10px 24px}
 .qs-home-greeting h1{font-size:clamp(25px,2.5vw,38px);font-weight:750;letter-spacing:-.045em;line-height:1.2}.qs-home-greeting p{margin-top:7px;color:var(--muted-foreground);font-size:17px}
 .qs-home-date-action{display:flex;align-items:center;gap:24px;flex-shrink:0}.qs-home-date-action time{color:var(--muted-foreground)}
-.qs-home-booking{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 22px;border-radius:11px;background:var(--home-accent);color:white;font-weight:650;white-space:nowrap}
+.qs-home-booking{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 22px;border-radius:11px;background:var(--home-accent);color:var(--primary-foreground);font-weight:650;white-space:nowrap}
 .qs-home-panel{border:1px solid var(--border);border-radius:14px;background:var(--card);box-shadow:0 2px 12px #14213a02}
 .qs-home-summary{display:flex;margin-bottom:20px;padding:20px 0}.qs-home-metric{flex:1;padding:0 32px;border-inline-start:1px solid var(--border);display:flex;flex-direction:column;gap:10px}.qs-home-metric:first-child{border:0}.qs-home-metric>span{color:var(--muted-foreground)}.qs-home-metric strong{font-size:clamp(24px,2.5vw,36px);font-weight:750;line-height:1.2;letter-spacing:-.035em;font-variant-numeric:tabular-nums}.qs-home-metric .qs-home-sales{color:var(--home-accent)}.qs-home-metric small{font-size:14px;color:var(--muted-foreground);line-height:1.5}
 .qs-home-main-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px;margin-bottom:20px}.qs-home-orders,.qs-home-bookings{padding:20px 24px;display:flex;flex-direction:column;min-height:300px}
@@ -23,8 +23,6 @@
 @media(max-width:480px){.qs-home-overview{padding:24px 14px calc(88px + env(safe-area-inset-bottom))}.qs-home-greeting h1{font-size:26px}.qs-home-greeting p{font-size:14px}.qs-home-metric{padding:18px 14px;gap:8px}.qs-home-metric strong{font-size:25px}.qs-home-metric>span,.qs-home-metric small{font-size:12px}.qs-home-orders,.qs-home-bookings,.qs-home-glance{padding:18px 14px}.qs-home-overview h2{font-size:19px}.qs-home-link{font-size:12px;gap:5px}.qs-home-orders th,.qs-home-orders td{padding:12px 5px;font-size:12px}.qs-home-status{padding:5px 7px;font-size:11px}.qs-home-reservation{grid-template-columns:85px 1fr}.qs-home-glance-grid{flex-direction:column;gap:14px}.qs-home-glance-grid>div{padding:12px 0 0;border-inline-start:0;border-top:1px solid var(--border)}.qs-home-glance-grid>div:first-child{padding:0}.qs-home-shortcuts{padding:12px 0;gap:6px}.qs-home-shortcuts .qs-home-link{font-size:11px;gap:4px}}
 @media(min-width:481px) and (max-width:1023px){.qs-home-overview{padding-bottom:110px}}
 
-:root:not(.dark) .qs-home-overview{--foreground:#101828;--muted-foreground:#66738a;--border:#e8eaf0;--card:#fff;--muted:#f6f7f8}
-:root:not(.dark) .qs-home-surface{background:#fbfaf9}
 /* Customization uses the same current Home sections, including the live preview. */
 .qs-home-overview{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px}
 .qs-home-greeting{grid-column:1/-1;order:-1;margin-bottom:4px}.qs-home-summary,.qs-home-glance,.qs-home-shortcuts{grid-column:1/-1;margin-bottom:0}.qs-home-main-grid{display:contents}.qs-home-customize{grid-column:1/-1;order:100}

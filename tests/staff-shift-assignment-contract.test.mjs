@@ -102,9 +102,11 @@ test("team add-shift dialog supports professional recurring workday schedules", 
 });
 
 
-test("team shift dialog keeps actions visible and shows a live schedule preview", () => {
-  assert.match(source, /max-h-\[min\(92dvh,860px\)\]/);
-  assert.match(source, /sticky bottom-0 z-20/);
+test("team shift dialog keeps actions visible and shows a live schedule preview", async () => {
+  const styles = await readFile(new URL("../src/quickserve-system.css", import.meta.url), "utf8");
+  assert.match(source, /qs-shift-assign-dialog/);
+  assert.match(styles, /\.qs-shift-assign-dialog[^}]+max-height:calc\(100dvh/);
+  assert.match(styles, /\.qs-shift-assign-footer\{flex-shrink:0/);
   assert.match(source, /Schedule preview/);
   assert.match(source, /Live preview/);
   assert.match(source, /formatTimeInput/);

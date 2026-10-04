@@ -289,6 +289,8 @@ export function TableQuickPanel({
           ))}
         </select>
       </label>
+      <p className="mt-3 text-xs leading-5 text-muted-foreground">{ar ? "تتحدث الحالة تلقائياً حسب الحجوزات والطلبات. التنظيف التلقائي يستغرق 10 دقائق؛ التنظيف اليدوي ينتظر تأكيدك. خارج الخدمة يبقى حتى تعيده." : "Status follows bookings and orders. Automatic cleaning clears after 10 minutes; manual cleaning waits for your confirmation. Out of service stays until restored."}</p>
+      {row.is_active && row.service_status === "cleaning" ? <Button type="button" className="mt-3 min-h-11 w-full" disabled={busy} onClick={() => onStatus("free")}>{ar ? "تم التنظيف · جاهزة" : "Cleaning done · Ready"}</Button> : null}
       <a className="qs-button-secondary mt-3 w-full" href="/orders">
         {ar ? "عرض الطلبات" : "View orders"}
       </a>

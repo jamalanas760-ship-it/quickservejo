@@ -2,6 +2,7 @@ import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { useRouterState } from "@tanstack/react-router";
 
 import { useAccess } from "@/hooks/useSession";
+import { contrastRatio } from "@/lib/contrast";
 import { readAppearance } from "@/lib/restaurant-appearance";
 
 type TenantStyle = CSSProperties & Record<`--${string}`, string>;
@@ -16,7 +17,12 @@ export function TenantBrandShell({ children }: { children: ReactNode }) {
   const restaurant = access.isSuperAdmin ? null : membership?.restaurant;
 
   const appearance = readAppearance(restaurant?.menu_theme);
+  const lightPrimary = restaurant?.primary_color || "#e85d2a";
+  const darkPrimary = appearance.darkPrimaryColor;
+  const buttonText = (background: string) => contrastRatio("#ffffff", background) >= contrastRatio("#101828", background) ? "#ffffff" : "#101828";
   const style: TenantStyle = {
+    "--restaurant-light-primary-text": buttonText(lightPrimary),
+    "--restaurant-dark-primary-text": buttonText(darkPrimary),
     "--restaurant-light-primary": restaurant?.primary_color || "#e85d2a",
     "--restaurant-light-accent": restaurant?.accent_color || "#ff8a4c",
     "--restaurant-light-bg": appearance.lightBackground || restaurant?.background_color || "#fafbfc",
