@@ -62,11 +62,23 @@ function DashboardPage() {
   const timezone = restaurant.data?.timezone || "Asia/Amman";
   const [period, setPeriod] = useState<HomePeriod>("today");
   const range = homePeriodRange(period, timezone);
-  const periodReport = useQuery<{sales:number;orderCount:number;bookingCount:number;orders:HomeOverviewProps["orders"];bookings:HomeOverviewProps["bookings"]}>({
+  const periodReport = useQuery<{
+    sales: number;
+    orderCount: number;
+    bookingCount: number;
+    orders: HomeOverviewProps["orders"];
+    bookings: HomeOverviewProps["bookings"];
+  }>({
     queryKey: ["workspace", "home-period", rid, range.start, range.end],
-    enabled: Boolean(rid), staleTime: 20_000, refetchInterval: 30_000,
+    enabled: Boolean(rid),
+    staleTime: 20_000,
+    refetchInterval: 30_000,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("home_period_overview", { _restaurant_id: rid, _start: range.start, _end: range.end });
+      const { data, error } = await (supabase as any).rpc("home_period_overview", {
+        _restaurant_id: rid,
+        _start: range.start,
+        _end: range.end,
+      });
       if (error) throw error;
       return data;
     },
@@ -133,7 +145,7 @@ function DashboardPage() {
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event: "*",
           schema: "public",
           table: "restaurant_tables",
           filter: `restaurant_id=eq.${rid}`,
@@ -145,7 +157,6 @@ function DashboardPage() {
       void supabase.removeChannel(channel);
     };
   }, [qc, rid]);
-
 
   const detailMetric =
     typeof window === "undefined"

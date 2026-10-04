@@ -453,7 +453,7 @@ function OrderDetail({ order, currency }: { order: any; currency: string }) {
       </div>
 
       <div className="qs-scroll-region min-h-0 flex-1 space-y-3 p-3 sm:p-4">
-        <section className="grid grid-cols-3 divide-x divide-border overflow-hidden rounded-xl border border-border bg-card rtl:divide-x-reverse">
+        <section className="grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-4 sm:divide-y-0 rtl:divide-x-reverse">
           <Meta
             icon={<UtensilsCrossed className="size-3.5" />}
             label={ar ? "الخدمة" : "Service"}
@@ -474,6 +474,11 @@ function OrderDetail({ order, currency }: { order: any; currency: string }) {
             icon={<FileText className="size-3.5" />}
             label={ar ? "العناصر" : "Items"}
             value={String(items.data?.length ?? 0) + " " + (ar ? "عنصر" : "items")}
+          />
+          <Meta
+            icon={<ShoppingBag className="size-3.5" />}
+            label={ar ? "نوع الخدمة" : "Service type"}
+            value={order.table_id ? (ar ? "داخل المطعم" : "Dine-in") : ar ? "استلام" : "Takeaway"}
           />
         </section>
 
