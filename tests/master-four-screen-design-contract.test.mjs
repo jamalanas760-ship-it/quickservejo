@@ -65,7 +65,8 @@ test("workspace and menu visual assets are restaurant-customizable", async () =>
   assert.doesNotMatch(appearanceModel,/pdfMenuCardIcon/);
   assert.match(settings,/Customize images & icons/);
   assert.match(settings,/Panel image/);
-  assert.match(settings,/Panel icon/);
+  assert.doesNotMatch(settings,/Panel icon/);
+  assert.match(settings,/form.logo_url/);
   assert.doesNotMatch(settings,/Card icon/);
   assert.match(settings,/icon is fixed by QuickServe/);
   assert.match(menu,/appearance\.standardMenuCardImage/);
@@ -73,7 +74,8 @@ test("workspace and menu visual assets are restaurant-customizable", async () =>
   assert.doesNotMatch(menu,/appearance\.pdfMenuCardIcon/);
   assert.match(menu,/BookOpenText/);
   assert.match(nav,/appearance\.workspaceToolsImage/);
-  assert.match(nav,/appearance\.workspaceToolsIcon/);
+  assert.doesNotMatch(nav,/appearance\.workspaceToolsIcon/);
+  assert.match(nav,/restaurant\?\.logo_url/);
 });
 
 test("organization color studio and navigation loader use the friendly master experience", async () => {

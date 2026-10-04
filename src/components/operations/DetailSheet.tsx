@@ -36,7 +36,7 @@ export function DetailSheet({
       <SheetContent
         side={isMobile ? "bottom" : "right"}
         className={cn(
-          "flex flex-col gap-0 overflow-hidden p-0",
+          "qs-detail-sheet flex flex-col gap-0 overflow-hidden p-0",
           isMobile ? "h-[92dvh] rounded-t-3xl" : "w-full sm:max-w-[520px]",
           panelClassName,
         )}
@@ -45,8 +45,8 @@ export function DetailSheet({
           <SheetTitle className="pe-9 text-lg font-bold leading-6">{title}</SheetTitle>
           {description ? <SheetDescription className="text-xs leading-5">{description}</SheetDescription> : null}
         </SheetHeader>
-        <div className={cn("qs-scroll flex-1 overflow-y-auto px-4 py-3", bodyClassName)}>{children}</div>
-        {footer ? <div className={cn("border-t border-border bg-card p-3 shadow-[0_-8px_24px_rgb(0_0_0/0.04)]", footerClassName)}>{footer}</div> : null}
+        <div className={cn("qs-detail-body qs-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-3", bodyClassName)}>{children}</div>
+        {footer ? <div className={cn("qs-detail-footer border-t border-border bg-card p-3 shadow-[0_-8px_24px_rgb(0_0_0/0.04)]", footerClassName)}>{footer}</div> : null}
       </SheetContent>
     </Sheet>
   );

@@ -19,3 +19,10 @@ test('notification links use the proper restaurant route and day grouping uses l
   assert.equal(notificationDayKey(base.created_at,'UTC'),'2026-10-01');
   assert.equal(notificationDayKey('bad','Asia/Amman'),'');
 });
+
+test('record notifications preserve the specific work, booking and waitlist target', () => {
+  assert.equal(notificationHref({...base,source_type:'work_task',source_id:'task/1'}),'/work?record=task%2F1');
+  assert.equal(notificationHref({...base,source_type:'booking',source_id:'b1'}),'/bookings?record=b1');
+  assert.equal(notificationHref({...base,source_type:'order',source_id:'o1'}),'/manage/r/orders?record=o1');
+  assert.equal(notificationHref({...base,source_type:'waitlist',source_id:'w1'}),'/waitlist?record=w1');
+});

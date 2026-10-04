@@ -558,7 +558,7 @@ export function BottomNav() {
                 <p>{lang === "ar" ? "أدر الطلبات والقائمة والفريق والتحليلات والمزيد من مساحة عمل واحدة." : "Manage orders, menu, team, analytics and more from a single workspace."}</p>
               </div>
               <div className="qs-workspace-tools-spotlight-brand">
-                {(appearance.workspaceToolsIcon ?? restaurant?.logo_url) ? <img src={appearance.workspaceToolsIcon ?? restaurant?.logo_url ?? ""} alt="" /> : <BrandLogo className="size-8" accentClassName="text-[#ff6a1a]" textClassName="text-xl text-white" />}
+                {(restaurant?.logo_url) ? <img src={restaurant?.logo_url ?? ""} alt="" /> : <BrandLogo className="size-8" accentClassName="text-[#ff6a1a]" textClassName="text-xl text-white" />}
                 <span>{restaurant?.name ?? "QuickServe"}</span>
               </div>
             </aside>

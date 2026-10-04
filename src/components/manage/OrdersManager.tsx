@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronRight,
@@ -61,7 +61,7 @@ function useDesktopOrderLayout() {
   return useSyncExternalStore(subscribeDesktopOrderLayout, getDesktopOrderLayout, () => false);
 }
 
-export function OrdersManager({ restaurantId }: { restaurantId: string }) {
+export function OrdersManager({ restaurantId, recordId }: { restaurantId: string; recordId?: string | undefined }) {
   const { lang } = useI18n();
   const ar = lang === "ar";
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("all");
@@ -84,6 +84,8 @@ export function OrdersManager({ restaurantId }: { restaurantId: string }) {
     setSelectedId(orderId);
     viewed.mutate(orderId);
   }
+
+  useEffect(()=>{if(recordId){setTab("all");setSearch("");setSelectedId(recordId);}},[recordId]);
 
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase();

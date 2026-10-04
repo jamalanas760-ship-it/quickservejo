@@ -2,7 +2,7 @@ import type { FloorElementType } from "@/lib/floor-plan-elements";
 
 /** Architectural plan symbols: scalable artwork, with the same front as the 3D model. */
 export function FloorPlanSymbol({ type }: { type: FloorElementType }) {
-  const plant = type === "plant" || type === "tree";
+  const plant = type === "plant" || type === "tree" || type === "planter";
   return (
     <svg
       className="qs-plan-symbol"
@@ -37,7 +37,7 @@ export function FloorPlanSymbol({ type }: { type: FloorElementType }) {
           <path d="M12 88V12M12 12A76 76 0 0 1 88 88" fill="none" strokeDasharray="4 3" />
           <path d="M12 88V12" stroke="#755c40" strokeWidth="5" />
         </>
-      ) : type === "wall" ? (
+      ) : type === "wall" || type === "partition" ? (
         <>
           <rect x="1" y="1" width="98" height="98" fill="#bcb7ae" />
           {[0, 20, 40, 60, 80].map((x) => (
@@ -54,7 +54,7 @@ export function FloorPlanSymbol({ type }: { type: FloorElementType }) {
           <circle cx="50" cy="50" r="43" fill="#d6ba96" />
           <circle cx="50" cy="50" r="33" fill="#e8d2b2" />
         </>
-      ) : type === "chair" || type === "sofa" ? (
+      ) : type === "chair" || type === "sofa" || type === "bench" ? (
         <>
           <rect x="5" y="8" width="90" height="85" rx="12" fill="#bfae9e" />
           <rect x="15" y="24" width="70" height="62" rx="8" fill="#e6d7c7" />

@@ -32,3 +32,4 @@
 .wl-details{--wl-orange:var(--qs-brand)}
 .wl-sheet>button.absolute{display:none}
 @media(max-width:600px){.wl-studio{padding-bottom:100px!important}.wl-pagination{padding-bottom:12px}.wl-heading{margin-bottom:0}.wl-metrics{padding-block:10px}.wl-metrics strong{margin-top:4px}}
+@media(max-width:600px){.wl-date-filter{width:100%;display:flex;gap:8px;justify-content:flex-start}.wl-date-filter .rs-date-control{flex:1;min-width:0}.wl-date-filter>button{min-height:44px;flex-shrink:0}.wl-heading{flex-wrap:wrap}}

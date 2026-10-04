@@ -389,16 +389,14 @@ function RestaurantProfileSettingsForm({
                           : undefined
                       }
                     >
-                      {brand.workspaceToolsIcon ? (
-                        <img src={brand.workspaceToolsIcon} alt="" />
-                      ) : form.logo_url ? (
+                      {form.logo_url ? (
                         <img src={form.logo_url} alt="" />
                       ) : (
                         <span>Q</span>
                       )}
                     </div>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_150px]">
+                  <div className="grid gap-4">
                     <ImageUploader
                       restaurantId={restaurant.id}
                       kind="cover"
@@ -409,15 +407,7 @@ function RestaurantProfileSettingsForm({
                       }
                       label={ar ? "صورة اللوحة" : "Panel image"}
                     />
-                    <ImageUploader
-                      restaurantId={restaurant.id}
-                      kind="logo"
-                      value={brand.workspaceToolsIcon}
-                      onChange={(value) =>
-                        setBrand((current) => ({ ...current, workspaceToolsIcon: value }))
-                      }
-                      label={ar ? "أيقونة اللوحة" : "Panel icon"}
-                    />
+
                   </div>
                 </section>
 

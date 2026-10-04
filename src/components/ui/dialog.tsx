@@ -42,15 +42,15 @@ const DialogContent = React.forwardRef<
     <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
       ref={ref}
+      data-placement={placement}
       className={cn(
-        "fixed z-50 grid max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg gap-5 overflow-y-auto overscroll-contain rounded-[20px] border border-border bg-card p-5 shadow-[var(--qs-shadow-3)] duration-180 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 sm:w-full sm:p-6",
-        placement === "center" && "left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+        "qs-dialog-content fixed z-50 grid max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg gap-5 overflow-y-auto overscroll-contain rounded-[20px] border border-border bg-card p-5 shadow-[var(--qs-shadow-3)] duration-180 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 sm:w-full sm:p-6",
         className,
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute end-3 top-3 grid size-9 place-items-center rounded-[11px] border border-transparent text-muted-foreground cursor-pointer transition hover:border-border hover:bg-muted hover:text-foreground focus:outline-none disabled:pointer-events-none">
+      <DialogPrimitive.Close className="qs-dialog-close absolute end-3 top-3 z-20 grid size-11 place-items-center rounded-[11px] border border-transparent text-muted-foreground cursor-pointer transition hover:border-border hover:bg-muted hover:text-foreground focus:outline-none disabled:pointer-events-none">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
@@ -60,7 +60,7 @@ const DialogContent = React.forwardRef<
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)} {...props} />
+  <div className={cn("qs-dialog-header flex flex-col space-y-1.5 text-start", className)} {...props} />
 );
 DialogHeader.displayName = "DialogHeader";
 

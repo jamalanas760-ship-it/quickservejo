@@ -42,6 +42,7 @@ import { membershipHasCapability, ROLE_LABELS, type AppRole } from "@/lib/permis
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/work")({
+  validateSearch: (search:Record<string,unknown>): {record?: string} => typeof search.record === "string" ? {record:search.record} : {},
   head: () => ({ meta: [{ title: "My Work — QuickServe" }, { name: "description", content: "Role-aware tasks, approvals and shift handover." }] }),
   component: WorkPage,
 });
@@ -104,7 +105,9 @@ export function WorkPage() {
   const canApprove = Boolean(membership && membershipHasCapability(membership.role, membership.permission_overrides, "approve_work"));
   const [tab, setTab] = useState<Tab>("mine");
   const [createOpen, setCreateOpen] = useState(false);
+  const routeRecord = Route.useSearch().record;
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  useEffect(()=>{if(routeRecord){setSelectedId(routeRecord);}},[routeRecord]);
   const [pendingDelete, setPendingDelete] = useState<WorkTask | null>(null);
   const [editingTask, setEditingTask] = useState<WorkTask | null>(null);
   const [search, setSearch] = useState("");
@@ -368,7 +371,7 @@ export function WorkPage() {
       onOpenChange={(open) => { if (!open) setSelectedId(null); }}
       title={selected?.title ?? ""}
       description={selected ? (ar ? "كل تفاصيل عنصر العمل وإجراءاته في مكان واحد" : "Everything about this work item, organized in one place") : undefined}
-      panelClassName="sm:max-w-[640px]"
+      panelClassName="qs-work-detail sm:max-w-[640px]"
       bodyClassName="bg-muted/15 px-4 py-4 sm:px-5"
       footer={selected ? <div className="grid w-full gap-2 sm:grid-cols-2">{selected.created_by_staff_id === membership.id ? <Button variant="outline" className="gap-2" onClick={() => setEditingTask(selected)}><Pencil className="size-4" />{ar ? "تعديل المهمة" : "Edit work item"}</Button> : <div className="rounded-xl bg-muted/50 px-3 py-2 text-center text-[10px] font-semibold text-muted-foreground">{ar ? "التعديل متاح لمنشئ المهمة فقط" : "Only the creator can edit core details"}</div>}{canDelete ? <Button variant="destructive" className="gap-2" onClick={() => setPendingDelete(selected)}><Trash2 className="size-4" />{ar ? "حذف عنصر العمل" : "Delete work item"}</Button> : null}</div> : undefined}
     >
@@ -498,14 +501,14 @@ function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }:
 }
 
 function WorkDetailSection({ title, icon: Icon, children }: { title: string; icon: typeof ListTodo; children: React.ReactNode }) {
-  return <section className="rounded-2xl border border-border bg-card p-4 shadow-[0_1px_2px_rgb(0_0_0/0.025)]">
+  return <section className="qs-work-section rounded-2xl border border-border bg-card p-4 shadow-[0_1px_2px_rgb(0_0_0/0.025)]">
     <div className="mb-3 flex items-center gap-2.5"><span className="grid size-8 place-items-center rounded-lg bg-orange-500/10 text-[#e85d2a]"><Icon className="size-4" /></span><h3 className="text-sm font-bold">{title}</h3></div>
     {children}
   </section>;
 }
 
 function WorkDetailTile({ label, value }: { label: string; value: React.ReactNode }) {
-  return <div className="min-w-0 rounded-xl bg-muted/45 px-3 py-2.5">
+  return <div className="qs-work-tile min-w-0 rounded-xl bg-muted/45 px-3 py-2.5">
     <p className="text-[9px] font-bold uppercase tracking-[.07em] text-muted-foreground">{label}</p>
     <div className="mt-1 min-w-0 break-words text-xs font-semibold leading-5">{value}</div>
   </div>;
@@ -593,7 +596,7 @@ function CreateTaskDialog({ open, onOpenChange, restaurantId, currentStaffId, cu
     } finally { setSaving(false); }
   }
   const roleAssignments = canManage ? (["operations_manager", "manager", "kitchen", "waiter", "cashier", "host", "inventory", "procurement", "accountant"] as AppRole[]) : [currentRole];
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogTrigger asChild><Button className="min-h-11 rounded-xl"><Plus className="size-4" />{ar ? "عمل جديد" : "New work"}</Button></DialogTrigger><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>{ar ? "إنشاء مهمة تشغيلية" : "Create operational work"}</DialogTitle><DialogDescription>{ar ? "عيّن مهمة أو موافقة أو تسليم وردية للشخص أو الدور المناسب." : "Assign a task, approval or handover to the right person or role."}</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={submit}><Field label={ar ? "العنوان" : "Title"}><Input name="title" required maxLength={160} /></Field><Field label={ar ? "الوصف" : "Description"}><Textarea name="description" rows={3} /></Field><div className="grid gap-3 sm:grid-cols-2"><Field label={ar ? "النوع" : "Type"}><Select name="category" defaultValue="task"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="task">{ar ? "مهمة" : "Task"}</SelectItem><SelectItem value="approval">{ar ? "موافقة" : "Approval"}</SelectItem><SelectItem value="handover">{ar ? "تسليم وردية" : "Handover"}</SelectItem><SelectItem value="alert">{ar ? "تنبيه تشغيلي" : "Operational alert"}</SelectItem></SelectContent></Select></Field><Field label={ar ? "الأولوية" : "Priority"}><Select name="priority" defaultValue="normal"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="low">Low</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="urgent">Urgent</SelectItem></SelectContent></Select></Field></div><Field label={ar ? "التعيين" : "Assign to"}><Select name="assignment" defaultValue={`staff:${currentStaffId}`}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value={`staff:${currentStaffId}`}>{ar ? "أنا" : "Myself"}</SelectItem>{canManage ? staff.filter((row) => row.id !== currentStaffId).map((row) => <SelectItem key={row.id} value={`staff:${row.id}`}>{row.name} · {ROLE_LABELS[row.role]?.[ar ? "ar" : "en"] ?? row.role}</SelectItem>) : null}{roleAssignments.map((role) => <SelectItem key={role} value={`role:${role}`}>{ar ? "كل" : "All"} {ROLE_LABELS[role]?.[ar ? "ar" : "en"] ?? role}</SelectItem>)}</SelectContent></Select></Field><Field label={ar ? "موعد الاستحقاق" : "Due date"}><Input name="due_at" type="datetime-local" /></Field><label className="flex items-center gap-3 rounded-xl border border-border p-3 text-xs font-semibold"><input name="requires_approval" type="checkbox" className="size-4 accent-[#e85d2a]" />{ar ? "تتطلب موافقة الإدارة قبل الإغلاق" : "Require management approval before closing"}</label><div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{ar ? "إلغاء" : "Cancel"}</Button><Button type="submit" disabled={saving}>{saving ? (ar ? "جارٍ الإنشاء…" : "Creating…") : (ar ? "إنشاء" : "Create")}</Button></div></form></DialogContent></Dialog>;
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogTrigger asChild><Button className="min-h-11 rounded-xl"><Plus className="size-4" />{ar ? "عمل جديد" : "New work"}</Button></DialogTrigger><DialogContent className="qs-work-editor max-w-xl" onOpenAutoFocus={event=>event.preventDefault()}><DialogHeader><DialogTitle>{ar ? "إنشاء مهمة تشغيلية" : "Create operational work"}</DialogTitle><DialogDescription>{ar ? "عيّن مهمة أو موافقة أو تسليم وردية للشخص أو الدور المناسب." : "Assign a task, approval or handover to the right person or role."}</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={submit}><Field label={ar ? "العنوان" : "Title"}><Input name="title" required maxLength={160} /></Field><Field label={ar ? "الوصف" : "Description"}><Textarea name="description" rows={3} /></Field><div className="grid gap-3 sm:grid-cols-2"><Field label={ar ? "النوع" : "Type"}><Select name="category" defaultValue="task"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="task">{ar ? "مهمة" : "Task"}</SelectItem><SelectItem value="approval">{ar ? "موافقة" : "Approval"}</SelectItem><SelectItem value="handover">{ar ? "تسليم وردية" : "Handover"}</SelectItem><SelectItem value="alert">{ar ? "تنبيه تشغيلي" : "Operational alert"}</SelectItem></SelectContent></Select></Field><Field label={ar ? "الأولوية" : "Priority"}><Select name="priority" defaultValue="normal"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="low">Low</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="urgent">Urgent</SelectItem></SelectContent></Select></Field></div><Field label={ar ? "التعيين" : "Assign to"}><Select name="assignment" defaultValue={`staff:${currentStaffId}`}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value={`staff:${currentStaffId}`}>{ar ? "أنا" : "Myself"}</SelectItem>{canManage ? staff.filter((row) => row.id !== currentStaffId).map((row) => <SelectItem key={row.id} value={`staff:${row.id}`}>{row.name} · {ROLE_LABELS[row.role]?.[ar ? "ar" : "en"] ?? row.role}</SelectItem>) : null}{roleAssignments.map((role) => <SelectItem key={role} value={`role:${role}`}>{ar ? "كل" : "All"} {ROLE_LABELS[role]?.[ar ? "ar" : "en"] ?? role}</SelectItem>)}</SelectContent></Select></Field><Field label={ar ? "موعد الاستحقاق" : "Due date"}><Input name="due_at" type="datetime-local" /></Field><label className="flex items-center gap-3 rounded-xl border border-border p-3 text-xs font-semibold"><input name="requires_approval" type="checkbox" className="size-4 accent-[#e85d2a]" />{ar ? "تتطلب موافقة الإدارة قبل الإغلاق" : "Require management approval before closing"}</label><div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{ar ? "إلغاء" : "Cancel"}</Button><Button type="submit" disabled={saving}>{saving ? (ar ? "جارٍ الإنشاء…" : "Creating…") : (ar ? "إنشاء" : "Create")}</Button></div></form></DialogContent></Dialog>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="space-y-1.5"><Label>{label}</Label>{children}</label>; }

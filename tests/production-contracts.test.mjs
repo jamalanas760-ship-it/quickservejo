@@ -110,7 +110,7 @@ test("operations navigation and work board retain the polished interaction contr
   assert.match(work, /onMutate: async \(\{ id, status \}\)/);
   assert.match(work, /Release to move the card/);
   assert.match(work, /Approval & source/);
-  assert.match(work, /panelClassName="sm:max-w-\[640px\]"/);
+  assert.match(work, /panelClassName="qs-work-detail sm:max-w-\[640px\]"/);
   assert.match(router, /defaultPendingMs: 1_200/);
   assert.match(router, /defaultPendingMinMs: 0/);
 });

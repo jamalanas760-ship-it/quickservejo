@@ -39,6 +39,7 @@ const icons = {
   sofa: Sofa,
   chair: Armchair,
   stool: Armchair,
+  partition: Fence, reception: RectangleHorizontal, storage: RectangleHorizontal, buffet: CookingPot, bench: Sofa, planter: Flower2,
 };
 export function FloorElementLibrary({
   ar,
@@ -53,12 +54,12 @@ export function FloorElementLibrary({
 }) {
   const [search, setSearch] = useState("");
   const groups = [
-    { title: ar ? "الجدران والمداخل" : "Architecture", types: ["wall", "door", "window"] },
+    { title: ar ? "الجدران والمداخل" : "Architecture", types: ["wall", "door", "window", "partition"] },
     {
       title: ar ? "الأثاث والتجهيزات" : "Furniture & fixtures",
-      types: ["chair", "stool", "sofa", "bar", "counter", "kitchen", "toilet"],
+      types: ["chair", "stool", "sofa", "bar", "counter", "kitchen", "toilet", "reception", "storage", "buffet", "bench"],
     },
-    { title: ar ? "النباتات" : "Plants", types: ["tree", "plant"] },
+    { title: ar ? "النباتات" : "Plants", types: ["tree", "plant", "planter"] },
   ];
   return (
     <div className="qs-element-library-wrap">
@@ -107,13 +108,13 @@ export function FloorElementLibrary({
               {types.map((type) => {
                 return (
                   <button key={type} type="button" disabled={busy} onClick={() => onAdd(type)}>
-                    <img
+                    {["partition","reception","storage","buffet","bench","planter"].includes(type) ? <FloorPlanSymbol type={type}/> : <img
                       src={`/floor-elements/${type}.png`}
                       alt=""
                       loading="lazy"
                       width="144"
                       height="120"
-                    />
+                    />}
                     <span>{FLOOR_ELEMENT_LABELS[type][ar ? 1 : 0]}</span>
                   </button>
                 );

@@ -310,6 +310,7 @@ export function createFurnitureCatalog() {
         return chair();
       case "stool":
         return chair(true);
+      case "partition":
       case "wall":
         return wall();
       case "door":
@@ -318,6 +319,7 @@ export function createFurnitureCatalog() {
         return doorway(true);
       case "tree":
         return plant(true);
+      case "planter":
       case "plant":
         return plant();
       case "toilet":
@@ -326,8 +328,12 @@ export function createFurnitureCatalog() {
         return kitchen();
       case "bar":
         return counter(true);
+      case "reception":
+      case "storage":
+      case "buffet":
       case "counter":
         return counter();
+      case "bench":
       case "sofa":
         return sofa();
     }

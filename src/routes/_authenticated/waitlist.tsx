@@ -1,3 +1,4 @@
+import { ReservationDateControl } from "@/components/reservations/ReservationDateControl";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Search, X, Clock3, RefreshCw, UsersRound } from "lucide-react";
@@ -25,6 +26,7 @@ import { membershipHasCapability } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/waitlist")({
+  validateSearch: (search:Record<string,unknown>): {record?: string} => typeof search.record === "string" ? {record:search.record} : {},
   head: () => ({
     meta: [
       { title: "Reservation Waitlist — QuickServe" },
@@ -82,8 +84,10 @@ function WaitlistPage(){
   )));
   const [search,setSearch]=useState("");
   const [filter,setFilter]=useState<WaitlistFilter>("active");
+  const routeRecord = Route.useSearch().record;
   const [selectedId,setSelectedId]=useState<string|null>(null);
   const [sheetOpen,setSheetOpen]=useState(false);
+  useEffect(()=>{if(routeRecord){setSelectedId(routeRecord);setSheetOpen(true);setDateFilter("");}},[routeRecord]);
   const [cancelTarget,setCancelTarget]=useState<WaitlistRow|null>(null);
   const [dateFilter,setDateFilter]=useState("");
   const [pageIndex,setPageIndex]=useState(0);
@@ -204,7 +208,7 @@ function WaitlistPage(){
   const maxPage=Math.max(0,Math.ceil(rows.length/pageSize)-1);
   const currentPage=Math.min(pageIndex,maxPage);
   const visible=rows.slice(currentPage*pageSize,currentPage*pageSize+pageSize);
-  const selected=rows.find(row=>row.id===selectedId)??visible[0]??null;
+  const selected=all.find(row=>row.id===selectedId)??visible[0]??null;
   const busy=offer.isPending||convert.isPending||transition.isPending;
   function openGuest(row:WaitlistRow){setSelectedId(row.id);if(window.matchMedia("(max-width: 1000px)").matches)setSheetOpen(true);}
   function visitLabel(row:WaitlistRow){const date=row.desired_date===today?(ar?"اليوم":"Today"):row.desired_date===addReservationDays(today,1)?(ar?"غداً":"Tomorrow"):new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{month:"short",day:"numeric",timeZone:"UTC"}).format(new Date(row.desired_date+"T12:00:00Z"));return date+(row.preferred_time?" · "+timeLabel(row.preferred_time,ar):"");}
@@ -213,7 +217,7 @@ function WaitlistPage(){
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}/>
     <main className="qs-page qs-compact-page wl-studio">
-      <header className="wl-heading"><div><h1><span className="wl-title-full">{ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}</span><span className="wl-title-short">{ar?"قائمة الانتظار":"Waitlist"}</span></h1><p>{ar?"قائمة واضحة. وترحيب مدروس.":"A clear queue. A thoughtful welcome."}</p></div><div className="wl-date-filter"><Input aria-label={ar?"تصفية حسب تاريخ الزيارة":"Filter requested date"} type="date" value={dateFilter} onChange={e=>{setDateFilter(e.target.value);setPageIndex(0);}}/><Button variant="outline" aria-pressed={!dateFilter} onClick={()=>{setDateFilter("");setPageIndex(0);}}>{ar?"كل التواريخ":"All dates"}</Button></div></header>
+      <header className="wl-heading"><div><h1><span className="wl-title-full">{ar?"قائمة انتظار الحجوزات":"Reservation Waitlist"}</span><span className="wl-title-short">{ar?"قائمة الانتظار":"Waitlist"}</span></h1><p>{ar?"قائمة واضحة. وترحيب مدروس.":"A clear queue. A thoughtful welcome."}</p></div><div className="wl-date-filter"><ReservationDateControl value={dateFilter} onChange={setDateFilter} ar={ar}/><Button variant="outline" aria-pressed={!dateFilter} onClick={()=>{setDateFilter("");setPageIndex(0);}}>{ar?"كل التواريخ":"All dates"}</Button></div></header>
       <nav className="wl-tabs" aria-label={ar?"الحجوزات وقائمة الانتظار":"Reservations and waitlist"}><Link to="/bookings">{ar?"الحجوزات":"Reservations"}</Link><Link to="/waitlist" aria-current="page">{ar?"قائمة الانتظار":"Waitlist"}</Link></nav>
       <section className="wl-metrics" aria-label={ar?"ملخص قائمة الانتظار":"Waitlist summary"}>{[[ar?"طلبات نشطة":"Active requests",active.length,"active"],[ar?"انتظار":"Waiting",waiting.length,"waiting"],[ar?"تم التواصل":"Notified",notified.length,"notified"]].map(([label,count,tone])=><div key={String(tone)}><span className={`wl-dot wl-dot-${tone}`}/><div><p>{label}</p><strong>{query.isPending?"—":count}</strong></div></div>)}</section>
       <div className="wl-workspace">

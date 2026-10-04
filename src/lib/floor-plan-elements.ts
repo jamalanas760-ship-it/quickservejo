@@ -11,6 +11,7 @@ export const FLOOR_ELEMENT_TYPES = [
   "sofa",
   "chair",
   "stool",
+  "partition", "reception", "storage", "buffet", "bench", "planter",
 ] as const;
 export type FloorElementType = (typeof FLOOR_ELEMENT_TYPES)[number];
 export type FloorElement = {
@@ -36,6 +37,7 @@ export const FLOOR_ELEMENT_LABELS: Record<FloorElementType, [string, string]> = 
   sofa: ["Sofa", "أريكة"],
   chair: ["Chair", "كرسي"],
   stool: ["Bar stool", "كرسي بار"],
+  partition: ["Partition", "فاصل"], reception: ["Reception desk", "مكتب استقبال"], storage: ["Storage cabinet", "خزانة تخزين"], buffet: ["Buffet station", "بوفيه"], bench: ["Bench", "مقعد طويل"], planter: ["Planter", "حوض نباتات"],
 };
 const bound = (value: unknown, fallback: number, min: number, max: number) => {
   const numeric = typeof value === "number" ? value : Number(value);
@@ -106,6 +108,7 @@ export function createFloorElement(type: FloorElementType, ar = false): FloorEle
     sofa: [15, 8],
     chair: [5, 6],
     stool: [4, 5],
+    partition: [18, 2], reception: [16, 8], storage: [10, 6], buffet: [24, 8], bench: [16, 5], planter: [12, 5],
   };
   return {
     id: crypto.randomUUID(),

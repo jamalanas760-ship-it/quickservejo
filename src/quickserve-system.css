@@ -103,7 +103,7 @@
     --ring: oklch(.78 .145 75);
   }
 
-  .tenant-theme-scope {
+  :is(.tenant-theme-scope,.tenant-portal-theme) {
     --background: var(--restaurant-light-bg) !important;
     --primary: var(--restaurant-light-primary) !important;
     --accent: var(--restaurant-light-accent) !important;
@@ -116,7 +116,7 @@
     transition: background-color .18s ease, color .18s ease;
   }
 
-  .dark .tenant-theme-scope {
+  :is(.dark .tenant-theme-scope,.dark.tenant-portal-theme) {
     --background: var(--restaurant-dark-bg) !important;
     --primary: var(--restaurant-dark-primary) !important;
     --accent: var(--restaurant-dark-accent) !important;
@@ -951,7 +951,7 @@
 
 /* Comprehensive workspace theming + sidebar customization — 2026-09-28 */
 /* Quick Styles now drive the complete restaurant shell instead of only a few tokens. */
-.tenant-theme-scope{
+:is(.tenant-theme-scope,.tenant-portal-theme){
   --qs-brand:var(--restaurant-light-primary);
   --qs-brand-strong:color-mix(in srgb,var(--restaurant-light-primary) 80%,#111 20%);
   --qs-brand-soft:color-mix(in srgb,var(--restaurant-light-primary) 11%,var(--restaurant-light-bg) 89%);
@@ -964,7 +964,7 @@
   --qs-stroke-strong:color-mix(in srgb,var(--restaurant-light-primary) 12%,#d2d6db 88%);
   --ring:var(--restaurant-light-primary);
 }
-.dark .tenant-theme-scope{
+:is(.dark .tenant-theme-scope,.dark.tenant-portal-theme){
   --qs-brand:var(--restaurant-dark-primary);
   --qs-brand-strong:color-mix(in srgb,var(--restaurant-dark-primary) 82%,#fff 18%);
   --qs-brand-soft:color-mix(in srgb,var(--restaurant-dark-primary) 16%,var(--restaurant-dark-bg) 84%);
@@ -5079,4 +5079,52 @@ html.qs-theme-view-transition *{
  .bo-record .bo-record-header h2{overflow-wrap:anywhere}
  .bo-record .bo-record-body{overscroll-behavior:contain;padding-left:max(18px,env(safe-area-inset-left));padding-right:max(18px,env(safe-area-inset-right))}
  .qs-sheet-content :is(input,textarea,select,[role="combobox"]){font-size:16px}
+}
+
+/* Touch panels have one bounded viewport and reserve space for device chrome. */
+.qs-dialog-header{padding-inline-end:52px;flex-shrink:0;min-width:0}
+.qs-dialog-header h2{overflow-wrap:anywhere}
+.qs-dialog-close{min-width:44px;min-height:44px;touch-action:manipulation;background:var(--qs-surface);color:var(--qs-ink)}
+.qs-dialog-content :is(input,textarea,select){min-width:0;max-width:100%;box-sizing:border-box}
+.qs-dialog-content input:is([type=date],[type=time],[type=datetime-local]){display:block;width:100%;min-width:0;appearance:none}
+.qs-detail-sheet .qs-sheet-header{padding-inline-end:68px}
+.qs-detail-body{min-width:0}
+.qs-work-detail .qs-work-section{border:0;border-bottom:1px solid var(--qs-stroke);border-radius:0;padding:16px 0;box-shadow:none;background:transparent}
+.qs-work-section>.grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.qs-work-tile{border-radius:10px!important;padding:12px!important}
+@layer components{
+ @media(max-width:767px),(max-height:500px){
+  .qs-dialog-content[data-placement=center]{top:calc(env(safe-area-inset-top) + 12px)!important;left:12px!important;right:12px!important;bottom:calc(env(safe-area-inset-bottom) + 12px);width:auto!important;max-width:none!important;max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)!important;transform:none!important;translate:none!important;height:fit-content;overflow-x:hidden}
+  .qs-booking-create-dialog,.ps-advanced-dialog{height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)!important;display:flex!important;flex-direction:column;overflow:hidden!important}
+  .qs-booking-create-dialog .rs-form-heading,.ps-advanced-dialog>.qs-dialog-header{padding:20px 68px 18px 20px!important;text-align:start}
+  [dir=rtl].qs-booking-create-dialog .rs-form-heading,[dir=rtl].ps-advanced-dialog>.qs-dialog-header{padding:20px 20px 18px 68px!important}
+  .qs-dialog-close{top:12px!important;inset-inline-end:12px!important}
+  .qs-booking-create-form{flex:1;min-height:0;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+  .qs-booking-create-scroll-body,.ps-advanced-body{flex:1;min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+  .qs-booking-create-dialog .rs-visit-grid{grid-template-columns:minmax(0,1fr)}
+  .qs-booking-create-dialog .rs-time-slots{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .qs-booking-create-footer{flex-shrink:0;position:static!important}
+  .qs-work-editor{gap:16px!important;padding:20px!important}
+  .qs-work-editor :is(input,textarea){font-size:16px}
+  .qs-detail-sheet[data-side=bottom]{padding:0!important;height:calc(100dvh - env(safe-area-inset-top) - 12px)!important;max-height:calc(100dvh - env(safe-area-inset-top) - 12px)!important}
+  .qs-detail-sheet>.qs-sheet-header{padding:18px 68px 16px 20px!important}
+  .qs-detail-sheet>.qs-sheet-close{top:12px!important}
+  .qs-detail-footer{padding-bottom:max(12px,env(safe-area-inset-bottom))!important}
+ }
+}
+
+.tenant-portal-theme{--card:var(--qs-surface);--popover:var(--qs-surface);--foreground:var(--qs-ink);--card-foreground:var(--qs-ink);--popover-foreground:var(--qs-ink);--muted:var(--qs-surface-soft);--muted-foreground:var(--qs-muted);--border:var(--qs-stroke);--input:var(--qs-stroke)}
+.tenant-portal-theme :is([class*="text-[#e85d2a]"],[class*="text-[#ff5a0a]"]){color:var(--qs-brand)!important}
+.tenant-portal-theme :is([class*="bg-[#e85d2a]"],[class*="bg-[#ff5a0a]"]){background-color:var(--qs-brand)!important}
+.tenant-portal-theme :is(input,textarea,[role=combobox]):focus-visible{border-color:var(--qs-brand);--tw-ring-color:var(--qs-brand-soft)}
+.qs-element-library>button>.qs-plan-symbol{width:100%;height:100px;padding:16px;object-fit:contain}
+
+@media(min-width:768px) and (min-height:501px){.qs-dialog-content[data-placement=center]{left:50%;top:50%;transform:translate(-50%,-50%)}}
+@layer components{@media(max-width:1023px){.qs-detail-sheet[data-side=right]>.qs-sheet-close{top:calc(12px + env(safe-area-inset-top))!important}}}
+.tenant-portal-theme .ps-page{--ps-accent:var(--qs-brand);--ps-surface:var(--qs-surface);--ps-muted:var(--qs-muted);--ps-border:var(--qs-stroke);color:var(--qs-ink)}
+@media(max-width:767px),(max-height:500px){
+ .qs-booking-create-dialog :is(input,textarea,[role=combobox]){font-size:16px!important;min-height:44px!important}
+ .qs-booking-create-dialog .rs-time-slots{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .qs-booking-create-dialog .rs-time-slots button{min-height:44px;font-size:14px}
+ .qs-booking-create-dialog .rs-form-footer button{min-height:44px!important;font-size:14px}
 }

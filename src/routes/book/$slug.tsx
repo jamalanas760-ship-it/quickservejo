@@ -1,7 +1,8 @@
+import { GuestCountPicker } from "@/components/reservations/GuestCountPicker";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, CalendarCheck2, CalendarDays, Clock3, UsersRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { PublicReservationShell } from "@/components/reservations/PublicReservationShell";
@@ -75,13 +76,16 @@ function PublicBookingPage(){
 
   const slots=useQuery<Slot[]>({
     queryKey:["public-booking-slots",slug,effectiveDate,effectiveGuests],
+    staleTime: 0, refetchInterval: 30_000, refetchOnWindowFocus: true,
     enabled:Boolean(settings?.online_enabled&&effectiveDate&&effectiveGuests),
     queryFn:async()=>{
       const {data,error}=await (supabase as any).rpc("get_public_booking_slots",{_slug:slug,_booking_date:effectiveDate,_guest_count:effectiveGuests});
       if(error)throw error;
-      return (data??[]) as Slot[];
+      return ((data??[]) as Slot[]).filter(row=>row.available_tables>0&&Date.parse(row.slot_at)>Date.now());
     },
   });
+
+  useEffect(()=>{if(slots.isSuccess && slot && !slots.data.some(row=>row.slot_at===slot)){setSlot("");setStep("visit");}},[slots.data,slots.isSuccess,slot]);
 
   const create=useMutation({
     mutationFn:async()=>{
@@ -163,9 +167,9 @@ function PublicBookingPage(){
   function submit(event:React.FormEvent<HTMLFormElement>){event.preventDefault();if(soldOut)joinWaitlist.mutate();else if(visitReady)create.mutate();}
   return <PublicReservationShell logoUrl={restaurant.logo_url} coverUrl={restaurant.cover_image_url} brandName={restaurant.name} title={ar?"احجز طاولتك":"Reserve your table"} description={ar?"اختر موعد زيارتك ثم أضف بياناتك.":"Choose your visit, then add your details."}>
     {step==="visit"?<div className="rs-public-visit">
-      <Field label={ar?"الضيوف":"Guests"}><div className="rs-choice-rail">{[2,3,4,5,6].filter(value=>value>=settings.min_party_size&&value<=settings.max_party_size).map(value=><button key={value} type="button" aria-pressed={effectiveGuests===value} onClick={()=>{setGuests(value);setSlot("");}}>{value}</button>)}<Input aria-label={ar?"عدد آخر للضيوف":"Custom guest count"} type="number" min={settings.min_party_size} max={settings.max_party_size} value={effectiveGuests} onChange={e=>{setGuests(Number(e.target.value)||settings.min_party_size);setSlot("");}}/></div></Field>
+      <Field label={ar?"الضيوف":"Guests"}><GuestCountPicker ar={ar} value={effectiveGuests} min={settings.min_party_size} max={settings.max_party_size} onChange={value=>{setGuests(value);setSlot("");}}/></Field>
       <Field label={ar?"اختر التاريخ":"Select a date"}><div className="rs-public-dates"><Button variant="ghost" size="icon" disabled={effectiveDate<=todayInZone(restaurant.timezone)} aria-label={ar?"اليوم السابق":"Previous day"} onClick={()=>{setDate(addReservationDays(effectiveDate,-1));setSlot("");}}><ChevronLeft className="size-4"/></Button>{dates.map(value=><button key={value} type="button" aria-pressed={effectiveDate===value} onClick={()=>{setDate(value);setSlot("");}}><small>{new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{weekday:"short",timeZone:"UTC"}).format(new Date(value+"T12:00:00Z"))}</small><strong>{new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{month:ar?"2-digit":"short",day:"2-digit",timeZone:"UTC"}).format(new Date(value+"T12:00:00Z"))}</strong></button>)}<Button variant="ghost" size="icon" disabled={effectiveDate>=maxDate} aria-label={ar?"أيام تالية":"Next dates"} onClick={()=>{setDate(addReservationDays(effectiveDate,Math.min(3,Math.max(1,Math.round((Date.parse(maxDate)-Date.parse(effectiveDate))/86400000)))));setSlot("");}}><ChevronRight className="size-4"/></Button></div><Input aria-label={ar?"تاريخ آخر":"Choose another date"} className="mt-2" type="date" min={todayInZone(restaurant.timezone)} max={maxDate} value={effectiveDate} onChange={e=>{if(e.target.value){setDate(e.target.value);setSlot("");}}}/></Field>
-      <Field label={ar?"الأوقات المتاحة":"Available times"}>{slots.isPending||slots.isFetching?<Skeleton className="h-24 rounded-xl"/>:slots.isError?<div role="alert" className="rs-public-error"><p>{humanError(slots.error,lang)}</p><Button variant="outline" onClick={()=>void slots.refetch()}>{ar?"إعادة المحاولة":"Try again"}</Button></div>:soldOut?<div className="rs-public-no-slots"><strong>{ar?"لا توجد طاولة متاحة":"No table available"}</strong><p>{ar?"اختر يوماً آخر أو انضم لقائمة الانتظار.":"Choose another date or join the waitlist."}</p></div>:<div className="rs-time-slots rs-public-times">{(slots.data??[]).map(row=><button key={row.slot_at} type="button" aria-pressed={slot===row.slot_at} onClick={()=>setSlot(row.slot_at)}>{new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{hour:"numeric",minute:"2-digit",timeZone:restaurant.timezone}).format(new Date(row.slot_at))}</button>)}</div>}</Field>
+      <Field label={ar?"الأوقات المتاحة":"Available times"}><p className="rs-availability-note" role="status">{ar?"التوفر مباشر حسب عدد الضيوف والتاريخ. الأوقات غير المتاحة لا تظهر.":"Live availability for your party and date. Fully booked times are hidden."}</p>{slots.isPending||slots.isFetching?<Skeleton className="h-24 rounded-xl"/>:slots.isError?<div role="alert" className="rs-public-error"><p>{humanError(slots.error,lang)}</p><Button variant="outline" onClick={()=>void slots.refetch()}>{ar?"إعادة المحاولة":"Try again"}</Button></div>:soldOut?<div className="rs-public-no-slots"><strong>{ar?"لا توجد طاولة متاحة":"No table available"}</strong><p>{ar?"اختر يوماً آخر أو انضم لقائمة الانتظار.":"Choose another date or join the waitlist."}</p></div>:<div className="rs-time-slots rs-public-times">{(slots.data??[]).map(row=><button key={row.slot_at} type="button" aria-pressed={slot===row.slot_at} onClick={()=>setSlot(row.slot_at)}>{new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{hour:"numeric",minute:"2-digit",timeZone:restaurant.timezone}).format(new Date(row.slot_at))}</button>)}</div>}</Field>
       <Button className="rs-public-continue" disabled={!visitReady&&!soldOut} onClick={()=>setStep("details")}>{soldOut?(ar?"الانضمام لقائمة الانتظار":"Join waitlist"):(ar?"متابعة":"Continue")}<ChevronRight className="size-4"/></Button>
     </div>:<form onSubmit={submit} className="rs-public-details">
       <Button variant="ghost" type="button" onClick={()=>setStep("visit")}><ChevronLeft className="size-4"/>{ar?"تغيير الموعد":"Change visit"}</Button>

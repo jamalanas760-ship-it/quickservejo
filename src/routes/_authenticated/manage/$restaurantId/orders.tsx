@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { OrdersManager } from "@/components/manage/OrdersManager";
 
 export const Route = createFileRoute("/_authenticated/manage/$restaurantId/orders")({
+  validateSearch:(search:Record<string,unknown>):{record?:string}=>typeof search.record === "string" ? {record:search.record} : {},
   head: () => ({
     meta: [
       { title: "Orders — QuickServe" },
@@ -16,5 +17,5 @@ export const Route = createFileRoute("/_authenticated/manage/$restaurantId/order
 
 function Page() {
   const { restaurantId } = Route.useParams();
-  return <OrdersManager restaurantId={restaurantId} />;
+  return <OrdersManager restaurantId={restaurantId} recordId={Route.useSearch().record} />;
 }

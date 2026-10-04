@@ -45,12 +45,14 @@ export function filterNotifications(
   });
 }
 export function notificationHref(
-  row: Pick<NotificationRow, "kind" | "source_type" | "restaurant_id">,
+  row: Pick<NotificationRow, "kind" | "source_type" | "restaurant_id"> & {source_id?: string | null},
 ): string {
   const source = row.source_type?.toLowerCase() ?? "";
+  const record = row.source_id ? `?record=${encodeURIComponent(row.source_id)}` : "";
+  if (source === "work_task") return "/work" + record;
   if (["booking", "reservation", "waitlist"].some((key) => source.includes(key)))
-    return source.includes("waitlist") ? "/waitlist" : "/bookings";
-  if (source.includes("order")) return `/manage/${encodeURIComponent(row.restaurant_id)}/orders`;
+    return (source.includes("waitlist") ? "/waitlist" : "/bookings") + record;
+  if (source.includes("order")) return `/manage/${encodeURIComponent(row.restaurant_id)}/orders` + record;
   if (
     ["finance", "invoice", "expense", "procurement", "inventory"].some((key) =>
       source.includes(key),

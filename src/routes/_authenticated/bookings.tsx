@@ -1,3 +1,5 @@
+import { publicGuestUrl } from "@/lib/public-url";
+import { GuestCountPicker } from "@/components/reservations/GuestCountPicker";
 import { RequestTimePicker } from "@/components/workforce/RequestPickers";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -33,11 +35,11 @@ import { useI18n } from "@/lib/i18n";
 import { membershipHasCapability } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
-type BookingRouteSearch={create?:boolean};
+type BookingRouteSearch={create?:boolean;record?:string};
 export const Route = createFileRoute("/_authenticated/bookings")({
   validateSearch:(search:Record<string,unknown>):BookingRouteSearch=>{
     const create=search.create===true||search.create==="1"||search.create==="true";
-    return create?{create:true}:{};
+    return {...(create?{create:true}:{}),...(typeof search.record==="string"?{record:search.record}:{})};
   },
   head: () => ({ meta: [{ title: "Reservations — QuickServe" }, { name: "description", content: "Live table availability, reservations and guest seating." }] }),
   component: BookingsPage,
@@ -108,6 +110,12 @@ function BookingsPage(){
       return (data??[]).map((row:any)=>({...row,deposit_amount:Number(row.deposit_amount??0)})) as Booking[];
     },
   });
+
+  const linkedBooking=useQuery<Booking|null>({
+    queryKey:["bookings","notification",rid,routeSearch.record], enabled:Boolean(rid&&canManage&&routeSearch.record),
+    queryFn:async()=>{const {data,error}=await (supabase as any).from("table_bookings").select("*").eq("restaurant_id",rid).eq("id",routeSearch.record).maybeSingle();if(error)throw error;return data;}
+  });
+  useEffect(()=>{if(linkedBooking.data){setSelectedDay(reservationDay(linkedBooking.data.booking_at,timezone));setSelectedId(linkedBooking.data.id);}},[linkedBooking.data,timezone]);
 
   const tables=useQuery<FloorTable[]>({
     queryKey:["bookings","tables",rid],
@@ -236,7 +244,7 @@ function BookingsPage(){
           </aside>:null}
         </div>
       </>:null}
-      {view==="public"?<section className="rs-public-workspace"><div className="rs-public-copy"><Globe2 className="size-6"/><h2>{ar?"صفحة الحجز العامة":"Public Booking Page"}</h2><p>{ar?"رابط واحد يتيح للضيف اختيار الوقت وإرسال الحجز.":"One link for guests to choose their visit and reserve a table."}</p><span className={`rs-status rs-status-${settings.data?.online_enabled?"confirmed":"pending"}`}>{settings.data?.online_enabled?(ar?"تستقبل الحجوزات":"Accepting bookings"):(ar?"الحجز متوقف":"Bookings paused")}</span>{publicUrl?<><Input aria-label={ar?"رابط الحجز العام":"Public booking link"} readOnly value={typeof window!=="undefined"?window.location.origin+publicUrl:publicUrl}/><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>void navigator.clipboard.writeText(window.location.origin+publicUrl).then(()=>toast.success(ar?"تم نسخ الرابط":"Link copied")).catch(()=>toast.error(ar?"تعذر نسخ الرابط":"Could not copy link"))}><Copy className="size-4"/>{ar?"نسخ الرابط":"Copy link"}</Button><Button asChild><a href={publicUrl} target="_blank" rel="noreferrer"><ExternalLink className="size-4"/>{ar?"فتح الصفحة":"Open page"}</a></Button></div></>:null}{canConfigure?<Button variant="ghost" onClick={()=>setView("settings")}><Settings2 className="size-4"/>{ar?"إعدادات الحجز":"Booking Settings"}</Button>:null}</div>{publicUrl?<iframe title={ar?"معاينة صفحة الحجز":"Public booking page preview"} src={publicUrl} className="rs-public-preview"/>:<p>{ar?"رابط المطعم غير متاح":"Restaurant link unavailable"}</p>}</section>:null}
+      {view==="public"?<section className="rs-public-workspace"><div className="rs-public-copy"><Globe2 className="size-6"/><h2>{ar?"صفحة الحجز العامة":"Public Booking Page"}</h2><p>{ar?"رابط واحد يتيح للضيف اختيار الوقت وإرسال الحجز.":"One link for guests to choose their visit and reserve a table."}</p><span className={`rs-status rs-status-${settings.data?.online_enabled?"confirmed":"pending"}`}>{settings.data?.online_enabled?(ar?"تستقبل الحجوزات":"Accepting bookings"):(ar?"الحجز متوقف":"Bookings paused")}</span>{publicUrl?<><Input aria-label={ar?"رابط الحجز العام":"Public booking link"} readOnly value={typeof window!=="undefined"?publicGuestUrl(publicUrl):publicUrl}/><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>void navigator.clipboard.writeText(publicGuestUrl(publicUrl)).then(()=>toast.success(ar?"تم نسخ الرابط":"Link copied")).catch(()=>toast.error(ar?"تعذر نسخ الرابط":"Could not copy link"))}><Copy className="size-4"/>{ar?"نسخ الرابط":"Copy link"}</Button><Button asChild><a href={publicGuestUrl(publicUrl)} target="_blank" rel="noreferrer"><ExternalLink className="size-4"/>{ar?"فتح الصفحة":"Open page"}</a></Button></div></>:null}{canConfigure?<Button variant="ghost" onClick={()=>setView("settings")}><Settings2 className="size-4"/>{ar?"إعدادات الحجز":"Booking Settings"}</Button>:null}</div>{publicUrl?<iframe title={ar?"معاينة صفحة الحجز":"Public booking page preview"} src={publicUrl} className="rs-public-preview"/>:<p>{ar?"رابط المطعم غير متاح":"Restaurant link unavailable"}</p>}</section>:null}
       {view==="settings"&&canConfigure?<BookingSettingsDialog open onOpenChange={()=>setView("schedule")} restaurantId={rid} settings={settings.data} ar={ar} lang={lang} inline/>:null}
       {view==="messages"?<section className="rs-messages-workspace"><div className="rs-message-list"><h2>{ar?"الرسائل":"Messages"}<small>{day}</small></h2>{all.filter(row=>row.phone).map(booking=><button key={booking.id} type="button" aria-pressed={messageBooking?.id===booking.id} onClick={()=>{setSelectedId(booking.id);setMessageTarget(null);}}><span className="qs-reservation-avatar">{booking.customer_name.slice(0,1)}</span><span><strong>{booking.customer_name}</strong><small>{bookingTimeLabel(booking.booking_at,timezone,ar)} · {booking.guest_count} {ar?"ضيوف":"guests"}</small></span></button>)}</div>{messageBooking?<ReservationMessageDialog key={messageBooking.id} booking={messageBooking} restaurantId={rid} ar={ar} lang={lang} timezone={timezone} restaurantName={restaurant.data?.name??""} onOpenChange={()=>{}} inline/>:<div className="rs-empty"><MessageSquareText className="size-8"/><h3>{ar?"لا توجد محادثات بعد":"No conversations yet"}</h3><p>{ar?"أضف حجزاً مع رقم هاتف للبدء.":"Add a booking with a phone number to get started."}</p></div>}</section>:null}
     </main>
@@ -340,7 +348,7 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
           <div className="rs-form-guest-grid"><Field label={ar?"اسم الضيف":"Guest name"}><Input name="customer_name" autoComplete="name" required maxLength={120}/></Field><Field label={ar?"رقم الهاتف":"Phone number"}><Input name="phone" inputMode="tel" autoComplete="tel" required={settings?.require_phone??true} maxLength={40} placeholder="+962"/></Field></div>
           <div className="rs-visit-grid">
             <section className="rs-visit-date">
-              <div className="qs-booking-guests-field"><Field label={ar?"عدد الضيوف":"Number of guests"}><div className="rs-choice-rail">{[2,3,4,5,6].map(value=><button key={value} type="button" aria-pressed={guests===value} onClick={()=>{setGuests(value);setSelectedTable("auto");}}>{value}</button>)}<Input aria-label={ar?"عدد آخر للضيوف":"Custom guest count"} type="number" min="1" max="100" value={guests} onChange={e=>{setGuests(Number(e.target.value)||1);setSelectedTable("auto");}}/></div></Field></div>
+              <div className="qs-booking-guests-field"><Field label={ar?"عدد الضيوف":"Number of guests"}><GuestCountPicker ar={ar} value={guests} min={settings?.min_party_size??1} max={settings?.max_party_size??100} onChange={value=>{setGuests(value);setSelectedTable("auto");}}/></Field></div>
               <div className="qs-booking-date-field"><Field label={ar?"التاريخ":"Date"}><ReservationDatePicker timezone={timezone} value={bookingDate} onChange={value=>{setBookingDate(value);setSelectedTable("auto");}} ar={ar} maxAdvanceDays={settings?.max_advance_days??365}/></Field></div>
               <Calendar mode="single" selected={dateValue} defaultMonth={dateValue??new Date()} onSelect={value=>{if(value){setBookingDate(formatDateOnly(value));setSelectedTable("auto");}}} disabled={{before:parseDateOnly(reservationDay(new Date(),timezone))!,after:parseDateOnly(addReservationDays(reservationDay(new Date(),timezone),settings?.max_advance_days??365))!}} className="rs-inline-calendar"/>
             </section>
@@ -554,7 +562,7 @@ function ReservationMessageDialog({booking,restaurantId,ar,lang,onOpenChange,inl
     if(!booking)return "";
     const time=bookingTimeLabel(booking.booking_at,timezone,ar);
     const date=new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{timeZone:timezone,dateStyle:"medium"}).format(new Date(booking.booking_at));
-    const link=typeof window!=="undefined"?`${window.location.origin}/booking/${booking.public_token}`:"";
+    const link=typeof window!=="undefined"?publicGuestUrl(`/booking/${encodeURIComponent(booking.public_token)}`):"";
     if(kind==="cancellation")return ar?`مرحباً ${booking.customer_name}، تم إلغاء حجزك في ${restaurantName} بتاريخ ${date} الساعة ${time}. تواصل معنا إذا احتجت مساعدة.`:`Hi ${booking.customer_name}, your booking at ${restaurantName} on ${date} at ${time} has been cancelled. Please contact us if you need help.`;
     if(kind==="reminder")return ar?`مرحباً ${booking.customer_name}، تذكير بحجزك لـ ${booking.guest_count} ضيوف في ${restaurantName} بتاريخ ${date} الساعة ${time}. ${link}`:`Hi ${booking.customer_name}, a reminder of your reservation for ${booking.guest_count} guests at ${restaurantName} on ${date} at ${time}. ${link}`;
     const confirmed=["confirmed","seated","completed"].includes(booking.status);

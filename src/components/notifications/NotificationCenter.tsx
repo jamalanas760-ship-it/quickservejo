@@ -248,17 +248,17 @@ function NotificationItem({
         <Icon className={config.tone} />
         {!row.read_at ? <span aria-label={ar ? "غير مقروء" : "Unread notification"} /> : null}
       </div>
-      <div className="nc-row-copy">
+      <Link to={notificationHref(row) as never} className="nc-row-copy" onClick={()=>{if(!row.read_at)onRead();}}>
         <div className="nc-row-title">
           <h3>{row.title}</h3>
           <span className={`nc-kind ${config.tone}`}>{config.label}</span>
           <time dateTime={row.created_at}>{time}</time>
         </div>
         {row.body ? <p>{row.body}</p> : null}
-      </div>
+      </Link>
       <div className="nc-row-actions">
         <Button asChild className="nc-primary">
-          <Link to={notificationHref(row) as never}>{ar ? "فتح" : "Open"}</Link>
+          <Link to={notificationHref(row) as never} onClick={()=>{if(!row.read_at)onRead();}}>{ar ? "فتح" : "Open"}</Link>
         </Button>
         {!row.read_at ? (
           <Button variant="outline" disabled={busy} onClick={onRead}>

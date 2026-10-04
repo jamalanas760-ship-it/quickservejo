@@ -1,9 +1,9 @@
+import { publicGuestUrl } from "./public-url";
 import QRCode from "qrcode";
 
 /** Public diner URL encoded into each table QR code. */
 export function tableMenuUrl(slug: string, qrToken: string): string {
-  const origin = typeof window === "undefined" ? "" : window.location.origin;
-  return `${origin}/m/${slug}?t=${qrToken}`;
+  return publicGuestUrl(`/m/${encodeURIComponent(slug)}?t=${encodeURIComponent(qrToken)}`);
 }
 
 export async function qrDataUrl(value: string, size = 512): Promise<string> {

@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { useRouterState } from "@tanstack/react-router";
 
 import { useAccess } from "@/hooks/useSession";
@@ -15,18 +15,16 @@ export function TenantBrandShell({ children }: { children: ReactNode }) {
     ?? (access.data ?? []).find(row => row.restaurant_id && row.restaurant);
   const restaurant = access.isSuperAdmin ? null : membership?.restaurant;
 
-  if (!restaurant) return <div className="qs-app tenant-app">{children}</div>;
-
-  const appearance = readAppearance(restaurant.menu_theme);
+  const appearance = readAppearance(restaurant?.menu_theme);
   const style: TenantStyle = {
-    "--restaurant-light-primary": restaurant.primary_color || "#e85d2a",
-    "--restaurant-light-accent": restaurant.accent_color || "#ff8a4c",
-    "--restaurant-light-bg": appearance.lightBackground || restaurant.background_color || "#fafbfc",
+    "--restaurant-light-primary": restaurant?.primary_color || "#e85d2a",
+    "--restaurant-light-accent": restaurant?.accent_color || "#ff8a4c",
+    "--restaurant-light-bg": appearance.lightBackground || restaurant?.background_color || "#fafbfc",
     "--restaurant-light-topbar-bg": appearance.topNavBackground || "#ffffff",
     "--restaurant-light-topbar-text": appearance.topNavText || "#171a18",
     "--restaurant-light-sidebar-bg": appearance.sidebarBackground,
     "--restaurant-light-sidebar-text": appearance.sidebarText,
-    "--restaurant-light-selected-nav": appearance.selectedNavColor || restaurant.primary_color || "#e85d2a",
+    "--restaurant-light-selected-nav": appearance.selectedNavColor || restaurant?.primary_color || "#e85d2a",
     "--restaurant-dark-primary": appearance.darkPrimaryColor,
     "--restaurant-dark-accent": appearance.darkAccentColor,
     "--restaurant-dark-bg": appearance.darkBackground,
@@ -37,5 +35,19 @@ export function TenantBrandShell({ children }: { children: ReactNode }) {
     "--restaurant-dark-selected-nav": appearance.darkSelectedNavColor,
   };
 
+  const brandKey = JSON.stringify(style);
+  useEffect(() => {
+    if (!restaurant) return;
+    const root = document.documentElement;
+    const values = JSON.parse(brandKey) as Record<string,string>;
+    const previous = Object.fromEntries(Object.keys(values).map(key => [key, root.style.getPropertyValue(key)]));
+    root.classList.add("tenant-portal-theme");
+    Object.entries(values).forEach(([key,value]) => root.style.setProperty(key,value));
+    return () => {
+      root.classList.remove("tenant-portal-theme");
+      Object.entries(previous).forEach(([key,value]) => value ? root.style.setProperty(key,value) : root.style.removeProperty(key));
+    };
+  }, [brandKey, restaurant?.id]);
+  if (!restaurant) return <div className="qs-app tenant-app">{children}</div>;
   return <div className="qs-app tenant-app tenant-theme-scope" style={style} data-tenant={restaurant.id}>{children}</div>;
 }

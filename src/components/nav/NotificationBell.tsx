@@ -1,3 +1,4 @@
+import { notificationHref } from "@/lib/notification-feed";
 import { toast } from "sonner";
 import { humanError } from "@/lib/errors";
 import { useEffect, useState } from "react";
@@ -25,6 +26,7 @@ type NotificationRow = {
   id: string;
   kind: NotificationKind;
   source_type: string | null;
+  source_id: string | null;
   title: string;
   body: string | null;
   read_at: string | null;
@@ -53,7 +55,7 @@ export function NotificationBell({
     refetchInterval: 30_000,
     queryFn: async () => {
       const { data, error } = await source()
-        .select("id,kind,source_type,title,body,read_at,created_at")
+        .select("id,kind,source_type,source_id,title,body,read_at,created_at")
         .eq("restaurant_id", restaurantId!)
         .order("created_at", { ascending: false })
         .limit(8);
@@ -202,14 +204,7 @@ export function NotificationBell({
               {rows.map((row) => {
                 const config = kindConfig(row.kind);
                 const Icon = config.icon;
-                const href =
-                  row.source_type === "order"
-                    ? "/orders"
-                    : row.kind === "shift" || row.kind === "handover"
-                      ? "/shifts"
-                      : row.kind === "task" || row.kind === "approval" || row.kind === "alert"
-                        ? "/work"
-                        : "/dashboard";
+                const href = notificationHref({...row,restaurant_id:restaurantId!});
                 return (
                   <Link
                     key={row.id}
