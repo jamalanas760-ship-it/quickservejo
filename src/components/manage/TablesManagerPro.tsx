@@ -475,6 +475,8 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
 
   const tables = useQuery<FloorTable[]>({
     queryKey: ["platform", "tables", restaurantId],
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("restaurant_tables")
@@ -1548,7 +1550,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     } else setSelectedElementId(removed.id);
   }
   async function changeStatus(status: string) {
-    if (!selected) return;
+    if (!selected || busy) return;
     setBusy(true);
     try {
       const { error } = await (supabase as any).rpc("set_table_service_status", {

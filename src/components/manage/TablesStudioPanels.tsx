@@ -11,6 +11,8 @@ export type StudioTable = {
   zone?: string | null;
   service_status?: string | null;
   activated_at?: string | null;
+  status_updated_at?: string | null;
+  status_updated_by?: string | null;
   is_active: boolean;
 };
 const statusNames: Record<string, [string, string]> = {
@@ -230,9 +232,11 @@ export function TableQuickPanel({
 }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60000);
+    const timer = setInterval(() => setNow(Date.now()), 10000);
     return () => clearInterval(timer);
   }, []);
+  const manualHold = Boolean(row.status_updated_by) && row.service_status !== "free";
+  const cleaningMinutes = Math.max(0, Math.ceil((Date.parse(row.status_updated_at ?? "") + 600000 - now) / 60000));
   return (
     <div className="qs-table-quick-panel">
       <h2 className="text-xl font-bold">
@@ -280,7 +284,7 @@ export function TableQuickPanel({
           className="mt-2 w-full"
           disabled={busy || !row.is_active}
           value={row.service_status ?? "free"}
-          onChange={(e) => onStatus(e.target.value)}
+          onChange={(e) => onStatus(e.target.value === "cleaning" ? "cleaning_auto" : e.target.value)}
         >
           {Object.entries(statusNames).map(([value, name]) => (
             <option key={value} value={value}>
@@ -289,8 +293,23 @@ export function TableQuickPanel({
           ))}
         </select>
       </label>
-      <p className="mt-3 text-xs leading-5 text-muted-foreground">{ar ? "تتحدث الحالة تلقائياً حسب الحجوزات والطلبات. التنظيف التلقائي يستغرق 10 دقائق؛ التنظيف اليدوي ينتظر تأكيدك. خارج الخدمة يبقى حتى تعيده." : "Status follows bookings and orders. Automatic cleaning clears after 10 minutes; manual cleaning waits for your confirmation. Out of service stays until restored."}</p>
-      {row.is_active && row.service_status === "cleaning" ? <Button type="button" className="mt-3 min-h-11 w-full" disabled={busy} onClick={() => onStatus("free")}>{ar ? "تم التنظيف · جاهزة" : "Cleaning done · Ready"}</Button> : null}
+      <div className="mt-3 min-w-0 rounded-2xl border bg-muted/30 p-3">
+        <p className="text-sm font-semibold">{manualHold ? (ar ? "تحكم يدوي" : "Manual hold") : (ar ? "الحالة التلقائية مفعلة" : "Automatic status on")}</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          {row.service_status === "out_of_service" ? (ar ? "تبقى خارج الخدمة حتى تعيد تفعيلها." : "Blocked until you restore the table.")
+            : row.service_status === "cleaning" ? manualHold
+              ? (ar ? "التنظيف ينتظر تأكيد الموظف." : "Cleaning waits for staff confirmation.")
+              : (ar ? `جاهزة تلقائياً خلال ${Number.isFinite(cleaningMinutes) ? cleaningMinutes : 10} دقائق. أكد الجاهزية أو أوقف المؤقت إذا احتجت وقتاً أطول.` : `Auto-ready in ${Number.isFinite(cleaningMinutes) ? cleaningMinutes : 10} min. Confirm sooner or pause if more time is needed.`)
+            : row.service_status === "active" && manualHold ? (ar ? "تبقى مشغولة حتى المغادرة أو إغلاق آخر طلب. العودة للتلقائي تبدأ التنظيف إذا لم توجد طلبات." : "Stays occupied until departure or final order closes. Returning to automatic starts cleaning when no orders remain.")
+            : manualHold ? (ar ? "الحجز اليدوي يبقى حتى تحريره؛ الإشغال يتابع الطلبات والمغادرة تلقائياً." : "Manual reservations stay until released. Occupancy follows orders and departure automatically.")
+            : (ar ? "حجز قريب ← محجوزة · وصول الضيف أو طلب ← مشغولة · آخر مغادرة ← تنظيف ← جاهزة." : "Upcoming booking → Reserved · Seated guest or order → Occupied · Final departure → Cleaning → Ready.")}
+        </p>
+        {manualHold ? <Button type="button" variant="outline" className="mt-3 min-h-11 w-full whitespace-normal" disabled={busy || !row.is_active} onClick={() => onStatus("automatic")}>{ar ? "العودة للحالة التلقائية" : "Return to automatic"}</Button> : null}
+      </div>
+      {row.is_active && row.service_status === "cleaning" ? <div className="mt-3 grid gap-2">
+        <Button type="button" className="min-h-11 w-full" disabled={busy} onClick={() => onStatus("free")}>{ar ? "تم التنظيف · جاهزة" : "Cleaning done · Ready"}</Button>
+        {!manualHold ? <Button type="button" variant="outline" className="min-h-11 w-full whitespace-normal" disabled={busy} onClick={() => onStatus("cleaning")}>{ar ? "إيقاف المؤقت · انتظار التأكيد" : "Pause timer · Wait for staff"}</Button> : null}
+      </div> : null}
       <a className="qs-button-secondary mt-3 w-full" href="/orders">
         {ar ? "عرض الطلبات" : "View orders"}
       </a>
