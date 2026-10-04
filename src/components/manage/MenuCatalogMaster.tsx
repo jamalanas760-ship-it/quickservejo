@@ -819,8 +819,8 @@ export function MenuCatalogMaster({
       )}
 
       <Dialog open={productForm !== null} onOpenChange={(open) => !open && setProductForm(null)}>
-        <DialogContent className="qs-menu-editor-drawer max-h-[88dvh] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="qs-menu-editor-drawer" dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
+          <DialogHeader className="qs-menu-editor-header">
             <DialogTitle>
               {productForm?.id
                 ? ar
@@ -837,7 +837,7 @@ export function MenuCatalogMaster({
             </DialogDescription>
           </DialogHeader>
           {productForm ? (
-            <div className="space-y-4 py-2">
+            <div className="qs-menu-editor-body space-y-4">
               <ImageUploader
                 restaurantId={restaurantId}
                 kind="product"
@@ -955,7 +955,7 @@ export function MenuCatalogMaster({
               </label>
             </div>
           ) : null}
-          <DialogFooter className="mt-auto pt-4">
+          <DialogFooter className="qs-menu-editor-footer">
             <Button variant="ghost" onClick={() => setProductForm(null)}>
               {ar ? "إلغاء" : "Cancel"}
             </Button>
@@ -971,8 +971,8 @@ export function MenuCatalogMaster({
       </Dialog>
 
       <Dialog open={categoryForm !== null} onOpenChange={(open) => !open && setCategoryForm(null)}>
-        <DialogContent className="qs-menu-editor-drawer sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className="qs-menu-editor-drawer" dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
+          <DialogHeader className="qs-menu-editor-header">
             <DialogTitle>
               {categoryForm?.id
                 ? ar
@@ -989,7 +989,7 @@ export function MenuCatalogMaster({
             </DialogDescription>
           </DialogHeader>
           {categoryForm ? (
-            <div className="space-y-4">
+            <div className="qs-menu-editor-body space-y-4">
               <Field label={ar ? "الاسم بالإنجليزية" : "English Name"}>
                 <Input
                   value={categoryForm.name_en}
@@ -1018,7 +1018,7 @@ export function MenuCatalogMaster({
               </label>
             </div>
           ) : null}
-          <DialogFooter>
+          <DialogFooter className="qs-menu-editor-footer">
             <Button variant="ghost" onClick={() => setCategoryForm(null)}>
               {ar ? "إلغاء" : "Cancel"}
             </Button>
