@@ -63,8 +63,9 @@ Total output lines: 5262
     font-feature-settings: "ss01" 1, "cv02" 1, "cv03" 1;
   }
 
-  ::selection { background: rgb(255 90 10 / .18); }
 }
+
+::selection { background: rgb(255 90 10 / .18); }
 
 @layer components {
   /* Product canvas */
