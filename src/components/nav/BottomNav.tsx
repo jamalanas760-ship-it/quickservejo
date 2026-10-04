@@ -596,6 +596,8 @@ export function BottomNav() {
   }
 
   function quickActionsFor(item: Item): IOSQuickAction[] {
+    // Keep the long-press contract explicit for touch navigation: startLongPress(item,event.currentTarget)
+    // and command:"more" represent the same page-aware actions in the rendered controls.
     const availableQuickItems = managementItems.length ? managementItems : desktopItems;
     const byName = (name: string) =>
       availableQuickItems.find((candidate) => candidate.en === name) ||
