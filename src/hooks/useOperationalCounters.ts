@@ -78,14 +78,14 @@ export function useOperationalCounters(restaurantId: string | null) {
       const [unread, workforceUnread, tasks, shifts, orders] = await Promise.all([
         safeCount(
           client
-            .from("in_app_notifications")
+            .from("visible_notifications")
             .select("id", { count: "exact", head: true })
             .eq("restaurant_id", restaurantId)
             .is("read_at", null),
         ),
         safeCount(
           client
-            .from("in_app_notifications")
+            .from("visible_notifications")
             .select("id", { count: "exact", head: true })
             .eq("restaurant_id", restaurantId)
             .is("read_at", null)

@@ -14,6 +14,29 @@ export type NotificationRow = {
   read_at: string | null;
   created_at: string;
 };
+/** One presentation contract for the inbox, bell and background push worker. */
+export function notificationCopy(row: Pick<NotificationRow, "title" | "body" | "kind" | "source_type">, ar = false) {
+  const source = (row.source_type ?? "").toLowerCase();
+  const text = `${row.title} ${row.body ?? ""}`.toLowerCase();
+  const t = (en: string, arabic: string) => ar ? arabic : en;
+  const category = source.includes("missing_punch") ? t("Missing punch", "بصمة مفقودة")
+    : /clock(?:ed)?[ _-]?out/.test(source + text) ? t("Clock out", "تسجيل المغادرة")
+    : /clock(?:ed)?[ _-]?in/.test(source + text) ? t("Clock in", "تسجيل الحضور")
+    : source.includes("order") ? t("Order", "طلب")
+    : /booking|reservation|waitlist/.test(source) ? t("Reservation", "حجز")
+    : row.kind === "shift" || source.includes("shift") ? t("Shift", "وردية")
+    : row.kind === "approval" ? t("Approval requested", "طلب موافقة")
+    : source === "work_task" || row.kind === "task" ? t("Ticket assigned", "تذكرة مسندة")
+    : row.kind === "handover" ? t("Shift handover", "تسليم وردية")
+    : /leave|permission/.test(source) ? t("Staff request", "طلب موظف")
+    : row.kind === "alert" ? t("Attention needed", "يتطلب اهتمامك") : t("Workspace update", "تحديث مساحة العمل");
+  const title = row.title.trim();
+  const body = row.body?.trim();
+  return {
+    title: category,
+    body: [title, body && body !== title ? body : ""].filter(Boolean).join(" — ") || t("View the details in your workspace.", "اطلع على التفاصيل في مساحة عملك."),
+  };
+}
 export function filterNotifications(
   rows: NotificationRow[],
   filter: NotificationFilter,
@@ -26,7 +49,7 @@ export function filterNotifications(
       filter === "all" ||
       (filter === "unread" && !row.read_at) ||
       (filter === "approvals" && row.kind === "approval") ||
-      (filter === "team" && ["shift", "handover"].includes(row.kind)) ||
+      (filter === "team" && (["shift", "handover"].includes(row.kind) || /workforce|staff|missing_punch|clock/.test(source))) ||
       (filter === "system" && row.kind === "system") ||
       (filter === "orders" && source.includes("order")) ||
       (filter === "reservations" &&
@@ -38,7 +61,7 @@ export function filterNotifications(
     return (
       matches &&
       (!query ||
-        [row.title, row.body, row.source_type, row.kind].some((value) =>
+        [row.title, row.body, row.source_type, row.kind, notificationCopy(row).title, notificationCopy(row, true).title].some((value) =>
           value?.toLocaleLowerCase().includes(query),
         ))
     );
@@ -53,6 +76,7 @@ export function notificationHref(
   if (["booking", "reservation", "waitlist"].some((key) => source.includes(key)))
     return (source.includes("waitlist") ? "/waitlist" : "/bookings") + record;
   if (source.includes("order")) return `/manage/${encodeURIComponent(row.restaurant_id)}/orders` + record;
+  if (/workforce|staff_|missing_punch|clock/.test(source)) return "/shifts";
   if (
     ["finance", "invoice", "expense", "procurement", "inventory"].some((key) =>
       source.includes(key),

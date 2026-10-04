@@ -18,7 +18,8 @@ import {
   type HomeLayout,
 } from "@/lib/home-layout";
 import { HomeMetricDetail, isHomeMetricId } from "@/components/dashboard/HomeMetricDetail";
-import { HomeOverview } from "@/components/home/HomeOverview";
+import { HomeOverview, type HomeOverviewProps } from "@/components/home/HomeOverview";
+import { homePeriodRange, type HomePeriod } from "@/lib/home-period";
 import { useHomeOverview } from "@/hooks/useHomeOverview";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
-import { useWorkspaceReport, useWorkspaceScope } from "@/hooks/useWorkspace";
+import { useWorkspaceScope } from "@/hooks/useWorkspace";
 import { humanError } from "@/lib/errors";
 import { formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
@@ -59,13 +60,23 @@ function DashboardPage() {
   const rid = scope.restaurantId;
   const restaurant = useRestaurant(rid ?? "");
   const timezone = restaurant.data?.timezone || "Asia/Amman";
-  const report = useWorkspaceReport(rid, timezone);
+  const [period, setPeriod] = useState<HomePeriod>("today");
+  const range = homePeriodRange(period, timezone);
+  const periodReport = useQuery<{sales:number;orderCount:number;bookingCount:number;orders:HomeOverviewProps["orders"];bookings:HomeOverviewProps["bookings"]}>({
+    queryKey: ["workspace", "home-period", rid, range.start, range.end],
+    enabled: Boolean(rid), staleTime: 20_000, refetchInterval: 30_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("home_period_overview", { _restaurant_id: rid, _start: range.start, _end: range.end });
+      if (error) throw error;
+      return data;
+    },
+  });
   const canStaff = Boolean(rid && access.canFor(rid, "manage_staff"));
   const canInventory = Boolean(rid && access.canFor(rid, "manage_inventory"));
   const home = useHomeOverview(rid, canStaff, canInventory);
   const qc = useQueryClient();
   const currency = restaurant.data?.currency || scope.currency;
-  const r = report.data;
+  const r = periodReport.data;
   const user = session.data?.user;
   const meta = user?.user_metadata as { full_name?: string; name?: string } | undefined;
   const currentMembership = (access.data ?? []).find((row) => row.restaurant_id === rid) ?? null;
@@ -135,48 +146,6 @@ function DashboardPage() {
     };
   }, [qc, rid]);
 
-  const reservationStats = useQuery({
-    queryKey: ["workspace", "reservation-stats", rid, timezone],
-    enabled: Boolean(rid),
-    staleTime: 20_000,
-    refetchInterval: 30_000,
-    queryFn: async () => {
-      const now = new Date();
-      const dayKey = (date: Date) =>
-        new Intl.DateTimeFormat("en-CA", {
-          timeZone: timezone,
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        }).format(date);
-      const start = new Date(now.getTime() - 36 * 60 * 60 * 1000);
-      const end = new Date(now.getTime() + 36 * 60 * 60 * 1000);
-      const { data, error } = await (supabase as any)
-        .from("table_bookings")
-        .select(
-          "id,status,booking_at,guest_count,customer_name,table:restaurant_tables(table_number)",
-        )
-        .eq("restaurant_id", rid!)
-        .gte("booking_at", start.toISOString())
-        .lt("booking_at", end.toISOString())
-        .order("booking_at", { ascending: true });
-      if (error) throw error;
-      const rows = (data ?? []).filter(
-        (row: { booking_at: string }) => dayKey(new Date(row.booking_at)) === dayKey(now),
-      );
-      return {
-        total: rows.filter((row: any) => !["cancelled", "no_show"].includes(String(row.status)))
-          .length,
-        upcoming: rows
-          .filter(
-            (row: any) =>
-              ["pending", "confirmed"].includes(String(row.status)) &&
-              new Date(row.booking_at).getTime() >= Date.now(),
-          )
-          .slice(0, 5),
-      };
-    },
-  });
 
   const detailMetric =
     typeof window === "undefined"
@@ -229,7 +198,7 @@ function DashboardPage() {
     }
   }
 
-  const upcomingReservations = reservationStats.data?.upcoming ?? [];
+  const upcomingReservations = r?.bookings ?? [];
   {
     const value = (query: { isPending: boolean; isError: boolean }, number: number | undefined) =>
       query.isPending ? "…" : query.isError ? "—" : String(number ?? 0);
@@ -243,35 +212,38 @@ function DashboardPage() {
           currency={currency}
           restaurantId={rid}
           timeZone={timezone}
+          period={period}
+          onPeriodChange={setPeriod}
+          periodHint={`${range.firstDay} – ${range.lastDay}`}
           sales={
-            report.isPending
+            periodReport.isPending
               ? "…"
-              : report.isError
+              : periodReport.isError
                 ? "—"
-                : formatMoney(r?.salesToday ?? 0, currency, lang)
+                : formatMoney(r?.sales ?? 0, currency, lang)
           }
           salesHint={
             ar
-              ? `${value(report, r?.ordersToday)} طلبات اليوم`
-              : `${value(report, r?.ordersToday)} orders today`
+              ? `${value(periodReport, r?.orderCount)} طلبات خلال الفترة`
+              : `${value(periodReport, r?.orderCount)} orders in selected period`
           }
-          orders={home.orders.data?.rows ?? []}
-          orderTotal={value(home.orders, home.orders.data?.total)}
+          orders={r?.orders ?? []}
+          orderTotal={value(periodReport, r?.orderCount)}
           orderHint={
-            home.orders.isError
+            periodReport.isError
               ? ar
                 ? "تعذر تحميل الطلبات"
                 : "Orders unavailable"
               : ar
-                ? `${value(home.orders, home.orders.data?.new)} جديدة · ${value(home.orders, home.orders.data?.preparing)} قيد التحضير · ${value(home.orders, home.orders.data?.ready)} جاهزة`
-                : `${value(home.orders, home.orders.data?.new)} new · ${value(home.orders, home.orders.data?.preparing)} preparing · ${value(home.orders, home.orders.data?.ready)} ready`
+                ? "خلال الفترة المحددة"
+                : "In selected period"
           }
           orderState={
-            home.orders.isPending
+            periodReport.isPending
               ? ar
                 ? "جارٍ تحميل الطلبات…"
                 : "Loading orders…"
-              : home.orders.isError
+              : periodReport.isError
                 ? ar
                   ? "تعذر تحميل الطلبات. أعد المحاولة من صفحة الطلبات."
                   : "Couldn't load orders. Try the orders page."
@@ -286,13 +258,13 @@ function DashboardPage() {
           team={`${value(home.workforce, home.workforce.data?.present)} / ${value(home.workforce, home.workforce.data?.total)}`}
           teamHint={ar ? "على رأس العمل الآن" : "On shift now"}
           bookings={upcomingReservations}
-          bookingTotal={value(reservationStats, reservationStats.data?.total)}
+          bookingTotal={value(periodReport, r?.bookingCount)}
           bookingState={
-            reservationStats.isPending
+            periodReport.isPending
               ? ar
                 ? "جارٍ تحميل الحجوزات…"
                 : "Loading bookings…"
-              : reservationStats.isError
+              : periodReport.isError
                 ? ar
                   ? "تعذر تحميل الحجوزات. أعد المحاولة من صفحة الحجوزات."
                   : "Couldn't load bookings. Try the schedule page."

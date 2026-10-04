@@ -10,13 +10,16 @@ import {
   TimerReset,
   UsersRound,
   X,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   filterNotifications,
   notificationDayKey,
   notificationHref,
+  notificationCopy,
   type NotificationFilter,
   type NotificationKind,
   type NotificationRow,
@@ -42,6 +45,7 @@ export function NotificationCenter({
   busy,
   onRead,
   onRetry,
+  onDelete,
 }: {
   rows: NotificationRow[];
   ar: boolean;
@@ -51,7 +55,9 @@ export function NotificationCenter({
   busy: boolean;
   onRead: (ids: string[]) => void;
   onRetry: () => void;
+  onDelete: (ids: string[] | null) => void;
 }) {
+  const [confirmClear, setConfirmClear] = useState(false);
   const [filter, setFilter] = useState<NotificationFilter>("all");
   const [search, setSearch] = useState("");
   const unread = rows.filter((row) => !row.read_at);
@@ -95,14 +101,14 @@ export function NotificationCenter({
           <h1>{ar ? "الإشعارات" : "Notifications"}</h1>
           <p>{ar ? "تابع آخر مستجدات مساحة عملك." : "Stay on top of your workspace."}</p>
         </div>
-        <Button
+        <div className="nc-heading-actions"><Button variant="outline" disabled={busy || pending || !rows.length} onClick={() => setConfirmClear(true)}><Trash2 className="size-4" />{ar ? "حذف الكل" : "Delete all"}</Button><Button
           className="nc-primary"
           disabled={busy || pending || !unread.length}
           onClick={() => onRead(unread.map((row) => row.id))}
         >
           <CheckCheck className="size-4" />
           {ar ? "قراءة الكل" : "Mark all read"}
-        </Button>
+        </Button></div>
       </header>
       <section className="nc-summary" aria-label={ar ? "ملخص الإشعارات" : "Notification summary"}>
         {metrics.map((metric) => (
@@ -207,6 +213,7 @@ export function NotificationCenter({
                     timezone={timezone}
                     busy={busy}
                     onRead={() => onRead([row.id])}
+                    onDelete={() => onDelete([row.id])}
                   />
                 ))}
               </section>
@@ -214,6 +221,12 @@ export function NotificationCenter({
           )
         )}
       </section>
+      <Dialog open={confirmClear} onOpenChange={setConfirmClear}>
+        <DialogContent className="nc-delete-dialog" onOpenAutoFocus={event => event.preventDefault()}>
+          <DialogHeader><DialogTitle>{ar ? "حذف كل الإشعارات؟" : "Clear your notifications?"}</DialogTitle><DialogDescription>{ar ? "سيتم حذف الإشعارات الحالية من صندوقك فقط. ستبقى التنبيهات الجديدة ظاهرة." : "Remove all current notifications from your inbox. New alerts will still arrive."}</DialogDescription></DialogHeader>
+          <div className="nc-delete-actions"><Button variant="outline" onClick={() => setConfirmClear(false)}>{ar ? "إلغاء" : "Cancel"}</Button><Button variant="destructive" disabled={busy} onClick={() => { setConfirmClear(false); onDelete(null); }}><Trash2 className="size-4" />{ar ? "حذف الكل" : "Delete all"}</Button></div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -223,13 +236,16 @@ function NotificationItem({
   timezone,
   busy,
   onRead,
+  onDelete,
 }: {
   row: NotificationRow;
   ar: boolean;
   timezone: string;
   busy: boolean;
   onRead: () => void;
+  onDelete: () => void;
 }) {
+  const copy = notificationCopy(row, ar);
   const config = kindConfig(row.kind, ar);
   const Icon = config.icon;
   const timestamp = new Date(row.created_at);
@@ -250,13 +266,14 @@ function NotificationItem({
       </div>
       <Link to={notificationHref(row) as never} className="nc-row-copy" onClick={()=>{if(!row.read_at)onRead();}}>
         <div className="nc-row-title">
-          <h3>{row.title}</h3>
+          <h3>{copy.title}</h3>
           <span className={`nc-kind ${config.tone}`}>{config.label}</span>
           <time dateTime={row.created_at}>{time}</time>
         </div>
-        {row.body ? <p>{row.body}</p> : null}
+        <p>{copy.body}</p>
       </Link>
       <div className="nc-row-actions">
+        <Button variant="ghost" className="nc-delete-one" disabled={busy} onClick={onDelete} aria-label={ar ? `حذف الإشعار: ${row.title}` : `Delete notification: ${row.title}`}><Trash2 className="size-4" /></Button>
         <Button asChild className="nc-primary">
           <Link to={notificationHref(row) as never} onClick={()=>{if(!row.read_at)onRead();}}>{ar ? "فتح" : "Open"}</Link>
         </Button>

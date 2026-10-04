@@ -1,4 +1,4 @@
-import { notificationHref } from "@/lib/notification-feed";
+import { notificationHref, notificationCopy } from "@/lib/notification-feed";
 import { toast } from "sonner";
 import { humanError } from "@/lib/errors";
 import { useEffect, useState } from "react";
@@ -54,7 +54,7 @@ export function NotificationBell({
     staleTime: 8_000,
     refetchInterval: 30_000,
     queryFn: async () => {
-      const { data, error } = await source()
+      const { data, error } = await (supabase as any).from("visible_notifications")
         .select("id,kind,source_type,source_id,title,body,read_at,created_at")
         .eq("restaurant_id", restaurantId!)
         .order("created_at", { ascending: false })
@@ -202,6 +202,7 @@ export function NotificationBell({
           ) : (
             <div className="divide-y divide-border">
               {rows.map((row) => {
+                const copy = notificationCopy(row, ar);
                 const config = kindConfig(row.kind);
                 const Icon = config.icon;
                 const href = notificationHref({...row,restaurant_id:restaurantId!});
@@ -228,14 +229,14 @@ export function NotificationBell({
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-start gap-2">
-                        <strong className="min-w-0 flex-1 text-xs leading-5">{row.title}</strong>
+                        <strong className="min-w-0 flex-1 text-xs leading-5">{copy.title}</strong>
                         {!row.read_at ? (
                           <i className="mt-1.5 size-2 shrink-0 rounded-full bg-[#e85d2a]" />
                         ) : null}
                       </span>
-                      {row.body ? (
+                      {copy.body ? (
                         <span className="mt-0.5 block line-clamp-1 text-[10px] leading-4 text-muted-foreground">
-                          {row.body}
+                          {copy.body}
                         </span>
                       ) : null}
                       <span className="mt-1 block text-[9px] font-medium text-muted-foreground">

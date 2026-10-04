@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.112.4";
 import webpush from "npm:web-push@3.6.7";
+import { notificationCopy, notificationHref } from "../../../src/lib/notification-feed.ts";
 
 const response = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -86,13 +87,14 @@ Deno.serve(async (req) => {
               continue;
             }
             try {
+              const copy = notificationCopy(notification);
               await webpush.sendNotification(
                 { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
                 JSON.stringify({
-                  title: notification.title,
-                  body: notification.body || "Open QuickServe to view this update.",
+                  title: copy.title,
+                  body: copy.body,
                   tag: notification.id,
-                  url: "/notifications",
+                  url: notificationHref(notification),
                 }),
                 { TTL: 300, timeout: 10000 },
               );

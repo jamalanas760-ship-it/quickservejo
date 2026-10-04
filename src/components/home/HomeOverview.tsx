@@ -5,6 +5,7 @@ import { defaultHomeLayout, type HomeLayout, type HomeSectionId } from "@/lib/ho
 import type { Language } from "@/lib/i18n";
 import { formatMoney } from "@/lib/format";
 import "./home-overview.css";
+import { HOME_PERIODS, type HomePeriod } from "@/lib/home-period";
 
 export type HomeOverviewProps = {
   name: string;
@@ -47,6 +48,9 @@ export type HomeOverviewProps = {
   canAnalytics: boolean;
   layout?: HomeLayout;
   onCustomize?: (() => void) | undefined;
+  period?: HomePeriod;
+  onPeriodChange?: (period: HomePeriod) => void;
+  periodHint?: string;
 };
 
 export function HomeOverview(p: HomeOverviewProps) {
@@ -73,14 +77,14 @@ export function HomeOverview(p: HomeOverviewProps) {
   );
   const metrics = [
     {
-      label: t("Today's sales", "مبيعات اليوم"),
+      label: t("Sales", "المبيعات"),
       value: p.sales,
       hint: p.salesHint,
       accent: true,
       to: "/dashboard/sales",
     },
     {
-      label: t("Orders now", "الطلبات الآن"),
+      label: t("Orders", "الطلبات"),
       value: p.orderTotal,
       hint: p.orderHint,
       to: path("/orders"),
@@ -114,7 +118,7 @@ export function HomeOverview(p: HomeOverviewProps) {
           <h1>
             {greeting}, {p.name}
           </h1>
-          <p>{t("Everything you need to know about today.", "كل ما تحتاج معرفته عن اليوم.")}</p>
+          <p>{t("Your restaurant, at a glance.", "نظرة شاملة على مطعمك.")}</p>
         </div>
         <div className="qs-home-date-action">
           <time dateTime={now.toISOString()}>
@@ -132,10 +136,15 @@ export function HomeOverview(p: HomeOverviewProps) {
           ) : null}
         </div>
       </header>
+      {p.onPeriodChange ? <section className="qs-home-period" aria-label={t("Overview period", "فترة العرض")}>
+        <div><strong>{t("Overview period", "فترة العرض")}</strong><small>{p.periodHint} · {timeZone} · {t("Weeks start Monday", "الأسبوع يبدأ الاثنين")}</small></div>
+        <div className="qs-home-period-options">{HOME_PERIODS.map(([key,en,arabic]) => <button key={key} type="button" aria-pressed={p.period === key} onClick={() => p.onPeriodChange?.(key)}>{t(en,arabic)}</button>)}</div>
+        <p>{t("Sales, orders and bookings follow this period. Tables and team show live status.", "المبيعات والطلبات والحجوزات حسب الفترة المحددة. الطاولات والفريق يعرضان الحالة الحالية.")}</p>
+      </section> : null}
       <section
         style={sectionStyle("summary")}
         className="qs-home-summary qs-home-panel"
-        aria-label={t("Today's overview", "نظرة اليوم")}
+        aria-label={t("Selected period overview", "نظرة على الفترة المحددة")}
       >
         {metrics.map((metric) => (
           <Link key={metric.label} to={metric.to as never} className="qs-home-metric">
@@ -193,19 +202,19 @@ export function HomeOverview(p: HomeOverviewProps) {
           ) : (
             <p className="qs-home-empty">
               {t(
-                "No orders in progress. You're all caught up.",
-                "لا توجد طلبات قيد التنفيذ حالياً.",
+                "No orders in this period.",
+                "لا توجد طلبات خلال هذه الفترة.",
               )}
             </p>
           )}
           <footer>
             <i aria-hidden="true" />
-            {p.orderTotal} {t("orders in progress", "طلبات قيد التنفيذ")}
+            {p.orderTotal} {t("orders in selected period", "طلبات خلال الفترة")}
           </footer>
         </section>
         <section style={sectionStyle("bookings")} className="qs-home-panel qs-home-bookings">
           <div className="qs-home-panel-heading">
-            <h2>{t("Today's bookings", "حجوزات اليوم")}</h2>
+            <h2>{t("Bookings", "الحجوزات")}</h2>
             {more("/bookings", t("View schedule", "عرض الجدول"))}
           </div>
           {p.bookingState ? (
@@ -237,11 +246,11 @@ export function HomeOverview(p: HomeOverviewProps) {
             </div>
           ) : (
             <p className="qs-home-empty">
-              {t("No upcoming bookings today.", "لا توجد حجوزات قادمة اليوم.")}
+              {t("No bookings in this period.", "لا توجد حجوزات خلال هذه الفترة.")}
             </p>
           )}
           <footer>
-            {p.bookingTotal} {t("bookings today", "حجوزات اليوم")}
+            {p.bookingTotal} {t("bookings in selected period", "حجوزات خلال الفترة")}
           </footer>
         </section>
       </div>

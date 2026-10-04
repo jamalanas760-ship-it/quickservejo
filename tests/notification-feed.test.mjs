@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { filterNotifications, notificationHref, notificationDayKey } from '../src/lib/notification-feed.ts';
+import { filterNotifications, notificationHref, notificationDayKey, notificationCopy } from '../src/lib/notification-feed.ts';
 const base = {id:'one',restaurant_id:'r',staff_id:null,target_role:null,kind:'system',title:'Inventory alert',body:'Low stock',source_type:'inventory_alert',source_id:null,read_at:null,created_at:'2026-10-01T22:30:00Z'};
+test('notification presentation retains short ticket titles and details below a clear category', () => {
+  assert.deepEqual(notificationCopy({...base,kind:'task',source_type:'work_task',title:'T',body:'Prepare the room'}), {title:'Ticket assigned',body:'T — Prepare the room'});
+  assert.equal(notificationCopy({...base,source_type:'missing_punch_request'}).title,'Missing punch');
+  assert.equal(notificationCopy({...base,source_type:'staff_time_entry',title:'Clocked out',body:null}).title,'Clock out');
+  assert.equal(notificationCopy({...base,source_type:'booking'},true).title,'حجز');
+});
 test('notification search and category filters combine without losing unread state', () => {
   const readOrder = {...base,id:'two',source_type:'order',title:'New order',read_at:'2026-10-01T00:00:00Z'};
   assert.deepEqual(filterNotifications([base,readOrder],'unread','  STOCK '),[base]);
