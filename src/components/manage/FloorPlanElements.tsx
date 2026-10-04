@@ -1,4 +1,5 @@
 import { FloorPlanSymbol } from "./FloorPlanSymbol";
+import { FloorElementPreview } from "./FloorElementPreview";
 import { useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
 import {
   Armchair,
@@ -79,7 +80,7 @@ export function FloorElementLibrary({
           <div className="qs-element-library">
             {(["round", "square", "rectangle"] as const).map((shape) => (
               <button key={shape} type="button" disabled={busy} onClick={() => onAddTable(shape)}>
-                <img src={`/floor-elements/table-${shape}.png`} alt="" width="144" height="120" />
+                <FloorElementPreview type={shape}/>
                 <span>
                   {
                     {
@@ -108,7 +109,7 @@ export function FloorElementLibrary({
               {types.map((type) => {
                 return (
                   <button key={type} type="button" disabled={busy} onClick={() => onAdd(type)}>
-                    <FloorPlanSymbol type={type}/>
+                    <FloorElementPreview type={type}/>
                     <span>{FLOOR_ELEMENT_LABELS[type][ar ? 1 : 0]}</span>
                   </button>
                 );
