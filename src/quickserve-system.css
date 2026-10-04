@@ -5009,6 +5009,15 @@ html.qs-theme-view-transition *{
 .qs-element-library-wrap .qs-element-library button{display:flex;flex-direction:column;min-width:0;min-height:112px;gap:7px;padding:8px 7px 10px;background:var(--background);border:1px solid color-mix(in srgb,var(--border) 82%,#fff);border-radius:16px;box-shadow:0 5px 12px rgb(54 43 30/.08);transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease;background-image:linear-gradient(145deg,#fff,#fbfaf7)}
 .qs-element-library-wrap .qs-element-library button:hover,.qs-element-library-wrap .qs-element-library button:focus-visible{border-color:#e85d2a;outline:3px solid #e85d2a25;outline-offset:1px;box-shadow:0 10px 18px rgb(54 43 30/.14);transform:translateY(-1px)}
 .qs-element-library-wrap .qs-element-library button img{display:block;object-fit:contain;width:100%;height:60px;mix-blend-mode:multiply}
+.qs-element-library-wrap .qs-element-library button .qs-element-3d-preview{height:108px;mix-blend-mode:normal;transition:transform .18s ease;filter:drop-shadow(0 2px 2px rgb(30 40 35/.07))}
+.qs-element-library-wrap .qs-element-library button:active{transform:scale(.97)}
+.qs-element-library-wrap .qs-element-library button:hover .qs-element-3d-preview{transform:translateY(-3px) scale(1.04)}
+.qs-element-library-wrap .qs-element-library button{background-image:none;background:var(--card);border-radius:18px;padding:8px 8px 12px;box-shadow:0 3px 10px rgb(20 30 26/.045)}
+.qs-element-inspector .qs-element-inspector-preview{background:var(--muted);border:0;overflow:hidden}
+.qs-element-inspector .qs-element-inspector-preview img{height:190px;mix-blend-mode:normal}
+.qs-element-inspector .qs-element-delete{min-height:48px;border-radius:14px;background:color-mix(in srgb,var(--destructive) 8%,var(--card));transition:transform .12s ease,background .12s ease}
+.qs-element-inspector .qs-element-delete:active{transform:scale(.97)}
+@media(prefers-reduced-motion:reduce){.qs-element-library-wrap .qs-element-library button,.qs-element-library-wrap .qs-element-library button img,.qs-element-inspector .qs-element-delete{transition:none!important;transform:none!important}}
 .qs-element-library-wrap .qs-element-library button>.qs-plan-symbol{display:block;width:100%;height:60px;padding:3px;filter:drop-shadow(0 5px 4px rgb(54 43 30/.2));transform:perspective(180px) rotateX(7deg);transform-origin:center bottom;transition:transform .18s ease,filter .18s ease}
 .qs-element-library-wrap .qs-element-library button:hover>.qs-plan-symbol,.qs-element-library-wrap .qs-element-library button:focus-visible>.qs-plan-symbol{transform:perspective(180px) rotateX(7deg) translateY(-2px) scale(1.03);filter:drop-shadow(0 8px 6px rgb(54 43 30/.25))}
 .qs-element-library-wrap .qs-element-library button span{font-size:12px;line-height:1.25;font-weight:600;overflow-wrap:anywhere;color:var(--foreground)}
