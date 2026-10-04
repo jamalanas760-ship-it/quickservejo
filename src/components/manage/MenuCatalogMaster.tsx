@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Crown,
@@ -111,6 +111,25 @@ export function MenuCatalogMaster({
   const [status, setStatus] = useState<"all" | "available" | "unavailable">("all");
   const [productForm, setProductForm] = useState<ProductForm | null>(null);
   const [categoryForm, setCategoryForm] = useState<CategoryForm | null>(null);
+  // Retain the draft while Radix runs its exit animation; clearing it shrinks the sheet.
+  const [productOpen, setProductOpen] = useState(false);
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const editorTrigger = useRef<HTMLElement | null>(null);
+
+  function openProduct(form: ProductForm, trigger: HTMLElement) {
+    editorTrigger.current = trigger;
+    setProductForm(form);
+    setProductOpen(true);
+  }
+  function openCategory(form: CategoryForm, trigger: HTMLElement) {
+    editorTrigger.current = trigger;
+    setCategoryForm(form);
+    setCategoryOpen(true);
+  }
+  function restoreEditorFocus(event: Event) {
+    event.preventDefault();
+    if (editorTrigger.current?.isConnected) editorTrigger.current.focus({ preventScroll: true });
+  }
   const [modifierProduct, setModifierProduct] = useState<ItemRow | null>(null);
   const [deleteItem, setDeleteItem] = useState<ItemRow | null>(null);
   const [busy, setBusy] = useState(false);
@@ -207,7 +226,7 @@ export function MenuCatalogMaster({
         await logAudit("product.created", { restaurantId, entity: "menu_items" });
       }
       await refresh();
-      setProductForm(null);
+      setProductOpen(false);
       toast.success(ar ? "تم حفظ منتج القائمة العادية" : "Standard Menu product saved");
     } catch (error) {
       toast.error(humanError(error, lang));
@@ -240,7 +259,7 @@ export function MenuCatalogMaster({
         if (error) throw error;
       }
       await refresh();
-      setCategoryForm(null);
+      setCategoryOpen(false);
       toast.success(ar ? "تم حفظ الفئة" : "Category saved");
     } catch (error) {
       toast.error(humanError(error, lang));
@@ -302,8 +321,8 @@ export function MenuCatalogMaster({
     }
   }
 
-  function editProduct(item: ItemRow) {
-    setProductForm({
+  function editProduct(item: ItemRow, trigger: HTMLElement) {
+    openProduct({
       id: item.id,
       category_id: item.category_id ?? "",
       name_en: item.name_en,
@@ -316,7 +335,7 @@ export function MenuCatalogMaster({
       preparation_time: String(item.preparation_time),
       is_available: item.is_available,
       is_featured: item.is_featured,
-    });
+    }, trigger);
   }
 
   const loading = products.isPending || categories.isPending;
@@ -339,7 +358,7 @@ export function MenuCatalogMaster({
             <button
               type="button"
               className="qs-button-primary"
-              onClick={() => setCategoryForm({ name_en: "", name_ar: "", is_active: true })}
+              onClick={(event) => openCategory({ name_en: "", name_ar: "", is_active: true }, event.currentTarget)}
             >
               <Plus className="size-4" />
               {ar ? "إضافة فئة" : "Add Category"}
@@ -388,13 +407,13 @@ export function MenuCatalogMaster({
                     <button
                       type="button"
                       className="qs-button-secondary shrink-0"
-                      onClick={() =>
-                        setCategoryForm({
+                      onClick={(event) =>
+                        openCategory({
                           id: category.id,
                           name_en: category.name_en,
                           name_ar: category.name_ar,
                           is_active: category.is_active,
-                        })
+                        }, event.currentTarget)
                       }
                     >
                       <Pencil className="size-4" />
@@ -463,7 +482,7 @@ export function MenuCatalogMaster({
                 <button
                   type="button"
                   className="qs-button-primary min-h-11"
-                  onClick={() => setProductForm(emptyProduct(categoryList[0]?.id ?? ""))}
+                  onClick={(event) => openProduct(emptyProduct(categoryList[0]?.id ?? ""), event.currentTarget)}
                 >
                   <Plus className="size-4" />
                   {ar ? "إضافة منتج" : "Add Product"}
@@ -551,7 +570,7 @@ export function MenuCatalogMaster({
                           <button
                             type="button"
                             className="qs-button-secondary"
-                            onClick={() => editProduct(item)}
+                            onClick={(event) => editProduct(item, event.currentTarget)}
                           >
                             <Pencil className="size-4" />
                             {ar ? "تعديل" : "Edit"}
@@ -619,7 +638,7 @@ export function MenuCatalogMaster({
                               <button
                                 type="button"
                                 className="grid size-9 place-items-center rounded-lg border border-border hover:bg-muted"
-                                onClick={() => editProduct(item)}
+                                onClick={(event) => editProduct(item, event.currentTarget)}
                                 aria-label={ar ? "تعديل" : "Edit"}
                               >
                                 <Pencil className="size-4" />
@@ -687,7 +706,7 @@ export function MenuCatalogMaster({
                         <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
                           <button
                             type="button"
-                            onClick={() => editProduct(item)}
+                            onClick={(event) => editProduct(item, event.currentTarget)}
                             className="qs-button-primary min-h-11"
                           >
                             <Pencil className="size-4" />
@@ -776,7 +795,7 @@ export function MenuCatalogMaster({
                               <div className="flex gap-1.5">
                                 <button
                                   type="button"
-                                  onClick={() => editProduct(item)}
+                                  onClick={(event) => editProduct(item, event.currentTarget)}
                                   className="grid size-9 place-items-center rounded-lg border border-border hover:bg-muted"
                                   aria-label={ar ? "تعديل" : "Edit"}
                                 >
@@ -818,8 +837,8 @@ export function MenuCatalogMaster({
         </>
       )}
 
-      <Dialog open={productForm !== null} onOpenChange={(open) => !open && setProductForm(null)}>
-        <DialogContent placement="edge" className="qs-menu-editor-drawer" dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
+      <Dialog open={productOpen} onOpenChange={setProductOpen}>
+        <DialogContent placement="edge" className="qs-menu-editor-drawer" overlayClassName="qs-menu-editor-overlay" onCloseAutoFocus={restoreEditorFocus} dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
           <DialogHeader className="qs-menu-editor-header">
             <DialogTitle>
               {productForm?.id
@@ -956,7 +975,7 @@ export function MenuCatalogMaster({
             </div>
           ) : null}
           <DialogFooter className="qs-menu-editor-footer">
-            <Button variant="ghost" onClick={() => setProductForm(null)}>
+            <Button variant="ghost" onClick={() => setProductOpen(false)}>
               {ar ? "إلغاء" : "Cancel"}
             </Button>
             <Button
@@ -970,8 +989,8 @@ export function MenuCatalogMaster({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={categoryForm !== null} onOpenChange={(open) => !open && setCategoryForm(null)}>
-        <DialogContent placement="edge" className="qs-menu-editor-drawer" dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
+      <Dialog open={categoryOpen} onOpenChange={setCategoryOpen}>
+        <DialogContent placement="edge" className="qs-menu-editor-drawer" overlayClassName="qs-menu-editor-overlay" onCloseAutoFocus={restoreEditorFocus} dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
           <DialogHeader className="qs-menu-editor-header">
             <DialogTitle>
               {categoryForm?.id
@@ -1019,7 +1038,7 @@ export function MenuCatalogMaster({
             </div>
           ) : null}
           <DialogFooter className="qs-menu-editor-footer">
-            <Button variant="ghost" onClick={() => setCategoryForm(null)}>
+            <Button variant="ghost" onClick={() => setCategoryOpen(false)}>
               {ar ? "إلغاء" : "Cancel"}
             </Button>
             <Button
