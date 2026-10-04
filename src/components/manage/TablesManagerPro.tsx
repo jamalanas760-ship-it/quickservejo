@@ -462,6 +462,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     future: [],
   });
   const applyingHistory = useRef(false);
+  const undoElementAction = useRef<(id: string) => void>(() => {});
   function recordLayout(action: LayoutAction) {
     if (!applyingHistory.current)
       setHistory((value) => ({ past: [...value.past.slice(-29), action], future: [] }));
@@ -1439,7 +1440,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       ),
     );
   }
-  async function saveElements(elements: FloorElement[], rollback?: FloorElement) {
+  async function saveElements(elements: FloorElement[], rollback?: FloorElement, notify = true) {
     if (floorSaveInFlight.current) {
       if (rollback) previewElement(rollback);
       return false;
@@ -1447,8 +1448,10 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     floorSaveInFlight.current = true;
     setFloorBusy(true);
     const previous = floorsFromTheme(restaurant?.menu_theme);
+    const next = floors.map((f) => (f.id === activeFloor ? { ...f, elements } : f));
+    setFloors(next);
     try {
-      await persistFloors(floors.map((f) => (f.id === activeFloor ? { ...f, elements } : f)));
+      await persistFloors(next);
       recordLayout({
         kind: "elements",
         floor: activeFloor,
@@ -1457,7 +1460,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         ),
         after: elements,
       });
-      toast.success(ar ? "تم حفظ المخطط" : "Floor layout saved");
+      if (notify) toast.success(ar ? "تم حفظ المخطط" : "Floor layout saved");
       return true;
     } catch (error) {
       setFloors(previous);
@@ -1527,10 +1530,23 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     void saveElements([...(currentFloor.elements ?? []), copy]);
     setSelectedElementId(copy.id);
   }
-  function deleteElement() {
-    if (!selectedElement) return;
-    void saveElements((currentFloor.elements ?? []).filter((e) => e.id !== selectedElement.id));
+  undoElementAction.current = (id) => {
+    const action = history.past.at(-1);
+    if (action?.kind === "elements" && (action.before as FloorElement[]).some(e => e.id === id) && !(action.after as FloorElement[]).some(e => e.id === id)) {
+      void applyLayoutHistory(false);
+    } else toast.info(ar ? "استخدم التراجع في شريط المخطط لاستعادة العنصر" : "Use the floor toolbar Undo to restore this element");
+  };
+  async function deleteElement() {
+    if (!selectedElement || floorSaveInFlight.current) return;
+    const removed = selectedElement;
+    const saved = saveElements((currentFloor.elements ?? []).filter((e) => e.id !== removed.id), undefined, false);
     setSelectedElementId(null);
+    if (await saved) {
+      toast.success(ar ? "تم حذف العنصر" : "Element removed", {
+        duration: 6000,
+        action: { label: ar ? "تراجع" : "Undo", onClick: () => undoElementAction.current(removed.id) },
+      });
+    } else setSelectedElementId(removed.id);
   }
   async function changeStatus(status: string) {
     if (!selected) return;
