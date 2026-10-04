@@ -523,7 +523,12 @@ function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }:
           <span className="rounded-full bg-card px-2 py-1 text-[10px] font-bold text-muted-foreground">{rows.length}</span>
         </div>
         <div className="space-y-2.5">
-          {rows.map((task) => <div key={task.id} draggable={!busy} aria-grabbed={draggingId === task.id} onDragStart={(event) => {
+          {rows.map((task) => <div key={task.id} draggable={!busy} aria-grabbed={draggingId === task.id}
+            onPointerDown={event=>{if(event.button!==0||busy||((event.target as HTMLElement).closest("button,a,input,textarea,select")))return;event.preventDefault();event.currentTarget.setPointerCapture(event.pointerId);touchDrag.current={id:task.id,x:event.clientX,y:event.clientY,status:task.status};setDraggingId(task.id);setGhost({title:task.title,x:event.clientX,y:event.clientY});}}
+            onPointerMove={event=>{const drag=touchDrag.current;if(!drag||drag.id!==task.id)return;drag.x=event.clientX;drag.y=event.clientY;drag.status=targetAt(drag.x,drag.y);setOverStatus(drag.status);setGhost({title:task.title,x:drag.x,y:drag.y});}}
+            onPointerUp={()=>finishTouch()} onPointerCancel={()=>finishTouch(true)} onLostPointerCapture={()=>{if(touchDrag.current)finishTouch(true)}}
+            onClickCapture={event=>{if(draggingId===task.id){event.preventDefault();event.stopPropagation();}}
+            } onDragStart={(event) => {
             if(touchDrag.current){event.preventDefault();return;}
             event.dataTransfer.effectAllowed = "move";
             event.dataTransfer.setData("text/work-task-id", task.id);
@@ -534,9 +539,7 @@ function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }:
             <button type="button" className="qs-work-drag-handle" aria-label={`${ar?"نقل":"Move"} ${task.title}`} disabled={busy}
               onClick={event=>event.stopPropagation()}
               onKeyDown={event=>{if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(event.key)){event.preventDefault();const index=columns.findIndex(column=>column.status===task.status);const next=columns[index+(["ArrowDown","ArrowRight"].includes(event.key)?1:-1)];if(next)onStatus(task,next.status);}}}
-              onPointerDown={event=>{if(event.button!==0||busy)return;event.preventDefault();event.stopPropagation();event.currentTarget.setPointerCapture(event.pointerId);touchDrag.current={id:task.id,x:event.clientX,y:event.clientY,status:task.status};setDraggingId(task.id);setGhost({title:task.title,x:event.clientX,y:event.clientY});}}
-              onPointerMove={event=>{const drag=touchDrag.current;if(!drag||drag.id!==task.id)return;drag.x=event.clientX;drag.y=event.clientY;drag.status=targetAt(drag.x,drag.y);setOverStatus(drag.status);setGhost({title:task.title,x:drag.x,y:drag.y});}}
-              onPointerUp={()=>finishTouch()} onPointerCancel={()=>finishTouch(true)} onLostPointerCapture={()=>{if(touchDrag.current)finishTouch(true);}}>
+              onPointerDown={event=>event.stopPropagation()}>
               <GripVertical className="size-4"/>{ar?"اسحب للنقل":"Drag to move"}
             </button>
             </div>

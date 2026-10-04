@@ -108,13 +108,7 @@ export function FloorElementLibrary({
               {types.map((type) => {
                 return (
                   <button key={type} type="button" disabled={busy} onClick={() => onAdd(type)}>
-                    {["partition","reception","storage","buffet","bench","planter"].includes(type) ? <FloorPlanSymbol type={type}/> : <img
-                      src={`/floor-elements/${type}.png`}
-                      alt=""
-                      loading="lazy"
-                      width="144"
-                      height="120"
-                    />}
+                    <FloorPlanSymbol type={type}/>
                     <span>{FLOOR_ELEMENT_LABELS[type][ar ? 1 : 0]}</span>
                   </button>
                 );

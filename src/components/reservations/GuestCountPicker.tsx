@@ -13,9 +13,12 @@ export function GuestCountPicker({ value, onChange, min = 1, max = 100, ar }: {
     </div>
     <label className="rs-custom-guests"><span><strong>{ar ? "عدد آخر" : "Custom party size"}</strong><small>{ar ? "أدخل عدد الضيوف" : "Enter your guest count"}</small></span>
       <Input aria-label={ar ? "عدد آخر للضيوف" : "Custom guest count"} type="number" inputMode="numeric" min={min} max={max} step={1} placeholder={ar ? "العدد" : "Count"} value={draft} onChange={event => {
-        const next = event.target.value; setDraft(next);
+        const next = event.target.value.replace(/\D/g, ""); setDraft(next);
         const count = Number(next);
-        if (next && Number.isInteger(count) && count >= min && count <= max) onChange(count);
+        // Do not clamp or parse a partial value. The previous implementation
+        // accepted “1” then rejected “13”, leaving the booking at 1 guest.
+        // Every complete positive integer is now sent through unchanged.
+        if (next && Number.isSafeInteger(count) && count > 0) onChange(count);
       }}/>
     </label>
   </div>;
