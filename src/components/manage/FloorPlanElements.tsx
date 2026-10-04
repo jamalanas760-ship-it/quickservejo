@@ -259,9 +259,9 @@ export function FloorElementInspector({
   const [draft, setDraft] = useState(element);
   useEffect(() => setDraft(element), [element]);
   return (
-    <div className="space-y-4 p-5">
+    <div className="qs-element-inspector space-y-4 p-5">
       <div className="qs-element-inspector-preview">
-        <img src={`/floor-elements/${element.type}.png`} alt="" width="288" height="240" />
+        <FloorElementPreview type={element.type}/>
       </div>
       <h2 className="text-lg font-bold">{FLOOR_ELEMENT_LABELS[element.type][ar ? 1 : 0]}</h2>
       <p className="text-xs text-muted-foreground">
@@ -330,7 +330,7 @@ export function FloorElementInspector({
       <Button
         type="button"
         variant="outline"
-        className="w-full text-destructive"
+        className="qs-element-delete w-full text-destructive"
         disabled={busy}
         onClick={onDelete}
       >
