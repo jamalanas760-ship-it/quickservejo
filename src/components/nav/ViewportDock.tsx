@@ -18,10 +18,9 @@ export function ViewportDock({ children, dir }: { children: ReactNode; dir: "ltr
         const viewport = window.visualViewport;
         const el = host.current;
         if (!el) return;
-        // The browser's visible viewport can shrink independently of the page on iOS.
+        // Use viewport geometry only to detect the keyboard. Never cache a viewport
+        // height/top on the dock: Safari can report transient values during scrolling.
         const keyboard = Boolean(document.activeElement?.matches("input,textarea,[contenteditable=true]")) && window.innerHeight - (viewport?.height ?? window.innerHeight) > 150;
-        el.style.top = `${viewport?.offsetTop ?? 0}px`;
-        el.style.height = `${viewport?.height ?? window.innerHeight}px`;
         el.style.visibility = keyboard ? "hidden" : "visible";
         const dock = el.querySelector(".qs-mobile-bottom-nav");
         document.documentElement.style.setProperty("--qs-mobile-dock-height", `${dock?.getBoundingClientRect().height ?? 90}px`);
@@ -32,6 +31,8 @@ export function ViewportDock({ children, dir }: { children: ReactNode; dir: "ltr
     const dock = host.current?.querySelector(".qs-mobile-bottom-nav");
     if (dock) observer.observe(dock);
     window.addEventListener("resize", update);
+    window.addEventListener("pageshow", update);
+    window.addEventListener("scroll", update, { passive: true });
     window.visualViewport?.addEventListener("resize", update);
     window.visualViewport?.addEventListener("scroll", update);
     document.addEventListener("focusin", update);
@@ -39,6 +40,8 @@ export function ViewportDock({ children, dir }: { children: ReactNode; dir: "ltr
     return () => {
       cancelAnimationFrame(frame); observer.disconnect();
       window.removeEventListener("resize", update);
+      window.removeEventListener("pageshow", update);
+      window.removeEventListener("scroll", update);
       window.visualViewport?.removeEventListener("resize", update);
       window.visualViewport?.removeEventListener("scroll", update);
       document.removeEventListener("focusin", update); document.removeEventListener("focusout", update);

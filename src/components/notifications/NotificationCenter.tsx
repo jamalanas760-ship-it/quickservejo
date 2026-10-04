@@ -273,7 +273,7 @@ function NotificationItem({
         <p>{copy.body}</p>
       </Link>
       <div className="nc-row-actions">
-        <Button variant="ghost" className="nc-delete-one" disabled={busy} onClick={onDelete} aria-label={ar ? `حذف الإشعار: ${row.title}` : `Delete notification: ${row.title}`}><Trash2 className="size-4" /></Button>
+        <Button variant="ghost" className="nc-delete-one" disabled={busy} onClick={onDelete} aria-label={ar ? `حذف الإشعار: ${row.title}` : `Delete notification: ${row.title}`}><Trash2 /><span>{ar ? "حذف" : "Delete"}</span></Button>
         <Button asChild className="nc-primary">
           <Link to={notificationHref(row) as never} onClick={()=>{if(!row.read_at)onRead();}}>{ar ? "فتح" : "Open"}</Link>
         </Button>

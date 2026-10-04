@@ -5,7 +5,8 @@ import { defaultHomeLayout, type HomeLayout, type HomeSectionId } from "@/lib/ho
 import type { Language } from "@/lib/i18n";
 import { formatMoney } from "@/lib/format";
 import "./home-overview.css";
-import { HOME_PERIODS, type HomePeriod } from "@/lib/home-period";
+import { type HomePeriod } from "@/lib/home-period";
+import { HomePeriodPicker } from "./HomePeriodPicker";
 
 export type HomeOverviewProps = {
   name: string;
@@ -136,11 +137,7 @@ export function HomeOverview(p: HomeOverviewProps) {
           ) : null}
         </div>
       </header>
-      {p.onPeriodChange ? <section className="qs-home-period" aria-label={t("Overview period", "فترة العرض")}>
-        <div><strong>{t("Overview period", "فترة العرض")}</strong><small>{p.periodHint} · {timeZone} · {t("Weeks start Monday", "الأسبوع يبدأ الاثنين")}</small></div>
-        <div className="qs-home-period-options">{HOME_PERIODS.map(([key,en,arabic]) => <button key={key} type="button" aria-pressed={p.period === key} onClick={() => p.onPeriodChange?.(key)}>{t(en,arabic)}</button>)}</div>
-        <p>{t("Sales, orders and bookings follow this period. Tables and team show live status.", "المبيعات والطلبات والحجوزات حسب الفترة المحددة. الطاولات والفريق يعرضان الحالة الحالية.")}</p>
-      </section> : null}
+      {p.onPeriodChange ? <HomePeriodPicker period={p.period ?? "today"} onChange={p.onPeriodChange} ar={ar} timezone={timeZone} now={now} /> : null}
       <section
         style={sectionStyle("summary")}
         className="qs-home-summary qs-home-panel"

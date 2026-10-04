@@ -4949,11 +4949,11 @@ html.qs-theme-view-transition *{
 
 /* Native mobile dock: one opaque surface, with safe-area space owned here. */
 @layer components {
-.qs-nav-portal{display:block!important;position:fixed!important;left:0;right:0;top:0;height:100dvh;z-index:50;pointer-events:none;transform:none!important;filter:none!important;contain:none!important}
+.qs-nav-portal{display:contents!important;pointer-events:none;transform:none!important;filter:none!important;contain:none!important}
 .qs-nav-portal>.qs-app{display:contents!important;min-height:0!important}
 @media(max-width:1023px){
  .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav{
-  display:block!important;position:absolute!important;top:auto!important;width:100%!important;pointer-events:auto;
+  display:block!important;position:fixed!important;top:auto!important;width:100%!important;pointer-events:auto;
   inset-inline:0!important;bottom:0!important;
   padding:6px 8px max(8px,env(safe-area-inset-bottom))!important;
   background:var(--qs-surface)!important;border:1px solid var(--qs-stroke)!important;
