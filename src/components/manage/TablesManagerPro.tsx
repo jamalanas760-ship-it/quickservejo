@@ -2239,7 +2239,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         onClose={() => setQrTarget(null)}
       />
       <Dialog open={elementsOpen} onOpenChange={setElementsOpen}>
-        <DialogContent>
+        <DialogContent className="qs-floor-elements-dialog" onOpenAutoFocus={event=>event.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{ar ? "عناصر المخطط" : "Floor elements"}</DialogTitle>
             <DialogDescription>

@@ -14,7 +14,13 @@ export function FloorPlanSymbol({ type }: { type: FloorElementType }) {
       strokeWidth="2"
       strokeLinejoin="round"
     >
-      {plant ? (
+      {type === "partition" ? <><rect x="2" y="27" width="96" height="46" rx="4" fill="#f0e9dc"/>{Array.from({length:12},(_,i)=><rect key={i} x={6+i*7.5} y="29" width="4" height="42" rx="1" fill="#a47e54" stroke="#73573c"/>)}<path d="M5 8V92M95 8V92" stroke="#49524d" strokeWidth="6"/></>
+      : type === "reception" ? <><rect x="3" y="4" width="94" height="92" rx="10" fill="#cab293"/><rect x="8" y="9" width="84" height="54" rx="6" fill="#f4f0e8"/><path d="M8 69H92M8 83H92" stroke="#997a57"/><rect x="17" y="23" width="27" height="22" rx="3" fill="#34443f"/><rect x="20" y="26" width="21" height="15" rx="1" fill="#b3c7bd"/><rect x="59" y="29" width="20" height="24" rx="1" fill="#fffdf5"/></>
+      : type === "storage" ? <><rect x="5" y="5" width="90" height="90" rx="5" fill="#9d7954"/><rect x="11" y="11" width="36" height="73" rx="3" fill="#d4bd9c"/><rect x="53" y="11" width="36" height="73" rx="3" fill="#d4bd9c"/><path d="M41 36V58M59 36V58" stroke="#4c514a" strokeWidth="4"/><path d="M8 91H92" stroke="#514837" strokeWidth="5"/></>
+      : type === "buffet" ? <><rect x="3" y="5" width="94" height="90" rx="7" fill="#b4bcb6"/><rect x="7" y="9" width="86" height="76" rx="5" fill="#e9ebe5"/>{[12,41,70].map(x=><g key={x}><rect x={x} y="24" width="23" height="44" rx="4" fill="#60706a"/><rect x={x+3} y="28" width="17" height="36" rx="3" fill="#d0d4c7"/></g>)}<path d="M9 16H91M9 78H91" stroke="#7ea5a3" strokeWidth="4"/><path d="M5 91H95" stroke="#997856" strokeWidth="5"/></>
+      : type === "bench" ? <><rect x="5" y="15" width="90" height="69" rx="7" fill="#8b6b4b"/><rect x="9" y="20" width="82" height="59" rx="9" fill="#ded2bb"/><path d="M38 24V75M62 24V75" stroke="#b3a388"/><path d="M17 7V14M83 7V14M17 86V93M83 86V93" stroke="#48514c" strokeWidth="6"/></>
+      : type === "planter" ? <><rect x="2" y="12" width="96" height="76" rx="8" fill="#d4c8b5"/><rect x="8" y="19" width="84" height="62" rx="5" fill="#62543e"/>{[22,50,78].map(x=><g key={x}><ellipse cx={x} cy="50" rx="17" ry="24" fill="#84a46f"/><ellipse cx={x} cy="50" rx="11" ry="19" fill="#5c8151"/><path d={`M${x} 31V68`} stroke="#bed4a2"/></g>)}</>
+      : plant ? (
         <>
           <circle cx="50" cy="50" r="45" fill="#dbe5ca" stroke="#819c6e" />
           {Array.from({ length: 8 }, (_, i) => (
@@ -37,7 +43,7 @@ export function FloorPlanSymbol({ type }: { type: FloorElementType }) {
           <path d="M12 88V12M12 12A76 76 0 0 1 88 88" fill="none" strokeDasharray="4 3" />
           <path d="M12 88V12" stroke="#755c40" strokeWidth="5" />
         </>
-      ) : type === "wall" || type === "partition" ? (
+      ) : type === "wall" ? (
         <>
           <rect x="1" y="1" width="98" height="98" fill="#bcb7ae" />
           {[0, 20, 40, 60, 80].map((x) => (
@@ -54,7 +60,7 @@ export function FloorPlanSymbol({ type }: { type: FloorElementType }) {
           <circle cx="50" cy="50" r="43" fill="#d6ba96" />
           <circle cx="50" cy="50" r="33" fill="#e8d2b2" />
         </>
-      ) : type === "chair" || type === "sofa" || type === "bench" ? (
+      ) : type === "chair" || type === "sofa" ? (
         <>
           <rect x="5" y="8" width="90" height="85" rx="12" fill="#bfae9e" />
           <rect x="15" y="24" width="70" height="62" rx="8" fill="#e6d7c7" />

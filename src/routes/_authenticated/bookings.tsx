@@ -1,3 +1,4 @@
+import { TimeSlotPicker } from "@/components/reservations/TimeSlotPicker";
 import { publicGuestUrl } from "@/lib/public-url";
 import { GuestCountPicker } from "@/components/reservations/GuestCountPicker";
 import { RequestTimePicker } from "@/components/workforce/RequestPickers";
@@ -282,7 +283,7 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
   const [source,setSource]=useState("staff");
   const [zone,setZone]=useState("any");
   useEffect(()=>{if(open){setBookingDate(initial.date);setBookingTime(initial.time);setGuests(settings?.min_party_size&&settings.min_party_size>2?settings.min_party_size:2);setDuration(settings?.default_duration_minutes??90);setSelectedTable("auto");setZone("any");setStatus(settings?.auto_confirm?"confirmed":"pending");}},[open]);
-  const bookingAt=bookingDate&&bookingTime?`${bookingDate}T${bookingTime}`:"";
+  const bookingAt=bookingDate&&/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(bookingTime)?`${bookingDate}T${bookingTime}`:"";
 
   const available=useQuery<FloorTable[]>({
     queryKey:["booking-available-tables",restaurantId,bookingAt,guests,duration,timezone],
@@ -353,7 +354,7 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
               <Calendar mode="single" selected={dateValue} defaultMonth={dateValue??new Date()} onSelect={value=>{if(value){setBookingDate(formatDateOnly(value));setSelectedTable("auto");}}} disabled={{before:parseDateOnly(reservationDay(new Date(),timezone))!,after:parseDateOnly(addReservationDays(reservationDay(new Date(),timezone),settings?.max_advance_days??365))!}} className="rs-inline-calendar"/>
             </section>
             <section className="rs-visit-options">
-              <div className="qs-booking-time-field"><Field label={ar?"الوقت":"Time"}><div className="rs-time-slots">{quickTimes.map(time=><button key={time} type="button" aria-pressed={bookingTime===time} onClick={()=>{setBookingTime(time);setSelectedTable("auto");}}>{new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{hour:"numeric",minute:"2-digit",timeZone:"UTC"}).format(new Date(`2000-01-01T${time}:00Z`))}</button>)}</div><Input aria-label={ar?"وقت مخصص":"Custom booking time"} className="mt-2" type="time" step="60" value={bookingTime} onChange={e=>{setBookingTime(e.target.value);setSelectedTable("auto");}} required/></Field></div>
+              <div className="qs-booking-time-field"><Field label={ar?"الوقت":"Time"}><TimeSlotPicker ar={ar} value={bookingTime} onChange={time=>{setBookingTime(time);setSelectedTable("auto");}} options={quickTimes.map(time=>({value:time,label:new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{hour:"numeric",minute:"2-digit",timeZone:"UTC"}).format(new Date(`2000-01-01T${time}:00Z`))}))}/><Input aria-label={ar?"وقت مخصص":"Custom booking time"} className="mt-2" type="text" inputMode="text" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" value={bookingTime} onChange={e=>{setBookingTime(e.target.value);setSelectedTable("auto");}} required/></Field></div>
               <Field label={ar?"منطقة الجلوس":"Seating area"}><div className="rs-choice-rail rs-zone-rail">{["any",...zones].map(value=><button key={value} type="button" aria-pressed={zone===value} onClick={()=>{setZone(value);setSelectedTable("auto");}}>{value==="any"?(ar?"أي منطقة":"Any area"):value}</button>)}</div></Field>
               <Field label={ar?"الطاولة":"Table"}><Select value={selectedTable} onValueChange={setSelectedTable}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="auto">{ar?"أفضل طاولة تلقائياً":"Auto-assign best fit"}</SelectItem>{availableRows.map(table=><SelectItem key={table.id} value={table.id}>{table.table_name??`#${table.table_number}`} · {table.capacity} {ar?"مقاعد":"seats"}</SelectItem>)}</SelectContent></Select></Field>
               <div className="rs-live-availability" role="status">{available.isFetching?(ar?"جارٍ فحص التوفر…":"Checking availability…"):available.isError?<span className="text-destructive">{humanError(available.error,lang)}</span>:chosen?<span><CheckCircle2 className="size-4"/>{availableRows.length} {ar?"طاولات متاحة":"tables available"} · {chosen.table_name??`#${chosen.table_number}`}</span>:<span className="text-amber-700">{ar?"لا توجد طاولة مناسبة. اختر وقتاً أو منطقة أخرى.":"No suitable table. Try another time or area."}</span>}</div>

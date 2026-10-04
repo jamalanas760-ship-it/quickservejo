@@ -5128,3 +5128,15 @@ html.qs-theme-view-transition *{
  .qs-booking-create-dialog .rs-time-slots button{min-height:44px;font-size:14px}
  .qs-booking-create-dialog .rs-form-footer button{min-height:44px!important;font-size:14px}
 }
+.qs-work-ticket{position:relative;min-height:0!important;padding:16px!important;border-radius:14px!important;gap:0;box-shadow:0 2px 8px rgb(0 0 0 / .025)}
+.qs-work-ticket h3{font-size:16px!important;line-height:1.4!important}.qs-work-ticket-copy{margin-top:12px!important}.qs-work-comments{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--qs-muted);margin-top:10px}.qs-work-ticket .qs-work-comments{align-self:flex-end}
+.qs-workflow-board>section{padding:12px!important;border-radius:16px!important}.qs-workflow-board article button{min-height:44px}.qs-work-drag-handle{touch-action:none;user-select:none;cursor:grab;display:flex;align-items:center;gap:5px;min-height:44px;padding:6px 10px;margin-inline-start:auto;color:var(--qs-muted);font-size:11px;border-radius:8px}
+.qs-work-drag-ghost{position:fixed;z-index:100;pointer-events:none;width:240px;padding:16px;border:1px solid var(--qs-brand);border-radius:14px;background:var(--qs-surface);color:var(--qs-ink);box-shadow:0 16px 48px rgb(0 0 0 / .2);font-size:14px;font-weight:650;transform:translate(-50%,-50%) rotate(-2deg)}
+@layer components{
+ .qs-work-delete.qs-dialog-content{display:flex!important;flex-direction:column!important;height:auto!important;bottom:auto!important;gap:20px!important;padding:24px!important}
+ .qs-work-delete>.qs-dialog-header{gap:10px}.qs-work-delete>.qs-dialog-header h2{font-size:21px}.qs-work-delete>.qs-dialog-header p{line-height:1.65;font-size:14px}
+ .qs-work-delete>div:last-of-type{display:grid;grid-template-columns:1fr 1fr;gap:12px}.qs-work-delete>div:last-of-type button{min-height:48px}
+ @media(max-width:767px),(max-height:500px){.qs-work-delete.qs-dialog-content{top:max(calc(env(safe-area-inset-top) + 12px),calc((100dvh - 300px)/2))!important;max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)!important}}
+}
+.qs-work-delete-name{border:1px solid var(--qs-stroke);background:var(--qs-surface-soft);border-radius:10px;padding:12px;font-size:14px;font-weight:650;overflow-wrap:anywhere}
+@layer components{.qs-work-delete .qs-work-delete-actions{width:100%;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.qs-work-delete-actions>button{width:100%}}

@@ -304,13 +304,56 @@ export function createFurnitureCatalog() {
     cylinder(g, 0.016, 0.16, metal, 0.76, 0.84, -0.26);
     return g;
   }
+  function partition() {
+    const g = new T.Group();
+    for (const x of [-.88,.88]) { box(g,.1,1.45,.12,darkWood,x,.725); box(g,.3,.05,.46,metal,x,.025); }
+    for (let i=0;i<13;i++) box(g,.055,1.3,.06,walnut,-.78+i*.13,.76);
+    box(g,1.85,.08,.12,darkWood,0,1.42); box(g,1.85,.08,.12,darkWood,0,.12);
+    return g;
+  }
+  function reception() {
+    const g=new T.Group();
+    box(g,1.7,.88,.65,walnut);box(g,1.78,.07,.72,marble,0,.91);
+    box(g,1.7,.04,.02,brass,0,.18,.335);box(g,1.7,.04,.02,brass,0,.68,.335);
+    box(g,.24,.14,.16,black,-.42,1.01,-.08);box(g,.36,.24,.035,black,-.42,1.18,-.08);box(g,.3,.18,.008,glass,-.42,1.18,-.058);
+    box(g,.35,.015,.23,cream,.4,.958,-.05);return g;
+  }
+  function storage() {
+    const g=new T.Group();
+    box(g,1.15,1.5,.5,darkWood,0,.85);box(g,1.18,.04,.53,walnut,0,1.62);
+    for(const x of [-.29,.29]){box(g,.55,1.36,.035,walnut,x,.88,.27);box(g,.025,.28,.04,brass,x>0?.07:-.07,.91,.301);}
+    for(const x of [-.46,.46])for(const z of [-.18,.18])box(g,.055,.13,.055,metal,x,.065,z);
+    return g;
+  }
+  function buffet() {
+    const g=new T.Group();
+    box(g,2,.8,.7,walnut);box(g,2.06,.065,.76,metal,0,.84);
+    for(const x of [-.65,0,.65]){box(g,.51,.04,.47,black,x,.89);box(g,.44,.018,.4,metal,x,.92);box(g,.34,.014,.29,cream,x,.933);}
+    for(const x of [-.9,.9]){box(g,.035,.55,.035,metal,x,1.16,.22);box(g,.035,.55,.035,metal,x,1.16,-.22);}
+    box(g,2,.025,.58,glass,0,1.44);box(g,2,.35,.018,glass,0,1.25,.25);
+    for(const x of [-.6,.6])box(g,.022,.3,.022,brass,x,.42,.362);
+    return g;
+  }
+  function bench() {
+    const g=new T.Group();
+    box(g,1.8,.11,.52,walnut,0,.43);box(g,1.75,.12,.48,cushion,0,.535);
+    for(const x of [-.65,.65]){box(g,.08,.36,.4,black,x,.18);box(g,.35,.025,.46,black,x,.02);}
+    box(g,1.35,.055,.055,black,0,.19);return g;
+  }
+  function planter() {
+    const g=new T.Group();
+    box(g,1.5,.45,.48,beige);box(g,1.36,.02,.35,soil,0,.46);
+    box(g,1.55,.055,.52,cream,0,.45);
+    for(let i=0;i<5;i++){const p=plant();p.scale.set(.55,.65,.55);p.position.set(-.57+i*.285,.27,0);g.add(p);}
+    return g;
+  }
   function makeElement(type: FloorElementType) {
     switch (type) {
       case "chair":
         return chair();
       case "stool":
         return chair(true);
-      case "partition":
+      case "partition": return partition();
       case "wall":
         return wall();
       case "door":
@@ -319,7 +362,7 @@ export function createFurnitureCatalog() {
         return doorway(true);
       case "tree":
         return plant(true);
-      case "planter":
+      case "planter": return planter();
       case "plant":
         return plant();
       case "toilet":
@@ -328,12 +371,12 @@ export function createFurnitureCatalog() {
         return kitchen();
       case "bar":
         return counter(true);
-      case "reception":
-      case "storage":
-      case "buffet":
+      case "reception": return reception();
+      case "storage": return storage();
+      case "buffet": return buffet();
       case "counter":
         return counter();
-      case "bench":
+      case "bench": return bench();
       case "sofa":
         return sofa();
     }

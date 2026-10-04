@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
@@ -8,6 +9,7 @@ import {
   Clock3,
   Handshake,
   GripVertical,
+  MessageSquare,
   LayoutGrid,
   ListTodo,
   Pencil,
@@ -63,6 +65,7 @@ type WorkTask = {
   category: WorkCategory;
   priority: WorkPriority;
   status: WorkStatus;
+  comment_count?: number;
   assigned_staff_id: string | null;
   assigned_role: string | null;
   created_by_staff_id: string | null;
@@ -125,15 +128,17 @@ export function WorkPage() {
     queryKey: ["work", rid],
     enabled: Boolean(rid && canView),
     staleTime: 10_000,
+    refetchInterval:20_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("work_tasks")
-        .select("id,restaurant_id,title,description,category,priority,status,assigned_staff_id,assigned_role,created_by_staff_id,due_at,requires_approval,approval_role,source_type,source_id,completion_note,approval_status,approval_note,deleted_at,created_at,updated_at,completed_at")
+        .select("id,restaurant_id,title,description,category,priority,status,assigned_staff_id,assigned_role,created_by_staff_id,due_at,requires_approval,approval_role,source_type,source_id,completion_note,approval_status,approval_note,deleted_at,created_at,updated_at,completed_at,work_task_activity(count)")
         .eq("restaurant_id", rid!)
+        .eq("work_task_activity.action","comment")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(250);
       if (error) throw error;
-      return (data ?? []) as WorkTask[];
+      return (data ?? []).map((row:any)=>({...row,comment_count:Number(row.work_task_activity?.[0]?.count??0)})) as WorkTask[];
     },
   });
 
@@ -319,7 +324,7 @@ export function WorkPage() {
     },
     onSuccess: async () => {
       setComment("");
-      await qc.invalidateQueries({ queryKey: ["work", "activity", selectedId] });
+      await Promise.all([qc.invalidateQueries({ queryKey: ["work", "activity", selectedId] }),qc.invalidateQueries({queryKey:["work",rid]})]);
       toast.success(ar ? "تمت إضافة التعليق" : "Comment added");
     },
     onError: (error) => toast.error(humanError(error, lang)),
@@ -430,18 +435,7 @@ export function WorkPage() {
       onSave={(values) => editingTask && editTaskDetails.mutate({ task: editingTask, ...values })}
     />
 
-    <Dialog open={Boolean(pendingDelete)} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
-      <DialogContent className="sm:max-w-[460px]">
-        <DialogHeader>
-          <DialogTitle>{ar ? "حذف عنصر العمل؟" : "Delete this work item?"}</DialogTitle>
-          <DialogDescription>{ar ? "سيختفي من قوائم العمل النشطة مع الحفاظ على سجله للمراجعة. لا يمكن التراجع من الواجهة." : "It disappears from active work lists while its record is kept for audit. This cannot be undone from the app."}</DialogDescription>
-        </DialogHeader>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setPendingDelete(null)}>{ar ? "إلغاء" : "Cancel"}</Button>
-          <Button variant="destructive" disabled={removeTask.isPending} onClick={() => pendingDelete && removeTask.mutate(pendingDelete.id)}><Trash2 className="size-4" />{ar ? "حذف" : "Delete"}</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <DeleteTaskDialog task={pendingDelete} ar={ar} busy={removeTask.isPending} onClose={()=>setPendingDelete(null)} onDelete={()=>pendingDelete&&removeTask.mutate(pendingDelete.id)}/>
   </div>;
 }
 
@@ -449,20 +443,65 @@ function Metric({ icon: Icon, label, value, tone, active, onClick }: { icon: typ
   return <button type="button" onClick={onClick} className={cn("qs-stat flex min-h-[112px] w-full items-center gap-4 p-4 text-start transition hover:-translate-y-0.5 hover:shadow-sm", active && "ring-2 ring-[#e85d2a]/50")}><span className={cn("grid size-11 place-items-center rounded-2xl", tone === "urgent" ? "bg-red-500/10 text-red-600" : "bg-orange-500/10 text-[#e85d2a]")}><Icon className="size-5" /></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-3xl tracking-[-.04em]">{value}</strong></div></button>;
 }
 
+function DeleteTaskDialog({task,ar,busy,onClose,onDelete}:{task:WorkTask|null;ar:boolean;busy:boolean;onClose:()=>void;onDelete:()=>void}) {
+  return <Dialog open={Boolean(task)} onOpenChange={open=>{if(!open)onClose();}}>
+      <DialogContent className="qs-work-delete sm:max-w-[460px]" onOpenAutoFocus={event=>event.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle>{ar ? "حذف عنصر العمل؟" : "Delete this work item?"}</DialogTitle>
+          <DialogDescription>{ar ? "سيختفي من قوائم العمل النشطة مع الحفاظ على سجله للمراجعة. لا يمكن التراجع من الواجهة." : "It disappears from active work lists while its record is kept for audit. This cannot be undone from the app."}</DialogDescription>
+        </DialogHeader>
+        {task?<p className="qs-work-delete-name">{task.title}</p>:null}
+        <div className="qs-work-delete-actions flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button variant="destructive" disabled={busy} onClick={onDelete}><Trash2 className="size-4" />{ar ? "حذف" : "Delete"}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>;
+}
+
 function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }: { tasks: WorkTask[]; staff: StaffOption[]; ar: boolean; canApprove: boolean; busy: boolean; onStatus: (task: WorkTask, status: WorkStatus) => void; onOpen: (task: WorkTask) => void }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [overStatus, setOverStatus] = useState<WorkStatus | null>(null);
+  const boardRef=useRef<HTMLDivElement>(null);
+  const touchDrag=useRef<{id:string;x:number;y:number;status:WorkStatus|null}|null>(null);
+  const [ghost,setGhost]=useState<{title:string;x:number;y:number}|null>(null);
+  function targetAt(x:number,y:number) {
+    const column=document.elementFromPoint(x,y)?.closest<HTMLElement>("[data-work-status]");
+    return boardRef.current?.contains(column??null) ? column?.dataset.workStatus as WorkStatus : null;
+  }
+  function finishTouch(cancel=false) {
+    const drag=touchDrag.current;
+    touchDrag.current=null;setGhost(null);setDraggingId(null);setOverStatus(null);
+    const task=tasks.find(row=>row.id===drag?.id);
+    if(!cancel && task && drag?.status && task.status!==drag.status)onStatus(task,drag.status);
+  }
+  useEffect(()=>{
+    if(!ghost)return;
+    let frame=0;
+    const tick=()=>{
+      const drag=touchDrag.current;if(!drag)return;
+      const board=boardRef.current;
+      let scroller=board?.parentElement;
+      while(scroller && !(scroller.scrollHeight>scroller.clientHeight && /auto|scroll/.test(getComputedStyle(scroller).overflowY)))scroller=scroller.parentElement;
+      const bounds=scroller?.getBoundingClientRect()??{top:0,bottom:window.innerHeight};
+      const speed=drag.y<bounds.top+70?-10:drag.y>bounds.bottom-70?10:0;
+      if(speed){if(scroller)scroller.scrollTop+=speed;else window.scrollBy(0,speed);drag.status=targetAt(drag.x,drag.y);setOverStatus(drag.status);}
+      frame=requestAnimationFrame(tick);
+    };
+    frame=requestAnimationFrame(tick);return()=>cancelAnimationFrame(frame);
+  },[Boolean(ghost)]);
+
   const columns: Array<{ status: WorkStatus; en: string; ar: string; tone: string }> = [
     { status: "open", en: "To do", ar: "للعمل", tone: "bg-slate-400" },
     { status: "in_progress", en: "In progress", ar: "قيد التنفيذ", tone: "bg-blue-500" },
     { status: "waiting_approval", en: "Review", ar: "مراجعة", tone: "bg-violet-500" },
     { status: "completed", en: "Done", ar: "مكتمل", tone: "bg-emerald-500" },
   ];
-  return <div className="qs-workflow-board grid gap-3 p-3 lg:grid-cols-2 xl:grid-cols-4 sm:p-4">
+  return <div ref={boardRef} className="qs-workflow-board grid gap-3 p-3 lg:grid-cols-2 xl:grid-cols-4 sm:p-4">
     {columns.map((column) => {
       const rows = tasks.filter((task) => task.status === column.status);
       const isDropTarget = Boolean(draggingId && overStatus === column.status);
-      return <section key={column.status} onDragEnter={(event) => {
+      return <section key={column.status} data-work-status={column.status} onDragEnter={(event) => {
         event.preventDefault();
         if (draggingId) setOverStatus(column.status);
       }} onDragOver={(event) => {
@@ -485,11 +524,22 @@ function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }:
         </div>
         <div className="space-y-2.5">
           {rows.map((task) => <div key={task.id} draggable={!busy} aria-grabbed={draggingId === task.id} onDragStart={(event) => {
+            if(touchDrag.current){event.preventDefault();return;}
             event.dataTransfer.effectAllowed = "move";
             event.dataTransfer.setData("text/work-task-id", task.id);
             setDraggingId(task.id);
           }} onDragEnd={() => { setDraggingId(null); setOverStatus(null); }} className={cn("group relative cursor-grab transition-[opacity,transform,filter] duration-200 ease-out will-change-transform active:cursor-grabbing", draggingId === task.id && "scale-[.985] opacity-35 saturate-50")}>
-            <span className="pointer-events-none absolute end-3 top-3 z-10 grid size-7 place-items-center rounded-lg border border-border/70 bg-card/90 text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100 group-focus-within:opacity-100"><GripVertical className="size-4" /></span>
+            <div className="qs-work-ticket-tools flex items-center justify-between">
+              {Boolean(task.comment_count)?<button type="button" className="qs-work-comments" onClick={()=>onOpen(task)} aria-label={`${ar?"عرض التعليقات":"View comments"}: ${task.comment_count}`}><MessageSquare className="size-3.5"/>{task.comment_count}</button>:null}
+            <button type="button" className="qs-work-drag-handle" aria-label={`${ar?"نقل":"Move"} ${task.title}`} disabled={busy}
+              onClick={event=>event.stopPropagation()}
+              onKeyDown={event=>{if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(event.key)){event.preventDefault();const index=columns.findIndex(column=>column.status===task.status);const next=columns[index+(["ArrowDown","ArrowRight"].includes(event.key)?1:-1)];if(next)onStatus(task,next.status);}}}
+              onPointerDown={event=>{if(event.button!==0||busy)return;event.preventDefault();event.stopPropagation();event.currentTarget.setPointerCapture(event.pointerId);touchDrag.current={id:task.id,x:event.clientX,y:event.clientY,status:task.status};setDraggingId(task.id);setGhost({title:task.title,x:event.clientX,y:event.clientY});}}
+              onPointerMove={event=>{const drag=touchDrag.current;if(!drag||drag.id!==task.id)return;drag.x=event.clientX;drag.y=event.clientY;drag.status=targetAt(drag.x,drag.y);setOverStatus(drag.status);setGhost({title:task.title,x:drag.x,y:drag.y});}}
+              onPointerUp={()=>finishTouch()} onPointerCancel={()=>finishTouch(true)} onLostPointerCapture={()=>{if(touchDrag.current)finishTouch(true);}}>
+              <GripVertical className="size-4"/>{ar?"اسحب للنقل":"Drag to move"}
+            </button>
+            </div>
             <WorkCard task={task} staff={staff} ar={ar} canApprove={canApprove} busy={busy} onStatus={(status) => onStatus(task, status)} onOpen={() => onOpen(task)} />
           </div>)}
           {rows.length === 0 ? <div className={cn("grid min-h-28 place-items-center rounded-xl border border-dashed border-border bg-card/45 p-3 text-center text-[10px] font-semibold text-muted-foreground transition-all duration-200", isDropTarget && "scale-[1.01] border-[#e85d2a]/60 bg-orange-500/[.06] text-[#cf4818]")}>{isDropTarget ? (ar ? "أفلت البطاقة لنقلها" : "Release to move the card") : (ar ? "اسحب بطاقة إلى هنا" : "Drag a card here")}</div> : null}
@@ -497,6 +547,8 @@ function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }:
         </div>
       </section>;
     })}
+    {ghost?createPortal(<div className="qs-work-drag-ghost" style={{left:ghost.x,top:ghost.y}}>{ghost.title}</div>,document.body):null}
+    <span className="sr-only" role="status">{draggingId?(ar?"انقل البطاقة إلى الحالة المطلوبة":"Move the card to the desired status"):""}</span>
   </div>;
 }
 
@@ -518,9 +570,10 @@ function WorkCard({ task, staff, ar, canApprove, busy, onStatus, onOpen }: { tas
   const assignee = task.assigned_staff_id ? staff.find((row) => row.id === task.assigned_staff_id)?.name : null;
   const overdue = task.due_at && new Date(task.due_at).getTime() < Date.now() && task.status !== "completed";
   const CategoryIcon = task.category === "approval" ? ShieldCheck : task.category === "handover" ? Handshake : task.category === "alert" ? AlertTriangle : ClipboardCheck;
-  return <article role="button" tabIndex={0} onClick={onOpen} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }} className="group flex min-h-[184px] cursor-pointer flex-col rounded-xl border border-border bg-card p-3.5 text-start outline-none transition hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-[#e85d2a]">
+  return <article role="button" tabIndex={0} onClick={onOpen} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }} className="qs-work-ticket group flex min-h-[184px] cursor-pointer flex-col rounded-xl border border-border bg-card p-3.5 text-start outline-none transition hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-[#e85d2a]">
     <div className="flex items-start justify-between gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-muted text-muted-foreground"><CategoryIcon className="size-4" /></span><div className="flex flex-wrap justify-end gap-1.5"><Badge className={cn("border-0 capitalize", priorityTone[task.priority])}>{task.priority}</Badge>{overdue ? <Badge variant="destructive">{ar ? "متأخر" : "Overdue"}</Badge> : null}</div></div>
-    <div className="mt-3 min-w-0 flex-1"><h3 className="line-clamp-2 font-display text-base font-bold leading-6">{task.title}</h3>{task.description ? <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{task.description}</p> : <p className="mt-1.5 text-xs text-muted-foreground">{ar ? "لا يوجد وصف إضافي." : "No additional description."}</p>}</div>
+    <div className="qs-work-ticket-copy mt-3 min-w-0 flex-1"><h3 className="line-clamp-2 font-display text-base font-bold leading-6">{task.title}</h3>{task.description ? <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{task.description}</p> : null}</div>
+
     <div className="mt-3 grid gap-1.5 border-t border-border/70 pt-3 text-[10px] font-semibold text-muted-foreground"><span className="inline-flex min-w-0 items-center gap-1.5"><UserRound className="size-3.5 shrink-0" /><span className="truncate">{assignee ?? (task.assigned_role ? roleLabel(task.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))}</span></span>{task.due_at ? <span className="inline-flex items-center gap-1.5"><Clock3 className="size-3.5" />{formatStamp(task.due_at, ar)}</span> : null}</div>
     <div className="mt-3 flex items-center gap-2" onClick={(event) => event.stopPropagation()}>{task.status === "open" ? <Button variant="outline" size="sm" className="flex-1" disabled={busy} onClick={() => onStatus("in_progress")}>{ar ? "بدء" : "Start"}</Button> : null}{task.status === "in_progress" && task.requires_approval ? <Button variant="outline" size="sm" className="flex-1" disabled={busy} onClick={() => onStatus("waiting_approval")}>{ar ? "إرسال للموافقة" : "Submit"}</Button> : null}{task.status === "in_progress" && !task.requires_approval ? <Button size="sm" className="flex-1" disabled={busy} onClick={() => onStatus("completed")}>{ar ? "إكمال" : "Complete"}</Button> : null}{task.status === "waiting_approval" && canApprove ? <Button size="sm" className="flex-1" disabled={busy} onClick={() => onStatus("completed")}><CheckCircle2 className="size-4" />{ar ? "اعتماد" : "Approve"}</Button> : <span className="capitalize text-xs text-muted-foreground">{task.status.replaceAll("_", " ")}</span>}</div>
   </article>;
@@ -538,7 +591,7 @@ function TaskRow({ task, staff, ar, canApprove, busy, onStatus, onOpen }: { task
     onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }}
     className="grid cursor-pointer gap-4 p-4 outline-none transition hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-[#e85d2a] sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
   >
-    <div className="flex min-w-0 gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground"><CategoryIcon className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{task.title}</h3><Badge className={cn("border-0 capitalize", priorityTone[task.priority])}>{task.priority}</Badge>{overdue ? <Badge variant="destructive">{ar ? "متأخر" : "Overdue"}</Badge> : null}</div>{task.description ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{task.description}</p> : null}<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-semibold text-muted-foreground"><span className="inline-flex items-center gap-1"><UserRound className="size-3" />{assignee ?? (task.assigned_role ? roleLabel(task.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))}</span>{task.due_at ? <span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{new Date(task.due_at).toLocaleString(ar ? "ar-JO" : "en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span> : null}<span className="capitalize">{task.status.replaceAll("_", " ")}</span></div></div></div>
+    <div className="flex min-w-0 gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground"><CategoryIcon className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{task.title}</h3><Badge className={cn("border-0 capitalize", priorityTone[task.priority])}>{task.priority}</Badge>{overdue ? <Badge variant="destructive">{ar ? "متأخر" : "Overdue"}</Badge> : null}</div>{task.description ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{task.description}</p> : null}<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-semibold text-muted-foreground"><span className="inline-flex items-center gap-1"><UserRound className="size-3" />{assignee ?? (task.assigned_role ? roleLabel(task.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))}</span>{task.due_at ? <span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{new Date(task.due_at).toLocaleString(ar ? "ar-JO" : "en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span> : null}<span className="capitalize">{task.status.replaceAll("_", " ")}</span>{Boolean(task.comment_count)?<span className="qs-work-comments"><MessageSquare className="size-3.5"/>{task.comment_count}</span>:null}</div></div></div>
     <div className="flex flex-wrap gap-2 lg:justify-end" onClick={(event) => event.stopPropagation()}>{task.status === "open" ? <Button variant="outline" size="sm" disabled={busy} onClick={() => onStatus("in_progress")}>{ar ? "بدء" : "Start"}</Button> : null}{task.status === "in_progress" && task.requires_approval ? <Button variant="outline" size="sm" disabled={busy} onClick={() => onStatus("waiting_approval")}>{ar ? "إرسال للموافقة" : "Submit"}</Button> : null}{task.status === "in_progress" && !task.requires_approval ? <Button size="sm" disabled={busy} onClick={() => onStatus("completed")}>{ar ? "إكمال" : "Complete"}</Button> : null}{task.status === "waiting_approval" && canApprove ? <Button size="sm" disabled={busy} onClick={() => onStatus("completed")}><CheckCircle2 className="size-4" />{ar ? "اعتماد" : "Approve"}</Button> : null}</div>
   </article>;
 }
