@@ -2371,17 +2371,17 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
           if (!open) resetTableForm();
         }}
       >
-        <DialogContent className="qs-table-details-dialog sm:max-w-lg">
+        <DialogContent className="qs-table-details-dialog sm:max-w-lg" onOpenAutoFocus={event => event.preventDefault()}>
           <DialogHeader>
             <DialogTitle>
               {selected
-                ? `${ar ? "طاولة" : "Table"} ${selected.table_number}`
+                ? `${ar ? "تعديل الطاولة" : "Edit table"} ${selected.table_number}`
                 : ar
                   ? "تفاصيل الطاولة"
                   : "Table details"}
             </DialogTitle>
             <DialogDescription>
-              {ar ? "معلومات الطاولة ورمز QR" : "Table information and QR code"}
+              {ar ? "المقاعد والمظهر والموقع في مكان واحد." : "Seating, style and location in one place."}
             </DialogDescription>
           </DialogHeader>
           {selected ? (
@@ -2957,7 +2957,9 @@ function TableInspector({
             {ar ? "دمج مع طاولة أخرى" : "Merge with another table"}
           </Button>
         )}
+        <section className="qs-table-edit-section"><h3>{ar ? "تفاصيل الطاولة" : "Table details"}</h3>
         <TableForm ar={ar} form={form} setForm={setForm} floors={floors} />
+        </section>
         <p className="rounded-lg bg-muted/50 px-3 py-2 text-[10px] leading-4 text-muted-foreground">
           {ar
             ? "تظهر تغييرات المادة والشكل والمقاعد مباشرة على المخطط. اضغط حفظ التغييرات للاحتفاظ بها."
@@ -2967,6 +2969,8 @@ function TableInspector({
           <div className="flex gap-2">
             <Input
               type="number"
+              aria-label={ar ? "زاوية الدوران" : "Rotation angle"}
+              inputMode="decimal"
               value={form.rotation}
               onChange={(e) => setForm({ ...form, rotation: e.target.value })}
             />
@@ -3089,7 +3093,8 @@ function TableForm({
         <div className="grid grid-cols-[42px_1fr_42px] overflow-hidden rounded-xl border border-border">
           <button
             type="button"
-            className="grid min-h-10 place-items-center"
+            className="grid min-h-11 place-items-center"
+            aria-label={ar ? "تقليل المقاعد" : "Decrease seats"}
             onClick={() =>
               setForm({ ...form, capacity: String(clamp((Number(form.capacity) || 1) - 1, 1, 30)) })
             }
@@ -3101,7 +3106,7 @@ function TableForm({
           </span>
           <button
             type="button"
-            className="grid min-h-10 place-items-center"
+            className="grid min-h-11 place-items-center" aria-label={ar ? "زيادة المقاعد" : "Increase seats"}
             onClick={() =>
               setForm({ ...form, capacity: String(clamp((Number(form.capacity) || 1) + 1, 1, 30)) })
             }

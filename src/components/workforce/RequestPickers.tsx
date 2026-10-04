@@ -7,16 +7,7 @@ import { CalendarDays, ChevronDown, Clock3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 type PickerProps = {
   label: string;
@@ -33,6 +24,7 @@ export function RequestDatePicker({
   ar,
   min,
   timeZone,
+  disabled = false,
 }: PickerProps & { min?: string; timeZone?: string | undefined }) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -51,10 +43,13 @@ export function RequestDatePicker({
   return (
     <div className="qs-request-picker-field">
       <Label htmlFor={id}>{label}</Label>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
+      <Dialog open={open} onOpenChange={setOpen}>
           <Button
             id={id}
+            disabled={disabled}
+            onClick={() => setOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={open}
             type="button"
             variant="outline"
             className="qs-request-picker-trigger"
@@ -70,16 +65,8 @@ export function RequestDatePicker({
             </span>
             <ChevronDown data-icon="inline-end" />
           </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          sideOffset={8}
-          collisionPadding={12}
-          className="qs-request-date-popover"
-          dir={ar ? "rtl" : "ltr"}
-          aria-label={label}
-          onEscapeKeyDown={(event) => event.stopPropagation()}
-        >
+        <DialogContent className="qs-picker-dialog qs-date-picker-dialog" dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={event => event.preventDefault()}>
+          <DialogHeader><DialogTitle>{label}</DialogTitle><DialogDescription>{ar ? "اختر يوم الوردية من التقويم." : "Choose a date from the calendar."}</DialogDescription></DialogHeader>
           <Calendar
             mode="single"
             required
@@ -121,14 +108,14 @@ export function RequestDatePicker({
               </Button>
             ))}
           </div>
-        </PopoverContent>
-      </Popover>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function clockParts(value: string) {
-  const [hour, minute = "00"] = (/^([01]\d|2[0-3]):[0-5]\d/.test(value) ? value : "09:00").split(
+  const [hour, minute = "00"] = (/^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : "09:00").split(
     ":",
   );
   const hour24 = Number(hour);
@@ -156,17 +143,12 @@ export function RequestTimePicker({ label, value, onChange, ar, disabled = false
   return (
     <div className="qs-request-picker-field">
       <Label htmlFor={id}>{label}</Label>
-      <Popover
-        open={open}
-        onOpenChange={(next) => {
-          if (disabled) return;
-          if (next) setDraft(clockParts(value));
-          setOpen(next);
-        }}
-      >
-        <PopoverTrigger asChild>
+      <Dialog open={open} onOpenChange={setOpen}>
           <Button
             id={id}
+            onClick={() => { setDraft(clockParts(value)); setOpen(true); }}
+            aria-haspopup="dialog"
+            aria-expanded={open}
             disabled={disabled}
             type="button"
             variant="outline"
@@ -179,74 +161,27 @@ export function RequestTimePicker({ label, value, onChange, ar, disabled = false
             </span>
             <ChevronDown data-icon="inline-end" />
           </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          sideOffset={8}
-          collisionPadding={12}
-          className="qs-request-time-popover"
-          dir={ar ? "rtl" : "ltr"}
-          aria-label={label}
-          onEscapeKeyDown={(event) => event.stopPropagation()}
-        >
-          <p className="text-sm font-semibold">{label}</p>
-          <div className="grid grid-cols-2 gap-3" dir="ltr">
-            <div className="qs-request-picker-field">
-              <Label htmlFor={`${id}-hour`}>{ar ? "الساعة" : "Hour"}</Label>
-              <Select
-                value={draft.hour}
-                onValueChange={(hour) => setDraft((previous) => ({ ...previous, hour }))}
-              >
-                <SelectTrigger id={`${id}-hour`} className="min-h-12">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((hour) => (
-                      <SelectItem key={hour} value={hour}>
-                        {hour.padStart(2, "0")}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="qs-request-picker-field">
-              <Label htmlFor={`${id}-minute`}>{ar ? "الدقيقة" : "Minute"}</Label>
-              <Select
-                value={draft.minute}
-                onValueChange={(minute) => setDraft((previous) => ({ ...previous, minute }))}
-              >
-                <SelectTrigger id={`${id}-minute`} className="min-h-12">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0")).map(
-                      (minute) => (
-                        <SelectItem key={minute} value={minute}>
-                          {minute}
-                        </SelectItem>
-                      ),
-                    )}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+        <DialogContent className="qs-picker-dialog qs-time-picker-dialog" dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={event => event.preventDefault()}>
+          <DialogHeader><DialogTitle>{label}</DialogTitle><DialogDescription>{ar ? "اختر الساعة والدقيقة ثم أكد الوقت." : "Tap an hour, choose minutes, then apply."}</DialogDescription></DialogHeader>
+          <div className="qs-time-preview" dir="ltr">{draft.hour.padStart(2,"0")}<span>:</span>{draft.minute}<small>{periodLabel(draft.period)}</small></div>
+          <div className="qs-time-period" role="group" aria-label={ar ? "الفترة" : "Time period"}>
+            {["am","pm"].map(period => <button key={period} type="button" aria-pressed={draft.period === period} onClick={() => setDraft(previous => ({...previous,period}))}>{periodLabel(period)}</button>)}
+          </div>
+          <div className="qs-request-picker-field">
+            <Label>{ar ? "الساعة" : "Hour"}</Label>
+            <div className="qs-time-hour-grid" role="group" aria-label={ar ? "الساعة" : "Hour"} dir="ltr">
+              {Array.from({length:12},(_,i)=>String(i+1)).map(hour => <button type="button" key={hour} aria-label={`${ar ? "الساعة" : "Hour"} ${hour}`} aria-pressed={draft.hour===hour} onClick={() => setDraft(previous => ({...previous,hour}))}>{hour.padStart(2,"0")}</button>)}
             </div>
           </div>
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            value={draft.period}
-            onValueChange={(period) => {
-              if (period) setDraft((previous) => ({ ...previous, period }));
-            }}
-            aria-label={ar ? "الفترة" : "Time period"}
-            className="qs-request-time-period"
-          >
-            <ToggleGroupItem value="am">{periodLabel("am")}</ToggleGroupItem>
-            <ToggleGroupItem value="pm">{periodLabel("pm")}</ToggleGroupItem>
-          </ToggleGroup>
+          <div className="qs-request-picker-field">
+            <Label htmlFor={`${id}-minute`}>{ar ? "الدقيقة" : "Minute"}</Label>
+            <div className="qs-time-minute-row" dir="ltr">
+              {["00","15","30","45"].map(minute => <button type="button" key={minute} aria-label={`${ar ? "الدقيقة" : "Minute"} ${minute}`} aria-pressed={draft.minute === minute} onClick={() => setDraft(previous => ({...previous,minute}))}>:{minute}</button>)}
+              <select id={`${id}-minute`} aria-label={ar ? "دقيقة محددة" : "Exact minute"} value={draft.minute} onChange={event => setDraft(previous => ({...previous,minute:event.target.value}))}>
+                {Array.from({length:60},(_,i)=>String(i).padStart(2,"0")).map(minute => <option key={minute} value={minute}>:{minute}</option>)}
+              </select>
+            </div>
+          </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               {ar ? "إلغاء" : "Cancel"}
@@ -255,8 +190,8 @@ export function RequestTimePicker({ label, value, onChange, ar, disabled = false
               {ar ? "تأكيد الوقت" : "Apply time"}
             </Button>
           </div>
-        </PopoverContent>
-      </Popover>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

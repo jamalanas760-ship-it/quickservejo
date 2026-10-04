@@ -5298,3 +5298,25 @@ html,body,#root{max-width:100%;overflow-x:clip}
  .qs-shift-assign-footer{flex-shrink:0;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:8px;padding:16px;border-top:1px solid var(--border);background:var(--card)}.qs-shift-assign-footer button{min-height:46px;white-space:normal;font-size:13px;margin:0!important}
  @media(max-width:767px){.qs-order-detail-dialog.qs-dialog-content{left:12px!important;right:12px!important;width:auto!important;max-width:none!important;bottom:auto!important;top:calc(env(safe-area-inset-top) + 12px)!important;translate:none!important;transform:none!important}.qs-shift-assign-dialog.qs-dialog-content{height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)!important}.qs-shift-assign-body{padding:16px}.qs-shift-assign-header{padding:16px;padding-inline-end:68px}}
 }
+
+/* Table editing and nested workforce pickers: fixed controls, no keyboard on open. */
+.qs-table-details-dialog.qs-dialog-content{display:flex!important;gap:0!important;padding:0!important;overflow:hidden!important;max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)!important;border-radius:22px}
+.qs-table-details-dialog>.qs-dialog-header{padding:20px!important;padding-inline-end:72px!important;border-bottom:1px solid var(--border)}
+.qs-table-details-dialog>.qs-dialog-close{top:16px!important;inset-inline-end:16px!important;background:var(--muted);color:var(--foreground)}
+.qs-table-editor-scroll{flex:1;overflow-x:hidden;padding:16px!important;scrollbar-gutter:auto}
+.qs-table-editor-scroll input,.qs-table-editor-scroll [role=combobox]{min-height:46px;font-size:16px;width:100%;min-width:0}
+.qs-table-edit-section{padding:14px;border:1px solid var(--border);border-radius:18px;background:var(--card)}
+.qs-table-edit-section h3{font-size:14px;font-weight:700;margin:0 0 14px}
+.qs-table-editor-footer{padding:14px!important}.qs-table-editor-footer button{min-height:48px;font-size:13px;white-space:normal}
+.qs-picker-dialog.qs-dialog-content{display:flex!important;flex-direction:column!important;gap:16px!important;padding:20px!important;max-width:380px!important;max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)!important;height:auto!important;bottom:auto!important;overflow-y:auto!important;overflow-x:hidden!important;border-radius:22px!important}
+.qs-picker-dialog>.qs-dialog-header{padding-inline-end:44px}.qs-picker-dialog>.qs-dialog-close{background:var(--muted);color:var(--foreground)}
+.qs-date-picker-dialog [data-slot=calendar]{padding:0;width:100%;--cell-size:2.5rem}
+.qs-date-picker-dialog .rdp-day button{min-height:40px}.qs-date-picker-dialog .rdp-nav button{min-height:40px;min-width:40px}
+.qs-picker-dialog .qs-request-date-presets{padding:12px 0 0}.qs-picker-dialog .qs-request-date-presets button{min-height:44px}
+.qs-time-preview{display:flex;align-items:baseline;justify-content:center;gap:8px;padding:12px;background:var(--muted);border-radius:16px;font-size:36px;font-weight:700;font-variant-numeric:tabular-nums}.qs-time-preview span{color:var(--muted-foreground)}.qs-time-preview small{font-size:14px;color:var(--muted-foreground)}
+.qs-time-period{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;background:var(--muted);padding:4px;border-radius:14px}
+.qs-time-hour-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.qs-time-minute-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.qs-time-period button,.qs-time-hour-grid button,.qs-time-minute-row button,.qs-time-minute-row select{min-width:0;min-height:44px;border:1px solid var(--border);border-radius:11px;background:var(--card);font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation;text-align:center}
+.qs-time-minute-row select{font-size:16px}.qs-time-period button[aria-pressed=true],.qs-time-hour-grid button[aria-pressed=true],.qs-time-minute-row button[aria-pressed=true]{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+.qs-time-picker-dialog>div:last-of-type{display:grid;grid-template-columns:1fr 1fr;gap:8px}.qs-time-picker-dialog>div:last-of-type button{min-height:46px}
+@media(max-width:767px){.qs-table-details-dialog.qs-dialog-content{height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)!important}.qs-picker-dialog.qs-dialog-content{width:calc(100vw - 24px)!important;max-width:380px!important;left:50%!important;right:auto!important;top:max(calc(env(safe-area-inset-top) + 12px),calc((100dvh - 620px)/2))!important;transform:translateX(-50%)!important;translate:none!important;padding:16px!important;}}
