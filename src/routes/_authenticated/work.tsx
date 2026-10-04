@@ -464,16 +464,31 @@ function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }:
   const [overStatus, setOverStatus] = useState<WorkStatus | null>(null);
   const boardRef=useRef<HTMLDivElement>(null);
   const touchDrag=useRef<{id:string;x:number;y:number;status:WorkStatus|null}|null>(null);
+  const pendingDrag=useRef<{id:string;title:string;x:number;y:number;pointerId:number;timer:number}|null>(null);
+  const suppressClickUntil=useRef(0);
   const [ghost,setGhost]=useState<{title:string;x:number;y:number}|null>(null);
+  function activateDrag() {
+    const pending=pendingDrag.current;if(!pending)return;
+    window.clearTimeout(pending.timer);
+    const task=tasks.find(row=>row.id===pending.id);if(!task)return;
+    touchDrag.current={id:task.id,x:pending.x,y:pending.y,status:task.status};
+    setDraggingId(task.id);setGhost({title:task.title,x:pending.x,y:pending.y});
+  }
+  useEffect(()=>()=>{if(pendingDrag.current)window.clearTimeout(pendingDrag.current.timer);},[]);
   function targetAt(x:number,y:number) {
     const column=document.elementFromPoint(x,y)?.closest<HTMLElement>("[data-work-status]");
     return boardRef.current?.contains(column??null) ? column?.dataset.workStatus as WorkStatus : null;
   }
   function finishTouch(cancel=false) {
     const drag=touchDrag.current;
+    const pending=pendingDrag.current;
+    if(pending)window.clearTimeout(pending.timer);
+    pendingDrag.current=null;
+    suppressClickUntil.current=Date.now()+400;
     touchDrag.current=null;setGhost(null);setDraggingId(null);setOverStatus(null);
     const task=tasks.find(row=>row.id===drag?.id);
     if(!cancel && task && drag?.status && task.status!==drag.status)onStatus(task,drag.status);
+    if(!cancel&&!drag&&pending){const tapped=tasks.find(row=>row.id===pending.id);if(tapped)onOpen(tapped);}
   }
   useEffect(()=>{
     if(!ghost)return;
@@ -524,12 +539,13 @@ function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }:
         </div>
         <div className="space-y-2.5">
           {rows.map((task) => <div key={task.id} draggable={!busy} aria-grabbed={draggingId === task.id}
-            onPointerDown={event=>{if(event.button!==0||busy||((event.target as HTMLElement).closest("button,a,input,textarea,select")))return;event.preventDefault();event.currentTarget.setPointerCapture(event.pointerId);touchDrag.current={id:task.id,x:event.clientX,y:event.clientY,status:task.status};setDraggingId(task.id);setGhost({title:task.title,x:event.clientX,y:event.clientY});}}
-            onPointerMove={event=>{const drag=touchDrag.current;if(!drag||drag.id!==task.id)return;drag.x=event.clientX;drag.y=event.clientY;drag.status=targetAt(drag.x,drag.y);setOverStatus(drag.status);setGhost({title:task.title,x:drag.x,y:drag.y});}}
-            onPointerUp={()=>finishTouch()} onPointerCancel={()=>finishTouch(true)} onLostPointerCapture={()=>{if(touchDrag.current)finishTouch(true)}}
-            onClickCapture={event=>{if(draggingId===task.id){event.preventDefault();event.stopPropagation();}}
+            onContextMenu={event=>event.preventDefault()}
+            onPointerDown={event=>{const control=(event.target as HTMLElement).closest("button,a,input,textarea,select");if(event.button!==0||!event.isPrimary||busy||(control&&!control.classList.contains("qs-work-drag-handle"))||pendingDrag.current)return;event.preventDefault();event.currentTarget.setPointerCapture(event.pointerId);pendingDrag.current={id:task.id,title:task.title,x:event.clientX,y:event.clientY,pointerId:event.pointerId,timer:window.setTimeout(activateDrag,180)};}}
+            onPointerMove={event=>{const pending=pendingDrag.current;if(!pending||pending.pointerId!==event.pointerId)return;if(!touchDrag.current&&Math.hypot(event.clientX-pending.x,event.clientY-pending.y)>=8)activateDrag();const drag=touchDrag.current;if(!drag)return;event.preventDefault();drag.x=event.clientX;drag.y=event.clientY;drag.status=targetAt(drag.x,drag.y);setOverStatus(drag.status);setGhost({title:task.title,x:drag.x,y:drag.y});}}
+            onPointerUp={event=>{if(pendingDrag.current?.pointerId===event.pointerId){event.preventDefault();finishTouch();}}} onPointerCancel={()=>{if(pendingDrag.current)finishTouch(true)}} onLostPointerCapture={()=>{if(pendingDrag.current)finishTouch(true)}}
+            onClickCapture={event=>{if(draggingId===task.id||Date.now()<suppressClickUntil.current){event.preventDefault();event.stopPropagation();}}
             } onDragStart={(event) => {
-            if(touchDrag.current){event.preventDefault();return;}
+            if(pendingDrag.current||touchDrag.current){event.preventDefault();return;}
             event.dataTransfer.effectAllowed = "move";
             event.dataTransfer.setData("text/work-task-id", task.id);
             setDraggingId(task.id);
@@ -539,7 +555,7 @@ function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }:
             <button type="button" className="qs-work-drag-handle" aria-label={`${ar?"نقل":"Move"} ${task.title}`} disabled={busy}
               onClick={event=>event.stopPropagation()}
               onKeyDown={event=>{if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(event.key)){event.preventDefault();const index=columns.findIndex(column=>column.status===task.status);const next=columns[index+(["ArrowDown","ArrowRight"].includes(event.key)?1:-1)];if(next)onStatus(task,next.status);}}}
-              onPointerDown={event=>event.stopPropagation()}>
+              >
               <GripVertical className="size-4"/>{ar?"اسحب للنقل":"Drag to move"}
             </button>
             </div>
