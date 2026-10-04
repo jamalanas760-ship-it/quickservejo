@@ -4779,7 +4779,7 @@ html.qs-theme-view-transition *{
  }
  @media(prefers-reduced-motion:reduce){.qs-menu-editor-drawer[role="dialog"]{animation:none!important}}
 }
-.qs-menu-editor-overlay{backdrop-filter:none;-webkit-backdrop-filter:none}
+.qs-menu-editor-overlay{backdrop-filter:none;-webkit-backdrop-filter:none;animation:none!important}
 .qs-menu-editor-header{flex-shrink:0;text-align:start;padding-inline-end:36px}
 .qs-menu-editor-body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scroll-padding-block:16px;padding-block:2px;-webkit-overflow-scrolling:touch}
 .qs-menu-editor-footer{flex-shrink:0;margin-top:auto;gap:8px;border-top:1px solid var(--border);padding-top:16px}
@@ -5058,3 +5058,25 @@ html.qs-theme-view-transition *{
 .qs-tables-studio .qs-floor-table-status{font-size:0!important;width:7px;height:7px;min-width:0;min-height:0;padding:0!important;top:25%;border:1px solid white;box-shadow:0 0 0 1px rgb(70 56 40/.12)}
 
 .qs-floor-3d-camera button{display:flex;align-items:center;justify-content:center;gap:6px}
+
+/* Shared safe-area controls for side sheets, including ERP record and detail views. */
+.qs-sheet-close{min-width:44px;min-height:44px;touch-action:manipulation}
+.qs-sheet-header{padding-inline-end:52px;flex-shrink:0}
+.bo-record-header{flex-shrink:0;padding-inline-end:76px}
+.qs-sheet-content.bo-detail{display:flex;flex-direction:column;overflow:hidden}
+.bo-detail-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+@layer components {
+ @media(max-width:1023px){
+  .qs-sheet-content[data-side="right"],.qs-sheet-content[data-side="left"]{height:100dvh!important;max-height:100dvh!important;width:100%!important;max-width:530px!important;border-radius:0!important}
+  .qs-sheet-content:not(.bo-record){padding-top:calc(20px + env(safe-area-inset-top))!important;padding-bottom:max(20px,env(safe-area-inset-bottom))!important;padding-left:max(20px,env(safe-area-inset-left))!important;padding-right:max(20px,env(safe-area-inset-right))!important}
+  .qs-sheet-content>.qs-sheet-close{top:calc(12px + env(safe-area-inset-top))!important;inset-inline-end:max(12px,env(safe-area-inset-right))!important}
+  .qs-sheet-content[dir="rtl"]>.qs-sheet-close{inset-inline-end:max(12px,env(safe-area-inset-left))!important}
+ }
+}
+@media(max-width:1023px){
+ .bo-record .bo-record-header{padding-top:calc(22px + env(safe-area-inset-top));padding-left:max(18px,env(safe-area-inset-left));padding-right:calc(76px + env(safe-area-inset-right))}
+ .bo-record[dir="rtl"] .bo-record-header{padding-right:max(18px,env(safe-area-inset-right));padding-left:calc(76px + env(safe-area-inset-left))}
+ .bo-record .bo-record-header h2{overflow-wrap:anywhere}
+ .bo-record .bo-record-body{overscroll-behavior:contain;padding-left:max(18px,env(safe-area-inset-left));padding-right:max(18px,env(safe-area-inset-right))}
+ .qs-sheet-content :is(input,textarea,select,[role="combobox"]){font-size:16px}
+}

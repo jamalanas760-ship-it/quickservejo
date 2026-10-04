@@ -372,14 +372,14 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
         )}
       </div>
 
-      <RecordDialog
+      {request ? <RecordDialog
         restaurantId={restaurantId}
         request={request}
         onClose={() => setRequest(null)}
         inventory={data.inventory}
         suppliers={data.suppliers}
         currency={currency}
-      />
+      /> : null}
     </section>
   );
 }

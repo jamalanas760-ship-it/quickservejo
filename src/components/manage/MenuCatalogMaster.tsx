@@ -837,7 +837,7 @@ export function MenuCatalogMaster({
         </>
       )}
 
-      <Dialog open={productOpen} onOpenChange={setProductOpen}>
+      {productOpen ? <Dialog open onOpenChange={setProductOpen}>
         <DialogContent placement="edge" className="qs-menu-editor-drawer" overlayClassName="qs-menu-editor-overlay" onCloseAutoFocus={restoreEditorFocus} dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
           <DialogHeader className="qs-menu-editor-header">
             <DialogTitle>
@@ -987,9 +987,9 @@ export function MenuCatalogMaster({
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog> : null}
 
-      <Dialog open={categoryOpen} onOpenChange={setCategoryOpen}>
+      {categoryOpen ? <Dialog open onOpenChange={setCategoryOpen}>
         <DialogContent placement="edge" className="qs-menu-editor-drawer" overlayClassName="qs-menu-editor-overlay" onCloseAutoFocus={restoreEditorFocus} dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
           <DialogHeader className="qs-menu-editor-header">
             <DialogTitle>
@@ -1049,7 +1049,7 @@ export function MenuCatalogMaster({
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog> : null}
 
       {modifierProduct ? <Suspense fallback={<Skeleton className="h-20" />}><ModifiersDialog key={modifierProduct.id} restaurantId={restaurantId} product={modifierProduct} onClose={() => setModifierProduct(null)} /></Suspense> : null}
       <AlertDialog open={deleteItem !== null} onOpenChange={(open) => !open && setDeleteItem(null)}>

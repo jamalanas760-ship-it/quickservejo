@@ -403,11 +403,11 @@ export function InventoryPanel({
           if (!open) setHistoryItem(null);
         }}
       >
-        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        <SheetContent className="bo-detail w-full sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>{historyItem?.name ?? ""}</SheetTitle>
           </SheetHeader>
-          <div className="p-5">
+          <div className="bo-detail-body p-5">
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl bg-muted/45 p-3">
                 <p className="text-[10px] text-muted-foreground">{ar ? "المتاح" : "On hand"}</p>
