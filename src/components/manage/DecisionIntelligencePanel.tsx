@@ -1,5 +1,6 @@
+import { Table2 } from "@/components/nav/QuickServeIcons";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Banknote, Clock3, Lightbulb, Package, Receipt, Table2, TrendingUp, UsersRound } from "lucide-react";
+import { AlertTriangle, Banknote, Clock3, Lightbulb, Package, Receipt, TrendingUp, UsersRound } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";

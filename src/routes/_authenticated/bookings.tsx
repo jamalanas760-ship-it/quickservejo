@@ -1,3 +1,4 @@
+import { Table2, MoreHorizontal } from "@/components/nav/QuickServeIcons";
 import { TimeSlotPicker } from "@/components/reservations/TimeSlotPicker";
 import { publicGuestUrl } from "@/lib/public-url";
 import { GuestCountPicker } from "@/components/reservations/GuestCountPicker";
@@ -5,7 +6,7 @@ import { RequestTimePicker } from "@/components/workforce/RequestPickers";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, Search, X, Copy, Table2, BadgeDollarSign, CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, Globe2, MessageSquareText, MoreHorizontal, Plus, Send, Settings2, Timer, Trash2, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X, Copy, BadgeDollarSign, CalendarCheck2, CalendarClock, CalendarDays, CheckCircle2, Clock3, ExternalLink, Globe2, MessageSquareText, Plus, Send, Settings2, Timer, Trash2, UserRoundCheck, UsersRound, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { addReservationDays, reservationDay, restaurantDateTime, bookingTimeLabel, defaultBookingHours, validateBookingHours, type WeeklyHours } from "@/lib/reservation-studio";

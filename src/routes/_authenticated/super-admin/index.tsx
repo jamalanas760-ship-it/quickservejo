@@ -1,3 +1,4 @@
+import { Users } from "@/components/nav/QuickServeIcons";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
@@ -5,7 +6,6 @@ import {
   Building2,
   ClipboardList,
   LayoutGrid,
-  Users,
   Wallet,
   Bell,
 } from "lucide-react";

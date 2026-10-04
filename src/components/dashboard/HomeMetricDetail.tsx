@@ -1,6 +1,7 @@
+import { Table2 } from "@/components/nav/QuickServeIcons";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Clock3, CreditCard, Receipt, ShoppingBag, Table2, TrendingUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock3, CreditCard, Receipt, ShoppingBag, TrendingUp } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { AppHeader } from "@/components/nav/AppHeader";

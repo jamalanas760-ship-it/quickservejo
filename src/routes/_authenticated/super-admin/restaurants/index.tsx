@@ -1,7 +1,8 @@
+import { MoreHorizontal } from "@/components/nav/QuickServeIcons";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Archive, ChevronDown, ChevronRight, ExternalLink, MapPin, MoreHorizontal, Pencil, Plus, Search, Settings, Store, X } from "lucide-react";
+import { Archive, ChevronDown, ChevronRight, ExternalLink, MapPin, Pencil, Plus, Search, Settings, Store, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";

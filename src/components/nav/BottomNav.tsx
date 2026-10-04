@@ -1,3 +1,4 @@
+import { Home, MoreHorizontal, Table2, Users, UtensilsCrossed } from "@/components/nav/QuickServeIcons";
 import { ViewportDock } from "./ViewportDock";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
@@ -14,22 +15,17 @@ import {
   ClipboardCheck,
   ClipboardList,
   Clock3,
-  Home,
   HeartHandshake,
   Megaphone,
   MonitorSmartphone,
-  MoreHorizontal,
   Plus,
   LayoutGrid,
   PlugZap,
   Search,
   Settings,
   Store,
-  Table2,
   User,
   UserRoundCog,
-  Users,
-  UtensilsCrossed,
   Workflow,
 } from "lucide-react";
 

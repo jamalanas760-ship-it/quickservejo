@@ -59,6 +59,7 @@ type SortMode = "due" | "priority" | "newest";
 
 type WorkTask = {
   id: string;
+  is_private?: boolean;
   restaurant_id: string;
   title: string;
   description: string | null;
@@ -131,7 +132,7 @@ export function WorkPage() {
     refetchInterval:20_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("work_tasks")
-        .select("id,restaurant_id,title,description,category,priority,status,assigned_staff_id,assigned_role,created_by_staff_id,due_at,requires_approval,approval_role,source_type,source_id,completion_note,approval_status,approval_note,deleted_at,created_at,updated_at,completed_at,work_task_activity(count)")
+        .select("id,is_private,restaurant_id,title,description,category,priority,status,assigned_staff_id,assigned_role,created_by_staff_id,due_at,requires_approval,approval_role,source_type,source_id,completion_note,approval_status,approval_note,deleted_at,created_at,updated_at,completed_at,work_task_activity(count)")
         .eq("restaurant_id", rid!)
         .eq("work_task_activity.action","comment")
         .is("deleted_at", null)
@@ -171,9 +172,8 @@ export function WorkPage() {
           : tab === "team"
             ? (canManage ? rows.filter((row) => row.status !== "completed" && row.status !== "cancelled") : [])
             : rows.filter((row) =>
-                row.status !== "completed"
-                && row.status !== "cancelled"
-                && (row.assigned_staff_id === membership?.id || row.assigned_role === membership?.role || (!row.assigned_staff_id && !row.assigned_role)),
+                row.status !== "cancelled"
+                && (row.created_by_staff_id === membership?.id || row.assigned_staff_id === membership?.id || row.assigned_role === membership?.role || (!row.assigned_staff_id && !row.assigned_role)),
               );
 
     if (quickFocus === "open") next = next.filter((row) => row.status === "open" || row.status === "in_progress" || row.status === "waiting_approval");
@@ -212,6 +212,12 @@ export function WorkPage() {
 
   const updateTask = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: WorkStatus }) => {
+      const task = tasks.data?.find(row => row.id === id);
+      if (status === "completed" && task?.is_private && task.requires_approval) {
+        const { error } = await (supabase as any).rpc("action_work_approval", { _task_id: id, _action: "approve", _note: null });
+        if (error) throw error;
+        return;
+      }
       const payload: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
       payload.completed_at = status === "completed" ? new Date().toISOString() : null;
       const { error } = await (supabase as any).from("work_tasks").update(payload).eq("id", id).eq("restaurant_id", rid!);
@@ -367,7 +373,7 @@ export function WorkPage() {
           {tab!=="handover"&&filtersOpen?<div className="mt-3 grid gap-2 border-t border-border pt-3 sm:grid-cols-2 xl:grid-cols-5"><Select value={priorityFilter} onValueChange={(value) => setPriorityFilter(value as "all" | WorkPriority)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل الأولويات" : "All priorities"}</SelectItem><SelectItem value="urgent">Urgent</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="low">Low</SelectItem></SelectContent></Select><Select value={assigneeFilter} onValueChange={setAssigneeFilter}><SelectTrigger><SelectValue placeholder={ar ? "المسؤول" : "Assignee"} /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل المسؤولين" : "All assignees"}</SelectItem>{(staff.data ?? []).map((row)=><SelectItem key={row.id} value={row.id}>{row.name}</SelectItem>)}</SelectContent></Select><Select value={statusFilter} onValueChange={(value)=>setStatusFilter(value as "all" | WorkStatus)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل الحالات" : "All statuses"}</SelectItem><SelectItem value="open">{ar ? "مفتوح" : "To do"}</SelectItem><SelectItem value="in_progress">{ar ? "قيد التنفيذ" : "In progress"}</SelectItem><SelectItem value="waiting_approval">{ar ? "مراجعة" : "Review"}</SelectItem><SelectItem value="completed">{ar ? "مكتمل" : "Done"}</SelectItem></SelectContent></Select><Select value={creatorFilter} onValueChange={setCreatorFilter}><SelectTrigger><SelectValue placeholder={ar ? "المنشئ" : "Created by"} /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل المنشئين" : "All creators"}</SelectItem>{(staff.data ?? []).map((row)=><SelectItem key={row.id} value={row.id}>{row.name}</SelectItem>)}</SelectContent></Select><Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="due">{ar ? "الاستحقاق" : "Due date"}</SelectItem><SelectItem value="priority">{ar ? "الأولوية" : "Priority"}</SelectItem><SelectItem value="newest">{ar ? "الأحدث" : "Newest"}</SelectItem></SelectContent></Select></div>:null}
         </div>
         {tab === "handover" ? <ShiftHandoverPanel restaurantId={rid} currentStaffId={membership.id} currentRole={membership.role} /> : null}
-        {tab !== "handover" ? tasks.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : tasks.isError ? <p className="p-6 text-sm text-destructive">{humanError(tasks.error, lang)}</p> : visible.length === 0 ? <EmptyState ar={ar} /> : viewMode === "cards" ? <WorkflowBoard tasks={visible} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(task, status) => updateTask.mutate({ id: task.id, status })} onOpen={(task) => setSelectedId(task.id)} /> : <div className="qs-scroll-region min-h-0 flex-1 divide-y divide-border">{visible.map((task) => <TaskRow key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} onOpen={() => setSelectedId(task.id)} />)}</div> : null}
+        {tab !== "handover" ? tasks.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : tasks.isError ? <p className="p-6 text-sm text-destructive">{humanError(tasks.error, lang)}</p> : visible.length === 0 ? <EmptyState ar={ar} /> : viewMode === "cards" ? <WorkflowBoard viewerStaffId={membership.id} tasks={visible} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(task, status) => updateTask.mutate({ id: task.id, status })} onOpen={(task) => setSelectedId(task.id)} /> : <div className="qs-scroll-region min-h-0 flex-1 divide-y divide-border">{visible.map((task) => <TaskRow key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={task.is_private ? task.created_by_staff_id === membership.id : canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} onOpen={() => setSelectedId(task.id)} />)}</div> : null}
       </section>
     </main>
 
@@ -397,7 +403,7 @@ export function WorkPage() {
             <WorkDetailTile label={ar ? "المسؤول" : "Assigned to"} value={(selected.assigned_staff_id ? (staff.data ?? []).find((row) => row.id === selected.assigned_staff_id)?.name : null) ?? (selected.assigned_role ? roleLabel(selected.assigned_role, ar) : (ar ? "غير معيّن" : "Unassigned"))} />
             <WorkDetailTile label={ar ? "أنشأها" : "Created by"} value={(selected.created_by_staff_id ? (staff.data ?? []).find((row) => row.id === selected.created_by_staff_id)?.name : null) ?? (ar ? "النظام / الأتمتة" : "System / automation")} />
           </div>
-          {canManage ? <div className="mt-3 border-t border-border pt-3"><div className="mb-2 flex items-center justify-between gap-3"><Label className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "إعادة تعيين المسؤول" : "Reassign"}</Label><span className="text-[10px] text-muted-foreground">{ar ? "يُحفظ فوراً" : "Saves instantly"}</span></div><Select value={selected.assigned_staff_id ?? ""} onValueChange={(value) => assignTask.mutate({ id: selected.id, assignedStaffId: value })}><SelectTrigger className="h-11 rounded-xl bg-background"><SelectValue placeholder={ar ? "اختر موظفاً" : "Choose a team member"} /></SelectTrigger><SelectContent>{(staff.data ?? []).map((row) => <SelectItem key={row.id} value={row.id}>{row.name} · {ROLE_LABELS[row.role]?.[lang] ?? row.role}</SelectItem>)}</SelectContent></Select></div> : null}
+          {canManage && (!selected.is_private || selected.created_by_staff_id === membership.id) ? <div className="mt-3 border-t border-border pt-3"><div className="mb-2 flex items-center justify-between gap-3"><Label className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "إعادة تعيين المسؤول" : "Reassign"}</Label><span className="text-[10px] text-muted-foreground">{ar ? "يُحفظ فوراً" : "Saves instantly"}</span></div><Select value={selected.assigned_staff_id ?? ""} onValueChange={(value) => assignTask.mutate({ id: selected.id, assignedStaffId: value })}><SelectTrigger className="h-11 rounded-xl bg-background"><SelectValue placeholder={ar ? "اختر موظفاً" : "Choose a team member"} /></SelectTrigger><SelectContent>{(staff.data ?? []).map((row) => <SelectItem key={row.id} value={row.id}>{row.name} · {ROLE_LABELS[row.role]?.[lang] ?? row.role}</SelectItem>)}</SelectContent></Select></div> : null}
         </WorkDetailSection>
 
         <WorkDetailSection title={ar ? "الموافقة والمصدر" : "Approval & source"} icon={ShieldCheck}>
@@ -459,7 +465,8 @@ function DeleteTaskDialog({task,ar,busy,onClose,onDelete}:{task:WorkTask|null;ar
     </Dialog>;
 }
 
-function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }: { tasks: WorkTask[]; staff: StaffOption[]; ar: boolean; canApprove: boolean; busy: boolean; onStatus: (task: WorkTask, status: WorkStatus) => void; onOpen: (task: WorkTask) => void }) {
+function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen, viewerStaffId }: { viewerStaffId?: string; tasks: WorkTask[]; staff: StaffOption[]; ar: boolean; canApprove: boolean; busy: boolean; onStatus: (task: WorkTask, status: WorkStatus) => void; onOpen: (task: WorkTask) => void }) {
+  const [activeStage, setActiveStage] = useState<WorkStatus>("open");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [overStatus, setOverStatus] = useState<WorkStatus | null>(null);
   const boardRef=useRef<HTMLDivElement>(null);
@@ -487,7 +494,7 @@ function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }:
     suppressClickUntil.current=Date.now()+400;
     touchDrag.current=null;setGhost(null);setDraggingId(null);setOverStatus(null);
     const task=tasks.find(row=>row.id===drag?.id);
-    if(!cancel && task && drag?.status && task.status!==drag.status)onStatus(task,drag.status);
+    if(!cancel && task && drag?.status && task.status!==drag.status){onStatus(task,drag.status);setActiveStage(drag.status);}
     if(!cancel&&!drag&&pending){const tapped=tasks.find(row=>row.id===pending.id);if(tapped)onOpen(tapped);}
   }
   useEffect(()=>{
@@ -512,11 +519,13 @@ function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }:
     { status: "waiting_approval", en: "Review", ar: "مراجعة", tone: "bg-violet-500" },
     { status: "completed", en: "Done", ar: "مكتمل", tone: "bg-emerald-500" },
   ];
-  return <div ref={boardRef} className="qs-workflow-board grid gap-3 p-3 lg:grid-cols-2 xl:grid-cols-4 sm:p-4">
+  return <div ref={boardRef} className="qs-workflow-board grid gap-3 p-3 xl:grid-cols-4 sm:p-4">
+    <div className="qs-work-stage-tabs" role="tablist" aria-label={ar?"مراحل العمل":"Work stages"}>{columns.map(column=><button key={column.status} type="button" role="tab" id={`work-tab-${column.status}`} tabIndex={activeStage===column.status?0:-1} aria-selected={activeStage===column.status} onKeyDown={event=>{const index=columns.findIndex(row=>row.status===column.status);const step=(event.key==="ArrowRight"?1:event.key==="ArrowLeft"?-1:0)*(ar?-1:1);const next=event.key==="Home"?columns[0]:event.key==="End"?columns[columns.length-1]:step?columns[(index+step+columns.length)%columns.length]:null;if(next){event.preventDefault();setActiveStage(next.status);document.getElementById(`work-tab-${next.status}`)?.focus();}}} aria-controls={`work-stage-${column.status}`} data-work-status={column.status} data-over={overStatus===column.status} onClick={()=>setActiveStage(column.status)} onDragOver={event=>{event.preventDefault();setOverStatus(column.status)}} onDrop={event=>{event.preventDefault();const task=tasks.find(row=>row.id===event.dataTransfer.getData("text/work-task-id"));if(task&&task.status!==column.status)onStatus(task,column.status);setActiveStage(column.status);setDraggingId(null);setOverStatus(null)}}><span className={cn("size-2 rounded-full",column.tone)}/><span>{ar?column.ar:column.en}</span><strong>{tasks.filter(task=>task.status===column.status).length}</strong></button>)}</div>
+    <p className="qs-work-stage-hint">{ar?"اضغط على مرحلة لعرض المهام، أو اسحب البطاقة إلى المرحلة المطلوبة":"Choose a stage, or hold a ticket and drag it to a stage above."}</p>
     {columns.map((column) => {
       const rows = tasks.filter((task) => task.status === column.status);
       const isDropTarget = Boolean(draggingId && overStatus === column.status);
-      return <section key={column.status} data-work-status={column.status} onDragEnter={(event) => {
+      return <section id={`work-stage-${column.status}`} aria-labelledby={`work-tab-${column.status}`} data-active={activeStage===column.status} key={column.status} data-work-status={column.status} onDragEnter={(event) => {
         event.preventDefault();
         if (draggingId) setOverStatus(column.status);
       }} onDragOver={(event) => {
@@ -554,12 +563,12 @@ function WorkflowBoard({ tasks, staff, ar, canApprove, busy, onStatus, onOpen }:
               {Boolean(task.comment_count)?<button type="button" className="qs-work-comments" onClick={()=>onOpen(task)} aria-label={`${ar?"عرض التعليقات":"View comments"}: ${task.comment_count}`}><MessageSquare className="size-3.5"/>{task.comment_count}</button>:null}
             <button type="button" className="qs-work-drag-handle" aria-label={`${ar?"نقل":"Move"} ${task.title}`} disabled={busy}
               onClick={event=>event.stopPropagation()}
-              onKeyDown={event=>{if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(event.key)){event.preventDefault();const index=columns.findIndex(column=>column.status===task.status);const next=columns[index+(["ArrowDown","ArrowRight"].includes(event.key)?1:-1)];if(next)onStatus(task,next.status);}}}
+              onKeyDown={event=>{if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(event.key)){event.preventDefault();const index=columns.findIndex(column=>column.status===task.status);const next=columns[index+(["ArrowDown","ArrowRight"].includes(event.key)?1:-1)];if(next){onStatus(task,next.status);setActiveStage(next.status);}}}}
               >
               <GripVertical className="size-4"/>{ar?"اسحب للنقل":"Drag to move"}
             </button>
             </div>
-            <WorkCard task={task} staff={staff} ar={ar} canApprove={canApprove} busy={busy} onStatus={(status) => onStatus(task, status)} onOpen={() => onOpen(task)} />
+            <WorkCard task={task} staff={staff} ar={ar} canApprove={task.is_private ? task.created_by_staff_id === viewerStaffId : canApprove} busy={busy} onStatus={(status) => {onStatus(task, status);setActiveStage(status)}} onOpen={() => onOpen(task)} />
           </div>)}
           {rows.length === 0 ? <div className={cn("grid min-h-28 place-items-center rounded-xl border border-dashed border-border bg-card/45 p-3 text-center text-[10px] font-semibold text-muted-foreground transition-all duration-200", isDropTarget && "scale-[1.01] border-[#e85d2a]/60 bg-orange-500/[.06] text-[#cf4818]")}>{isDropTarget ? (ar ? "أفلت البطاقة لنقلها" : "Release to move the card") : (ar ? "اسحب بطاقة إلى هنا" : "Drag a card here")}</div> : null}
           {rows.length > 0 && isDropTarget ? <div className="pointer-events-none grid min-h-10 place-items-center rounded-xl border border-dashed border-[#e85d2a]/55 bg-orange-500/[.055] text-[10px] font-bold text-[#cf4818] animate-in fade-in slide-in-from-top-1 duration-150">{ar ? "أفلت هنا" : "Release here"}</div> : null}
@@ -641,7 +650,7 @@ function CreateTaskDialog({ open, onOpenChange, restaurantId, currentStaffId, cu
     const priority = String(form.get("priority") ?? "normal") as WorkPriority;
     const assignment = String(form.get("assignment") ?? `staff:${currentStaffId}`);
     const assignedStaffId = assignment.startsWith("staff:") ? assignment.slice(6) : null;
-    const assignedRole = assignment.startsWith("role:") ? assignment.slice(5) : null;
+
     setSaving(true);
     try {
       const dueRaw = String(form.get("due_at") ?? "");
@@ -653,11 +662,14 @@ function CreateTaskDialog({ open, onOpenChange, restaurantId, currentStaffId, cu
         category,
         priority,
         assigned_staff_id: assignedStaffId,
-        assigned_role: assignedRole,
+        assigned_role: null,
+        is_private: true,
         created_by_staff_id: currentStaffId,
         due_at: dueRaw ? new Date(dueRaw).toISOString() : null,
         requires_approval: requiresApproval,
-        approval_role: requiresApproval ? "restaurant_admin" : null,
+        approval_status: requiresApproval ? "pending" : "not_required",
+        approval_role: null,
+        approval_staff_id: requiresApproval ? currentStaffId : null,
         status: "open",
       });
       if (error) throw error;
@@ -667,8 +679,7 @@ function CreateTaskDialog({ open, onOpenChange, restaurantId, currentStaffId, cu
       toast.error(humanError(error, lang));
     } finally { setSaving(false); }
   }
-  const roleAssignments = canManage ? (["operations_manager", "manager", "kitchen", "waiter", "cashier", "host", "inventory", "procurement", "accountant"] as AppRole[]) : [currentRole];
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogTrigger asChild><Button className="min-h-11 rounded-xl"><Plus className="size-4" />{ar ? "عمل جديد" : "New work"}</Button></DialogTrigger><DialogContent className="qs-work-editor max-w-xl" onOpenAutoFocus={event=>event.preventDefault()}><DialogHeader><DialogTitle>{ar ? "إنشاء مهمة تشغيلية" : "Create operational work"}</DialogTitle><DialogDescription>{ar ? "عيّن مهمة أو موافقة أو تسليم وردية للشخص أو الدور المناسب." : "Assign a task, approval or handover to the right person or role."}</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={submit}><Field label={ar ? "العنوان" : "Title"}><Input name="title" required maxLength={160} /></Field><Field label={ar ? "الوصف" : "Description"}><Textarea name="description" rows={3} /></Field><div className="grid gap-3 sm:grid-cols-2"><Field label={ar ? "النوع" : "Type"}><Select name="category" defaultValue="task"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="task">{ar ? "مهمة" : "Task"}</SelectItem><SelectItem value="approval">{ar ? "موافقة" : "Approval"}</SelectItem><SelectItem value="handover">{ar ? "تسليم وردية" : "Handover"}</SelectItem><SelectItem value="alert">{ar ? "تنبيه تشغيلي" : "Operational alert"}</SelectItem></SelectContent></Select></Field><Field label={ar ? "الأولوية" : "Priority"}><Select name="priority" defaultValue="normal"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="low">Low</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="urgent">Urgent</SelectItem></SelectContent></Select></Field></div><Field label={ar ? "التعيين" : "Assign to"}><Select name="assignment" defaultValue={`staff:${currentStaffId}`}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value={`staff:${currentStaffId}`}>{ar ? "أنا" : "Myself"}</SelectItem>{canManage ? staff.filter((row) => row.id !== currentStaffId).map((row) => <SelectItem key={row.id} value={`staff:${row.id}`}>{row.name} · {ROLE_LABELS[row.role]?.[ar ? "ar" : "en"] ?? row.role}</SelectItem>) : null}{roleAssignments.map((role) => <SelectItem key={role} value={`role:${role}`}>{ar ? "كل" : "All"} {ROLE_LABELS[role]?.[ar ? "ar" : "en"] ?? role}</SelectItem>)}</SelectContent></Select></Field><Field label={ar ? "موعد الاستحقاق" : "Due date"}><Input name="due_at" type="datetime-local" /></Field><label className="flex items-center gap-3 rounded-xl border border-border p-3 text-xs font-semibold"><input name="requires_approval" type="checkbox" className="size-4 accent-[#e85d2a]" />{ar ? "تتطلب موافقة الإدارة قبل الإغلاق" : "Require management approval before closing"}</label><div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{ar ? "إلغاء" : "Cancel"}</Button><Button type="submit" disabled={saving}>{saving ? (ar ? "جارٍ الإنشاء…" : "Creating…") : (ar ? "إنشاء" : "Create")}</Button></div></form></DialogContent></Dialog>;
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogTrigger asChild><Button className="min-h-11 rounded-xl"><Plus className="size-4" />{ar ? "عمل جديد" : "New work"}</Button></DialogTrigger><DialogContent className="qs-work-editor max-w-xl" onOpenAutoFocus={event=>event.preventDefault()}><DialogHeader><DialogTitle>{ar ? "إنشاء مهمة تشغيلية" : "Create operational work"}</DialogTitle><DialogDescription>{ar ? "مرئية لك وللشخص الذي تعيّن المهمة إليه فقط." : "Visible only to you and the person you assign."}</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={submit}><Field label={ar ? "العنوان" : "Title"}><Input name="title" required maxLength={160} /></Field><Field label={ar ? "الوصف" : "Description"}><Textarea name="description" rows={3} /></Field><div className="grid gap-3 sm:grid-cols-2"><Field label={ar ? "النوع" : "Type"}><Select name="category" defaultValue="task"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="task">{ar ? "مهمة" : "Task"}</SelectItem><SelectItem value="approval">{ar ? "موافقة" : "Approval"}</SelectItem><SelectItem value="handover">{ar ? "تسليم وردية" : "Handover"}</SelectItem><SelectItem value="alert">{ar ? "تنبيه تشغيلي" : "Operational alert"}</SelectItem></SelectContent></Select></Field><Field label={ar ? "الأولوية" : "Priority"}><Select name="priority" defaultValue="normal"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="low">Low</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="urgent">Urgent</SelectItem></SelectContent></Select></Field></div><Field label={ar ? "التعيين" : "Assign to"}><Select name="assignment" defaultValue={`staff:${currentStaffId}`}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value={`staff:${currentStaffId}`}>{ar ? "أنا" : "Myself"}</SelectItem>{canManage ? staff.filter((row) => row.id !== currentStaffId).map((row) => <SelectItem key={row.id} value={`staff:${row.id}`}>{row.name} · {ROLE_LABELS[row.role]?.[ar ? "ar" : "en"] ?? row.role}</SelectItem>) : null}</SelectContent></Select></Field><Field label={ar ? "موعد الاستحقاق" : "Due date"}><Input name="due_at" type="datetime-local" /></Field><label className="flex items-center gap-3 rounded-xl border border-border p-3 text-xs font-semibold"><input name="requires_approval" type="checkbox" className="size-4 accent-[#e85d2a]" />{ar ? "تتطلب موافقتك قبل الإغلاق" : "Require your approval before closing"}</label><div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{ar ? "إلغاء" : "Cancel"}</Button><Button type="submit" disabled={saving}>{saving ? (ar ? "جارٍ الإنشاء…" : "Creating…") : (ar ? "إنشاء" : "Create")}</Button></div></form></DialogContent></Dialog>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="space-y-1.5"><Label>{label}</Label>{children}</label>; }

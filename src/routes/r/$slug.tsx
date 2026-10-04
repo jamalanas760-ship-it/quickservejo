@@ -1,3 +1,4 @@
+import { UtensilsCrossed } from "@/components/nav/QuickServeIcons";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -13,7 +14,6 @@ import {
   ShoppingBag,
   Sun,
   Trash2,
-  UtensilsCrossed,
   X,
 } from "lucide-react";
 import { z } from "zod";

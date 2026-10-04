@@ -1,5 +1,6 @@
+import { Table2, UtensilsCrossed } from "@/components/nav/QuickServeIcons";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { BarChart3, Boxes, BriefcaseBusiness, CalendarClock, ChefHat, ClipboardList, Table2, UtensilsCrossed, Workflow } from "lucide-react";
+import { BarChart3, Boxes, BriefcaseBusiness, CalendarClock, ChefHat, ClipboardList, Workflow } from "lucide-react";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";

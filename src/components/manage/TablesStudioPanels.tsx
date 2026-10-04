@@ -1,5 +1,6 @@
+import { Table2, Users } from "@/components/nav/QuickServeIcons";
 import { useEffect, useState } from "react";
-import { Clock3, Download, Pencil, Printer, QrCode, Search, Table2, Users } from "lucide-react";
+import { Clock3, Download, Pencil, Printer, QrCode, Search} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 export type StudioTable = {

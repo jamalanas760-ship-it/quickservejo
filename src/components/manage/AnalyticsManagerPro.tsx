@@ -1,3 +1,4 @@
+import { Table2 } from "@/components/nav/QuickServeIcons";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -20,7 +21,6 @@ import {
   Settings2,
   ShoppingBag,
   SlidersHorizontal,
-  Table2,
   Tag,
   Trash2,
   TrendingUp,

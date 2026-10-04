@@ -1,3 +1,4 @@
+import { Table2 } from "@/components/nav/QuickServeIcons";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -12,7 +13,6 @@ import {
   RotateCw,
   Save,
   Square,
-  Table2,
   Trash2,
   X,
   ZoomIn,

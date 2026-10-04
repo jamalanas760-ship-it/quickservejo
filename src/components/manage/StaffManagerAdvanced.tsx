@@ -1,3 +1,4 @@
+import { MoreHorizontal } from "@/components/nav/QuickServeIcons";
 import { workforceLocalTimestamp, workforceLocalInput } from "@/lib/workforce-hours";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { RequestDatePicker, RequestTimePicker } from "@/components/workforce/RequestPickers";
@@ -13,7 +14,6 @@ import {
   History,
   IdCard,
   KeyRound,
-  MoreHorizontal,
   Pencil,
   Plus,
   Search,

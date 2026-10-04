@@ -1,3 +1,4 @@
+import { Table2 } from "@/components/nav/QuickServeIcons";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -10,7 +11,6 @@ import {
   ReceiptText,
   Search,
   Sparkles,
-  Table2,
   Utensils,
   UsersRound,
 } from "lucide-react";

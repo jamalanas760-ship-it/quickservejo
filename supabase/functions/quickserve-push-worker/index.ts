@@ -58,11 +58,21 @@ Deno.serve(async (req) => {
             .eq("restaurant_id", notification.restaurant_id)
             .eq("is_active", true);
           if (staffError) throw staffError;
+          let privateParticipants: string[] | null = null;
+          if (notification.source_type === "work_task") {
+            const { data: task, error: taskError } = await admin.from("work_tasks")
+              .select("is_private,created_by_staff_id,assigned_staff_id,deleted_at")
+              .eq("id", notification.source_id).maybeSingle();
+            if (taskError) throw taskError;
+            if (!task || task.deleted_at) privateParticipants = [];
+            else if (task.is_private) privateParticipants = [task.created_by_staff_id, task.assigned_staff_id].filter(Boolean);
+          }
           const ids = (staff || [])
             .filter(
               (s) =>
-                notification.staff_id === s.id ||
-                (notification.target_role && notification.target_role === s.role),
+                (privateParticipants === null || privateParticipants.includes(s.id)) &&
+                (notification.staff_id === s.id ||
+                (notification.target_role && notification.target_role === s.role)),
             )
             .map((s) => s.auth_user_id);
           const { data: subscriptions, error: subscriptionError } = ids.length

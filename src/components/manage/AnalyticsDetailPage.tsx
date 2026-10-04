@@ -1,5 +1,6 @@
+import { Table2 } from "@/components/nav/QuickServeIcons";
 import { orderChannel } from "@/components/analytics/analytics-data";
-import { ArrowLeft, ArrowRight, BarChart3, CalendarDays, CreditCard, FileText, Receipt, ShoppingBag, Table2, TrendingUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, CalendarDays, CreditCard, FileText, Receipt, ShoppingBag, TrendingUp } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 

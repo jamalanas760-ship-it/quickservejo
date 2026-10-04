@@ -1,5 +1,6 @@
+import { MoreHorizontal } from "@/components/nav/QuickServeIcons";
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, Building2, MoreHorizontal, Store } from "lucide-react";
+import { ArrowLeft, Building2, Store } from "lucide-react";
 
 import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";
 import { RestaurantSwitcher } from "@/components/manage/RestaurantSwitcher";

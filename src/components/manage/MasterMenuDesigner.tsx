@@ -1,6 +1,7 @@
+import { UtensilsCrossed } from "@/components/nav/QuickServeIcons";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BookOpenText, CheckCircle2, ExternalLink, FileText, Image as ImageIcon, Layers3, Moon, Package, Sun, Tags, UtensilsCrossed } from "lucide-react";
+import { BookOpenText, CheckCircle2, ExternalLink, FileText, Image as ImageIcon, Layers3, Moon, Package, Sun, Tags} from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { MasterEyebrow, MasterPageHeader } from "@/components/app/MasterPage";

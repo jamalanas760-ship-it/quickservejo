@@ -1,3 +1,4 @@
+import { Table2 } from "@/components/nav/QuickServeIcons";
 import {
   useEffect,
   useMemo,
@@ -26,7 +27,6 @@ import {
   RotateCcw,
   Save,
   Square,
-  Table2,
   Trash2,
   UsersRound,
   X,

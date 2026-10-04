@@ -1,3 +1,4 @@
+import { MoreHorizontal, Users } from "@/components/nav/QuickServeIcons";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,11 +14,9 @@ import {
   LayoutDashboard,
   LogOut,
   Menu as MenuIcon,
-  MoreHorizontal,
   Search,
   Settings,
   UserRound,
-  Users,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";

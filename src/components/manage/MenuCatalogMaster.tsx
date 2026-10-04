@@ -1,3 +1,4 @@
+import { UtensilsCrossed } from "@/components/nav/QuickServeIcons";
 import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -9,7 +10,6 @@ import {
   Search,
   Tags,
   Trash2,
-  UtensilsCrossed,
 } from "lucide-react";
 import { toast } from "sonner";
 

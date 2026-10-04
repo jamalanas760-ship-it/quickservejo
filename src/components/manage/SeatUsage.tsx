@@ -1,4 +1,5 @@
-import { Users } from "lucide-react";
+import { Users } from "@/components/nav/QuickServeIcons";
+
 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";

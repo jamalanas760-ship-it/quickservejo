@@ -1,6 +1,7 @@
+import { Users } from "@/components/nav/QuickServeIcons";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Building2, CheckCircle2, ShieldCheck, Users } from "lucide-react";
+import { Building2, CheckCircle2, ShieldCheck} from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader, MasterSection, MasterStatus } from "@/components/app/MasterPage";

@@ -1,3 +1,4 @@
+import { MoreHorizontal, Table2 } from "@/components/nav/QuickServeIcons";
 import { floorSeats } from "@/lib/floor-seating";
 import { normalizeCanvasSize } from "@/lib/floor-canvas";
 import {
@@ -23,14 +24,12 @@ import {
   LayoutGrid,
   List,
   Minus,
-  MoreHorizontal,
   Pencil,
   Plus,
   Printer,
   RotateCw,
   Save,
   Square,
-  Table2,
   Trash2,
   X,
   ZoomIn,

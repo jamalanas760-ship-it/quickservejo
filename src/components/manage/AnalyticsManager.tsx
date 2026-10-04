@@ -1,5 +1,6 @@
+import { UtensilsCrossed } from "@/components/nav/QuickServeIcons";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Clock3, MapPin, ShoppingBag, TrendingUp, UsersRound, UtensilsCrossed } from "lucide-react";
+import { CalendarDays, Clock3, MapPin, ShoppingBag, TrendingUp, UsersRound} from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";

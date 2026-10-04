@@ -1,3 +1,4 @@
+import { MoreHorizontal } from "@/components/nav/QuickServeIcons";
 import { useEffect, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import {
@@ -6,7 +7,6 @@ import {
   Coins,
   FileText,
   LayoutDashboard,
-  MoreHorizontal,
   Package,
   PackageCheck,
   Printer,

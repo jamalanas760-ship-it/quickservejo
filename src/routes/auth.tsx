@@ -1,8 +1,9 @@
+import { UtensilsCrossed } from "@/components/nav/QuickServeIcons";
 import { LaunchScreenView } from "@/components/app/SplashScreen";
 import { setThemePreference } from "@/lib/theme-preference";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, BarChart3, Eye, EyeOff, Globe2, Loader2, LockKeyhole, Mail, UsersRound, UtensilsCrossed, WifiOff } from "lucide-react";
+import { ArrowRight, BarChart3, Eye, EyeOff, Globe2, Loader2, LockKeyhole, Mail, UsersRound, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 

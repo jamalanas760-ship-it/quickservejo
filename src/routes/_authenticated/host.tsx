@@ -1,6 +1,7 @@
+import { Table2 } from "@/components/nav/QuickServeIcons";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { BellRing, CheckCircle2, Table2, UsersRound } from "lucide-react";
+import { BellRing, CheckCircle2, UsersRound } from "lucide-react";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
 import { AppHeader } from "@/components/nav/AppHeader";
