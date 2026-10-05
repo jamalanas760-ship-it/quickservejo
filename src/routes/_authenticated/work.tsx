@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/MasterPage";
+import { ActionMenu } from "@/components/app/ActionMenu";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { DetailSheet, formatStamp } from "@/components/operations/DetailSheet";
 import { ShiftHandoverPanel } from "@/components/operations/ShiftHandoverPanel";
@@ -384,7 +385,7 @@ export function WorkPage() {
       description={selected ? (ar ? "كل تفاصيل عنصر العمل وإجراءاته في مكان واحد" : "Everything about this work item, organized in one place") : undefined}
       panelClassName="qs-work-detail sm:max-w-[640px]"
       bodyClassName="bg-muted/15 px-4 py-4 sm:px-5"
-      footer={selected ? <div className="grid w-full gap-2 sm:grid-cols-2">{selected.created_by_staff_id === membership.id ? <Button variant="outline" className="gap-2" onClick={() => setEditingTask(selected)}><Pencil className="size-4" />{ar ? "تعديل المهمة" : "Edit work item"}</Button> : <div className="rounded-xl bg-muted/50 px-3 py-2 text-center text-[10px] font-semibold text-muted-foreground">{ar ? "التعديل متاح لمنشئ المهمة فقط" : "Only the creator can edit core details"}</div>}{canDelete ? <Button variant="destructive" className="gap-2" onClick={() => setPendingDelete(selected)}><Trash2 className="size-4" />{ar ? "حذف عنصر العمل" : "Delete work item"}</Button> : null}</div> : undefined}
+      footer={selected ? <div className="flex w-full items-center justify-between gap-3"><span className="text-[10px] font-semibold text-muted-foreground">{selected.created_by_staff_id === membership.id ? (ar ? "يمكنك تعديل هذا العنصر" : "You can manage this work item") : (ar ? "التعديل متاح لمنشئ المهمة فقط" : "Core details are managed by the creator")}</span><ActionMenu ar={ar} label={ar ? "إجراءات عنصر العمل" : "Work item actions"} actions={[{label: ar ? "تعديل المهمة" : "Edit work item", icon: Pencil, hidden: selected.created_by_staff_id !== membership.id, onSelect: () => setEditingTask(selected)},{label: ar ? "حذف عنصر العمل" : "Delete work item", icon: Trash2, destructive: true, separatorBefore: true, hidden: !canDelete, onSelect: () => setPendingDelete(selected)}]} /></div> : undefined}
     >
       {selected ? <div className="space-y-4">
         {selected.description ? <section className="rounded-2xl border border-border bg-card p-4"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "الوصف" : "Description"}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{selected.description}</p></section> : null}
