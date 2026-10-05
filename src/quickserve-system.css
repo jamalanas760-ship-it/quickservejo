@@ -5437,3 +5437,8 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
 .qs-permission-origin{display:block;margin-top:2px;font-size:11px;line-height:1.4;color:var(--muted-foreground)}
 .qs-permission-group label{min-height:52px!important}.qs-permission-group label button[role=switch]{flex-shrink:0;position:relative}.qs-permission-group label button[role=switch]:before{content:"";position:absolute;inset:-12px -4px}
 @media(max-width:400px){.qs-permission-summary{gap:8px;padding:12px}.qs-permission-summary button{font-size:11px;padding-inline:8px}}
+
+/* Team pagination reveals the next users without anchoring to the footer. */
+.qs-team-results-board{overflow-anchor:none}
+.qs-team-results{scroll-margin-top:96px}
+.qs-team-results:focus-visible{outline:2px solid var(--qs-brand);outline-offset:-2px}
