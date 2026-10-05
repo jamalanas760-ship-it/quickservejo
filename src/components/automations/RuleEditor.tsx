@@ -4,6 +4,7 @@ import { ArrowLeft, CalendarClock, ChevronDown, CirclePlay, Trash2, Save, Loader
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { ActionMenu } from "@/components/app/ActionMenu";
 import {
   Dialog,
   DialogContent,
@@ -491,34 +492,26 @@ export function RuleEditor({
           </form>
           <footer className="au-editor-footer">
             {rule ? (
-              <div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={busy || dirty}
-                  title={
-                    dirty
-                      ? ar
-                        ? "احفظ التغييرات قبل التشغيل"
-                        : "Save changes before running"
-                      : undefined
-                  }
-                  onClick={() => runNow.mutate()}
-                >
-                  <CirclePlay size={15} />
-                  {ar ? "تشغيل الآن" : "Run now"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="au-delete"
-                  disabled={busy}
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  <Trash2 size={15} />
-                  {ar ? "حذف" : "Delete"}
-                </Button>
-              </div>
+              <ActionMenu
+                ar={ar}
+                label={ar ? "إجراءات القاعدة" : "Rule actions"}
+                actions={[
+                  {
+                    label: ar ? "تشغيل الآن" : "Run now",
+                    icon: CirclePlay,
+                    disabled: busy || dirty,
+                    onSelect: () => runNow.mutate(),
+                  },
+                  {
+                    label: ar ? "حذف" : "Delete",
+                    icon: Trash2,
+                    destructive: true,
+                    separatorBefore: true,
+                    disabled: busy,
+                    onSelect: () => setConfirmDelete(true),
+                  },
+                ]}
+              />
             ) : (
               <span />
             )}
