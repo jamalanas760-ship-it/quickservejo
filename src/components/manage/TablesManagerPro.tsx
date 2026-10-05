@@ -1794,18 +1794,6 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                 )}
                 <button
                   type="button"
-                  className="qs-button-secondary"
-                  disabled={floorBusy}
-                  onClick={() => {
-                    const size = normalizeCanvasSize(currentFloor.canvasSize);
-                    setCanvasSizeDraft({ width: String(size.width), height: String(size.height) });
-                    setCanvasSizeOpen(true);
-                  }}
-                >
-                  {ar ? "حجم المخطط" : "Canvas size"}
-                </button>
-                <button
-                  type="button"
                   className="qs-button-secondary qs-floor-mode-toggle"
                   aria-pressed={depth}
                   aria-label={ar ? "التبديل بين 2D و3D" : "Switch between 2D and 3D"}
@@ -1824,38 +1812,16 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                   <Pencil className="size-4" />
                   {editing ? (ar ? "تم" : "Done") : ar ? "تعديل المخطط" : "Edit layout"}
                 </button>
-                {depth && !editing && (
-                  <button
-                    type="button"
-                    className="qs-button-secondary"
-                    disabled={floorBusy}
-                    onClick={() => {
-                      setEditing(true);
-                      setElementsOpen(true);
-                    }}
-                  >
-                    <Plus className="size-4" />
-                    {ar ? "العناصر" : "Elements"}
-                  </button>
-                )}
-                {editing ? (
-                  <>
-                    <button
-                      type="button"
-                      className="qs-button-secondary"
-                      onClick={() => setElementsOpen(true)}
-                    >
-                      <Plus className="size-4" />
-                      {ar ? "عناصر" : "Elements"}
-                    </button>
+                <>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button type="button" className="qs-button-secondary">
-                          <Pencil className="size-4" />
-                          {ar ? "المزيد" : "Layout tools"}
-                        </button>
+                        <button type="button" className="qs-button-secondary size-11 shrink-0 p-0" aria-label={ar?"أدوات المخطط":"Layout tools"} title={ar?"أدوات المخطط":"Layout tools"}><MoreHorizontal className="size-4"/></button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="min-w-56">
+                        <DropdownMenuItem disabled={floorBusy} onSelect={()=>{const size=normalizeCanvasSize(currentFloor.canvasSize);setCanvasSizeDraft({width:String(size.width),height:String(size.height)});setCanvasSizeOpen(true);}}>{ar?"حجم المخطط":"Canvas size"}</DropdownMenuItem>
+                        <DropdownMenuItem disabled={floorBusy} onSelect={()=>{setEditing(true);setElementsOpen(true);}}><Plus/>{ar?"العناصر":"Elements"}</DropdownMenuItem>
+                        <DropdownMenuSeparator/>
+
                         <DropdownMenuItem
                           onSelect={() => {
                             setZoneEditing(null);
@@ -1936,8 +1902,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                         ) : null}
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </>
-                ) : null}
+                </>
                 <button
                   type="button"
                   className={cn("qs-toggle-control", grid && "is-active")}

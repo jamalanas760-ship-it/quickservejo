@@ -1,3 +1,4 @@
+import { ActionMenu } from "@/components/app/ActionMenu";
 import { MoreHorizontal } from "@/components/nav/QuickServeIcons";
 import { workforceLocalTimestamp, workforceLocalInput } from "@/lib/workforce-hours";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
@@ -972,6 +973,13 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                 {ar ? "الدور والوصول" : "Role & access"}
                               </h3>
                               <div className="space-y-4">
+                                <details className="rounded-xl border border-border p-3">
+                                  <summary className="cursor-pointer text-sm font-semibold">{ar?"قوالب الصلاحيات":"Permission templates"}</summary>
+                                  <p className="my-2 text-sm text-muted-foreground">{ar?"اختر قالباً ثم عدّل الصلاحيات حسب الحاجة. يُحفظ عند حفظ التغييرات.":"Choose a template, then adjust individual permissions. Applied when you save changes."}</p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {assignableRoles.map(role=><Button key={role} type="button" variant={editing.role===role&&Object.keys(editing.permission_overrides).length===0?"secondary":"outline"} className="min-h-11 h-auto whitespace-normal text-start" aria-pressed={editing.role===role&&Object.keys(editing.permission_overrides).length===0} onClick={()=>setEditing({...editing,role,permission_overrides:{}})}>{ROLE_NAMES[role][lang]}</Button>)}
+                                  </div>
+                                </details>
                                 <Field label={ar ? "الدور" : "Role"}>
                                   <Select
                                     value={editing.role}
@@ -1997,11 +2005,11 @@ function AssignStaffShiftDialog({
                   <section className="rounded-2xl border border-border bg-muted/10 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div><h3 className="text-sm font-bold">{ar ? "أيام العمل" : "Workdays"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar ? "حدد أيام الدوام بدقة، مثل الأحد إلى الخميس، أو اختر عطلة نهاية الأسبوع." : "Pick the exact workdays, such as Sunday–Thursday, weekends, or any custom combination."}</p></div>
-                      <div className="flex flex-wrap gap-1.5">
-                        <Button type="button" size="sm" variant="outline" onClick={() => setWeekdays([0, 1, 2, 3, 4])}>{ar ? "الأحد–الخميس" : "Sun–Thu"}</Button>
-                        <Button type="button" size="sm" variant="outline" onClick={() => setWeekdays([5, 6])}>{ar ? "عطلة الأسبوع" : "Weekend"}</Button>
-                        <Button type="button" size="sm" variant="outline" onClick={() => setWeekdays([0, 1, 2, 3, 4, 5, 6])}>{ar ? "كل الأيام" : "Every day"}</Button>
-                      </div>
+                      <ActionMenu ar={ar} label={ar?"قوالب أيام العمل":"Workday presets"} actions={[
+                        {label:ar?"الأحد–الخميس":"Sun–Thu",onSelect:()=>setWeekdays([0,1,2,3,4])},
+                        {label:ar?"عطلة الأسبوع":"Weekend",onSelect:()=>setWeekdays([5,6])},
+                        {label:ar?"كل الأيام":"Every day",onSelect:()=>setWeekdays([0,1,2,3,4,5,6])},
+                      ]}/>
                     </div>
                     <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-7">
                       {TEAM_SHIFT_WEEKDAYS.map((day) => {

@@ -1,3 +1,4 @@
+import { MasterActionSurface } from "@/components/app/MasterPage";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -300,7 +301,7 @@ export function ProcurementPanel({
                         <StatusBadge status={row.status} />
                       </td>
                       <td>
-                        <div className="bo-row-actions">
+                        <MasterActionSurface threshold={1} className="bo-row-actions">
                           {row.status === "requested" && canApprove ? (
                             <>
                               <Button
@@ -366,7 +367,7 @@ export function ProcurementPanel({
                               {ar ? "إلغاء" : "Cancel"}
                             </Button>
                           ) : null}
-                        </div>
+                        </MasterActionSurface>
                       </td>
                     </tr>
                   );

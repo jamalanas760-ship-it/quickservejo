@@ -1,3 +1,4 @@
+import { TimeInput } from "@/components/reservations/TimeInput";
 import { workforceDayKey } from "@/lib/workforce-hours";
 import { useId, useState } from "react";
 import { addDays, format, parseISO } from "date-fns";
@@ -140,35 +141,10 @@ export function RequestTimePicker({ label, value, onChange, ar, disabled = false
     setOpen(false);
   }
 
-  const editor = <>          <div className="qs-time-preview" dir="ltr">{draft.hour.padStart(2,"0")}<span>:</span>{draft.minute}<small>{periodLabel(draft.period)}</small></div>
-          <div className="qs-time-period" role="group" aria-label={ar ? "الفترة" : "Time period"}>
-            {["am","pm"].map(period => <button key={period} type="button" aria-pressed={draft.period === period} onClick={() => setDraft(previous => ({...previous,period}))}>{periodLabel(period)}</button>)}
-          </div>
-          <div className="qs-request-picker-field">
-            <Label>{ar ? "الساعة" : "Hour"}</Label>
-            <div className="qs-time-hour-grid" role="group" aria-label={ar ? "الساعة" : "Hour"} dir="ltr">
-              {Array.from({length:12},(_,i)=>String(i+1)).map(hour => <button type="button" key={hour} aria-label={`${ar ? "الساعة" : "Hour"} ${hour}`} aria-pressed={draft.hour===hour} onClick={() => setDraft(previous => ({...previous,hour}))}>{hour.padStart(2,"0")}</button>)}
-            </div>
-          </div>
-          <div className="qs-request-picker-field">
-            <Label>{ar ? "الدقائق" : "Minutes"}</Label>
-            <p className="text-xs text-muted-foreground">{ar ? "اختر العشرات ثم الآحاد لأي دقيقة من 00 إلى 59." : "Tap tens, then ones to choose any minute from 00 to 59."}</p>
-            <div className="grid grid-cols-6 gap-1" role="group" aria-label={ar ? "عشرات الدقائق" : "Minute tens"} dir="ltr">
-              {Array.from({length:6},(_,i)=>String(i)).map(digit=><Button type="button" key={digit} variant={draft.minute[0]===digit ? "default" : "outline"} className="min-h-11 min-w-0 px-0" aria-label={`${ar ? "عشرات" : "Minute tens"} ${digit}`} aria-pressed={draft.minute[0]===digit} onClick={()=>setDraft(previous=>({...previous,minute:digit+previous.minute[1]}))}>{digit}0</Button>)}
-            </div>
-            <div className="grid grid-cols-5 gap-1" role="group" aria-label={ar ? "آحاد الدقائق" : "Minute ones"} dir="ltr">
-              {Array.from({length:10},(_,i)=>String(i)).map(digit=><Button type="button" key={digit} variant={draft.minute[1]===digit ? "default" : "outline"} className="min-h-11 min-w-0 px-0" aria-label={`${ar ? "آحاد" : "Minute ones"} ${digit}`} aria-pressed={draft.minute[1]===digit} onClick={()=>setDraft(previous=>({...previous,minute:previous.minute[0]+digit}))}>{digit}</Button>)}
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-              {ar ? "إلغاء" : "Cancel"}
-            </Button>
-            <Button type="button" onClick={apply}>
-              {ar ? "تأكيد الوقت" : "Apply time"}
-            </Button>
-          </div>
-</>;
+  const editor = <>
+    <TimeInput ar={ar} label={label} value={`${String(Number(draft.hour)%12+(draft.period==="pm"?12:0)).padStart(2,"0")}:${draft.minute}`} onChange={next=>setDraft(clockParts(next))}/>
+    <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={()=>setOpen(false)}>{ar?"إلغاء":"Cancel"}</Button><Button type="button" onClick={apply}>{ar?"تأكيد الوقت":"Apply time"}</Button></div>
+  </>;
   const trigger = <Button
             id={id}
             onClick={() => { setDraft(clockParts(value)); setOpen(previous => !previous); }}

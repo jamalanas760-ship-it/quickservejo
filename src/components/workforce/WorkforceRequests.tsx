@@ -1,3 +1,4 @@
+import { MasterActionSurface } from "@/components/app/MasterPage";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -548,7 +549,7 @@ export function WorkforceRequests({
             onClose={() => setSelectedKey(null)}
             footer={
               canManage && selected.request.status === "pending" ? (
-                <div className="wf-review-actions">
+                <MasterActionSurface threshold={1} className="wf-review-actions">
                   <Button
                     variant="outline"
                     disabled={review.isPending}
@@ -574,7 +575,7 @@ export function WorkforceRequests({
                   >
                     {ar ? "اعتماد" : "Approve"}
                   </Button>
-                </div>
+                </MasterActionSurface>
               ) : undefined
             }
           >

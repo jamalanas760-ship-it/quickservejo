@@ -1,9 +1,18 @@
-import { Children, isValidElement, type ElementType, type ReactNode } from "react";
+import {
+  Children,
+  Fragment,
+  useState,
+  useRef,
+  isValidElement,
+  type ElementType,
+  type ReactNode,
+} from "react";
 import { MoreHorizontal } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 function countActionControls(node: ReactNode): number {
@@ -33,7 +42,7 @@ function countActionControls(node: ReactNode): number {
 export function MasterActionSurface({
   children,
   threshold = 2,
-  moreLabel = "More actions",
+  moreLabel,
   className,
 }: {
   children: ReactNode;
@@ -41,39 +50,75 @@ export function MasterActionSurface({
   moreLabel?: string;
   className?: string;
 }) {
-  const count = countActionControls(children);
-  if (count <= threshold) {
-    return <div className={cn("flex min-w-0 flex-wrap items-center gap-2", className)}>{children}</div>;
+  const [open, setOpen] = useState(false);
+  const actionSelected = useRef(false);
+  const { lang } = useI18n();
+  const label = moreLabel ?? (lang === "ar" ? "المزيد من الإجراءات" : "More actions");
+  const flattened: ReactNode[] = [];
+  function flatten(node: ReactNode) {
+    Children.forEach(node, (child) => {
+      if (
+        isValidElement(child) &&
+        (child.type === Fragment || (child.type === "div" && countActionControls(child) > 0))
+      )
+        flatten((child.props as { children?: ReactNode }).children);
+      else if (child !== null && child !== false && child !== undefined) flattened.push(child);
+    });
   }
-
+  flatten(children);
+  const count = countActionControls(children);
+  if (count <= threshold)
+    return <div className={cn("flex min-w-0 items-center gap-2", className)}>{children}</div>;
+  const primaryIndex = flattened.findIndex(
+    (child) =>
+      isValidElement(child) &&
+      countActionControls(child) > 0 &&
+      !(child.props as { variant?: string; className?: string }).className?.includes(
+        "destructive",
+      ) &&
+      (child.props as { variant?: string }).variant !== "destructive" &&
+      (child.props as { variant?: string }).variant !== "ghost",
+  );
+  const primary = primaryIndex >= 0 ? flattened[primaryIndex] : null;
+  const secondary = flattened.filter((_, index) => index !== primaryIndex);
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="size-10 rounded-xl"
-          aria-label={moreLabel}
-          title={moreLabel}
+    <div className={cn("qs-compact-action-surface flex min-w-0 items-center gap-2", className)}>
+      {primary}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-11 shrink-0 rounded-xl"
+            aria-label={label}
+            title={label}
+          >
+            <MoreHorizontal className="size-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          className="w-[min(92vw,320px)] p-2"
+          onCloseAutoFocus={(event) => {
+            if (actionSelected.current) event.preventDefault();
+            actionSelected.current = false;
+          }}
         >
-          <MoreHorizontal className="size-4" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        className="w-[min(92vw,320px)] p-2"
-      >
-        <div
-          className={cn(
-            "grid gap-2 [&_a]:min-h-11 [&_a]:w-full [&_a]:justify-start [&_button]:min-h-11 [&_button]:w-full [&_button]:justify-start",
-            className,
-          )}
-        >
-          {children}
-        </div>
-      </PopoverContent>
-    </Popover>
+          <div
+            className="grid gap-2 [&_a]:min-h-11 [&_a]:w-full [&_a]:justify-start [&_button]:min-h-11 [&_button]:w-full [&_button]:justify-start"
+            onClick={(event) => {
+              if ((event.target as HTMLElement).closest("button,a")) {
+                actionSelected.current = true;
+                setOpen(false);
+              }
+            }}
+          >
+            {secondary}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }
 
@@ -98,14 +143,28 @@ export function MasterPageHeader({
           <h1 className="qs-page-title min-w-0 whitespace-normal leading-tight">{title}</h1>
           {description ? <p className="qs-page-subtitle mt-2">{description}</p> : null}
         </div>
-        {actions ? <div className="qs-page-actions qs-master-actions flex w-full min-w-0 shrink-0 items-center lg:w-auto lg:justify-end"><MasterActionSurface>{actions}</MasterActionSurface></div> : null}
+        {actions ? (
+          <div className="qs-page-actions qs-master-actions flex w-full min-w-0 shrink-0 items-center lg:w-auto lg:justify-end">
+            <MasterActionSurface>{actions}</MasterActionSurface>
+          </div>
+        ) : null}
       </div>
-      {tabs ? <div className="no-scrollbar mt-2 overflow-x-auto border-t border-border/80 py-2">{tabs}</div> : null}
+      {tabs ? (
+        <div className="no-scrollbar mt-2 overflow-x-auto border-t border-border/80 py-2">
+          {tabs}
+        </div>
+      ) : null}
     </section>
   );
 }
 
-export function MasterEyebrow({ icon: Icon, children }: { icon?: ElementType; children: ReactNode }) {
+export function MasterEyebrow({
+  icon: Icon,
+  children,
+}: {
+  icon?: ElementType;
+  children: ReactNode;
+}) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[.08em] text-[#cf4818]">
       {Icon ? <Icon className="size-3.5" /> : null}
@@ -145,10 +204,16 @@ export function MasterKpi({
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-muted-foreground">{label}</p>
-        <p className="mt-1 break-words font-display text-[clamp(1.2rem,1.55vw,1.6rem)] font-bold leading-tight tracking-[-.025em]">{value}</p>
+        <p className="mt-1 break-words font-display text-[clamp(1.2rem,1.55vw,1.6rem)] font-bold leading-tight tracking-[-.025em]">
+          {value}
+        </p>
         {hint ? <p className="mt-1 truncate text-xs text-muted-foreground">{hint}</p> : null}
       </div>
-      {action ? <div className="shrink-0"><MasterActionSurface>{action}</MasterActionSurface></div> : null}
+      {action ? (
+        <div className="shrink-0">
+          <MasterActionSurface>{action}</MasterActionSurface>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -174,7 +239,9 @@ export function MasterSection({
         <div className="flex flex-col gap-2 border-b border-border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             {title ? <h2 className="qs-section-title">{title}</h2> : null}
-            {description ? <p className="mt-1 text-sm leading-5 text-muted-foreground">{description}</p> : null}
+            {description ? (
+              <p className="mt-1 text-sm leading-5 text-muted-foreground">{description}</p>
+            ) : null}
           </div>
           {action ? <div className="shrink-0">{action}</div> : null}
         </div>
@@ -194,12 +261,22 @@ export function MasterTabs({
       {items.map((item, index) => {
         const className = cn(
           "inline-flex min-h-11 items-center rounded-[9px] px-3 text-sm font-semibold transition",
-          item.active ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          item.active
+            ? "bg-foreground text-background shadow-sm"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
         );
         if (item.href) {
-          return <Link key={index} to={item.href as never} preload="intent" className={className}>{item.label}</Link>;
+          return (
+            <Link key={index} to={item.href as never} preload="intent" className={className}>
+              {item.label}
+            </Link>
+          );
         }
-        return <button key={index} type="button" className={className} onClick={item.onClick}>{item.label}</button>;
+        return (
+          <button key={index} type="button" className={className} onClick={item.onClick}>
+            {item.label}
+          </button>
+        );
       })}
     </div>
   );
@@ -220,5 +297,14 @@ export function MasterStatus({
     purple: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
     slate: "bg-muted text-muted-foreground",
   }[tone];
-  return <span className={cn("inline-flex min-h-7 items-center rounded-full px-2.5 py-1 text-xs font-semibold", className)}>{children}</span>;
+  return (
+    <span
+      className={cn(
+        "inline-flex min-h-7 items-center rounded-full px-2.5 py-1 text-xs font-semibold",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
 }

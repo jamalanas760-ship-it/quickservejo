@@ -50,7 +50,7 @@ export function ActionMenu({
           type="button"
           variant={variant}
           size="icon"
-          className={cn("size-10 shrink-0 rounded-xl", className)}
+          className={cn("size-11 shrink-0 rounded-xl", className)}
           aria-label={menuLabel}
           title={menuLabel}
         >

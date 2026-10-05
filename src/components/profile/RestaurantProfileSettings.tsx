@@ -1,3 +1,4 @@
+import { MasterActionSurface } from "@/components/app/MasterPage";
 import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -537,7 +538,7 @@ function RestaurantProfileSettingsForm({
                           <div key={key} className="qs-sidebar-tool-row is-pinned">
                             <span className="qs-sidebar-tool-index">{index + 2}</span>
                             <strong>{sidebarLabel(key)}</strong>
-                            <div className="ms-auto flex items-center gap-1">
+                            <MasterActionSurface threshold={1} className="ms-auto flex items-center gap-1">
                               <button
                                 type="button"
                                 aria-label={ar ? "تحريك للأعلى" : "Move up"}
@@ -563,7 +564,7 @@ function RestaurantProfileSettingsForm({
                               >
                                 <X className="size-3.5" />
                               </button>
-                            </div>
+                            </MasterActionSurface>
                           </div>
                         ))
                       ) : (
