@@ -30,7 +30,7 @@ import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useWorkspaceScope } from "@/hooks/useWorkspace";
 import { supabase } from "@/integrations/supabase/client";
-import { avatarPresetUrl } from "@/lib/avatar-presets";
+import { avatarPresetUrl, roleAvatarUrl } from "@/lib/avatar-presets";
 import { useI18n } from "@/lib/i18n";
 import { ROLE_LABELS } from "@/lib/permissions";
 import { humanError } from "@/lib/errors";
@@ -80,7 +80,8 @@ function ProfilePage() {
     membership?.avatar_url ||
     avatarPresetUrl(membership?.avatar_preset) ||
     meta?.avatar_url ||
-    avatarPresetUrl(meta?.avatar_preset);
+    avatarPresetUrl(meta?.avatar_preset) ||
+    roleAvatarUrl(role);
   async function signOut() {
     setSigningOut(true);
     try {

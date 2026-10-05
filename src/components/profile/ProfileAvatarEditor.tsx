@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { useAccess } from "@/hooks/useSession";
 import { supabase } from "@/integrations/supabase/client";
-import { AVATAR_PRESETS, avatarPresetUrl } from "@/lib/avatar-presets";
+import { AVATAR_PRESETS, avatarPresetUrl, resolveAvatarPresetId, roleAvatarUrl } from "@/lib/avatar-presets";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
 import { uploadProfileImage } from "@/lib/storage";
@@ -53,8 +53,8 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
     return item.role === filter;
   });
 
-  const selectedId = draftPreset ?? (!avatarUrl ? preset : null);
-  const preview = draftPreset ? avatarPresetUrl(draftPreset) : avatarUrl || avatarPresetUrl(preset);
+  const selectedId = draftPreset ?? (!avatarUrl ? resolveAvatarPresetId(preset) : null);
+  const preview = draftPreset ? avatarPresetUrl(draftPreset) : avatarUrl || avatarPresetUrl(preset) || roleAvatarUrl(membership?.role);
   const draftDirty = Boolean(draftPreset && (draftPreset !== preset || avatarUrl));
 
   async function refreshIdentity() {
