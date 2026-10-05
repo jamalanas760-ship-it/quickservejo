@@ -825,9 +825,12 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                               {ROLE_NAMES[member.role][lang]}
                             </span>
                             <span
+                              role="img"
+                              aria-label={clockEntry ? (ar ? "الحضور مسجّل" : "Clocked in") : (ar ? "الحضور غير مسجّل" : "Not clocked in")}
+                              title={clockEntry ? (ar ? "الحضور مسجّل" : "Clocked in") : (ar ? "الحضور غير مسجّل" : "Not clocked in")}
                               className={cn(
                                 "size-2 rounded-full",
-                                member.is_active ? "bg-emerald-500" : "bg-slate-400",
+                                clockEntry ? "bg-emerald-500" : "bg-slate-400",
                               )}
                             />
                           </span>
