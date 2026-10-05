@@ -22,9 +22,11 @@ test("QR scans do not mark tables occupied before a real order",()=>{
   assert.match(migration,/legacy scan-created Active\/Occupied/);
 });
 
-test("team actions are aligned as one control group",()=>{
-  assert.match(team,/qs-team-actions/);
-  assert.match(team,/qs-team-action-button/);
+test("team actions use one compact contextual control group",()=>{
+  assert.match(team,/function StaffActions/);
+  assert.match(team,/MoreHorizontal/);
+  assert.match(team,/DropdownMenuContent/);
+  assert.match(team,/Cancel shift/);
 });
 
 test("analytics and ERP expose decision-ready master summaries",async()=>{
