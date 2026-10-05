@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { useOperationalCounters } from "@/hooks/useOperationalCounters";
 import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useWorkspaceScope } from "@/hooks/useWorkspace";
-import { avatarPresetUrl } from "@/lib/avatar-presets";
+import { avatarPresetUrl, roleAvatarUrl } from "@/lib/avatar-presets";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
 import { ROLE_LABELS } from "@/lib/permissions";
@@ -71,7 +71,7 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
   const user = session.data?.user;
   useTableAlertSound(restaurantId, user?.id);
   const meta = user?.user_metadata as { full_name?: string; name?: string; avatar_url?: string } | undefined;
-  const avatarUrl = membership?.avatar_url || avatarPresetUrl(membership?.avatar_preset) || meta?.avatar_url || null;
+  const avatarUrl = membership?.avatar_url || avatarPresetUrl(membership?.avatar_preset) || meta?.avatar_url || roleAvatarUrl(access.isSuperAdmin ? "super_admin" : membership?.role);
   const displayName = meta?.full_name || meta?.name || membership?.name || user?.email?.split("@")[0] || "QuickServe";
   const role = access.isSuperAdmin ? "super_admin" : membership?.role;
   const roleLabel = role && role in ROLE_LABELS ? ROLE_LABELS[role as keyof typeof ROLE_LABELS][lang] : (lang === "ar" ? "عضو" : "Member");

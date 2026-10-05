@@ -59,7 +59,7 @@ import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useRestaurantSeatUsage } from "@/hooks/useRestaurantSeatUsage";
 import { assignRecurringStaffShifts, assignStaffShift, cancelStaffShiftAssignment } from "@/hooks/useOperations";
 import { supabase } from "@/integrations/supabase/client";
-import { avatarPresetUrl } from "@/lib/avatar-presets";
+import { avatarPresetUrl, roleAvatarUrl } from "@/lib/avatar-presets";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -759,7 +759,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                 <tbody>
                   {visibleRows.map((member) => {
                     const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
-                    const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
+                    const avatar = member.avatar_url || (avatarPresetUrl(member.avatar_preset) || roleAvatarUrl(member.role));
                     const scheduleInfo = scheduleByStaff.get(member.id);
                     const cancelShiftInfo = cancellableShiftByStaff.get(member.id);
                     const clockEntry = openClockByStaff.get(member.id);
@@ -794,7 +794,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                   member.role === "restaurant_admin" &&
                   !isSuperAdmin &&
                   !isOwnRestaurantManager(member);
-                const avatar = member.avatar_url || avatarPresetUrl(member.avatar_preset);
+                const avatar = member.avatar_url || (avatarPresetUrl(member.avatar_preset) || roleAvatarUrl(member.role));
                 const scheduleInfo = scheduleByStaff.get(member.id);
                 const cancelShiftInfo = cancellableShiftByStaff.get(member.id);
                 const clockEntry = openClockByStaff.get(member.id);
@@ -908,10 +908,10 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                     <div className="border-b border-border px-4 py-4 sm:px-6">
                       <div className="flex min-w-0 items-center gap-3 pe-8">
                         <span className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-lg font-bold ring-1 ring-border">
-                          {editing.avatar_url || avatarPresetUrl(editing.avatar_preset) ? (
+                          {editing.avatar_url || (avatarPresetUrl(editing.avatar_preset) || roleAvatarUrl(editing.role)) ? (
                             <img
                               src={
-                                (editing.avatar_url || avatarPresetUrl(editing.avatar_preset)) ??
+                                (editing.avatar_url || (avatarPresetUrl(editing.avatar_preset) || roleAvatarUrl(editing.role))) ??
                                 undefined
                               }
                               alt=""
