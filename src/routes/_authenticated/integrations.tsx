@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 
 import { MasterEyebrow, MasterKpi, MasterPageHeader, MasterStatus } from "@/components/app/MasterPage";
+import { ActionMenu } from "@/components/app/ActionMenu";
 import { DeveloperConnectPanel } from "@/components/integrations/DeveloperConnectPanel";
 import { IntegrationOperationsPanel } from "@/components/integrations/IntegrationOperationsPanel";
 import { AppHeader } from "@/components/nav/AppHeader";
@@ -186,10 +187,25 @@ function IntegrationsPage() {
                   <h2 className="mt-2 text-sm font-bold">{preset.name}</h2>
                   <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{preset.credential ? (ar ? `مرجع السر: ${preset.credential}` : `Server secret: ${preset.credential}`) : (ar ? "لا يحتاج مفتاحاً خارجياً" : "No external credential required")}</p>
                   {row?.last_error ? <p className="mt-2 rounded-[9px] bg-red-500/10 p-2 text-[10px] text-red-700">{row.last_error}</p> : null}
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="mt-2 flex items-center gap-1.5">
                     <Button size="sm" onClick={() => configure.mutate(preset)} disabled={configure.isPending}>{row ? (ar ? "تحديث" : "Refresh config") : (ar ? "تهيئة" : "Configure")}</Button>
-                    <Button size="sm" variant="outline" disabled={testConnection.isPending} onClick={() => testConnection.mutate(preset)}>{ar ? "اختبار" : "Test"}</Button>
-                    {row ? <Button size="sm" variant="outline" onClick={() => disable.mutate(row)}>{row.status === "disabled" ? (ar ? "تفعيل" : "Enable") : (ar ? "تعطيل" : "Disable")}</Button> : null}
+                    <ActionMenu
+                      ar={ar}
+                      label={ar ? "إجراءات التكامل" : "Integration actions"}
+                      actions={[
+                        {
+                          label: ar ? "اختبار الاتصال" : "Test connection",
+                          icon: Activity,
+                          disabled: testConnection.isPending,
+                          onSelect: () => testConnection.mutate(preset),
+                        },
+                        {
+                          label: row?.status === "disabled" ? (ar ? "تفعيل" : "Enable") : (ar ? "تعطيل" : "Disable"),
+                          hidden: !row,
+                          onSelect: () => row && disable.mutate(row),
+                        },
+                      ]}
+                    />
                   </div>
                 </article>;
               })}
