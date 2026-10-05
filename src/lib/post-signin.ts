@@ -31,7 +31,9 @@ export async function roleDestination(fallback = "/dashboard", authenticatedUser
       if (row.role === "restaurant_admin" && row.restaurant_id) {
         return `/manage/${row.restaurant_id}`;
       }
-      if (row.role === "hr") return "/shifts";
+      // "hr" exists in some tenant databases but not in the generated app_role
+      // enum, so compare as a plain string to stay type-safe everywhere.
+      if ((row.role as string) === "hr") return "/shifts";
       if (row.role === "waiter") return "/waiter";
       if (row.role === "cashier") return "/cashier";
       if (row.role === "manager" || row.role === "kitchen") return "/kitchen";
