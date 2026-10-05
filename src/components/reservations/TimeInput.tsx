@@ -8,7 +8,7 @@ function TimeWheel({ values, value, onChange, label, disabled }: {
   const latest = useRef({ value, onChange });
   latest.current = { value, onChange };
   useEffect(() => {
-    const top = Math.max(0, values.indexOf(value)) * 48;
+    const top = Math.max(0, values.indexOf(value)) * 44;
     if (ref.current && Math.abs(ref.current.scrollTop - top) > 2) ref.current.scrollTop = top;
   }, [value, values]);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -22,7 +22,7 @@ function TimeWheel({ values, value, onChange, label, disabled }: {
       <div ref={ref} className="qs-time-wheel" role="listbox" aria-label={label} aria-disabled={disabled} tabIndex={disabled ? -1 : 0}
         onScroll={() => {
           clearTimeout(timer.current);
-          timer.current = setTimeout(() => { if (!disabled && ref.current) select(Math.round(ref.current.scrollTop / 48)); }, 120);
+          timer.current = setTimeout(() => { if (!disabled && ref.current) select(Math.round(ref.current.scrollTop / 44)); }, 120);
         }}
         onKeyDown={e => {
           const index = values.indexOf(value);
