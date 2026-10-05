@@ -113,12 +113,15 @@ test("team shift dialog keeps actions visible and shows a live schedule preview"
 });
 
 
-test("team table uses the approved action buttons and live status cards without horizontal scrolling", async () => {
+test("team table uses compact contextual actions and live status cards without horizontal scrolling", async () => {
   assert.match(source, /qs-team-table-wrap/);
   assert.match(source, /overflow-hidden xl:block/);
   assert.doesNotMatch(source, /qs-scroll-region hidden min-h-0 flex-1 overflow-x-auto md:block/);
-  assert.match(source, /qs-team-action-shift/);
-  assert.match(source, /qs-team-action-edit/);
+  assert.match(source, /function StaffActions/);
+  assert.match(source, /MoreHorizontal/);
+  assert.match(source, /Assign shift/);
+  assert.match(source, /Cancel shift/);
+  assert.match(source, /Edit member/);
   assert.match(source, /qs-live-status-card qs-live-status-on/);
   assert.match(source, /qs-live-status-card qs-live-status-off/);
   assert.match(source, /Clocked in/);
@@ -127,7 +130,6 @@ test("team table uses the approved action buttons and live status cards without 
 
   const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
   assert.match(styles, /Approved Team table \+ Live Status design 2026-09-28/);
-  assert.match(styles, /\.qs-team-action-shift/);
   assert.match(styles, /\.qs-live-status-on/);
   assert.match(styles, /\.qs-live-status-alert/);
   assert.match(styles, /@media\(max-width:1279px\)/);
@@ -151,13 +153,13 @@ test("team Last Active column is aligned and uses a dedicated responsive status 
 });
 
 
-test("team actions remove the three-dot menu while preserving shift cancellation", () => {
-  const rowActions = source.slice(source.indexOf("function StaffRowActions"), source.indexOf("function StaffShiftCell"));
-  assert.doesNotMatch(rowActions, /MoreHorizontal/);
-  assert.doesNotMatch(rowActions, /qs-team-action-more/);
-  assert.match(rowActions, /Change shift/);
+test("team actions collapse secondary controls into one menu while preserving shift cancellation", () => {
+  const rowActions = source.slice(source.indexOf("function StaffActions"), source.indexOf("function AssignStaffShiftDialog"));
+  assert.match(rowActions, /MoreHorizontal/);
+  assert.match(rowActions, /Assign shift/);
   assert.match(rowActions, /Cancel shift/);
-  assert.match(rowActions, /qs-team-actions-clean/);
+  assert.match(rowActions, /Edit member/);
+  assert.match(rowActions, /DropdownMenuContent/);
 });
 
 
