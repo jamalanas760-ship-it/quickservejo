@@ -14,13 +14,13 @@ import { cn } from "@/lib/utils";
 
 export type CompactAction = {
   label: ReactNode;
-  icon?: ElementType;
-  onSelect?: () => void;
-  href?: string;
-  disabled?: boolean;
-  destructive?: boolean;
-  separatorBefore?: boolean;
-  hidden?: boolean;
+  icon?: ElementType | undefined;
+  onSelect?: (() => void) | undefined;
+  href?: string | undefined;
+  disabled?: boolean | undefined;
+  destructive?: boolean | undefined;
+  separatorBefore?: boolean | undefined;
+  hidden?: boolean | undefined;
 };
 
 export function ActionMenu({
@@ -78,13 +78,17 @@ export function ActionMenu({
             <div key={index}>
               {action.separatorBefore ? <DropdownMenuSeparator /> : null}
               {action.href ? (
-                <DropdownMenuItem asChild disabled={action.disabled} className={itemClass}>
+                <DropdownMenuItem
+                  asChild
+                  {...(action.disabled ? { disabled: true } : {})}
+                  {...(itemClass ? { className: itemClass } : {})}
+                >
                   <Link to={action.href as never}>{body}</Link>
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem
-                  disabled={action.disabled}
-                  className={itemClass}
+                  {...(action.disabled ? { disabled: true } : {})}
+                  {...(itemClass ? { className: itemClass } : {})}
                   onSelect={() => {
                     if (action.disabled || !action.onSelect) return;
                     window.setTimeout(action.onSelect, 0);
