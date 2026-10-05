@@ -50,3 +50,9 @@ test('correction values reject invalid times and rejected punches never become l
  assert.ok(Number.isNaN(workforceInputTimestamp('','Asia/Amman')));
  assert.equal(workforceHours('s',day,[],[{staff_id:'s',clock_in:assignment.starts_at,clock_out:null,review_status:'rejected'}],now).live,false);
 });
+test('a four-day session closed today cannot inflate today worked hours',()=>{
+ const stale={staff_id:'s',clock_in:'2026-09-27T06:00:00Z',clock_out:'2026-10-01T08:00:00Z'};
+ assert.equal(workforceHours('s',day,[assignment],[stale],now).actualH,0);
+ const valid={staff_id:'s',clock_in:'2026-10-01T09:00:00Z',clock_out:'2026-10-01T10:00:00Z'};
+ assert.equal(workforceHours('s',day,[assignment],[stale,valid],now).actualH,1);
+});

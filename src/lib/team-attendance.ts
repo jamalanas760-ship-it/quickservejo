@@ -9,10 +9,19 @@ export type TeamPunch = {
 // live-presence timer. Keep the original punch intact for timesheet correction.
 export const MAX_LIVE_PUNCH_MS = 24 * 60 * 60 * 1000;
 
+/** Stale or malformed sessions remain in timesheets, but never prove live attendance. */
+export function isUsableTeamPunch(entry: TeamPunch, now: number): boolean {
+  const started = Date.parse(entry.clock_in);
+  const ended = entry.clock_out ? Date.parse(entry.clock_out) : now;
+  return entry.review_status !== "rejected" && Number.isFinite(started) && Number.isFinite(ended)
+    && started <= now && ended <= now && ended >= started
+    && (!entry.clock_out || ended > started) && ended - started < MAX_LIVE_PUNCH_MS;
+}
+
 export function isLiveTeamPunch(entry: TeamPunch, now: number): boolean {
   const started = Date.parse(entry.clock_in);
   return (
-    entry.review_status !== "rejected" &&
+    isUsableTeamPunch(entry, now) &&
     !entry.clock_out &&
     Number.isFinite(started) &&
     started <= now &&
@@ -36,11 +45,15 @@ export function teamPunchesByStaff<T extends TeamPunch>(entries: readonly T[], n
   }
   const live = new Map<string, T>();
   const missingClockOut = new Map<string, T>();
+  const reviewRequired = new Map<string, T>();
   for (const [staffId, entry] of latest) {
     if (isLiveTeamPunch(entry, now)) live.set(staffId, entry);
-    else if (!entry.clock_out) missingClockOut.set(staffId, entry);
+    else if (!isUsableTeamPunch(entry, now)) {
+      reviewRequired.set(staffId, entry);
+      if (!entry.clock_out) missingClockOut.set(staffId, entry);
+    }
   }
-  return { live, missingClockOut };
+  return { live, missingClockOut, reviewRequired };
 }
 
 /** Prefer the latest session overlapping this shift; ignore stale/future records. */
@@ -57,7 +70,8 @@ export function matchingShiftPunch<T extends TeamPunch>(
       const clockIn = Date.parse(entry.clock_in);
       const clockOut = entry.clock_out ? Date.parse(entry.clock_out) : now;
       return (
-        entry.review_status !== "rejected" &&
+        isUsableTeamPunch(entry, now) &&
+        clockIn >= start - 4 * 60 * 60 * 1000 &&
         entry.staff_id === staffId &&
         Number.isFinite(clockIn) &&
         Number.isFinite(clockOut) &&

@@ -32,3 +32,27 @@ test('clock progression expires stale status without a new fetch, invalid and fu
   assert.equal(teamPunchesByStaff([entry],now+1000).live.size,0);
   assert.equal(teamPunchesByStaff([punch(-1000),punch(0,{clock_in:'invalid'})],now).live.size,0);
 });
+
+test('a forgotten four-day session closed today never proves attendance for today', async () => {
+  const { matchingShiftPunch, isUsableTeamPunch } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+  const current = Date.parse('2026-10-05T10:00:00Z');
+  const stale = {staff_id:'waiter',clock_in:'2026-10-01T06:55:33Z',clock_out:'2026-10-05T06:23:06Z',review_status:'pending'};
+  assert.equal(isUsableTeamPunch(stale,current),false);
+  assert.equal(matchingShiftPunch([stale],'waiter',Date.parse('2026-10-05T06:00:00Z'),Date.parse('2026-10-05T14:00:00Z'),current),undefined);
+  assert.equal(teamPunchesByStaff([stale],current).reviewRequired.get('waiter'),stale);
+  assert.equal(teamPunchesByStaff([stale],current).live.size,0);
+});
+test('valid same-shift clock-out is evidence, invalid/future/rejected records are not', async () => {
+  const { matchingShiftPunch } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+  const start=now-2*3600000,end=now+6*3600000;
+  const valid=punch(3600000,{clock_out:new Date(now-600000).toISOString()});
+  const invalid=[{...valid,clock_out:new Date(now+1000).toISOString()},{...valid,clock_out:valid.clock_in},{...valid,clock_out:'invalid'},{...valid,review_status:'rejected'},punch(25*3600000,{clock_out:new Date(now).toISOString()})];
+  assert.equal(matchingShiftPunch(invalid,'waiter',start,end,now),undefined);
+  assert.equal(matchingShiftPunch([...invalid,valid],'waiter',start,end,now),valid);
+});
+test('valid overnight and early clock-in sessions stay matched to their shift', async () => {
+  const { matchingShiftPunch } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+  const entry=punch(9*3600000);
+  assert.equal(matchingShiftPunch([entry],'waiter',now-8*3600000,now+3600000,now),entry);
+  assert.equal(matchingShiftPunch([entry],'waiter',now-3*3600000,now+3600000,now),undefined);
+});

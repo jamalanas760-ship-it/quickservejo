@@ -156,7 +156,7 @@ type StaffAssignmentRow = {
   ends_at: string | null;
   status: string;
 };
-type StaffTimeRow = { staff_id: string; clock_in: string; clock_out: string | null };
+type StaffTimeRow = { staff_id: string; clock_in: string; clock_out: string | null; review_status?: string | null };
 type StaffLeaveRow = { staff_id: string; start_date: string; end_date: string; status: string };
 type StaffScheduleSummary = {
   name: string;
@@ -239,7 +239,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   } | null>(null);
 
   useEffect(() => {
-    const refreshClock = () => setPresenceNow(Date.now());
+    const refreshClock = () => { setPresenceNow(Date.now()); void qc.invalidateQueries({queryKey:["platform", "staff-schedule", restaurantId]}); };
     const handleVisibility = () => {
       if (document.visibilityState === "visible") refreshClock();
     };
@@ -251,7 +251,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       window.removeEventListener("focus", refreshClock);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, []);
+  }, [qc, restaurantId]);
 
   const staff = useQuery<StaffRow[]>({
     queryKey: ["platform", "staff", restaurantId],
@@ -351,6 +351,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       .channel(`team-schedule-live:${restaurantId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "shifts", filter: `restaurant_id=eq.${restaurantId}` }, refreshSchedule)
       .on("postgres_changes", { event: "*", schema: "public", table: "shift_assignments", filter: `restaurant_id=eq.${restaurantId}` }, refreshSchedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "staff_time_entries", filter: `restaurant_id=eq.${restaurantId}` }, refreshSchedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "staff_leave_requests", filter: `restaurant_id=eq.${restaurantId}` }, refreshSchedule)
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
@@ -396,7 +398,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
 
       const existing = result.get(assignment.staff_id);
       const entry = matchingShiftPunch(schedule.data?.time ?? [], assignment.staff_id, startMs, endMs, now);
-      const attendance = scheduleAttendance(start, end, entry);
+      const attendance = scheduleAttendance(start, end, entry, now);
       const actualStartMs = entry ? new Date(entry.clock_in).getTime() : Number.NaN;
       const actualEndMs = entry?.clock_out ? new Date(entry.clock_out).getTime() : now;
       const attendanceMinutes =
@@ -473,7 +475,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     return result;
   }, [presenceNow, schedule.data]);
 
-  const { live: openClockByStaff, missingClockOut: staleClockByStaff } = useMemo(
+  const { live: openClockByStaff, reviewRequired: staleClockByStaff } = useMemo(
     () => teamPunchesByStaff(schedule.data?.time ?? [], presenceNow),
     [schedule.data?.time, presenceNow],
   );
@@ -1437,9 +1439,12 @@ function StaffLiveStatus({ clockEntry, staleClockEntry, timezone, schedule, onLe
       </div>
     );
   }
+  const reviewHint = staleClockEntry ? <Link to="/shifts" className="mt-1 block text-[10px] font-semibold text-primary underline">{ar ? "سجل سابق يحتاج مراجعة" : "Previous session needs review"}</Link> : null;
+  if (schedule && schedule.attendance === "not_clocked") {
+    return <div className="qs-live-status-card qs-live-status-off" role="status"><span className="qs-live-status-icon"><CalendarClock className="size-3.5" /></span><span className="min-w-0"><strong>{ar ? "لم يسجل الحضور" : "Not clocked in"}</strong><small>{(schedule.phase === "missed" || Boolean(schedule.end && Date.parse(schedule.end) <= now)) ? (ar ? "انتهت الوردية دون حضور مسجل" : "Shift ended without a recorded clock-in") : schedule.phase === "late" ? (ar ? "بانتظار الحضور · بدأت الوردية" : "Clock-in overdue · shift started") : schedule.start ? (ar ? `تبدأ ${formatTeamTime(schedule.start, true)}` : `Starts ${formatTeamTime(schedule.start, false)}`) : (ar ? "بانتظار تسجيل الحضور" : "Waiting for clock-in")}</small>{reviewHint}</span></div>;
+  }
   if (staleClockEntry) {
-    const clockedAt = new Date(staleClockEntry.clock_in).toLocaleString(ar ? "ar-JO" : "en-GB", { timeZone: timezone, dateStyle: "medium", timeStyle: "short" });
-    return <div className="qs-live-status-card qs-live-status-alert"><span className="min-w-0"><strong>{ar ? "انصراف غير مسجّل" : "Missing clock-out"}</strong><small>{ar ? `آخر حضور ${clockedAt}` : `Last clock-in ${clockedAt}`}</small><Link to="/shifts" className="mt-1 inline-block text-[10px] font-semibold text-primary underline">{ar ? "مراجعة سجل الدوام" : "Review timesheet"}</Link></span></div>;
+    return <div className="qs-live-status-card qs-live-status-alert"><span className="min-w-0"><strong>{ar ? "سجل الدوام يحتاج مراجعة" : "Attendance needs review"}</strong><small>{ar ? "غير مسجل حالياً" : "Not currently clocked in"}</small>{reviewHint}</span></div>;
   }
   if (schedule?.attendance === "late") {
     return (
@@ -2197,12 +2202,13 @@ function scheduleAttendance(
   start: string | null,
   end: string | null,
   entry: StaffTimeRow | undefined,
+  now: number,
 ): ScheduleAttendance {
   if (!start || !end || !entry) return "not_clocked";
   const plannedStart = new Date(start).getTime();
   const plannedEnd = new Date(end).getTime();
   const actualStart = new Date(entry.clock_in).getTime();
-  const actualEnd = entry.clock_out ? new Date(entry.clock_out).getTime() : Date.now();
+  const actualEnd = entry.clock_out ? new Date(entry.clock_out).getTime() : now;
   if (actualEnd - plannedEnd >= 30 * 60_000) return "overtime";
   if (entry.clock_out && plannedEnd - actualEnd >= 15 * 60_000) return "left_early";
   if (actualStart - plannedStart >= 15 * 60_000) return "late";
