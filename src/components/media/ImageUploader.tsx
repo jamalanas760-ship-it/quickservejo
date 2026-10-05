@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { ActionMenu } from "@/components/app/ActionMenu";
+import { ImagePlus, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { humanError } from "@/lib/errors";
 import { removeRestaurantImage, uploadRestaurantImage, type MediaKind } from "@/lib/storage";
@@ -45,42 +46,49 @@ export function ImageUploader({
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">{label}</p>
-      <div
-        className={cn(
-          "flex items-center justify-center overflow-hidden rounded-lg border border-dashed bg-muted/40",
-          aspect === "square" ? "size-24" : "h-24 w-full",
-        )}
-      >
-        {value ? (
-          <img src={value} alt={label} className="size-full object-cover" loading="lazy" />
-        ) : (
-          <span className="px-2 text-center text-xs text-muted-foreground">{t("common.none")}</span>
-        )}
-      </div>
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
+      <div className="flex items-start gap-3">
+        <div
+          className={cn(
+            "flex items-center justify-center overflow-hidden rounded-xl border bg-muted/40",
+            aspect === "square" ? "size-24 shrink-0" : "h-36 min-w-0 flex-1",
+          )}
         >
-          {busy ? t("common.uploading") : value ? t("common.replace") : t("common.upload")}
-        </Button>
-        {value ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => {
-              if (!retainRemovedFile) void removeRestaurantImage(value);
-              onChange(null);
-            }}
-          >
-            {t("common.remove")}
-          </Button>
-        ) : null}
+          {value ? (
+            <img src={value} alt={label} className="size-full object-cover" loading="lazy" />
+          ) : (
+            <span className="px-2 text-center text-sm text-muted-foreground">
+              {t("common.none")}
+            </span>
+          )}
+        </div>
+        <ActionMenu
+          ar={lang === "ar"}
+          label={`${label}: ${lang === "ar" ? "الخيارات" : "options"}`}
+          actions={[
+            {
+              label: busy
+                ? t("common.uploading")
+                : value
+                  ? t("common.replace")
+                  : t("common.upload"),
+              icon: ImagePlus,
+              disabled: busy,
+              onSelect: () => inputRef.current?.click(),
+            },
+            {
+              label: t("common.remove"),
+              icon: Trash2,
+              hidden: !value,
+              disabled: busy,
+              destructive: true,
+              separatorBefore: true,
+              onSelect: () => {
+                if (!retainRemovedFile) void removeRestaurantImage(value!);
+                onChange(null);
+              },
+            },
+          ]}
+        />
       </div>
       <input
         ref={inputRef}

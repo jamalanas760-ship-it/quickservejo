@@ -1,3 +1,4 @@
+import { MasterActionSurface } from "@/components/app/MasterPage";
 import { isLiveTeamPunch, teamPunchesByStaff } from "@/lib/team-attendance";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { workforceDayStart, workforceNextDay, workforceDayKey, workforceHours, workforceLocalInput, workforceInputTimestamp } from "@/lib/workforce-hours";
@@ -1395,7 +1396,7 @@ export function WorkforceTimesheets({
                     </Button>
                   ) : null
                 ) : (
-                  <div className="wf-review-actions">
+                  <MasterActionSurface threshold={1} className="wf-review-actions">
                     <Button
                       variant="outline"
                       disabled={act.isPending}
@@ -1409,7 +1410,7 @@ export function WorkforceTimesheets({
                     >
                       {ar ? "اعتماد" : "Approve"}
                     </Button>
-                  </div>
+                  </MasterActionSurface>
                 )
               ) : null
             }

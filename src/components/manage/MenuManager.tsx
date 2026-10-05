@@ -1,3 +1,5 @@
+import { ActionMenu } from "@/components/app/ActionMenu";
+import { MasterActionSurface } from "@/components/app/MasterPage";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -521,60 +523,12 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
                       </Badge>
                     ) : null}
                   </button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t("sa.menu.moveUp")}
-                    disabled={index === 0}
-                    onClick={() =>
-                      void persistOrder("menu_categories", move(categoryList, index, index - 1))
-                    }
-                  >
-                    <ArrowUp className="size-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t("sa.menu.moveDown")}
-                    disabled={index === categoryList.length - 1}
-                    onClick={() =>
-                      void persistOrder("menu_categories", move(categoryList, index, index + 1))
-                    }
-                  >
-                    <ArrowDown className="size-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      setCategoryForm({
-                        id: c.id,
-                        name_en: c.name_en,
-                        name_ar: c.name_ar,
-                        description_en: c.description_en ?? "",
-                        description_ar: c.description_ar ?? "",
-                        image_url: c.image_url,
-                        display_order: String(c.display_order),
-                        is_active: c.is_active,
-                      })
-                    }
-                  >
-                    {t("common.edit")}
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t("common.delete")}
-                    onClick={() =>
-                      setConfirmDelete({
-                        kind: "category",
-                        id: c.id,
-                        label: pick(c.name_en, c.name_ar) ?? c.name_en,
-                      })
-                    }
-                  >
-                    <Trash2 className="size-4 text-destructive" />
-                  </Button>
+                  <ActionMenu ar={lang==="ar"} label={`${pick(c.name_en,c.name_ar)}: ${t("common.edit")}`} actions={[
+                    {label:t("common.edit"),onSelect:()=>setCategoryForm({id:c.id,name_en:c.name_en,name_ar:c.name_ar,description_en:c.description_en??"",description_ar:c.description_ar??"",image_url:c.image_url,display_order:String(c.display_order),is_active:c.is_active})},
+                    {label:t("sa.menu.moveUp"),icon:ArrowUp,disabled:index===0,onSelect:()=>void persistOrder("menu_categories",move(categoryList,index,index-1))},
+                    {label:t("sa.menu.moveDown"),icon:ArrowDown,disabled:index===categoryList.length-1,onSelect:()=>void persistOrder("menu_categories",move(categoryList,index,index+1))},
+                    {label:t("common.delete"),icon:Trash2,destructive:true,separatorBefore:true,onSelect:()=>setConfirmDelete({kind:"category",id:c.id,label:pick(c.name_en,c.name_ar)??c.name_en})}
+                  ]}/>
                 </li>
               ))}
             </ul>
@@ -641,7 +595,7 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
                       ) ?? t("common.none")}
                     </p>
                     <p className="text-sm font-medium">{formatMoney(p.price, currency, lang)}</p>
-                    <div className="mt-2 grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
+                    <MasterActionSurface threshold={1} className="mt-2 grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
                       <Button
                         size="sm"
                         variant="outline"
@@ -701,7 +655,7 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
                       >
                         <Trash2 className="size-4 text-destructive" />
                       </Button>
-                    </div>
+                    </MasterActionSurface>
                   </div>
                 </div>
               ))}

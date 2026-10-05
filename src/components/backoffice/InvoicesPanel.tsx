@@ -1,3 +1,4 @@
+import { MasterActionSurface } from "@/components/app/MasterPage";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, FileText, Plus, ReceiptText, Search, WalletCards } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -277,7 +278,7 @@ export function InvoicesPanel({
                       <Status status={row.status} />
                     </td>
                     <td>
-                      <div className="bo-row-actions">
+                      <MasterActionSurface threshold={1} className="bo-row-actions">
                         {row.status === "draft" ? (
                           <Button
                             size="sm"
@@ -313,7 +314,7 @@ export function InvoicesPanel({
                             {ar ? "إلغاء" : "Void"}
                           </Button>
                         ) : null}
-                      </div>
+                      </MasterActionSurface>
                     </td>
                   </tr>
                 ))}

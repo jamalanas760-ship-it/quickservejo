@@ -1,3 +1,4 @@
+import { MasterActionSurface } from "@/components/app/MasterPage";
 import { useMemo, useState } from "react";
 import { AlertTriangle, History, Package, PackageCheck, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -231,7 +232,7 @@ export function InventoryPanel({
                           {cost ? formatMoney(value, currency, lang) : "—"}
                         </td>
                         <td className="px-4 py-4">
-                          <div className="flex justify-end gap-1.5">
+                          <MasterActionSurface threshold={1} className="flex justify-end gap-1.5">
                             <Button
                               size="sm"
                               onClick={() => onAction({ kind: "receive", itemId: item.id })}
@@ -263,7 +264,7 @@ export function InventoryPanel({
                             >
                               <Trash2 className="size-4" />
                             </Button>
-                          </div>
+                          </MasterActionSurface>
                         </td>
                       </tr>
                     );
@@ -302,7 +303,7 @@ export function InventoryPanel({
                         </strong>
                       </div>
                     </div>
-                    <div className="mt-3 grid grid-cols-4 gap-2">
+                    <MasterActionSurface threshold={1} moreLabel={ar?"إجراءات المادة":"Item actions"} className="mt-3">
                       <Button
                         size="sm"
                         onClick={() => onAction({ kind: "receive", itemId: item.id })}
@@ -334,7 +335,7 @@ export function InventoryPanel({
                       >
                         <Trash2 className="size-4" />
                       </Button>
-                    </div>
+                    </MasterActionSurface>
                   </article>
                 );
               })}

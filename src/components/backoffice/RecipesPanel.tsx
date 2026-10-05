@@ -1,3 +1,4 @@
+import { MasterActionSurface } from "@/components/app/MasterPage";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calculator, ChefHat, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -352,7 +353,7 @@ export function RecipesPanel({
                           : "—"}
                       </td>
                       <td>
-                        <div className="bo-row-actions">
+                        <MasterActionSurface threshold={1} className="bo-row-actions">
                           <Button size="sm" variant="outline" onClick={() => openRecipe(item)}>
                             {recipe ? (ar ? "تعديل" : "Edit") : ar ? "إضافة وصفة" : "Add recipe"}
                           </Button>
@@ -368,7 +369,7 @@ export function RecipesPanel({
                               <Trash2 size={14} />
                             </Button>
                           ) : null}
-                        </div>
+                        </MasterActionSurface>
                       </td>
                     </tr>
                   );

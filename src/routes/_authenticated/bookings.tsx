@@ -1,6 +1,8 @@
 import { Table2, MoreHorizontal } from "@/components/nav/QuickServeIcons";
 import { TimeSlotPicker } from "@/components/reservations/TimeSlotPicker";
 import { publicGuestUrl } from "@/lib/public-url";
+import { TimeInput } from "@/components/reservations/TimeInput";
+import { WeekDatePicker } from "@/components/reservations/WeekDatePicker";
 import { GuestCountPicker } from "@/components/reservations/GuestCountPicker";
 import { RequestTimePicker } from "@/components/workforce/RequestPickers";
 import { useEffect, useMemo, useState } from "react";
@@ -301,7 +303,8 @@ function BookingsPage(){
 function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,lang,timezone}:{open:boolean;onOpenChange:(open:boolean)=>void;restaurantId:string;tables:FloorTable[];settings:BookingSettings|null|undefined;ar:boolean;lang:"ar"|"en";timezone:string}){
   const qc=useQueryClient();
   const [busy,setBusy]=useState(false);
-  const initial={date:reservationDay(new Date(Date.now()+60*60_000),timezone),time:new Intl.DateTimeFormat("en-GB",{timeZone:timezone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(Date.now()+60*60_000))};
+  const [formError,setFormError]=useState<string|null>(null);
+  const initial={date:reservationDay(new Date(Math.ceil((Date.now()+60*60_000)/900_000)*900_000),timezone),time:new Intl.DateTimeFormat("en-GB",{timeZone:timezone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(Math.ceil((Date.now()+60*60_000)/900_000)*900_000))};
   const [bookingDate,setBookingDate]=useState(initial.date);
   const [bookingTime,setBookingTime]=useState(initial.time);
   const [guests,setGuests]=useState(2);
@@ -310,12 +313,13 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
   const [status,setStatus]=useState("pending");
   const [source,setSource]=useState("staff");
   const [zone,setZone]=useState("any");
-  useEffect(()=>{if(open){setBookingDate(initial.date);setBookingTime(initial.time);setGuests(settings?.min_party_size&&settings.min_party_size>2?settings.min_party_size:2);setDuration(settings?.default_duration_minutes??90);setSelectedTable("auto");setZone("any");setStatus(settings?.auto_confirm?"confirmed":"pending");}},[open]);
+  useEffect(()=>{if(open){setFormError(null);setSource("staff");setBookingDate(initial.date);setBookingTime(initial.time);setGuests(settings?.min_party_size&&settings.min_party_size>2?settings.min_party_size:2);setDuration(settings?.default_duration_minutes??90);setSelectedTable("auto");setZone("any");setStatus(settings?.auto_confirm?"confirmed":"pending");}},[open,timezone]);
   const bookingAt=bookingDate&&/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(bookingTime)?`${bookingDate}T${bookingTime}`:"";
 
   const available=useQuery<FloorTable[]>({
     queryKey:["booking-available-tables",restaurantId,bookingAt,guests,duration,timezone],
-    enabled:open&&Boolean(bookingAt)&&guests>0,
+    enabled:open&&Boolean(restaurantId)&&Boolean(bookingAt)&&Number.isInteger(guests)&&guests>0&&guests<=100,
+    staleTime:15_000,
     queryFn:async()=>{
       const at=new Date(restaurantDateTime(bookingDate,bookingTime,timezone));
       const {data,error}=await (supabase as any).rpc("find_available_booking_tables",{
@@ -329,16 +333,26 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
   const availableRows=(available.data??[]).filter(row=>zone==="any"||row.zone===zone);
   const bestFit=availableRows[0]??null;
   const chosen=selectedTable==="auto"?bestFit:availableRows.find(row=>row.id===selectedTable)??null;
-  const canSubmit=Boolean(bookingAt)&&Boolean(chosen)&&!available.isFetching&&!available.isError&&!busy;
+  const canSubmit=Boolean(bookingAt)&&Number.isInteger(guests)&&guests>=(settings?.min_party_size??1)&&guests<=(settings?.max_party_size??100)&&Boolean(chosen)&&!available.isPending&&!available.isError&&!busy;
 
   async function submit(event:React.FormEvent<HTMLFormElement>){
     event.preventDefault();
-    if(!canSubmit)return;
-    const form=new FormData(event.currentTarget);
+    const formElement=event.currentTarget;
+    const invalid=Array.from(formElement.elements).find(element=>element instanceof HTMLInputElement&&!element.validity.valid) as HTMLInputElement|undefined;
+    if(invalid){
+      const disclosure=invalid.closest("details"); if(disclosure)disclosure.open=true;
+      setFormError(ar?"أكمل الحقول المطلوبة وتأكد من صحة البيانات.":"Complete the required fields and check their values.");
+      requestAnimationFrame(()=>{invalid.focus();invalid.reportValidity();});
+      return;
+    }
+    if(!canSubmit){setFormError(ar?"اختر وقتاً وطاولة متاحة وعدد ضيوف صالحاً.":"Choose a valid guest count, time and available table.");return;}
+    const form=new FormData(formElement);
+    if(!String(form.get("customer_name")??"").trim()){setFormError(ar?"أدخل اسم الضيف.":"Enter the guest name.");return;}
+    setFormError(null);
     setBusy(true);
     try{
       const at=new Date(restaurantDateTime(bookingDate,bookingTime,timezone));
-      const {error}=await (supabase as any).rpc("create_staff_booking",{
+      const {data:bookingId,error}=await (supabase as any).rpc("create_staff_booking",{
         _restaurant_id:restaurantId,
         _customer_name:String(form.get("customer_name")??"").trim(),
         _phone:String(form.get("phone")??"").trim(),
@@ -353,6 +367,7 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
         _source:source,
       });
       if(error)throw error;
+      if(!bookingId)throw new Error(ar?"لم يتم حفظ الحجز. حاول مرة أخرى.":"The booking was not saved. Please retry.");
       await Promise.all([
         qc.invalidateQueries({queryKey:["bookings",restaurantId]}),
         qc.invalidateQueries({queryKey:["bookings","tables",restaurantId]}),
@@ -360,30 +375,28 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
       toast.success(ar?"تم إنشاء الحجز":"Reservation created");
       onOpenChange(false);
     }catch(error){
-      toast.error(humanError(error,lang));
+      const message=humanError(error,lang);setFormError(message);toast.error(message);
+      void qc.invalidateQueries({queryKey:["booking-available-tables",restaurantId]});
     }finally{
       setBusy(false);
     }
   }
 
-  const dateValue=parseDateOnly(bookingDate);
   const zones=Array.from(new Set(tables.map(row=>row.zone)));
-  const quickTimes=Array.from({length:8},(_,i)=>`${String(18+Math.floor(i/2)).padStart(2,"0")}:${i%2?"30":"00"}`);
   return <Dialog open={open} onOpenChange={value=>!busy&&onOpenChange(value)}>
     <DialogContent className="qs-booking-create-dialog rs-create-dialog p-0" onOpenAutoFocus={event=>{if(window.matchMedia("(max-width: 767px)").matches)event.preventDefault();}}>
       <DialogHeader className="rs-form-heading"><div><DialogTitle>{ar?"حجز جديد":"Add booking"}</DialogTitle><DialogDescription>{ar?"بيانات الضيف · الموعد · التأكيد":"Guest · Visit · Confirm"}</DialogDescription></div></DialogHeader>
-      <form onSubmit={submit} className="qs-booking-create-form rs-create-form">
+      <form noValidate onChangeCapture={()=>setFormError(null)} onSubmit={submit} className="qs-booking-create-form rs-create-form">
         <div className="qs-booking-create-scroll-body rs-create-body">
           <div className="rs-form-guest-grid"><Field label={ar?"اسم الضيف":"Guest name"}><Input name="customer_name" autoComplete="name" required maxLength={120}/></Field><Field label={ar?"رقم الهاتف":"Phone number"}><Input name="phone" inputMode="tel" autoComplete="tel" required={settings?.require_phone??true} maxLength={40} placeholder="+962"/></Field></div>
           <div className="rs-visit-grid">
             <section className="rs-visit-date">
               <div className="qs-booking-guests-field"><Field label={ar?"عدد الضيوف":"Number of guests"}><GuestCountPicker ar={ar} value={guests} min={settings?.min_party_size??1} max={settings?.max_party_size??100} onChange={value=>{setGuests(value);setSelectedTable("auto");}}/></Field></div>
-              <div className="qs-booking-date-field"><Field label={ar?"التاريخ":"Date"}><ReservationDatePicker timezone={timezone} value={bookingDate} onChange={value=>{setBookingDate(value);setSelectedTable("auto");}} ar={ar} maxAdvanceDays={settings?.max_advance_days??365}/></Field></div>
-              <Calendar mode="single" selected={dateValue} defaultMonth={dateValue??new Date()} onSelect={value=>{if(value){setBookingDate(formatDateOnly(value));setSelectedTable("auto");}}} disabled={{before:parseDateOnly(reservationDay(new Date(),timezone))!,after:parseDateOnly(addReservationDays(reservationDay(new Date(),timezone),settings?.max_advance_days??365))!}} className="rs-inline-calendar"/>
+              <div className="qs-booking-date-field"><Field label={ar?"التاريخ":"Date"}><WeekDatePicker key={`${open}:${timezone}`} value={bookingDate} onChange={value=>{setBookingDate(value);setSelectedTable("auto");}} min={reservationDay(new Date(),timezone)} max={addReservationDays(reservationDay(new Date(),timezone),settings?.max_advance_days??365)} ar={ar}/></Field></div>
             </section>
             <section className="rs-visit-options">
-              <div className="qs-booking-time-field"><Field label={ar?"الوقت":"Time"}><TimeSlotPicker ar={ar} value={bookingTime} onChange={time=>{setBookingTime(time);setSelectedTable("auto");}} options={quickTimes.map(time=>({value:time,label:new Intl.DateTimeFormat(ar?"ar-JO":"en-JO",{hour:"numeric",minute:"2-digit",timeZone:"UTC"}).format(new Date(`2000-01-01T${time}:00Z`))}))}/><Input aria-label={ar?"وقت مخصص":"Custom booking time"} className="mt-2" type="text" inputMode="text" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" value={bookingTime} onChange={e=>{setBookingTime(e.target.value);setSelectedTable("auto");}} required/></Field></div>
-              <Field label={ar?"منطقة الجلوس":"Seating area"}><div className="rs-choice-rail rs-zone-rail">{["any",...zones].map(value=><button key={value} type="button" aria-pressed={zone===value} onClick={()=>{setZone(value);setSelectedTable("auto");}}>{value==="any"?(ar?"أي منطقة":"Any area"):value}</button>)}</div></Field>
+              <div className="qs-booking-time-field"><Field label={ar?"الوقت":"Time"}><TimeInput ar={ar} value={bookingTime} onChange={time=>{setBookingTime(time);setSelectedTable("auto");}}/></Field><p className="mt-2 text-sm text-muted-foreground">{ar?"حسب توقيت المطعم":"Restaurant local time"} · {timezone}</p></div>
+              <Field label={ar?"منطقة الجلوس":"Seating area"}><Select value={zone} onValueChange={value=>{setZone(value);setSelectedTable("auto");}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["any",...zones].map(value=><SelectItem key={value} value={value}>{value==="any"?(ar?"أي منطقة":"Any area"):value}</SelectItem>)}</SelectContent></Select></Field>
               <Field label={ar?"الطاولة":"Table"}><Select value={selectedTable} onValueChange={setSelectedTable}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="auto">{ar?"أفضل طاولة تلقائياً":"Auto-assign best fit"}</SelectItem>{availableRows.map(table=><SelectItem key={table.id} value={table.id}>{table.table_name??`#${table.table_number}`} · {table.capacity} {ar?"مقاعد":"seats"}</SelectItem>)}</SelectContent></Select></Field>
               <div className="rs-live-availability" role="status">{available.isFetching?(ar?"جارٍ فحص التوفر…":"Checking availability…"):available.isError?<span className="text-destructive">{humanError(available.error,lang)}</span>:chosen?<span><CheckCircle2 className="size-4"/>{availableRows.length} {ar?"طاولات متاحة":"tables available"} · {chosen.table_name??`#${chosen.table_number}`}</span>:<span className="text-amber-700">{ar?"لا توجد طاولة مناسبة. اختر وقتاً أو منطقة أخرى.":"No suitable table. Try another time or area."}</span>}</div>
               <Field label={ar?"طلبات خاصة (اختياري)":"Special requests (optional)"}><Textarea name="notes" maxLength={1000} rows={2}/></Field>
@@ -392,6 +405,7 @@ function CreateBookingDialog({open,onOpenChange,restaurantId,tables,settings,ar,
           <details className="rs-optional-fields" open={settings?.require_email}><summary>{ar?"خيارات إضافية":"Additional details"}</summary><div className="rs-form-guest-grid mt-3"><Field label={ar?"البريد الإلكتروني":"Email"}><Input name="email" type="email" autoComplete="email" required={settings?.require_email??false} maxLength={160}/></Field><Field label={ar?"المناسبة":"Occasion"}><Input name="occasion" maxLength={120}/></Field><Field label={ar?"الحالة":"Status"}><Select value={status} onValueChange={setStatus}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="pending">{statusLabel("pending",ar)}</SelectItem><SelectItem value="confirmed">{statusLabel("confirmed",ar)}</SelectItem></SelectContent></Select></Field><Field label={ar?"المصدر":"Source"}><Select value={source} onValueChange={setSource}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="staff">{ar?"موظف":"Staff"}</SelectItem><SelectItem value="phone">{ar?"هاتف":"Phone"}</SelectItem><SelectItem value="walk_in">{ar?"حضور مباشر":"Walk-in"}</SelectItem></SelectContent></Select></Field></div></details>
           <div className="qs-booking-duration-rail rs-duration"><Field label={ar?"مدة الزيارة":"Visit duration"}><Select value={String(duration)} onValueChange={v=>{setDuration(Number(v));setSelectedTable("auto");}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{[30,60,90,120,150,180,240,300,360].map(value=><SelectItem key={value} value={String(value)}>{value} {ar?"دقيقة":"min"}</SelectItem>)}</SelectContent></Select></Field></div>
         </div>
+        {formError?<p role="alert" className="mx-5 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{formError}</p>:null}
         <DialogFooter className="qs-booking-create-footer rs-form-footer"><span><UsersRound className="size-4"/>{guests} {ar?"ضيوف":"guests"} · {bookingTime} · {chosen?.table_name??chosen?.table_number??"—"}</span><div><Button type="button" variant="outline" disabled={busy} onClick={()=>onOpenChange(false)}>{ar?"إلغاء":"Cancel"}</Button><Button type="submit" disabled={!canSubmit}>{busy?(ar?"جارٍ الحفظ…":"Saving…"):(ar?"إنشاء الحجز":"Create booking")}</Button></div></DialogFooter>
       </form>
     </DialogContent>

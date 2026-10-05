@@ -40,6 +40,8 @@ import {
   MonitorSmartphone,
   Plus,
   LayoutGrid,
+  PanelLeftClose,
+  PanelLeftOpen,
   PlugZap,
   Search,
   Settings,
@@ -98,6 +100,10 @@ export function BottomNav() {
   const { lang } = useI18n();
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  useEffect(() => {
+    try { setSidebarCollapsed(localStorage.getItem("qs-sidebar-collapsed") === "true"); } catch {}
+  }, []);
   const [toolSearch, setToolSearch] = useState("");
   const [iosQuickItem, setIOSQuickItem] = useState<Item | null>(null);
   const [iosQuickAnchor, setIOSQuickAnchor] = useState<{
@@ -113,6 +119,12 @@ export function BottomNav() {
   const suppressNextNavClick = useRef(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const access = useAccess();
+  useEffect(() => {
+    document.documentElement.dataset.sidebarCollapsed = String(sidebarCollapsed && !access.isSuperAdmin);
+    try { localStorage.setItem("qs-sidebar-collapsed", String(sidebarCollapsed)); } catch {}
+    return () => { delete document.documentElement.dataset.sidebarCollapsed; };
+  }, [sidebarCollapsed,access.isSuperAdmin]);
+
   const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
   const membership =
     (access.data ?? []).find(
@@ -896,6 +908,7 @@ export function BottomNav() {
     <BrandLogo
       className="size-8"
       accentClassName="text-[#e85d2a]"
+      markOnly={sidebarCollapsed}
       textClassName="text-[18px] text-foreground"
     />
   );
@@ -912,7 +925,7 @@ export function BottomNav() {
       >
         <LayoutGrid className="size-5" />
       </Button>
-      <aside className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden flex-col lg:flex">
+      <aside id="workspace-sidebar" data-collapsed={sidebarCollapsed} className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden flex-col lg:flex">
         <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-4">
           <Link
             to={homeTo as never}
@@ -923,6 +936,11 @@ export function BottomNav() {
           </Link>
         </div>
 
+        <div className="qs-sidebar-collapse-row">
+          <Button type="button" variant="ghost" size="icon" onClick={()=>setSidebarCollapsed(value=>!value)} aria-controls="workspace-sidebar" aria-expanded={!sidebarCollapsed} aria-label={sidebarCollapsed?(lang==="ar"?"توسيع القائمة":"Expand sidebar"):(lang==="ar"?"طي القائمة":"Collapse sidebar")} title={sidebarCollapsed?(lang==="ar"?"توسيع القائمة":"Expand sidebar"):(lang==="ar"?"طي القائمة":"Collapse sidebar")}>
+            {sidebarCollapsed?<PanelLeftOpen className="size-5 rtl:rotate-180"/>:<PanelLeftClose className="size-5 rtl:rotate-180"/>}
+          </Button>
+        </div>
         <nav
           className="qs-scroll flex-1 overflow-y-auto px-3 py-4"
           aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"}
@@ -939,6 +957,8 @@ export function BottomNav() {
                     preload="render"
                     data-active={active}
                     className="qs-sidebar-item"
+                    title={lang === "ar" ? item.ar : item.en}
+                    aria-label={lang === "ar" ? item.ar : item.en}
                     aria-current={active ? "page" : undefined}
                   >
                     <Icon className="size-[18px] shrink-0" />
@@ -963,6 +983,8 @@ export function BottomNav() {
               type="button"
               className="qs-sidebar-item w-full"
               onClick={() => setMoreOpen(true)}
+              title={lang === "ar" ? "كل الأدوات" : "All tools"}
+              aria-label={lang === "ar" ? "كل الأدوات" : "All tools"}
               aria-expanded={moreOpen}
             >
               <MoreHorizontal className="size-[18px] shrink-0" />
@@ -985,6 +1007,8 @@ export function BottomNav() {
                 ar: "الإعدادات",
                 exact: true,
               })}
+              aria-label={lang === "ar" ? "الإعدادات" : "Settings"}
+              title={lang === "ar" ? "الإعدادات" : "Settings"}
               className="qs-sidebar-item mt-1"
             >
               <Settings className="size-[18px] shrink-0" />
@@ -1110,7 +1134,9 @@ export function BottomNav() {
                         if (consumeLongPressClick(event)) return;
                         setMoreOpen(true);
                       }}
-                      aria-expanded={moreOpen}
+                      title={lang === "ar" ? "كل الأدوات" : "All tools"}
+              aria-label={lang === "ar" ? "كل الأدوات" : "All tools"}
+              aria-expanded={moreOpen}
                       aria-haspopup="dialog"
                       className={cn(
                         "qs-mobile-nav-item qs-mobile-nav-more qs-ios-haptic-nav-item relative flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition",

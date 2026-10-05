@@ -1,3 +1,5 @@
+import { ActionMenu } from "@/components/app/ActionMenu";
+import { MasterActionSurface } from "@/components/app/MasterPage";
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, CheckCircle2, Clock3, History, RotateCcw, Save, Send, Trash2 } from "lucide-react";
@@ -263,7 +265,7 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
         <section className="panel space-y-2.5 p-4">
           <h3 className="font-semibold">{ar ? "إدارة النشر" : "Publishing"}</h3>
           <Input maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} placeholder={ar ? "ملاحظة للإصدار (اختياري)" : "Version note (optional)"} />
-          <div className="grid grid-cols-2 gap-2"><Button type="button" variant="outline" className="w-full" disabled={busy} onClick={() => saveDraft.mutate()}><Save className="size-4" />{ar ? "حفظ مسودة" : "Save Draft"}</Button>
+          <div className="flex items-center gap-2"><ActionMenu ar={ar} label={ar?"خيارات النشر":"Publishing options"} actions={[{label:ar?"حفظ مسودة":"Save Draft",icon:Save,disabled:busy,onSelect:()=>saveDraft.mutate()}]}/>
           <Button className="min-h-10 w-full bg-[#e85d2a] text-white hover:bg-[#e94f00]" disabled={busy} type="submit"><Send className="size-4" />{publishNow.isPending ? (ar ? "جارٍ النشر…" : "Publishing…") : (ar ? "نشر الآن" : "Publish Now")}</Button></div>
           <details className="rounded-xl border border-dashed p-3"><summary className="cursor-pointer text-xs font-semibold">{ar ? "نشر مجدول" : "Scheduled publish"}</summary>
             <label className="text-xs font-semibold">{ar ? "نشر مجدول" : "Scheduled publish"}<Input type="datetime-local" className="mt-2" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} /></label>
@@ -299,11 +301,11 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
                     </p>
                     {version.scheduled_for ? <p className="mt-1 text-[10px] text-blue-700">{ar ? "موعد النشر: " : "Publishes: "}{new Date(version.scheduled_for).toLocaleString(ar ? "ar-JO" : "en-US")}</p> : null}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <MasterActionSurface threshold={1} className="flex flex-wrap gap-2">
                     {version.status === "scheduled" ? <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => cancelSchedule.mutate(version.id)}>{ar ? "إلغاء الجدولة" : "Unschedule"}</Button> : null}
                     {version.status === "archived" || version.status === "published" ? <Button type="button" size="sm" variant="outline" disabled={busy || version.status === "published"} onClick={() => rollback.mutate(version.id)}><RotateCcw className="size-3" />{ar ? "استعادة" : "Restore"}</Button> : null}
                     {version.status !== "published" ? <Button type="button" size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" disabled={busy} onClick={() => deleteVersion.mutate(version)}><Trash2 className="size-3" />{ar ? "حذف" : "Delete"}</Button> : null}
-                  </div>
+                  </MasterActionSurface>
                 </div>
               ))}
               {(versions.data ?? []).length === 0 ? <p className="py-8 text-center text-xs text-muted-foreground">{ar ? "لا توجد إصدارات بعد" : "No design versions yet"}</p> : null}
