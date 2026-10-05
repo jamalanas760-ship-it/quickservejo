@@ -4,7 +4,7 @@ import { workforceLocalTimestamp, workforceLocalInput } from "@/lib/workforce-ho
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { RequestTimePicker } from "@/components/workforce/RequestPickers";
 import { ShiftDatePicker } from "@/components/workforce/ShiftDatePicker";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -215,6 +215,9 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [teamPage, setTeamPage] = useState(1);
+  const teamTableRef = useRef<HTMLDivElement>(null);
+  const teamCardsRef = useRef<HTMLDivElement>(null);
+  const revealTeamPage = useRef(false);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [drawerTab, setDrawerTab] = useState<DrawerTab>("permissions");
   const [pendingDelete, setPendingDelete] = useState<StaffRow | null>(null);
@@ -517,6 +520,31 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const firstVisibleIndex = rows.length ? (currentTeamPage - 1) * TEAM_PAGE_SIZE + 1 : 0;
   const lastVisibleIndex = Math.min(rows.length, currentTeamPage * TEAM_PAGE_SIZE);
 
+  function changeTeamPage(page: number) {
+    const nextPage = Math.max(1, Math.min(teamPageCount, page));
+    if (nextPage === currentTeamPage) return;
+    revealTeamPage.current = true;
+    setTeamPage(nextPage);
+  }
+
+  useLayoutEffect(() => {
+    // Only pagination moves focus; filtering and live updates preserve position.
+    if (!revealTeamPage.current) return;
+    revealTeamPage.current = false;
+    const results = [teamTableRef.current, teamCardsRef.current].find(
+      (element) => element && element.getClientRects().length > 0,
+    );
+    if (!results) return;
+    results.scrollTop = 0;
+    results.focus({ preventScroll: true });
+    // Reveal the first users beneath the app header, never scroll downward
+    // when the new page is already in view. Run before browser anchoring.
+    const topInset = Number.parseFloat(getComputedStyle(results).scrollMarginTop) || 0;
+    if (results.getBoundingClientRect().top < topInset) {
+      results.scrollIntoView({ block: "start", inline: "nearest", behavior: "instant" });
+    }
+  }, [currentTeamPage]);
+
   useEffect(() => {
     setTeamPage(1);
   }, [search, roleFilter, statusFilter, tab]);
@@ -719,7 +747,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       </section>
       <div className="qs-team-content">
         <div className="min-w-0">
-      <section className="qs-workforce-board qs-card flex min-w-0 flex-col overflow-hidden">
+      <section className="qs-workforce-board qs-team-results-board qs-card flex min-w-0 flex-col overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-2"><h2 className="qs-team-panel-title">{ar ? "فريقك" : "Your team"}<span className="ms-3 font-sans text-xs font-normal text-muted-foreground">{(staff.data ?? []).length} {ar ? "أعضاء" : "members"}</span></h2></div>
         <div className="qs-team-tabs border-b border-border px-5">
           <div className="flex w-full gap-1 overflow-x-auto rounded-xl bg-muted/50 p-1 lg:w-auto lg:max-w-fit">
@@ -759,7 +787,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           <Skeleton className="m-4 h-[420px] rounded-xl" />
         ) : (
           <>
-            <div className="qs-team-table-wrap hidden min-h-0 flex-1 overflow-hidden xl:block">
+            <div ref={teamTableRef} role="region" tabIndex={-1} aria-label={ar ? `أعضاء الفريق، الصفحة ${currentTeamPage}` : `Team members, page ${currentTeamPage}`} className="qs-team-results qs-team-table-wrap hidden min-h-0 flex-1 overflow-hidden xl:block">
               <table className="qs-team-table qs-table w-full min-w-[760px] table-fixed">
                 <colgroup><col className="w-[26%]" /><col className="w-[19%]" /><col className="w-[20%]" /><col className="w-[18%]" /><col className="w-[17%]" /></colgroup>
                 <thead><tr><th>{ar ? "الموظف" : "Staff Member"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "وردية اليوم" : "Today's Shift"}</th><th>{ar ? "الحالة الحية" : "Status"}</th><th className="qs-action-column">{ar ? "إجراءات" : "Actions"}</th></tr></thead>
@@ -790,12 +818,12 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
             <div className="qs-team-pagination order-last flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-4 py-3">
               <p className="text-[11px] font-medium text-muted-foreground">{ar ? `عرض ${firstVisibleIndex}–${lastVisibleIndex} من ${rows.length} أعضاء` : `Showing ${firstVisibleIndex}–${lastVisibleIndex} of ${rows.length} team members`}</p>
               <div className="flex items-center gap-1.5">
-                <button type="button" className="qs-team-page-button" disabled={currentTeamPage <= 1} onClick={() => setTeamPage((page) => Math.max(1, page - 1))} aria-label={ar ? "الصفحة السابقة" : "Previous page"}><ChevronLeft className="size-4" /></button>
-                {Array.from({ length: teamPageCount }, (_, page) => page + 1).slice(Math.max(0, currentTeamPage - 3), Math.max(0, currentTeamPage - 3) + 3).map((page) => <button key={page} type="button" className={cn("qs-team-page-button", page === currentTeamPage && "is-active")} onClick={() => setTeamPage(page)}>{page}</button>)}
-                <button type="button" className="qs-team-page-button" disabled={currentTeamPage >= teamPageCount} onClick={() => setTeamPage((page) => Math.min(teamPageCount, page + 1))} aria-label={ar ? "الصفحة التالية" : "Next page"}><ChevronRight className="size-4" /></button>
+                <button type="button" className="qs-team-page-button" disabled={currentTeamPage <= 1} onClick={() => changeTeamPage(currentTeamPage - 1)} aria-label={ar ? "الصفحة السابقة" : "Previous page"}><ChevronLeft className="size-4" /></button>
+                {Array.from({ length: teamPageCount }, (_, page) => page + 1).slice(Math.max(0, currentTeamPage - 3), Math.max(0, currentTeamPage - 3) + 3).map((page) => <button key={page} type="button" className={cn("qs-team-page-button", page === currentTeamPage && "is-active")} aria-current={page === currentTeamPage ? "page" : undefined} onClick={() => changeTeamPage(page)}>{page}</button>)}
+                <button type="button" className="qs-team-page-button" disabled={currentTeamPage >= teamPageCount} onClick={() => changeTeamPage(currentTeamPage + 1)} aria-label={ar ? "الصفحة التالية" : "Next page"}><ChevronRight className="size-4" /></button>
               </div>
             </div>
-            <div className="space-y-2 p-3 xl:hidden">
+            <div ref={teamCardsRef} role="region" tabIndex={-1} aria-label={ar ? `أعضاء الفريق، الصفحة ${currentTeamPage}` : `Team members, page ${currentTeamPage}`} className="qs-team-results space-y-2 p-3 xl:hidden">
               {visibleRows.map((member) => {
                 const locked =
                   member.role === "restaurant_admin" &&
