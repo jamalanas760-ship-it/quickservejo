@@ -199,7 +199,8 @@ test("attendance shows live, completed-session, and daily hour-minute durations"
   assert.match(shifts, /todayWorkedSeconds/);
   assert.match(shifts, /formatClockDuration\(todayWorkedSeconds/);
   assert.match(shifts, /Clocked out · session/);
-  assert.match(shifts, /new Date\(entry\.clock_in\)\.toLocaleDateString\("en-CA"\)/);
+  assert.match(shifts, /workforceDayKey\(new Date\(clockNow\), timeZone\)/);
+  assert.match(shifts, /isUsableTeamPunch\(entry, clockNow\)/);
 });
 
 

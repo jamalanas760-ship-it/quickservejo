@@ -1,4 +1,4 @@
-import { isLiveTeamPunch, teamPunchesByStaff, type TeamPunch } from "./team-attendance.ts";
+import { isUsableTeamPunch, isLiveTeamPunch, teamPunchesByStaff, type TeamPunch } from "./team-attendance.ts";
 export type HoursPunch = TeamPunch & { break_minutes?: number; review_status?: string | null };
 export type HoursAssignment = {
   staff_id: string;
@@ -77,7 +77,7 @@ export function workforceHours(
   const planned = assignments
     .filter((a) => a.staff_id === staffId && a.status !== "released")
     .flatMap((a) => clip(Date.parse(a.starts_at ?? ""), Date.parse(a.ends_at ?? "")));
-  const accepted = entries.filter((e) => e.review_status !== "rejected");
+  const accepted = entries.filter((e) => isUsableTeamPunch(e, now));
   const live = teamPunchesByStaff(accepted, now).live;
   const actual = accepted
     .filter((e) => e.staff_id === staffId)

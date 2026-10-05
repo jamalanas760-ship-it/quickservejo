@@ -1474,3 +1474,9 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Keep one authoritative clock action, with quiet state feedback. */
+.wf-clock[data-clock-state="on"] { border-color:color-mix(in srgb,var(--wf-border) 55%,#10b981); }
+.wf-clock[data-clock-state="review"],.wf-clock[data-clock-state="error"] { border-color:color-mix(in srgb,var(--wf-border) 55%,#f59e0b); }
+.wf-clock-action button { min-height:44px; }
+@media(prefers-reduced-motion:no-preference) { .wf-clock { transition:border-color .18s ease; } }

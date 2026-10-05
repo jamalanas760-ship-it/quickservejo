@@ -1,3 +1,4 @@
+import { isUsableTeamPunch, isLiveTeamPunch } from "@/lib/team-attendance";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { workforceLocalTimestamp, workforceDayKey, workforceLocalInput, workforceInputTimestamp } from "@/lib/workforce-hours";
 import { RequestDateTimePicker } from "@/components/workforce/RequestPickers";
@@ -888,6 +889,7 @@ type TimeEntry = {
   clock_in: string;
   clock_out: string | null;
   break_minutes: number;
+  review_status?: string | null;
 };
 type ClockStatus = {
   entry_id: string;
@@ -921,12 +923,24 @@ function WorkforceClockHero({
 }) {
   const qc = useQueryClient();
   const [clockNow, setClockNow] = useState(() => Date.now());
+  const restaurant = useRestaurant(restaurantId);
+  const timeZone = restaurant.data?.timezone || "Asia/Amman";
   const [missingPunchOpen, setMissingPunchOpen] = useState(false);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setClockNow(Date.now()), 15_000);
-    return () => window.clearInterval(timer);
-  }, []);
+    const refresh = () => {
+      setClockNow(Date.now());
+      void qc.invalidateQueries({queryKey:["workforce-clock", restaurantId, currentStaffId]});
+      void qc.invalidateQueries({queryKey:["workforce-clock-history", restaurantId, currentStaffId]});
+    };
+    const visible = () => { if (document.visibilityState === "visible") refresh(); };
+    const channel = supabase.channel(`my-clock:${restaurantId}:${currentStaffId}`)
+      .on("postgres_changes", {event:"*", schema:"public", table:"staff_time_entries", filter:`restaurant_id=eq.${restaurantId}`}, refresh).subscribe();
+    const timer = window.setInterval(() => setClockNow(Date.now()), 1000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", visible);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", visible); void supabase.removeChannel(channel); };
+  }, [qc, restaurantId, currentStaffId]);
 
   const clockStatus = useQuery<ClockStatus | null>({
     queryKey: ["workforce-clock", restaurantId, currentStaffId],
@@ -948,7 +962,7 @@ function WorkforceClockHero({
     queryFn: async () => {
       const since = new Date(Date.now() - 14 * 86_400_000).toISOString();
       const { data, error } = await (supabase.from("staff_time_entries" as any) as any)
-        .select("id,staff_id,clock_in,clock_out,break_minutes")
+        .select("id,staff_id,clock_in,clock_out,break_minutes,review_status")
         .eq("restaurant_id", restaurantId)
         .eq("staff_id", currentStaffId)
         .gte("clock_in", since)
@@ -968,24 +982,25 @@ function WorkforceClockHero({
         break_minutes: 0,
       }
     : null;
-  const currentSessionSeconds = openEntry
-    ? Math.max(0, Math.floor((clockNow - new Date(openEntry.clock_in).getTime()) / 1000))
+  const liveEntry = openEntry && isLiveTeamPunch(openEntry, clockNow) ? openEntry : null;
+  const needsReview = Boolean(openEntry && !liveEntry);
+  const currentSessionSeconds = liveEntry
+    ? Math.max(0, Math.floor((clockNow - new Date(liveEntry.clock_in).getTime()) / 1000))
     : 0;
-  const todayKey = new Date(clockNow).toLocaleDateString("en-CA");
-  const todayWorkedSeconds = (history.data ?? [])
-    .filter((entry) => new Date(entry.clock_in).toLocaleDateString("en-CA") === todayKey)
-    .reduce((sum, entry) => {
-      const startMs = new Date(entry.clock_in).getTime();
-      const endMs = entry.clock_out ? new Date(entry.clock_out).getTime() : clockNow;
-      return (
-        sum +
-        Math.max(0, Math.floor((endMs - startMs) / 1000) - Number(entry.break_minutes || 0) * 60)
-      );
-    }, 0);
+  const todayKey = workforceDayKey(new Date(clockNow), timeZone);
+  const todayStart = workforceLocalTimestamp(todayKey, "00:00", timeZone);
+  const tomorrowKey = new Date(Date.parse(`${todayKey}T12:00:00Z`) + 86400000).toISOString().slice(0,10);
+  const todayEnd = workforceLocalTimestamp(tomorrowKey, "00:00", timeZone);
+  const todayWorkedSeconds = (history.data ?? []).filter(entry => isUsableTeamPunch(entry, clockNow)).reduce((sum, entry) => {
+    const start = Date.parse(entry.clock_in), end = entry.clock_out ? Date.parse(entry.clock_out) : clockNow;
+    const overlap = Math.max(0, Math.min(end, todayEnd) - Math.max(start, todayStart));
+    const rate = end > start ? Math.max(0, 1 - Number(entry.break_minutes || 0)*60000/(end-start)) : 0;
+    return sum + Math.floor(overlap*rate/1000);
+  }, 0);
 
   const latestCompletedEntry =
     (history.data ?? [])
-      .filter((entry) => entry.staff_id === currentStaffId && entry.clock_out)
+      .filter((entry) => entry.staff_id === currentStaffId && entry.clock_out && isUsableTeamPunch(entry, clockNow))
       .sort((a, b) => new Date(b.clock_out!).getTime() - new Date(a.clock_out!).getTime())[0] ??
     null;
   const latestCompletedSeconds = latestCompletedEntry?.clock_out
@@ -1023,7 +1038,7 @@ function WorkforceClockHero({
         return Math.abs(a.startMs - clockNow) - Math.abs(b.startMs - clockNow);
       })[0]?.assignment ?? null;
 
-  const expectedEnd = openEntry ? (liveAssignment?.ends_at ?? null) : null;
+  const expectedEnd = liveEntry && liveAssignment?.starts_at && liveAssignment.ends_at && Date.parse(liveEntry.clock_in) >= Date.parse(liveAssignment.starts_at) - 4*3600000 && Date.parse(liveEntry.clock_in) < Date.parse(liveAssignment.ends_at) ? liveAssignment.ends_at : null;
   const nextShift = !openEntry
     ? (assignments
         .filter(
@@ -1051,10 +1066,13 @@ function WorkforceClockHero({
 
   const toggleClock = useMutation({
     mutationFn: async () => {
+      if (clockStatus.isError || clockStatus.isPending) throw new Error(ar ? "تعذر تأكيد حالة الدوام. أعد المحاولة." : "Unable to confirm clock status. Retry first.");
       const rpc = openEntry ? "clock_out_staff" : "clock_in_staff";
       const { data, error } = await (supabase as any).rpc(rpc, { _restaurant_id: restaurantId });
       if (error) throw error;
-      return (Array.isArray(data) ? data[0] : data) as ClockResult;
+      const result = (Array.isArray(data) ? data[0] : data) as ClockResult;
+      if (!result?.action || !["clocked_in", "already_clocked_in", "clocked_out", "already_clocked_out"].includes(result.action.toLowerCase())) throw new Error(ar ? "لم يتم تأكيد تسجيل الدوام. أعد المحاولة." : "Attendance was not confirmed. Please retry.");
+      return result;
     },
     onSuccess: async (result) => {
       const action = result?.action?.toLowerCase();
@@ -1114,12 +1132,12 @@ function WorkforceClockHero({
 
   const expectedLabel = expectedEnd
     ? new Date(expectedEnd).toLocaleTimeString(ar ? "ar-JO" : "en-JO", {
-        hour: "2-digit",
+        timeZone, hour: "2-digit",
         minute: "2-digit",
       })
     : nextShift?.starts_at
       ? new Date(nextShift.starts_at).toLocaleTimeString(ar ? "ar-JO" : "en-JO", {
-          hour: "2-digit",
+          timeZone, hour: "2-digit",
           minute: "2-digit",
         })
       : "—";
@@ -1129,7 +1147,7 @@ function WorkforceClockHero({
       ? (ar ? "الوردية القادمة" : "Next shift") +
         " · " +
         new Date(nextShift.starts_at).toLocaleDateString(ar ? "ar-JO" : "en-JO", {
-          month: "short",
+          timeZone, month: "short",
           day: "numeric",
         })
       : ar
@@ -1138,7 +1156,7 @@ function WorkforceClockHero({
 
   return (
     <>
-      <section className="wf-clock" aria-live="polite">
+      <section className="wf-clock" data-clock-state={clockStatus.isError ? "error" : clockStatus.isPending ? "loading" : needsReview ? "review" : liveEntry ? "on" : "off"} aria-label={ar ? "ساعة الدوام" : "Time clock"}>
         <div className="wf-clock-person">
           <span className="wf-avatar">
             {(staffMember?.name ?? "T")
@@ -1149,20 +1167,20 @@ function WorkforceClockHero({
           </span>
           <span>
             <strong>{staffMember?.name ?? (ar ? "عضو الفريق" : "Team member")}</strong>
-            <small>
-              <i className={openEntry ? "is-active" : ""} />
-              {openEntry
+            <small role="status" aria-live="polite">
+              <i className={liveEntry ? "is-active" : ""} />
+              {clockStatus.isError ? (ar ? "تعذر تحميل الحالة" : "Status unavailable") : clockStatus.isPending ? (ar ? "جارٍ تأكيد الحالة…" : "Checking status…") : needsReview ? (ar ? "جلسة سابقة تحتاج مراجعة" : "Previous session needs review") : liveEntry
                 ? ar
                   ? "على رأس العمل"
                   : "On shift"
                 : ar
                   ? "جاهز للبدء"
                   : "Ready to clock in"}
-              {openEntry
+              {liveEntry
                 ? " · " +
                   (ar ? "الدخول " : "Clocked in ") +
-                  new Date(openEntry.clock_in).toLocaleTimeString(ar ? "ar-JO" : "en-US", {
-                    hour: "numeric",
+                  new Date(liveEntry.clock_in).toLocaleTimeString(ar ? "ar-JO" : "en-US", {
+                    timeZone, hour: "numeric",
                     minute: "2-digit",
                   })
                 : ""}
@@ -1180,7 +1198,7 @@ function WorkforceClockHero({
                 : "Last session"}
           </small>
           <strong>
-            {formatClockDuration(openEntry ? currentSessionSeconds : latestCompletedSeconds, ar)}
+            {clockStatus.isError ? "—" : formatClockDuration(needsReview ? 0 : openEntry ? currentSessionSeconds : latestCompletedSeconds, ar)}
           </strong>
           <small>
             {ar ? "وقت العمل اليوم" : "Worked today"} ·{" "}
@@ -1203,9 +1221,10 @@ function WorkforceClockHero({
         <div className="wf-clock-action">
           <Button
             aria-busy={toggleClock.isPending}
-            disabled={toggleClock.isPending || clockStatus.isPending}
+            disabled={toggleClock.isPending || clockStatus.isPending || clockStatus.isError}
             onClick={() => toggleClock.mutate()}
           >
+            {openEntry ? <StopCircle className="size-4" /> : <PlayCircle className="size-4" />}
             {toggleClock.isPending
               ? ar
                 ? "جارٍ التحديث…"
@@ -1223,6 +1242,8 @@ function WorkforceClockHero({
           </button>
         </div>
       </section>
+      {clockStatus.isError || toggleClock.isError ? <div role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs"><span>{humanError(clockStatus.error ?? toggleClock.error, lang)}</span>{clockStatus.isError ? <Button variant="outline" disabled={clockStatus.isFetching} onClick={() => void clockStatus.refetch()}>{ar ? "إعادة المحاولة" : "Retry status"}</Button> : null}</div> : null}
+      {needsReview ? <p className="mt-2 text-xs text-muted-foreground">{ar ? "الجلسة السابقة متجاوزة للمدة. أغلقها أو اطلب تصحيح البصمة؛ لن تُحسب كحضور حيّ." : "The previous session is overdue. Close it or request a punch correction; it is excluded from live attendance."}</p> : null}
       {missingPunchOpen ? (
         <SelfMissingPunchRequestSheet
           restaurantId={restaurantId}
