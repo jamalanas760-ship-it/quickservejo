@@ -1,5 +1,5 @@
 import { UtensilsCrossed, Table2 } from "@/components/nav/QuickServeIcons";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronRight,
@@ -49,7 +49,6 @@ const statusClass: Record<string, string> = {
   paid: "bg-slate-500/12 text-slate-600 dark:text-slate-300",
   cancelled: "bg-rose-500/12 text-rose-600 dark:text-rose-400",
 };
-const DESKTOP_ORDER_MEDIA = "(min-width: 1280px)";
 
 function elapsed(createdAt: string, ar: boolean) {
   const timestamp = new Date(createdAt).getTime();
@@ -60,18 +59,6 @@ function elapsed(createdAt: string, ar: boolean) {
   if (hours < 24) return ar ? `${hours} س ${minutes % 60} د` : `${hours}h ${minutes % 60}m`;
   const days = Math.floor(hours / 24);
   return ar ? `${days} ي ${hours % 24} س` : `${days}d ${hours % 24}h`;
-}
-
-function subscribeDesktopOrderLayout(notify: () => void) {
-  const media = window.matchMedia(DESKTOP_ORDER_MEDIA);
-  media.addEventListener("change", notify);
-  return () => media.removeEventListener("change", notify);
-}
-function getDesktopOrderLayout() {
-  return window.matchMedia(DESKTOP_ORDER_MEDIA).matches;
-}
-function useDesktopOrderLayout() {
-  return useSyncExternalStore(subscribeDesktopOrderLayout, getDesktopOrderLayout, () => false);
 }
 
 export function OrdersManager({
@@ -94,7 +81,7 @@ export function OrdersManager({
     return () => window.clearInterval(timer);
   }, []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const desktopOrderLayout = useDesktopOrderLayout();
+
   const qc = useQueryClient();
   const { data: restaurant } = useRestaurant(restaurantId);
   const range =
@@ -168,7 +155,6 @@ export function OrdersManager({
 
   const selected =
     (orders.data ?? []).find((order) => order.id === selectedId) ??
-    (desktopOrderLayout ? rows[0] : null) ??
     null;
 
   const periodOptions: Array<{ value: HomePeriod | "all"; en: string; ar: string }> = [
@@ -321,9 +307,6 @@ export function OrdersManager({
               </article>
             ))}
           </div>
-          {desktopOrderLayout && selected ? (
-            <OrderDetail order={selected} currency={selected.currency || currency} />
-          ) : null}
         </div>
       )}
       <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
@@ -376,7 +359,7 @@ export function OrdersManager({
         </DialogContent>
       </Dialog>
       <Dialog
-        open={!desktopOrderLayout && Boolean(selectedId)}
+        open={Boolean(selectedId)}
         onOpenChange={(open) => {
           if (!open) setSelectedId(null);
         }}

@@ -169,13 +169,11 @@ function StandardMenuModeControl({ restaurant }: { restaurant: NonNullable<Retur
   });
 
   return (
-    <div className="qs-menu-mode-control flex min-h-11 items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-sm" role="group" aria-label={ar ? "مظهر القائمة العادية" : "Standard Menu appearance"}>
-      <span className="hidden px-2 text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground sm:inline">{ar ? "المظهر" : "Appearance"}</span>
-      {(["light", "dark"] as const).map((option) => {
-        const selected = mode === option;
-        const Icon = option === "light" ? Sun : Moon;
-        return <button key={option} type="button" aria-pressed={selected} disabled={saveMode.isPending} onClick={() => option !== mode && saveMode.mutate(option)} className={cn("inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition", selected ? "bg-[#fff1ec] text-[#cf4818] shadow-sm ring-1 ring-orange-200 dark:bg-orange-950/35 dark:text-orange-300 dark:ring-orange-900/60" : "text-muted-foreground hover:bg-muted hover:text-foreground")}><Icon className="size-3.5" /><span>{option === "light" ? (ar ? "فاتح" : "Light") : (ar ? "داكن" : "Dark")}</span></button>;
-      })}
-    </div>
+    <button type="button" className="qs-menu-mode-control qs-button-secondary" disabled={saveMode.isPending}
+      aria-label={ar ? "تبديل مظهر القائمة" : "Switch menu appearance"} title={ar ? "تبديل مظهر القائمة" : "Switch menu appearance"}
+      onClick={() => saveMode.mutate(mode === "light" ? "dark" : "light")}>
+      {mode === "light" ? <Sun className="size-4"/> : <Moon className="size-4"/>}
+      <span>{mode === "light" ? (ar ? "فاتح" : "Light") : (ar ? "داكن" : "Dark")}</span>
+    </button>
   );
 }

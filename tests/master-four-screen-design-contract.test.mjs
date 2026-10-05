@@ -176,13 +176,13 @@ test("mobile topbar uses the dedicated segmented theme control", async () => {
 });
 
 
-test("tables mobile floor plan uses responsive rails, compact controls and scaled table markers", async () => {
+test("tables mobile floor plan uses compact selectors, contextual controls and scaled table markers", async () => {
   const tablesPro = await readFile(new URL("../src/components/manage/TablesManagerPro.tsx", import.meta.url), "utf8");
   const switchControl = await readFile(new URL("../src/components/ui/switch.tsx", import.meta.url), "utf8");
   assert.match(tablesPro,/qs-tables-page/);
-  assert.match(tablesPro,/qs-tables-chip-rail/);
+  assert.match(tablesPro,/aria-label=\{ar \? "المنطقة" : "Zone"\}/);
   assert.match(tablesPro,/qs-floor-toolbar/);
-  assert.match(tablesPro,/qs-toggle-control/);
+  assert.match(tablesPro,/setGrid\(!grid\)/);
   assert.match(tablesPro,/qs-floor-canvas/);
   assert.match(tablesPro,/qs-floor-table-piece/);
   assert.match(tablesPro,/canvasSize\.width/);

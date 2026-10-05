@@ -753,7 +753,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
             <div className="qs-team-table-wrap hidden min-h-0 flex-1 overflow-hidden xl:block">
               <table className="qs-team-table qs-table w-full min-w-[760px] table-fixed">
                 <colgroup><col className="w-[26%]" /><col className="w-[19%]" /><col className="w-[20%]" /><col className="w-[18%]" /><col className="w-[17%]" /></colgroup>
-                <thead><tr><th>{ar ? "الموظف" : "Staff Member"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "وردية اليوم" : "Today's Shift"}</th><th>{ar ? "الحالة الحية" : "Status"}</th><th className="text-center">{ar ? "إجراءات" : "Actions"}</th></tr></thead>
+                <thead><tr><th>{ar ? "الموظف" : "Staff Member"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "وردية اليوم" : "Today's Shift"}</th><th>{ar ? "الحالة الحية" : "Status"}</th><th className="qs-action-column">{ar ? "إجراءات" : "Actions"}</th></tr></thead>
                 <tbody>
                   {visibleRows.map((member) => {
                     const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
@@ -770,7 +770,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                         <td><StaffShiftSummaryCell schedule={scheduleInfo} ar={ar} timeZone={restaurantTimezone} /></td>
                         <td><StaffLiveStatus clockEntry={clockEntry} staleClockEntry={staleClockByStaff.get(member.id)} timezone={restaurantTimezone} schedule={scheduleInfo} onLeave={isOnLeave} now={presenceNow} ar={ar} /></td>
 
-                        <td><StaffActions member={member} locked={locked} canManageShifts={canManageShifts} canCancelShift={canManageShifts && Boolean(cancelShiftInfo)} ar={ar} onEdit={() => startEdit(member)} onAssign={() => setShiftMember(member)} onCancel={() => cancelShiftInfo && setCancelShiftTarget({ member, shift: cancelShiftInfo })} /></td>
+                        <td className="qs-action-column"><StaffActions member={member} locked={locked} canManageShifts={canManageShifts} canCancelShift={canManageShifts && Boolean(cancelShiftInfo)} ar={ar} onEdit={() => startEdit(member)} onAssign={() => setShiftMember(member)} onCancel={() => cancelShiftInfo && setCancelShiftTarget({ member, shift: cancelShiftInfo })} /></td>
                       </tr>
                     );
                   })}
@@ -973,13 +973,6 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                 {ar ? "الدور والوصول" : "Role & access"}
                               </h3>
                               <div className="space-y-4">
-                                <details className="rounded-xl border border-border p-3">
-                                  <summary className="cursor-pointer text-sm font-semibold">{ar?"قوالب الصلاحيات":"Permission templates"}</summary>
-                                  <p className="my-2 text-sm text-muted-foreground">{ar?"اختر قالباً ثم عدّل الصلاحيات حسب الحاجة. يُحفظ عند حفظ التغييرات.":"Choose a template, then adjust individual permissions. Applied when you save changes."}</p>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    {assignableRoles.map(role=><Button key={role} type="button" variant={editing.role===role&&Object.keys(editing.permission_overrides).length===0?"secondary":"outline"} className="min-h-11 h-auto whitespace-normal text-start" aria-pressed={editing.role===role&&Object.keys(editing.permission_overrides).length===0} onClick={()=>setEditing({...editing,role,permission_overrides:{}})}>{ROLE_NAMES[role][lang]}</Button>)}
-                                  </div>
-                                </details>
                                 <Field label={ar ? "الدور" : "Role"}>
                                   <Select
                                     value={editing.role}
@@ -1070,8 +1063,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                               </h3>
                               <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
                                 {ar
-                                  ? "خصص صلاحيات هذا المستخدم ضمن حدود دوره. لا يمكن منح صلاحية أعلى من حدود الأمان في الخادم."
-                                  : "Customize this user inside the selected role's secure ceiling. A toggle can restrict access, but cannot grant privileges beyond the server-side role."}
+                                  ? "فعّل أو أوقف كل صلاحية. الصلاحيات غير المتاحة تتطلب تغيير الدور."
+                                  : "Turn each permission on or off. Permissions unavailable for this role require a different role."}
                               </p>
                             </div>
                             <div className="grid gap-3 md:grid-cols-2">
@@ -1093,7 +1086,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                         <label
                                           key={item.capability}
                                           className={cn(
-                                            "flex min-h-9 items-center justify-between gap-3 text-xs",
+                                            "flex min-h-11 items-center justify-between gap-3 text-xs",
                                             !supported && "opacity-45",
                                           )}
                                         >
@@ -1101,6 +1094,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                             {ar ? item.ar : item.en}
                                           </span>
                                           <Switch
+                                            aria-label={ar ? item.ar : item.en}
+                                            title={!supported ? (ar ? "غير متاحة لهذا الدور" : "Unavailable for this role") : undefined}
                                             disabled={!supported}
                                             checked={permissionEnabled(item.capability)}
                                             onCheckedChange={(value) =>
@@ -1238,39 +1233,12 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                     </div>
 
                     <div className="safe-bottom shrink-0 border-t border-border bg-card p-3 sm:p-4">
-                      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
-                        <button
-                          type="button"
-                          className="qs-button-secondary min-h-11 sm:min-w-28"
-                          disabled={busy}
-                          onClick={() => setEditing(null)}
-                        >
-                          {t("common.cancel")}
-                        </button>
-                        {!ownRestaurantManager ? (
-                          <>
-                            <button
-                              type="button"
-                              className="qs-button-secondary min-h-11 sm:min-w-28"
-                              disabled={busy}
-                              onClick={() => void openAccess(editing.id)}
-                            >
-                              <IdCard className="size-4" />
-                              {ar ? "الوصول" : "Access"}
-                            </button>
-                            <button
-                              type="button"
-                              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-destructive hover:bg-destructive/10 sm:ms-auto"
-                              disabled={busy}
-                              onClick={() => setPendingDelete(editing)}
-                            >
-                              <Trash2 className="size-4" />
-                              {ar ? "حذف" : "Delete"}
-                            </button>
-                          </>
-                        ) : (
-                          <span className="hidden sm:block sm:flex-1" />
-                        )}
+                      <div className="flex items-center justify-end gap-2">
+                        <ActionMenu ar={ar} label={ar ? "إجراءات المستخدم" : "Member actions"} actions={[
+                          {label: ar ? "إلغاء" : "Cancel", disabled: busy, onSelect: () => setEditing(null)},
+                          {label: ar ? "الوصول" : "Access", icon: IdCard, hidden: ownRestaurantManager, disabled: busy, onSelect: () => void openAccess(editing.id)},
+                          {label: ar ? "حذف المستخدم" : "Delete member", icon: Trash2, hidden: ownRestaurantManager, disabled: busy, destructive: true, separatorBefore: true, onSelect: () => setPendingDelete(editing)},
+                        ]}/>
                         <button
                           type="button"
                           className="qs-button-primary min-h-11 sm:min-w-44"
@@ -1735,7 +1703,7 @@ function StaffActions({
         <button
           type="button"
           disabled={locked && !canAssign && !canCancelShift}
-          className="grid size-9 place-items-center rounded-lg bg-muted/40 transition hover:bg-muted disabled:opacity-40"
+          className="qs-action-trigger mx-auto grid size-11 place-items-center rounded-xl bg-muted/40 transition hover:bg-muted disabled:opacity-40"
           aria-label={ar ? `إجراءات ${member.name}` : `${member.name} actions`}
         >
           <MoreHorizontal className="size-4" />
@@ -1965,15 +1933,20 @@ function AssignStaffShiftDialog({
         </div>
 
         <div className="qs-shift-assign-body">
-          <div className={cn("grid rounded-xl border border-border bg-muted/25 p-1",editable ? "grid-cols-3" : "grid-cols-2")}>
-            {editable ? <button type="button" onClick={() => setMode("edit")} className={cn("min-h-11 rounded-lg px-2 text-xs font-bold",mode === "edit" ? "bg-card shadow-sm" : "text-muted-foreground")}>{ar ? "تعديل الوردية" : "Edit shift"}</button> : null}
-            <button type="button" disabled={!available.length} onClick={() => setMode("existing")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "existing" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground", !available.length && "cursor-not-allowed opacity-45")}>
-              {ar ? "وردية موجودة" : "Existing shift"}
-            </button>
-            <button type="button" onClick={() => setMode("new")} className={cn("min-h-10 rounded-lg px-3 text-sm font-bold transition", mode === "new" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
-              {ar ? "جدول جديد" : "New schedule"}
-            </button>
-          </div>
+          <Field label={ar ? "نوع الجدول" : "Schedule type"}>
+            <Select value={mode === "new" ? newMode : mode} onValueChange={value => {
+              if (value === "existing" || value === "edit") setMode(value);
+              else { setMode("new"); setNewMode(value as "single" | "recurring"); if (value === "recurring" && rangeEnd <= date) setRangeEnd(addLocalDays(date,83)); }
+            }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {editable ? <SelectItem value="edit">{ar ? "تعديل الوردية" : "Edit current shift"}</SelectItem> : null}
+                <SelectItem value="existing" disabled={!available.length}>{ar ? "وردية موجودة" : "Existing shift"}</SelectItem>
+                <SelectItem value="single">{ar ? "يوم واحد" : "Single day"}</SelectItem>
+                <SelectItem value="recurring">{ar ? "أيام متكررة" : "Recurring days"}</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
 
           {mode === "existing" ? (
             <Field label={ar ? "الوردية المتاحة" : "Available shift"}>
@@ -1984,11 +1957,6 @@ function AssignStaffShiftDialog({
             </Field>
           ) : (
             <div className="space-y-4">
-              {mode === "new" ? <div className="grid grid-cols-2 rounded-xl border border-border bg-muted/20 p-1">
-                <button type="button" onClick={() => setNewMode("single")} className={cn("min-h-10 rounded-lg px-3 text-xs font-bold transition sm:text-sm", newMode === "single" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "يوم واحد" : "Single day"}</button>
-                <button type="button" onClick={() => { setNewMode("recurring"); if (rangeEnd <= date) setRangeEnd(addLocalDays(date, 83)); }} className={cn("min-h-10 rounded-lg px-3 text-xs font-bold transition sm:text-sm", newMode === "recurring" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{ar ? "أيام متكررة" : "Recurring days"}</button>
-              </div>
-              : null}
               <Field label={ar ? "اسم الوردية" : "Shift name"}>
                 <Input disabled={mode === "edit"} value={name} maxLength={80} onChange={(event) => setName(event.target.value)} placeholder={ar ? "مثال: وردية المساء" : "e.g. Evening service"} />
               </Field>
@@ -2033,11 +2001,6 @@ function AssignStaffShiftDialog({
               {overnight ? <p className="rounded-xl bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">{ar ? "ستنتهي كل وردية في اليوم التالي." : "Each shift ends the following day."}</p> : null}
             </div>
           )}
-
-          <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5">
-            <span className="grid size-10 place-items-center rounded-full bg-primary/10 font-bold text-primary">{member.name.slice(0, 1).toUpperCase()}</span>
-            <div className="min-w-0"><strong className="block truncate text-sm">{member.name}</strong><span className="text-xs text-muted-foreground">{ROLE_NAMES[member.role][lang]}</span></div>
-          </div>
 
           {mode === "new" && newReady ? (
             <div className="qs-shift-preview-card">

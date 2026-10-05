@@ -1682,25 +1682,10 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
             </option>
           ))}
         </select>
-        <div className="qs-tables-chip-rail">
-          <button
-            type="button"
-            className={cn("qs-tables-chip", activeZone === "all" && "is-active")}
-            onClick={() => setActiveZone("all")}
-          >
-            {ar ? "كل المناطق" : "All zones"}
-          </button>
-          {currentFloor.zones.map((zone) => (
-            <button
-              key={zone.id}
-              type="button"
-              className={cn("qs-tables-chip", activeZone === zone.id && "is-active")}
-              onClick={() => setActiveZone(zone.id)}
-            >
-              {ar ? zone.ar : zone.en}
-            </button>
-          ))}
-        </div>
+        <select aria-label={ar ? "المنطقة" : "Zone"} value={activeZone} onChange={e => setActiveZone(e.target.value)}>
+          <option value="all">{ar ? "كل المناطق" : "All zones"}</option>
+          {currentFloor.zones.map(zone => <option key={zone.id} value={zone.id}>{ar ? zone.ar : zone.en}</option>)}
+        </select>
         <button
           type="button"
           className="qs-button-primary qs-add-table-button"
@@ -1713,10 +1698,10 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       <section
         className={cn(
           "qs-tables-workspace qs-tables-studio-workspace",
-          view !== "list" && depth && "qs-tables-3d-workspace",
+          view !== "list" && depth && editing && "qs-tables-3d-workspace",
         )}
       >
-        {view !== "list" && depth && (
+        {view !== "list" && depth && editing && (
           <aside className="qs-floor-asset-sidebar">
             <div className="qs-floor-asset-heading">
               <h2>{ar ? "العناصر" : "Elements"}</h2>
@@ -1772,26 +1757,6 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                 </p>
               </div>
               <div className="qs-floor-toolbar-actions">
-                {depth && (
-                  <div className="qs-floor-history-controls">
-                    <button
-                      type="button"
-                      aria-label={ar ? "التراجع عن تعديل المخطط" : "Undo layout change"}
-                      disabled={!history.past.length || busy || floorBusy}
-                      onClick={() => void applyLayoutHistory(false)}
-                    >
-                      <Undo2 className="size-4" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={ar ? "إعادة تعديل المخطط" : "Redo layout change"}
-                      disabled={!history.future.length || busy || floorBusy}
-                      onClick={() => void applyLayoutHistory(true)}
-                    >
-                      <Redo2 className="size-4" />
-                    </button>
-                  </div>
-                )}
                 <button
                   type="button"
                   className="qs-button-secondary qs-floor-mode-toggle"
@@ -1818,6 +1783,13 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                         <button type="button" className="qs-button-secondary size-11 shrink-0 p-0" aria-label={ar?"أدوات المخطط":"Layout tools"} title={ar?"أدوات المخطط":"Layout tools"}><MoreHorizontal className="size-4"/></button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="min-w-56">
+                        <DropdownMenuItem onSelect={() => setGrid(!grid)}><Grid3X3/>{grid ? (ar ? "إخفاء الشبكة" : "Hide grid") : (ar ? "إظهار الشبكة" : "Show grid")}</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setZoom(value => clamp(value + .1, .4, 1.8))}><Plus/>{ar ? "تكبير" : "Zoom in"}</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setZoom(value => clamp(value - .1, .4, 1.8))}><Minus/>{ar ? "تصغير" : "Zoom out"}</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setZoom(depth ? 1 : W / normalizeCanvasSize(currentFloor.canvasSize).width)}>{ar ? "ملاءمة العرض" : "Fit view"}</DropdownMenuItem>
+                        <DropdownMenuItem disabled={!history.past.length || busy || floorBusy} onSelect={() => void applyLayoutHistory(false)}><Undo2/>{ar ? "تراجع" : "Undo layout change"}</DropdownMenuItem>
+                        <DropdownMenuItem disabled={!history.future.length || busy || floorBusy} onSelect={() => void applyLayoutHistory(true)}><Redo2/>{ar ? "إعادة" : "Redo layout change"}</DropdownMenuItem>
+                        <DropdownMenuSeparator/>
                         <DropdownMenuItem disabled={floorBusy} onSelect={()=>{const size=normalizeCanvasSize(currentFloor.canvasSize);setCanvasSizeDraft({width:String(size.width),height:String(size.height)});setCanvasSizeOpen(true);}}>{ar?"حجم المخطط":"Canvas size"}</DropdownMenuItem>
                         <DropdownMenuItem disabled={floorBusy} onSelect={()=>{setEditing(true);setElementsOpen(true);}}><Plus/>{ar?"العناصر":"Elements"}</DropdownMenuItem>
                         <DropdownMenuSeparator/>
@@ -1903,41 +1875,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                       </DropdownMenuContent>
                     </DropdownMenu>
                 </>
-                <button
-                  type="button"
-                  className={cn("qs-toggle-control", grid && "is-active")}
-                  aria-label={ar ? "الشبكة والمحاذاة" : "Grid and snapping"}
-                  aria-pressed={grid}
-                  onClick={() => setGrid(!grid)}
-                >
-                  <Grid3X3 className="size-4" />
-                </button>
-                <div className="qs-zoom-control">
-                  <button
-                    type="button"
-                    aria-label="Zoom out"
-                    onClick={() => setZoom((value) => clamp(value - 0.1, 0.4, 1.8))}
-                  >
-                    <Minus className="size-4" />
-                  </button>
-                  <span>{Math.round(zoom * 100)}%</span>
-                  <button
-                    type="button"
-                    aria-label="Zoom in"
-                    onClick={() => setZoom((value) => clamp(value + 0.1, 0.4, 1.8))}
-                  >
-                    <Plus className="size-4" />
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  className="qs-button-secondary"
-                  onClick={() =>
-                    setZoom(depth ? 1 : W / normalizeCanvasSize(currentFloor.canvasSize).width)
-                  }
-                >
-                  {ar ? "ملاءمة" : "Fit"}
-                </button>
+
               </div>
             </div>
             <div className="qs-floor-canvas-area min-h-0 flex-1 overflow-hidden bg-[#f7f8fa] p-2 dark:bg-[#101418]">
