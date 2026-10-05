@@ -31,7 +31,7 @@ function ManageShell() {
   const access = useAccess();
   const membership = access.membershipFor(restaurantId);
   const required = requiredCapability(pathname, restaurantId);
-  const allowed = access.isSuperAdmin || Boolean(membership && (membershipHasCapability(membership.role, membership.permission_overrides, required) || (required === "manage_staff" && membershipHasCapability(membership.role, membership.permission_overrides, "manage_shifts"))));
+  const allowed = access.isSuperAdmin || Boolean(membership && (membershipHasCapability(membership.role, membership.permission_overrides, required) || (required === "manage_menu" && membershipHasCapability(membership.role, membership.permission_overrides, "manage_appearance")) || (required === "manage_staff" && membershipHasCapability(membership.role, membership.permission_overrides, "manage_shifts"))));
   const appearance = readAppearance(restaurant.data?.menu_theme);
   const restaurantTheme = {
     "--restaurant-light-bg": appearance.lightBackground,

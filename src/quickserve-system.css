@@ -5429,3 +5429,11 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
 .qs-receipt-status-field [role=combobox]{font-size:13px}
 .qs-receipt-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px}
 .qs-receipt-actions>button:not([aria-haspopup=menu]){min-width:120px;min-height:44px;font-size:13px}
+
+/* Individual feature access: role defaults and manager grants stay understandable. */
+.qs-permission-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--border);border-radius:14px;background:var(--card);padding:14px}
+.qs-permission-summary h3{font-size:14px;font-weight:650}.qs-permission-summary p{font-size:12px;color:var(--muted-foreground);margin-top:4px}
+.qs-permission-summary button{min-height:44px;padding:8px 12px;border-radius:10px;background:var(--muted);font-size:12px;white-space:nowrap}.qs-permission-summary button:disabled{opacity:.45}.qs-permission-summary button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.qs-permission-origin{display:block;margin-top:2px;font-size:11px;line-height:1.4;color:var(--muted-foreground)}
+.qs-permission-group label{min-height:52px!important}.qs-permission-group label button[role=switch]{flex-shrink:0;position:relative}.qs-permission-group label button[role=switch]:before{content:"";position:absolute;inset:-12px -4px}
+@media(max-width:400px){.qs-permission-summary{gap:8px;padding:12px}.qs-permission-summary button{font-size:11px;padding-inline:8px}}

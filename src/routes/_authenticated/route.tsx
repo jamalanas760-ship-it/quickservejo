@@ -37,7 +37,6 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 const FRONTLINE_BLOCKED_PREFIXES = ["/dashboard", "/manage", "/super-admin", "/manager"];
-const ERP_SPECIALIST_ROLES = ["inventory", "procurement", "accountant"] as const;
 
 function AuthenticatedShell() {
   const { lang } = useI18n();
@@ -49,16 +48,13 @@ function AuthenticatedShell() {
   const accessResolved = !isPending && !isError;
   const frontline = accessResolved && isFrontlineOnly(roles);
   const isManager = roles.includes("manager");
-  const isErpSpecialist = roles.some((role) => ERP_SPECIALIST_ROLES.includes(role as (typeof ERP_SPECIALIST_ROLES)[number]));
-  const isScopedErpRoute = /^\/manage\/[^/]+\/operations(?:\/|$)/.test(pathname);
+  const isScopedFeatureRoute = /^\/manage\/[^/]+(?:\/|$)/.test(pathname);
 
-  // Managers are operational users with a dedicated /manager home and may enter
-  // capability-guarded /manage pages. ERP specialists are frontline-scoped users,
-  // but must be able to enter only their restaurant's capability-guarded ERP route.
-  // Kitchen/waiter/cashier/host users remain isolated from management workspaces.
+  // Scoped feature pages enforce their own restaurant capability. Job titles
+  // retain dedicated home routes without blocking explicitly granted tools.
   const frontlineBlocked = frontline
     && !isManager
-    && !(isErpSpecialist && isScopedErpRoute)
+    && !isScopedFeatureRoute
     && FRONTLINE_BLOCKED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
   const managerWrongHome = isManager && pathname === "/dashboard";
   const roleRouteBlocked = frontline && (

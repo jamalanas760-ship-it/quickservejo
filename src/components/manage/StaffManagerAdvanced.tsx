@@ -66,6 +66,9 @@ import {
   PERMISSION_GROUPS,
   ROLE_LABELS,
   roleHasCapability,
+  membershipHasCapability,
+  setCapabilityOverride,
+  canEditRestaurantPermissions,
   type AppRole,
   type Capability,
   type PermissionOverrides,
@@ -189,6 +192,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const session = useSupabaseSession();
   const currentUserId = session.data?.user.id ?? null;
   const isSuperAdmin = accessHook.isSuperAdmin;
+  const canEditPermissions = isSuperAdmin || canEditRestaurantPermissions(accessHook.membershipFor(restaurantId)?.role);
+  const canManageStaff = accessHook.canFor(restaurantId, "manage_staff");
   const canManageShifts = accessHook.canFor(restaurantId, "manage_shifts");
   const assignableRoles = isSuperAdmin
     ? ROLES
@@ -546,16 +551,17 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   }
   function permissionEnabled(cap: Capability) {
     if (!editing) return false;
-    return roleHasCapability(editing.role, cap) && editing.permission_overrides?.[cap] !== false;
+    return membershipHasCapability(editing.role, editing.permission_overrides, cap);
   }
   function setPermission(cap: Capability, value: boolean) {
-    if (!editing || !roleHasCapability(editing.role, cap)) return;
+    if (!editing || !canEditPermissions || busy) return;
     setEditing({
       ...editing,
-      permission_overrides: { ...editing.permission_overrides, [cap]: value },
+      permission_overrides: setCapabilityOverride(editing.role, editing.permission_overrides, cap, value),
     });
   }
   async function create() {
+    if (!canEditPermissions) return;
     if (seatsFull) {
       toast.error(
         ar
@@ -597,6 +603,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       return;
     }
     const ownRestaurantManager = isOwnRestaurantManager(editing);
+    if (!canManageStaff && !ownRestaurantManager) return;
     if (!ownRestaurantManager) {
       if (password && password.length < 8) {
         toast.error(
@@ -638,7 +645,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           email: editing.email?.trim() || undefined,
           role: editing.role,
           isActive: editing.is_active,
-          permissionOverrides: editing.permission_overrides,
+          ...(canEditPermissions ? { permissionOverrides: editing.permission_overrides } : {}),
           ...(password ? { password } : {}),
         },
       });
@@ -686,7 +693,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       <header className="qs-team-heading">
         <div><p className="qs-team-eyebrow">{ar ? "القوى العاملة / الفريق" : "WORKFORCE / TEAM"}</p><h1>{ar ? "فريق مميز. خدمة سلسة." : "A great team. A smooth service."}</h1><p className="text-muted-foreground">{ar ? "أدر فريقك وغطّ كل وردية بسهولة." : "Manage people and keep every shift covered."}</p></div>
         <div className="flex items-center gap-2">
-          <Button disabled={seats.isPending || seatsFull} onClick={() => setAddOpen(true)}>
+          <Button disabled={seats.isPending || seatsFull || !canEditPermissions} onClick={() => setAddOpen(true)}>
             <Plus className="size-4" />
             {ar ? "إضافة موظف" : "Add staff"}
           </Button>
@@ -972,6 +979,10 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                     <div className="min-h-0 flex-1 overflow-y-auto bg-muted/10 p-4 sm:p-6">
                       {drawerTab === "permissions" ? (
                         <div className="qs-permission-editor">
+                          <div className="qs-permission-summary">
+                            <div><h3>{ar ? "صلاحيات المستخدم" : "Feature access"}</h3><p>{ROLE_NAMES[editing.role]?.[lang] ?? editing.role} · {PERMISSION_GROUPS.flatMap(g => g.items).filter(i => permissionEnabled(i.capability)).length}/{PERMISSION_GROUPS.flatMap(g => g.items).length} {ar ? "مفعّلة" : "enabled"}</p></div>
+                            {canEditPermissions ? <button type="button" disabled={busy || !Object.keys(editing.permission_overrides).length} onClick={() => setEditing({ ...editing, permission_overrides: {} })}>{ar ? "استعادة صلاحيات الدور" : "Use role defaults"}</button> : null}
+                          </div>
                           <section className="qs-permission-groups">
                             <div className="qs-permission-group-list">
                               {PERMISSION_GROUPS.map((group) => (
@@ -984,7 +995,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                   </h4>
                                   <div className="space-y-3">
                                     {group.items.map((item) => {
-                                      const supported = roleHasCapability(
+                                      const roleDefault = roleHasCapability(
                                         editing.role,
                                         item.capability,
                                       );
@@ -993,16 +1004,17 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                           key={item.capability}
                                           className={cn(
                                             "flex min-h-11 items-center justify-between gap-3 text-sm",
-                                            !supported && "opacity-45",
+                                            !canEditPermissions && "opacity-60",
                                           )}
                                         >
                                           <span className="leading-5">
                                             {ar ? item.ar : item.en}
+                                            <small className="qs-permission-origin">{editing.permission_overrides[item.capability] === undefined ? (roleDefault ? (ar ? "من صلاحيات الدور" : "Role default") : (ar ? "متاحة للتفعيل" : "Available to enable")) : permissionEnabled(item.capability) ? (ar ? "مفعّلة يدوياً" : "Enabled manually") : (ar ? "متوقفة يدوياً" : "Disabled manually")}</small>
                                           </span>
                                           <Switch
                                             aria-label={ar ? item.ar : item.en}
-                                            title={!supported ? (ar ? "غير متاحة لهذا الدور" : "Unavailable for this role") : undefined}
-                                            disabled={!supported}
+                                            title={!canEditPermissions ? (ar ? "يعدّل مدير المطعم الصلاحيات" : "Restaurant Manager controls permissions") : undefined}
+                                            disabled={!canEditPermissions || busy}
                                             checked={permissionEnabled(item.capability)}
                                             onCheckedChange={(value) =>
                                               setPermission(item.capability, value)
@@ -1016,7 +1028,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                               ))}
                             </div>
                           </section>
-                          <p className="qs-permission-hint">{ar ? "فعّل أو أوقف كل صلاحية. الصلاحيات غير المتاحة تتطلب تغيير الدور من الملف." : "Turn each permission on or off. To change the role, open Profile."}</p>
+                          <p className="qs-permission-hint">{ar ? "فعّل ميزات إضافية دون تغيير الدور. تفعيل الميزة يفتح مساحة العمل المطلوبة تلقائياً. تُطبّق التغييرات عند الحفظ." : "Enable extra features without changing the role. Required workspace access updates automatically. Changes apply when saved."}</p>
                         </div>
                       ) : drawerTab === "profile" ? (
                         <div className="mx-auto max-w-3xl space-y-5">
@@ -1058,6 +1070,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                 <Field label={ar ? "البريد الإلكتروني" : "Email"}>
                                   <Input
                                     type="email"
+                                    disabled={!canEditPermissions}
                                     value={editing.email ?? ""}
                                     onChange={(event) =>
                                       setEditing({ ...editing, email: event.target.value })
@@ -1096,6 +1109,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                 <Field label={ar ? "الدور" : "Role"}>
                                   <Select
                                     value={editing.role}
+                                    disabled={!canEditPermissions}
                                     onValueChange={(value) =>
                                       setEditing({
                                         ...editing,
@@ -1146,6 +1160,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                   <Input
                                     type="password"
                                     autoComplete="new-password"
+                                    disabled={!canEditPermissions}
                                     value={editing.password}
                                     placeholder={
                                       ar ? "اتركها فارغة بدون تغيير" : "Leave blank to keep current"
@@ -1159,6 +1174,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                   <Input
                                     type="password"
                                     autoComplete="new-password"
+                                    disabled={!canEditPermissions}
                                     value={editing.confirmPassword}
                                     onChange={(event) =>
                                       setEditing({
@@ -1232,13 +1248,13 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                       <div className="flex items-center justify-end gap-2">
                         <ActionMenu ar={ar} label={ar ? "إجراءات المستخدم" : "Member actions"} actions={[
                           {label: ar ? "إلغاء" : "Cancel", disabled: busy, onSelect: () => setEditing(null)},
-                          {label: ar ? "الوصول" : "Access", icon: IdCard, hidden: ownRestaurantManager, disabled: busy, onSelect: () => void openAccess(editing.id)},
-                          {label: ar ? "حذف المستخدم" : "Delete member", icon: Trash2, hidden: ownRestaurantManager, disabled: busy, destructive: true, separatorBefore: true, onSelect: () => setPendingDelete(editing)},
+                          {label: ar ? "الوصول" : "Access", icon: IdCard, hidden: ownRestaurantManager || !canEditPermissions, disabled: busy, onSelect: () => void openAccess(editing.id)},
+                          {label: ar ? "حذف المستخدم" : "Delete member", icon: Trash2, hidden: ownRestaurantManager || !canManageStaff, disabled: busy, destructive: true, separatorBefore: true, onSelect: () => setPendingDelete(editing)},
                         ]}/>
                         <button
                           type="button"
                           className="qs-button-primary min-h-11 sm:min-w-44"
-                          disabled={busy}
+                          disabled={busy || (!canManageStaff && !ownRestaurantManager)}
                           onClick={() => void saveEdit()}
                         >
                           {busy

@@ -17,7 +17,7 @@ export type AppRole =
   | "hr";
 export type SubscriptionPlan = "free" | "basic" | "professional" | "enterprise";
 
-/** Job profiles are templates. Permission overrides may narrow a role, never expand beyond its ceiling. */
+/** Job roles supply defaults. Restaurant Managers can explicitly grant or revoke restaurant features. */
 export const ROLE_LABELS: Record<AppRole, { en: string; ar: string }> = {
   super_admin: { en: "Super Admin", ar: "المشرف العام" },
   restaurant_admin: { en: "Restaurant Manager", ar: "مدير المطعم" },
@@ -151,11 +151,12 @@ export function anyRoleHasCapability(roles: AppRole[], capability: Capability) {
   return roles.some((role) => roleHasCapability(role, capability));
 }
 
-/** Overrides cannot escalate a role beyond its role ceiling. */
+/** Explicit restaurant grants override role defaults; platform access is never delegable. */
 export function membershipHasCapability(role: AppRole, overrides: PermissionOverrides | undefined | null, capability: Capability) {
   if (role === "super_admin") return true;
-  if (!roleHasCapability(role, capability)) return false;
-  return overrides?.[capability] !== false;
+  if (capability === "manage_platform") return false;
+  if (!ROLE_CAPABILITIES[role]) return false;
+  return overrides?.[capability] ?? roleHasCapability(role, capability);
 }
 
 export function normalizedOverrides(value: unknown): PermissionOverrides {
@@ -194,3 +195,22 @@ export function frontlineHome(roles: AppRole[]) {
 export type AccessLevel = "admin" | "member";
 export function accessLevelFor(role: AppRole): AccessLevel { return MANAGEMENT_ROLES.includes(role) ? "admin" : "member"; }
 export const ACCESS_LEVEL_LABELS: Record<AccessLevel, { en: string; ar: string }> = { admin: { en: "Management", ar: "الإدارة" }, member: { en: "Team Member", ar: "عضو الفريق" } };
+
+/** Enabling a feature also opens the workspace needed to reach it. */
+export const PERMISSION_DEPENDENCIES: Partial<Record<Capability, Capability[]>> = {
+  update_order_status: ["view_orders"], manage_payments: ["view_orders"],
+  create_work: ["view_work"], manage_work: ["view_work"], approve_work: ["view_work"], manage_shifts: ["view_work"],
+  manage_inventory: ["view_erp"], manage_procurement: ["view_erp"], manage_finance: ["view_erp"],
+};
+export function setCapabilityOverride(role: AppRole, current: PermissionOverrides, capability: Capability, enabled: boolean): PermissionOverrides {
+  if (capability === "manage_platform") return current;
+  const next = { ...current, [capability]: enabled };
+  if (enabled) for (const dependency of PERMISSION_DEPENDENCIES[capability] ?? []) next[dependency] = true;
+  else for (const [dependent, requirements] of Object.entries(PERMISSION_DEPENDENCIES)) {
+    if (requirements?.includes(capability) && membershipHasCapability(role, next, dependent as Capability)) next[dependent as Capability] = false;
+  }
+  return next;
+}
+export function canEditRestaurantPermissions(role: AppRole | null | undefined) {
+  return role === "super_admin" || role === "restaurant_admin";
+}

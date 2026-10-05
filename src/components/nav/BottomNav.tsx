@@ -164,12 +164,12 @@ export function BottomNav() {
   const multiLocation =
     new Set((access.data ?? []).map((row) => row.restaurant_id).filter(Boolean)).size > 1;
   const erpSpecialist = role === "inventory" || role === "procurement" || role === "accountant";
-  const homeTo =
+  const homeTo = FRONTLINE_ITEMS[role ?? ""]?.to ?? (
     role === "operations_manager" || role === "manager"
       ? "/manager"
       : erpSpecialist
         ? "/work"
-        : "/dashboard";
+        : "/dashboard");
 
   const managementItems: Item[] = restaurantId
     ? (
@@ -332,7 +332,7 @@ export function BottomNav() {
         ] satisfies Item[]
       ).filter(
         (item) =>
-          (item.to !== "/hq" || multiLocation) && (!item.capability || can(item.capability)),
+          (item.to !== "/hq" || multiLocation) && (!item.capability || can(item.capability) || (item.capability === "manage_menu" && can("manage_appearance"))),
       )
     : [];
 
@@ -353,7 +353,7 @@ export function BottomNav() {
     restaurantId && can("view_erp")
       ? { to: `/manage/${restaurantId}/operations`, icon: QuickServeErp, en: "ERP", ar: "ERP" }
       : null;
-  const desktopItems: Item[] = managerial
+  const defaultDesktopItems: Item[] = managerial
     ? managementItems
     : erpSpecialist
       ? ([
@@ -384,6 +384,8 @@ export function BottomNav() {
               { to: "/manage", icon: Store, en: "Restaurants", ar: "المطاعم" },
               { to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات" },
             ];
+
+  const desktopItems = [...defaultDesktopItems, ...managementItems.filter(item => item.capability)].filter((item, index, all) => all.findIndex(other => other.to === item.to) === index);
 
   const mobilePriority = managerial
     ? [homeTo, `/manage/${restaurantId}/orders`, "/bookings", "/work"]
