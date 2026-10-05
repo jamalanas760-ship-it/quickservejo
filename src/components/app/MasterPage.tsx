@@ -1,7 +1,81 @@
-import type { ElementType, ReactNode } from "react";
+import { Children, isValidElement, type ElementType, type ReactNode } from "react";
+import { MoreHorizontal } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+
+function countActionControls(node: ReactNode): number {
+  let count = 0;
+  Children.forEach(node, (child) => {
+    if (!isValidElement(child)) return;
+    const props = child.props as {
+      children?: ReactNode;
+      onClick?: unknown;
+      href?: unknown;
+      to?: unknown;
+      role?: string;
+    };
+    const hostAction =
+      typeof child.type === "string" &&
+      (child.type === "button" || child.type === "a" || props.role === "button");
+    const componentAction = Boolean(props.onClick || props.href || props.to);
+    if (hostAction || componentAction) {
+      count += 1;
+      return;
+    }
+    if (props.children) count += countActionControls(props.children);
+  });
+  return count;
+}
+
+export function MasterActionSurface({
+  children,
+  threshold = 2,
+  moreLabel = "More actions",
+  className,
+}: {
+  children: ReactNode;
+  threshold?: number;
+  moreLabel?: string;
+  className?: string;
+}) {
+  const count = countActionControls(children);
+  if (count <= threshold) {
+    return <div className={cn("flex min-w-0 flex-wrap items-center gap-2", className)}>{children}</div>;
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="size-10 rounded-xl"
+          aria-label={moreLabel}
+          title={moreLabel}
+        >
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-[min(92vw,320px)] p-2"
+      >
+        <div
+          className={cn(
+            "grid gap-2 [&_a]:min-h-11 [&_a]:w-full [&_a]:justify-start [&_button]:min-h-11 [&_button]:w-full [&_button]:justify-start",
+            className,
+          )}
+        >
+          {children}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export function MasterPageHeader({
   eyebrow,
@@ -24,7 +98,7 @@ export function MasterPageHeader({
           <h1 className="qs-page-title min-w-0 whitespace-normal leading-tight">{title}</h1>
           {description ? <p className="qs-page-subtitle mt-2">{description}</p> : null}
         </div>
-        {actions ? <div className="qs-page-actions qs-master-actions flex w-full min-w-0 shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">{actions}</div> : null}
+        {actions ? <div className="qs-page-actions qs-master-actions flex w-full min-w-0 shrink-0 items-center lg:w-auto lg:justify-end"><MasterActionSurface>{actions}</MasterActionSurface></div> : null}
       </div>
       {tabs ? <div className="no-scrollbar mt-2 overflow-x-auto border-t border-border/80 py-2">{tabs}</div> : null}
     </section>
@@ -74,7 +148,7 @@ export function MasterKpi({
         <p className="mt-1 break-words font-display text-[clamp(1.2rem,1.55vw,1.6rem)] font-bold leading-tight tracking-[-.025em]">{value}</p>
         {hint ? <p className="mt-1 truncate text-xs text-muted-foreground">{hint}</p> : null}
       </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
+      {action ? <div className="shrink-0"><MasterActionSurface>{action}</MasterActionSurface></div> : null}
     </article>
   );
 }
