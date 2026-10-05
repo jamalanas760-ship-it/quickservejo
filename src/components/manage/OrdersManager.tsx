@@ -1,3 +1,10 @@
+import { toast } from "sonner";
+import { ActionMenu } from "@/components/app/ActionMenu";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAccess } from "@/hooks/useSession";
+import { membershipHasCapability } from "@/lib/permissions";
+import { supabase } from "@/integrations/supabase/client";
 import { UtensilsCrossed, Table2 } from "@/components/nav/QuickServeIcons";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -375,7 +382,7 @@ export function OrdersManager({
             </DialogDescription>
           </DialogHeader>
           {selected ? (
-            <OrderDetail order={selected} currency={selected.currency || currency} />
+            <OrderDetail key={selected.id} order={selected} currency={selected.currency || currency} />
           ) : (
             <p className="p-8">{ar ? "الطلب غير متاح" : "Order unavailable"}</p>
           )}
@@ -459,10 +466,65 @@ function OrderDetail({ order, currency }: { order: any; currency: string }) {
         <dl className="qs-receipt-costs">{costs.filter(cost => cost.show).map(cost => <div key={cost.label}><dt>{cost.label}</dt><dd><bdi>{formatMoney(cost.amount, currency, lang)}</bdi></dd></div>)}</dl>
       </div>
       <footer className="qs-receipt-total"><strong>{ar ? "الإجمالي" : "Total"}</strong><bdi>{formatMoney(total, currency, lang)}</bdi></footer>
+      <OrderStatusEditor order={order} />
     </aside>
   );
 }
 
 function ReceiptMeta({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return <div><span aria-hidden="true">{icon}</span><div><small>{label}</small><strong>{value}</strong></div></div>;
+}
+
+/** Reuse the kitchen's guarded transition RPC; never expose payment transitions here. */
+function OrderStatusEditor({ order }: { order: { id: string; restaurant_id: string; order_number: string; status: string } }) {
+  const { lang } = useI18n();
+  const ar = lang === "ar";
+  const access = useAccess();
+  const membership = access.membershipFor(order.restaurant_id);
+  const canUpdate = access.isSuperAdmin || Boolean(membership
+    && ["restaurant_admin", "manager", "kitchen", "waiter", "cashier"].includes(membership.role)
+    && membershipHasCapability(membership.role, membership.permission_overrides, "update_order_status"));
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState(order.status);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  useEffect(() => { setDraft(order.status); }, [order.status]);
+  const next = ({ new: "accepted", accepted: "preparing", preparing: "ready", ready: "served" } as Record<string, string>)[order.status];
+  const update = useMutation({
+    mutationFn: async (status: string) => {
+      if (!canUpdate || (status !== next && !(status === "cancelled" && next))) throw new Error(ar ? "هذا التغيير غير متاح." : "This transition is unavailable.");
+      const { data, error } = await (supabase as any).rpc("transition_order_status", { _order_id: order.id, _next: status, _note: null });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    },
+    onSuccess: async (data) => {
+      if (data?.id === order.id) qc.setQueriesData({ queryKey: ["platform", "orders"] }, (rows: unknown) => Array.isArray(rows) ? rows.map(row => row.id === order.id ? { ...row, ...data } : row) : rows);
+      setConfirmCancel(false);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["platform", "orders"] }),
+        qc.invalidateQueries({ queryKey: ["kitchen-orders", order.restaurant_id] }),
+        qc.invalidateQueries({ queryKey: ["kitchen-order-events", order.restaurant_id] }),
+        qc.invalidateQueries({ queryKey: operationalCountersKey(order.restaurant_id) }),
+      ]);
+      toast.success(ar ? "تم تحديث الطلب" : "Order updated");
+    },
+    onError: error => toast.error(humanError(error, lang)),
+  });
+  if (!canUpdate || !next) return null;
+  return <div className="qs-receipt-editor">
+    <div className="qs-receipt-status-field"><label htmlFor={`order-status-${order.id}`}>{ar ? "الحالة" : "Status"}</label>
+      <Select value={draft} disabled={update.isPending} onValueChange={setDraft}>
+        <SelectTrigger id={`order-status-${order.id}`} aria-label={ar ? "حالة الطلب" : "Order status"}><SelectValue /></SelectTrigger>
+        <SelectContent><SelectGroup>{[order.status, next].map(status => <SelectItem key={status} value={status}>{orderStatus(status, ar)}</SelectItem>)}</SelectGroup></SelectContent>
+      </Select>
+    </div>
+    {update.isError ? <p role="alert" className="text-xs text-destructive">{humanError(update.error, lang)}</p> : null}
+    <div className="qs-receipt-actions">
+      <ActionMenu ar={ar} label={ar ? "إجراءات الطلب" : "Order actions"} actions={[{ label: ar ? "إلغاء الطلب" : "Cancel order", destructive: true, disabled: update.isPending, onSelect: () => setConfirmCancel(true) }]} />
+      <Button disabled={update.isPending || draft === order.status} onClick={() => update.mutate(draft)}>{update.isPending ? (ar ? "جارٍ التحديث…" : "Updating…") : (ar ? "تحديث" : "Update")}</Button>
+    </div>
+    <AlertDialog open={confirmCancel} onOpenChange={value => !update.isPending && setConfirmCancel(value)}><AlertDialogContent>
+      <AlertDialogHeader><AlertDialogTitle>{ar ? "إلغاء الطلب؟" : "Cancel order?"}</AlertDialogTitle><AlertDialogDescription>{order.order_number} · {ar ? "سيتم إلغاء هذا الطلب. لا يمكن التراجع عن هذا الإجراء." : "This order will be cancelled. This action cannot be undone."}</AlertDialogDescription></AlertDialogHeader>
+      <AlertDialogFooter><AlertDialogCancel disabled={update.isPending}>{ar ? "الاحتفاظ بالطلب" : "Keep order"}</AlertDialogCancel><AlertDialogAction disabled={update.isPending} onClick={event => { event.preventDefault(); update.mutate("cancelled"); }}>{ar ? "إلغاء الطلب" : "Cancel order"}</AlertDialogAction></AlertDialogFooter>
+    </AlertDialogContent></AlertDialog>
+  </div>;
 }

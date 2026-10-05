@@ -1,45 +1,11 @@
-import { Minus, Plus } from "lucide-react";
-import { Input } from "@/components/ui/input";
-export function GuestCountPicker({
-  value,
-  onChange,
-  min = 1,
-  max = 100,
-  ar,
-}: {
-  value: number;
-  onChange: (value: number) => void;
-  min?: number;
-  max?: number;
-  ar: boolean;
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+export function GuestCountPicker({ value, onChange, min = 1, max = 100, ar }: {
+  value: number; onChange: (value: number) => void; min?: number; max?: number; ar: boolean;
 }) {
-  return (
-    <div className="qs-guest-stepper">
-      <button
-        type="button"
-        aria-label={ar ? "تقليل الضيوف" : "Fewer guests"}
-        disabled={value <= min}
-        onClick={() => onChange(Math.max(min, value - 1))}
-      >
-        <Minus className="size-4" />
-      </button>
-      <Input
-        aria-label={ar ? "عدد الضيوف" : "Guest count"}
-        type="number"
-        min={min}
-        max={max}
-        inputMode="numeric"
-        value={value || ""}
-        onChange={(e) => onChange(Number(e.target.value))}
-      />
-      <button
-        type="button"
-        aria-label={ar ? "زيادة الضيوف" : "More guests"}
-        disabled={value >= max}
-        onClick={() => onChange(Math.min(max, value + 1))}
-      >
-        <Plus className="size-4" />
-      </button>
-    </div>
-  );
+  const counts = Array.from({ length: Math.max(0, Math.min(max, 100) - min + 1) }, (_, i) => min + i);
+  return <Select value={String(value)} onValueChange={v => onChange(Number(v))}>
+    <SelectTrigger aria-label={ar ? "عدد الضيوف" : "Guest count"}><SelectValue /></SelectTrigger>
+    <SelectContent><SelectGroup>{counts.map(count => <SelectItem key={count} value={String(count)}>{count}</SelectItem>)}</SelectGroup></SelectContent>
+  </Select>;
 }

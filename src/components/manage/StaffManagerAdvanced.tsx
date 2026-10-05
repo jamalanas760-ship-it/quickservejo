@@ -893,7 +893,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
           if (!open && !busy) setEditing(null);
         }}
       >
-        <DialogContent className="flex h-[min(880px,calc(100dvh-1.5rem))] w-[calc(100vw-1.5rem)] max-w-[1100px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1100px]">
+        <DialogContent className="qs-member-edit-dialog flex h-[min(880px,calc(100dvh-1.5rem))] w-[calc(100vw-1.5rem)] max-w-[720px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[720px]">
           {editing ? (
             <>
               {(() => {
@@ -917,10 +917,10 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                           )}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <h2 className="truncate font-display text-lg font-bold sm:text-xl">
+                          <DialogTitle className="truncate font-display text-lg font-bold sm:text-xl">
                             {editing.name}
-                          </h2>
-                          <p className="truncate text-xs text-muted-foreground">{editing.email}</p>
+                          </DialogTitle>
+                          <DialogDescription className="truncate text-xs text-muted-foreground">{ROLE_NAMES[editing.role][lang]}</DialogDescription>
                         </div>
                         <span
                           className={cn(
@@ -941,7 +941,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                         : ([
                             ["permissions", ar ? "الصلاحيات" : "Permissions", ShieldCheck],
                             ["profile", ar ? "الملف" : "Profile", UserRound],
-                            ["log", ar ? "سجل الوصول" : "Access Log", History],
+                            ["log", ar ? "السجل" : "Access", History],
                           ] as const)
                       ).map(([id, label, Icon]) => (
                         <button
@@ -949,7 +949,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                           type="button"
                           onClick={() => setDrawerTab(id)}
                           className={cn(
-                            "relative flex min-h-14 min-w-[140px] flex-1 items-center justify-center gap-2 px-3 text-sm font-semibold",
+                            "qs-member-tab relative flex min-h-12 min-w-0 flex-1 items-center justify-center gap-2 px-2 text-sm font-semibold",
                             drawerTab === id
                               ? "text-[#e85d2a]"
                               : "text-muted-foreground hover:text-foreground",
@@ -966,8 +966,123 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
 
                     <div className="min-h-0 flex-1 overflow-y-auto bg-muted/10 p-4 sm:p-6">
                       {drawerTab === "permissions" ? (
-                        <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-                          <div className="space-y-4">
+                        <div className="qs-permission-editor">
+                          <section className="qs-permission-groups">
+                            <div className="qs-permission-group-list">
+                              {PERMISSION_GROUPS.map((group) => (
+                                <section
+                                  key={group.id}
+                                  className="qs-permission-group"
+                                >
+                                  <h4 className="mb-3 text-xs font-bold">
+                                    {ar ? group.ar : group.en}
+                                  </h4>
+                                  <div className="space-y-3">
+                                    {group.items.map((item) => {
+                                      const supported = roleHasCapability(
+                                        editing.role,
+                                        item.capability,
+                                      );
+                                      return (
+                                        <label
+                                          key={item.capability}
+                                          className={cn(
+                                            "flex min-h-11 items-center justify-between gap-3 text-sm",
+                                            !supported && "opacity-45",
+                                          )}
+                                        >
+                                          <span className="leading-5">
+                                            {ar ? item.ar : item.en}
+                                          </span>
+                                          <Switch
+                                            aria-label={ar ? item.ar : item.en}
+                                            title={!supported ? (ar ? "غير متاحة لهذا الدور" : "Unavailable for this role") : undefined}
+                                            disabled={!supported}
+                                            checked={permissionEnabled(item.capability)}
+                                            onCheckedChange={(value) =>
+                                              setPermission(item.capability, value)
+                                            }
+                                          />
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </section>
+                              ))}
+                            </div>
+                          </section>
+                          <p className="qs-permission-hint">{ar ? "فعّل أو أوقف كل صلاحية. الصلاحيات غير المتاحة تتطلب تغيير الدور من الملف." : "Turn each permission on or off. To change the role, open Profile."}</p>
+                        </div>
+                      ) : drawerTab === "profile" ? (
+                        <div className="mx-auto max-w-3xl space-y-5">
+                          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                            <h3 className="text-base font-bold">
+                              {ownRestaurantManager
+                                ? ar
+                                  ? "اسم مدير المطعم"
+                                  : "Restaurant Manager name"
+                                : ar
+                                  ? "معلومات المستخدم"
+                                  : "User profile"}
+                            </h3>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {ownRestaurantManager
+                                ? ar
+                                  ? "يمكنك تعديل اسمك هنا فقط. البريد والدور والصلاحيات تبقى محمية."
+                                  : "Edit your name here. Email, role and permissions remain protected."
+                                : ar
+                                  ? "يمكن تعديل الاسم والبريد وحفظهما مع بقية التغييرات."
+                                  : "Edit the name and email here; they are saved with the rest of the changes."}
+                            </p>
+                            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                              <Field label={ar ? "الاسم" : "Name"}>
+                                <Input
+                                  value={editing.name}
+                                  maxLength={80}
+                                  onChange={(event) =>
+                                    setEditing({ ...editing, name: event.target.value })
+                                  }
+                                />
+                              </Field>
+                              {ownRestaurantManager ? (
+                                <Read
+                                  label={ar ? "البريد الإلكتروني" : "Email"}
+                                  value={editing.email ?? "—"}
+                                />
+                              ) : (
+                                <Field label={ar ? "البريد الإلكتروني" : "Email"}>
+                                  <Input
+                                    type="email"
+                                    value={editing.email ?? ""}
+                                    onChange={(event) =>
+                                      setEditing({ ...editing, email: event.target.value })
+                                    }
+                                  />
+                                </Field>
+                              )}
+                              <Read
+                                label={ar ? "الدور" : "Role"}
+                                value={ROLE_NAMES[editing.role][lang]}
+                              />
+                              <Read
+                                label={ar ? "تاريخ الإضافة" : "Joined"}
+                                value={new Date(editing.created_at).toLocaleDateString(
+                                  ar ? "ar-JO" : "en-US",
+                                )}
+                              />
+                            </div>
+                            {!ownRestaurantManager ? (
+                              <button
+                                type="button"
+                                className="qs-button-secondary mt-5 w-full sm:w-auto"
+                                onClick={() => void openAccess(editing.id)}
+                              >
+                                <IdCard className="size-4" />
+                                {ar ? "عرض بطاقة الوصول" : "View Staff Access"}
+                              </button>
+                            ) : null}
+                          </section>
+                          {!ownRestaurantManager ? <div className="qs-member-account-settings flex flex-col gap-4">
                             <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
                               <h3 className="mb-4 text-sm font-bold">
                                 {ar ? "الدور والوصول" : "Role & access"}
@@ -1055,131 +1170,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                 </p>
                               </div>
                             </section>
-                          </div>
-                          <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-                            <div className="mb-4">
-                              <h3 className="text-sm font-bold">
-                                {ar ? "الصلاحيات المتقدمة" : "Advanced permissions"}
-                              </h3>
-                              <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
-                                {ar
-                                  ? "فعّل أو أوقف كل صلاحية. الصلاحيات غير المتاحة تتطلب تغيير الدور."
-                                  : "Turn each permission on or off. Permissions unavailable for this role require a different role."}
-                              </p>
-                            </div>
-                            <div className="grid gap-3 md:grid-cols-2">
-                              {PERMISSION_GROUPS.map((group) => (
-                                <section
-                                  key={group.id}
-                                  className="rounded-xl border border-border bg-muted/10 p-3.5"
-                                >
-                                  <h4 className="mb-3 text-xs font-bold">
-                                    {ar ? group.ar : group.en}
-                                  </h4>
-                                  <div className="space-y-3">
-                                    {group.items.map((item) => {
-                                      const supported = roleHasCapability(
-                                        editing.role,
-                                        item.capability,
-                                      );
-                                      return (
-                                        <label
-                                          key={item.capability}
-                                          className={cn(
-                                            "flex min-h-11 items-center justify-between gap-3 text-xs",
-                                            !supported && "opacity-45",
-                                          )}
-                                        >
-                                          <span className="leading-4">
-                                            {ar ? item.ar : item.en}
-                                          </span>
-                                          <Switch
-                                            aria-label={ar ? item.ar : item.en}
-                                            title={!supported ? (ar ? "غير متاحة لهذا الدور" : "Unavailable for this role") : undefined}
-                                            disabled={!supported}
-                                            checked={permissionEnabled(item.capability)}
-                                            onCheckedChange={(value) =>
-                                              setPermission(item.capability, value)
-                                            }
-                                          />
-                                        </label>
-                                      );
-                                    })}
-                                  </div>
-                                </section>
-                              ))}
-                            </div>
-                          </section>
-                        </div>
-                      ) : drawerTab === "profile" ? (
-                        <div className="mx-auto max-w-3xl space-y-5">
-                          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                            <h3 className="text-base font-bold">
-                              {ownRestaurantManager
-                                ? ar
-                                  ? "اسم مدير المطعم"
-                                  : "Restaurant Manager name"
-                                : ar
-                                  ? "معلومات المستخدم"
-                                  : "User profile"}
-                            </h3>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {ownRestaurantManager
-                                ? ar
-                                  ? "يمكنك تعديل اسمك هنا فقط. البريد والدور والصلاحيات تبقى محمية."
-                                  : "Edit your name here. Email, role and permissions remain protected."
-                                : ar
-                                  ? "يمكن تعديل الاسم والبريد وحفظهما مع بقية التغييرات."
-                                  : "Edit the name and email here; they are saved with the rest of the changes."}
-                            </p>
-                            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                              <Field label={ar ? "الاسم" : "Name"}>
-                                <Input
-                                  value={editing.name}
-                                  maxLength={80}
-                                  onChange={(event) =>
-                                    setEditing({ ...editing, name: event.target.value })
-                                  }
-                                />
-                              </Field>
-                              {ownRestaurantManager ? (
-                                <Read
-                                  label={ar ? "البريد الإلكتروني" : "Email"}
-                                  value={editing.email ?? "—"}
-                                />
-                              ) : (
-                                <Field label={ar ? "البريد الإلكتروني" : "Email"}>
-                                  <Input
-                                    type="email"
-                                    value={editing.email ?? ""}
-                                    onChange={(event) =>
-                                      setEditing({ ...editing, email: event.target.value })
-                                    }
-                                  />
-                                </Field>
-                              )}
-                              <Read
-                                label={ar ? "الدور" : "Role"}
-                                value={ROLE_NAMES[editing.role][lang]}
-                              />
-                              <Read
-                                label={ar ? "تاريخ الإضافة" : "Joined"}
-                                value={new Date(editing.created_at).toLocaleDateString(
-                                  ar ? "ar-JO" : "en-US",
-                                )}
-                              />
-                            </div>
-                            {!ownRestaurantManager ? (
-                              <button
-                                type="button"
-                                className="qs-button-secondary mt-5 w-full sm:w-auto"
-                                onClick={() => void openAccess(editing.id)}
-                              >
-                                <IdCard className="size-4" />
-                                {ar ? "عرض بطاقة الوصول" : "View Staff Access"}
-                              </button>
-                            ) : null}
-                          </section>
+                          </div> : null}
                         </div>
                       ) : (
                         <div className="mx-auto max-w-3xl">
@@ -1979,10 +1970,10 @@ function AssignStaffShiftDialog({
                         {label:ar?"كل الأيام":"Every day",onSelect:()=>setWeekdays([0,1,2,3,4,5,6])},
                       ]}/>
                     </div>
-                    <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-7">
+                    <div className="qs-shift-weekdays mt-4 grid grid-cols-7 gap-1">
                       {TEAM_SHIFT_WEEKDAYS.map((day) => {
                         const selected = weekdays.includes(day.value);
-                        return <button key={day.value} type="button" aria-pressed={selected} onClick={() => toggleWeekday(day.value)} className={cn("min-h-10 rounded-xl border px-2 text-xs font-bold transition", selected ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:text-foreground")}>{ar ? day.ar : day.en}</button>;
+                        return <button key={day.value} type="button" aria-pressed={selected} onClick={() => toggleWeekday(day.value)} className={cn("min-h-11 rounded-xl border px-1 text-xs font-semibold transition", selected ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:text-foreground")}>{ar ? day.ar : day.en}</button>;
                       })}
                     </div>
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">

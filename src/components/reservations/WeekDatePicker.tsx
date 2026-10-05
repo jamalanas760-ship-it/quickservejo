@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { addReservationDays } from "@/lib/reservation-studio";
 
 export function WeekDatePicker({
@@ -21,7 +21,6 @@ export function WeekDatePicker({
   const date = (day: string) => new Date(`${day}T12:00:00Z`);
   return (
     <div className="qs-week-picker">
-      <div className="qs-date-summary"><CalendarDays size={18} /><div><small>{ar ? "التاريخ المحدد" : "Selected date"}</small><strong>{new Intl.DateTimeFormat(locale, { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }).format(date(value || min))}</strong></div></div>
       <div className="qs-week-heading">
         <button
           type="button"
