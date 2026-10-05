@@ -1172,10 +1172,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      admin_restaurant_lifecycle: {
-        Args: { _restaurant_id: string; _action: string; _confirmation?: string }
-        Returns: undefined
-      }
       claim_platform_ownership: { Args: { _name?: string }; Returns: boolean }
       create_restaurant_with_setup: {
         Args: { _payload: Json; _table_count?: number }
@@ -1244,12 +1240,6 @@ export type Database = {
         | "kitchen"
         | "waiter"
         | "cashier"
-        | "operations_manager"
-        | "host"
-        | "inventory"
-        | "procurement"
-        | "accountant"
-        | "hr"
       order_status:
         | "new"
         | "accepted"
@@ -1401,12 +1391,6 @@ export const Constants = {
         "kitchen",
         "waiter",
         "cashier",
-        "operations_manager",
-        "host",
-        "inventory",
-        "procurement",
-        "accountant",
-        "hr",
       ],
       order_status: [
         "new",
