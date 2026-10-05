@@ -119,8 +119,6 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
         </button>
 
         <div className="qs-topbar-controls ms-auto flex min-w-0 items-center gap-1 sm:gap-1.5">
-          <ThemeToggle compact className="qs-topbar-theme-control inline-flex" />
-          <LanguageSelector language={lang} onChange={setLang} />
           <NotificationBell restaurantId={restaurantId} count={notificationCount} ar={lang === "ar"} />
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
@@ -135,6 +133,16 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
                 <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : <RoleAvatarFallback role={membership?.role} superAdmin={access.isSuperAdmin} />}</span>
                 <span className="min-w-0"><strong className="block truncate text-sm text-foreground">{displayName}</strong><span className="block truncate text-[11px] font-medium text-muted-foreground">{roleLabel}</span></span>
               </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <div className="grid gap-2 px-2 py-2">
+                <span className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">
+                  {lang === "ar" ? "التفضيلات" : "Preferences"}
+                </span>
+                <div className="flex items-center justify-between gap-2">
+                  <ThemeToggle compact className="qs-topbar-theme-control inline-flex" />
+                  <LanguageSelector language={lang} onChange={setLang} />
+                </div>
+              </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild className="min-h-11 cursor-pointer"><Link to="/profile"><UserRound className="size-4" /><span className="flex-1">{lang === "ar" ? "الملف الشخصي" : "View profile"}</span></Link></DropdownMenuItem>
               <DropdownMenuItem disabled={signingOut} onSelect={() => void signOut()} className="min-h-11 cursor-pointer text-destructive focus:text-destructive"><LogOut className="size-4" />{signingOut ? (lang === "ar" ? "جارٍ تسجيل الخروج…" : "Signing out…") : (lang === "ar" ? "تسجيل الخروج" : "Sign out")}</DropdownMenuItem>
