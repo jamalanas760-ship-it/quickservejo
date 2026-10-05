@@ -79,7 +79,7 @@ export function TablesStudioList({
   const pages = Math.max(1, Math.ceil(filtered.length / 6)),
     current = Math.min(page, pages - 1),
     shown = filtered.slice(current * 6, current * 6 + 6);
-  useEffect(() => setPage(0), [search, status, rows]);
+  useEffect(() => setPage(0), [search, status]);
   return (
     <section className="qs-studio-table-list">
       <div className="flex items-center justify-between gap-3 p-4">
@@ -130,9 +130,9 @@ export function TablesStudioList({
           </thead>
           <tbody>
             {shown.map((row) => (
-              <tr key={row.id} className={selectedId === row.id ? "is-selected" : ""}>
+              <tr key={row.id} className={selectedId === row.id ? "is-selected cursor-pointer touch-manipulation" : "cursor-pointer touch-manipulation"} onClick={event => { if (!(event.target as HTMLElement).closest("button,a,input,select")) onSelect(row); }}>
                 <td>
-                  <button type="button" className="qs-table-row-name" onClick={() => onSelect(row)}>
+                  <button type="button" className="qs-table-row-name min-h-11 w-full" aria-label={`${ar ? "فتح الطاولة" : "Open table"} ${row.table_number}`} onClick={() => onSelect(row)}>
                     <Table2 className="size-5" />
                     {row.table_number}
                   </button>

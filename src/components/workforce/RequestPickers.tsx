@@ -126,7 +126,7 @@ function clockParts(value: string) {
   };
 }
 
-export function RequestTimePicker({ label, value, onChange, ar, disabled = false }: PickerProps) {
+export function RequestTimePicker({ label, value, onChange, ar, disabled = false, inline = false }: PickerProps & { inline?: boolean }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => clockParts(value));
@@ -140,30 +140,7 @@ export function RequestTimePicker({ label, value, onChange, ar, disabled = false
     setOpen(false);
   }
 
-  return (
-    <div className="qs-request-picker-field">
-      <Label htmlFor={id}>{label}</Label>
-      <Dialog open={open} onOpenChange={setOpen}>
-          <Button
-            id={id}
-            onClick={() => { setDraft(clockParts(value)); setOpen(true); }}
-            aria-haspopup="dialog"
-            aria-expanded={open}
-            disabled={disabled}
-            type="button"
-            variant="outline"
-            className="qs-request-picker-trigger"
-            aria-label={label}
-          >
-            <Clock3 data-icon="inline-start" />
-            <span dir="ltr">
-              {current.hour.padStart(2, "0")}:{current.minute} {periodLabel(current.period)}
-            </span>
-            <ChevronDown data-icon="inline-end" />
-          </Button>
-        <DialogContent className="qs-picker-dialog qs-time-picker-dialog" dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={event => event.preventDefault()}>
-          <DialogHeader><DialogTitle>{label}</DialogTitle><DialogDescription>{ar ? "اختر الساعة والدقيقة ثم أكد الوقت." : "Tap an hour, choose minutes, then apply."}</DialogDescription></DialogHeader>
-          <div className="qs-time-preview" dir="ltr">{draft.hour.padStart(2,"0")}<span>:</span>{draft.minute}<small>{periodLabel(draft.period)}</small></div>
+  const editor = <>          <div className="qs-time-preview" dir="ltr">{draft.hour.padStart(2,"0")}<span>:</span>{draft.minute}<small>{periodLabel(draft.period)}</small></div>
           <div className="qs-time-period" role="group" aria-label={ar ? "الفترة" : "Time period"}>
             {["am","pm"].map(period => <button key={period} type="button" aria-pressed={draft.period === period} onClick={() => setDraft(previous => ({...previous,period}))}>{periodLabel(period)}</button>)}
           </div>
@@ -190,10 +167,34 @@ export function RequestTimePicker({ label, value, onChange, ar, disabled = false
               {ar ? "تأكيد الوقت" : "Apply time"}
             </Button>
           </div>
+</>;
+  const trigger = <Button
+            id={id}
+            onClick={() => { setDraft(clockParts(value)); setOpen(previous => !previous); }}
+            aria-haspopup={inline ? undefined : "dialog"}
+            aria-expanded={open}
+            disabled={disabled}
+            type="button"
+            variant="outline"
+            className="qs-request-picker-trigger"
+            aria-label={label}
+          >
+            <Clock3 data-icon="inline-start" />
+            <span dir="ltr">
+              {current.hour.padStart(2, "0")}:{current.minute} {periodLabel(current.period)}
+            </span>
+            <ChevronDown data-icon="inline-end" />
+          </Button>;
+  return <div className="qs-request-picker-field min-w-0">
+    <Label htmlFor={id}>{label}</Label>
+    {inline ? <>{trigger}{open && <div className="rounded-2xl border bg-background p-3 space-y-3" dir={ar ? "rtl" : "ltr"}>{editor}</div>}</> :
+      <Dialog open={open} onOpenChange={setOpen}>{trigger}
+        <DialogContent className="qs-picker-dialog qs-time-picker-dialog" dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={event => event.preventDefault()}>
+          <DialogHeader><DialogTitle>{label}</DialogTitle><DialogDescription>{ar ? "اختر الساعة والدقيقة ثم أكد الوقت." : "Tap an hour, choose minutes, then apply."}</DialogDescription></DialogHeader>
+          {editor}
         </DialogContent>
-      </Dialog>
-    </div>
-  );
+      </Dialog>}
+  </div>;
 }
 
 /** Keep the existing local datetime value while giving both parts full click targets. */

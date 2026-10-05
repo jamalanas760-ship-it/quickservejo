@@ -32,3 +32,7 @@ test('record notifications preserve the specific work, booking and waitlist targ
   assert.equal(notificationHref({...base,source_type:'order',source_id:'o1'}),'/manage/r/orders?record=o1');
   assert.equal(notificationHref({...base,source_type:'waitlist',source_id:'w1'}),'/waitlist?record=w1');
 });
+
+ test('missing clock-out notifications open the HR case in Timesheets',()=>{
+  assert.equal(notificationHref({...base,source_type:'missing_punch_request',source_id:'case1'}),'/shifts?record=case1#timesheets');
+});

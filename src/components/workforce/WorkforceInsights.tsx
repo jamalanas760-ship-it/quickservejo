@@ -2,9 +2,10 @@ import { isLiveTeamPunch, teamPunchesByStaff } from "@/lib/team-attendance";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { workforceDayStart, workforceNextDay, workforceDayKey, workforceHours, workforceLocalInput, workforceInputTimestamp } from "@/lib/workforce-hours";
 import { RequestDateTimePicker, RequestDatePicker } from "@/components/workforce/RequestPickers";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { AutomaticClockOutReview } from "./AutomaticClockOutReview";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -53,6 +54,7 @@ type Entry = {
   clock_in: string;
   clock_out: string | null;
   break_minutes: number;
+  approved_overtime_minutes?: number;
   review_status?: "pending" | "approved" | "rejected" | null;
   reviewed_at?: string | null;
   review_note?: string | null;
@@ -74,6 +76,10 @@ type MissingPunchRequest = {
   reason: string;
   status: "pending" | "approved" | "rejected" | "cancelled";
   created_at: string;
+  origin?: "employee" | "automatic";
+  time_entry_id?: string | null;
+  scheduled_end?: string | null;
+  recorded_clock_out?: string | null;
 };
 
 /** Operational thresholds (not payroll rules). */
@@ -1073,7 +1079,7 @@ export function WorkforceTimesheets({
       const { data: rows, error } = await (
         supabase.from("staff_missing_punch_requests" as any) as any
       )
-        .select("id,staff_id,clock_in,clock_out,break_minutes,reason,status,created_at")
+        .select("id,staff_id,clock_in,clock_out,break_minutes,reason,status,created_at,origin,time_entry_id,scheduled_end,recorded_clock_out")
         .eq("restaurant_id", restaurantId)
         .eq("status", "pending")
         .order("created_at", { ascending: false })
@@ -1082,6 +1088,15 @@ export function WorkforceTimesheets({
       return (rows ?? []) as MissingPunchRequest[];
     },
   });
+
+  const caseSearch = useRouterState({select:state => state.location.searchStr});
+  const handledCase = useRef<string | null>(null);
+  useEffect(() => {
+    const id = new URLSearchParams(caseSearch).get("record");
+    if(!id || handledCase.current === id || !canManage) return;
+    const request = missingRequests.data?.find(row=>row.id===id);
+    if(request) { handledCase.current=id;setReviewingMissing(request); }
+  },[caseSearch,missingRequests.data,canManage]);
 
   const act = useMutation({
     mutationFn: async (p: {
@@ -1201,8 +1216,8 @@ export function WorkforceTimesheets({
               </strong>
               <p className="mt-0.5 text-[10px] text-muted-foreground">
                 {ar
-                  ? "طلبات الموظفين التي تحتاج موافقة قبل إضافتها لسجل الدوام."
-                  : "Employee-submitted corrections that require approval before entering the timesheet."}
+                  ? "حالات الخروج التلقائية وطلبات الموظفين بانتظار قرار HR."
+                  : "Automatic clock-out cases and employee corrections awaiting HR review."}
               </p>
             </div>
             <span className="rounded-full bg-orange-500/10 px-2.5 py-1 text-[10px] font-bold text-orange-700">
@@ -1210,7 +1225,7 @@ export function WorkforceTimesheets({
             </span>
           </div>
           <div className="grid gap-2 lg:grid-cols-2">
-            {(missingRequests.data ?? []).slice(0, 6).map((request) => {
+            {(missingRequests.data ?? []).map((request) => {
               const member = memberById.get(request.staff_id);
               return (
                 <button
@@ -1229,7 +1244,7 @@ export function WorkforceTimesheets({
                     </span>
                   </span>
                   <span className="shrink-0 rounded-full bg-blue-500/10 px-2 py-1 text-[9px] font-bold text-blue-700">
-                    {ar ? "مراجعة" : "Review"}
+                    {request.origin === "automatic" ? (ar ? "تلقائي · HR" : "Auto · HR") : (ar ? "مراجعة" : "Review")}
                   </span>
                 </button>
               );
@@ -1409,6 +1424,7 @@ export function WorkforceTimesheets({
               value={fmtTime(selected.clock_out, ar)}
             />
             <DetailRow label={ar ? "العمل" : "Worked"} value={fmtH(actualHours(selected), ar)} />
+            {(selected.approved_overtime_minutes ?? 0)>0 ? <DetailRow label={ar ? "إضافي معتمد" : "Approved extra time"} value={`${selected.approved_overtime_minutes} ${ar ? "دقيقة" : "min"}`} /> : null}
             <DetailRow
               label={ar ? "الاستراحة" : "Break"}
               value={`${selected.break_minutes || 0} ${ar ? "دقيقة" : "min"}`}
@@ -1460,7 +1476,7 @@ export function WorkforceTimesheets({
           onClose={() => setMissingOpen(false)}
         />
       ) : null}
-      {reviewingMissing ? (
+      {reviewingMissing?.origin === "automatic" ? <AutomaticClockOutReview request={reviewingMissing} memberName={memberById.get(reviewingMissing.staff_id)?.name ?? (ar ? "عضو فريق" : "Team member")} restaurantId={restaurantId} timeZone={data.data?.timeZone ?? "Asia/Amman"} currentStaffId={currentStaffId} ar={ar} lang={lang} onClose={() => setReviewingMissing(null)} /> : reviewingMissing ? (
         <MissingPunchRequestReviewSheet
           request={reviewingMissing}
           memberName={

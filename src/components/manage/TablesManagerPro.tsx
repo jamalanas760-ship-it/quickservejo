@@ -77,6 +77,7 @@ import { FloorElementLibrary, FloorElementPiece, FloorElementInspector } from ".
 const FloorPlan3D = lazy(() => import("./FloorPlan3D"));
 
 import { TablesStudioList, TableQuickPanel, type StudioTable } from "./TablesStudioPanels";
+import { TableVisitReleaseDialog } from "./TableVisitReleaseDialog";
 import { TableQrDialog, type TableQrTarget } from "./TableQrDialog";
 import {
   createFloorElement,
@@ -436,6 +437,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
   const qrTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [tableOpen, setTableOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [releaseTarget, setReleaseTarget] = useState<StudioTable | null>(null);
   const [zoneOpen, setZoneOpen] = useState(false);
   const [zoneEditing, setZoneEditing] = useState<Zone | null>(null);
   const [floorOpen, setFloorOpen] = useState(false);
@@ -1557,6 +1559,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         _table_id: selected.id,
         _status: status,
       });
+      if (error?.code === "22023" && status === "free") { setReleaseTarget(selected); return; }
       if (error) throw error;
       await refresh();
       toast.success(ar ? "تم تحديث حالة الطاولة" : "Table status updated");
@@ -1565,6 +1568,18 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     } finally {
       setBusy(false);
     }
+  }
+  async function endVisit() {
+    if (!releaseTarget || busy) return;
+    setBusy(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("end_table_visit", { _table_id: releaseTarget.id });
+      if (error) throw error;
+      await refresh();
+      setReleaseTarget(null);
+      toast.success(data === "reserved" ? (ar ? "انتهت الزيارة. الطاولة محجوزة للحجز القادم." : "Visit ended. Table reserved for the upcoming booking.") : (ar ? "انتهت الزيارة وأصبحت الطاولة جاهزة" : "Visit ended. Table is ready."));
+    } catch (error) { await refresh(); toast.error(humanError(error, lang)); }
+    finally { setBusy(false); }
   }
   const tableZoneName = (row: StudioTable) => {
     const z = currentFloor.zones.find((z) => z.id === row.zone);
@@ -2362,6 +2377,8 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
           </Button>
         </DialogContent>
       </Dialog>
+
+      <TableVisitReleaseDialog target={releaseTarget} busy={busy} ar={ar} onDismiss={()=>setReleaseTarget(null)} onConfirm={()=>void endVisit()} />
 
       <Dialog
         open={detailsOpen}

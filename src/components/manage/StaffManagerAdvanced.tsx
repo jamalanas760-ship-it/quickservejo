@@ -1,7 +1,8 @@
 import { MoreHorizontal } from "@/components/nav/QuickServeIcons";
 import { workforceLocalTimestamp, workforceLocalInput } from "@/lib/workforce-hours";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
-import { RequestDatePicker, RequestTimePicker } from "@/components/workforce/RequestPickers";
+import { RequestTimePicker } from "@/components/workforce/RequestPickers";
+import { ShiftDatePicker } from "@/components/workforce/ShiftDatePicker";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -1978,12 +1979,12 @@ function AssignStaffShiftDialog({
               </Field>
 
               {mode === "edit" || newMode === "single" ? (
-                <RequestDatePicker timeZone={timeZone} label={ar ? "التاريخ" : "Date"} ar={ar} value={date} min={mode === "edit" && initialStartLocal.slice(0,10) < today ? initialStartLocal.slice(0,10) : today} onChange={setDate} />
+                <ShiftDatePicker timeZone={timeZone} label={ar ? "التاريخ" : "Date"} ar={ar} value={date} min={mode === "edit" && initialStartLocal.slice(0,10) < today ? initialStartLocal.slice(0,10) : today} onChange={setDate} />
               ) : (
                 <>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <RequestDatePicker timeZone={timeZone} label={ar ? "من تاريخ" : "Start date"} ar={ar} value={date} min={today} onChange={next => { setDate(next); if (rangeEnd < next) setRangeEnd(addLocalDays(next, 83)); }} />
-                    <RequestDatePicker timeZone={timeZone} label={ar ? "إلى تاريخ" : "End date"} ar={ar} value={rangeEnd} min={date} onChange={setRangeEnd} />
+                    <ShiftDatePicker timeZone={timeZone} label={ar ? "من تاريخ" : "Start date"} ar={ar} value={date} min={today} onChange={next => { setDate(next); if (rangeEnd < next) setRangeEnd(addLocalDays(next, 83)); }} />
+                    <ShiftDatePicker timeZone={timeZone} label={ar ? "إلى تاريخ" : "End date"} ar={ar} value={rangeEnd} min={date} onChange={setRangeEnd} />
                   </div>
 
                   <section className="rounded-2xl border border-border bg-muted/10 p-4">
@@ -2011,8 +2012,8 @@ function AssignStaffShiftDialog({
               )}
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <RequestTimePicker label={ar ? "وقت البداية" : "Start time"} ar={ar} value={start} onChange={setStart} />
-                <RequestTimePicker label={ar ? "وقت النهاية" : "End time"} ar={ar} value={end} onChange={setEnd} />
+                <RequestTimePicker inline label={ar ? "وقت البداية" : "Start time"} ar={ar} value={start} onChange={setStart} />
+                <RequestTimePicker inline label={ar ? "وقت النهاية" : "End time"} ar={ar} value={end} onChange={setEnd} />
               </div>
               {overnight ? <p className="rounded-xl bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">{ar ? "ستنتهي كل وردية في اليوم التالي." : "Each shift ends the following day."}</p> : null}
             </div>
