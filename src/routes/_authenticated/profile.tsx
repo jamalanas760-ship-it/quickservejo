@@ -73,7 +73,7 @@ function ProfilePage() {
         : "Member";
   const restaurantName = restaurant?.name ?? scope.restaurantName ?? "—";
   const canManageRestaurant = Boolean(
-    rid && (access.isSuperAdmin || membership?.role === "restaurant_admin"),
+    rid && access.canFor(rid, "manage_restaurant"),
   );
   const personalCoverEligible = Boolean(membership && membership.role !== "restaurant_admin");
   const avatar =
