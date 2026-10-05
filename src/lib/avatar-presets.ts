@@ -1,38 +1,46 @@
 export type AvatarPreset = {
   id: string;
   label: string;
-  role: "owner" | "manager" | "operations" | "shift_manager" | "chef" | "cashier" | "server" | "kitchen" | "host" | "inventory" | "procurement" | "finance";
+  role: "owner" | "manager" | "operations" | "shift_manager" | "chef" | "cashier" | "server" | "kitchen" | "host" | "inventory" | "procurement" | "finance" | "hr";
   gender: "male" | "female";
   url: string;
 };
 
-const portrait = (id: string) => `/avatars/${id}.webp`;
+const portrait = (id: string) => `/avatars/cartoon/${id}.svg`;
 
 export const AVATAR_PRESETS: AvatarPreset[] = [
   { id: "owner-male", label: "Owner · Male", role: "owner", gender: "male", url: portrait("owner-male") },
-  { id: "owner-female", label: "Owner · Female", role: "owner", gender: "female", url: portrait("owner-female") },
+  { id: "hr-male", label: "HR · Male", role: "hr", gender: "male", url: portrait("hr-male") },
   { id: "manager-male", label: "Manager · Male", role: "manager", gender: "male", url: portrait("manager-male") },
-  { id: "manager-female", label: "Manager · Female", role: "manager", gender: "female", url: portrait("manager-female") },
   { id: "chef-male", label: "Chef · Male", role: "chef", gender: "male", url: portrait("chef-male") },
-  { id: "chef-female", label: "Chef · Female", role: "chef", gender: "female", url: portrait("chef-female") },
-  { id: "cashier-male", label: "Cashier · Male", role: "cashier", gender: "male", url: portrait("cashier-male") },
-  { id: "cashier-female", label: "Cashier · Female", role: "cashier", gender: "female", url: portrait("cashier-female") },
-  { id: "server-male", label: "Server · Male", role: "server", gender: "male", url: portrait("server-male") },
-  { id: "server-female", label: "Server · Female", role: "server", gender: "female", url: portrait("server-female") },
   { id: "kitchen-male", label: "Kitchen · Male", role: "kitchen", gender: "male", url: portrait("kitchen-male") },
+  { id: "server-male", label: "Server · Male", role: "server", gender: "male", url: portrait("server-male") },
+  { id: "cashier-male", label: "Cashier · Male", role: "cashier", gender: "male", url: portrait("cashier-male") },
+  { id: "inventory-male", label: "Inventory · Male", role: "inventory", gender: "male", url: portrait("inventory-male") },
+  { id: "server-male-2", label: "Server · Male 2", role: "server", gender: "male", url: portrait("server-male-2") },
+  { id: "finance-male", label: "Finance · Male", role: "finance", gender: "male", url: portrait("finance-male") },
+  { id: "operations-male", label: "Operations Manager · Male", role: "operations", gender: "male", url: portrait("operations-male") },
+  { id: "host-male", label: "Host · Male", role: "host", gender: "male", url: portrait("host-male") },
+  { id: "manager-male-2", label: "Manager · Male 2", role: "manager", gender: "male", url: portrait("manager-male-2") },
+  { id: "shift-manager-male", label: "Shift Manager · Male", role: "shift_manager", gender: "male", url: portrait("shift-manager-male") },
+  { id: "kitchen-male-2", label: "Kitchen · Male 2", role: "kitchen", gender: "male", url: portrait("kitchen-male-2") },
+  { id: "procurement-male", label: "Procurement · Male", role: "procurement", gender: "male", url: portrait("procurement-male") },
+  { id: "owner-female", label: "Owner · Female", role: "owner", gender: "female", url: portrait("owner-female") },
+  { id: "server-female", label: "Server · Female", role: "server", gender: "female", url: portrait("server-female") },
+  { id: "chef-female", label: "Chef · Female", role: "chef", gender: "female", url: portrait("chef-female") },
+  { id: "manager-female", label: "Manager · Female", role: "manager", gender: "female", url: portrait("manager-female") },
+  { id: "finance-female", label: "Finance · Female", role: "finance", gender: "female", url: portrait("finance-female") },
   { id: "kitchen-female", label: "Kitchen · Female", role: "kitchen", gender: "female", url: portrait("kitchen-female") },
-  { id: "operations-male", label: "Operations Manager · Male", role: "operations", gender: "male", url: portrait("manager-male") },
-  { id: "operations-female", label: "Operations Manager · Female", role: "operations", gender: "female", url: portrait("manager-female") },
-  { id: "shift-manager-male", label: "Shift Manager · Male", role: "shift_manager", gender: "male", url: portrait("owner-male") },
-  { id: "shift-manager-female", label: "Shift Manager · Female", role: "shift_manager", gender: "female", url: portrait("owner-female") },
-  { id: "host-male", label: "Host · Male", role: "host", gender: "male", url: portrait("server-male") },
-  { id: "host-female", label: "Host · Female", role: "host", gender: "female", url: portrait("server-female") },
-  { id: "inventory-male", label: "Inventory · Male", role: "inventory", gender: "male", url: portrait("kitchen-male") },
-  { id: "inventory-female", label: "Inventory · Female", role: "inventory", gender: "female", url: portrait("kitchen-female") },
-  { id: "procurement-male", label: "Procurement · Male", role: "procurement", gender: "male", url: portrait("manager-male") },
-  { id: "procurement-female", label: "Procurement · Female", role: "procurement", gender: "female", url: portrait("manager-female") },
-  { id: "finance-male", label: "Finance · Male", role: "finance", gender: "male", url: portrait("cashier-male") },
-  { id: "finance-female", label: "Finance · Female", role: "finance", gender: "female", url: portrait("cashier-female") },
+  { id: "cashier-female", label: "Cashier · Female", role: "cashier", gender: "female", url: portrait("cashier-female") },
+  { id: "host-female", label: "Host · Female", role: "host", gender: "female", url: portrait("host-female") },
+  { id: "hr-female", label: "HR · Female", role: "hr", gender: "female", url: portrait("hr-female") },
+  { id: "procurement-female", label: "Procurement · Female", role: "procurement", gender: "female", url: portrait("procurement-female") },
+  { id: "manager-female-2", label: "Manager · Female 2", role: "manager", gender: "female", url: portrait("manager-female-2") },
+  { id: "server-female-2", label: "Server · Female 2", role: "server", gender: "female", url: portrait("server-female-2") },
+  { id: "inventory-female", label: "Inventory · Female", role: "inventory", gender: "female", url: portrait("inventory-female") },
+  { id: "operations-female", label: "Operations Manager · Female", role: "operations", gender: "female", url: portrait("operations-female") },
+  { id: "shift-manager-female", label: "Shift Manager · Female", role: "shift_manager", gender: "female", url: portrait("shift-manager-female") },
+  { id: "owner-female-2", label: "Owner · Female 2", role: "owner", gender: "female", url: portrait("owner-female-2") },
 ];
 
 const LEGACY: Record<string, string> = {
@@ -40,8 +48,8 @@ const LEGACY: Record<string, string> = {
   "role-chef": "chef-male",
   "role-waiter": "server-male",
   "role-cashier": "cashier-female",
-  "role-purchasing": "manager-female",
-  "role-inventory": "kitchen-male",
+  "role-purchasing": "procurement-female",
+  "role-inventory": "inventory-male",
   "role-kitchen": "kitchen-male",
   "role-staff": "server-male",
   "waiter-male": "server-male",
