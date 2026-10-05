@@ -49,7 +49,7 @@ export function RestaurantLifecycleDialog({
     if (!restaurant || !action || busy) return;
     setBusy(true);
     try {
-      const { error } = await supabase.rpc("admin_restaurant_lifecycle", {
+      const { error } = await (supabase as any).rpc("admin_restaurant_lifecycle", {
         _restaurant_id: restaurant.id,
         _action: action,
         _confirmation: confirmation,
