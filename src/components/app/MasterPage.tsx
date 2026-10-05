@@ -90,7 +90,7 @@ export function MasterActionSurface({
             type="button"
             variant="outline"
             size="icon"
-            className="size-11 shrink-0 rounded-xl"
+            className="qs-action-trigger size-11 shrink-0 rounded-xl"
             aria-label={label}
             title={label}
           >

@@ -1,3 +1,4 @@
+import { ActionMenu } from "@/components/app/ActionMenu";
 import { RotateCcw, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import * as T from "three";
@@ -590,20 +591,6 @@ export default function FloorPlan3D(props: Props) {
       <div className="qs-floor-3d-camera" aria-label={props.ar ? "أدوات العرض" : "View controls"}>
         <button
           type="button"
-          onClick={() => runtime.current?.rotate(-Math.PI / 4)}
-          aria-label={props.ar ? "تدوير العرض لليسار" : "Rotate view left"}
-        >
-          <RotateCcw size={18} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          onClick={() => runtime.current?.rotate(Math.PI / 4)}
-          aria-label={props.ar ? "تدوير العرض لليمين" : "Rotate view right"}
-        >
-          <RotateCw size={18} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
           aria-pressed={orbit}
           onClick={() => {
             setOrbit(!orbit);
@@ -612,9 +599,12 @@ export default function FloorPlan3D(props: Props) {
         >
           {props.ar ? (orbit ? "تحريك" : "تدوير باللمس") : orbit ? "Pan" : "Touch rotate"}
         </button>
-        <button type="button" onClick={() => runtime.current?.reset()}>
-          {props.ar ? "ملاءمة" : "Reset view"}
-        </button>
+        <ActionMenu ar={props.ar} label={props.ar ? "خيارات العرض" : "View options"} actions={[
+          {label:props.ar ? "تدوير لليسار" : "Rotate view left",icon:RotateCcw,onSelect:()=>runtime.current?.rotate(-Math.PI/4)},
+          {label:props.ar ? "تدوير لليمين" : "Rotate view right",icon:RotateCw,onSelect:()=>runtime.current?.rotate(Math.PI/4)},
+          {label:props.ar ? "إعادة ضبط العرض" : "Reset view",onSelect:()=>runtime.current?.reset()},
+        ]}/>
+
       </div>
       {props.tables.map((table) => (
         <button

@@ -44,9 +44,9 @@ export function ImageUploader({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="qs-image-uploader space-y-2">
       <p className="text-sm font-medium">{label}</p>
-      <div className="flex items-start gap-3">
+      <div data-aspect={aspect} className="qs-image-upload-frame relative flex items-start gap-3">
         <div
           className={cn(
             "flex items-center justify-center overflow-hidden rounded-xl border bg-muted/40",
@@ -62,6 +62,7 @@ export function ImageUploader({
           )}
         </div>
         <ActionMenu
+          className="qs-image-upload-actions"
           ar={lang === "ar"}
           label={`${label}: ${lang === "ar" ? "الخيارات" : "options"}`}
           actions={[

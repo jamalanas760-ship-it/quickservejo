@@ -6,7 +6,10 @@ import { Check, ChevronRight, Circle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-const DropdownMenu = DropdownMenuPrimitive.Root;
+// Context menus must not remove the page scrollbar or shift their trigger.
+function DropdownMenu({ modal = false, ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
+  return <DropdownMenuPrimitive.Root modal={modal} {...props} />;
+}
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 

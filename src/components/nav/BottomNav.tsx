@@ -908,7 +908,7 @@ export function BottomNav() {
     <BrandLogo
       className="size-8"
       accentClassName="text-[#e85d2a]"
-      markOnly={sidebarCollapsed}
+      markOnly={false}
       textClassName="text-[18px] text-foreground"
     />
   );
@@ -937,7 +937,7 @@ export function BottomNav() {
         </div>
 
         <div className="qs-sidebar-collapse-row">
-          <Button type="button" variant="ghost" size="icon" onClick={()=>setSidebarCollapsed(value=>!value)} aria-controls="workspace-sidebar" aria-expanded={!sidebarCollapsed} aria-label={sidebarCollapsed?(lang==="ar"?"توسيع القائمة":"Expand sidebar"):(lang==="ar"?"طي القائمة":"Collapse sidebar")} title={sidebarCollapsed?(lang==="ar"?"توسيع القائمة":"Expand sidebar"):(lang==="ar"?"طي القائمة":"Collapse sidebar")}>
+          <Button className="qs-sidebar-collapse-button" type="button" variant="ghost" size="icon" onClick={()=>setSidebarCollapsed(value=>!value)} aria-controls="workspace-sidebar" aria-expanded={!sidebarCollapsed} aria-label={sidebarCollapsed?(lang==="ar"?"توسيع القائمة":"Expand sidebar"):(lang==="ar"?"طي القائمة":"Collapse sidebar")} title={sidebarCollapsed?(lang==="ar"?"توسيع القائمة":"Expand sidebar"):(lang==="ar"?"طي القائمة":"Collapse sidebar")}>
             {sidebarCollapsed?<PanelLeftOpen className="size-5 rtl:rotate-180"/>:<PanelLeftClose className="size-5 rtl:rotate-180"/>}
           </Button>
         </div>
