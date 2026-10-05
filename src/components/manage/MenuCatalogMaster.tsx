@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 
 import { ImageUploader } from "@/components/media/ImageUploader";
+import { ActionMenu } from "@/components/app/ActionMenu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -116,7 +117,7 @@ export function MenuCatalogMaster({
   const [categoryOpen, setCategoryOpen] = useState(false);
   const editorTrigger = useRef<HTMLElement | null>(null);
 
-  function openProduct(form: ProductForm, trigger: HTMLElement) {
+  function openProduct(form: ProductForm, trigger: HTMLElement | null) {
     editorTrigger.current = trigger;
     setProductForm(form);
     setProductOpen(true);
@@ -321,7 +322,7 @@ export function MenuCatalogMaster({
     }
   }
 
-  function editProduct(item: ItemRow, trigger: HTMLElement) {
+  function editProduct(item: ItemRow, trigger: HTMLElement | null) {
     openProduct({
       id: item.id,
       category_id: item.category_id ?? "",
@@ -566,15 +567,14 @@ export function MenuCatalogMaster({
                                 ? "غير متاح"
                                 : "Unavailable"}
                           </span>
-                          <button type="button" className="qs-button-secondary" onClick={() => setModifierProduct(item)}>{ar ? "الخيارات" : "Options"}</button>
-                          <button
-                            type="button"
-                            className="qs-button-secondary"
-                            onClick={(event) => editProduct(item, event.currentTarget)}
-                          >
-                            <Pencil className="size-4" />
-                            {ar ? "تعديل" : "Edit"}
-                          </button>
+                          <ActionMenu
+                            ar={ar}
+                            label={ar ? "إجراءات المنتج" : "Product actions"}
+                            actions={[
+                              { label: ar ? "الخيارات" : "Options", onSelect: () => setModifierProduct(item) },
+                              { label: ar ? "تعديل" : "Edit", icon: Pencil, onSelect: () => editProduct(item, null) },
+                            ]}
+                          />
                         </div>
                       </article>
                     );
@@ -634,15 +634,14 @@ export function MenuCatalogMaster({
                               </button>
                             </td>
                             <td>
-                              <div className="flex items-center gap-2"><button type="button" className="qs-button-secondary" onClick={() => setModifierProduct(item)}>{ar ? "الخيارات" : "Options"}</button>
-                              <button
-                                type="button"
-                                className="grid size-9 place-items-center rounded-lg border border-border hover:bg-muted"
-                                onClick={(event) => editProduct(item, event.currentTarget)}
-                                aria-label={ar ? "تعديل" : "Edit"}
-                              >
-                                <Pencil className="size-4" />
-                              </button></div>
+                              <ActionMenu
+                                ar={ar}
+                                label={ar ? "إجراءات المنتج" : "Product actions"}
+                                actions={[
+                                  { label: ar ? "الخيارات" : "Options", onSelect: () => setModifierProduct(item) },
+                                  { label: ar ? "تعديل" : "Edit", icon: Pencil, onSelect: () => editProduct(item, null) },
+                                ]}
+                              />
                             </td>
                           </tr>
                         );
@@ -703,23 +702,15 @@ export function MenuCatalogMaster({
                             </div>
                           </div>
                         </div>
-                        <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
-                          <button
-                            type="button"
-                            onClick={(event) => editProduct(item, event.currentTarget)}
-                            className="qs-button-primary min-h-11"
-                          >
-                            <Pencil className="size-4" />
-                            {ar ? "تعديل المنتج" : "Edit Product"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteItem(item)}
-                            className="grid min-h-11 min-w-11 place-items-center rounded-xl text-destructive hover:bg-destructive/10"
-                            aria-label={ar ? "حذف المنتج" : "Delete product"}
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
+                        <div className="mt-4 flex justify-end">
+                          <ActionMenu
+                            ar={ar}
+                            label={ar ? "إجراءات المنتج" : "Product actions"}
+                            actions={[
+                              { label: ar ? "تعديل المنتج" : "Edit product", icon: Pencil, onSelect: () => editProduct(item, null) },
+                              { label: ar ? "حذف المنتج" : "Delete product", icon: Trash2, destructive: true, separatorBefore: true, onSelect: () => setDeleteItem(item) },
+                            ]}
+                          />
                         </div>
                       </article>
                     );
@@ -792,24 +783,14 @@ export function MenuCatalogMaster({
                               </button>
                             </td>
                             <td>
-                              <div className="flex gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={(event) => editProduct(item, event.currentTarget)}
-                                  className="grid size-9 place-items-center rounded-lg border border-border hover:bg-muted"
-                                  aria-label={ar ? "تعديل" : "Edit"}
-                                >
-                                  <Pencil className="size-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setDeleteItem(item)}
-                                  className="grid size-9 place-items-center rounded-lg text-destructive hover:bg-destructive/10"
-                                  aria-label={ar ? "حذف" : "Delete"}
-                                >
-                                  <Trash2 className="size-4" />
-                                </button>
-                              </div>
+                              <ActionMenu
+                                ar={ar}
+                                label={ar ? "إجراءات المنتج" : "Product actions"}
+                                actions={[
+                                  { label: ar ? "تعديل" : "Edit", icon: Pencil, onSelect: () => editProduct(item, null) },
+                                  { label: ar ? "حذف" : "Delete", icon: Trash2, destructive: true, separatorBefore: true, onSelect: () => setDeleteItem(item) },
+                                ]}
+                              />
                             </td>
                           </tr>
                         );
