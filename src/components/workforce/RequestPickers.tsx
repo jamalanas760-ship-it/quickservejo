@@ -152,6 +152,9 @@ export function RequestTimePicker({ label, value, onChange, ar, disabled = false
           </div>
           <div className="qs-request-picker-field">
             <Label>{ar ? "الدقائق" : "Minutes"}</Label>
+            <div className="grid grid-cols-4 gap-2" role="group" aria-label={ar ? "دقائق شائعة" : "Common minutes"} dir="ltr">
+              {["00", "15", "30", "45"].map(minute => <Button key={minute} type="button" variant={draft.minute === minute ? "default" : "outline"} className="min-h-11 px-0 tabular-nums" aria-pressed={draft.minute === minute} aria-label={`${ar ? "الدقيقة" : "Minute"} ${minute}`} onClick={() => setDraft(previous => ({ ...previous, minute }))}>:{minute}</Button>)}
+            </div>
             <p className="text-xs text-muted-foreground">{ar ? "اختر العشرات ثم الآحاد لأي دقيقة من 00 إلى 59." : "Tap tens, then ones to choose any minute from 00 to 59."}</p>
             <div className="grid grid-cols-6 gap-1" role="group" aria-label={ar ? "عشرات الدقائق" : "Minute tens"} dir="ltr">
               {Array.from({length:6},(_,i)=>String(i)).map(digit=><Button type="button" key={digit} variant={draft.minute[0]===digit ? "default" : "outline"} className="min-h-11 min-w-0 px-0" aria-label={`${ar ? "عشرات" : "Minute tens"} ${digit}`} aria-pressed={draft.minute[0]===digit} onClick={()=>setDraft(previous=>({...previous,minute:digit+previous.minute[1]}))}>{digit}0</Button>)}
