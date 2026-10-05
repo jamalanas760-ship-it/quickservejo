@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, Clock3, Download, Pencil, Printer, QrCode, Search} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ActionMenu } from "@/components/app/ActionMenu";
 export type StudioTable = {
   id: string;
   table_number: string;
@@ -273,16 +274,7 @@ export function TableQuickPanel({
           {ar ? "معاينة القائمة" : "Preview menu"}
         </a>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Button type="button" variant="outline" disabled={!qr} onClick={onDownload}>
-          <Download className="size-4" />
-          {ar ? "تنزيل QR" : "Download QR"}
-        </Button>
-        <Button type="button" variant="outline" disabled={!qr} onClick={onPrint}>
-          <Printer className="size-4" />
-          {ar ? "طباعة QR" : "Print QR"}
-        </Button>
-      </div></>}
+      </>}
       <label className="mt-5 block border-t pt-4 text-xs font-bold">
         {ar ? "حالة الطاولة" : "Table status"}
         <select
@@ -315,15 +307,41 @@ export function TableQuickPanel({
         <Button type="button" className="min-h-11 w-full" disabled={busy} onClick={() => onStatus("free")}>{ar ? "تم التنظيف · جاهزة" : "Cleaning done · Ready"}</Button>
         {!manualHold ? <Button type="button" variant="outline" className="min-h-11 w-full whitespace-normal" disabled={busy} onClick={() => onStatus("cleaning")}>{ar ? "إيقاف المؤقت · انتظار التأكيد" : "Pause timer · Wait for staff"}</Button> : null}
       </div> : null}
-      <a className="qs-button-secondary mt-3 w-full" href="/orders">
-        {ar ? "عرض الطلبات" : "View orders"}
-      </a>
-      <div className={compact ? "mt-3 grid grid-cols-2 gap-2" : ""}>
-      <Button type="button" variant={compact ? "outline" : "ghost"} className="min-h-11 w-full text-primary" onClick={onEdit}>
-        <Pencil className="size-4" />
-        {ar ? "تعديل الطاولة" : "Edit table"}
-      </Button>
-      {compact && onQr && <Button type="button" className="min-h-11 w-full" onClick={onQr}><QrCode className="size-4" />{ar ? "رمز الضيف" : "Guest QR"}</Button>}
+      <div className="mt-3 flex items-center gap-2">
+        <a className="qs-button-secondary min-h-11 min-w-0 flex-1" href="/orders">
+          {ar ? "عرض الطلبات" : "View orders"}
+        </a>
+        <ActionMenu
+          ar={ar}
+          label={ar ? "إجراءات الطاولة" : "Table actions"}
+          actions={[
+            {
+              label: ar ? "تعديل الطاولة" : "Edit table",
+              icon: Pencil,
+              onSelect: onEdit,
+            },
+            {
+              label: ar ? "رمز الضيف" : "Guest QR",
+              icon: QrCode,
+              hidden: !compact || !onQr,
+              onSelect: onQr,
+            },
+            {
+              label: ar ? "تنزيل QR" : "Download QR",
+              icon: Download,
+              hidden: compact,
+              disabled: !qr,
+              onSelect: onDownload,
+            },
+            {
+              label: ar ? "طباعة QR" : "Print QR",
+              icon: Printer,
+              hidden: compact,
+              disabled: !qr,
+              onSelect: onPrint,
+            },
+          ]}
+        />
       </div>
     </div>
   );

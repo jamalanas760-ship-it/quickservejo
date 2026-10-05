@@ -210,7 +210,8 @@ test("team and shifts pages implement the approved modern live workforce design"
   assert.match(team, /on shift/);
   assert.match(team, /"Status"/);
   assert.match(team, /StaffLiveStatus/);
-  assert.match(team, /StaffRowActions/);
+  assert.match(team, /StaffActions/);
+  assert.match(team, /MoreHorizontal/);
   assert.match(team, /On Leave/);
   const studio = await file("src/components/workforce/WorkforceStudio.tsx");
   assert.match(shifts, /<WorkforceWeekBoard/);
