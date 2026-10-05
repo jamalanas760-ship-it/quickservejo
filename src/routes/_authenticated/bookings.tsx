@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { addReservationDays, reservationDay, restaurantDateTime, bookingTimeLabel, defaultBookingHours, validateBookingHours, type WeeklyHours } from "@/lib/reservation-studio";
 import "@/components/reservations/reservation-studio.css";
 import { AppHeader } from "@/components/nav/AppHeader";
+import { ActionMenu } from "@/components/app/ActionMenu";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -239,14 +240,40 @@ function BookingsPage(){
               {selected.status==="pending"?<Button disabled={transition.isPending} onClick={()=>transition.mutate({id:selected.id,status:"confirmed"})}><CheckCircle2 className="size-4"/>{ar?"تأكيد الحجز":"Confirm booking"}</Button>:null}
               {selected.status==="confirmed"?<Button disabled={transition.isPending} onClick={()=>transition.mutate({id:selected.id,status:"seated"})}><UserRoundCheck className="size-4"/>{ar?"إجلاس الضيف":"Seat guest"}</Button>:null}
               {selected.status==="seated"?<Button disabled={transition.isPending} onClick={()=>transition.mutate({id:selected.id,status:"completed"})}>{ar?"إكمال الزيارة":"Complete visit"}</Button>:null}
-              <Button variant="outline" disabled={!selected.phone} onClick={()=>setMessageTarget(selected)}><MessageSquareText className="size-4"/>{ar?"مراسلة الضيف":"Message guest"}</Button>
-              {["pending","confirmed"].includes(selected.status)?<Button variant="outline" className="text-destructive" disabled={transition.isPending} onClick={()=>transition.mutate({id:selected.id,status:"cancelled",reason:ar?"ألغاه الموظف":"Cancelled by staff"})}>{ar?"إلغاء الحجز":"Cancel booking"}</Button>:null}
-              {selected.status!=="seated"&&selected.deposit_status!=="paid"?<Button variant="ghost" className="text-destructive" disabled={deleteReservation.isPending} onClick={()=>setDeleteTarget(selected)}><Trash2 className="size-4"/>{ar?"حذف الحجز":"Delete booking"}</Button>:null}
+              <ActionMenu
+                ar={ar}
+                label={ar?"إجراءات الحجز":"Booking actions"}
+                actions={[
+                  {
+                    label: ar?"مراسلة الضيف":"Message guest",
+                    icon: MessageSquareText,
+                    disabled: !selected.phone,
+                    onSelect: ()=>setMessageTarget(selected),
+                  },
+                  {
+                    label: ar?"إلغاء الحجز":"Cancel booking",
+                    icon: XCircle,
+                    destructive: true,
+                    hidden: !["pending","confirmed"].includes(selected.status),
+                    disabled: transition.isPending,
+                    onSelect: ()=>transition.mutate({id:selected.id,status:"cancelled",reason:ar?"ألغاه الموظف":"Cancelled by staff"}),
+                  },
+                  {
+                    label: ar?"حذف الحجز":"Delete booking",
+                    icon: Trash2,
+                    destructive: true,
+                    separatorBefore: true,
+                    hidden: selected.status==="seated"||selected.deposit_status==="paid",
+                    disabled: deleteReservation.isPending,
+                    onSelect: ()=>setDeleteTarget(selected),
+                  },
+                ]}
+              />
             </div>
           </aside>:null}
         </div>
       </>:null}
-      {view==="public"?<section className="rs-public-workspace"><div className="rs-public-copy"><Globe2 className="size-6"/><h2>{ar?"صفحة الحجز العامة":"Public Booking Page"}</h2><p>{ar?"رابط واحد يتيح للضيف اختيار الوقت وإرسال الحجز.":"One link for guests to choose their visit and reserve a table."}</p><span className={`rs-status rs-status-${settings.data?.online_enabled?"confirmed":"pending"}`}>{settings.data?.online_enabled?(ar?"تستقبل الحجوزات":"Accepting bookings"):(ar?"الحجز متوقف":"Bookings paused")}</span>{publicUrl?<><Input aria-label={ar?"رابط الحجز العام":"Public booking link"} readOnly value={typeof window!=="undefined"?publicGuestUrl(publicUrl):publicUrl}/><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>void navigator.clipboard.writeText(publicGuestUrl(publicUrl)).then(()=>toast.success(ar?"تم نسخ الرابط":"Link copied")).catch(()=>toast.error(ar?"تعذر نسخ الرابط":"Could not copy link"))}><Copy className="size-4"/>{ar?"نسخ الرابط":"Copy link"}</Button><Button asChild><a href={publicGuestUrl(publicUrl)} target="_blank" rel="noreferrer"><ExternalLink className="size-4"/>{ar?"فتح الصفحة":"Open page"}</a></Button></div></>:null}{canConfigure?<Button variant="ghost" onClick={()=>setView("settings")}><Settings2 className="size-4"/>{ar?"إعدادات الحجز":"Booking Settings"}</Button>:null}</div>{publicUrl?<iframe title={ar?"معاينة صفحة الحجز":"Public booking page preview"} src={publicUrl} className="rs-public-preview"/>:<p>{ar?"رابط المطعم غير متاح":"Restaurant link unavailable"}</p>}</section>:null}
+      {view==="public"?<section className="rs-public-workspace"><div className="rs-public-copy"><Globe2 className="size-6"/><h2>{ar?"صفحة الحجز العامة":"Public Booking Page"}</h2><p>{ar?"رابط واحد يتيح للضيف اختيار الوقت وإرسال الحجز.":"One link for guests to choose their visit and reserve a table."}</p><span className={`rs-status rs-status-${settings.data?.online_enabled?"confirmed":"pending"}`}>{settings.data?.online_enabled?(ar?"تستقبل الحجوزات":"Accepting bookings"):(ar?"الحجز متوقف":"Bookings paused")}</span>{publicUrl?<><Input aria-label={ar?"رابط الحجز العام":"Public booking link"} readOnly value={typeof window!=="undefined"?publicGuestUrl(publicUrl):publicUrl}/><div className="flex items-center gap-2"><Button asChild><a href={publicGuestUrl(publicUrl)} target="_blank" rel="noreferrer"><ExternalLink className="size-4"/>{ar?"فتح الصفحة":"Open page"}</a></Button><ActionMenu ar={ar} label={ar?"إجراءات صفحة الحجز":"Booking page actions"} actions={[{label:ar?"نسخ الرابط":"Copy link",icon:Copy,onSelect:()=>void navigator.clipboard.writeText(publicGuestUrl(publicUrl)).then(()=>toast.success(ar?"تم نسخ الرابط":"Link copied")).catch(()=>toast.error(ar?"تعذر نسخ الرابط":"Could not copy link"))},{label:ar?"إعدادات الحجز":"Booking Settings",icon:Settings2,hidden:!canConfigure,onSelect:()=>setView("settings")}]}/></div></>:null}</div>{publicUrl?<iframe title={ar?"معاينة صفحة الحجز":"Public booking page preview"} src={publicUrl} className="rs-public-preview"/>:<p>{ar?"رابط المطعم غير متاح":"Restaurant link unavailable"}</p>}</section>:null}
       {view==="settings"&&canConfigure?<BookingSettingsDialog open onOpenChange={()=>setView("schedule")} restaurantId={rid} settings={settings.data} ar={ar} lang={lang} inline/>:null}
       {view==="messages"?<section className="rs-messages-workspace"><div className="rs-message-list"><h2>{ar?"الرسائل":"Messages"}<small>{day}</small></h2>{all.filter(row=>row.phone).map(booking=><button key={booking.id} type="button" aria-pressed={messageBooking?.id===booking.id} onClick={()=>{setSelectedId(booking.id);setMessageTarget(null);}}><span className="qs-reservation-avatar">{booking.customer_name.slice(0,1)}</span><span><strong>{booking.customer_name}</strong><small>{bookingTimeLabel(booking.booking_at,timezone,ar)} · {booking.guest_count} {ar?"ضيوف":"guests"}</small></span></button>)}</div>{messageBooking?<ReservationMessageDialog key={messageBooking.id} booking={messageBooking} restaurantId={rid} ar={ar} lang={lang} timezone={timezone} restaurantName={restaurant.data?.name??""} onOpenChange={()=>{}} inline/>:<div className="rs-empty"><MessageSquareText className="size-8"/><h3>{ar?"لا توجد محادثات بعد":"No conversations yet"}</h3><p>{ar?"أضف حجزاً مع رقم هاتف للبدء.":"Add a booking with a phone number to get started."}</p></div>}</section>:null}
     </main>
