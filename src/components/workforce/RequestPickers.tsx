@@ -151,12 +151,13 @@ export function RequestTimePicker({ label, value, onChange, ar, disabled = false
             </div>
           </div>
           <div className="qs-request-picker-field">
-            <Label htmlFor={`${id}-minute`}>{ar ? "الدقيقة" : "Minute"}</Label>
-            <div className="qs-time-minute-row" dir="ltr">
-              {["00","15","30","45"].map(minute => <button type="button" key={minute} aria-label={`${ar ? "الدقيقة" : "Minute"} ${minute}`} aria-pressed={draft.minute === minute} onClick={() => setDraft(previous => ({...previous,minute}))}>:{minute}</button>)}
-              <select id={`${id}-minute`} aria-label={ar ? "دقيقة محددة" : "Exact minute"} value={draft.minute} onChange={event => setDraft(previous => ({...previous,minute:event.target.value}))}>
-                {Array.from({length:60},(_,i)=>String(i).padStart(2,"0")).map(minute => <option key={minute} value={minute}>:{minute}</option>)}
-              </select>
+            <Label>{ar ? "الدقائق" : "Minutes"}</Label>
+            <p className="text-xs text-muted-foreground">{ar ? "اختر العشرات ثم الآحاد لأي دقيقة من 00 إلى 59." : "Tap tens, then ones to choose any minute from 00 to 59."}</p>
+            <div className="grid grid-cols-6 gap-1" role="group" aria-label={ar ? "عشرات الدقائق" : "Minute tens"} dir="ltr">
+              {Array.from({length:6},(_,i)=>String(i)).map(digit=><Button type="button" key={digit} variant={draft.minute[0]===digit ? "default" : "outline"} className="min-h-11 min-w-0 px-0" aria-label={`${ar ? "عشرات" : "Minute tens"} ${digit}`} aria-pressed={draft.minute[0]===digit} onClick={()=>setDraft(previous=>({...previous,minute:digit+previous.minute[1]}))}>{digit}0</Button>)}
+            </div>
+            <div className="grid grid-cols-5 gap-1" role="group" aria-label={ar ? "آحاد الدقائق" : "Minute ones"} dir="ltr">
+              {Array.from({length:10},(_,i)=>String(i)).map(digit=><Button type="button" key={digit} variant={draft.minute[1]===digit ? "default" : "outline"} className="min-h-11 min-w-0 px-0" aria-label={`${ar ? "آحاد" : "Minute ones"} ${digit}`} aria-pressed={draft.minute[1]===digit} onClick={()=>setDraft(previous=>({...previous,minute:previous.minute[0]+digit}))}>{digit}</Button>)}
             </div>
           </div>
           <div className="flex justify-end gap-2">

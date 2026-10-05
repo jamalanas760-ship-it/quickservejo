@@ -13,7 +13,8 @@ export type AppRole =
   | "host"
   | "inventory"
   | "procurement"
-  | "accountant";
+  | "accountant"
+  | "hr";
 export type SubscriptionPlan = "free" | "basic" | "professional" | "enterprise";
 
 /** Job profiles are templates. Permission overrides may narrow a role, never expand beyond its ceiling. */
@@ -28,6 +29,7 @@ export const ROLE_LABELS: Record<AppRole, { en: string; ar: string }> = {
   host: { en: "Host", ar: "الاستقبال" },
   inventory: { en: "Inventory Controller", ar: "مسؤول المخزون" },
   procurement: { en: "Procurement Officer", ar: "مسؤول المشتريات" },
+  hr: { en: "Human Resources", ar: "الموارد البشرية" },
   accountant: { en: "Finance & Accounting", ar: "المالية والمحاسبة" },
 };
 
@@ -43,6 +45,7 @@ export const ROLE_HOME: Record<AppRole, string> = {
   inventory: "/work",
   procurement: "/work",
   accountant: "/work",
+  hr: "/shifts",
 };
 
 export type Capability =
@@ -98,6 +101,7 @@ export const ROLE_CAPABILITIES: Record<AppRole, Capability[]> = {
   host: ["view_orders", "manage_tables", "handle_waiter_calls", ...WORKER_WORK],
   inventory: [...WORKER_WORK, ...ERP_BASE, "manage_inventory"],
   procurement: [...WORKER_WORK, ...ERP_BASE, "manage_procurement"],
+  hr: [...WORKER_WORK, "manage_shifts"],
   accountant: [...WORKER_WORK, ...ERP_BASE, "manage_finance", "view_analytics", "view_order_prices"],
 };
 
@@ -177,7 +181,7 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
   enterprise: { maxTables: null, maxProducts: null, maxStaff: null, maxMonthlyOrders: null, analytics: true, customBranding: true, aiFeatures: true, advancedFeatures: true },
 };
 export function isWithinLimit(limit: number | null, current: number) { return limit === null || current < limit; }
-export const MANAGEMENT_ROLES: AppRole[] = ["super_admin", "restaurant_admin", "operations_manager", "manager"];
+export const MANAGEMENT_ROLES: AppRole[] = ["super_admin", "restaurant_admin", "operations_manager", "manager", "hr"];
 export function isFrontlineOnly(roles: AppRole[]) { return roles.length > 0 && !roles.some((role) => MANAGEMENT_ROLES.includes(role)); }
 export function frontlineHome(roles: AppRole[]) {
   if (roles.includes("operations_manager") || roles.includes("manager")) return "/manager";

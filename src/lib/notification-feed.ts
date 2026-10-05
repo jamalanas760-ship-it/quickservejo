@@ -76,6 +76,7 @@ export function notificationHref(
   if (["booking", "reservation", "waitlist"].some((key) => source.includes(key)))
     return (source.includes("waitlist") ? "/waitlist" : "/bookings") + record;
   if (source.includes("order")) return `/manage/${encodeURIComponent(row.restaurant_id)}/orders` + record;
+  if (source === "shift_clock_reminder") return "/shifts#attendance";
   if (source.includes("missing_punch")) return "/shifts" + record + "#timesheets";
   if (/workforce|staff_|missing_punch|clock/.test(source)) return "/shifts";
   if (

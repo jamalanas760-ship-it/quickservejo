@@ -11,7 +11,7 @@ const permissionKeys = [
 ] as const;
 
 const staffRoles = [
-  "restaurant_admin","operations_manager","manager","kitchen","waiter","cashier","host","inventory","procurement","accountant",
+  "restaurant_admin","operations_manager","manager","kitchen","waiter","cashier","host","inventory","procurement","accountant","hr",
 ] as const;
 
 const inviteSchema = z.object({

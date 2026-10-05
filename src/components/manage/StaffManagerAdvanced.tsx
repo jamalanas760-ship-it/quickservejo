@@ -76,6 +76,7 @@ import { cn } from "@/lib/utils";
 import { isLiveTeamPunch, matchingShiftPunch, preferTeamShift, teamPunchesByStaff } from "@/lib/team-attendance";
 
 const ROLES: AppRole[] = [
+  "hr",
   "restaurant_admin",
   "operations_manager",
   "manager",

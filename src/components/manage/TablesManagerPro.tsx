@@ -437,6 +437,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
   const qrTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [tableOpen, setTableOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [tablePreviewOpen, setTablePreviewOpen] = useState(false);
   const [releaseTarget, setReleaseTarget] = useState<StudioTable | null>(null);
   const [zoneOpen, setZoneOpen] = useState(false);
   const [zoneEditing, setZoneEditing] = useState<Zone | null>(null);
@@ -1559,7 +1560,11 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         _table_id: selected.id,
         _status: status,
       });
-      if (error?.code === "22023" && status === "free") { setReleaseTarget(selected); return; }
+      if (error?.code === "22023" && status === "free") {
+        setTablePreviewOpen(false);
+        setReleaseTarget(selected);
+        return;
+      }
       if (error) throw error;
       await refresh();
       toast.success(ar ? "تم تحديث حالة الطاولة" : "Table status updated");
@@ -1594,10 +1599,20 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         qr={qr}
         menuUrl={tableMenuUrl(restaurant.slug, selected.qr_token)}
         busy={busy}
-        onEdit={() => setDetailsOpen(true)}
+        onEdit={() => { setTablePreviewOpen(false); setDetailsOpen(true); }}
         onStatus={(value) => void changeStatus(value)}
         onDownload={() => qr && downloadDataUrl(qr, `table-${selected.table_number}-qr.png`)}
         onPrint={() => void printSingle()}
+        compact={tablePreviewOpen}
+        onQr={() => {
+          setTablePreviewOpen(false);
+          setQrTarget({
+            table_number: selected.table_number,
+            table_name: selected.table_name,
+            menuUrl: tableMenuUrl(restaurant.slug, selected.qr_token),
+            restaurantName: restaurant.name,
+          });
+        }}
       />
     ) : null;
 
@@ -1727,7 +1742,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
             ar={ar}
             zoneName={tableZoneName}
             selectedId={selectedTableId}
-            onSelect={(row) => openTable(row as FloorTable)}
+            onSelect={(row) => { openTable(row as FloorTable); setTablePreviewOpen(true); }}
             onQr={(row, trigger) => {
               if (!restaurant) return;
               qrTriggerRef.current = trigger;
@@ -2375,6 +2390,13 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
           >
             {floorBusy ? (ar ? "جارٍ الحفظ…" : "Saving…") : ar ? "حفظ الحجم" : "Save size"}
           </Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={tablePreviewOpen && !!selected} onOpenChange={setTablePreviewOpen}>
+        <DialogContent className="sm:max-w-md" style={{height:"auto",bottom:"auto"}} dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={e=>e.preventDefault()}>
+          <DialogHeader><DialogTitle>{ar ? "الطاولة المحددة" : "Selected table"} {selected?.table_number}</DialogTitle><DialogDescription>{selected ? `${tableZoneName(selected)} · ${selected.capacity ?? 4} ${ar ? "مقاعد" : "seats"}` : ""}</DialogDescription></DialogHeader>
+          <div className="min-w-0">{quickPanel}</div>
         </DialogContent>
       </Dialog>
 

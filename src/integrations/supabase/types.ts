@@ -1244,6 +1244,12 @@ export type Database = {
         | "kitchen"
         | "waiter"
         | "cashier"
+        | "operations_manager"
+        | "host"
+        | "inventory"
+        | "procurement"
+        | "accountant"
+        | "hr"
       order_status:
         | "new"
         | "accepted"
@@ -1395,6 +1401,12 @@ export const Constants = {
         "kitchen",
         "waiter",
         "cashier",
+        "operations_manager",
+        "host",
+        "inventory",
+        "procurement",
+        "accountant",
+        "hr",
       ],
       order_status: [
         "new",

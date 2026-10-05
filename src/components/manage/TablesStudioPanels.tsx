@@ -1,6 +1,6 @@
 import { Table2, Users } from "@/components/nav/QuickServeIcons";
 import { useEffect, useState } from "react";
-import { Clock3, Download, Pencil, Printer, QrCode, Search} from "lucide-react";
+import { CheckCircle2, Clock3, Download, Pencil, Printer, QrCode, Search} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 export type StudioTable = {
@@ -130,11 +130,12 @@ export function TablesStudioList({
           </thead>
           <tbody>
             {shown.map((row) => (
-              <tr key={row.id} className={selectedId === row.id ? "is-selected cursor-pointer touch-manipulation" : "cursor-pointer touch-manipulation"} onClick={event => { if (!(event.target as HTMLElement).closest("button,a,input,select")) onSelect(row); }}>
+              <tr key={row.id} style={selectedId === row.id ? {boxShadow:"inset 3px 0 0 var(--primary)",background:"color-mix(in srgb, var(--primary) 10%, var(--card))"} : undefined} className={selectedId === row.id ? "is-selected cursor-pointer touch-manipulation" : "cursor-pointer touch-manipulation"} onClick={event => { if (!(event.target as HTMLElement).closest("button,a,input,select")) onSelect(row); }}>
                 <td>
-                  <button type="button" className="qs-table-row-name min-h-11 w-full" aria-label={`${ar ? "فتح الطاولة" : "Open table"} ${row.table_number}`} onClick={() => onSelect(row)}>
+                  <button type="button" className="qs-table-row-name min-h-11 w-full" aria-pressed={selectedId === row.id} aria-label={`${ar ? "فتح الطاولة" : "Open table"} ${row.table_number}`} onClick={() => onSelect(row)}>
                     <Table2 className="size-5" />
                     {row.table_number}
+                    {selectedId === row.id && <CheckCircle2 className="size-4 text-primary" aria-label={ar ? "محددة" : "Selected"}/>}
                   </button>
                 </td>
                 <td>{zoneName(row)}</td>
@@ -218,6 +219,8 @@ export function TableQuickPanel({
   onDownload,
   onPrint,
   onStatus,
+  compact = false,
+  onQr,
 }: {
   row: StudioTable;
   zone: string;
@@ -229,6 +232,8 @@ export function TableQuickPanel({
   onDownload: () => void;
   onPrint: () => void;
   onStatus: (value: string) => void;
+  compact?: boolean;
+  onQr?: () => void;
 }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -239,12 +244,12 @@ export function TableQuickPanel({
   const cleaningMinutes = Math.max(0, Math.ceil((Date.parse(row.status_updated_at ?? "") + 600000 - now) / 60000));
   return (
     <div className="qs-table-quick-panel">
-      <h2 className="text-xl font-bold">
+      {!compact && <><h2 className="text-xl font-bold">
         {ar ? "طاولة" : "Table"} {row.table_number}
       </h2>
       <p className="mt-1 text-xs text-muted-foreground">
         {zone} · {row.capacity ?? 4} {ar ? "مقاعد" : "seats"}
-      </p>
+      </p></>}
       <div className="my-3">
         <TableStatusBadge row={row} ar={ar} />
       </div>
@@ -256,7 +261,7 @@ export function TableQuickPanel({
         <Clock3 className="size-4" />
         <span>{tableServiceText(row, ar, now)}</span>
       </div>
-      <h3 className="mt-5 text-sm font-bold">{ar ? "رمز قائمة الضيف" : "Guest menu QR"}</h3>
+      {!compact && <><h3 className="mt-5 text-sm font-bold">{ar ? "رمز قائمة الضيف" : "Guest menu QR"}</h3>
       <div className="qs-table-qr-preview">
         {qr ? (
           <img src={qr} alt={ar ? "رمز قائمة الطاولة" : "Table menu QR code"} />
@@ -277,7 +282,7 @@ export function TableQuickPanel({
           <Printer className="size-4" />
           {ar ? "طباعة QR" : "Print QR"}
         </Button>
-      </div>
+      </div></>}
       <label className="mt-5 block border-t pt-4 text-xs font-bold">
         {ar ? "حالة الطاولة" : "Table status"}
         <select
@@ -313,10 +318,13 @@ export function TableQuickPanel({
       <a className="qs-button-secondary mt-3 w-full" href="/orders">
         {ar ? "عرض الطلبات" : "View orders"}
       </a>
-      <Button type="button" variant="ghost" className="mt-2 w-full text-primary" onClick={onEdit}>
+      <div className={compact ? "mt-3 grid grid-cols-2 gap-2" : ""}>
+      <Button type="button" variant={compact ? "outline" : "ghost"} className="min-h-11 w-full text-primary" onClick={onEdit}>
         <Pencil className="size-4" />
         {ar ? "تعديل الطاولة" : "Edit table"}
       </Button>
+      {compact && onQr && <Button type="button" className="min-h-11 w-full" onClick={onQr}><QrCode className="size-4" />{ar ? "رمز الضيف" : "Guest QR"}</Button>}
+      </div>
     </div>
   );
 }
