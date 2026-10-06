@@ -2,7 +2,7 @@ import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { useRouterState } from "@tanstack/react-router";
 
 import { useAccess } from "@/hooks/useSession";
-import { contrastRatio } from "@/lib/contrast";
+import { contrastRatio, selectionPalette } from "@/lib/contrast";
 import { readAppearance } from "@/lib/restaurant-appearance";
 
 type TenantStyle = CSSProperties & Record<`--${string}`, string>;
@@ -19,8 +19,14 @@ export function TenantBrandShell({ children }: { children: ReactNode }) {
   const appearance = readAppearance(restaurant?.menu_theme);
   const lightPrimary = restaurant?.primary_color || "#e85d2a";
   const darkPrimary = appearance.darkPrimaryColor;
-  const buttonText = (background: string) => contrastRatio("#ffffff", background) >= contrastRatio("#101828", background) ? "#ffffff" : "#101828";
+  const buttonText = (background: string) => contrastRatio("#ffffff", background) >= contrastRatio("#000000", background) ? "#ffffff" : "#000000";
+  const lightSelection = selectionPalette(appearance.selectedNavColor || lightPrimary, false);
+  const darkSelection = selectionPalette(appearance.darkSelectedNavColor, true);
   const style: TenantStyle = {
+    ...Object.fromEntries(Object.entries(lightSelection).map(([key, value]) => [`--restaurant-light-selection-${key}`, value])),
+    ...Object.fromEntries(Object.entries(darkSelection).map(([key, value]) => [`--restaurant-dark-selection-${key}`, value])),
+    "--restaurant-light-accent-text": buttonText(restaurant?.accent_color || "#ff8a4c"),
+    "--restaurant-dark-accent-text": buttonText(appearance.darkAccentColor),
     "--restaurant-light-primary-text": buttonText(lightPrimary),
     "--restaurant-dark-primary-text": buttonText(darkPrimary),
     "--restaurant-light-primary": restaurant?.primary_color || "#e85d2a",

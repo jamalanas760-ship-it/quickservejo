@@ -73,3 +73,17 @@ export function ensureContrast(foreground: string, background: string, ratio = 4
 export function ensureLargeTextContrast(foreground: string, background: string): string {
   return ensureContrast(foreground, background, 3);
 }
+
+/** A coherent selected surface, including small labels and its non-text indicator.
+ * Keep branding, but never inherit text from an unrelated page/header surface. */
+export function selectionPalette(brand: string, dark: boolean) {
+  const validBrand = parseHex(brand) ? brand : "#e85d2a";
+  const background = mix(validBrand, dark ? [23, 27, 33] : [255, 255, 255], dark ? 0.8 : 0.92);
+  return {
+    background,
+    foreground: ensureContrast(dark ? "#f4f6f8" : "#171717", background),
+    muted: ensureContrast(dark ? "#bdc5d0" : "#59616d", background),
+    indicator: ensureContrast(validBrand, background, 3),
+    icon: ensureContrast(validBrand, background),
+  };
+}

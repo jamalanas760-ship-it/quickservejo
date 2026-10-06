@@ -1334,6 +1334,7 @@ export function BottomNav() {
                                 <Link
                                   key={`${item.to}-more`}
                                   to={item.to as never}
+                                  aria-current={active ? "page" : undefined}
                                   onClick={() => changeMoreOpen(false)}
                                   className={cn(
                                     "qs-workspace-tool-card group flex min-h-[70px] items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-bold transition",
@@ -1344,7 +1345,7 @@ export function BottomNav() {
                                 >
                                   <span
                                     className={cn(
-                                      "grid size-9 shrink-0 place-items-center rounded-[10px] transition",
+                                      "qs-workspace-tool-icon grid size-9 shrink-0 place-items-center rounded-[10px] transition",
                                       active
                                         ? "bg-primary/12 text-primary"
                                         : "bg-[#f7f2ea] text-[#8a7661] dark:bg-muted dark:text-muted-foreground group-hover:text-foreground",
