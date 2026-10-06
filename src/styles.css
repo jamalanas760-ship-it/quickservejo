@@ -62,8 +62,8 @@
 }
 
 @theme inline {
-  --font-sans: "Manrope", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Sora", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-ui);
+  --font-display: var(--font-ui);
   --color-surface: var(--surface);
   --color-surface-foreground: var(--surface-foreground);
   --color-success: var(--success);
@@ -75,6 +75,7 @@
 }
 
 :root {
+  --font-ui: "Manrope", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
   --radius: 0.75rem;
 
   /* QuickServe identity: ink + saffron, warm neutral surfaces */
@@ -191,7 +192,7 @@
   }
 
   [dir="rtl"] body {
-    font-family: "IBM Plex Sans Arabic", var(--font-sans);
+    font-family: var(--font-ui);
   }
 
   :focus-visible {
@@ -960,14 +961,14 @@
 .qs-team-redesign { height:auto!important; min-height:100%; padding:8px 0 24px; }
 .qs-team-heading { display:flex; align-items:center; justify-content:space-between; gap:24px; }
 .qs-team-eyebrow { font-size:10px; font-weight:600; letter-spacing:.1em; color:var(--muted-foreground); margin-bottom:12px; }
-.qs-team-heading h1 { font-family:Georgia,'Times New Roman',serif; font-size:clamp(26px,2.7vw,42px); font-weight:700; line-height:1.15; letter-spacing:-.035em; margin-bottom:8px; }
+.qs-team-heading h1 { font-family:var(--font-ui); font-size:clamp(26px,2.7vw,42px); font-weight:700; line-height:1.15; letter-spacing:-.035em; margin-bottom:8px; }
 .qs-team-heading > div > p:last-child { font-size:15px; }
 .qs-team-summary { display:flex; align-items:center; gap:24px; padding:12px 4px; flex-wrap:wrap; }
 .qs-team-summary button { display:flex; align-items:center; gap:8px; min-height:44px; padding-inline-end:24px; border-inline-end:1px solid var(--border); font-size:13px; }
 .qs-team-summary strong { font-size:22px; font-weight:700; }
 .qs-team-date { display:flex; align-items:center; gap:8px; margin-inline-start:auto; font-size:12px; border:1px solid var(--border); border-radius:8px; padding:10px 12px; background:var(--card); }
 .qs-team-content { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:20px; }
-.qs-team-panel-title { font-family:Georgia,'Times New Roman',serif; font-size:23px; font-weight:700; line-height:1.2; letter-spacing:-.02em; }
+.qs-team-panel-title { font-family:var(--font-ui); font-size:23px; font-weight:700; line-height:1.2; letter-spacing:-.02em; }
 .qs-team-rail { display:flex; flex-direction:column; gap:16px; min-width:0; }
 .qs-team-redesign .qs-card { border-radius:12px; box-shadow:none; }
 .qs-team-tabs > div { background:transparent; border-radius:0; padding:0; gap:14px; }
@@ -988,3 +989,11 @@
 .qs-team-redesign .qs-live-status-card small { font-size:10px; line-height:1.5; }
 @media (max-width:1390px) { .qs-team-content { grid-template-columns:minmax(0,1fr); } .qs-team-rail { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media (max-width:767px) { .qs-team-heading { flex-direction:column; align-items:flex-start; gap:16px; } .qs-team-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 12px; } .qs-team-summary button { border:0; padding:0; } .qs-team-date { grid-column:1/-1; margin:8px 0 0; width:fit-content; } .qs-team-rail { grid-template-columns:1fr; } .qs-team-panel-title { font-size:20px; } .qs-team-tabs > div { gap:0; } }
+
+/* Shared application typography, including portalled dialogs and controls. */
+:root[dir="rtl"], :root:lang(ar), [lang="ar"] {
+  --font-ui: "IBM Plex Sans Arabic", "Manrope", ui-sans-serif, system-ui, sans-serif;
+}
+body, button, input, textarea, select { font-family: var(--font-ui); }
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-ui); }
+[dir="rtl"] :is(h1,h2,h3,h4,h5,h6) { letter-spacing: normal; }
