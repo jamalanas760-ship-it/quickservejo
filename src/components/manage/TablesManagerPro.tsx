@@ -1,3 +1,4 @@
+import { createLatestSaveQueue } from "@/lib/latest-save-queue";
 import { MoreHorizontal, Table2 } from "@/components/nav/QuickServeIcons";
 import { floorSeats } from "@/lib/floor-seating";
 import { normalizeCanvasSize } from "@/lib/floor-canvas";
@@ -431,7 +432,13 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
   const [zoom, setZoom] = useState(1);
   const [grid, setGrid] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [floorBusy, setFloorBusy] = useState(false);
+  const [structuralFloorBusy, setFloorBusy] = useState(false);
+  const [elementSaving, setElementSaving] = useState(false);
+  const floorBusy = structuralFloorBusy || elementSaving;
+  const latestFloors = useRef(floors);
+  latestFloors.current = floors;
+  const confirmedFloors = useRef(floors);
+  const elementSaveQueue = useRef<ReturnType<typeof createLatestSaveQueue<FloorConfig[]>> | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [qrTarget, setQrTarget] = useState<TableQrTarget | null>(null);
   const qrTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -533,7 +540,12 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     });
   }, [tables.data]);
   useEffect(() => {
+    if (elementSaveQueue.current?.isPending) return;
     const next = floorsFromTheme(restaurant?.menu_theme);
+    // Cache acknowledgements must not overwrite a newer live drag preview.
+    if (JSON.stringify(next) === JSON.stringify(confirmedFloors.current)) return;
+    confirmedFloors.current = next;
+    latestFloors.current = next;
     setFloors(next);
     setActiveFloor((current) => (next.some((f) => f.id === current) ? current : next[0]!.id));
   }, [restaurant?.menu_theme]);
@@ -607,7 +619,8 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       qc.invalidateQueries({ queryKey: ["table-service-groups", restaurantId] }),
     ]);
   }
-  async function persistFloors(next: FloorConfig[]) {
+  async function persistFloors(next: FloorConfig[], background = false) {
+    if (!background) await elementSaveQueue.current?.flush();
     const current = await supabase
       .from("restaurants")
       .select("menu_theme")
@@ -628,11 +641,12 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       .select("id")
       .single();
     if (error) throw error;
-    setFloors(next);
+    confirmedFloors.current = next;
+    if (!background) { latestFloors.current = next; setFloors(next); }
     qc.setQueryData(["platform", "restaurant", restaurantId], (cached: typeof restaurant) =>
       cached ? { ...cached, menu_theme: menuTheme } : cached,
     );
-    await qc.invalidateQueries({ queryKey: ["platform", "restaurant", restaurantId], exact: true });
+    if (!background) await qc.invalidateQueries({ queryKey: ["platform", "restaurant", restaurantId], exact: true });
   }
   async function persistTableLayout(id: string, layout: Layout, extra?: Record<string, unknown>) {
     const row = (tables.data ?? []).find((r) => r.id === id);
@@ -1436,23 +1450,21 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     return <Skeleton className="h-[720px] rounded-2xl" />;
 
   function previewElement(next: FloorElement) {
-    setFloors((value) =>
-      value.map((f) =>
-        f.id === activeFloor
-          ? { ...f, elements: (f.elements ?? []).map((e) => (e.id === next.id ? next : e)) }
-          : f,
-      ),
-    );
+    const updated = latestFloors.current.map((f) => f.id === activeFloor
+      ? { ...f, elements: (f.elements ?? []).map((e) => e.id === next.id ? next : e) } : f);
+    latestFloors.current = updated;
+    setFloors(updated);
   }
-  async function saveElements(elements: FloorElement[], rollback?: FloorElement, notify = true) {
+  async function saveElements(elements: FloorElement[], rollback?: FloorElement) {
     if (floorSaveInFlight.current) {
       if (rollback) previewElement(rollback);
       return false;
     }
     floorSaveInFlight.current = true;
     setFloorBusy(true);
-    const previous = floorsFromTheme(restaurant?.menu_theme);
-    const next = floors.map((f) => (f.id === activeFloor ? { ...f, elements } : f));
+    await elementSaveQueue.current?.flush();
+    const previous = confirmedFloors.current;
+    const next = latestFloors.current.map((f) => (f.id === activeFloor ? { ...f, elements } : f));
     setFloors(next);
     try {
       await persistFloors(next);
@@ -1464,7 +1476,6 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         ),
         after: elements,
       });
-      if (notify) toast.success(ar ? "تم حفظ المخطط" : "Floor layout saved");
       return true;
     } catch (error) {
       setFloors(previous);
@@ -1511,13 +1522,29 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     setElementsOpen(false);
     setEditing(true);
   }
-  function commitElement(next: FloorElement, previous?: FloorElement) {
-    void saveElements(
-      (currentFloor.elements ?? []).map((e) =>
-        e.id === next.id ? normalizeFloorElement(next) : e,
-      ),
-      previous,
-    );
+  function commitElement(next: FloorElement) {
+    if (structuralFloorBusy || floorSaveInFlight.current) return;
+    previewElement(normalizeFloorElement(next));
+    if (!elementSaveQueue.current) {
+      elementSaveQueue.current = createLatestSaveQueue<FloorConfig[]>({
+        onPendingChange: setElementSaving,
+        save: async (snapshot) => {
+          const before = confirmedFloors.current;
+          await persistFloors(snapshot, true);
+          for (const floor of snapshot) {
+            const prior = before.find(f => f.id === floor.id)?.elements ?? [];
+            if (JSON.stringify(prior) !== JSON.stringify(floor.elements ?? []))
+              recordLayout({ kind: "elements", floor: floor.id, before: prior, after: floor.elements ?? [] });
+          }
+        },
+        onError: (error) => {
+          latestFloors.current = confirmedFloors.current;
+          setFloors(confirmedFloors.current);
+          toast.error(humanError(error, lang));
+        },
+      });
+    }
+    elementSaveQueue.current.enqueue(latestFloors.current);
   }
   function duplicateElement() {
     if (!selectedElement || floorBusy) return;
@@ -1543,7 +1570,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
   async function deleteElement() {
     if (!selectedElement || floorSaveInFlight.current) return;
     const removed = selectedElement;
-    const saved = saveElements((currentFloor.elements ?? []).filter((e) => e.id !== removed.id), undefined, false);
+    const saved = saveElements((currentFloor.elements ?? []).filter((e) => e.id !== removed.id));
     setSelectedElementId(null);
     if (await saved) {
       toast.success(ar ? "تم حذف العنصر" : "Element removed", {
@@ -1931,7 +1958,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                     zoom={zoom}
                     grid={grid}
                     editable={editing}
-                    busy={floorBusy || busy}
+                    busy={structuralFloorBusy || busy}
                     ar={ar}
                     backgroundUrl={currentFloor.backgroundUrl}
                     selected={
@@ -2020,7 +2047,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                         element={element}
                         selected={selectedElementId === element.id}
                         editable={editing}
-                        busy={floorBusy}
+                        busy={structuralFloorBusy}
                         grid={grid}
                         canvasRef={canvasRef}
                         onSelect={() => {
@@ -2076,7 +2103,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
               key={selectedElement.id}
               element={selectedElement}
               ar={ar}
-              busy={floorBusy}
+              busy={structuralFloorBusy}
               onSave={commitElement}
               onDuplicate={duplicateElement}
               onDelete={deleteElement}

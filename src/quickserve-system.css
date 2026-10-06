@@ -5513,3 +5513,9 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
 .qs-floor-rotation output { min-width:46px; text-align:center; font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; }
 .qs-floor-advanced summary { cursor:pointer; min-height:44px; display:flex; align-items:center; font-size:12px; font-weight:600; }
 .qs-floor-advanced[open]>div { padding-top:8px; }
+/* Free rotation and quick turns share one compact, keyboard-accessible control. */
+.qs-floor-rotation { display:grid; gap:4px; }
+.qs-floor-rotation-step { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.qs-floor-angle-slider { display:block; font-size:11px; font-weight:500; color:var(--muted-foreground); }
+.qs-floor-angle-slider input[type=range] { display:block; width:100%; min-height:44px; margin:0; padding:0; accent-color:var(--primary); cursor:ew-resize; direction:ltr; }
+.qs-floor-angle-slider input[type=range]:focus-visible { outline:2px solid var(--primary); outline-offset:2px; border-radius:8px; }
