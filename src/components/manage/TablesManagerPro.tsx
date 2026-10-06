@@ -2104,6 +2104,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
               element={selectedElement}
               ar={ar}
               busy={structuralFloorBusy}
+              showRotation={!depth}
               onSave={commitElement}
               onDuplicate={duplicateElement}
               onDelete={deleteElement}

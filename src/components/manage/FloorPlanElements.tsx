@@ -266,6 +266,7 @@ export function FloorElementInspector({
   ar,
   busy,
   onSave,
+  showRotation = true,
   onDuplicate,
   onDelete,
 }: {
@@ -273,6 +274,7 @@ export function FloorElementInspector({
   ar: boolean;
   busy: boolean;
   onSave: (next: FloorElement) => void;
+  showRotation?: boolean;
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
@@ -286,10 +288,10 @@ export function FloorElementInspector({
       <h2 className="text-lg font-bold">{FLOOR_ELEMENT_LABELS[element.type][ar ? 1 : 0]}</h2>
       <p className="text-xs text-muted-foreground">
         {ar
-          ? "اسحب العنصر لتحريكه. استخدم الأسهم لتدويره."
-          : "Drag the object to move it. Use the arrows to rotate."}
+          ? showRotation ? "اسحب العنصر لتحريكه. استخدم الأسهم لتدويره." : "اسحب للتحريك. استخدم أدوات المخطط للدوران."
+          : showRotation ? "Drag the object to move it. Use the arrows to rotate." : "Drag to move. Rotate with the canvas controls."}
       </p>
-      <FloorRotationControl value={draft.rotation} ar={ar} disabled={busy} onChange={rotation => { const next = normalizeFloorElement({ ...draft, rotation }); setDraft(next); onSave(next); }} />
+      {showRotation && <FloorRotationControl value={draft.rotation} ar={ar} disabled={busy} onChange={rotation => { const next = normalizeFloorElement({ ...draft, rotation }); setDraft(next); onSave(next); }} />}
       <label className="block text-xs font-semibold">
         {ar ? "الاسم" : "Label"}
         <Input
