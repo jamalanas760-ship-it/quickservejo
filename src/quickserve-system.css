@@ -5424,7 +5424,7 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
   inherits:true;
   initial-value:232px;
 }
-:root { --qs-rail-duration:900ms; --qs-rail-ease:cubic-bezier(.4,0,.2,1); }
+:root { --qs-rail-duration:1100ms; --qs-rail-ease:cubic-bezier(.37,0,.25,1); }
 @media(min-width:768px) {
   :root { --qs-animated-sidebar-width:232px; --qs-shell-sidebar:var(--qs-animated-sidebar-width)!important; }
   :root[data-sidebar-collapsed="true"] { --qs-animated-sidebar-width:76px; }
@@ -5466,11 +5466,11 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
   .qs-sidebar-shell[data-collapsed="true"] .qs-sidebar-toggle-icon { transform:rotate(180deg); }
   [dir="rtl"] .qs-sidebar-shell[data-collapsed="true"] .qs-sidebar-toggle-icon { transform:rotate(0deg); }
   .qs-sidebar-shell[data-collapsed="true"] :is(.qs-sidebar-label,.qs-sidebar-count,.qs-sidebar-wordmark) {
-    opacity:0; transform:translateX(-6px); pointer-events:none;
+    opacity:0; transform:translateX(-18px); pointer-events:none;
   }
-  [dir="rtl"] .qs-sidebar-shell[data-collapsed="true"] :is(.qs-sidebar-label,.qs-sidebar-count,.qs-sidebar-wordmark) { transform:translateX(6px); }
+  [dir="rtl"] .qs-sidebar-shell[data-collapsed="true"] :is(.qs-sidebar-label,.qs-sidebar-count,.qs-sidebar-wordmark) { transform:translateX(18px); }
   :root[data-sidebar-motion-ready="true"] :is(.qs-sidebar-label,.qs-sidebar-count,.qs-sidebar-wordmark) {
-    transition:opacity 320ms ease 200ms,transform var(--qs-rail-duration) var(--qs-rail-ease);
+    transition:opacity 600ms ease 150ms,transform var(--qs-rail-duration) var(--qs-rail-ease);
   }
   :root[data-sidebar-motion-ready="true"] .qs-sidebar-shell[data-collapsed="true"] :is(.qs-sidebar-label,.qs-sidebar-count,.qs-sidebar-wordmark) { transition-delay:0ms; }
   :root[data-sidebar-motion-ready="true"] .qs-sidebar-toggle-icon { transition:transform var(--qs-rail-duration) var(--qs-rail-ease); }
@@ -5492,3 +5492,24 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
  .qs-floor-asset-sidebar .qs-element-library button:disabled { opacity:.45; cursor:wait; }
  .qs-floor-asset-sidebar .qs-element-library button:hover:not(:disabled) { box-shadow:none; background:var(--muted); }
 }
+
+/* Furniture stays visually exact while its invisible touch area is generous. */
+.qs-floor-element-body { position:relative; cursor:grab; }
+.qs-floor-element-body:active { cursor:grabbing; }
+.qs-floor-element-body::before { content:""; position:absolute; width:max(100%,44px); height:max(100%,44px); left:50%; top:50%; transform:translate(-50%,-50%); }
+.qs-floor-element-body>svg { pointer-events:none; }
+.qs-floor-element.is-selected { z-index:8; }
+.qs-floor-element-body:focus-visible { outline:2px solid var(--primary); outline-offset:4px; }
+.qs-element-resize { width:44px; height:44px; right:-48px; bottom:-48px; background:transparent; border:0; border-radius:10px; }
+.qs-element-resize::after { content:""; display:block; width:12px; height:12px; margin:auto; border-radius:3px; background:var(--primary); border:2px solid white; }
+.qs-floor-zone { pointer-events:none; }
+.qs-floor-zone>button { pointer-events:auto; min-width:44px; min-height:44px!important; }
+.qs-floor-rotation { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.qs-floor-rotation button,.qs-floor-3d-object-tools .qs-floor-rotation button { display:flex; align-items:center; justify-content:center; gap:6px; width:auto; min-width:68px; min-height:44px; padding:8px 10px; border:1px solid var(--border); background:var(--card); border-radius:10px; font-size:12px; font-weight:600; }
+.qs-floor-rotation button svg { width:18px; height:18px; }
+.qs-floor-rotation button:hover:not(:disabled) { background:var(--muted); border-color:var(--primary); }
+.qs-floor-rotation button:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+.qs-floor-rotation button:disabled { opacity:.45; cursor:wait; }
+.qs-floor-rotation output { min-width:46px; text-align:center; font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; }
+.qs-floor-advanced summary { cursor:pointer; min-height:44px; display:flex; align-items:center; font-size:12px; font-weight:600; }
+.qs-floor-advanced[open]>div { padding-top:8px; }
