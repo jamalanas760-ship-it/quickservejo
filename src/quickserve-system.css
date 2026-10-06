@@ -5519,3 +5519,20 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
 .qs-floor-angle-slider { display:block; font-size:11px; font-weight:500; color:var(--muted-foreground); }
 .qs-floor-angle-slider input[type=range] { display:block; width:100%; min-height:44px; margin:0; padding:0; accent-color:var(--primary); cursor:ew-resize; direction:ltr; }
 .qs-floor-angle-slider input[type=range]:focus-visible { outline:2px solid var(--primary); outline-offset:2px; border-radius:8px; }
+
+/* Selected table: one centered surface with a bounded, scrollable body. */
+.qs-table-preview-dialog.qs-dialog-content{inset:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));margin:auto;width:min(440px,calc(100vw - 24px));max-width:440px;height:fit-content;max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden;transform:none;translate:none;border-radius:20px}
+.qs-table-preview-dialog>.qs-dialog-header{flex-shrink:0;padding:20px 20px 16px;padding-inline-end:68px;border-bottom:1px solid var(--border)}
+.qs-table-preview-dialog .qs-dialog-header h2{font-size:18px;line-height:1.4}
+.qs-table-preview-dialog .qs-dialog-header p{font-size:13px;line-height:1.5}
+.qs-table-preview-dialog>.qs-dialog-close{top:12px;inset-inline-end:12px}
+.qs-table-preview-body{min-height:0;min-width:0;padding:16px 20px 20px;overflow-y:auto;overscroll-behavior:contain}
+.qs-table-quick-panel.is-compact{display:flex;flex-direction:column;gap:14px;padding:0}
+.qs-table-quick-panel.is-compact>div,.qs-table-quick-panel.is-compact>label{margin-block:0}
+.qs-table-quick-panel.is-compact .qs-quick-service{padding:0 0 14px;border-top:0;row-gap:8px}
+.qs-table-quick-panel.is-compact>label{padding-top:0;border-top:0;font-size:12px}
+.qs-table-quick-panel.is-compact select{min-height:44px;font-size:14px;font-family:inherit}
+.qs-table-quick-panel.is-compact button,.qs-table-quick-panel.is-compact a.qs-button-secondary{min-height:44px;font-size:13px}
+.qs-table-quick-panel.is-compact .qs-studio-status{font-size:12px}
+@media(max-width:767px){.qs-table-preview-dialog>.qs-dialog-header{padding:16px;padding-inline-end:64px}.qs-table-preview-body{padding:14px 16px 16px}.qs-table-preview-dialog .qs-dialog-header h2{font-size:17px}}
+@layer components{.ps-page.ps-advanced-dialog.qs-dialog-content{height:fit-content!important}}

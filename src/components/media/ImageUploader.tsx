@@ -16,6 +16,8 @@ export function ImageUploader({
   label,
   aspect = "square",
   retainRemovedFile = false,
+  compact = false,
+  description,
 }: {
   restaurantId: string;
   kind: MediaKind;
@@ -24,6 +26,8 @@ export function ImageUploader({
   label: string;
   aspect?: "square" | "wide";
   retainRemovedFile?: boolean;
+  compact?: boolean;
+  description?: string;
 }) {
   const { t, lang } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,8 +48,8 @@ export function ImageUploader({
   }
 
   return (
-    <div className="qs-image-uploader space-y-2">
-      <p className="text-sm font-medium">{label}</p>
+    <div className={cn("qs-image-uploader", compact ? "is-compact" : "space-y-2")}>
+      {!compact && <p className="text-sm font-medium">{label}</p>}
       <div data-aspect={aspect} className="qs-image-upload-frame">
         <div
           className={cn(
@@ -61,6 +65,12 @@ export function ImageUploader({
             </span>
           )}
         </div>
+        {compact && (
+          <div className="qs-image-upload-copy">
+            <strong>{label}</strong>
+            {description && <p>{description}</p>}
+          </div>
+        )}
         <ActionMenu
           className="qs-image-upload-actions"
           ar={lang === "ar"}
