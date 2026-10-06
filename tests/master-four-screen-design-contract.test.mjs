@@ -6,6 +6,7 @@ const menu = await readFile(new URL("../src/components/manage/MasterMenuDesigner
 const appearance = await readFile(new URL("../src/components/manage/RestaurantAppearance.tsx", import.meta.url), "utf8");
 const profile = await readFile(new URL("../src/routes/_authenticated/profile.tsx", import.meta.url), "utf8");
 const settings = await readFile(new URL("../src/components/profile/RestaurantProfileSettings.tsx", import.meta.url), "utf8");
+const navigationSettings = await readFile(new URL("../src/components/profile/WorkspaceNavigation.tsx", import.meta.url), "utf8");
 const analytics = await readFile(new URL("../src/components/manage/AnalyticsManagerPro.tsx", import.meta.url), "utf8");
 const analyticsRoute = await readFile(new URL("../src/routes/_authenticated/manage/$restaurantId/analytics.tsx", import.meta.url), "utf8");
 const header = await readFile(new URL("../src/components/nav/AppHeader.tsx", import.meta.url), "utf8");
@@ -63,12 +64,12 @@ test("workspace and menu visual assets are restaurant-customizable", async () =>
   assert.match(appearanceModel,/pdfMenuCardImage/);
   assert.doesNotMatch(appearanceModel,/standardMenuCardIcon/);
   assert.doesNotMatch(appearanceModel,/pdfMenuCardIcon/);
-  assert.match(settings,/Customize images & icons/);
-  assert.match(settings,/Panel image/);
+  assert.match(settings,/Interface images/);
+  assert.match(settings,/Launcher panel image/);
   assert.doesNotMatch(settings,/Panel icon/);
   assert.match(settings,/form.logo_url/);
   assert.doesNotMatch(settings,/Card icon/);
-  assert.match(settings,/icon is fixed by QuickServe/);
+  assert.match(settings,/Menu icons follow your system color/);
   assert.match(menu,/appearance\.standardMenuCardImage/);
   assert.doesNotMatch(menu,/appearance\.standardMenuCardIcon/);
   assert.doesNotMatch(menu,/appearance\.pdfMenuCardIcon/);
@@ -96,12 +97,13 @@ test("quick styles apply across the restaurant shell and sidebar is customizable
   const appearanceModel = await readFile(new URL("../src/lib/restaurant-appearance.ts", import.meta.url), "utf8");
   const colorStudio = await readFile(new URL("../src/components/manage/ApplicationColorStudio.tsx", import.meta.url), "utf8");
   assert.match(appearanceModel,/sidebarPinnedTools/);
-  assert.match(settings,/Customize navigation/);
-  assert.match(settings,/Still in All tools/);
-  assert.match(settings,/Home always stays first/);
+  assert.match(navigationSettings,/Customize navigation/);
+  assert.match(navigationSettings,/Other tools remain in All tools/);
+  assert.match(navigationSettings,/Home stays first/);
   assert.match(nav,/appearance\.sidebarPinnedTools/);
   assert.match(nav,/customDesktopPrimary/);
-  assert.match(colorStudio,/One style updates buttons, actions, active navigation, sidebar, workspace background and highlights together/);
+  assert.match(colorStudio,/set\.selected\(preset\.selected\)/);
+  assert.match(colorStudio,/set\.background\(preset\.background\)/);
   assert.match(colorStudio,/activePresetId/);
   assert.match(styles,/Comprehensive workspace theming \+ sidebar customization/);
   assert.match(styles,/--qs-brand:var\(--restaurant-light-primary\)/);
@@ -135,7 +137,7 @@ test("mobile navigation mirrors the configured sidebar and preferences live in t
   assert.doesNotMatch(nav,/ThemeToggle/);
   assert.match(header,/qs-topbar-theme-control/);
   assert.match(header,/LanguageSelector/);
-  assert.match(settings,/Mobile: first 3/);
+  assert.match(navigationSettings,/mobile shows the first 3 tools/);
   assert.match(styles,/Mobile navigation master alignment/);
 });
 

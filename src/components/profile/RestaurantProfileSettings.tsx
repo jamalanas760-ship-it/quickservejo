@@ -1,16 +1,7 @@
-import { MasterActionSurface } from "@/components/app/MasterPage";
-import { useState, type FormEvent } from "react";
+import { WorkspaceNavigation } from "@/components/profile/WorkspaceNavigation";
+import { useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  ChevronDown,
-  ChevronUp,
-  LayoutPanelLeft,
-  Plus,
-  RotateCcw,
-  Save,
-  SlidersHorizontal,
-  X,
-} from "lucide-react";
+import { ChevronDown, Save, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -103,34 +94,12 @@ function RestaurantProfileSettingsForm({
   });
   const [saving, setSaving] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [sidebarToolToAdd, setSidebarToolToAdd] = useState("");
+  const advancedBody = useRef<HTMLDivElement>(null);
   const field = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
   const pinnedSidebarTools = brand.sidebarPinnedTools;
-  const sidebarPool = SIDEBAR_TOOL_CHOICES.filter((item) => !pinnedSidebarTools.includes(item.key));
-  const sidebarLabel = (key: string) => {
-    const item = SIDEBAR_TOOL_CHOICES.find((choice) => choice.key === key);
-    return item ? (ar ? item.ar : item.en) : key;
-  };
   const setPinnedSidebarTools = (items: string[]) =>
     setBrand((current) => ({ ...current, sidebarPinnedTools: items.slice(0, 5) }));
-  const addSidebarTool = (key: string) => {
-    if (pinnedSidebarTools.includes(key) || pinnedSidebarTools.length >= 5) return;
-    setPinnedSidebarTools([...pinnedSidebarTools, key]);
-  };
-  const removeSidebarTool = (key: string) =>
-    setPinnedSidebarTools(pinnedSidebarTools.filter((item) => item !== key));
-  const moveSidebarTool = (index: number, direction: -1 | 1) => {
-    const next = [...pinnedSidebarTools];
-    const target = index + direction;
-    if (target < 0 || target >= next.length) return;
-    const currentValue = next[index];
-    const targetValue = next[target];
-    if (!currentValue || !targetValue) return;
-    next[index] = targetValue;
-    next[target] = currentValue;
-    setPinnedSidebarTools(next);
-  };
 
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -187,7 +156,24 @@ function RestaurantProfileSettingsForm({
   }
 
   const colors = ["#ff5a1f", "#ef4444", "#287de8", "#16a56d", "#7c4dc4", "#e85a93"];
-  const validColor = /^#[0-9a-f]{6}$/i.test(form.primary_color);
+  const validColor = [
+    form.primary_color,
+    form.accent_color,
+    brand.selectedNavColor,
+    brand.topNavBackground,
+    brand.topNavText,
+    brand.sidebarBackground,
+    brand.sidebarText,
+    brand.lightBackground,
+    brand.darkPrimaryColor,
+    brand.darkAccentColor,
+    brand.darkSelectedNavColor,
+    brand.darkTopNavBackground,
+    brand.darkTopNavText,
+    brand.darkSidebarBackground,
+    brand.darkSidebarText,
+    brand.darkBackground,
+  ].every((value) => /^#[0-9a-f]{6}$/i.test(value));
   const zones = Array.from(
     new Set([
       form.timezone,
@@ -283,7 +269,9 @@ function RestaurantProfileSettingsForm({
                 <input
                   type="color"
                   aria-label={ar ? "لون مخصص" : "Custom brand color"}
-                  value={validColor ? form.primary_color : "#ff5a1f"}
+                  value={
+                    /^#[0-9a-f]{6}$/i.test(form.primary_color) ? form.primary_color : "#ff5a1f"
+                  }
                   onChange={(event) => field("primary_color", event.target.value)}
                 />
                 <input
@@ -347,7 +335,12 @@ function RestaurantProfileSettingsForm({
               {ar ? "خصص الصور والتنقل والألوان." : "Customize images, navigation and colors."}
             </DialogDescription>
           </DialogHeader>
-          <Tabs defaultValue="images" dir={ar ? "rtl" : "ltr"} className="ps-workspace-tabs">
+          <Tabs
+            defaultValue="images"
+            dir={ar ? "rtl" : "ltr"}
+            className="ps-workspace-tabs"
+            onValueChange={() => advancedBody.current?.scrollTo({ top: 0 })}
+          >
             <TabsList
               className="ps-workspace-tab-list"
               aria-label={ar ? "أقسام مساحة العمل" : "Workspace sections"}
@@ -356,7 +349,7 @@ function RestaurantProfileSettingsForm({
               <TabsTrigger value="navigation">{ar ? "التنقل" : "Navigation"}</TabsTrigger>
               <TabsTrigger value="colors">{ar ? "الألوان" : "Colors"}</TabsTrigger>
             </TabsList>
-            <div className="ps-advanced-body">
+            <div className="ps-advanced-body" ref={advancedBody}>
               <TabsContent value="images" className="ps-workspace-panel">
                 <h2>{ar ? "صور الواجهة" : "Interface images"}</h2>
                 <p className="ps-workspace-help">
@@ -407,143 +400,15 @@ function RestaurantProfileSettingsForm({
                 </p>
               </TabsContent>
               <TabsContent value="navigation" className="ps-workspace-panel">
-                <section className="qs-sidebar-customizer">
-                  <div className="qs-sidebar-customizer-head">
-                    <div className="flex items-start gap-3">
-                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                        <LayoutPanelLeft className="size-4" />
-                      </span>
-                      <div>
-                        <strong>{ar ? "تخصيص التنقل" : "Customize navigation"}</strong>
-                        <p>
-                          {ar
-                            ? "اختر حتى 5 أدوات. الرئيسية أولاً؛ الموبايل يعرض أول 3 أدوات، والباقي في All tools."
-                            : "Choose up to 5 tools. Home stays first; mobile shows the first 3 tools. Everything else stays in All tools."}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="qs-sidebar-count">{pinnedSidebarTools.length}/5</span>
-                      <button
-                        type="button"
-                        className="qs-sidebar-reset"
-                        onClick={() => setPinnedSidebarTools([...DEFAULT_SIDEBAR_TOOLS])}
-                      >
-                        <RotateCcw className="size-3.5" />
-                        {ar ? "افتراضي ذكي" : "Smart default"}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="qs-sidebar-bucket">
-                      <div className="qs-sidebar-bucket-title">
-                        <span>{ar ? "في القائمة الجانبية" : "In sidebar"}</span>
-                        <small>{ar ? "الترتيب الظاهر" : "Visible order"}</small>
-                      </div>
-                      <div className="space-y-2">
-                        {pinnedSidebarTools.length ? (
-                          pinnedSidebarTools.map((key, index) => (
-                            <div key={key} className="qs-sidebar-tool-row is-pinned">
-                              <span className="qs-sidebar-tool-index">{index + 2}</span>
-                              <strong>{sidebarLabel(key)}</strong>
-                              <MasterActionSurface
-                                threshold={1}
-                                className="ms-auto flex items-center gap-1"
-                              >
-                                <button
-                                  type="button"
-                                  aria-label={ar ? "تحريك للأعلى" : "Move up"}
-                                  disabled={index === 0}
-                                  onClick={() => moveSidebarTool(index, -1)}
-                                >
-                                  <ChevronUp className="size-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  aria-label={ar ? "تحريك للأسفل" : "Move down"}
-                                  disabled={index === pinnedSidebarTools.length - 1}
-                                  onClick={() => moveSidebarTool(index, 1)}
-                                >
-                                  <ChevronDown className="size-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  aria-label={
-                                    ar ? "إزالة من القائمة الجانبية" : "Remove from sidebar"
-                                  }
-                                  onClick={() => removeSidebarTool(key)}
-                                >
-                                  <X className="size-3.5" />
-                                </button>
-                              </MasterActionSurface>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="qs-sidebar-empty">
-                            {ar
-                              ? "لم تختر أدوات بعد. ستستخدم QuickServe الترتيب الذكي الحالي حتى تختار."
-                              : "No custom tools selected yet. QuickServe keeps the current smart order until you choose."}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="qs-sidebar-bucket">
-                      <div className="qs-sidebar-bucket-title">
-                        <span>{ar ? "تبقى في All tools" : "Still in All tools"}</span>
-                        <small>{ar ? "أضف أي أداة بنقرة" : "Add with one click"}</small>
-                      </div>
-                      <div className="ps-workspace-add-tool">
-                        <label htmlFor="workspace-sidebar-tool">
-                          {ar ? "اختر أداة" : "Choose a tool"}
-                        </label>
-                        <select
-                          id="workspace-sidebar-tool"
-                          value={sidebarToolToAdd}
-                          disabled={pinnedSidebarTools.length >= 5}
-                          onChange={(event) => setSidebarToolToAdd(event.target.value)}
-                        >
-                          <option value="">{ar ? "اختر أداة" : "Choose a tool"}</option>
-                          {sidebarPool.map((item) => (
-                            <option key={item.key} value={item.key}>
-                              {ar ? item.ar : item.en}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={!sidebarToolToAdd || pinnedSidebarTools.length >= 5}
-                          onClick={() => {
-                            addSidebarTool(sidebarToolToAdd);
-                            setSidebarToolToAdd("");
-                          }}
-                        >
-                          <Plus className="size-4" />
-                          {ar ? "إضافة" : "Add"}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="qs-sidebar-preview-strip">
-                    <span className="qs-sidebar-preview-home">1 · {ar ? "الرئيسية" : "Home"}</span>
-                    {pinnedSidebarTools.map((key, index) => (
-                      <span key={key}>
-                        {index + 2} · {sidebarLabel(key)}
-                      </span>
-                    ))}
-                    <span className="qs-sidebar-preview-mobile">
-                      {ar ? "الموبايل: أول 3" : "Mobile: first 3"}
-                    </span>
-                    <span className="qs-sidebar-preview-more">
-                      {ar ? "الباقي → All tools" : "Rest → All tools"}
-                    </span>
-                  </div>
-                </section>
+                <WorkspaceNavigation
+                  ar={ar}
+                  selected={pinnedSidebarTools}
+                  choices={SIDEBAR_TOOL_CHOICES}
+                  defaults={DEFAULT_SIDEBAR_TOOLS}
+                  onChange={setPinnedSidebarTools}
+                />
               </TabsContent>
-              <TabsContent value="colors" className="ps-workspace-panel">
+              <TabsContent value="colors" forceMount className="ps-workspace-panel">
                 <ApplicationColorStudio
                   ar={ar}
                   restaurantName={restaurant.name}
