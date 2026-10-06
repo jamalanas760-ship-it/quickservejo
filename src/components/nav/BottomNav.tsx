@@ -103,7 +103,10 @@ export function BottomNav() {
   const [sidebarRestored, setSidebarRestored] = useState(false);
   const [sidebarMotionReady, setSidebarMotionReady] = useState(false);
   useEffect(() => {
-    try { setSidebarCollapsed(localStorage.getItem("qs-sidebar-collapsed") === "true"); } catch {}
+    try {
+      const saved = localStorage.getItem("qs-sidebar-collapsed");
+      setSidebarCollapsed(saved === null ? window.matchMedia("(min-width:768px) and (max-width:1023px)").matches : saved === "true");
+    } catch {}
     setSidebarRestored(true);
   }, []);
   useEffect(() => {

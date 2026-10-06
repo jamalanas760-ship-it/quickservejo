@@ -5001,7 +5001,7 @@ html.qs-theme-view-transition *{
 }
 
 /* Approved miniature restaurant studio. The WebGL surface owns only the floor. */
-.qs-tables-3d-workspace{grid-template-columns:168px minmax(0,1fr) 270px!important;gap:14px!important;align-items:start}
+.qs-tables-3d-workspace{grid-template-columns:248px minmax(0,1fr) 270px!important;gap:14px!important;align-items:start}
 .qs-floor-asset-sidebar{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:hidden;min-width:0}
 .qs-floor-asset-heading{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border)}
 .qs-floor-asset-heading h2{font-size:14px;font-weight:700}.qs-floor-asset-heading span{font-size:10px;font-weight:700;color:#e85d2a;background:#e85d2a15;padding:4px 7px;border-radius:6px}
@@ -5051,7 +5051,7 @@ html.qs-theme-view-transition *{
 .qs-floor-material-swatches [data-material=wood]{background:repeating-linear-gradient(4deg,#92704c 0 2px,#aa8559 3px 5px)}.qs-floor-material-swatches [data-material=marble]{background:linear-gradient(130deg,#f2eee3 35%,#c8c4ba 37%,#fff 40%,#eee 67%,#c6c5bf 69%,#fff 72%)}.qs-floor-material-swatches [data-material=glass]{background:linear-gradient(135deg,#d9e8e4,#ffffff9c,#a5c7c9)}.qs-floor-material-swatches [data-material=aluminum]{background:linear-gradient(130deg,#adb2b2,#fff,#727e80)}
 .qs-floor-rotation-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;font-size:11px}.qs-floor-rotation-controls button{min-height:40px;padding:6px 10px;border:1px solid var(--border);border-radius:9px}
 .qs-element-inspector-preview{display:grid;place-items:center;background:var(--background);border-radius:14px;border:1px solid var(--border)}.qs-element-inspector-preview img{width:100%;height:150px;object-fit:contain;mix-blend-mode:multiply}
-@media(max-width:1399px){.qs-tables-3d-workspace{grid-template-columns:140px minmax(0,1fr) 245px!important}.qs-floor-3d{height:520px}}
+@media(max-width:1399px){.qs-tables-3d-workspace{grid-template-columns:224px minmax(0,1fr) 220px!important}.qs-floor-3d{height:520px}}
 @media(max-width:1199px){.qs-tables-3d-workspace{grid-template-columns:minmax(0,1fr) 260px!important}.qs-floor-asset-sidebar{display:none}.qs-floor-3d{height:500px}}
 @media(max-width:900px){.qs-tables-3d-workspace{grid-template-columns:minmax(0,1fr)!important}.qs-floor-3d{height:460px;min-height:380px}.qs-floor-3d-label{min-height:44px}.qs-floor-material-swatches i{width:38px;height:38px}.qs-floor-material-swatches button{min-height:76px}.qs-floor-3d-camera button{min-width:44px;min-height:44px}.qs-floor-3d-hint{font-size:9px;bottom:10px}}
 @media(max-width:380px){.qs-floor-3d{height:420px}.qs-floor-3d-hint{padding:6px 8px;max-width:calc(100% - 20px)}}
@@ -5417,11 +5417,31 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
 .qs-team-results{scroll-margin-top:96px}
 .qs-team-results:focus-visible{outline:2px solid var(--qs-brand);outline-offset:-2px}
 
-/* One reversible rail transition; icons and the toggle keep their coordinates. */
+/* One inherited, typed width drives both rail and content, even when other
+   stylesheets replace element transitions. Keep this root motion unlayered. */
+@property --qs-animated-sidebar-width {
+  syntax:"<length>";
+  inherits:true;
+  initial-value:232px;
+}
+:root { --qs-rail-duration:900ms; --qs-rail-ease:cubic-bezier(.4,0,.2,1); }
+@media(min-width:768px) {
+  :root { --qs-animated-sidebar-width:232px; --qs-shell-sidebar:var(--qs-animated-sidebar-width)!important; }
+  :root[data-sidebar-collapsed="true"] { --qs-animated-sidebar-width:76px; }
+  :root[data-sidebar-motion-ready="true"] { transition:--qs-animated-sidebar-width var(--qs-rail-duration) var(--qs-rail-ease)!important; }
+  .qs-sidebar-shell { display:flex!important; width:var(--qs-animated-sidebar-width)!important; }
+  .qs-sidebar-content, .qs-persistent-chrome { padding-inline-start:var(--qs-animated-sidebar-width)!important; transition:none!important; }
+  .qs-mobile-bottom-nav { display:none!important; }
+  .qs-sidebar-content { padding-bottom:0!important; min-height:100dvh; }
+}
+@media(prefers-reduced-motion:reduce) {
+  :root[data-sidebar-motion-ready="true"] { transition:none!important; }
+}
+/* Icons and the toggle keep their coordinates throughout the shared motion. */
 @layer components {
-:root { --qs-rail-duration:760ms; --qs-rail-ease:cubic-bezier(.45,0,.2,1); }
-@media(min-width:1024px) {
-  :root[data-sidebar-collapsed="true"] { --qs-shell-sidebar:76px!important; }
+@media(min-width:768px) {
+  .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav { display:none!important; }
+  .qs-persistent-chrome { padding-bottom:0!important; }
   .qs-sidebar-shell { overflow:hidden; }
   .qs-sidebar-shell nav, .qs-sidebar-shell>div:last-child { padding-inline:10px!important; }
   .qs-sidebar-shell>div:first-child { padding-inline:18px!important; overflow:hidden; }
@@ -5449,8 +5469,6 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
     opacity:0; transform:translateX(-6px); pointer-events:none;
   }
   [dir="rtl"] .qs-sidebar-shell[data-collapsed="true"] :is(.qs-sidebar-label,.qs-sidebar-count,.qs-sidebar-wordmark) { transform:translateX(6px); }
-  :root[data-sidebar-motion-ready="true"] .qs-sidebar-shell { transition:width var(--qs-rail-duration) var(--qs-rail-ease); }
-  :root[data-sidebar-motion-ready="true"] .qs-persistent-chrome { transition:padding-inline-start var(--qs-rail-duration) var(--qs-rail-ease); }
   :root[data-sidebar-motion-ready="true"] :is(.qs-sidebar-label,.qs-sidebar-count,.qs-sidebar-wordmark) {
     transition:opacity 320ms ease 200ms,transform var(--qs-rail-duration) var(--qs-rail-ease);
   }
@@ -5460,4 +5478,17 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
 @media(prefers-reduced-motion:reduce) {
   :root[data-sidebar-motion-ready="true"] :is(.qs-sidebar-shell,.qs-persistent-chrome,.qs-sidebar-label,.qs-sidebar-count,.qs-sidebar-wordmark,.qs-sidebar-toggle-icon) { transition:none!important; }
 }
+}
+
+/* Desktop catalog: readable names and proportional previews, without tall pills. */
+@media(min-width:1200px) {
+ .qs-floor-asset-sidebar { border-radius:14px; }
+ .qs-floor-asset-sidebar .qs-element-library-wrap { padding:12px; max-height:calc(100dvh - 250px); min-height:320px; }
+ .qs-floor-asset-sidebar .qs-element-search { margin-bottom:18px; }
+ .qs-floor-asset-sidebar .qs-element-library { grid-template-columns:minmax(0,1fr); gap:8px; }
+ .qs-floor-asset-sidebar .qs-element-library button { flex-direction:row; min-height:72px; height:72px; padding:8px; gap:10px; border-radius:10px; box-shadow:none; justify-content:flex-start; }
+ .qs-floor-asset-sidebar .qs-element-library button .qs-element-3d-preview { width:72px; height:52px; flex:0 0 72px; object-fit:contain; }
+ .qs-floor-asset-sidebar .qs-element-library button span { display:block; min-width:0; width:auto; flex:1; font-size:12px; line-height:18px; overflow-wrap:normal; white-space:nowrap; text-align:start; }
+ .qs-floor-asset-sidebar .qs-element-library button:disabled { opacity:.45; cursor:wait; }
+ .qs-floor-asset-sidebar .qs-element-library button:hover:not(:disabled) { box-shadow:none; background:var(--muted); }
 }

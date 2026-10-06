@@ -74,7 +74,7 @@ function AuthenticatedShell() {
 
   return (
     <TenantBrandShell>
-      <div className={cn("pb-24 lg:min-h-dvh lg:pb-0", !access.isSuperAdmin && "lg:ps-[var(--qs-shell-sidebar)]", !usesDedicatedChrome && "qs-persistent-chrome")}>
+      <div className={cn("pb-24 lg:min-h-dvh lg:pb-0", !access.isSuperAdmin && "qs-sidebar-content lg:ps-[var(--qs-shell-sidebar)]", !usesDedicatedChrome && "qs-persistent-chrome")}>
         {!usesDedicatedChrome ? <AppHeader title={persistentTitle} /> : null}
         {blocked ? null : (
           <div className="qs-route-frame">
