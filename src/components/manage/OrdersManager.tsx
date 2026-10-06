@@ -482,7 +482,6 @@ function OrderStatusEditor({ order }: { order: { id: string; restaurant_id: stri
   const access = useAccess();
   const membership = access.membershipFor(order.restaurant_id);
   const canUpdate = access.isSuperAdmin || Boolean(membership
-    && ["restaurant_admin", "manager", "kitchen", "waiter", "cashier"].includes(membership.role)
     && membershipHasCapability(membership.role, membership.permission_overrides, "update_order_status"));
   const qc = useQueryClient();
   const [draft, setDraft] = useState(order.status);
