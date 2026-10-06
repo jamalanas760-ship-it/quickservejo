@@ -64,6 +64,8 @@
 @theme inline {
   --font-sans: var(--font-ui);
   --font-display: var(--font-ui);
+  --font-serif: var(--font-ui);
+  --font-mono: var(--font-ui);
   --color-surface: var(--surface);
   --color-surface-foreground: var(--surface-foreground);
   --color-success: var(--success);

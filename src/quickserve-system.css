@@ -5419,7 +5419,7 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
 
 /* One reversible rail transition; icons and the toggle keep their coordinates. */
 @layer components {
-:root { --qs-rail-duration:360ms; --qs-rail-ease:cubic-bezier(.22,1,.36,1); }
+:root { --qs-rail-duration:760ms; --qs-rail-ease:cubic-bezier(.45,0,.2,1); }
 @media(min-width:1024px) {
   :root[data-sidebar-collapsed="true"] { --qs-shell-sidebar:76px!important; }
   .qs-sidebar-shell { overflow:hidden; }
@@ -5452,7 +5452,7 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
   :root[data-sidebar-motion-ready="true"] .qs-sidebar-shell { transition:width var(--qs-rail-duration) var(--qs-rail-ease); }
   :root[data-sidebar-motion-ready="true"] .qs-persistent-chrome { transition:padding-inline-start var(--qs-rail-duration) var(--qs-rail-ease); }
   :root[data-sidebar-motion-ready="true"] :is(.qs-sidebar-label,.qs-sidebar-count,.qs-sidebar-wordmark) {
-    transition:opacity 180ms ease 100ms,transform var(--qs-rail-duration) var(--qs-rail-ease);
+    transition:opacity 320ms ease 200ms,transform var(--qs-rail-duration) var(--qs-rail-ease);
   }
   :root[data-sidebar-motion-ready="true"] .qs-sidebar-shell[data-collapsed="true"] :is(.qs-sidebar-label,.qs-sidebar-count,.qs-sidebar-wordmark) { transition-delay:0ms; }
   :root[data-sidebar-motion-ready="true"] .qs-sidebar-toggle-icon { transition:transform var(--qs-rail-duration) var(--qs-rail-ease); }
