@@ -5430,7 +5430,7 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
   :root[data-sidebar-collapsed="true"] { --qs-animated-sidebar-width:76px; }
   :root[data-sidebar-motion-ready="true"] { transition:--qs-animated-sidebar-width var(--qs-rail-duration) var(--qs-rail-ease)!important; }
   .qs-sidebar-shell { display:flex!important; width:var(--qs-animated-sidebar-width)!important; }
-  .qs-sidebar-content, .qs-persistent-chrome { padding-inline-start:var(--qs-animated-sidebar-width)!important; transition:none!important; }
+  .qs-sidebar-content { padding-inline-start:var(--qs-animated-sidebar-width)!important; transition:none!important; }
   .qs-mobile-bottom-nav { display:none!important; }
   .qs-sidebar-content { padding-bottom:0!important; min-height:100dvh; }
 }
