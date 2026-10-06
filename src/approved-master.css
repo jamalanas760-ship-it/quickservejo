@@ -18,7 +18,7 @@
 }
 
 html, body { background: var(--qs-bg); }
-body { color: var(--qs-ink); font-family: "Manrope", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif; }
+body { color: var(--qs-ink); font-family: var(--font-ui); }
 
 .qs-page { width: min(100%, var(--qs-page-max)) !important; padding: var(--qs-page-y) var(--qs-page-x) 48px !important; }
 .qs-page-title { font-size: clamp(1.75rem, 2.2vw, 2.35rem) !important; font-weight: 750 !important; letter-spacing: -.045em !important; }
