@@ -21,7 +21,7 @@ import {
 } from "@/components/nav/QuickServeIcons";
 import { ViewportDock } from "./ViewportDock";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   BarChart3,
   Banknote,
@@ -41,7 +41,6 @@ import {
   Plus,
   LayoutGrid,
   PanelLeftClose,
-  PanelLeftOpen,
   PlugZap,
   Search,
   Settings,
@@ -101,9 +100,21 @@ export function BottomNav() {
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarRestored, setSidebarRestored] = useState(false);
+  const [sidebarMotionReady, setSidebarMotionReady] = useState(false);
   useEffect(() => {
     try { setSidebarCollapsed(localStorage.getItem("qs-sidebar-collapsed") === "true"); } catch {}
+    setSidebarRestored(true);
   }, []);
+  useEffect(() => {
+    if (!sidebarRestored) return;
+    // Restore the saved rail before enabling motion, avoiding a startup sweep.
+    let nextFrame = 0;
+    const frame = requestAnimationFrame(() => {
+      nextFrame = requestAnimationFrame(() => setSidebarMotionReady(true));
+    });
+    return () => { cancelAnimationFrame(frame); cancelAnimationFrame(nextFrame); };
+  }, [sidebarRestored]);
   const [toolSearch, setToolSearch] = useState("");
   const [iosQuickItem, setIOSQuickItem] = useState<Item | null>(null);
   const [iosQuickAnchor, setIOSQuickAnchor] = useState<{
@@ -119,11 +130,17 @@ export function BottomNav() {
   const suppressNextNavClick = useRef(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const access = useAccess();
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.dataset.sidebarCollapsed = String(sidebarCollapsed && !access.isSuperAdmin);
-    try { localStorage.setItem("qs-sidebar-collapsed", String(sidebarCollapsed)); } catch {}
-    return () => { delete document.documentElement.dataset.sidebarCollapsed; };
-  }, [sidebarCollapsed,access.isSuperAdmin]);
+    document.documentElement.dataset.sidebarMotionReady = String(sidebarMotionReady);
+    if (sidebarRestored) {
+      try { localStorage.setItem("qs-sidebar-collapsed", String(sidebarCollapsed)); } catch {}
+    }
+  }, [sidebarCollapsed, sidebarMotionReady, sidebarRestored, access.isSuperAdmin]);
+  useEffect(() => () => {
+    delete document.documentElement.dataset.sidebarCollapsed;
+    delete document.documentElement.dataset.sidebarMotionReady;
+  }, []);
 
   const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
   const membership =
@@ -896,22 +913,22 @@ export function BottomNav() {
   }
 
   const brand = useRestaurantLogo ? (
-    <span className="flex min-w-0 items-center gap-2">
-      <span className="flex h-10 max-w-[112px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-white px-2 shadow-sm">
+    <span className="qs-sidebar-brand flex min-w-0 items-center gap-3">
+      <span className="qs-sidebar-brand-mark flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-white px-2 shadow-sm">
         <img
           src={restaurant!.logo_url!}
           alt={restaurant?.name ?? "Restaurant"}
           className="h-7 w-auto max-w-full object-contain"
         />
       </span>
-      <span className="truncate text-sm font-bold">{restaurant?.name}</span>
+      <span className="qs-sidebar-wordmark truncate text-sm font-bold">{restaurant?.name}</span>
     </span>
   ) : (
     <BrandLogo
-      className="size-8"
+      className="size-10 shrink-0"
       accentClassName="text-[#e85d2a]"
       markOnly={false}
-      textClassName="text-[18px] text-foreground"
+      textClassName="qs-sidebar-wordmark text-[18px] text-foreground"
     />
   );
 
@@ -931,7 +948,7 @@ export function BottomNav() {
         <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-4">
           <Link
             to={homeTo as never}
-            className="min-w-0 text-foreground"
+            className="qs-sidebar-brand-link min-w-0 text-foreground"
             aria-label={restaurant?.name || "QuickServe dashboard"}
           >
             {brand}
@@ -940,7 +957,7 @@ export function BottomNav() {
 
         <div className="qs-sidebar-collapse-row">
           <Button className="qs-sidebar-collapse-button" type="button" variant="ghost" size="icon" onClick={()=>setSidebarCollapsed(value=>!value)} aria-controls="workspace-sidebar" aria-expanded={!sidebarCollapsed} aria-label={sidebarCollapsed?(lang==="ar"?"توسيع القائمة":"Expand sidebar"):(lang==="ar"?"طي القائمة":"Collapse sidebar")} title={sidebarCollapsed?(lang==="ar"?"توسيع القائمة":"Expand sidebar"):(lang==="ar"?"طي القائمة":"Collapse sidebar")}>
-            {sidebarCollapsed?<PanelLeftOpen className="size-5 rtl:rotate-180"/>:<PanelLeftClose className="size-5 rtl:rotate-180"/>}
+            <PanelLeftClose className="qs-sidebar-toggle-icon size-5" aria-hidden="true" />
           </Button>
         </div>
         <nav
@@ -964,11 +981,11 @@ export function BottomNav() {
                     aria-current={active ? "page" : undefined}
                   >
                     <Icon className="size-[18px] shrink-0" />
-                    <span className="min-w-0 flex-1 truncate">
+                    <span className="qs-sidebar-label min-w-0 flex-1 truncate">
                       {lang === "ar" ? item.ar : item.en}
                     </span>
                     {count > 0 ? (
-                      <span className="min-w-6 rounded-full bg-[#e85d2a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white shadow-sm">
+                      <span className="qs-sidebar-count min-w-6 rounded-full bg-[#e85d2a] px-1.5 py-0.5 text-center text-[10px] font-bold text-white shadow-sm">
                         {count > 99 ? "99+" : count}
                       </span>
                     ) : null}
@@ -990,10 +1007,10 @@ export function BottomNav() {
               aria-expanded={moreOpen}
             >
               <MoreHorizontal className="size-[18px] shrink-0" />
-              <span className="min-w-0 flex-1 text-start">
+              <span className="qs-sidebar-label min-w-0 flex-1 text-start">
                 {lang === "ar" ? "كل الأدوات" : "All tools"}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="qs-sidebar-count text-xs text-muted-foreground">
                 {desktopItems.length - desktopPrimary.length}
               </span>
             </button>
@@ -1014,7 +1031,7 @@ export function BottomNav() {
               className="qs-sidebar-item mt-1"
             >
               <Settings className="size-[18px] shrink-0" />
-              <span className="min-w-0 flex-1 truncate">
+              <span className="qs-sidebar-label min-w-0 flex-1 truncate">
                 {lang === "ar" ? "الإعدادات" : "Settings"}
               </span>
             </Link>
