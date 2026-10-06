@@ -1,3 +1,5 @@
+import { FloorRotationControl } from "./FloorRotationControl";
+import { pickFloorObject } from "@/lib/floor-picking";
 import { ActionMenu } from "@/components/app/ActionMenu";
 import { RotateCcw, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -230,6 +232,7 @@ export default function FloorPlan3D(props: Props) {
       camera.updateProjectionMatrix();
       requestRender();
     }
+    const pickMaterial = new T.MeshBasicMaterial({ transparent:true, opacity:0, depthWrite:false, colorWrite:false });
     const selectionMaterial = catalog.mat("#e85d2a", {
       emissive: "#e85d2a",
       emissiveIntensity: 0.4,
@@ -262,6 +265,15 @@ export default function FloorPlan3D(props: Props) {
         models.add(outline);
       }
       models.add(group);
+      if (kind === "table" || kind === "element") {
+        group.updateMatrixWorld(true);
+        const bounds = new T.Box3().setFromObject(group), size = bounds.getSize(new T.Vector3());
+        const touchSize = 44 * (camera.top-camera.bottom) / Math.max(1,container!.clientHeight) / latest.current.zoom;
+        const proxy = new T.Mesh(new T.BoxGeometry(Math.max(size.x,touchSize),Math.max(size.y,.3),Math.max(size.z,touchSize)),pickMaterial);
+        proxy.position.copy(bounds.getCenter(new T.Vector3()));
+        proxy.userData = { kind, id, pickProxy:true };
+        models.add(proxy);
+      }
       groups.set(`${kind}:${id}`, group);
     }
     function zoneMaterial(color: string) {
@@ -272,7 +284,7 @@ export default function FloorPlan3D(props: Props) {
     function update() {
       // Geometries/materials are shared; only instance groups and selection rings change.
       for (const child of models.children)
-        if (child.userData.selectionRing) (child as T.Mesh).geometry.dispose();
+        if (child.userData.selectionRing || child.userData.pickProxy) (child as T.Mesh).geometry.dispose();
       models.clear();
       groups.clear();
       const p = latest.current;
@@ -343,6 +355,7 @@ export default function FloorPlan3D(props: Props) {
       kind: "table" | "element";
       id: string;
       point: T.Vector3;
+      clientX: number; clientY: number;
       table?: Floor3DTable | undefined;
       element?: FloorElement | undefined;
       nextTable?: FloorTableLayout;
@@ -353,10 +366,8 @@ export default function FloorPlan3D(props: Props) {
       const start = point(e);
       if (!start) return;
       const hits = ray.intersectObjects(models.children, true);
-      let hit: T.Object3D | undefined = hits.find((h) => !h.object.userData.selectionRing)?.object;
-      while (hit && !hit.userData.kind) hit = hit.parent ?? undefined;
       const p = latest.current;
-      const target = forced ?? (hit?.userData as NonNullable<Selection> | undefined);
+      const target = forced ?? pickFloorObject(hits);
       if (!target?.kind) {
         p.onSelect(null);
         return;
@@ -364,7 +375,6 @@ export default function FloorPlan3D(props: Props) {
       const { kind, id } = target;
       p.onSelect({ kind, id });
       if (
-        controls.touches.ONE === T.TOUCH.ROTATE ||
         !p.editable ||
         p.busy ||
         (kind !== "table" && kind !== "element")
@@ -379,12 +389,20 @@ export default function FloorPlan3D(props: Props) {
         kind,
         id,
         point: start.clone(),
+        clientX:e.clientX, clientY:e.clientY,
         table: p.tables.find((t) => t.id === id),
         element: p.elements.find((t) => t.id === id),
       };
     }
+    let previewFrame = 0;
+    function previewDrag() {
+      previewFrame = 0;
+      if (drag?.nextTable) latest.current.onTablePreview(drag.id,drag.nextTable);
+      if (drag?.nextElement) latest.current.onElementPreview(drag.nextElement);
+    }
     function move(e: PointerEvent) {
       if (!drag || drag.pointer !== e.pointerId) return;
+      if (Math.hypot(e.clientX-drag.clientX,e.clientY-drag.clientY)<4 && !drag.nextTable && !drag.nextElement) return;
       const current = point(e);
       if (!current) return;
       const from = floorPointToLayout(drag.point.x, drag.point.z, width, depth);
@@ -393,15 +411,19 @@ export default function FloorPlan3D(props: Props) {
         dy = to.y - from.y;
       if (drag.table) {
         drag.nextTable = moveTableInFloor(drag.table.layout, dx, dy, latest.current.grid);
-        latest.current.onTablePreview(drag.id, drag.nextTable);
+
       } else if (drag.element) {
         drag.nextElement = moveFloorElement(drag.element, dx / 10, dy / 7, latest.current.grid);
-        latest.current.onElementPreview(drag.nextElement);
+
       }
+      if (!previewFrame) previewFrame = requestAnimationFrame(previewDrag);
     }
     function end(e: PointerEvent) {
       if (!drag || drag.pointer !== e.pointerId) return;
       const d = drag;
+      cancelAnimationFrame(previewFrame);
+      if (e.type !== "pointercancel") previewDrag();
+      previewFrame = 0;
       drag = null;
       controls.enabled = true;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
@@ -478,6 +500,8 @@ export default function FloorPlan3D(props: Props) {
     return () => {
       disposed = true;
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(previewFrame);
+      pickMaterial.dispose();
       runtime.current = null;
       observer.disconnect();
       themeObserver.disconnect();
@@ -489,7 +513,7 @@ export default function FloorPlan3D(props: Props) {
       canvas.removeEventListener("webglcontextlost", lost);
       controls.dispose();
       for (const child of models.children)
-        if (child.userData.selectionRing) (child as T.Mesh).geometry.dispose();
+        if (child.userData.selectionRing || child.userData.pickProxy) (child as T.Mesh).geometry.dispose();
       grid.geometry.dispose();
       (grid.material as T.Material).dispose();
       floorTexture?.dispose();
@@ -535,46 +559,29 @@ export default function FloorPlan3D(props: Props) {
       props.onElementCommit(next, element);
     }
   }
-  function adjustSelected(action: "rotate" | "smaller" | "larger") {
+  function adjustSelected(action: "smaller" | "larger") {
     if (!props.editable || props.busy || !props.selected) return;
-    const table = props.tables.find((t) => t.id === props.selected?.id);
-    if (table) {
-      const next = {
-        ...table.layout,
-        rotation:
-          action === "rotate"
-            ? table.layout.rotation >= 180
-              ? -180
-              : table.layout.rotation + 15
-            : table.layout.rotation,
-        scale:
-          action === "rotate"
-            ? table.layout.scale
-            : Math.min(
-                1.6,
-                Math.max(0.65, table.layout.scale + (action === "larger" ? 0.1 : -0.1)),
-              ),
-      };
+    if (props.selected.kind === "table") {
+      const table = props.tables.find((t) => t.id === props.selected?.id);
+      if (!table) return;
+      const next = { ...table.layout, scale: Math.min(1.6, Math.max(0.65, table.layout.scale + (action === "larger" ? 0.1 : -0.1))) };
       props.onTablePreview(table.id, next);
       props.onTableCommit(table.id, next);
-    }
-    const element = props.elements.find((e) => e.id === props.selected?.id);
-    if (element) {
+    } else if (props.selected.kind === "element") {
+      const element = props.elements.find((e) => e.id === props.selected?.id);
+      if (!element) return;
       const factor = action === "larger" ? 1.1 : 0.9;
-      const next = normalizeFloorElement({
-        ...element,
-        rotation:
-          action === "rotate"
-            ? element.rotation >= 180
-              ? -180
-              : element.rotation + 15
-            : element.rotation,
-        width: action === "rotate" ? element.width : element.width * factor,
-        height: action === "rotate" ? element.height : element.height * factor,
-      });
+      const next = normalizeFloorElement({ ...element, width: element.width * factor, height: element.height * factor });
       props.onElementPreview(next);
       props.onElementCommit(next, element);
     }
+  }
+  const selectedTable = props.selected?.kind === "table" ? props.tables.find(t=>t.id===props.selected?.id) : null;
+  const selectedElement = props.selected?.kind === "element" ? props.elements.find(e=>e.id===props.selected?.id) : null;
+  function rotateSelected(rotation: number) {
+    if (props.busy || !props.editable) return;
+    if (selectedTable) { const next = { ...selectedTable.layout, rotation }; props.onTablePreview(selectedTable.id,next); props.onTableCommit(selectedTable.id,next); }
+    if (selectedElement) { const next = normalizeFloorElement({ ...selectedElement, rotation }); props.onElementPreview(next); props.onElementCommit(next,selectedElement); }
   }
   return (
     <div
@@ -603,6 +610,10 @@ export default function FloorPlan3D(props: Props) {
           {label:props.ar ? "تدوير لليسار" : "Rotate view left",icon:RotateCcw,onSelect:()=>runtime.current?.rotate(-Math.PI/4)},
           {label:props.ar ? "تدوير لليمين" : "Rotate view right",icon:RotateCw,onSelect:()=>runtime.current?.rotate(Math.PI/4)},
           {label:props.ar ? "إعادة ضبط العرض" : "Reset view",onSelect:()=>runtime.current?.reset()},
+          ...(props.editable && (selectedTable || selectedElement) ? [
+            {label:props.ar ? "تصغير العنصر المحدد" : "Make selected furniture smaller",disabled:props.busy,onSelect:()=>adjustSelected("smaller")},
+            {label:props.ar ? "تكبير العنصر المحدد" : "Make selected furniture larger",disabled:props.busy,onSelect:()=>adjustSelected("larger")},
+          ] : []),
         ]}/>
 
       </div>
@@ -633,30 +644,7 @@ export default function FloorPlan3D(props: Props) {
       {props.editable &&
         (props.selected?.kind === "table" || props.selected?.kind === "element") && (
           <div className="qs-floor-3d-object-tools">
-            <button
-              type="button"
-              disabled={props.busy}
-              onClick={() => adjustSelected("rotate")}
-              aria-label={props.ar ? "تدوير العنصر المحدد" : "Rotate selected furniture"}
-            >
-              ↻
-            </button>
-            <button
-              type="button"
-              disabled={props.busy}
-              onClick={() => adjustSelected("smaller")}
-              aria-label={props.ar ? "تصغير العنصر المحدد" : "Make selected furniture smaller"}
-            >
-              −
-            </button>
-            <button
-              type="button"
-              disabled={props.busy}
-              onClick={() => adjustSelected("larger")}
-              aria-label={props.ar ? "تكبير العنصر المحدد" : "Make selected furniture larger"}
-            >
-              +
-            </button>
+            <FloorRotationControl ar={props.ar} disabled={props.busy} value={selectedTable?.layout.rotation ?? selectedElement?.rotation ?? 0} onChange={rotateSelected} />
           </div>
         )}
       <p className="qs-floor-3d-hint">

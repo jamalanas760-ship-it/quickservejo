@@ -39,6 +39,9 @@ export const FLOOR_ELEMENT_LABELS: Record<FloorElementType, [string, string]> = 
   stool: ["Bar stool", "كرسي بار"],
   partition: ["Partition", "فاصل"], reception: ["Reception desk", "مكتب استقبال"], storage: ["Storage cabinet", "خزانة تخزين"], buffet: ["Buffet station", "بوفيه"], bench: ["Bench", "مقعد طويل"], planter: ["Planter", "حوض نباتات"],
 };
+export function rotateFloorObject(rotation: number, delta: number) {
+  return ((rotation + delta + 180) % 360 + 360) % 360 - 180;
+}
 const bound = (value: unknown, fallback: number, min: number, max: number) => {
   const numeric = typeof value === "number" ? value : Number(value);
   return Number.isFinite(numeric) ? Math.max(min, Math.min(max, numeric)) : fallback;

@@ -1,3 +1,5 @@
+import { ActionMenu } from "@/components/app/ActionMenu";
+import { FloorRotationControl } from "./FloorRotationControl";
 import { FloorPlanSymbol } from "./FloorPlanSymbol";
 import { FloorElementPreview } from "./FloorElementPreview";
 import { useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
@@ -13,7 +15,6 @@ import {
   TreeDeciduous,
   Wine,
   Copy,
-  RotateCw,
   Trash2,
 } from "lucide-react";
 import { Search } from "lucide-react";
@@ -161,6 +162,8 @@ export function FloorElementPiece({
     next: FloorElement;
     resize: boolean;
   } | null>(null);
+  const previewFrame = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(previewFrame.current), []);
   function down(event: PointerEvent<HTMLElement>, resize = false) {
     event.stopPropagation();
     onSelect();
@@ -180,6 +183,7 @@ export function FloorElementPiece({
     const state = drag.current,
       rect = canvasRef.current?.getBoundingClientRect();
     if (!state || !rect || state.pointer !== event.pointerId) return;
+    if (Math.hypot(event.clientX-state.x,event.clientY-state.y) < 4 && state.next === state.start) return;
     state.next = moveFloorElement(
       state.start,
       ((event.clientX - state.x) / rect.width) * 100,
@@ -187,19 +191,27 @@ export function FloorElementPiece({
       grid,
       state.resize,
     );
-    onPreview(state.next);
+    if (!previewFrame.current) previewFrame.current = requestAnimationFrame(() => {
+      previewFrame.current = 0;
+      if (drag.current) onPreview(drag.current.next);
+    });
   }
   function end(event: PointerEvent<HTMLElement>) {
     const state = drag.current;
     if (!state || state.pointer !== event.pointerId) return;
     drag.current = null;
+    cancelAnimationFrame(previewFrame.current);
+    previewFrame.current = 0;
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);
     if (event.type === "pointercancel") {
       onPreview(state.start);
       return;
     }
-    onCommit(state.next, state.start);
+    if (["x", "y", "width", "height"].some(key => state.next[key as "x" | "y" | "width" | "height"] !== state.start[key as "x" | "y" | "width" | "height"])) {
+      onPreview(state.next);
+      onCommit(state.next, state.start);
+    }
   }
   return (
     <div
@@ -216,6 +228,14 @@ export function FloorElementPiece({
         type="button"
         className="qs-floor-element-body"
         aria-label={element.label || FLOOR_ELEMENT_LABELS[element.type][0]}
+        aria-pressed={selected}
+        onKeyDown={event => {
+          const moves: Record<string,[number,number]> = { ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1] };
+          if (!editable || busy || !moves[event.key]) return;
+          event.preventDefault(); event.stopPropagation();
+          const [dx,dy] = moves[event.key], next = moveFloorElement(element,dx,dy,grid);
+          onPreview(next); onCommit(next,element);
+        }}
         onPointerDown={down}
         onPointerMove={move}
         onPointerUp={end}
@@ -266,9 +286,10 @@ export function FloorElementInspector({
       <h2 className="text-lg font-bold">{FLOOR_ELEMENT_LABELS[element.type][ar ? 1 : 0]}</h2>
       <p className="text-xs text-muted-foreground">
         {ar
-          ? "اسحب للتحريك. عدّل الحجم والدوران بالأسفل."
-          : "Drag to move. Adjust size and rotation below."}
+          ? "اسحب العنصر لتحريكه. استخدم الأسهم لتدويره."
+          : "Drag the object to move it. Use the arrows to rotate."}
       </p>
+      <FloorRotationControl value={draft.rotation} ar={ar} disabled={busy} onChange={rotation => { const next = normalizeFloorElement({ ...draft, rotation }); setDraft(next); onSave(next); }} />
       <label className="block text-xs font-semibold">
         {ar ? "الاسم" : "Label"}
         <Input
@@ -278,7 +299,7 @@ export function FloorElementInspector({
           onChange={(e) => setDraft({ ...draft, label: e.target.value })}
         />
       </label>
-      <div className="grid grid-cols-2 gap-3">
+      <details className="qs-floor-advanced"><summary>{ar ? "الحجم والموقع الدقيق" : "Size & precise position"}</summary><div className="grid grid-cols-2 gap-3">
         {(["x", "y", "width", "height", "rotation"] as const).map((key) => (
           <label key={key} className="text-xs font-semibold">
             {
@@ -301,7 +322,7 @@ export function FloorElementInspector({
             />
           </label>
         ))}
-      </div>
+      </div></details>
       <Button
         type="button"
         className="w-full"
@@ -310,33 +331,10 @@ export function FloorElementInspector({
       >
         {ar ? "حفظ التغييرات" : "Save changes"}
       </Button>
-      <div className="grid grid-cols-2 gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={busy}
-          onClick={() =>
-            onSave({ ...element, rotation: element.rotation >= 180 ? -180 : element.rotation + 15 })
-          }
-        >
-          <RotateCw className="size-4" />
-          {ar ? "تدوير" : "Rotate"}
-        </Button>
-        <Button type="button" variant="outline" disabled={busy} onClick={onDuplicate}>
-          <Copy className="size-4" />
-          {ar ? "نسخ" : "Duplicate"}
-        </Button>
-      </div>
-      <Button
-        type="button"
-        variant="outline"
-        className="qs-element-delete w-full text-destructive"
-        disabled={busy}
-        onClick={onDelete}
-      >
-        <Trash2 className="size-4" />
-        {ar ? "حذف العنصر" : "Delete element"}
-      </Button>
+      <ActionMenu ar={ar} label={ar ? "خيارات العنصر" : "Object options"} actions={[
+        { label: ar ? "نسخ" : "Duplicate", icon: Copy, disabled: busy, onSelect: onDuplicate },
+        { label: ar ? "حذف العنصر" : "Delete element", icon: Trash2, disabled: busy, destructive: true, onSelect: onDelete },
+      ]} />
     </div>
   );
 }
