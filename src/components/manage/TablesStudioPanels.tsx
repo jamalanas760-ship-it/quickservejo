@@ -244,7 +244,7 @@ export function TableQuickPanel({
   const manualHold = Boolean(row.status_updated_by) && row.service_status !== "free";
   const cleaningMinutes = Math.max(0, Math.ceil((Date.parse(row.status_updated_at ?? "") + 600000 - now) / 60000));
   return (
-    <div className="qs-table-quick-panel">
+    <div className={`qs-table-quick-panel${compact ? " is-compact" : ""}`}>
       {!compact && <><h2 className="text-xl font-bold">
         {ar ? "طاولة" : "Table"} {row.table_number}
       </h2>

@@ -2325,9 +2325,9 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       </Dialog>
 
       <Dialog open={tablePreviewOpen && !!selected} onOpenChange={setTablePreviewOpen}>
-        <DialogContent className="sm:max-w-md" style={{height:"auto",bottom:"auto"}} dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={e=>e.preventDefault()}>
+        <DialogContent placement="edge" className="qs-table-preview-dialog" dir={ar ? "rtl" : "ltr"}>
           <DialogHeader><DialogTitle>{ar ? "الطاولة المحددة" : "Selected table"} {selected?.table_number}</DialogTitle><DialogDescription>{selected ? `${tableZoneName(selected)} · ${selected.capacity ?? 4} ${ar ? "مقاعد" : "seats"}` : ""}</DialogDescription></DialogHeader>
-          <div className="min-w-0">{quickPanel}</div>
+          <div className="qs-table-preview-body">{quickPanel}</div>
         </DialogContent>
       </Dialog>
 
