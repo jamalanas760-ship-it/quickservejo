@@ -1,3 +1,5 @@
+import { TaskPanel } from "@/components/operations/TaskPanel";
+import { useServiceLive, invalidateServiceQueries } from "@/hooks/useServiceLive";
 import { Table2 } from "@/components/nav/QuickServeIcons";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,14 +32,21 @@ import { humanError } from "@/lib/errors";
 import { formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { playOrderAlert, unlockAlertSound } from "@/lib/order-alert";
-import { setTableServiceStatusResilient, setWaiterCallStatusResilient } from "@/lib/offline-ops";
+import {
+  setOrderStatusResilient,
+  setTableServiceStatusResilient,
+  setWaiterCallStatusResilient,
+} from "@/lib/offline-ops";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/waiter")({
   head: () => ({
     meta: [
       { title: "Floor — QuickServe waiter" },
-      { name: "description", content: "Live floor workspace for tables, guest calls and active orders." },
+      {
+        name: "description",
+        content: "Live floor workspace for tables, guest calls and active orders.",
+      },
     ],
   }),
   component: WaiterFloor,
@@ -91,7 +100,9 @@ function useFloor(restaurantId: string | null) {
         id: table.id,
         table_number: table.table_number,
         table_name: table.table_name,
-        service_status: (table.service_status ?? "free") as TableServiceStatus,
+        service_status: ((ordersRes.data ?? []).some((order) => order.table_id === table.id)
+          ? "active"
+          : (table.service_status ?? "free")) as TableServiceStatus,
         activated_at: table.activated_at ?? null,
         status_updated_at: table.status_updated_at ?? null,
         calling:
@@ -111,11 +122,12 @@ function useFloor(restaurantId: string | null) {
   });
 }
 
-function WaiterFloor() {
+export function WaiterFloor() {
   const { t, lang } = useI18n();
   const ar = lang === "ar";
   const scope = useWorkspaceScope();
   const floor = useFloor(scope.restaurantId);
+  const serviceLive = useServiceLive(scope.restaurantId);
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FloorFilter>("all");
   const [search, setSearch] = useState("");
@@ -131,19 +143,33 @@ function WaiterFloor() {
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rows.filter((table) => {
-      const matchesFilter =
-        filter === "all"
-        || (filter === "calling" && Boolean(table.calling))
-        || (filter === "active" && table.service_status === "active")
-        || (filter === "free" && table.service_status === "free")
-        || (filter === "reserved" && table.service_status === "reserved")
-        || (filter === "cleaning" && table.service_status === "cleaning");
-      if (!matchesFilter) return false;
-      if (!q) return true;
-      return [table.table_number, table.table_name, table.service_status, ...table.openOrders.map((order) => order.order_number)]
-        .some((value) => String(value ?? "").toLowerCase().includes(q));
-    });
+    return [...rows]
+      .sort(
+        (a, b) =>
+          Number(Boolean(b.calling || b.openOrders.some((order) => order.status === "ready"))) -
+          Number(Boolean(a.calling || a.openOrders.some((order) => order.status === "ready"))),
+      )
+      .filter((table) => {
+        const matchesFilter =
+          filter === "all" ||
+          (filter === "calling" && Boolean(table.calling)) ||
+          (filter === "active" && table.service_status === "active") ||
+          (filter === "free" && table.service_status === "free") ||
+          (filter === "reserved" && table.service_status === "reserved") ||
+          (filter === "cleaning" && table.service_status === "cleaning");
+        if (!matchesFilter) return false;
+        if (!q) return true;
+        return [
+          table.table_number,
+          table.table_name,
+          table.service_status,
+          ...table.openOrders.map((order) => order.order_number),
+        ].some((value) =>
+          String(value ?? "")
+            .toLowerCase()
+            .includes(q),
+        );
+      });
   }, [rows, filter, search]);
 
   useEffect(() => {
@@ -152,12 +178,40 @@ function WaiterFloor() {
 
   useEffect(() => {
     if (!scope.restaurantId) return;
-    const refresh = () => void queryClient.invalidateQueries({ queryKey: ["waiter", "floor", scope.restaurantId] });
+    const refresh = () =>
+      void queryClient.invalidateQueries({ queryKey: ["waiter", "floor", scope.restaurantId] });
     const channel = supabase
       .channel(`waiter-floor:${scope.restaurantId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "restaurant_tables", filter: `restaurant_id=eq.${scope.restaurantId}` }, refresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "waiter_calls", filter: `restaurant_id=eq.${scope.restaurantId}` }, refresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `restaurant_id=eq.${scope.restaurantId}` }, refresh)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "restaurant_tables",
+          filter: `restaurant_id=eq.${scope.restaurantId}`,
+        },
+        refresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "waiter_calls",
+          filter: `restaurant_id=eq.${scope.restaurantId}`,
+        },
+        refresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `restaurant_id=eq.${scope.restaurantId}`,
+        },
+        refresh,
+      )
       .subscribe();
 
     return () => {
@@ -173,14 +227,28 @@ function WaiterFloor() {
     onSuccess: async (result, variables) => {
       if (scope.restaurantId && result.queued) {
         queryClient.setQueryData<FloorTable[]>(["waiter", "floor", scope.restaurantId], (current) =>
-          (current ?? []).map((table) => table.calling?.id === variables.id
-            ? { ...table, calling: variables.status === "resolved" ? null : { ...table.calling, status: variables.status } }
-            : table),
+          (current ?? []).map((table) =>
+            table.calling?.id === variables.id
+              ? {
+                  ...table,
+                  calling:
+                    variables.status === "resolved"
+                      ? null
+                      : { ...table.calling, status: variables.status },
+                }
+              : table,
+          ),
         );
-        toast.info(ar ? "تم حفظ الإجراء بدون اتصال وسيتم مزامنته تلقائياً" : "Action saved offline and will sync automatically");
+        toast.info(
+          ar
+            ? "تم حفظ الإجراء بدون اتصال وسيتم مزامنته تلقائياً"
+            : "Action saved offline and will sync automatically",
+        );
         return;
       }
-      toast.success(variables.status === "resolved" ? t("waiter.resolve") : t("waiter.acknowledge"));
+      toast.success(
+        variables.status === "resolved" ? t("waiter.resolve") : t("waiter.acknowledge"),
+      );
       await queryClient.invalidateQueries({ queryKey: ["waiter", "floor"] });
     },
     onError: (error) => toast.error(humanError(error, lang)),
@@ -189,6 +257,10 @@ function WaiterFloor() {
   const setTableFree = useMutation({
     mutationFn: async (tableId: string) => {
       if (!scope.restaurantId) throw new Error("Restaurant unavailable");
+      if (rows.find((table) => table.id === tableId)?.openOrders.length)
+        throw new Error(
+          ar ? "لا يمكن تحرير طاولة لها طلب مفتوح" : "Settle open orders before freeing the table",
+        );
       const result = await setTableServiceStatusResilient({
         restaurantId: scope.restaurantId,
         tableId,
@@ -199,15 +271,50 @@ function WaiterFloor() {
     onSuccess: async (result) => {
       if (scope.restaurantId && result.queued) {
         queryClient.setQueryData<FloorTable[]>(["waiter", "floor", scope.restaurantId], (current) =>
-          (current ?? []).map((table) => table.id === result.tableId
-            ? { ...table, service_status: "free" as TableServiceStatus, activated_at: null }
-            : table),
+          (current ?? []).map((table) =>
+            table.id === result.tableId
+              ? { ...table, service_status: "free" as TableServiceStatus, activated_at: null }
+              : table,
+          ),
         );
-        toast.info(ar ? "تم تحرير الطاولة محلياً وستتم المزامنة عند عودة الاتصال" : "Table released locally and will sync when connection returns");
+        toast.info(
+          ar
+            ? "تم تحرير الطاولة محلياً وستتم المزامنة عند عودة الاتصال"
+            : "Table released locally and will sync when connection returns",
+        );
         return;
       }
       toast.success(ar ? "تم تحرير الطاولة وأصبحت متاحة" : "Table closed and marked Free");
       await queryClient.invalidateQueries({ queryKey: ["waiter", "floor"] });
+    },
+    onError: (error) => toast.error(humanError(error, lang)),
+  });
+
+  const serve = useMutation({
+    mutationFn: async (id: string) => {
+      if (!scope.restaurantId) throw new Error("Restaurant unavailable");
+      const order = rows.flatMap((table) => table.openOrders).find((order) => order.id === id);
+      if (order?.status !== "ready") throw new Error("Only ready orders can be served");
+      return setOrderStatusResilient({
+        restaurantId: scope.restaurantId,
+        orderId: id,
+        status: "served",
+      });
+    },
+    onSuccess: async (result, id) => {
+      if (result.queued) {
+        queryClient.setQueryData<FloorTable[]>(["waiter", "floor", scope.restaurantId], (current) =>
+          (current ?? []).map((table) => ({
+            ...table,
+            openOrders: table.openOrders.map((order) =>
+              order.id === id ? { ...order, status: "served" } : order,
+            ),
+          })),
+        );
+        toast.info(ar ? "تم حفظ التحديث للمزامنة" : "Update queued for sync");
+        return;
+      }
+      await invalidateServiceQueries(queryClient, scope.restaurantId);
     },
     onError: (error) => toast.error(humanError(error, lang)),
   });
@@ -224,20 +331,36 @@ function WaiterFloor() {
   return (
     <div className="min-h-screen bg-background" onPointerDown={() => void unlockAlertSound()}>
       <StaffHeader title={t("waiter.title")} />
-      <main className="qs-page space-y-5">
+      <main className="qs-page space-y-4">
         <MasterPageHeader
-          eyebrow={<MasterEyebrow icon={Utensils}>{ar ? "أرضية المطعم" : "Live floor"}</MasterEyebrow>}
+          eyebrow={
+            <MasterEyebrow icon={Utensils}>{ar ? "أرضية المطعم" : "Live floor"}</MasterEyebrow>
+          }
           title={ar ? "كل طاولة واضحة من أول نظرة" : "Every table, clear at a glance"}
-          description={ar ? "شاهد من يطلب خدمة، ما هو قيد الطلب، وأي طاولة جاهزة للضيف التالي. مسح QR ينشّط الطاولة تلقائياً." : "See who is calling, what is being served, and which tables are ready for the next party. QR scans activate tables automatically."}
-          actions={<span className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/15"><span className="size-2 rounded-full bg-emerald-500" />{ar ? "متصل مباشرة" : "Live connected"}</span>}
+          description={
+            ar
+              ? "شاهد من يطلب خدمة، ما هو قيد الطلب، وأي طاولة جاهزة للضيف التالي. مسح QR ينشّط الطاولة تلقائياً."
+              : "Guest calls and ready orders first. Select a table to update service."
+          }
+          actions={
+            <span className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/15">
+              <span className="size-2 rounded-full bg-emerald-500" />
+              {serviceLive ? (ar ? "مباشر" : "Live") : ar ? "تحديث دوري" : "Polling"}
+            </span>
+          }
         />
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <MasterKpi icon={Table2} label={ar ? "متاحة" : "Free"} value={free} tone="green" />
-          <MasterKpi icon={UsersRound} label={ar ? "نشطة" : "Active"} value={active} tone="blue" />
-          <MasterKpi icon={BellRing} label={ar ? "تطلب خدمة" : "Calling"} value={pending} tone={pending > 0 ? "red" : "slate"} />
-          <MasterKpi icon={ReceiptText} label={ar ? "طلبات مفتوحة" : "Open orders"} value={openOrders} tone="orange" />
-        </section>
+        <p className="rounded-xl border bg-card px-4 py-3 text-sm text-muted-foreground">
+          <strong className="text-foreground">{pending}</strong> {ar ? "ينادي" : "calling"} ·{" "}
+          <strong className="text-foreground">
+            {
+              rows.filter((table) => table.openOrders.some((order) => order.status === "ready"))
+                .length
+            }
+          </strong>{" "}
+          {ar ? "جاهزة للتقديم" : "ready for service"} ·{" "}
+          <strong className="text-foreground">{free}</strong> {ar ? "متاحة" : "free tables"}
+        </p>
 
         <section className="overflow-hidden rounded-2xl border border-border bg-card">
           <div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
@@ -250,33 +373,69 @@ function WaiterFloor() {
                     onClick={() => setFilter(item.id)}
                     className={cn(
                       "inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold transition",
-                      filter === item.id ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      filter === item.id
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
                     {ar ? item.ar : item.en}
-                    {typeof item.count === "number" ? <span className={cn("rounded-full px-1.5 py-0.5 text-[9px]", filter === item.id ? "bg-background/15" : "bg-muted")}>{item.count}</span> : null}
+                    {typeof item.count === "number" ? (
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 py-0.5 text-[9px]",
+                          filter === item.id ? "bg-background/15" : "bg-muted",
+                        )}
+                      >
+                        {item.count}
+                      </span>
+                    ) : null}
                   </button>
                 ))}
               </div>
             </div>
             <div className="relative sm:w-[250px]">
               <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(event) => setSearch(event.target.value)} className="ps-9" placeholder={ar ? "ابحث عن طاولة أو طلب" : "Search table or order"} />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="ps-9"
+                placeholder={ar ? "ابحث عن طاولة أو طلب" : "Search table or order"}
+              />
             </div>
           </div>
 
           {floor.isPending ? (
             <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => <Skeleton key={i} className="h-52 rounded-2xl" />)}
+              {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+                <Skeleton key={i} className="h-52 rounded-2xl" />
+              ))}
             </div>
           ) : floor.isError ? (
-            <div className="p-8 text-center text-sm text-destructive">{humanError(floor.error, lang)}</div>
+            <div className="p-8 text-center text-sm text-destructive">
+              {humanError(floor.error, lang)}
+            </div>
           ) : rows.length === 0 ? (
-            <div className="p-5"><EmptyState icon={<Utensils className="size-6" />} title={t("empty.tables.title")} description={t("waiter.empty")} /></div>
+            <div className="p-5">
+              <EmptyState
+                icon={<Utensils className="size-6" />}
+                title={t("empty.tables.title")}
+                description={t("waiter.empty")}
+              />
+            </div>
           ) : visible.length === 0 ? (
-            <div className="grid min-h-[240px] place-items-center p-8 text-center"><div><Search className="mx-auto size-8 text-muted-foreground" /><h2 className="mt-3 font-bold">{ar ? "لا توجد طاولات مطابقة" : "No matching tables"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "غيّر الفلتر أو عبارة البحث." : "Try a different filter or search."}</p></div></div>
+            <div className="grid min-h-[240px] place-items-center p-8 text-center">
+              <div>
+                <Search className="mx-auto size-8 text-muted-foreground" />
+                <h2 className="mt-3 font-bold">
+                  {ar ? "لا توجد طاولات مطابقة" : "No matching tables"}
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {ar ? "غيّر الفلتر أو عبارة البحث." : "Try a different filter or search."}
+                </p>
+              </div>
+            </div>
           ) : (
-            <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="divide-y divide-border p-2 sm:p-3">
               {visible.map((table) => (
                 <FloorTableCard
                   key={table.id}
@@ -294,31 +453,156 @@ function WaiterFloor() {
         </section>
       </main>
 
-      <DetailSheet
+      <TaskPanel
         open={Boolean(selected)}
-        onOpenChange={(open) => { if (!open) setSelectedId(null); }}
-        title={selected ? (selected.table_name ?? `${ar ? "طاولة" : "Table"} ${selected.table_number}`) : ""}
-        description={selected ? `#${selected.table_number} · ${tableStatusLabel(selected.service_status, ar)}` : undefined}
+        onOpenChange={(open) => {
+          if (!open) setSelectedId(null);
+        }}
+        title={
+          selected
+            ? (selected.table_name ?? `${ar ? "طاولة" : "Table"} ${selected.table_number}`)
+            : ""
+        }
+        description={
+          selected
+            ? `#${selected.table_number} · ${tableStatusLabel(selected.service_status, ar)}`
+            : undefined
+        }
       >
-        {selected ? <div>
-          <div className={cn("mb-4 rounded-2xl border p-4", selected.calling ? "border-orange-300 bg-orange-50/60 dark:border-orange-900/60 dark:bg-orange-950/10" : "border-border bg-muted/30")}>
-            <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{ar ? "حالة الخدمة" : "Service status"}</p><p className="mt-1 text-lg font-bold">{selected.calling ? (ar ? "يطلب خدمة" : "Calling waiter") : tableStatusLabel(selected.service_status, ar)}</p></div><ServiceIcon table={selected} /></div>
-            {selected.calling?.note ? <p className="mt-3 text-sm leading-6 text-muted-foreground">{selected.calling.note}</p> : null}
-            {selected.service_status === "cleaning" ? <CleaningCountdown startedAt={selected.status_updated_at} ar={ar} className="mt-3" /> : null}
+        {selected ? (
+          <div>
+            <div
+              className={cn(
+                "mb-4 rounded-2xl border p-4",
+                selected.calling
+                  ? "border-orange-300 bg-orange-50/60 dark:border-orange-900/60 dark:bg-orange-950/10"
+                  : "border-border bg-muted/30",
+              )}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">
+                    {ar ? "حالة الخدمة" : "Service status"}
+                  </p>
+                  <p className="mt-1 text-lg font-bold">
+                    {selected.calling
+                      ? ar
+                        ? "يطلب خدمة"
+                        : "Calling waiter"
+                      : tableStatusLabel(selected.service_status, ar)}
+                  </p>
+                </div>
+                <ServiceIcon table={selected} />
+              </div>
+              {selected.calling?.note ? (
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                  {selected.calling.note}
+                </p>
+              ) : null}
+              {selected.service_status === "cleaning" ? (
+                <CleaningCountdown
+                  startedAt={selected.status_updated_at}
+                  ar={ar}
+                  className="mt-3"
+                />
+              ) : null}
+            </div>
+            <DetailRow label={ar ? "رقم الطاولة" : "Table"} value={`#${selected.table_number}`} />
+            <DetailRow label={ar ? "الاسم" : "Name"} value={selected.table_name} />
+            <DetailRow
+              label={ar ? "تنشيط منذ" : "Activated"}
+              value={formatStamp(selected.activated_at, ar)}
+            />
+            <DetailRow
+              label={ar ? "طلبات مفتوحة" : "Open orders"}
+              value={selected.openOrders.length}
+            />
+            {selected.openOrders.length ? (
+              <div className="mt-5">
+                <h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">
+                  {ar ? "الطلبات الحالية" : "Current orders"}
+                </h3>
+                <div className="mt-2 space-y-2">
+                  {selected.openOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"
+                    >
+                      <div className="min-w-0">
+                        <strong className="block truncate text-sm">{order.order_number}</strong>
+                        <span className="text-xs capitalize text-muted-foreground">
+                          {order.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <strong className="shrink-0 text-xs">
+                          {formatMoney(order.total, scope.currency, lang)}
+                        </strong>
+                        {order.status === "ready" ? (
+                          <Button
+                            className="h-11"
+                            disabled={serve.isPending}
+                            onClick={() => serve.mutate(order.id)}
+                          >
+                            {ar ? "تم التقديم" : "Mark served"}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {selected.calling ? (
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                {selected.calling.status === "pending" ? (
+                  <Button
+                    disabled={setCall.isPending}
+                    onClick={() =>
+                      setCall.mutate({ id: selected.calling!.id, status: "acknowledged" })
+                    }
+                  >
+                    <BellRing className="size-4" />
+                    {t("waiter.acknowledge")}
+                  </Button>
+                ) : (
+                  <div />
+                )}
+                <Button
+                  variant="outline"
+                  disabled={setCall.isPending}
+                  onClick={() => setCall.mutate({ id: selected.calling!.id, status: "resolved" })}
+                >
+                  <Check className="size-4" />
+                  {t("waiter.resolve")}
+                </Button>
+              </div>
+            ) : null}
+            {selected.service_status === "active" && selected.openOrders.length === 0 ? (
+              <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/10">
+                <p className="text-sm font-bold">{ar ? "جاهزة للإغلاق" : "Ready to close"}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {ar
+                    ? "إذا غادر الضيوف وتم ترتيب الطاولة، حررها للضيف التالي."
+                    : "When the guests have left and the table is cleared, release it for the next party."}
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-3 w-full"
+                  disabled={setTableFree.isPending}
+                  onClick={() => setTableFree.mutate(selected.id)}
+                >
+                  <CircleOff className="size-4" />
+                  {ar ? "اجعل الطاولة متاحة" : "Mark table Free"}
+                </Button>
+              </div>
+            ) : null}
           </div>
-          <DetailRow label={ar ? "رقم الطاولة" : "Table"} value={`#${selected.table_number}`} />
-          <DetailRow label={ar ? "الاسم" : "Name"} value={selected.table_name} />
-          <DetailRow label={ar ? "تنشيط منذ" : "Activated"} value={formatStamp(selected.activated_at, ar)} />
-          <DetailRow label={ar ? "طلبات مفتوحة" : "Open orders"} value={selected.openOrders.length} />
-          {selected.openOrders.length ? <div className="mt-5"><h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar ? "الطلبات الحالية" : "Current orders"}</h3><div className="mt-2 space-y-2">{selected.openOrders.map((order) => <div key={order.id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"><div className="min-w-0"><strong className="block truncate text-sm">{order.order_number}</strong><span className="text-[10px] capitalize text-muted-foreground">{order.status}</span></div><strong className="shrink-0 text-xs">{formatMoney(order.total, scope.currency, lang)}</strong></div>)}</div></div> : null}
-          {selected.calling ? <div className="mt-5 grid grid-cols-2 gap-2">{selected.calling.status === "pending" ? <Button disabled={setCall.isPending} onClick={() => setCall.mutate({ id: selected.calling!.id, status: "acknowledged" })}><BellRing className="size-4" />{t("waiter.acknowledge")}</Button> : <div /> }<Button variant="outline" disabled={setCall.isPending} onClick={() => setCall.mutate({ id: selected.calling!.id, status: "resolved" })}><Check className="size-4" />{t("waiter.resolve")}</Button></div> : null}
-          {selected.service_status === "active" && selected.openOrders.length === 0 ? <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/10"><p className="text-sm font-bold">{ar ? "جاهزة للإغلاق" : "Ready to close"}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{ar ? "إذا غادر الضيوف وتم ترتيب الطاولة، حررها للضيف التالي." : "When the guests have left and the table is cleared, release it for the next party."}</p><Button variant="outline" className="mt-3 w-full" disabled={setTableFree.isPending} onClick={() => setTableFree.mutate(selected.id)}><CircleOff className="size-4" />{ar ? "اجعل الطاولة متاحة" : "Mark table Free"}</Button></div> : null}
-        </div> : null}
-      </DetailSheet>
+        ) : null}
+      </TaskPanel>
     </div>
   );
 }
-
 
 function FloorTableCard({
   table,
@@ -333,7 +617,10 @@ function FloorTableCard({
   ar: boolean;
   currency: string;
   lang: "en" | "ar";
-  setCall: { isPending: boolean; mutate: (variables: { id: string; status: "acknowledged" | "resolved" }) => void };
+  setCall: {
+    isPending: boolean;
+    mutate: (variables: { id: string; status: "acknowledged" | "resolved" }) => void;
+  };
   setTableFree: { isPending: boolean; mutate: (tableId: string) => void };
   onOpen: () => void;
 }) {
@@ -341,42 +628,113 @@ function FloorTableCard({
   const busy = table.openOrders.length > 0;
   const canClose = table.service_status === "active" && !busy;
 
-  return <article
-    role="button"
-    tabIndex={0}
-    onClick={onOpen}
-    onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }}
-    className={cn(
-      "group flex min-h-[220px] cursor-pointer flex-col rounded-2xl border bg-card p-4 text-start outline-none transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-[#e85d2a]",
-      calling ? "border-orange-400 ring-2 ring-orange-500/20" : "border-border",
-    )}
-  >
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex items-center gap-3"><span className={cn("grid size-12 shrink-0 place-items-center rounded-2xl font-display text-lg font-bold", calling ? "bg-orange-500 text-white" : table.service_status === "free" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-foreground")}>T{table.table_number}</span><div className="min-w-0"><h2 className="truncate text-sm font-bold">{table.table_name ?? `${ar ? "طاولة" : "Table"} ${table.table_number}`}</h2><p className="mt-0.5 text-[10px] text-muted-foreground">{busy ? `${table.openOrders.length} ${ar ? "طلبات مفتوحة" : "open orders"}` : ar ? "لا يوجد طلب مفتوح" : "No open orders"}</p></div></div>
-      <Badge variant="outline" className={cn("shrink-0", calling ? "border-orange-300 bg-orange-50 text-orange-700 dark:bg-orange-950/20" : table.service_status === "free" ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20" : table.service_status === "cleaning" ? "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/20 dark:text-violet-300" : "")}>{calling ? (ar ? "ينادي" : "Calling") : tableStatusLabel(table.service_status, ar)}</Badge>
-    </div>
+  return (
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      className={cn(
+        "group flex min-h-[80px] cursor-pointer flex-col gap-2 rounded-xl bg-card p-4 text-start outline-none transition-colors hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-primary",
+        calling ? "border-orange-400 ring-2 ring-orange-500/20" : "border-border",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span
+            className={cn(
+              "grid size-12 shrink-0 place-items-center rounded-2xl font-display text-lg font-bold",
+              calling
+                ? "bg-orange-500 text-white"
+                : table.service_status === "free"
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : "bg-muted text-foreground",
+            )}
+          >
+            T{table.table_number}
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-bold">
+              {table.table_name ?? `${ar ? "طاولة" : "Table"} ${table.table_number}`}
+            </h2>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              {busy
+                ? `${table.openOrders.length} ${ar ? "طلبات مفتوحة" : "open orders"}`
+                : ar
+                  ? "لا يوجد طلب مفتوح"
+                  : "No open orders"}
+            </p>
+          </div>
+        </div>
+        <Badge
+          variant="outline"
+          className={cn(
+            "shrink-0",
+            calling
+              ? "border-orange-300 bg-orange-50 text-orange-700 dark:bg-orange-950/20 dark:text-orange-300"
+              : table.service_status === "free"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300"
+                : table.service_status === "cleaning"
+                  ? "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/20 dark:text-violet-300"
+                  : "",
+          )}
+        >
+          {calling ? (ar ? "ينادي" : "Calling") : tableStatusLabel(table.service_status, ar)}
+        </Badge>
+      </div>
 
-    <div className="mt-4 flex-1">
-      {calling ? <div className="rounded-xl bg-orange-50/70 p-3 dark:bg-orange-950/15"><p className="inline-flex items-center gap-2 text-xs font-bold text-orange-700 dark:text-orange-300"><BellRing className="size-4" />{ar ? "ضيف ينتظر الخدمة" : "Guest is waiting"}</p>{table.calling?.note ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{table.calling.note}</p> : null}</div> : table.service_status === "cleaning" ? <div className="grid min-h-[72px] place-items-center rounded-xl border border-violet-200 bg-violet-50/60 text-center dark:border-violet-900/50 dark:bg-violet-950/15"><div><Clock3 className="mx-auto size-4 text-violet-600" /><CleaningCountdown startedAt={table.status_updated_at} ar={ar} className="mt-1" /></div></div> : busy ? <div className="space-y-2">{table.openOrders.slice(0, 2).map((order) => <div key={order.id} className="flex items-center justify-between gap-2 rounded-xl bg-muted/45 px-3 py-2 text-[10px]"><span className="min-w-0 truncate font-bold">{order.order_number}</span><span className="shrink-0 capitalize text-muted-foreground">{order.status} · {formatMoney(order.total, currency, lang)}</span></div>)}{table.openOrders.length > 2 ? <p className="text-[10px] font-semibold text-muted-foreground">+{table.openOrders.length - 2} {ar ? "طلبات أخرى" : "more orders"}</p> : null}</div> : <div className="grid min-h-[72px] place-items-center rounded-xl border border-dashed border-border text-center"><div><Sparkles className="mx-auto size-4 text-muted-foreground" /><p className="mt-1 text-[10px] font-semibold text-muted-foreground">{table.service_status === "free" ? (ar ? "جاهزة للضيف التالي" : "Ready for the next party") : tableStatusLabel(table.service_status, ar)}</p></div></div>}
-    </div>
-
-    <div className="mt-4 flex gap-2 border-t border-border/70 pt-3" onClick={(event) => event.stopPropagation()}>
-      {table.calling?.status === "pending" ? <Button size="sm" className="flex-1" disabled={setCall.isPending} onClick={() => setCall.mutate({ id: table.calling!.id, status: "acknowledged" })}><BellRing className="size-4" />{ar ? "استلام" : "Acknowledge"}</Button> : null}
-      {table.calling ? <Button size="sm" variant="outline" className="flex-1" disabled={setCall.isPending} onClick={() => setCall.mutate({ id: table.calling!.id, status: "resolved" })}><Check className="size-4" />{ar ? "تم" : "Resolve"}</Button> : null}
-      {canClose ? <Button size="sm" variant="outline" className="flex-1" disabled={setTableFree.isPending} onClick={() => setTableFree.mutate(table.id)}><CircleOff className="size-4" />{ar ? "متاحة" : "Mark Free"}</Button> : null}
-      {!table.calling && !canClose ? <span className="inline-flex flex-1 items-center gap-2 text-[10px] font-semibold text-muted-foreground"><Clock3 className="size-3.5" />{busy ? (ar ? "الخدمة جارية" : "Service in progress") : tableStatusLabel(table.service_status, ar)}</span> : null}
-    </div>
-  </article>;
+      {table.openOrders.some((order) => order.status === "ready") ? (
+        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+          {ar ? "طلب جاهز للتقديم" : "Ready for service"}
+        </p>
+      ) : null}
+      {table.calling?.note ? (
+        <p className="line-clamp-1 text-xs text-muted-foreground">{table.calling.note}</p>
+      ) : null}
+    </article>
+  );
 }
 
 function ServiceIcon({ table }: { table: FloorTable }) {
-  if (table.calling) return <span className="grid size-11 place-items-center rounded-2xl bg-orange-500 text-white"><BellRing className="size-5" /></span>;
-  if (table.openOrders.length) return <span className="grid size-11 place-items-center rounded-2xl bg-blue-500/10 text-blue-600"><ReceiptText className="size-5" /></span>;
-  if (table.service_status === "cleaning") return <span className="grid size-11 place-items-center rounded-2xl bg-violet-500/10 text-violet-600"><Clock3 className="size-5" /></span>;
-  return <span className="grid size-11 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600"><LayoutGrid className="size-5" /></span>;
+  if (table.calling)
+    return (
+      <span className="grid size-11 place-items-center rounded-2xl bg-orange-500 text-white">
+        <BellRing className="size-5" />
+      </span>
+    );
+  if (table.openOrders.length)
+    return (
+      <span className="grid size-11 place-items-center rounded-2xl bg-blue-500/10 text-blue-600">
+        <ReceiptText className="size-5" />
+      </span>
+    );
+  if (table.service_status === "cleaning")
+    return (
+      <span className="grid size-11 place-items-center rounded-2xl bg-violet-500/10 text-violet-600">
+        <Clock3 className="size-5" />
+      </span>
+    );
+  return (
+    <span className="grid size-11 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600">
+      <LayoutGrid className="size-5" />
+    </span>
+  );
 }
 
-function CleaningCountdown({ startedAt, ar, className }: { startedAt: string | null; ar: boolean; className?: string }) {
+function CleaningCountdown({
+  startedAt,
+  ar,
+  className,
+}: {
+  startedAt: string | null;
+  ar: boolean;
+  className?: string;
+}) {
   const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
@@ -385,7 +743,14 @@ function CleaningCountdown({ startedAt, ar, className }: { startedAt: string | n
     return () => window.clearInterval(timer);
   }, []);
 
-  if (!startedAt || now === null) return <p className={cn("text-[10px] font-semibold text-violet-700 dark:text-violet-300", className)}>{ar ? "ستصبح متاحة تلقائياً خلال 10 دقائق" : "Automatically free in 10 minutes"}</p>;
+  if (!startedAt || now === null)
+    return (
+      <p
+        className={cn("text-[10px] font-semibold text-violet-700 dark:text-violet-300", className)}
+      >
+        {ar ? "ستصبح متاحة تلقائياً خلال 10 دقائق" : "Automatically free in 10 minutes"}
+      </p>
+    );
 
   const elapsed = now - new Date(startedAt).getTime();
   const remaining = Math.max(0, 10 * 60 * 1_000 - elapsed);
@@ -393,7 +758,17 @@ function CleaningCountdown({ startedAt, ar, className }: { startedAt: string | n
   const seconds = Math.floor((remaining % 60_000) / 1_000);
   const clock = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 
-  return <p className={cn("text-[10px] font-semibold text-violet-700 dark:text-violet-300", className)}>{remaining > 0 ? (ar ? `ستصبح متاحة خلال ${clock}` : `Free automatically in ${clock}`) : (ar ? "يتم تحويلها إلى متاحة…" : "Changing to Free…")}</p>;
+  return (
+    <p className={cn("text-[10px] font-semibold text-violet-700 dark:text-violet-300", className)}>
+      {remaining > 0
+        ? ar
+          ? `ستصبح متاحة خلال ${clock}`
+          : `Free automatically in ${clock}`
+        : ar
+          ? "يتم تحويلها إلى متاحة…"
+          : "Changing to Free…"}
+    </p>
+  );
 }
 
 function tableStatusLabel(status: TableServiceStatus, ar: boolean) {

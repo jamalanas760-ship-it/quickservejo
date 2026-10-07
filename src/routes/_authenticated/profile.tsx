@@ -72,9 +72,7 @@ function ProfilePage() {
         ? "عضو"
         : "Member";
   const restaurantName = restaurant?.name ?? scope.restaurantName ?? "—";
-  const canManageRestaurant = Boolean(
-    rid && access.canFor(rid, "manage_restaurant"),
-  );
+  const canManageRestaurant = Boolean(rid && access.canFor(rid, "manage_restaurant"));
   const personalCoverEligible = Boolean(membership && membership.role !== "restaurant_admin");
   const avatar =
     membership?.avatar_url ||
@@ -103,7 +101,7 @@ function ProfilePage() {
       icon: Store,
       label: ar ? "المؤسسة والمظهر" : "Organization & appearance",
     },
-  ];
+  ].filter((item) => item.id !== "organization" || canManageRestaurant);
   return (
     <div className="min-h-dvh bg-background">
       <AppHeader />
@@ -226,7 +224,7 @@ function ProfilePage() {
             {section === "notifications" ? (
               <NotificationSettings userId={user?.id} ar={ar} />
             ) : null}
-            {section === "organization" ? (
+            {section === "organization" && canManageRestaurant ? (
               <>
                 <header className="ps-section-title">
                   <span>

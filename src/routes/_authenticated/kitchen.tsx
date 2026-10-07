@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { ActionMenu } from "@/components/app/ActionMenu";
+import { ServiceBoard } from "@/components/kitchen/ServiceBoard";
+import { invalidateServiceQueries } from "@/hooks/useServiceLive";
 import { MasterKpi } from "@/components/app/MasterPage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,7 +66,6 @@ import {
 } from "@/lib/order-ops";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 type ViewMode = "board" | "list" | "schedule";
@@ -170,6 +172,7 @@ type OrderRow = {
   items: {
     id: string;
     quantity: number;
+    menu_item_id: string | null;
     product_name_en: string;
     product_name_ar: string;
     notes: string | null;
@@ -179,18 +182,22 @@ type OrderRow = {
 
 type StaffOption = { id: string; name: string; role: AppRole };
 
-
 function KitchenPage() {
   const { lang, pick } = useI18n();
   const queryClient = useQueryClient();
   const memberships = useMemberships();
   const [restaurantId, setRestaurantId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
-    try { return window.localStorage.getItem(RESTAURANT_KEY); } catch { return null; }
+    try {
+      return window.localStorage.getItem(RESTAURANT_KEY);
+    } catch {
+      return null;
+    }
   });
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<QuickFilter>("all");
+  const [station, setStation] = useState("all");
   const [section, setSection] = useState<string>("all");
   const [live, setLive] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -198,7 +205,6 @@ function KitchenPage() {
   const [openLog, setOpenLog] = useState<OrderRow | null>(null);
   const seenRef = useRef<Set<string> | null>(null);
   const ar = lang === "ar";
-
 
   const setPref = useCallback(<K extends keyof Prefs>(key: K, value: Prefs[K]) => {
     setPrefs((p) => ({ ...p, [key]: value }));
@@ -235,6 +241,8 @@ function KitchenPage() {
   );
 
   const activeId = restaurantId ?? options[0]?.id ?? null;
+  const pendingOrders = useRef(new Set<string>());
+  const [busyOrders, setBusyOrders] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!memberships.isSuccess) return;
@@ -271,7 +279,7 @@ function KitchenPage() {
       const { data, error } = await supabase
         .from("orders")
         .select(
-          "id, order_number, status, total, currency, customer_notes, created_at, assigned_staff_id, assigned_at, table:restaurant_tables(table_number, table_name), items:order_items(id, quantity, product_name_en:product_name_snapshot_en, product_name_ar:product_name_snapshot_ar, notes, selected_modifiers)",
+          "id, order_number, status, total, currency, customer_notes, created_at, assigned_staff_id, assigned_at, table:restaurant_tables(table_number, table_name), items:order_items(id, menu_item_id, quantity, product_name_en:product_name_snapshot_en, product_name_ar:product_name_snapshot_ar, notes, selected_modifiers)",
         )
         .eq("restaurant_id", activeId!)
         .in("status", ["new", "accepted", "preparing", "ready"])
@@ -299,6 +307,32 @@ function KitchenPage() {
     },
   });
 
+  const stations = useQuery({
+    queryKey: ["kitchen", "stations", activeId],
+    enabled: Boolean(activeId),
+    staleTime: 60000,
+    queryFn: async () => {
+      const [stationRows, items] = await Promise.all([
+        (supabase as any)
+          .from("kitchen_stations")
+          .select("id,name,name_ar")
+          .eq("restaurant_id", activeId)
+          .eq("is_active", true)
+          .order("display_order"),
+        (supabase as any)
+          .from("menu_items")
+          .select("id,kitchen_station_id")
+          .eq("restaurant_id", activeId),
+      ]);
+      if (stationRows.error) throw stationRows.error;
+      if (items.error) throw items.error;
+      return {
+        stations: stationRows.data as { id: string; name: string; name_ar: string | null }[],
+        items: items.data as { id: string; kitchen_station_id: string | null }[],
+      };
+    },
+  });
+
   const activeOrderIds = (orders.data ?? []).map((o) => o.id);
   const statusLog = useQuery({
     queryKey: ["kitchen", "events", activeId, activeOrderIds.join(",")],
@@ -317,8 +351,9 @@ function KitchenPage() {
   }, [statusLog.data]);
 
   async function refreshKitchenOrders(includeEvents = false) {
-    const tasks = [queryClient.invalidateQueries({ queryKey: ["kitchen", "orders", activeId] })];
-    if (includeEvents) tasks.push(queryClient.invalidateQueries({ queryKey: ["kitchen", "events", activeId] }));
+    const tasks = [invalidateServiceQueries(queryClient, activeId)];
+    if (includeEvents)
+      tasks.push(queryClient.invalidateQueries({ queryKey: ["kitchen", "events", activeId] }));
     await Promise.all(tasks);
   }
 
@@ -331,7 +366,6 @@ function KitchenPage() {
       toast.error(humanError(error, lang));
     }
   }
-
 
   useEffect(() => {
     if (!activeId) return;
@@ -347,7 +381,7 @@ function KitchenPage() {
           filter: `restaurant_id=eq.${activeId}`,
         },
         (payload) => {
-          void queryClient.invalidateQueries({ queryKey: ["kitchen", "orders", activeId] });
+          void invalidateServiceQueries(queryClient, activeId);
           const row = payload.new as { status?: string } | null;
           if (payload.eventType === "INSERT" && row?.status === "new") {
             if (prefs.soundOn) playOrderAlert();
@@ -368,7 +402,10 @@ function KitchenPage() {
           toast.info(ar ? "طلب مناداة نادل" : "A table is calling a waiter");
         },
       )
-      .subscribe((status) => setLive(status === "SUBSCRIBED"));
+      .subscribe((status) => {
+        setLive(status === "SUBSCRIBED");
+        if (status === "SUBSCRIBED") void invalidateServiceQueries(queryClient, activeId);
+      });
 
     return () => {
       void supabase.removeChannel(channel);
@@ -393,7 +430,12 @@ function KitchenPage() {
   }, [activeId]);
 
   async function advance(id: string, next: OrderStatus) {
-    if (!activeId) return;
+    if (!activeId || pendingOrders.current.has(id)) return;
+    const current = orders.data?.find((row) => row.id === id);
+    const expected = current && LANE.find((lane) => lane.status === current.status)?.next;
+    if (!current || current.status === "ready" || expected !== next) return;
+    pendingOrders.current.add(id);
+    setBusyOrders(new Set(pendingOrders.current));
     try {
       const result = await setOrderStatusResilient({
         restaurantId: activeId,
@@ -402,14 +444,21 @@ function KitchenPage() {
       });
       if (result.queued) {
         queryClient.setQueryData<OrderRow[]>(["kitchen", "orders", activeId], (rows) =>
-          (rows ?? []).map((row) => row.id === id ? { ...row, status: next } : row),
+          (rows ?? []).map((row) => (row.id === id ? { ...row, status: next } : row)),
         );
-        toast.info(ar ? "تم حفظ التغيير على الجهاز وسيتم مزامنته عند عودة الاتصال" : "Change saved on this device and will sync when the connection returns");
+        toast.info(
+          ar
+            ? "تم حفظ التغيير على الجهاز وسيتم مزامنته عند عودة الاتصال"
+            : "Change saved on this device and will sync when the connection returns",
+        );
         return;
       }
       await refreshKitchenOrders(true);
     } catch (error) {
       toast.error(humanError(error, lang));
+    } finally {
+      pendingOrders.current.delete(id);
+      setBusyOrders(new Set(pendingOrders.current));
     }
   }
 
@@ -431,6 +480,15 @@ function KitchenPage() {
       if (filter === "inprep" && o.status !== "accepted" && o.status !== "preparing") return false;
       if (filter === "ready" && o.status !== "ready") return false;
       if (filter === "overdue" && age < prefs.lateMinutes) return false;
+      if (
+        station !== "all" &&
+        !(o.items ?? []).some((item) =>
+          stations.data?.items.some(
+            (menu) => menu.id === item.menu_item_id && menu.kitchen_station_id === station,
+          ),
+        )
+      )
+        return false;
       if (section !== "all" && o.table?.table_name !== section) return false;
       if (!q) return true;
       const haystack = [
@@ -445,7 +503,7 @@ function KitchenPage() {
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [allRows, search, filter, section, prefs.lateMinutes, now]);
+  }, [allRows, search, filter, section, prefs.lateMinutes, now, station, stations.data]);
 
   const oldest = rows.length
     ? elapsed(rows.reduce((a, b) => (a.created_at < b.created_at ? a : b)).created_at, now)
@@ -467,6 +525,7 @@ function KitchenPage() {
     <Ticket
       key={order.id}
       order={order}
+      busy={busyOrders.has(order.id)}
       now={now}
       ar={ar}
       lang={lang}
@@ -483,7 +542,6 @@ function KitchenPage() {
       onOpenLog={setOpenLog}
     />
   );
-
 
   if (memberships.isPending && !activeId) return <KitchenBootSkeleton ar={ar} />;
 
@@ -502,49 +560,34 @@ function KitchenPage() {
 
   return (
     <div className="min-h-screen bg-background pb-16">
-      <header className="sticky top-0 z-20 border-b border-border/80 bg-card/96 shadow-[0_8px_28px_rgba(15,23,42,.04)] backdrop-blur-xl">
-        <div className="mx-auto max-w-[1800px] space-y-3 px-4 py-3 sm:px-5">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-            <div className="min-w-0">
-              <h1 className="truncate font-display text-xl font-bold tracking-[-.035em] sm:text-2xl">
-                {ar ? "شاشة المطبخ" : "Kitchen display"}
+      <header className="border-b bg-card px-4 py-5 sm:px-6">
+        <div className="mx-auto max-w-[1800px]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground">
+                {ar ? "مساحة عمل المطبخ" : "KITCHEN WORKSPACE"}
+              </p>
+              <h1 className="mt-1 text-xl font-bold sm:text-2xl">
+                {ar ? "لوحة خدمة المطبخ" : "Kitchen Service Board"}
               </h1>
-              <p className="mt-0.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                {activeCount} {ar ? "طلب قيد التنفيذ" : "orders in progress"}
-                {overdueCount > 0 ? (
-                  <span className="text-destructive">
-                    {" · "}
-                    {overdueCount} {ar ? "متأخر" : "overdue"}
-                  </span>
-                ) : null}
+              <p className="mt-1 text-sm text-muted-foreground">
+                {ar
+                  ? "كل طلب، في المرحلة المناسبة."
+                  : "Every ticket. The right stage. One focused service."}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <span
-                className={cn(
-                  "hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider sm:flex",
-                  live ? "bg-accent/15 text-accent-foreground" : "bg-muted text-muted-foreground",
-                )}
-              >
-                {live ? (
-                  <>
-                    <span className="relative flex size-2">
-                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-accent opacity-75" />
-                      <span className="relative inline-flex size-2 rounded-full bg-accent" />
-                    </span>
-                    <BellRing className="size-3.5" />
-                    {ar ? "مباشر" : "Live"}
-                  </>
-                ) : (
-                  <>
-                    <BellOff className="size-3.5" />
-                    {ar ? "تحديث دوري" : "Polling"}
-                  </>
-                )}
+            <div className="flex items-center gap-2">
+              <span role="status" className="text-xs font-semibold text-muted-foreground">
+                {live ? (ar ? "مباشر" : "● Live") : ar ? "تحديث دوري" : "Polling"}
               </span>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="size-11 rounded-[10px]" aria-label={ar ? "إعدادات شاشة المطبخ" : "Kitchen display settings"}>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-11 rounded-[10px]"
+                    aria-label={ar ? "إعدادات شاشة المطبخ" : "Kitchen display settings"}
+                  >
                     <Settings2 className="size-4" />
                   </Button>
                 </PopoverTrigger>
@@ -606,7 +649,7 @@ function KitchenPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="columns">
-                          {ar ? "أعمدة (٤ مراحل)" : "Columns (4 stages)"}
+                          {ar ? "أعمدة (٣ مسارات)" : "Columns (3 lanes)"}
                         </SelectItem>
                         <SelectItem value="lanes">
                           {ar ? "مسارات أفقية" : "Horizontal lanes"}
@@ -618,139 +661,86 @@ function KitchenPage() {
               </Popover>
             </div>
           </div>
-
-          {/* View switcher + search */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-xl border border-border/80 bg-muted/55 p-1">
-              {(
-                [
-                  { key: "board", icon: LayoutGrid, en: "Board", ar: "لوحة" },
-                  { key: "list", icon: Rows3, en: "List", ar: "قائمة" },
-                  { key: "schedule", icon: CalendarClock, en: "Schedule", ar: "الجدول" },
-                ] as const
-              ).map((v) => (
+          {stations.data?.stations.length ? (
+            <div
+              className="mt-4 flex gap-2 overflow-x-auto border-b pb-2"
+              aria-label="Kitchen stations"
+            >
+              {[
+                { id: "all", name: "All stations", name_ar: "كل المحطات" },
+                ...stations.data.stations,
+              ].map((item) => (
                 <button
-                  key={v.key}
                   type="button"
-                  onClick={() => setPref("view", v.key)}
-                  aria-pressed={prefs.view === v.key}
+                  key={item.id}
+                  aria-pressed={station === item.id}
+                  onClick={() => setStation(item.id)}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-[9px] px-3 py-1.5 text-xs font-bold transition-colors",
-                    prefs.view === v.key
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground",
+                    "min-h-11 shrink-0 rounded-lg px-3 text-sm font-semibold",
+                    station === item.id ? "bg-primary/10 text-primary" : "text-muted-foreground",
                   )}
                 >
-                  <v.icon className="size-3.5" />
-                  {ar ? v.ar : v.en}
+                  {ar ? item.name_ar || item.name : item.name}
                 </button>
               ))}
             </div>
-
-            <div className="relative min-w-[180px] flex-1 sm:max-w-xs">
-              <Search className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-muted-foreground" />
+          ) : null}
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <div className="relative w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-sm">
+              <Search className="absolute start-3 top-3 size-4 text-muted-foreground" />
               <Input
+                aria-label={ar ? "بحث الطلبات" : "Search tickets"}
+                className="h-11 ps-9"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={
-                  ar ? "بحث برقم الطلب أو الطاولة أو الطبق" : "Search order, table or item"
-                }
-                className="h-9 rounded-xl ps-9 pe-9"
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={ar ? "بحث الطلب أو الطاولة أو الطبق" : "Search ticket, table or dish"}
               />
-              {search ? (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  aria-label={ar ? "مسح البحث" : "Clear search"}
-                  className="absolute inset-y-0 end-2 my-auto grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-muted"
-                >
-                  <X className="size-3.5" />
-                </button>
-              ) : null}
             </div>
-
-            {sections.length > 0 ? (
-              <Select value={section} onValueChange={setSection}>
-                <SelectTrigger className="h-9 w-44 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{ar ? "كل الأقسام" : "All sections"}</SelectItem>
-                  {sections.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : null}
-
+            <Select
+              value={prefs.view}
+              onValueChange={(value) => setPref("view", value as ViewMode)}
+            >
+              <SelectTrigger aria-label="Display mode" className="h-11 w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="board">{ar ? "لوحة" : "Board"}</SelectItem>
+                <SelectItem value="list">{ar ? "قائمة" : "List"}</SelectItem>
+                <SelectItem value="schedule">{ar ? "حسب الوقت" : "By time"}</SelectItem>
+              </SelectContent>
+            </Select>
             {options.length > 1 ? (
               <Select value={activeId ?? ""} onValueChange={setRestaurantId}>
-                <SelectTrigger className="h-9 w-52 rounded-xl">
+                <SelectTrigger className="h-11 w-48" aria-label="Restaurant">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {options.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.name}
+                  {options.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             ) : null}
-          </div>
-
-          {/* Quick filters */}
-          <div className="flex flex-wrap items-center gap-2">
-            {(["all", "pending", "inprep", "ready", "overdue"] as QuickFilter[]).map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setFilter(key)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
-                  filter === key
-                    ? key === "overdue"
-                      ? "bg-destructive text-destructive-foreground"
-                      : "bg-foreground text-background"
-                    : "bg-muted text-muted-foreground hover:bg-muted/70",
-                )}
-              >
-                {FILTER_LABELS[key][lang]}
-                <span className="tabular-nums opacity-70">{filterCounts[key]}</span>
-              </button>
-            ))}
-            {oldest ? (
-              <span
-                className={cn(
-                  "ms-auto flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold tabular-nums",
-                  oldest.minutes >= prefs.lateMinutes
-                    ? "bg-destructive/15 text-destructive"
-                    : oldest.minutes >= prefs.warnMinutes
-                      ? "bg-warning/20 text-foreground"
-                      : "bg-muted text-muted-foreground",
-                )}
-              >
-                <Timer className="size-3.5" />
-                {ar ? "أقدم طلب" : "Oldest ticket"} {oldest.label}
-              </span>
-            ) : null}
+            <p className="text-xs text-muted-foreground sm:ms-auto">
+              {allRows.length} {ar ? "طلب" : "tickets"} · {overdueCount} {ar ? "متأخر" : "overdue"}
+            </p>
           </div>
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-[1800px] gap-3 px-4 pt-4 sm:grid-cols-2 sm:px-5 xl:grid-cols-4">
-        <MasterKpi icon={ChefHat} label={ar?"طلبات نشطة":"Active Tickets"} value={String(allRows.length)} hint={ar?"داخل المطبخ الآن":"In kitchen now"} tone="orange"/>
-        <MasterKpi icon={BellRing} label={ar?"طلبات جديدة":"New"} value={String(filterCounts.pending)} hint={ar?"تحتاج قبول":"Need acceptance"} tone="blue"/>
-        <MasterKpi icon={Timer} label={ar?"جاهزة":"Ready"} value={String(filterCounts.ready)} hint={ar?"بانتظار التقديم":"Waiting for service"} tone="green"/>
-        <MasterKpi icon={ShieldAlert} label={ar?"متأخرة":"Overdue"} value={String(overdueCount)} hint={oldest?(ar?"أقدم "+oldest.label:"Oldest "+oldest.label):(ar?"لا يوجد تأخير":"No delays")} tone={overdueCount>0?"red":"slate"}/>
-      </section>
-
       <main className="mx-auto max-w-[1800px] px-4 py-6">
         {orders.isPending ? (
           <Skeleton className="h-64 rounded-3xl" />
-        ) : rows.length === 0 ? (
+        ) : orders.isError ? (
+          <div role="alert" className="rounded-xl border p-6">
+            <p className="text-destructive">{humanError(orders.error, lang)}</p>
+            <Button variant="outline" className="mt-3" onClick={() => void orders.refetch()}>
+              {ar ? "إعادة المحاولة" : "Retry"}
+            </Button>
+          </div>
+        ) : rows.length === 0 && prefs.view !== "board" ? (
           <p className="flex h-40 items-center justify-center rounded-[18px] border-2 border-dashed border-border text-center text-sm text-muted-foreground">
             {ar ? "لا توجد تذاكر مطابقة" : "No tickets match the current filters"}
           </p>
@@ -770,62 +760,18 @@ function KitchenPage() {
             renderTicket={(o) => renderTicket(o, { dense: true })}
           />
         ) : (
-          <div
-            className={cn(
-              prefs.layout === "columns"
-                ? "space-y-8 xl:grid xl:grid-cols-4 xl:items-start xl:gap-5 xl:space-y-0"
-                : "space-y-8",
-            )}
-          >
-            {LANE.map((lane) => {
-              const laneOrders = rows.filter((o) => o.status === lane.status);
-              const isNew = lane.status === "new";
-              return (
-                <section key={lane.status} className="space-y-3">
-                  <div className="flex items-center gap-3 px-1">
-                    <h2
-                      className={cn(
-                        "text-xs font-bold uppercase tracking-[0.18em]",
-                        isNew && laneOrders.length > 0 ? "text-accent" : "text-muted-foreground",
-                      )}
-                    >
-                      {STATUS_LABELS[lane.status][lang]}
-                    </h2>
-                    <Badge variant="outline" className="rounded-full tabular-nums">
-                      {laneOrders.length}
-                    </Badge>
-                    <span
-                      className={cn(
-                        "h-px flex-1",
-                        isNew && laneOrders.length > 0 ? "bg-accent/30" : "bg-border",
-                      )}
-                    />
-                  </div>
-
-                  {laneOrders.length === 0 ? (
-                    <p className="flex h-20 items-center justify-center rounded-3xl border-2 border-dashed border-border text-center text-xs text-muted-foreground">
-                      {LANE_EMPTY[lane.status]?.[lang]}
-                    </p>
-                  ) : prefs.layout === "lanes" ? (
-                    <div className="flex snap-x gap-3 overflow-x-auto pb-2">
-                      {laneOrders.map((order) => (
-                        <div
-                          key={order.id}
-                          className="w-[320px] shrink-0 snap-start sm:w-[360px]"
-                        >
-                          {renderTicket(order)}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {laneOrders.map((order) => renderTicket(order))}
-                    </div>
-                  )}
-                </section>
-              );
-            })}
-          </div>
+          <ServiceBoard
+            orders={rows}
+            ar={ar}
+            busyIds={busyOrders}
+            renderTicket={renderTicket}
+            onMove={(id, target) => {
+              const order = rows.find((row) => row.id === id);
+              const next = order && LANE.find((lane) => lane.status === order.status)?.next;
+              if (target === "preparing" && order?.status === "new") void advance(id, "accepted");
+              else if (target === "ready" && next === "ready") void advance(id, "ready");
+            }}
+          />
         )}
       </main>
 
@@ -854,17 +800,36 @@ function KitchenPage() {
 }
 
 function KitchenBootSkeleton({ ar }: { ar: boolean }) {
-  return <div className="min-h-screen bg-background">
-    <header className="border-b border-border bg-card px-4 py-4">
-      <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-4">
-        <div><div className="flex items-center gap-2"><ChefHat className="size-5 text-[#e85d2a]" /><strong className="text-lg">{ar ? "شاشة المطبخ" : "Kitchen display"}</strong></div><p className="mt-1 text-xs text-muted-foreground">{ar ? "جارٍ فتح الطلبات النشطة…" : "Opening active tickets…"}</p></div>
-        <span className="h-2 w-16 overflow-hidden rounded-full bg-muted"><i className="block h-full w-1/2 rounded-full bg-[#e85d2a]" /></span>
-      </div>
-    </header>
-    <main className="mx-auto max-w-[1800px] px-4 py-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="rounded-3xl border border-border bg-card p-4"><Skeleton className="h-5 w-24" /><Skeleton className="mt-4 h-24 rounded-2xl" /></div>)}</div>
-    </main>
-  </div>;
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card px-4 py-4">
+        <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <ChefHat className="size-5 text-[#e85d2a]" />
+              <strong className="text-lg">{ar ? "شاشة المطبخ" : "Kitchen display"}</strong>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {ar ? "جارٍ فتح الطلبات النشطة…" : "Opening active tickets…"}
+            </p>
+          </div>
+          <span className="h-2 w-16 overflow-hidden rounded-full bg-muted">
+            <i className="block h-full w-1/2 rounded-full bg-[#e85d2a]" />
+          </span>
+        </div>
+      </header>
+      <main className="mx-auto max-w-[1800px] px-4 py-6">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="rounded-3xl border border-border bg-card p-4">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="mt-4 h-24 rounded-2xl" />
+            </div>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
 }
 
 function CancelDialog({
@@ -962,11 +927,7 @@ function CancelDialog({
               rows={3}
               disabled={blocked}
               placeholder={
-                selected
-                  ? ar
-                    ? "ماذا حدث بالضبط؟"
-                    : "What exactly happened?"
-                  : undefined
+                selected ? (ar ? "ماذا حدث بالضبط؟" : "What exactly happened?") : undefined
               }
             />
           </div>
@@ -1009,7 +970,9 @@ function WorklogDialog({
             {ar ? "سجل الطلب" : "Order worklog"} {order?.order_number}
           </DialogTitle>
           <DialogDescription>
-            {ar ? "الوقت المستغرق في كل مرحلة ومن نفّذها." : "Time spent in each stage and who moved it."}
+            {ar
+              ? "الوقت المستغرق في كل مرحلة ومن نفّذها."
+              : "Time spent in each stage and who moved it."}
           </DialogDescription>
         </DialogHeader>
 
@@ -1031,7 +994,6 @@ function WorklogDialog({
     </Dialog>
   );
 }
-
 
 function ScheduleView({
   rows,
@@ -1119,6 +1081,7 @@ function TagChips({ tags, ar }: { tags: DietTag[]; ar: boolean }) {
 
 function Ticket({
   order,
+  busy,
   now,
   ar,
   lang,
@@ -1135,6 +1098,7 @@ function Ticket({
   onOpenLog,
 }: {
   order: OrderRow;
+  busy: boolean;
   now: number;
   ar: boolean;
   lang: "en" | "ar";
@@ -1150,12 +1114,12 @@ function Ticket({
   onRequestCancel: (order: OrderRow) => void;
   onOpenLog: (order: OrderRow) => void;
 }) {
-
   const age = elapsed(order.created_at, now);
   const overdue = age.minutes >= lateMinutes;
   const warn = !overdue && age.minutes >= warnMinutes;
   const isNew = order.status === "new";
-  const next = LANE.find((l) => l.status === order.status)?.next ?? null;
+  const next =
+    order.status === "ready" ? null : (LANE.find((l) => l.status === order.status)?.next ?? null);
 
   const orderTags = useMemo(() => {
     const texts = (order.items ?? []).flatMap((i) => {
@@ -1173,13 +1137,14 @@ function Ticket({
   return (
     <article
       className={cn(
-        "animate-fade-in flex h-full flex-col overflow-hidden rounded-3xl border bg-card shadow-[0_4px_20px_-8px_oklch(0.2_0.02_60_/_0.18)]",
+        "flex h-full flex-col overflow-hidden rounded-2xl border bg-card shadow-sm transition-colors duration-300 motion-reduce:transition-none",
+        order.status === "preparing" && "bg-blue-50/50 dark:bg-blue-950/20",
         overdue
-          ? "border-destructive/40 ring-2 ring-destructive/60"
+          ? "border-destructive/60"
           : warn
             ? "border-warning/50 ring-1 ring-warning/50"
             : isNew
-              ? "border-accent/40 ring-2 ring-accent/60"
+              ? "border-orange-300 dark:border-orange-800"
               : "border-border",
       )}
     >
@@ -1309,66 +1274,53 @@ function Ticket({
               {formatMoney(order.total, order.currency, lang)}
             </p>
           ) : null}
-          <button
-            type="button"
-            onClick={() => onOpenLog(order)}
-            className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground hover:bg-muted/70"
-          >
-            <History className="size-3.5" />
-            {events.length > 0
-              ? `${events.length} ${ar ? "تحديث" : "updates"}`
-              : ar
-                ? "السجل"
-                : "Worklog"}
-          </button>
         </div>
-
-        {staff.length > 0 ? (
-          <div className="flex items-center gap-2">
-            <ChefHat className="size-4 shrink-0 text-muted-foreground" />
-            <Select
-              value={order.assigned_staff_id ?? "unassigned"}
-              onValueChange={(v) => void onAssign(order.id, v === "unassigned" ? null : v)}
-            >
-              <SelectTrigger className="h-9 rounded-xl text-xs font-semibold">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unassigned">{ar ? "غير معيّن" : "Unassigned"}</SelectItem>
-                {staff.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : null}
       </div>
 
-      <div className="flex gap-2 border-t border-border bg-muted/40 p-2">
+      <div className="flex items-center gap-2 border-t border-border p-3">
         {next ? (
           <Button
-            size="lg"
-            className={cn("flex-[3] rounded-2xl text-base font-bold", compact ? "h-12" : "h-14")}
+            disabled={busy}
+            className="h-11 flex-1 rounded-xl"
             onClick={() => void onAdvance(order.id, next)}
           >
-            {NEXT_LABELS[next]?.[lang] ?? next}
+            {busy ? (ar ? "جار التحديث…" : "Updating…") : (NEXT_LABELS[next]?.[lang] ?? next)}
           </Button>
-        ) : null}
-        <Button
-          size="lg"
-          variant="outline"
-          className={cn(
-            "flex-1 rounded-2xl text-xs font-bold uppercase tracking-wider text-muted-foreground",
-            compact ? "h-12" : "h-14",
-          )}
-          onClick={() => onRequestCancel(order)}
-        >
-          {ar ? "إلغاء" : "Cancel"}
-        </Button>
+        ) : (
+          <span className="flex-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+            {ar ? "بانتظار الاستلام" : "Waiting for pickup"}
+          </span>
+        )}
+        <ActionMenu
+          ar={ar}
+          label={ar ? "إجراءات الطلب" : "Ticket actions"}
+          actions={[
+            {
+              label: ar ? "سجل الطلب" : "View worklog",
+              icon: History,
+              onSelect: () => onOpenLog(order),
+            },
+            {
+              label: ar ? "إلغاء التعيين" : "Unassign staff",
+              hidden: staff.length === 0,
+              disabled: busy,
+              onSelect: () => void onAssign(order.id, null),
+            },
+            ...staff.map((person) => ({
+              label: `${ar ? "تعيين" : "Assign to"} ${person.name}`,
+              disabled: busy,
+              onSelect: () => void onAssign(order.id, person.id),
+            })),
+            {
+              label: ar ? "إلغاء الطلب" : "Cancel ticket",
+              separatorBefore: true,
+              destructive: true,
+              disabled: busy,
+              onSelect: () => onRequestCancel(order),
+            },
+          ]}
+        />
       </div>
-
     </article>
   );
 }
