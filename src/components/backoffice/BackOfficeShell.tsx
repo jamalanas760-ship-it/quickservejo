@@ -99,8 +99,11 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
     requestedSection === "inventory" ? "inventory" : "overview",
   );
   useEffect(() => {
-    if (requestedSection === "inventory") setSection("inventory");
-  }, [requestedSection]);
+    if (requestedSection === "inventory" || requestedSection === "finance")
+      setSection(requestedSection);
+    else if (membership?.role === "accountant") setSection("finance");
+    else if (membership?.role === "inventory") setSection("inventory");
+  }, [requestedSection, membership?.role]);
   const [request, setRequest] = useState<RecordRequest | null>(null);
 
   if (access.isPending) return <Skeleton className="h-96 rounded-2xl" />;
@@ -372,14 +375,16 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
         )}
       </div>
 
-      {request ? <RecordDialog
-        restaurantId={restaurantId}
-        request={request}
-        onClose={() => setRequest(null)}
-        inventory={data.inventory}
-        suppliers={data.suppliers}
-        currency={currency}
-      /> : null}
+      {request ? (
+        <RecordDialog
+          restaurantId={restaurantId}
+          request={request}
+          onClose={() => setRequest(null)}
+          inventory={data.inventory}
+          suppliers={data.suppliers}
+          currency={currency}
+        />
+      ) : null}
     </section>
   );
 }

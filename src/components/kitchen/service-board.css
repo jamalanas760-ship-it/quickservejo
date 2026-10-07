@@ -1,0 +1,8 @@
+.qs-service-ticket { animation: qs-ticket-enter 240ms ease-out; }
+@keyframes qs-ticket-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .qs-service-ticket { animation: none; } }
+/* Set tenant navigation tokens so existing theme layers retain the dark rail. */
+html[data-kitchen-workspace="true"] .qs-sidebar-shell {
+  --restaurant-sidebar-bg: #111820;
+  --restaurant-sidebar-text: #d5dde7;
+}

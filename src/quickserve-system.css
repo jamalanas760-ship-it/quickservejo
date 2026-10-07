@@ -5578,3 +5578,6 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
 .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav .qs-mobile-nav-item.is-active{background:var(--qs-selection-background)!important}
 .qs-mobile-nav-item.is-active .qs-mobile-nav-icon,.qs-nav-portal .is-active .qs-mobile-nav-icon{background:var(--qs-selection-background)!important}
 .qs-tables-view-switch .is-active,.qs-floor-3d-camera button[aria-pressed=true]{background:var(--qs-selection-background);color:var(--qs-selection-icon)}
+
+/* Task sheets keep a usable scroll area above the mobile safe area. */
+@layer components{@media(max-width:767px){.qs-detail-sheet.qs-task-sheet[data-side=bottom]{height:min(640px,82dvh)!important;max-height:82dvh!important;padding:0!important}}}

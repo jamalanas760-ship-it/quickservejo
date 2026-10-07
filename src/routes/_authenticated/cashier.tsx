@@ -1,6 +1,17 @@
+import { useServiceLive } from "@/hooks/useServiceLive";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Banknote, CircleDollarSign, CreditCard, Minus, Plus, Receipt, RotateCcw, Wallet, WalletCards } from "lucide-react";
+import {
+  Banknote,
+  CircleDollarSign,
+  CreditCard,
+  Minus,
+  Plus,
+  Receipt,
+  RotateCcw,
+  Wallet,
+  WalletCards,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -10,9 +21,22 @@ import { StripePaymentDialog } from "@/components/payments/StripePaymentDialog";
 import { StaffHeader } from "@/components/staff/StaffHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceScope } from "@/hooks/useWorkspace";
@@ -25,7 +49,10 @@ export const Route = createFileRoute("/_authenticated/cashier")({
   head: () => ({
     meta: [
       { title: "Cashier & Payments — QuickServe" },
-      { name: "description", content: "Restaurant payment settlement, split payments, refunds and cash reconciliation." },
+      {
+        name: "description",
+        content: "Restaurant payment settlement, split payments, refunds and cash reconciliation.",
+      },
     ],
   }),
   component: CashierPage,
@@ -67,15 +94,18 @@ type CashSession = {
   closed_at: string | null;
 };
 
-const METHODS = ["cash","card","wallet","gift_card","other"] as const;
+const METHODS = ["cash", "card", "wallet", "gift_card", "other"] as const;
 
 function CashierPage() {
   const { lang } = useI18n();
   const ar = lang === "ar";
   const scope = useWorkspaceScope();
   const rid = scope.restaurantId;
+  useServiceLive(rid);
   const qc = useQueryClient();
 
+  const [showPaid, setShowPaid] = useState(false);
+  const [cashTendered, setCashTendered] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [method, setMethod] = useState<(typeof METHODS)[number]>("cash");
   const [amount, setAmount] = useState("");
@@ -96,14 +126,18 @@ function CashierPage() {
       const [billsRes, paymentsRes, sessionsRes] = await Promise.all([
         supabase
           .from("orders")
-          .select("id,order_number,status,payment_status,total,tip_amount,created_at,table:restaurant_tables(table_number)")
+          .select(
+            "id,order_number,status,payment_status,total,tip_amount,created_at,table:restaurant_tables(table_number)",
+          )
           .eq("restaurant_id", rid!)
           .neq("status", "cancelled")
           .order("created_at", { ascending: true })
           .limit(150),
         supabase
           .from("payment_transactions" as any)
-          .select("id,order_id,parent_transaction_id,transaction_type,method,amount,tip_amount,reference,status,created_at,provider,provider_transaction_id")
+          .select(
+            "id,order_id,parent_transaction_id,transaction_type,method,amount,tip_amount,reference,status,created_at,provider,provider_transaction_id",
+          )
           .eq("restaurant_id", rid!)
           .order("created_at", { ascending: false })
           .limit(1000),
@@ -127,7 +161,11 @@ function CashierPage() {
         created_at: row.created_at,
         table: row.table?.table_number ?? null,
       })) as Bill[];
-      const payments = (paymentsRes.data ?? []).map((row: any) => ({ ...row, amount: Number(row.amount ?? 0), tip_amount: Number(row.tip_amount ?? 0) })) as Payment[];
+      const payments = (paymentsRes.data ?? []).map((row: any) => ({
+        ...row,
+        amount: Number(row.amount ?? 0),
+        tip_amount: Number(row.tip_amount ?? 0),
+      })) as Payment[];
       const sessions = (sessionsRes.data ?? []).map((row: any) => ({
         ...row,
         opening_float: Number(row.opening_float ?? 0),
@@ -151,7 +189,12 @@ function CashierPage() {
         .eq("provider", "stripe")
         .maybeSingle();
       if (error) throw error;
-      return data as { id:string; status:string; config:Record<string,unknown>; last_error:string|null } | null;
+      return data as {
+        id: string;
+        status: string;
+        config: Record<string, unknown>;
+        last_error: string | null;
+      } | null;
     },
   });
 
@@ -159,9 +202,19 @@ function CashierPage() {
   const payments = query.data?.payments ?? [];
   const openSession = (query.data?.sessions ?? []).find((session) => !session.closed_at) ?? null;
 
-  const netPaid = (orderId: string) => payments
-    .filter((row) => row.order_id === orderId && row.status === "completed")
-    .reduce((sum, row) => sum + (row.transaction_type === "payment" ? row.amount : row.transaction_type === "refund" ? -row.amount : 0), 0);
+  const netPaid = (orderId: string) =>
+    payments
+      .filter((row) => row.order_id === orderId && row.status === "completed")
+      .reduce(
+        (sum, row) =>
+          sum +
+          (row.transaction_type === "payment"
+            ? row.amount
+            : row.transaction_type === "refund"
+              ? -row.amount
+              : 0),
+        0,
+      );
 
   const activeBills = useMemo(
     () => bills.filter((bill) => Math.max(0, bill.total - netPaid(bill.id)) > 0.001),
@@ -170,9 +223,22 @@ function CashierPage() {
   const selected = bills.find((bill) => bill.id === selectedId) ?? null;
   const selectedPaid = selected ? netPaid(selected.id) : 0;
   const selectedDue = selected ? Math.max(0, selected.total - selectedPaid) : 0;
-  const outstanding = activeBills.reduce((sum, bill) => sum + Math.max(0, bill.total - netPaid(bill.id)), 0);
-  const cashCollected = payments.filter((row) => row.transaction_type === "payment" && row.method === "cash" && row.status === "completed").reduce((sum,row)=>sum+row.amount,0);
-  const cardCollected = payments.filter((row) => row.transaction_type === "payment" && row.method === "card" && row.status === "completed").reduce((sum,row)=>sum+row.amount,0);
+  const outstanding = activeBills.reduce(
+    (sum, bill) => sum + Math.max(0, bill.total - netPaid(bill.id)),
+    0,
+  );
+  const cashCollected = payments
+    .filter(
+      (row) =>
+        row.transaction_type === "payment" && row.method === "cash" && row.status === "completed",
+    )
+    .reduce((sum, row) => sum + row.amount, 0);
+  const cardCollected = payments
+    .filter(
+      (row) =>
+        row.transaction_type === "payment" && row.method === "card" && row.status === "completed",
+    )
+    .reduce((sum, row) => sum + row.amount, 0);
 
   const refresh = async () => {
     await Promise.all([
@@ -194,7 +260,7 @@ function CashierPage() {
         _amount: value,
         _tip: Math.max(0, tipValue),
         _reference: reference.trim(),
-        _cash_session_id: method === "cash" ? openSession?.id ?? null : null,
+        _cash_session_id: method === "cash" ? (openSession?.id ?? null) : null,
       });
       if (error) throw error;
     },
@@ -208,22 +274,38 @@ function CashierPage() {
     onError: (error) => toast.error(humanError(error, lang)),
   });
 
-  const refundedAgainst = (paymentId: string) => payments
-    .filter((row) => row.transaction_type === "refund" && row.parent_transaction_id === paymentId && row.status === "completed")
-    .reduce((sum, row) => sum + row.amount, 0);
+  const refundedAgainst = (paymentId: string) =>
+    payments
+      .filter(
+        (row) =>
+          row.transaction_type === "refund" &&
+          row.parent_transaction_id === paymentId &&
+          row.status === "completed",
+      )
+      .reduce((sum, row) => sum + row.amount, 0);
 
-  const refundableAmount = (payment: Payment) => Math.max(0, payment.amount - refundedAgainst(payment.id));
+  const refundableAmount = (payment: Payment) =>
+    Math.max(0, payment.amount - refundedAgainst(payment.id));
 
   const refundMutation = useMutation({
     mutationFn: async (payment: Payment) => {
       const remaining = refundableAmount(payment);
-      if (remaining <= 0.001) throw new Error(ar ? "تم استرداد هذه الدفعة بالكامل" : "This payment has already been fully refunded");
+      if (remaining <= 0.001)
+        throw new Error(
+          ar ? "تم استرداد هذه الدفعة بالكامل" : "This payment has already been fully refunded",
+        );
       if (payment.provider === "stripe") {
         const { data, error } = await supabase.functions.invoke("quickserve-payments", {
-          body: { action: "refund", paymentId: payment.id, amount: remaining, idempotencyKey: `refund:${payment.id}:${crypto.randomUUID()}` },
+          body: {
+            action: "refund",
+            paymentId: payment.id,
+            amount: remaining,
+            idempotencyKey: `refund:${payment.id}:${crypto.randomUUID()}`,
+          },
         });
         if (error) throw error;
-        if (data?.status !== "succeeded" && data?.status !== "pending") throw new Error(data?.error || "Provider refund failed");
+        if (data?.status !== "succeeded" && data?.status !== "pending")
+          throw new Error(data?.error || "Provider refund failed");
         return;
       }
       const { error } = await (supabase as any).rpc("refund_order_payment", {
@@ -231,7 +313,7 @@ function CashierPage() {
         _amount: remaining,
         _payment_id: payment.id,
         _reference: "Refund " + (payment.reference || payment.id.slice(0, 8)),
-        _cash_session_id: payment.method === "cash" ? openSession?.id ?? null : null,
+        _cash_session_id: payment.method === "cash" ? (openSession?.id ?? null) : null,
       });
       if (error) throw error;
     },
@@ -264,7 +346,8 @@ function CashierPage() {
     mutationFn: async () => {
       if (!openSession) return;
       const value = Number(closingCash);
-      if (!Number.isFinite(value) || value < 0) throw new Error(ar ? "أدخل رصيد إغلاق صحيحاً" : "Enter a valid closing cash balance");
+      if (!Number.isFinite(value) || value < 0)
+        throw new Error(ar ? "أدخل رصيد إغلاق صحيحاً" : "Enter a valid closing cash balance");
       const { error } = await (supabase as any).rpc("close_cash_session", {
         _session_id: openSession.id,
         _closing_cash: value,
@@ -283,67 +366,609 @@ function CashierPage() {
 
   const selectedPayments = selected ? payments.filter((row) => row.order_id === selected.id) : [];
 
-  return <div className="min-h-screen bg-background">
-    <StaffHeader title={ar ? "الكاشير والمدفوعات" : "Cashier & Payments"} />
-    <main className="qs-page space-y-5">
-      <MasterPageHeader
-        eyebrow={<MasterEyebrow icon={WalletCards}>{ar ? "نقطة التسوية" : "Settlement desk"}</MasterEyebrow>}
-        title={ar ? "الكاشير والمدفوعات" : "Cashier & Payments"}
-        description={ar ? "دفعات جزئية، تقسيم الفاتورة، الإكرامية والاسترداد وتسوية الكاش في مسار واحد واضح." : "Handle partial payments, split bills, tips, refunds and cash reconciliation in one focused workflow."}
-        actions={openSession?<Button variant="outline" onClick={()=>setCloseSessionDialog(true)}><Banknote className="size-4"/>{ar?"إغلاق الصندوق":"Close cash session"}</Button>:<Button onClick={()=>setOpenSessionDialog(true)}><Banknote className="size-4"/>{ar?"فتح الصندوق":"Open cash session"}</Button>}
-      />
+  return (
+    <div className="min-h-screen bg-background">
+      <StaffHeader title={ar ? "الكاشير والمدفوعات" : "Cashier & Payments"} />
+      <main className="qs-page space-y-5">
+        <MasterPageHeader
+          eyebrow={
+            <MasterEyebrow icon={WalletCards}>
+              {ar ? "نقطة التسوية" : "Settlement desk"}
+            </MasterEyebrow>
+          }
+          title={ar ? "الكاشير والمدفوعات" : "Cashier & Payments"}
+          description={
+            ar
+              ? "دفعات جزئية، تقسيم الفاتورة، الإكرامية والاسترداد وتسوية الكاش في مسار واحد واضح."
+              : "Select a bill. Review the balance. Record payment."
+          }
+          actions={
+            openSession ? (
+              <Button variant="outline" onClick={() => setCloseSessionDialog(true)}>
+                <Banknote className="size-4" />
+                {ar ? "إغلاق الصندوق" : "Close cash session"}
+              </Button>
+            ) : (
+              <Button onClick={() => setOpenSessionDialog(true)}>
+                <Banknote className="size-4" />
+                {ar ? "فتح الصندوق" : "Open cash session"}
+              </Button>
+            )
+          }
+        />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MasterKpi icon={Receipt} label={ar?"فواتير مفتوحة":"Open Bills"} value={formatNumber(activeBills.length,lang)} hint={ar?"تحتاج تسوية":"Need settlement"} tone="orange"/>
-        <MasterKpi icon={CircleDollarSign} label={ar?"مبلغ مستحق":"Outstanding"} value={formatMoney(outstanding,scope.currency,lang)} hint={ar?"على الفواتير المفتوحة":"Across open bills"} tone="red"/>
-        <MasterKpi icon={Banknote} label={ar?"كاش محصل":"Cash Collected"} value={formatMoney(cashCollected,scope.currency,lang)} hint={openSession?(ar?"جلسة كاش مفتوحة":"Cash session open"):(ar?"لا توجد جلسة":"No open session")} tone="green"/>
-        <MasterKpi icon={CreditCard} label={ar?"بطاقات":"Card Collected"} value={formatMoney(cardCollected,scope.currency,lang)} hint={ar?"الدفعات المسجلة":"Recorded card payments"} tone="blue"/>
-      </section>
+        <p className="rounded-xl border bg-card px-4 py-3 text-sm text-muted-foreground">
+          <strong className="text-foreground">{activeBills.length}</strong>{" "}
+          {ar ? "فواتير مفتوحة" : "unpaid bills"} · {ar ? "المستحق" : "Outstanding"}{" "}
+          <strong className="text-foreground">
+            {formatMoney(outstanding, scope.currency, lang)}
+          </strong>
+        </p>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,.85fr)]">
-        <div className="overflow-hidden rounded-[18px] border border-border/85 bg-card shadow-[var(--qs-shadow-card)]">
-          <div className="border-b border-border p-5"><h2 className="font-display text-lg font-bold">{ar ? "الفواتير" : "Bills"}</h2><p className="mt-1 text-xs text-muted-foreground">{ar ? "اختر فاتورة لإضافة دفعة أو مراجعة ما تم تحصيله." : "Select a bill to add a payment or review its settlement history."}</p></div>
-          {query.isPending ? <div className="p-5"><Skeleton className="h-72 rounded-2xl" /></div> : query.isError ? <p className="p-5 text-sm text-destructive">{humanError(query.error,lang)}</p> : !activeBills.length ? <div className="p-5"><EmptyState icon={<Wallet className="size-6"/>} title={ar?"لا فواتير مفتوحة":"No open bills"} description={ar?"كل الفواتير مسددة حالياً.":"Everything is settled right now."}/></div> : <div className="divide-y divide-border">{activeBills.map((bill)=>{
-            const paid=netPaid(bill.id), due=Math.max(0,bill.total-paid);
-            return <button key={bill.id} type="button" onClick={()=>{setSelectedId(bill.id);setAmount(String(due.toFixed(3)));}} className={cn("grid w-full gap-3 p-4 text-start transition hover:bg-muted/25 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center",selectedId===bill.id&&"bg-orange-500/5")}>
-              <div className="min-w-0"><strong className="block truncate">{bill.order_number}</strong><p className="mt-1 text-xs text-muted-foreground">{bill.table?(ar?"طاولة ":"Table ")+bill.table+" · ":""}{formatDateTime(bill.created_at,lang)}</p></div>
-              <div className="text-xs text-muted-foreground">{paid>0?(ar?"مدفوع ":"Paid ")+formatMoney(paid,scope.currency,lang):ar?"بدون دفعات":"No payments"}</div>
-              <div className="text-end"><strong className="block">{formatMoney(due,scope.currency,lang)}</strong><span className="text-[10px] text-muted-foreground">{ar?"متبقي":"due"}</span></div>
-            </button>;
-          })}</div>}
-        </div>
-
-        <aside className="overflow-hidden rounded-2xl border border-border bg-card self-start xl:sticky xl:top-24">
-          {!selected ? <div className="grid min-h-[420px] place-items-center p-8 text-center"><div><Receipt className="mx-auto size-9 text-muted-foreground"/><h3 className="mt-3 font-bold">{ar?"اختر فاتورة":"Select a bill"}</h3><p className="mt-1 text-xs text-muted-foreground">{ar?"تفاصيل الدفعات ستظهر هنا.":"Payment details will appear here."}</p></div></div> : <>
-            <div className="border-b border-border p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="font-display text-xl font-bold">{selected.order_number}</h2><p className="mt-1 text-xs text-muted-foreground">{selected.table?(ar?"طاولة ":"Table ")+selected.table:"Dine in"}</p></div><Badge variant={selectedDue<=.001?"secondary":"outline"}>{selectedDue<=.001?(ar?"مسدد":"Paid"):(ar?"مفتوح":"Open")}</Badge></div><div className="mt-4 grid grid-cols-3 gap-2 text-xs"><Summary label={ar?"الإجمالي":"Total"} value={formatMoney(selected.total,scope.currency,lang)}/><Summary label={ar?"مدفوع":"Paid"} value={formatMoney(selectedPaid,scope.currency,lang)}/><Summary label={ar?"المتبقي":"Due"} value={formatMoney(selectedDue,scope.currency,lang)}/></div></div>
-            <div className="space-y-4 p-5">
-              {selectedDue>.001 ? <>
-                <div className="grid grid-cols-2 gap-2"><Button type="button" variant="outline" onClick={()=>setAmount(String((selectedDue/Math.max(1,splitWays)).toFixed(3)))}><Minus className="size-4"/>{ar?"حصة":"Split"}</Button><div className="flex items-center justify-center gap-2 rounded-xl border border-border"><Button type="button" size="icon" variant="ghost" onClick={()=>setSplitWays(v=>Math.max(2,v-1))}><Minus className="size-3.5"/></Button><strong className="text-sm">{splitWays}</strong><Button type="button" size="icon" variant="ghost" onClick={()=>setSplitWays(v=>Math.min(20,v+1))}><Plus className="size-3.5"/></Button></div></div>
-                <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-xs"><span>{ar?"طريقة الدفع":"Method"}</span><Select value={method} onValueChange={(value)=>{setMethod(value as typeof method);if(value==="gift_card")setTip("0");}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{METHODS.map(item=><SelectItem key={item} value={item}>{methodLabel(item,ar)}</SelectItem>)}</SelectContent></Select></label><label className="space-y-1.5 text-xs"><span>{ar?"المبلغ":"Amount"}</span><Input type="number" min="0.001" max={selectedDue} step="0.001" value={amount} onChange={e=>setAmount(e.target.value)}/></label><label className="space-y-1.5 text-xs"><span>{ar?"إكرامية":"Tip"}</span><Input type="number" min="0" step="0.001" value={tip} disabled={method==="gift_card"} onChange={e=>setTip(e.target.value)}/>{method==="gift_card"?<span className="block text-[10px] text-muted-foreground">{ar?"بطاقات الهدايا لا تمول الإكرامية.":"Gift cards cannot be used for tips."}</span>:null}</label><label className="space-y-1.5 text-xs"><span>{method==="gift_card"?(ar?"رمز بطاقة الهدية":"Gift card code"):(ar?"مرجع":"Reference")}</span><Input value={reference} onChange={e=>setReference(e.target.value)} autoCapitalize={method==="gift_card"?"characters":"off"} placeholder={method==="card"?"AUTH-1234":method==="gift_card"?"AB12CD34EF56":""}/>{method==="gift_card"?<span className="block text-[10px] text-muted-foreground">{ar?"سيتم خصم الرصيد والتحقق منه قبل اعتماد الدفعة.":"Balance is validated and deducted atomically before settlement."}</span>:null}</label></div>
-                <Button className="w-full" disabled={paymentMutation.isPending||!(Number(amount)>0)||(method==="gift_card"&&!reference.trim())} onClick={()=>paymentMutation.mutate()}>{methodIcon(method)}{method==="card"?(ar?"تسجيل دفع جهاز خارجي":"Record external-terminal payment"):(ar?"تسجيل الدفعة":"Record payment")}</Button>
-                <div className="rounded-xl border border-dashed p-3">
-                  <div className="flex items-start justify-between gap-3"><div><strong className="text-xs">{ar?"الدفع عبر مزود متصل":"Connected online payment"}</strong><p className="mt-1 text-[10px] text-muted-foreground">{ar?"Stripe Payment Element مع Apple Pay / Google Pay عندما تكون متاحة.":"Stripe Payment Element with Apple Pay / Google Pay when eligible."}</p></div><Badge variant={stripeConnection.data && stripeConnection.data.status!=="disabled"?"secondary":"outline"}>{stripeConnection.data && stripeConnection.data.status!=="disabled"?(ar?"متصل":"Connected"):(ar?"غير مهيأ":"Not configured")}</Badge></div>
-                  <Button className="mt-3 w-full" variant="outline" disabled={!stripeConnection.data||stripeConnection.data.status==="disabled"||!(Number(amount)>0)} onClick={()=>setProviderOpen(true)}><CreditCard className="size-4"/>{ar?"فتح الدفع الإلكتروني":"Open online payment"}</Button>
-                  {!stripeConnection.data?<p className="mt-2 text-[10px] text-muted-foreground">{ar?"هيّئ Stripe أولاً من QuickServe Connect.":"Configure Stripe first in QuickServe Connect."}</p>:stripeConnection.data.last_error?<p className="mt-2 text-[10px] text-red-600">{stripeConnection.data.last_error}</p>:null}
+        <section className="flex flex-col gap-5">
+          <div className="overflow-hidden rounded-[18px] border border-border/85 bg-card shadow-[var(--qs-shadow-card)]">
+            <div className="border-b border-border p-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold">{ar ? "الفواتير" : "Bills"}</h2>
+                <div className="flex gap-1 rounded-xl bg-muted p-1">
+                  {[false, true].map((paid) => (
+                    <button
+                      key={String(paid)}
+                      type="button"
+                      aria-pressed={showPaid === paid}
+                      onClick={() => setShowPaid(paid)}
+                      className={cn(
+                        "min-h-11 rounded-lg px-3 text-sm",
+                        showPaid === paid && "bg-card shadow-sm",
+                      )}
+                    >
+                      {paid ? (ar ? "مسددة" : "Paid") : ar ? "غير مسددة" : "Unpaid"}
+                    </button>
+                  ))}
                 </div>
-              </> : null}
-
-              <div><h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">{ar?"سجل الدفعات":"Payment history"}</h3><div className="mt-2 space-y-2">{selectedPayments.length?selectedPayments.map(payment=><div key={payment.id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"><div><div className="flex items-center gap-2"><strong className="text-xs capitalize">{payment.transaction_type} · {methodLabel(payment.method,ar)}</strong>{payment.transaction_type==="refund"?<Badge variant="destructive">{ar?"استرداد":"Refund"}</Badge>:null}</div><p className="mt-1 text-[10px] text-muted-foreground">{formatDateTime(payment.created_at,lang)}{payment.reference?" · "+payment.reference:""}</p></div><div className="text-end"><strong className={cn("text-sm",payment.transaction_type==="refund"&&"text-red-600")}>{payment.transaction_type==="refund"?"−":""}{formatMoney(payment.amount,scope.currency,lang)}</strong>{payment.transaction_type==="payment"&&refundableAmount(payment)>0.001?<Button size="sm" variant="ghost" className="mt-1 h-6 px-2 text-[10px]" disabled={refundMutation.isPending} onClick={()=>refundMutation.mutate(payment)}><RotateCcw className="size-3"/>{ar?"استرداد":"Refund"} {formatMoney(refundableAmount(payment),scope.currency,lang)}</Button>:null}</div></div>):<p className="py-4 text-xs text-muted-foreground">{ar?"لا توجد دفعات بعد.":"No payments yet."}</p>}</div></div>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {ar
+                  ? "اختر فاتورة لإضافة دفعة أو مراجعة ما تم تحصيله."
+                  : "Select a bill to add a payment or review its settlement history."}
+              </p>
             </div>
-          </>}
-        </aside>
-      </section>
-    </main>
+            {query.isPending ? (
+              <div className="p-5">
+                <Skeleton className="h-72 rounded-2xl" />
+              </div>
+            ) : query.isError ? (
+              <p className="p-5 text-sm text-destructive">{humanError(query.error, lang)}</p>
+            ) : !(
+                showPaid
+                  ? bills.filter((bill) => !activeBills.some((active) => active.id === bill.id))
+                  : activeBills
+              ).length ? (
+              <div className="p-5">
+                <EmptyState
+                  icon={<Wallet className="size-6" />}
+                  title={ar ? "لا فواتير مفتوحة" : "No open bills"}
+                  description={
+                    ar ? "كل الفواتير مسددة حالياً." : "Everything is settled right now."
+                  }
+                />
+              </div>
+            ) : (
+              <div className="flex gap-2 overflow-x-auto p-3">
+                {(showPaid
+                  ? bills.filter((bill) => !activeBills.some((active) => active.id === bill.id))
+                  : activeBills
+                ).map((bill) => {
+                  const paid = netPaid(bill.id),
+                    due = Math.max(0, bill.total - paid);
+                  return (
+                    <button
+                      key={bill.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedId(bill.id);
+                        setAmount(String(due.toFixed(3)));
+                        setCashTendered("");
+                      }}
+                      className={cn(
+                        "grid w-56 shrink-0 gap-2 rounded-xl border p-4 text-start transition-colors hover:bg-muted/25",
+                        selectedId === bill.id && "border-primary bg-primary/10 text-foreground",
+                      )}
+                    >
+                      <div className="min-w-0">
+                        <strong className="block truncate">{bill.order_number}</strong>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {bill.table ? (ar ? "طاولة " : "Table ") + bill.table + " · " : ""}
+                          {formatDateTime(bill.created_at, lang)}
+                        </p>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {paid > 0
+                          ? (ar ? "مدفوع " : "Paid ") + formatMoney(paid, scope.currency, lang)
+                          : ar
+                            ? "بدون دفعات"
+                            : "No payments"}
+                      </div>
+                      <div className="text-end">
+                        <strong className="block">{formatMoney(due, scope.currency, lang)}</strong>
+                        <span className="text-[10px] text-muted-foreground">
+                          {ar ? "متبقي" : "due"}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
-    <Dialog open={openSessionDialog} onOpenChange={setOpenSessionDialog}><DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>{ar?"فتح صندوق الكاش":"Open cash session"}</DialogTitle><DialogDescription>{ar?"أدخل الرصيد الافتتاحي للصندوق قبل بدء التحصيل النقدي.":"Enter the opening cash float before collecting cash."}</DialogDescription></DialogHeader><label className="space-y-2 text-sm"><span>{ar?"الرصيد الافتتاحي":"Opening float"} ({scope.currency})</span><Input type="number" min="0" step="0.001" value={openingFloat} onChange={e=>setOpeningFloat(e.target.value)}/></label><DialogFooter><Button variant="outline" onClick={()=>setOpenSessionDialog(false)}>{ar?"إلغاء":"Cancel"}</Button><Button disabled={openSessionMutation.isPending} onClick={()=>openSessionMutation.mutate()}>{ar?"فتح":"Open"}</Button></DialogFooter></DialogContent></Dialog>
+          <aside className="overflow-hidden rounded-2xl border border-border bg-card ">
+            {!selected ? (
+              <div className="grid min-h-[420px] place-items-center p-8 text-center">
+                <div>
+                  <Receipt className="mx-auto size-9 text-muted-foreground" />
+                  <h3 className="mt-3 font-bold">{ar ? "اختر فاتورة" : "Select a bill"}</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {ar ? "تفاصيل الدفعات ستظهر هنا." : "Payment details will appear here."}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <div className="border-b border-border p-5 xl:border-e xl:border-b-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="font-display text-xl font-bold">{selected.order_number}</h2>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {selected.table ? (ar ? "طاولة " : "Table ") + selected.table : "Dine in"}
+                      </p>
+                    </div>
+                    <Badge variant={selectedDue <= 0.001 ? "secondary" : "outline"}>
+                      {selectedDue <= 0.001 ? (ar ? "مسدد" : "Paid") : ar ? "مفتوح" : "Open"}
+                    </Badge>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+                    <Summary
+                      label={ar ? "الإجمالي" : "Total"}
+                      value={formatMoney(selected.total, scope.currency, lang)}
+                    />
+                    <Summary
+                      label={ar ? "مدفوع" : "Paid"}
+                      value={formatMoney(selectedPaid, scope.currency, lang)}
+                    />
+                    <Summary
+                      label={ar ? "المتبقي" : "Due"}
+                      value={formatMoney(selectedDue, scope.currency, lang)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4 p-5">
+                  {selectedDue > 0.001 ? (
+                    <>
+                      <details className="rounded-xl border p-3">
+                        <summary className="cursor-pointer text-sm font-semibold">
+                          {ar ? "تقسيم الفاتورة" : "Split bill"}
+                        </summary>
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                              setAmount(String((selectedDue / Math.max(1, splitWays)).toFixed(3)))
+                            }
+                          >
+                            <Minus className="size-4" />
+                            {ar ? "حصة" : "Split"}
+                          </Button>
+                          <div className="flex items-center justify-center gap-2 rounded-xl border border-border">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setSplitWays((v) => Math.max(2, v - 1))}
+                            >
+                              <Minus className="size-3.5" />
+                            </Button>
+                            <strong className="text-sm">{splitWays}</strong>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setSplitWays((v) => Math.min(20, v + 1))}
+                            >
+                              <Plus className="size-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </details>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="space-y-1.5 text-xs">
+                          <span>{ar ? "طريقة الدفع" : "Method"}</span>
+                          <Select
+                            value={method}
+                            onValueChange={(value) => {
+                              setMethod(value as typeof method);
+                              if (value === "gift_card") setTip("0");
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {METHODS.map((item) => (
+                                <SelectItem key={item} value={item}>
+                                  {methodLabel(item, ar)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </label>
+                        <label className="space-y-1.5 text-xs">
+                          <span>{ar ? "المبلغ" : "Amount"}</span>
+                          <Input
+                            type="number"
+                            min="0.001"
+                            max={selectedDue}
+                            step="0.001"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                          />
+                        </label>
+                        <label className="space-y-1.5 text-xs">
+                          <span>{ar ? "إكرامية" : "Tip"}</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.001"
+                            value={tip}
+                            disabled={method === "gift_card"}
+                            onChange={(e) => setTip(e.target.value)}
+                          />
+                          {method === "gift_card" ? (
+                            <span className="block text-[10px] text-muted-foreground">
+                              {ar
+                                ? "بطاقات الهدايا لا تمول الإكرامية."
+                                : "Gift cards cannot be used for tips."}
+                            </span>
+                          ) : null}
+                        </label>
+                        <label className="space-y-1.5 text-xs">
+                          <span>
+                            {method === "gift_card"
+                              ? ar
+                                ? "رمز بطاقة الهدية"
+                                : "Gift card code"
+                              : ar
+                                ? "مرجع"
+                                : "Reference"}
+                          </span>
+                          <Input
+                            value={reference}
+                            onChange={(e) => setReference(e.target.value)}
+                            autoCapitalize={method === "gift_card" ? "characters" : "off"}
+                            placeholder={
+                              method === "card"
+                                ? "AUTH-1234"
+                                : method === "gift_card"
+                                  ? "AB12CD34EF56"
+                                  : ""
+                            }
+                          />
+                          {method === "gift_card" ? (
+                            <span className="block text-[10px] text-muted-foreground">
+                              {ar
+                                ? "سيتم خصم الرصيد والتحقق منه قبل اعتماد الدفعة."
+                                : "Balance is validated and deducted atomically before settlement."}
+                            </span>
+                          ) : null}
+                        </label>
+                      </div>
+                      {method === "cash" ? (
+                        <label className="block space-y-2 text-xs">
+                          <span>{ar ? "النقد المستلم" : "Cash tendered"}</span>
+                          <Input
+                            inputMode="decimal"
+                            type="number"
+                            min="0"
+                            step="0.001"
+                            value={cashTendered}
+                            onChange={(event) => setCashTendered(event.target.value)}
+                          />
+                          <span className="block text-sm font-semibold">
+                            {ar ? "الباقي" : "Change"}:{" "}
+                            {formatMoney(
+                              Math.max(
+                                0,
+                                Number(cashTendered || 0) -
+                                  Number(amount || selectedDue) -
+                                  Number(tip || 0),
+                              ),
+                              scope.currency,
+                              lang,
+                            )}
+                          </span>
+                        </label>
+                      ) : null}
+                      <Button
+                        className="w-full"
+                        disabled={
+                          paymentMutation.isPending ||
+                          !(Number(amount) > 0) ||
+                          (method === "gift_card" && !reference.trim())
+                        }
+                        onClick={() => paymentMutation.mutate()}
+                      >
+                        {methodIcon(method)}
+                        {method === "card"
+                          ? ar
+                            ? "تسجيل دفع جهاز خارجي"
+                            : "Record external-terminal payment"
+                          : ar
+                            ? "تسجيل الدفعة"
+                            : "Record payment"}
+                      </Button>
+                      <details className="rounded-xl border border-dashed p-3">
+                        <summary className="cursor-pointer text-sm">
+                          {ar ? "الدفع الإلكتروني" : "Online payment"}
+                        </summary>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <strong className="text-xs">
+                              {ar ? "الدفع عبر مزود متصل" : "Connected online payment"}
+                            </strong>
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                              {ar
+                                ? "Stripe Payment Element مع Apple Pay / Google Pay عندما تكون متاحة."
+                                : "Stripe Payment Element with Apple Pay / Google Pay when eligible."}
+                            </p>
+                          </div>
+                          <Badge
+                            variant={
+                              stripeConnection.data && stripeConnection.data.status !== "disabled"
+                                ? "secondary"
+                                : "outline"
+                            }
+                          >
+                            {stripeConnection.data && stripeConnection.data.status !== "disabled"
+                              ? ar
+                                ? "متصل"
+                                : "Connected"
+                              : ar
+                                ? "غير مهيأ"
+                                : "Not configured"}
+                          </Badge>
+                        </div>
+                        <Button
+                          className="mt-3 w-full"
+                          variant="outline"
+                          disabled={
+                            !stripeConnection.data ||
+                            stripeConnection.data.status === "disabled" ||
+                            !(Number(amount) > 0)
+                          }
+                          onClick={() => setProviderOpen(true)}
+                        >
+                          <CreditCard className="size-4" />
+                          {ar ? "فتح الدفع الإلكتروني" : "Open online payment"}
+                        </Button>
+                        {!stripeConnection.data ? (
+                          <p className="mt-2 text-[10px] text-muted-foreground">
+                            {ar
+                              ? "هيّئ Stripe أولاً من QuickServe Connect."
+                              : "Configure Stripe first in QuickServe Connect."}
+                          </p>
+                        ) : stripeConnection.data.last_error ? (
+                          <p className="mt-2 text-[10px] text-red-600">
+                            {stripeConnection.data.last_error}
+                          </p>
+                        ) : null}
+                      </details>
+                    </>
+                  ) : null}
 
-    <Dialog open={closeSessionDialog} onOpenChange={setCloseSessionDialog}><DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>{ar?"إغلاق صندوق الكاش":"Close cash session"}</DialogTitle><DialogDescription>{openSession?(ar?"مفتوح منذ ":"Opened ")+formatDateTime(openSession.opened_at,lang):""}</DialogDescription></DialogHeader><label className="space-y-2 text-sm"><span>{ar?"الكاش الفعلي عند الإغلاق":"Actual closing cash"} ({scope.currency})</span><Input type="number" min="0" step="0.001" value={closingCash} onChange={e=>setClosingCash(e.target.value)}/></label><DialogFooter><Button variant="outline" onClick={()=>setCloseSessionDialog(false)}>{ar?"إلغاء":"Cancel"}</Button><Button disabled={closeSessionMutation.isPending||closingCash===""} onClick={()=>closeSessionMutation.mutate()}>{ar?"إغلاق وتسوية":"Close & reconcile"}</Button></DialogFooter></DialogContent></Dialog>
-    {selected ? <StripePaymentDialog open={providerOpen} onOpenChange={setProviderOpen} orderId={selected.id} orderNumber={selected.order_number} amount={Math.min(selectedDue,Math.max(0,Number(amount||selectedDue)))} tip={Math.max(0,Number(tip||0))} currency={scope.currency} onSettled={refresh} /> : null}
-  </div>;
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-[.08em] text-muted-foreground">
+                      {ar ? "سجل الدفعات" : "Payment history"}
+                    </h3>
+                    <div className="mt-2 space-y-2">
+                      {selectedPayments.length ? (
+                        selectedPayments.map((payment) => (
+                          <div
+                            key={payment.id}
+                            className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"
+                          >
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <strong className="text-xs capitalize">
+                                  {payment.transaction_type} · {methodLabel(payment.method, ar)}
+                                </strong>
+                                {payment.transaction_type === "refund" ? (
+                                  <Badge variant="destructive">{ar ? "استرداد" : "Refund"}</Badge>
+                                ) : null}
+                              </div>
+                              <p className="mt-1 text-[10px] text-muted-foreground">
+                                {formatDateTime(payment.created_at, lang)}
+                                {payment.reference ? " · " + payment.reference : ""}
+                              </p>
+                            </div>
+                            <div className="text-end">
+                              <strong
+                                className={cn(
+                                  "text-sm",
+                                  payment.transaction_type === "refund" && "text-red-600",
+                                )}
+                              >
+                                {payment.transaction_type === "refund" ? "−" : ""}
+                                {formatMoney(payment.amount, scope.currency, lang)}
+                              </strong>
+                              {payment.transaction_type === "payment" &&
+                              refundableAmount(payment) > 0.001 ? (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="mt-1 h-6 px-2 text-[10px]"
+                                  disabled={refundMutation.isPending}
+                                  onClick={() => refundMutation.mutate(payment)}
+                                >
+                                  <RotateCcw className="size-3" />
+                                  {ar ? "استرداد" : "Refund"}{" "}
+                                  {formatMoney(refundableAmount(payment), scope.currency, lang)}
+                                </Button>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="py-4 text-xs text-muted-foreground">
+                          {ar ? "لا توجد دفعات بعد." : "No payments yet."}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </aside>
+        </section>
+      </main>
+
+      <Dialog open={openSessionDialog} onOpenChange={setOpenSessionDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{ar ? "فتح صندوق الكاش" : "Open cash session"}</DialogTitle>
+            <DialogDescription>
+              {ar
+                ? "أدخل الرصيد الافتتاحي للصندوق قبل بدء التحصيل النقدي."
+                : "Enter the opening cash float before collecting cash."}
+            </DialogDescription>
+          </DialogHeader>
+          <label className="space-y-2 text-sm">
+            <span>
+              {ar ? "الرصيد الافتتاحي" : "Opening float"} ({scope.currency})
+            </span>
+            <Input
+              type="number"
+              min="0"
+              step="0.001"
+              value={openingFloat}
+              onChange={(e) => setOpeningFloat(e.target.value)}
+            />
+          </label>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenSessionDialog(false)}>
+              {ar ? "إلغاء" : "Cancel"}
+            </Button>
+            <Button
+              disabled={openSessionMutation.isPending}
+              onClick={() => openSessionMutation.mutate()}
+            >
+              {ar ? "فتح" : "Open"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={closeSessionDialog} onOpenChange={setCloseSessionDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{ar ? "إغلاق صندوق الكاش" : "Close cash session"}</DialogTitle>
+            <DialogDescription>
+              {openSession
+                ? (ar ? "مفتوح منذ " : "Opened ") + formatDateTime(openSession.opened_at, lang)
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <label className="space-y-2 text-sm">
+            <span>
+              {ar ? "الكاش الفعلي عند الإغلاق" : "Actual closing cash"} ({scope.currency})
+            </span>
+            <Input
+              type="number"
+              min="0"
+              step="0.001"
+              value={closingCash}
+              onChange={(e) => setClosingCash(e.target.value)}
+            />
+          </label>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCloseSessionDialog(false)}>
+              {ar ? "إلغاء" : "Cancel"}
+            </Button>
+            <Button
+              disabled={closeSessionMutation.isPending || closingCash === ""}
+              onClick={() => closeSessionMutation.mutate()}
+            >
+              {ar ? "إغلاق وتسوية" : "Close & reconcile"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {selected ? (
+        <StripePaymentDialog
+          open={providerOpen}
+          onOpenChange={setProviderOpen}
+          orderId={selected.id}
+          orderNumber={selected.order_number}
+          amount={Math.min(selectedDue, Math.max(0, Number(amount || selectedDue)))}
+          tip={Math.max(0, Number(tip || 0))}
+          currency={scope.currency}
+          onSettled={refresh}
+        />
+      ) : null}
+    </div>
+  );
 }
 
-function Metric({icon:Icon,label,value}:{icon:typeof Receipt;label:string;value:string}) { return <article className="qs-stat flex min-h-[106px] items-center gap-4 p-4"><span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]"><Icon className="size-5"/></span><div><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><strong className="mt-1 block font-display text-xl tracking-[-.03em]">{value}</strong></div></article>; }
-function Summary({label,value}:{label:string;value:string}) { return <div className="rounded-xl bg-muted/45 p-3"><p className="text-[10px] text-muted-foreground">{label}</p><strong className="mt-1 block text-sm">{value}</strong></div>; }
-function methodLabel(method:Payment["method"],ar:boolean){ const map:Record<Payment["method"],[string,string]>={cash:["Cash","نقدي"],card:["Card","بطاقة"],wallet:["Wallet","محفظة"],gift_card:["Gift card","بطاقة هدية"],other:["Other","أخرى"]}; return map[method][ar?1:0]; }
-function methodIcon(method:Payment["method"]){ return method==="cash"?<Banknote className="size-4"/>:method==="card"?<CreditCard className="size-4"/>:method==="gift_card"?<GiftIcon/>:<WalletCards className="size-4"/>; }
-function GiftIcon(){ return <WalletCards className="size-4"/>; }
+function Metric({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Receipt;
+  label: string;
+  value: string;
+}) {
+  return (
+    <article className="qs-stat flex min-h-[106px] items-center gap-4 p-4">
+      <span className="grid size-11 place-items-center rounded-2xl bg-orange-500/10 text-[#e85d2a]">
+        <Icon className="size-5" />
+      </span>
+      <div>
+        <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
+        <strong className="mt-1 block font-display text-xl tracking-[-.03em]">{value}</strong>
+      </div>
+    </article>
+  );
+}
+function Summary({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-muted/45 p-3">
+      <p className="text-[10px] text-muted-foreground">{label}</p>
+      <strong className="mt-1 block text-sm">{value}</strong>
+    </div>
+  );
+}
+function methodLabel(method: Payment["method"], ar: boolean) {
+  const map: Record<Payment["method"], [string, string]> = {
+    cash: ["Cash", "نقدي"],
+    card: ["Card", "بطاقة"],
+    wallet: ["Wallet", "محفظة"],
+    gift_card: ["Gift card", "بطاقة هدية"],
+    other: ["Other", "أخرى"],
+  };
+  return map[method][ar ? 1 : 0];
+}
+function methodIcon(method: Payment["method"]) {
+  return method === "cash" ? (
+    <Banknote className="size-4" />
+  ) : method === "card" ? (
+    <CreditCard className="size-4" />
+  ) : method === "gift_card" ? (
+    <GiftIcon />
+  ) : (
+    <WalletCards className="size-4" />
+  );
+}
+function GiftIcon() {
+  return <WalletCards className="size-4" />;
+}

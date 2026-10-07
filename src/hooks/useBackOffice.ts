@@ -42,9 +42,10 @@ export function useBackOffice(restaurantId: string, access: BackOfficeAccess, en
       enabled &&
       Boolean(restaurantId) &&
       (access.inventory || access.procurement || access.finance),
-    staleTime: 60_000,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
     gcTime: 15 * 60_000,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const [inventory, suppliers, movements, expenses, procurement] = await Promise.all([
         access.inventory || access.procurement || access.finance

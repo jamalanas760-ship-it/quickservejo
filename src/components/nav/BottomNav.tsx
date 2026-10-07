@@ -105,7 +105,7 @@ export function BottomNav() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem("qs-sidebar-collapsed");
-      setSidebarCollapsed(saved === null ? window.matchMedia("(min-width:768px) and (max-width:1023px)").matches : saved === "true");
+      setSidebarCollapsed(saved === null ? (window.location.pathname.startsWith("/kitchen") || window.matchMedia("(min-width:768px) and (max-width:1023px)").matches) : saved === "true");
     } catch {}
     setSidebarRestored(true);
   }, []);
@@ -136,13 +136,15 @@ export function BottomNav() {
   useLayoutEffect(() => {
     document.documentElement.dataset.sidebarCollapsed = String(sidebarCollapsed && !access.isSuperAdmin);
     document.documentElement.dataset.sidebarMotionReady = String(sidebarMotionReady);
+    document.documentElement.dataset.kitchenWorkspace = String(pathname.startsWith("/kitchen"));
     if (sidebarRestored) {
       try { localStorage.setItem("qs-sidebar-collapsed", String(sidebarCollapsed)); } catch {}
     }
-  }, [sidebarCollapsed, sidebarMotionReady, sidebarRestored, access.isSuperAdmin]);
+  }, [sidebarCollapsed, sidebarMotionReady, sidebarRestored, access.isSuperAdmin, pathname]);
   useEffect(() => () => {
     delete document.documentElement.dataset.sidebarCollapsed;
     delete document.documentElement.dataset.sidebarMotionReady;
+    delete document.documentElement.dataset.kitchenWorkspace;
   }, []);
 
   const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
@@ -176,7 +178,7 @@ export function BottomNav() {
   const role = membership?.role ?? access.roles[0] ?? null;
   const overrides = membership?.permission_overrides ?? null;
   const can = (capability: Capability) =>
-    Boolean(role && membershipHasCapability(role, overrides, capability));
+    Boolean(role && !(role === "waiter" && capability === "manage_tables") && membershipHasCapability(role, overrides, capability));
   const appearance = readAppearance(restaurant?.menu_theme);
   const useRestaurantLogo = Boolean(restaurant?.logo_url && !appearance.useQuickServeLogo);
   const managerial =

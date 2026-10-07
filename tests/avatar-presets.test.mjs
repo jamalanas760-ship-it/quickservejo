@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import ts from 'typescript';
+import { createHash } from 'node:crypto';
 const source = await readFile(new URL('../src/lib/avatar-presets.ts', import.meta.url), 'utf8');
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
 const { AVATAR_PRESETS, avatarPresetUrl, resolveAvatarPresetId, roleAvatarUrl } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
@@ -23,13 +24,16 @@ test('all previously saved avatar ids resolve to a selectable approved portrait'
   assert.equal(avatarPresetUrl('unknown'), null);
 });
 
-test('the catalogue uses exactly nine independently loadable approved PNGs', async () => {
+test('the catalogue uses 32 unique independently loadable approved PNGs', async () => {
   const urls = new Set(AVATAR_PRESETS.map(p => p.url));
-  assert.equal(urls.size, 9);
+  assert.equal(urls.size, 32);
+  const hashes = new Set();
   for (const url of urls) {
     const bytes = await readFile(new URL(`../public${url}`, import.meta.url));
+    hashes.add(createHash('sha256').update(bytes).digest('hex'));
     assert.equal(bytes.subarray(0,8).toString('hex'), '89504e470d0a1a0a');
-    assert.equal(bytes.readUInt32BE(16), 392);
-    assert.equal(bytes.readUInt32BE(20), 392);
+    assert.equal(bytes.readUInt32BE(16), 274);
+    assert.equal(bytes.readUInt32BE(20), 274);
   }
+  assert.equal(hashes.size, 32);
 });
