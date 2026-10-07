@@ -213,17 +213,17 @@
   .qs-sidebar-item[data-active="true"],
   .dark .qs-sidebar-item[data-active="true"],
   .tenant-theme-scope .qs-sidebar-shell .qs-sidebar-item[data-active="true"] {
-    border-color: color-mix(in srgb, var(--restaurant-selected-nav, var(--qs-brand)) 28%, var(--qs-stroke)) !important;
-    background: var(--qs-brand-soft) !important;
-    color: var(--restaurant-selected-nav, var(--qs-brand-strong)) !important;
-    box-shadow: inset 3px 0 0 var(--restaurant-selected-nav, var(--qs-brand)) !important;
+    border-color: var(--qs-selection-indicator) !important;
+    background: var(--qs-selection-background) !important;
+    color: var(--qs-selection-icon) !important;
+    box-shadow: inset 3px 0 0 var(--qs-selection-indicator) !important;
   }
 
   [dir="rtl"] .qs-sidebar-item[data-active="true"] {
-    box-shadow: inset -3px 0 0 var(--restaurant-selected-nav, var(--qs-brand)) !important;
+    box-shadow: inset -3px 0 0 var(--qs-selection-indicator) !important;
   }
 
-  .qs-sidebar-item[data-active="true"] svg { color: var(--restaurant-selected-nav, var(--qs-brand)) !important; }
+  .qs-sidebar-item[data-active="true"] svg { color: var(--qs-selection-icon) !important; }
   .qs-sidebar-support { border-color: var(--qs-stroke) !important; background: var(--qs-surface-soft) !important; color: var(--qs-muted) !important; }
 
   .qs-topbar,
@@ -871,8 +871,8 @@
   box-shadow:0 9px 22px rgb(23 32 51/.065);
 }
 .qs-workspace-tool-card.is-active{
-  border-color:#ff9c70!important;
-  background:#fff3ec!important;
+  border-color:var(--qs-selection-indicator)!important;
+  background:var(--qs-selection-background)!important;
 }
 
 /* Shared entrance; motion is subtle and product-like, not decorative. */
@@ -4975,14 +4975,14 @@ html.qs-theme-view-transition *{
   border-radius:14px!important;background:transparent!important;color:var(--qs-muted)!important;
   transition:color .18s ease,transform .18s ease!important;touch-action:manipulation
  }
- .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav .qs-mobile-nav-item.is-active{color:var(--restaurant-selected-nav,var(--qs-brand))!important}
+ .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav .qs-mobile-nav-item.is-active{color:var(--qs-selection-icon)!important;background:var(--qs-selection-background)!important}
  .qs-nav-portal .qs-mobile-nav-icon{
   display:flex;align-items:center;justify-content:center;width:44px!important;height:30px!important;
   border-radius:12px!important;background:transparent;transform:none!important;
   transition:background-color .18s ease
  }
  .qs-nav-portal .qs-mobile-nav-icon>svg{width:22px!important;height:22px!important;stroke-width:1.9}
- .qs-nav-portal .is-active .qs-mobile-nav-icon{background:var(--qs-brand-soft)!important;transform:none!important}
+ .qs-nav-portal .is-active .qs-mobile-nav-icon{background:var(--qs-selection-background)!important;color:var(--qs-selection-icon)!important;transform:none!important}
  .qs-nav-portal .is-active .qs-mobile-nav-icon>svg{stroke-width:2.25}
  .qs-nav-portal .qs-mobile-nav-label{font-size:11px!important;line-height:14px!important;font-weight:600}
  .qs-nav-portal .qs-mobile-nav-badge{
@@ -5536,3 +5536,45 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
 .qs-table-quick-panel.is-compact .qs-studio-status{font-size:12px}
 @media(max-width:767px){.qs-table-preview-dialog>.qs-dialog-header{padding:16px;padding-inline-end:64px}.qs-table-preview-body{padding:14px 16px 16px}.qs-table-preview-dialog .qs-dialog-header h2{font-size:17px}}
 @layer components{.ps-page.ps-advanced-dialog.qs-dialog-content{height:fit-content!important}}
+
+/* Selected state is one foreground/background pair, never light paint + dark text.
+   Tokens reach portal dialogs through TenantBrandShell's document-root scope. */
+:root{--qs-selection-background:#fff1ec;--qs-selection-foreground:#171717;--qs-selection-muted:#59616d;--qs-selection-indicator:#b94718;--qs-selection-icon:#a73f14}
+.dark{--qs-selection-background:#452d25;--qs-selection-foreground:#f4f6f8;--qs-selection-muted:#bdc5d0;--qs-selection-indicator:#ff8b57;--qs-selection-icon:#ff8b57}
+:is(.tenant-theme-scope,.tenant-portal-theme){
+  --qs-selection-background:var(--restaurant-light-selection-background);
+  --qs-selection-foreground:var(--restaurant-light-selection-foreground);
+  --qs-selection-muted:var(--restaurant-light-selection-muted);
+  --qs-selection-indicator:var(--restaurant-light-selection-indicator);
+  --qs-selection-icon:var(--restaurant-light-selection-icon);
+}
+:is(.dark .tenant-theme-scope,.dark.tenant-portal-theme){
+  --qs-selection-background:var(--restaurant-dark-selection-background);
+  --qs-selection-foreground:var(--restaurant-dark-selection-foreground);
+  --qs-selection-muted:var(--restaurant-dark-selection-muted);
+  --qs-selection-indicator:var(--restaurant-dark-selection-indicator);
+  --qs-selection-icon:var(--restaurant-dark-selection-icon);
+}
+@layer components{
+  :is(.tenant-theme-scope,.tenant-portal-theme){--accent-foreground:var(--restaurant-light-accent-text)!important}
+  :is(.dark .tenant-theme-scope,.dark.tenant-portal-theme){--accent-foreground:var(--restaurant-dark-accent-text)!important}
+}
+.qs-workspace-tool-card.is-active{color:var(--qs-selection-foreground)!important;box-shadow:inset 3px 0 0 var(--qs-selection-indicator)}
+[dir=rtl] .qs-workspace-tool-card.is-active{box-shadow:inset -3px 0 0 var(--qs-selection-indicator)}
+.qs-workspace-tool-card.is-active strong{color:var(--qs-selection-foreground)!important}
+.qs-workspace-tool-card.is-active :is(small,.text-muted-foreground){color:var(--qs-selection-muted)!important}
+.qs-workspace-tool-card.is-active .qs-workspace-tool-icon{background:var(--qs-selection-background)!important;color:var(--qs-selection-icon)!important}
+.qs-workspace-tool-card:focus-visible{outline:3px solid var(--qs-selection-indicator);outline-offset:3px}
+.qs-sidebar-item[data-active=true],.qs-mobile-nav-item.is-active,.qs-ios-context-source-lift.is-active{
+  background:var(--qs-selection-background)!important;color:var(--qs-selection-icon)!important;border-color:var(--qs-selection-indicator)!important;
+}
+.qs-sidebar-item[data-active=true]{box-shadow:inset 3px 0 0 var(--qs-selection-indicator)!important}
+[dir=rtl] .qs-sidebar-item[data-active=true]{box-shadow:inset -3px 0 0 var(--qs-selection-indicator)!important}
+.qs-sidebar-item[data-active=true] svg,
+.qs-mobile-nav-item.is-active .qs-mobile-nav-icon,
+.qs-nav-portal .qs-app nav.qs-mobile-bottom-nav .qs-mobile-nav-item.is-active{
+  color:var(--qs-selection-icon)!important;
+}
+.qs-nav-portal .qs-app nav.qs-mobile-bottom-nav .qs-mobile-nav-item.is-active{background:var(--qs-selection-background)!important}
+.qs-mobile-nav-item.is-active .qs-mobile-nav-icon,.qs-nav-portal .is-active .qs-mobile-nav-icon{background:var(--qs-selection-background)!important}
+.qs-tables-view-switch .is-active,.qs-floor-3d-camera button[aria-pressed=true]{background:var(--qs-selection-background);color:var(--qs-selection-icon)}
