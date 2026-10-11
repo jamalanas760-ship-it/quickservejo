@@ -6,6 +6,7 @@ import { BadgeDollarSign, Check, ChefHat, ChevronDown, HandPlatter, Languages, L
 import { toast } from "sonner";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { Button } from "@/components/ui/button";
 import { RestaurantSwitcher } from "@/components/manage/RestaurantSwitcher";
 import { NotificationBell } from "@/components/nav/NotificationBell";
 import { useTableAlertSound } from "@/hooks/useTableAlertSound";
@@ -108,15 +109,16 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
           )}
         </div>
 
-        <button
+        <Button
           type="button"
-          className="qs-global-search-trigger qs-global-search-trigger-approved mx-auto hidden min-w-0 flex-1 items-center gap-2 lg:flex lg:max-w-[370px] xl:max-w-[430px]"
-          onClick={() => window.dispatchEvent(new CustomEvent("quickserve:open-workspace-tools"))}
-          aria-label={lang === "ar" ? "البحث في أدوات مساحة العمل" : "Search workspace tools"}
+          variant="outline"
+          className="qs-global-search-trigger qs-global-search-trigger-approved mx-auto flex min-h-11 min-w-0 flex-1 items-center gap-2 lg:max-w-[370px] xl:max-w-[430px]"
+          onClick={() => window.dispatchEvent(new CustomEvent("quickserve:open-search"))}
+          aria-label={lang === "ar" ? "البحث في مساحة العمل" : "Search workspace"}
         >
           <Search className="size-4 shrink-0" />
           <span className="min-w-0 flex-1 truncate text-start">{lang === "ar" ? "ابحث في كل شيء..." : "Search anything..."}</span>
-        </button>
+        </Button>
 
         <div className="qs-topbar-controls ms-auto flex min-w-0 items-center gap-1 sm:gap-1.5">
           <NotificationBell restaurantId={restaurantId} count={notificationCount} ar={lang === "ar"} />

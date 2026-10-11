@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { Bell, ClipboardList, Info, Mail, Play, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { playAlertChime } from "@/lib/alert-audio";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DEFAULT_NOTIFICATIONS,
+  ALERT_TONES,
   readNotificationPreferences,
   notificationKey,
   type NotificationPreferences,
@@ -153,18 +156,16 @@ export function NotificationSettings({ userId, ar }: { userId: string | undefine
         <div className="ps-sound-controls">
           <label className="ps-field">
             {ar ? "صوت التنبيه" : "Notification sound"}
-            <select
-              aria-label={ar ? "صوت التنبيه" : "Notification sound"}
+            <Select
               value={prefs.tone}
               disabled={!prefs.sound}
-              onChange={(event) =>
-                change("tone", event.target.value as NotificationPreferences["tone"])
+              onValueChange={(value) =>
+                change("tone", value as NotificationPreferences["tone"])
               }
             >
-              <option value="soft">{ar ? "نغمة ناعمة" : "Soft chime"}</option>
-              <option value="classic">{ar ? "نغمة كلاسيكية" : "Classic chime"}</option>
-              <option value="bell">{ar ? "جرس" : "Bell"}</option>
-            </select>
+              <SelectTrigger className="min-h-11 w-full" aria-label={ar ? "صوت التنبيه" : "Notification sound"}><SelectValue /></SelectTrigger>
+              <SelectContent>{ALERT_TONES.map(tone => <SelectItem key={tone.id} value={tone.id} className="min-h-11">{ar ? tone.ar : tone.en}</SelectItem>)}</SelectContent>
+            </Select>
           </label>
           <label className="ps-field">
             {ar ? "مستوى الصوت" : "Volume"} · {prefs.volume}%
@@ -178,7 +179,7 @@ export function NotificationSettings({ userId, ar }: { userId: string | undefine
               onChange={(event) => change("volume", Number(event.target.value))}
             />
           </label>
-          <button
+          <Button
             className="ps-button"
             type="button"
             disabled={!prefs.sound || playing}
@@ -207,7 +208,7 @@ export function NotificationSettings({ userId, ar }: { userId: string | undefine
           >
             <Play />
             {playing ? (ar ? "تشغيل…" : "Playing…") : ar ? "تجربة الصوت" : "Test sound"}
-          </button>
+          </Button>
         </div>
         <div className="ps-event-sounds">
           <h3>{ar ? "أصوات حسب الحدث" : "Sounds by event"}</h3>

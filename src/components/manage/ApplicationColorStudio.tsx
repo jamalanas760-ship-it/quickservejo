@@ -2,6 +2,7 @@ import { useState, type Dispatch, type ReactNode, type SetStateAction } from "re
 import { CheckCircle2, ChevronDown, Home, RotateCcw } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { readAppearance } from "@/lib/restaurant-appearance";
 import { cn } from "@/lib/utils";
 
@@ -98,6 +99,26 @@ export function ApplicationColorStudio({
           sideBg: "#11140f",
           sideText: "#cbd2be",
           background: "#0d100b",
+        },
+        {
+          id: "midnight-teal", label: ar ? "فيروزي ليلي" : "Midnight teal",
+          primary: "#41c8bc", accent: "#f3b76b", selected: "#41c8bc",
+          topBg: "#172326", topText: "#eef8f7", sideBg: "#121c1f", sideText: "#bfcece", background: "#0c1517",
+        },
+        {
+          id: "ruby", label: ar ? "ياقوت" : "Ruby",
+          primary: "#ff8798", accent: "#deb77b", selected: "#ff8798",
+          topBg: "#241c20", topText: "#fff4f6", sideBg: "#1c1619", sideText: "#d9c5cc", background: "#141014",
+        },
+        {
+          id: "steel", label: ar ? "فولاذ" : "Steel",
+          primary: "#8db9ff", accent: "#67d4b1", selected: "#8db9ff",
+          topBg: "#20242b", topText: "#f2f5fa", sideBg: "#171b21", sideText: "#c6cedb", background: "#101318",
+        },
+        {
+          id: "copper", label: ar ? "نحاس" : "Copper",
+          primary: "#efaa7e", accent: "#95c2ab", selected: "#efaa7e",
+          topBg: "#272321", topText: "#faf4ef", sideBg: "#1d1a18", sideText: "#d6c9c0", background: "#141211",
         },
       ]
     : [
@@ -242,12 +263,13 @@ export function ApplicationColorStudio({
         <h3>{ar ? "أنماط سريعة" : "Quick styles"}</h3>
         <div className="ps-workspace-preset-rail">
           {presets.map((preset) => (
-            <button
+            <Button
               key={preset.id}
               type="button"
               aria-pressed={activePresetId === preset.id}
               onClick={() => applyPreset(preset)}
               className="qs-color-preset"
+              variant="outline"
             >
               <span className="qs-color-preset-swatches">
                 <i style={{ background: preset.primary }} />
@@ -256,7 +278,7 @@ export function ApplicationColorStudio({
                 {activePresetId === preset.id && <CheckCircle2 className="size-4" />}
               </span>
               <strong>{preset.label}</strong>
-            </button>
+            </Button>
           ))}
         </div>
       </section>
