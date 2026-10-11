@@ -29,7 +29,7 @@ import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-b
 const BOOT_STYLE = `html,body{min-height:100%;background:#fffdfa}body{min-height:100dvh;margin:0}html[data-qs-ready] #qs-boot{display:none}` + launchCss;
 const RUNTIME_RECOVERY_PREFIX = "quickserve:runtime-recovery:";
 const RUNTIME_RECOVERY_WINDOW_MS = 60_000;
-const THEME_BOOTSTRAP = `(function(){document.documentElement.classList.remove('dark');document.documentElement.style.colorScheme='light';document.documentElement.style.backgroundColor='#fffdfa';document.querySelectorAll('meta[name=theme-color]').forEach(function(m){m.content='#fffdfa'});try{localStorage.setItem('quickserve-theme','light')}catch(e){}})();`;
+const THEME_BOOTSTRAP = `(function(){var p='light';try{p=localStorage.getItem('quickserve-theme')||'light'}catch(e){}var dark=p==='dark'||(p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',dark);document.documentElement.style.colorScheme=dark?'dark':'light';})();`;
 
 function runtimeErrorMessage(error: unknown) {
   if (error instanceof Response) return `Response ${error.status}`;

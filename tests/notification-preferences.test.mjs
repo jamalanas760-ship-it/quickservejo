@@ -4,6 +4,7 @@ import {
   DEFAULT_NOTIFICATIONS,
   normalizeNotificationPreferences,
   notificationKey,
+  ALERT_TONES,
 } from "../src/lib/notification-preferences.ts";
 test("notification settings migrate existing flags while validating new fields", () => {
   assert.deepEqual(normalizeNotificationPreferences(null), DEFAULT_NOTIFICATIONS);
@@ -27,4 +28,9 @@ test("sound volume is bounded and notification storage is account scoped", () =>
   assert.equal(normalizeNotificationPreferences({ volume: -1 }).volume, 0);
   assert.equal(notificationKey("user-a"), "quickserve.notifications:user-a");
   assert.notEqual(notificationKey("user-a"), notificationKey("user-b"));
+});
+test("all eight sound choices round-trip through preference normalization", () => {
+  assert.equal(ALERT_TONES.length, 8);
+  assert.equal(new Set(ALERT_TONES.map(tone => tone.id)).size, 8);
+  for (const tone of ALERT_TONES) assert.equal(normalizeNotificationPreferences({tone: tone.id}).tone, tone.id);
 });

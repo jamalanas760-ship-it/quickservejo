@@ -1,3 +1,13 @@
+export const ALERT_TONES = [
+  { id: "soft", en: "Soft chime", ar: "نغمة ناعمة" },
+  { id: "classic", en: "Classic chime", ar: "نغمة كلاسيكية" },
+  { id: "bell", en: "Bell", ar: "جرس" },
+  { id: "glass", en: "Glass", ar: "زجاج" },
+  { id: "marimba", en: "Marimba", ar: "ماريمبا" },
+  { id: "gentle", en: "Gentle pulse", ar: "نبض هادئ" },
+  { id: "bright", en: "Bright trio", ar: "ثلاثية مشرقة" },
+  { id: "service", en: "Service bell", ar: "جرس الخدمة" },
+] as const;
 export type NotificationPreferences = {
   newOrders: boolean;
   tableAlerts: boolean;
@@ -6,7 +16,7 @@ export type NotificationPreferences = {
   sound: boolean;
   orderSounds: boolean;
   tableSounds: boolean;
-  tone: "soft" | "classic" | "bell";
+  tone: (typeof ALERT_TONES)[number]["id"];
   volume: number;
 };
 export const DEFAULT_NOTIFICATIONS: NotificationPreferences = {
@@ -37,8 +47,8 @@ export function normalizeNotificationPreferences(input: unknown): NotificationPr
     "tableSounds",
   ] as const)
     if (typeof source[key] === "boolean") next[key] = source[key];
-  if (source.tone === "soft" || source.tone === "classic" || source.tone === "bell")
-    next.tone = source.tone;
+  const tone = ALERT_TONES.find(item => item.id === source.tone);
+  if (tone) next.tone = tone.id;
   if (typeof source.volume === "number" && Number.isFinite(source.volume))
     next.volume = Math.max(0, Math.min(100, source.volume));
   return next;

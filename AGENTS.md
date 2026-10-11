@@ -9,6 +9,10 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
+- Tenant global search reuses the permission-filtered navigation destinations and tenant-scoped browser queries, so results cannot bypass existing access controls.
+- Search history stores only search terms per account and workspace on the device, never shared record payloads.
+- Notification tone IDs are defined in one shared catalog and synthesized locally, preserving legacy preferences without external audio dependencies.
+
 ## QuickServe interaction hierarchy
 
 QuickServe should feel complete without looking busy. Preserve every capability, but expose it progressively.

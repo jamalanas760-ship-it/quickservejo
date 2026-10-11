@@ -20,6 +20,7 @@ import {
   QuickServeProfile,
 } from "@/components/nav/QuickServeIcons";
 import { ViewportDock } from "./ViewportDock";
+import { WorkspaceSearch } from "./WorkspaceSearch";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -61,7 +62,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useOperationalCounters } from "@/hooks/useOperationalCounters";
-import { useAccess } from "@/hooks/useSession";
+import { useAccess, useSupabaseSession } from "@/hooks/useSession";
 import { useI18n } from "@/lib/i18n";
 import { membershipHasCapability, type Capability } from "@/lib/permissions";
 import { readAppearance } from "@/lib/restaurant-appearance";
@@ -133,6 +134,7 @@ export function BottomNav() {
   const suppressNextNavClick = useRef(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const access = useAccess();
+  const session = useSupabaseSession();
   useLayoutEffect(() => {
     document.documentElement.dataset.sidebarCollapsed = String(sidebarCollapsed && !access.isSuperAdmin);
     document.documentElement.dataset.sidebarMotionReady = String(sidebarMotionReady);
@@ -161,17 +163,9 @@ export function BottomNav() {
 
   useEffect(() => {
     const openTools = () => setMoreOpen(true);
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setMoreOpen(true);
-      }
-    };
     window.addEventListener("quickserve:open-workspace-tools", openTools);
-    window.addEventListener("keydown", onKeyDown);
     return () => {
       window.removeEventListener("quickserve:open-workspace-tools", openTools);
-      window.removeEventListener("keydown", onKeyDown);
     };
   }, []);
 
@@ -939,6 +933,7 @@ export function BottomNav() {
 
   return (
     <>
+      <WorkspaceSearch restaurantId={restaurantId} userId={session.data?.user.id} items={desktopItems} ar={lang === "ar"} />
       <Button
         type="button"
         variant="outline"

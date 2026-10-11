@@ -1,5 +1,12 @@
 # QuickServe — production pass roadmap
 
+## Current interface refinements
+- [ ] Animate sidebar collapse/expand with reduced-motion support.
+- [ ] Expand notification sounds and dark Quick styles.
+- [ ] Unify master typography without changing guest menu designs.
+- [ ] Replace tool-opening search with scoped results and account/workspace history.
+- [ ] Verify affected interactions, tests, lint and preview build signals.
+
 ## 1. Live menu bridge (designer → diner)
 - [x] `src/lib/menu-theme-bridge.ts` exists: v1 payload with `restaurantId`, `theme` (+`composition`), `source`, `updatedAt`; strict same-origin `postMessage` + `BroadcastChannel` fallback.
 - [x] `UnifiedMenuStudio` opens `/r/:slug` in a named window, posts on open and on every `theme`/`composition` change, and re-posts on save.
