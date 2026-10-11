@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cleanSearchTerm, normalizeSearchHistory, rememberSearch, searchHistoryKey, searchPattern, type SearchDestination } from "@/lib/workspace-search";
 
 type Hit = { id: string; title: string; subtitle: string; to: string };
-type Props = { restaurantId: string | null; userId?: string; items: SearchDestination[]; ar: boolean };
+type Props = { restaurantId: string | null; userId: string | undefined; items: SearchDestination[]; ar: boolean };
 
 export function WorkspaceSearch({ restaurantId, userId, items, ar }: Props) {
   const navigate = useNavigate();
