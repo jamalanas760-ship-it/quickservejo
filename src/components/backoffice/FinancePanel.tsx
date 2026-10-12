@@ -24,6 +24,9 @@ import {
 } from "@/lib/erp";
 import { formatDate, formatDateTime, formatMoney, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
+import { homePeriodRange } from "@/lib/home-period";
+import { addReservationDays, reservationDay } from "@/lib/reservation-studio";
+import { monthStartDate } from "@/lib/erp";
 import { dayKey, rangeFromPreset, type DateRange } from "@/lib/range";
 import { cn } from "@/lib/utils";
 
@@ -34,15 +37,22 @@ export function FinancePanel({
   currency,
   restaurantName,
   onAction,
+  monthOnly = false,
+  timezone = "Asia/Amman",
 }: {
   data: BackOfficeData;
   currency: string;
   restaurantName: string;
+  monthOnly?: boolean;
+  timezone?: string;
   onAction: (request: RecordRequest) => void;
 }) {
   const { lang } = useI18n();
   const ar = lang === "ar";
-  const [range, setRange] = useState<DateRange>(() => rangeFromPreset("30d"));
+  const [range, setRange] = useState<DateRange>(() => {
+    const month = homePeriodRange("month", timezone);
+    return monthOnly ? { preset: "custom", from: `${month.firstDay}T00:00:00`, to: `${addReservationDays(month.lastDay, 1)}T00:00:00` } : rangeFromPreset("30d");
+  });
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("all");
   const [source, setSource] = useState<SourceFilter>("all");
@@ -71,7 +81,7 @@ export function FinancePanel({
   const total = sumBy(rows, (row) => Number(row.amount));
   const autoRows = rows.filter((row) => Boolean(row.source_type));
   const manualRows = rows.filter((row) => !row.source_type);
-  const today = new Date().toLocaleDateString("en-CA");
+  const today = reservationDay(new Date(), timezone);
   const todayTotal = sumBy(
     data.expenses.filter((row) => row.expense_date === today),
     (row) => Number(row.amount),

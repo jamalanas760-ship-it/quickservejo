@@ -146,6 +146,7 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
                 </div>
               </div>
               <DropdownMenuSeparator />
+              <DropdownMenuItem className="min-h-11 cursor-pointer" onSelect={() => window.dispatchEvent(new Event("quickserve:open-workspace-tools"))}><MenuIcon className="size-4" />{lang === "ar" ? "أدوات مساحة العمل" : "Workspace tools"}</DropdownMenuItem>
               <DropdownMenuItem asChild className="min-h-11 cursor-pointer"><Link to="/profile"><UserRound className="size-4" /><span className="flex-1">{lang === "ar" ? "الملف الشخصي" : "View profile"}</span></Link></DropdownMenuItem>
               <DropdownMenuItem disabled={signingOut} onSelect={() => void signOut()} className="min-h-11 cursor-pointer text-destructive focus:text-destructive"><LogOut className="size-4" />{signingOut ? (lang === "ar" ? "جارٍ تسجيل الخروج…" : "Signing out…") : (lang === "ar" ? "تسجيل الخروج" : "Sign out")}</DropdownMenuItem>
             </DropdownMenuContent>

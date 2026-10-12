@@ -1,4 +1,5 @@
 import { Table2, Users } from "@/components/nav/QuickServeIcons";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Clock3, Download, Pencil, Printer, QrCode, Search} from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ActionMenu } from "@/components/app/ActionMenu";
 export type StudioTable = {
   id: string;
+  restaurant_id: string;
   table_number: string;
   table_name: string | null;
   capacity?: number | null;
@@ -308,9 +310,9 @@ export function TableQuickPanel({
         {!manualHold ? <Button type="button" variant="outline" className="min-h-11 w-full whitespace-normal" disabled={busy} onClick={() => onStatus("cleaning")}>{ar ? "إيقاف المؤقت · انتظار التأكيد" : "Pause timer · Wait for staff"}</Button> : null}
       </div> : null}
       <div className="mt-3 flex items-center gap-2">
-        <a className="qs-button-secondary min-h-11 min-w-0 flex-1" href="/orders">
+        <Link className="qs-button-secondary min-h-11 min-w-0 flex-1" to="/manage/$restaurantId/orders" params={{ restaurantId: row.restaurant_id }} search={{ table: row.id }}>
           {ar ? "عرض الطلبات" : "View orders"}
-        </a>
+        </Link>
         <ActionMenu
           ar={ar}
           label={ar ? "إجراءات الطاولة" : "Table actions"}

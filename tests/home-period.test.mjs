@@ -27,3 +27,17 @@ test("DST and leap years preserve complete calendar periods", () => {
   assert.equal((Date.parse(day.end)-Date.parse(day.start))/3600000,23);
   assert.equal(homePeriodRange("month","UTC",new Date("2028-02-12T12:00:00Z")).lastDay,"2028-02-29");
 });
+const {readHomeSelection, selectedHomeRange, validCalendarDay} = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
+test("custom date ranges include the entire restaurant end day across DST", () => {
+  const selection = readHomeSelection({from: "2026-03-07", until: "2026-03-09"});
+  const range = selectedHomeRange(selection, "America/New_York");
+  assert.equal(range.start, "2026-03-07T05:00:00.000Z");
+  assert.equal(range.end, "2026-03-10T04:00:00.000Z");
+  assert.equal(range.lastDay, "2026-03-09");
+});
+test("impossible dates, reversed ranges and unknown periods fall back safely", () => {
+  assert.equal(validCalendarDay("2026-02-30"), false);
+  assert.equal(validCalendarDay("2028-02-29"), true);
+  assert.deepEqual(readHomeSelection({from: "2026-10-12", until: "2026-10-11"}), {period: "today"});
+  assert.deepEqual(readHomeSelection({period: "invalid"}), {period: "today"});
+});

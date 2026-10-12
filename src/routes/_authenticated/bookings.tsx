@@ -457,7 +457,7 @@ function BookingSettingsDialog({open,onOpenChange,restaurantId,settings,ar,lang,
   });
 
   const content=<div className="rs-settings-panel qs-booking-settings-dialog">
-    <div className="rs-settings-heading"><div><h2>{ar?"إعدادات الحجز":"Booking settings"}</h2><p>{ar?"التوفر · قواعد الحجز · الإشعارات":"Availability · booking rules · notifications"}</p></div><Button disabled={save.isPending||settings===undefined} onClick={()=>save.mutate()}>{save.isPending?(ar?"جارٍ الحفظ…":"Saving…"):(ar?"حفظ التغييرات":"Save changes")}</Button></div>
+    <div className="rs-settings-heading"><div><h2>{ar?"إعدادات الحجز":"Booking settings"}</h2><p>{ar?"التوفر · قواعد الحجز · الإشعارات":"Availability · booking rules · notifications"}</p></div></div>
     <div className="rs-settings-layout"><nav aria-label={ar?"أقسام الإعدادات":"Settings sections"} className="rs-settings-nav">{[["availability",ar?"التوفر":"Availability"],["rules",ar?"قواعد الحجز":"Booking rules"],["notifications",ar?"الإشعارات":"Notifications"],["deposits",ar?"العربون والشروط":"Deposits & terms"]].map(([key,label])=><button key={key} type="button" aria-current={pane===key?"page":undefined} onClick={()=>setPane(key)}>{label}</button>)}</nav>
       <div className="qs-booking-settings-body rs-settings-content">
         <section className="qs-booking-settings-section" hidden={pane!=="availability"}>

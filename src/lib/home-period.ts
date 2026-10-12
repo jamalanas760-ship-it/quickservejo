@@ -21,3 +21,27 @@ export function homePeriodRange(period: HomePeriod, timezone: string, now = new 
   if (period === "year" || period === "last-year") { const y = year - (period === "last-year" ? 1 : 0); start = `${y}-01-01`; end = `${y + 1}-01-01`; }
   return { start: restaurantDateTime(start, "00:00", timezone), end: restaurantDateTime(end, "00:00", timezone), firstDay: start, lastDay: addReservationDays(end, -1) };
 }
+
+export type HomeDateSelection = { period?: HomePeriod; from?: string; until?: string };
+export function validCalendarDay(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    && Number.isFinite(Date.parse(`${value}T00:00:00Z`))
+    && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+}
+export function readHomeSelection(search: Record<string, unknown>): HomeDateSelection {
+  if (validCalendarDay(search.from) && validCalendarDay(search.until) && search.from <= search.until) {
+    return { from: search.from, until: search.until };
+  }
+  const period = HOME_PERIODS.find(([key]) => key === search.period)?.[0];
+  return { period: period ?? "today" };
+}
+export function selectedHomeRange(selection: HomeDateSelection, timezone: string, now = new Date()) {
+  if (selection.from && selection.until && validCalendarDay(selection.from) && validCalendarDay(selection.until) && selection.from <= selection.until) {
+    return {
+      firstDay: selection.from, lastDay: selection.until,
+      start: restaurantDateTime(selection.from, "00:00", timezone),
+      end: restaurantDateTime(addReservationDays(selection.until, 1), "00:00", timezone),
+    };
+  }
+  return homePeriodRange(selection.period ?? "today", timezone, now);
+}

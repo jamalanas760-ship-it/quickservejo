@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ActionMenu } from "@/components/app/ActionMenu";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
@@ -71,9 +72,11 @@ function elapsed(createdAt: string, ar: boolean) {
 export function OrdersManager({
   restaurantId,
   recordId,
+  tableId,
 }: {
   restaurantId: string;
   recordId?: string | undefined;
+  tableId?: string | undefined;
 }) {
   const { lang } = useI18n();
   const ar = lang === "ar";
@@ -82,6 +85,8 @@ export function OrdersManager({
   const [period, setPeriod] = useState<HomePeriod | "all">("all");
   const [service, setService] = useState<"all" | "dine-in" | "takeaway">("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [activeOnly, setActiveOnly] = useState(Boolean(tableId));
+  useEffect(() => setActiveOnly(Boolean(tableId)), [tableId]);
   const [, setClock] = useState(0);
   useEffect(() => {
     const timer = window.setInterval(() => setClock((value) => value + 1), 60000);
@@ -95,6 +100,7 @@ export function OrdersManager({
     period === "all" ? null : homePeriodRange(period, restaurant?.timezone || "Asia/Amman");
   const orders = usePlatformOrders({
     restaurantId,
+    ...(tableId ? { tableId, activeOnly } : {}),
     ...(range
       ? { from: range.start, to: new Date(new Date(range.end).getTime() - 1).toISOString() }
       : {}),
@@ -176,8 +182,10 @@ export function OrdersManager({
     <div className="qs-orders-studio flex min-w-0 flex-col gap-4">
       <MasterPageHeader
         title={ar ? "الطلبات" : "Orders"}
-        description={ar ? "خدمتك، بكل وضوح." : "Your service, in motion."}
+        description={tableId ? (ar ? "طلبات الطاولة المحددة" : "Orders for the selected table") : (ar ? "خدمتك، بكل وضوح." : "Your service, in motion.")}
+        actions={<Link to="/dashboard" className="qs-button-secondary min-h-11">{ar ? "العودة للرئيسية" : "Back to Home"}</Link>}
       />
+      {tableId ? <Button variant="outline" onClick={() => setActiveOnly(value => !value)}>{activeOnly ? (ar ? "عرض كل سجل الطاولة" : "Show table order history") : (ar ? "عرض الطلبات النشطة فقط" : "Show active orders only")}</Button> : null}
       <div className="qs-orders-toolbar">
         <button type="button" onClick={() => setFiltersOpen(true)}>
           <CalendarDays />
@@ -223,7 +231,7 @@ export function OrdersManager({
           <div>
             <ShoppingBag className="mx-auto size-8 text-muted-foreground" />
             <p className="mt-3 font-semibold">
-              {ar ? "لا توجد طلبات لهذا الفلتر" : "No orders for these filters"}
+              {tableId && activeOnly ? (ar ? "لا يوجد طلب نشط لهذه الطاولة" : "This table has no active order") : (ar ? "لا توجد طلبات لهذا الفلتر" : "No orders for these filters")}
             </p>
             <Button
               variant="outline"

@@ -1,3 +1,7 @@
+import { DailyCloseDetail, type CloseMetric } from "@/components/operations/DailyCloseDetail";
+import { useRestaurant } from "@/hooks/useSuperAdmin";
+import { reservationDay } from "@/lib/reservation-studio";
+import { useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Banknote, CheckCircle2, ClipboardCheck, Package, Receipt, RotateCcw, UsersRound } from "lucide-react";
@@ -60,6 +64,9 @@ function DailyClosePage() {
   const scope = useWorkspaceScope();
   const access = useAccess();
   const rid = scope.restaurantId;
+  const restaurant = useRestaurant(rid ?? "");
+  const timezone = restaurant.data?.timezone ?? "Asia/Amman";
+  const [metric, setMetric] = useState<CloseMetric | null>(null);
   const membership = rid ? access.membershipFor(rid) : null;
   const canClose = Boolean(access.isSuperAdmin || (membership && (
     membershipHasCapability(membership.role, membership.permission_overrides, "manage_restaurant")
@@ -67,7 +74,8 @@ function DailyClosePage() {
   )));
   const canReopen = Boolean(access.isSuperAdmin || (membership && membershipHasCapability(membership.role, membership.permission_overrides, "manage_restaurant")));
   const qc = useQueryClient();
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(() => reservationDay(new Date(), timezone));
+  useEffect(() => { setDate(reservationDay(new Date(), timezone)); setMetric(null); }, [rid, timezone]);
   const [notes, setNotes] = useState("");
   const [reopenReason, setReopenReason] = useState("");
 
@@ -136,6 +144,10 @@ function DailyClosePage() {
     ? close.snapshot as Summary
     : query.data?.live;
 
+  if (metric && summary) {
+    const expected = metric === "net" ? Number(summary.payments.net) : metric === "cash" ? Number(summary.payments.cash) : metric === "card-wallet" ? Number(summary.payments.card) + Number(summary.payments.wallet) : metric === "labor" ? Number(summary.labor.hours) : Number(summary.inventory.unusual_movements);
+    return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><DailyCloseDetail key={`${metric}-${date}`} restaurantId={rid} date={date} timezone={summary.timezone} metric={metric} expected={expected} currency={scope.currency} ar={ar} lang={lang} finalized={close?.status === "finalized"} onBack={() => setMetric(null)} /></main></div>;
+  }
   return <div className="min-h-dvh bg-background">
     <AppHeader title={ar ? "إقفال اليوم" : "Daily Close"} />
     <main className="qs-page qs-compact-page qs-viewport-page">
@@ -143,16 +155,16 @@ function DailyClosePage() {
         eyebrow={<MasterEyebrow icon={ClipboardCheck}>{ar ? "رقابة المدير" : "Manager control"}</MasterEyebrow>}
         title={ar ? "إقفال يومي موثق" : "Auditable daily close"}
         description={ar ? "راجع المبيعات، المدفوعات، الصندوق، ساعات العمل وحركات المخزون قبل تثبيت لقطة اليوم." : "Review sales, payments, cash reconciliation, labor and inventory exceptions before locking the day."}
-        actions={<label className="text-xs font-bold text-muted-foreground">{ar ? "التاريخ" : "Close date"}<Input type="date" value={date} onClick={event => (event.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()} onChange={(event) => setDate(event.target.value)} max={today()} className="mt-1.5 min-w-[170px] cursor-pointer bg-card" /></label>}
+        actions={<label className="text-xs font-bold text-muted-foreground">{ar ? "التاريخ" : "Close date"}<Input type="date" value={date} onClick={event => (event.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()} onChange={(event) => setDate(event.target.value)} max={reservationDay(new Date(), timezone)} className="mt-1.5 min-w-[170px] cursor-pointer bg-card" /></label>}
       />
 
       {query.isPending ? <Skeleton className="h-[460px] rounded-3xl" /> : query.isError ? <section className="qs-card p-6 text-sm text-destructive" role="alert">{humanError(query.error, lang)}</section> : summary ? <>
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <MasterKpi icon={Receipt} label={ar ? "صافي المدفوعات" : "Net payments"} value={formatMoney(Number(summary.payments.net), scope.currency, lang)} />
-          <MasterKpi icon={Banknote} label={ar ? "الكاش" : "Cash"} value={formatMoney(Number(summary.payments.cash), scope.currency, lang)} tone="green" />
-          <MasterKpi icon={Receipt} label={ar ? "البطاقات والمحافظ" : "Card + wallet"} value={formatMoney(Number(summary.payments.card) + Number(summary.payments.wallet), scope.currency, lang)} tone="blue" />
-          <MasterKpi icon={UsersRound} label={ar ? "ساعات العمل" : "Labor hours"} value={`${Number(summary.labor.hours).toFixed(1)}h`} hint={`${formatNumber(summary.labor.staff_count, lang)} ${ar ? "موظف" : "staff"}`} tone="purple" />
-          <MasterKpi icon={Package} label={ar ? "حركات غير اعتيادية" : "Inventory exceptions"} value={formatNumber(summary.inventory.unusual_movements, lang)} hint={formatMoney(Number(summary.inventory.unusual_value), scope.currency, lang)} tone={summary.inventory.unusual_movements ? "orange" : "slate"} />
+          <MasterKpi onClick={() => setMetric("net")} icon={Receipt} label={ar ? "صافي المدفوعات" : "Net payments"} value={formatMoney(Number(summary.payments.net), scope.currency, lang)} />
+          <MasterKpi onClick={() => setMetric("cash")} icon={Banknote} label={ar ? "الكاش" : "Cash"} value={formatMoney(Number(summary.payments.cash), scope.currency, lang)} tone="green" />
+          <MasterKpi onClick={() => setMetric("card-wallet")} icon={Receipt} label={ar ? "البطاقات والمحافظ" : "Card + wallet"} value={formatMoney(Number(summary.payments.card) + Number(summary.payments.wallet), scope.currency, lang)} tone="blue" />
+          <MasterKpi onClick={() => setMetric("labor")} icon={UsersRound} label={ar ? "ساعات العمل" : "Labor hours"} value={`${Number(summary.labor.hours).toFixed(1)}h`} hint={`${formatNumber(summary.labor.staff_count, lang)} ${ar ? "موظف" : "staff"}`} tone="purple" />
+          <MasterKpi onClick={() => setMetric("inventory")} icon={Package} label={ar ? "حركات غير اعتيادية" : "Inventory exceptions"} value={formatNumber(summary.inventory.unusual_movements, lang)} hint={formatMoney(Number(summary.inventory.unusual_value), scope.currency, lang)} tone={summary.inventory.unusual_movements ? "orange" : "slate"} />
         </section>
 
         <section className="grid gap-2 xl:grid-cols-3">

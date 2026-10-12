@@ -59,7 +59,7 @@ const ModifiersDialog = lazy(() => import("./MenuManager").then((module) => ({de
 
 type CategoryRow = Database["public"]["Tables"]["menu_categories"]["Row"];
 type ItemRow = Database["public"]["Tables"]["menu_items"]["Row"];
-export type MenuCatalogMode = "categories" | "products" | "pricing";
+export type MenuCatalogMode = "categories" | "products" | "pricing" | "unified";
 
 type ProductForm = {
   id?: string;
@@ -116,9 +116,11 @@ export function MenuCatalogMaster({
   const [productOpen, setProductOpen] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const editorTrigger = useRef<HTMLElement | null>(null);
+  const savedProductDraft = useRef<ProductForm | null>(null);
 
   function openProduct(form: ProductForm, trigger: HTMLElement | null) {
     editorTrigger.current = trigger;
+    savedProductDraft.current = form;
     setProductForm(form);
     setProductOpen(true);
   }
@@ -184,7 +186,9 @@ export function MenuCatalogMaster({
   }
 
   async function saveProduct() {
-    if (!productForm || !productForm.name_en.trim() || !productForm.price) return;
+    if (!productForm || busy || !productForm.name_en.trim() || !productForm.price) return;
+    if (!Number.isFinite(Number(productForm.price)) || Number(productForm.price) < 0) { toast.error(ar ? "السعر غير صالح" : "Enter a valid non-negative price"); return; }
+    if (standardProducts.some(item => item.id !== productForm.id && item.category_id === (productForm.category_id || null) && item.name_en.trim().toLowerCase() === productForm.name_en.trim().toLowerCase())) { toast.error(ar ? "اسم المنتج مستخدم في الفئة" : "A product with this name already exists in this category"); return; }
     setBusy(true);
     try {
       const payload = {
@@ -237,7 +241,8 @@ export function MenuCatalogMaster({
   }
 
   async function saveCategory() {
-    if (!categoryForm?.name_en.trim()) return;
+    if (!categoryForm?.name_en.trim() || busy) return;
+    if (categoryList.some(category => category.id !== categoryForm.id && category.name_en.trim().toLowerCase() === categoryForm.name_en.trim().toLowerCase())) { toast.error(ar ? "اسم الفئة مستخدم" : "A category with this name already exists"); return; }
     setBusy(true);
     try {
       const payload = {
@@ -339,6 +344,12 @@ export function MenuCatalogMaster({
     }, trigger);
   }
 
+  async function deleteCategory(category: CategoryRow) {
+    if ((products.data ?? []).some(item => item.category_id === category.id)) { toast.error(ar ? "انقل منتجات الفئة أولاً" : "Move the category’s products first"); return; }
+    if (!confirm(ar ? "حذف هذه الفئة؟" : "Delete this empty category?")) return;
+    const { error } = await supabase.from("menu_categories").delete().eq("id", category.id).eq("restaurant_id", restaurantId).select("id").single();
+    if (error) toast.error(humanError(error, lang)); else await refresh();
+  }
   const loading = products.isPending || categories.isPending;
 
   return (
@@ -425,6 +436,18 @@ export function MenuCatalogMaster({
               })}
             </div>
           )}
+        </section>
+      ) : mode === "unified" ? (
+        <section className="qs-card space-y-3 p-4">
+          <div className="flex items-center gap-2"><Input aria-label={ar ? "بحث في القائمة" : "Search menu"} value={search} onChange={event => setSearch(event.target.value)} placeholder={ar ? "بحث في المنتجات" : "Search products"} /><button type="button" className="qs-button-primary shrink-0" onClick={event => openCategory({ name_en: "", name_ar: "", is_active: true }, event.currentTarget)}><Plus className="size-4" />{ar ? "فئة" : "Category"}</button></div>
+          {categories.isError || products.isError ? <p role="alert" className="text-destructive">{humanError(categories.error ?? products.error, lang)}</p> : loading ? <Skeleton className="h-64" /> : [...categoryList, { id: "uncategorized", name_en: "Uncategorized", name_ar: "بدون فئة", is_active: true }].map(category => {
+            const children = rows.filter(item => (item.category_id ?? "uncategorized") === category.id);
+            if (search && !children.length) return null;
+            return <details key={category.id} open className="rounded-xl border bg-card"><summary className="cursor-pointer p-3 font-bold">{pick(category.name_en, category.name_ar)} <span className="text-xs text-muted-foreground">({children.length})</span></summary>
+              <div className="flex items-center justify-between gap-2 border-t px-3 py-2"><Button variant="outline" disabled={busy} onClick={event => openProduct(emptyProduct(category.id === "uncategorized" ? "" : category.id), event.currentTarget)}><Plus className="size-4" />{ar ? "إضافة منتج" : "Add product"}</Button>{category.id !== "uncategorized" ? <ActionMenu ar={ar} actions={[{label: ar ? "تعديل الفئة" : "Edit category", icon: Pencil, onSelect: () => { setCategoryForm({id: category.id, name_en: category.name_en, name_ar: category.name_ar, is_active: category.is_active}); setCategoryOpen(true); }}, {label: ar ? "حذف الفئة" : "Delete category", icon: Trash2, destructive: true, onSelect: () => void deleteCategory(category as CategoryRow)}]} /> : null}</div>
+              <div className="ms-4 border-s ps-3">{children.map(item => <article key={item.id} className="flex min-w-0 items-center justify-between gap-2 border-t p-3"><div className="min-w-0"><button type="button" className="min-h-11 text-start font-semibold" onClick={event => editProduct(item, event.currentTarget)}>{pick(item.name_en, item.name_ar)}</button><p className="ms-3 border-s ps-3 text-xs text-muted-foreground">{ar ? "السعر الأساسي" : "Base price"}: {formatMoney(item.price, currency, lang)} · {item.is_available ? (ar ? "متاح" : "Available") : (ar ? "غير متاح" : "Unavailable")}</p><MenuOptionTree productId={item.id} restaurantId={restaurantId} currency={currency} /></div><ActionMenu ar={ar} actions={[{label: ar ? "تعديل / نقل / تسعير" : "Edit / move / price", icon: Pencil, onSelect: () => editProduct(item, null)}, {label: ar ? "الخيارات والأسعار" : "Options and pricing", icon: Tags, onSelect: () => setModifierProduct(item)}, {label: ar ? "حذف المنتج" : "Delete product", icon: Trash2, destructive: true, onSelect: () => setDeleteItem(item)}]} /></article>)}</div>
+            </details>;
+          })}
         </section>
       ) : (
         <>
@@ -818,7 +841,7 @@ export function MenuCatalogMaster({
         </>
       )}
 
-      {productOpen ? <Dialog open onOpenChange={setProductOpen}>
+      {productOpen ? <Dialog open onOpenChange={open => { if (!open && productOpen && JSON.stringify(productForm) !== JSON.stringify(savedProductDraft.current) && !confirm(ar ? "إغلاق المحرر وتجاهل التغييرات غير المحفوظة؟" : "Close editor and discard unsaved changes?")) return; setProductOpen(open); }}>
         <DialogContent placement="edge" className="qs-menu-editor-drawer" overlayClassName="qs-menu-editor-overlay" onCloseAutoFocus={restoreEditorFocus} dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
           <DialogHeader className="qs-menu-editor-header">
             <DialogTitle>
@@ -836,6 +859,7 @@ export function MenuCatalogMaster({
                 : "This product belongs to the Standard Menu, not PDF hotspots."}
             </DialogDescription>
           </DialogHeader>
+          {JSON.stringify(productForm) !== JSON.stringify(savedProductDraft.current) ? <p role="status" className="px-4 text-xs text-amber-700">{ar ? "تغييرات غير محفوظة" : "Unsaved changes"}</p> : null}
           {productForm ? (
             <div className="qs-menu-editor-body space-y-4">
               <ImageUploader
@@ -1079,4 +1103,20 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </div>
   );
+}
+
+function MenuOptionTree({ productId, restaurantId, currency }: { productId: string; restaurantId: string; currency: string }) {
+  const { lang, pick } = useI18n();
+  const ar = lang === "ar";
+  const [open, setOpen] = useState(false);
+  const groups = useQuery({ queryKey: ["platform", "modifier-groups", productId], enabled: open, queryFn: async () => {
+    const [groups, options] = await Promise.all([
+      supabase.from("modifier_groups").select("*").eq("restaurant_id", restaurantId).eq("menu_item_id", productId).order("display_order"),
+      supabase.from("item_modifiers").select("*").eq("restaurant_id", restaurantId).eq("menu_item_id", productId).order("display_order"),
+    ]);
+    if (groups.error) throw groups.error;
+    if (options.error) throw options.error;
+    return (groups.data ?? []).map(group => ({...group, options: (options.data ?? []).filter(option => option.group_id === group.id)}));
+  }});
+  return <details className="ms-3 mt-2 border-s ps-3 text-xs" onToggle={event => setOpen(event.currentTarget.open)}><summary className="min-h-11 cursor-pointer py-3">{ar ? "الخيارات والأسعار" : "Options and pricing"}</summary>{open ? groups.isPending ? <p>…</p> : groups.isError ? <p role="alert">{humanError(groups.error, lang)}</p> : groups.data.length ? groups.data.map(group => <div key={group.id} className="py-2"><strong>{pick(group.name_en, group.name_ar)}</strong><ul className="ms-3 border-s ps-3">{group.options.map(option => <li key={option.id} className="py-1">{pick(option.name_en, option.name_ar)} · {formatMoney(option.price_delta, currency, lang)}{!option.is_active ? (ar ? " · غير فعال" : " · Inactive") : ""}</li>)}</ul></div>) : <p>{ar ? "لا توجد خيارات محفوظة" : "No saved options"}</p> : null}</details>;
 }

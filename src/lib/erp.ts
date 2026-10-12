@@ -82,6 +82,7 @@ interface ErpBuilder extends PromiseLike<ErpResponse> {
   select(columns: string): ErpBuilder;
   insert(payload: Record<string, unknown>): ErpBuilder;
   eq(column: string, value: unknown): ErpBuilder;
+  ilike(column: string, value: string): ErpBuilder;
   gte(column: string, value: unknown): ErpBuilder;
   lt(column: string, value: unknown): ErpBuilder;
   in(column: string, values: unknown[]): ErpBuilder;
@@ -94,9 +95,12 @@ export async function erpSelect<T>(table: ErpTableName, build: (query: ErpBuilde
   if (error) throw error;
   return (data ?? []) as T[];
 }
-export async function erpInsert(table: Exclude<ErpTableName, "erp_inventory_balances">, restaurantId: string, payload: Record<string, unknown>): Promise<void> {
-  const { error } = await erpFrom(table).insert({ ...payload, restaurant_id: restaurantId }).select("id");
+export async function erpInsert(table: Exclude<ErpTableName, "erp_inventory_balances">, restaurantId: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const { data, error } = await erpFrom(table).insert({ ...payload, restaurant_id: restaurantId }).select("*");
   if (error) throw error;
+  const row = (data as Record<string, unknown>[] | null)?.[0];
+  if (!row) throw new Error("Record was not saved");
+  return row;
 }
 export async function setProcurementStatus(id: string, status: Exclude<ProcurementStatus, "requested" | "received">, poReference?: string): Promise<void> {
   const { error } = await (supabase as any).rpc("erp_set_procurement_status", {

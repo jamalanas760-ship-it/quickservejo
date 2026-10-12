@@ -97,11 +97,11 @@ const fmtTime = (v: string | null | undefined, ar: boolean, timeZone = "Asia/Amm
 const dayKey = (v: string | Date, timeZone = "Asia/Amman") => workforceDayKey(new Date(v),timeZone);
 const toLocalInput = (value: string | null, timeZone = "Asia/Amman") => value ? workforceLocalInput(value,timeZone) : "";
 
-export function useWorkforceData(restaurantId: string, range?: { start: string; end: string }) {
+export function useWorkforceData(restaurantId: string, range?: { start: string; end: string; staffIds?: string[] }) {
   const restaurant = useRestaurant(restaurantId);
   const timeZone = restaurant.data?.timezone || "Asia/Amman";
   return useQuery({
-    queryKey: ["workforce", "insights", restaurantId, range?.start ?? "recent", range?.end ?? "", timeZone],
+    queryKey: ["workforce", "insights", restaurantId, range?.start ?? "recent", range?.end ?? "", timeZone, range?.staffIds?.join(",") ?? "all"],
     refetchInterval: 30_000,
     queryFn: async () => {
       const since = range
@@ -110,14 +110,10 @@ export function useWorkforceData(restaurantId: string, range?: { start: string; 
       const until = range
         ? new Date(workforceDayStart(workforceNextDay(range.end),timeZone)).toISOString()
         : new Date(Date.now() + 86400000).toISOString();
+      let timeQuery = (supabase.from as any)("staff_time_entries").select("*").eq("restaurant_id", restaurantId).lt("clock_in", until).or(`clock_out.is.null,clock_out.gte.${since}`).order("clock_in", { ascending: false }).limit(1000);
+      if (range?.staffIds) timeQuery = timeQuery.in("staff_id", range.staffIds);
       const [timeRes, leaveRes] = await Promise.all([
-        (supabase.from as any)("staff_time_entries")
-          .select("*")
-          .eq("restaurant_id", restaurantId)
-          .lt("clock_in", until)
-          .or(`clock_out.is.null,clock_out.gte.${since}`)
-          .order("clock_in", { ascending: false })
-          .limit(1000),
+        timeQuery,
         (supabase.from as any)("staff_leave_requests")
           .select("id,staff_id,start_date,end_date,status,reason")
           .eq("restaurant_id", restaurantId)
@@ -1046,8 +1042,15 @@ export function WorkforceTimesheets({
   const qc = useQueryClient();
   const [filter, setFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
   const [period, setPeriod] = useState(() => dayKey(new Date()));
-  const rangeDays = weekOf(period);
-  const data = useWorkforceData(restaurantId, { start: rangeDays[0], end: rangeDays[6] });
+  const [employee, setEmployee] = useState("all");
+  const [role, setRole] = useState("all");
+  const [punch, setPunch] = useState("complete");
+  const [from, setFrom] = useState("");
+  const [until, setUntil] = useState("");
+  const defaultDays = weekOf(period);
+  const rangeDays = from && until && from <= until ? [from, until] : defaultDays;
+  const scopedStaff = members.filter(member => (employee === "all" || member.id === employee) && (role === "all" || member.role === role) && (canManage || member.id === currentStaffId)).map(member => member.id).sort();
+  const data = useWorkforceData(restaurantId, { start: rangeDays[0]!, end: rangeDays.at(-1)!, ...(employee !== "all" || role !== "all" || !canManage ? { staffIds: scopedStaff } : {}) });
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Entry | null>(null);
@@ -1057,13 +1060,15 @@ export function WorkforceTimesheets({
     (data.data?.entries ?? []).some((e) => "review_status" in e) ||
     !(data.data?.entries ?? []).length;
   const memberById = new Map(members.map((m) => [m.id, m]));
-  const days = weekOf(period);
+  const days = rangeDays;
   const periodEntries = (data.data?.entries ?? []).filter(
     (e) =>
-      e.clock_out &&
+      (punch === "all" || (punch === "missing" ? !e.clock_out : Boolean(e.clock_out))) &&
+      (employee === "all" || e.staff_id === employee) &&
+      (role === "all" || memberById.get(e.staff_id)?.role === role) &&
       (canManage || e.staff_id === currentStaffId) &&
-      dayKey(e.clock_in) >= days[0] &&
-      dayKey(e.clock_in) <= days[6],
+      workforceDayKey(new Date(e.clock_in), data.data?.timeZone ?? "Asia/Amman") >= days[0]! &&
+      workforceDayKey(new Date(e.clock_in), data.data?.timeZone ?? "Asia/Amman") <= days.at(-1)!,
   );
   const entries = periodEntries.filter(
     (e) =>
@@ -1279,6 +1284,14 @@ export function WorkforceTimesheets({
                   </small>
                 </button>
               ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-xs">{ar ? "من" : "From"}<input type="date" className="min-h-11 rounded-lg border bg-card px-2" value={from} max={until || undefined} onChange={event => setFrom(event.target.value)} /></label>
+              <label className="text-xs">{ar ? "حتى" : "Through"}<input type="date" className="min-h-11 rounded-lg border bg-card px-2" value={until} min={from || undefined} onChange={event => setUntil(event.target.value)} /></label>
+              <select aria-label="Employee" className="min-h-11 rounded-lg border bg-card px-2" value={employee} onChange={event => setEmployee(event.target.value)}><option value="all">{ar ? "كل الموظفين" : "All employees"}</option>{members.filter(member => canManage || member.id === currentStaffId).map(member => <option key={member.id} value={member.id}>{member.name}</option>)}</select>
+              <select aria-label="Role" className="min-h-11 rounded-lg border bg-card px-2" value={role} onChange={event => setRole(event.target.value)}><option value="all">{ar ? "كل الأدوار" : "All roles"}</option>{[...new Set(members.map(member => member.role))].map(value => <option key={value}>{value}</option>)}</select>
+              <select aria-label="Clock-out status" className="min-h-11 rounded-lg border bg-card px-2" value={punch} onChange={event => setPunch(event.target.value)}><option value="complete">{ar ? "خروج مسجل" : "Clocked out"}</option><option value="missing">{ar ? "خروج ناقص" : "Missing clock-out"}</option><option value="all">{ar ? "كل السجلات" : "All punches"}</option></select>
+              <Button variant="outline" onClick={() => { setFrom(""); setUntil(""); setEmployee("all"); setRole("all"); setPunch("complete"); setFilter("pending"); setSearch(""); }}>{ar ? "إعادة ضبط" : "Reset filters"}</Button>
             </div>
             <SearchField value={search} onChange={setSearch} ar={ar} />
           </div>

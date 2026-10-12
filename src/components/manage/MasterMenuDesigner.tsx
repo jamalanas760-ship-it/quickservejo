@@ -19,7 +19,7 @@ const Products = lazy(() => import("./MenuCatalogMaster").then((module) => ({ de
 const Appearance = lazy(() => import("./RestaurantAppearance").then((module) => ({ default: module.RestaurantAppearance })));
 
 type Workflow = "standard" | "pdf";
-type StandardSection = "design" | "categories" | "products" | "pricing";
+type StandardSection = "design" | "unified";
 
 export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
   const { lang } = useI18n();
@@ -55,9 +55,7 @@ export function MasterMenuDesigner({ restaurantId }: { restaurantId: string }) {
 
   const standardSections = [
     { id: "design" as const, icon: ImageIcon, en: "Design & Branding", ar: "التصميم والهوية", hint: ar ? "الشعار وإعدادات المؤسسة" : "Logo and organization settings" },
-    { id: "categories" as const, icon: Tags, en: "Categories", ar: "الفئات", hint: ar ? "تنظيم القائمة" : "Organize your menu" },
-    { id: "products" as const, icon: Package, en: "Products", ar: "المنتجات", hint: ar ? "إضافة وإدارة المنتجات" : "Add and manage items" },
-    { id: "pricing" as const, icon: Tags, en: "Pricing & Options", ar: "الأسعار والخيارات", hint: ar ? "الأسعار والتوفر والتحضير" : "Price, availability and prep" },
+    { id: "unified" as const, icon: Package, en: "Menu catalog", ar: "إدارة القائمة", hint: ar ? "الفئات والمنتجات والخيارات" : "Categories, products and options" },
   ];
 
   return (

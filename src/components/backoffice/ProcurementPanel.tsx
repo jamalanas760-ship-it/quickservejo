@@ -44,7 +44,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
-type Filter = "all" | ProcurementStatus;
+type Filter = "all" | "open" | ProcurementStatus;
 
 const STEPS: ProcurementStatus[] = ["requested", "approved", "ordered", "received"];
 
@@ -56,6 +56,7 @@ export function ProcurementPanel({
   canProcure,
   canReceive,
   onAction,
+  initialFilter = "all",
 }: {
   restaurantId: string;
   data: BackOfficeData;
@@ -63,13 +64,14 @@ export function ProcurementPanel({
   canApprove: boolean;
   canProcure: boolean;
   canReceive: boolean;
+  initialFilter?: Filter;
   onAction: (request: RecordRequest) => void;
 }) {
   const { lang } = useI18n();
   const ar = lang === "ar";
   const qc = useQueryClient();
   const [term, setTerm] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>(initialFilter);
   const [orderTarget, setOrderTarget] = useState<ProcurementRequest | null>(null);
   const [receiveTarget, setReceiveTarget] = useState<ProcurementRequest | null>(null);
   const [poRef, setPoRef] = useState("");
@@ -78,7 +80,7 @@ export function ProcurementPanel({
   const rows = useMemo(() => {
     const q = term.trim().toLowerCase();
     return data.procurement.filter((row) => {
-      if (filter !== "all" && row.status !== filter) return false;
+      if (filter === "open" ? !["requested", "approved", "ordered"].includes(row.status) : filter !== "all" && row.status !== filter) return false;
       if (!q) return true;
       const supplier = data.suppliers.find((item) => item.id === row.supplier_id)?.name ?? "";
       return [row.item_name_snapshot, row.po_reference, row.notes, supplier, row.status].some(
@@ -220,7 +222,7 @@ export function ProcurementPanel({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{ar ? "كل الحالات" : "All statuses"}</SelectItem>
+                <SelectItem value="open">{ar ? "الطلبات المفتوحة" : "Open requests"}</SelectItem><SelectItem value="all">{ar ? "كل الحالات" : "All statuses"}</SelectItem>
                 {(
                   [
                     "requested",
