@@ -315,7 +315,8 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
       </div>
 
       <aside className="min-w-0 space-y-3 xl:sticky xl:top-20 xl:self-start">
-        <section className="panel overflow-hidden">
+        <details open className="panel overflow-hidden">
+          <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-semibold xl:hidden">{ar ? "المعاينة المباشرة" : "Live preview"}</summary>
           <div className="flex items-center justify-between border-b px-4 py-3"><h3 className="text-sm font-semibold">{ar ? "معاينة الهوية" : "Brand preview"}</h3><span className="text-[10px] text-muted-foreground">{ar ? "مسودة" : "Draft"}</span></div>
           <div className="qs-menu-draft-preview" style={{backgroundColor: brand[brand.guestMenuMode === "dark" ? "guestMenuDark" : "guestMenuLight"].bg, color: brand[brand.guestMenuMode === "dark" ? "guestMenuDark" : "guestMenuLight"].text}}>
             <div className="qs-menu-brand-preview" style={form.cover_image_url ? { backgroundImage: `linear-gradient(180deg,rgba(13,12,10,.08),rgba(13,12,10,.62)),url(${form.cover_image_url})` } : undefined}>
@@ -324,7 +325,7 @@ function AppearanceForm({ restaurant }: { restaurant: RestaurantRow }) {
             </div>
             <div className="space-y-3 p-4"><h4 className="font-semibold">{ar ? "مرحباً بضيوفنا" : "Welcome to our menu"}</h4><div className="h-2 w-3/4 rounded-full bg-current opacity-10"/><div className="h-2 w-1/2 rounded-full bg-current opacity-10"/><span className="inline-block rounded-lg px-4 py-2 text-xs font-semibold" style={{backgroundColor:brand[brand.guestMenuMode === "dark" ? "guestMenuDark" : "guestMenuLight"].primary,color:brand[brand.guestMenuMode === "dark" ? "guestMenuDark" : "guestMenuLight"].primaryText}}>{ar ? "استكشف القائمة" : "Explore menu"}</span><p className="text-[10px] opacity-60">{ar ? "معاينة للهوية فقط. افتح معاينة القائمة للاطلاع على المنتجات." : "Brand preview only. Open Preview Menu to see your products."}</p></div>
           </div>
-        </section>
+        </details>
 
         <section className="panel space-y-3 p-4">
           <h3 className="font-semibold">{ar ? "نوع قائمة الضيف" : "Guest menu type"}</h3>

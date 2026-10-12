@@ -28,7 +28,8 @@ import { MasterEyebrow, MasterKpi, MasterPageHeader } from "@/components/app/Mas
 import { ActionMenu } from "@/components/app/ActionMenu";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { DetailSheet, formatStamp } from "@/components/operations/DetailSheet";
-import { ShiftHandoverPanel } from "@/components/operations/ShiftHandoverPanel";
+import { useRestaurant } from "@/hooks/useSuperAdmin";
+import { reservationDay } from "@/lib/reservation-studio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -47,7 +48,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/work")({
   validateSearch: (search:Record<string,unknown>): {record?: string} => typeof search.record === "string" ? {record:search.record} : {},
-  head: () => ({ meta: [{ title: "My Work — QuickServe" }, { name: "description", content: "Role-aware tasks, approvals and shift handover." }] }),
+  head: () => ({ meta: [{ title: "My Work — QuickServe" }, { name: "description", content: "Role-aware tasks and approvals." }] }),
   component: WorkPage,
 });
 
@@ -103,6 +104,8 @@ export function WorkPage() {
   const access = useAccess();
   const qc = useQueryClient();
   const rid = scope.restaurantId;
+  const restaurant = useRestaurant(rid ?? "");
+  const timezone = restaurant.data?.timezone ?? "Asia/Amman";
   const membership = rid ? access.membershipFor(rid) : null;
   const canView = Boolean(membership && membershipHasCapability(membership.role, membership.permission_overrides, "view_work"));
   const canCreate = Boolean(membership && membershipHasCapability(membership.role, membership.permission_overrides, "create_work"));
@@ -163,7 +166,7 @@ export function WorkPage() {
   const visible = useMemo(() => {
     const rows = tasks.data ?? [];
     const now = Date.now();
-    const todayKey = new Date().toLocaleDateString("en-CA");
+    const todayKey = reservationDay(new Date(), timezone);
 
     let next = tab === "completed"
       ? rows.filter((row) => row.status === "completed")
@@ -181,7 +184,7 @@ export function WorkPage() {
     if (quickFocus === "open") next = next.filter((row) => row.status === "open" || row.status === "in_progress" || row.status === "waiting_approval");
     if (quickFocus === "completed") next = next.filter((row) => row.status === "completed");
     if (quickFocus === "overdue") next = next.filter((row) => row.due_at && new Date(row.due_at).getTime() < now && row.status !== "completed" && row.status !== "cancelled");
-    if (quickFocus === "due_today") next = next.filter((row) => row.due_at && new Date(row.due_at).toLocaleDateString("en-CA") === todayKey && row.status !== "completed" && row.status !== "cancelled");
+    if (quickFocus === "due_today") next = next.filter((row) => row.due_at && reservationDay(new Date(row.due_at), timezone) === todayKey && row.status !== "completed" && row.status !== "cancelled");
 
     const q = search.trim().toLowerCase();
     if (q) next = next.filter((row) => [row.title, row.description, row.assigned_role, row.source_type].some((value) => value?.toLowerCase().includes(q)));
@@ -198,19 +201,19 @@ export function WorkPage() {
       const bd = b.due_at ? new Date(b.due_at).getTime() : Number.MAX_SAFE_INTEGER;
       return ad - bd || priorityRank[a.priority] - priorityRank[b.priority];
     });
-  }, [tasks.data, tab, canManage, membership?.id, membership?.role, quickFocus, search, priorityFilter, assigneeFilter, statusFilter, creatorFilter, sortMode]);
+  }, [tasks.data, tab, canManage, membership?.id, membership?.role, quickFocus, search, priorityFilter, assigneeFilter, statusFilter, creatorFilter, sortMode, timezone]);
 
   const counts = useMemo(() => {
     const rows = tasks.data ?? [];
-    const todayKey = new Date().toLocaleDateString("en-CA");
+    const todayKey = reservationDay(new Date(), timezone);
     const now = Date.now();
     return {
       open: rows.filter((row) => row.status === "open" || row.status === "in_progress" || row.status === "waiting_approval").length,
-      dueToday: rows.filter((row) => row.due_at && new Date(row.due_at).toLocaleDateString("en-CA") === todayKey && row.status !== "completed" && row.status !== "cancelled").length,
+      dueToday: rows.filter((row) => row.due_at && reservationDay(new Date(row.due_at), timezone) === todayKey && row.status !== "completed" && row.status !== "cancelled").length,
       overdue: rows.filter((row) => row.due_at && new Date(row.due_at).getTime() < now && row.status !== "completed" && row.status !== "cancelled").length,
       completed: rows.filter((row) => row.status === "completed").length,
     };
-  }, [tasks.data]);
+  }, [tasks.data, timezone]);
 
   const updateTask = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: WorkStatus }) => {
@@ -342,11 +345,16 @@ export function WorkPage() {
 
   if (!rid || !membership || !canView) return <div className="min-h-dvh bg-background"><AppHeader /><main className="qs-page"><section className="qs-card p-8 text-center"><ShieldCheck className="mx-auto size-10 text-muted-foreground" /><h1 className="mt-4 text-xl font-bold">{ar ? "مساحة العمل غير متاحة" : "My Work is not available"}</h1><p className="mt-2 text-sm text-muted-foreground">{ar ? "لا يملك هذا الدور صلاحية مساحة العمل لهذا المطعم." : "This role does not have My Work access for this restaurant."}</p></section></main></div>;
 
+  function focusWork(focus: QuickFocus) {
+    setTab(focus === "completed" ? "completed" : canManage ? "team" : "mine");
+    setQuickFocus(focus);
+    setSearch(""); setPriorityFilter("all"); setAssigneeFilter("all"); setStatusFilter("all"); setCreatorFilter("all");
+  }
   const tabs: Array<{ id: Tab; en: string; ar: string; show: boolean }> = [
     { id: "mine", en: "My Tasks", ar: "مهامي", show: true },
     { id: "team", en: "Team Tasks", ar: "مهام الفريق", show: canManage },
     { id: "approvals", en: "Approvals", ar: "الموافقات", show: canApprove || canManage },
-    { id: "handover", en: "Handover", ar: "التسليم", show: true },
+
     { id: "completed", en: "Completed", ar: "مكتمل", show: true },
   ];
 
@@ -360,10 +368,10 @@ export function WorkPage() {
         actions={canCreate?<CreateTaskDialog open={createOpen} onOpenChange={setCreateOpen} restaurantId={rid} currentStaffId={membership.id} currentRole={membership.role} staff={staff.data??[]} canManage={canManage} ar={ar} lang={lang} onCreated={async()=>{setCreateOpen(false);await qc.invalidateQueries({queryKey:["work",rid]});}}/>:null}
       />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MasterKpi icon={ListTodo} label={ar?"مفتوح":"Open"} value={String(counts.open)} hint={ar?"عناصر نشطة":"Active items"} tone="orange"/>
-        <MasterKpi icon={Clock3} label={ar?"مستحق اليوم":"Due Today"} value={String(counts.dueToday)} hint={ar?"ينتهي اليوم":"Due by end of day"} tone="blue"/>
-        <MasterKpi icon={AlertTriangle} label={ar?"متأخر":"Overdue"} value={String(counts.overdue)} hint={ar?"تحتاج انتباه":"Need attention"} tone={counts.overdue>0?"red":"slate"}/>
-        <MasterKpi icon={CheckCircle2} label={ar?"مكتمل":"Completed"} value={String(counts.completed)} hint={ar?"مغلقة":"Closed items"} tone="green"/>
+        <MasterKpi onClick={() => focusWork("open")} icon={ListTodo} label={ar?"مفتوح":"Open"} value={String(counts.open)} hint={ar?"عناصر نشطة":"Active items"} tone="orange"/>
+        <MasterKpi onClick={() => focusWork("due_today")} icon={Clock3} label={ar?"مستحق اليوم":"Due Today"} value={String(counts.dueToday)} hint={ar?"ينتهي اليوم":"Due by end of day"} tone="blue"/>
+        <MasterKpi onClick={() => focusWork("overdue")} icon={AlertTriangle} label={ar?"متأخر":"Overdue"} value={String(counts.overdue)} hint={ar?"تحتاج انتباه":"Need attention"} tone={counts.overdue>0?"red":"slate"}/>
+        <MasterKpi onClick={() => focusWork("completed")} icon={CheckCircle2} label={ar?"مكتمل":"Completed"} value={String(counts.completed)} hint={ar?"مغلقة":"Closed items"} tone="green"/>
       </section>
 
       <section className="qs-card qs-viewport-fill flex min-h-0 flex-col overflow-hidden">
@@ -374,7 +382,7 @@ export function WorkPage() {
           </div>
           {tab!=="handover"&&filtersOpen?<div className="mt-3 grid gap-2 border-t border-border pt-3 sm:grid-cols-2 xl:grid-cols-5"><Select value={priorityFilter} onValueChange={(value) => setPriorityFilter(value as "all" | WorkPriority)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل الأولويات" : "All priorities"}</SelectItem><SelectItem value="urgent">Urgent</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="low">Low</SelectItem></SelectContent></Select><Select value={assigneeFilter} onValueChange={setAssigneeFilter}><SelectTrigger><SelectValue placeholder={ar ? "المسؤول" : "Assignee"} /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل المسؤولين" : "All assignees"}</SelectItem>{(staff.data ?? []).map((row)=><SelectItem key={row.id} value={row.id}>{row.name}</SelectItem>)}</SelectContent></Select><Select value={statusFilter} onValueChange={(value)=>setStatusFilter(value as "all" | WorkStatus)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل الحالات" : "All statuses"}</SelectItem><SelectItem value="open">{ar ? "مفتوح" : "To do"}</SelectItem><SelectItem value="in_progress">{ar ? "قيد التنفيذ" : "In progress"}</SelectItem><SelectItem value="waiting_approval">{ar ? "مراجعة" : "Review"}</SelectItem><SelectItem value="completed">{ar ? "مكتمل" : "Done"}</SelectItem></SelectContent></Select><Select value={creatorFilter} onValueChange={setCreatorFilter}><SelectTrigger><SelectValue placeholder={ar ? "المنشئ" : "Created by"} /></SelectTrigger><SelectContent><SelectItem value="all">{ar ? "كل المنشئين" : "All creators"}</SelectItem>{(staff.data ?? []).map((row)=><SelectItem key={row.id} value={row.id}>{row.name}</SelectItem>)}</SelectContent></Select><Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="due">{ar ? "الاستحقاق" : "Due date"}</SelectItem><SelectItem value="priority">{ar ? "الأولوية" : "Priority"}</SelectItem><SelectItem value="newest">{ar ? "الأحدث" : "Newest"}</SelectItem></SelectContent></Select></div>:null}
         </div>
-        {tab === "handover" ? <ShiftHandoverPanel restaurantId={rid} currentStaffId={membership.id} currentRole={membership.role} /> : null}
+
         {tab !== "handover" ? tasks.isPending ? <div className="p-5"><Skeleton className="h-64 rounded-2xl" /></div> : tasks.isError ? <p className="p-6 text-sm text-destructive">{humanError(tasks.error, lang)}</p> : visible.length === 0 ? <EmptyState ar={ar} /> : viewMode === "cards" ? <WorkflowBoard viewerStaffId={membership.id} tasks={visible} staff={staff.data ?? []} ar={ar} canApprove={canApprove} busy={updateTask.isPending} onStatus={(task, status) => updateTask.mutate({ id: task.id, status })} onOpen={(task) => setSelectedId(task.id)} /> : <div className="qs-scroll-region min-h-0 flex-1 divide-y divide-border">{visible.map((task) => <TaskRow key={task.id} task={task} staff={staff.data ?? []} ar={ar} canApprove={task.is_private ? task.created_by_staff_id === membership.id : canApprove} busy={updateTask.isPending} onStatus={(status) => updateTask.mutate({ id: task.id, status })} onOpen={() => setSelectedId(task.id)} />)}</div> : null}
       </section>
     </main>

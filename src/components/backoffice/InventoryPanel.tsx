@@ -53,16 +53,20 @@ export function InventoryPanel({
   data,
   currency,
   onAction,
+  initialFilter = "all",
+  initialSort = "risk",
 }: {
   restaurantId: string;
   data: BackOfficeData;
   currency: string;
+  initialFilter?: "all" | "low-stock";
+  initialSort?: "risk" | "value";
   onAction: (request: RecordRequest) => void;
 }) {
   const { lang } = useI18n();
   const ar = lang === "ar";
   const [term, setTerm] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter | "low-stock">(initialFilter);
   const [sort, setSort] = useState<Sort>("status");
   const [historyItem, setHistoryItem] = useState<InventoryBalance | null>(null);
   const [movement, setMovement] = useState<"receive" | "issue">("receive");
@@ -86,7 +90,7 @@ export function InventoryPanel({
     return data.inventory
       .filter((item) => {
         if (q && !item.name.toLowerCase().includes(q)) return false;
-        return filter === "all" || stateOf(item) === filter;
+        return filter === "all" || (filter === "low-stock" ? Number(item.quantity) <= Number(item.reorder_level) : stateOf(item) === filter);
       })
       .sort((a, b) => {
         if (sort === "name") return a.name.localeCompare(b.name);
@@ -167,7 +171,7 @@ export function InventoryPanel({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{ar ? "كل الحالات" : "All status"}</SelectItem>
+                  <SelectItem value="low-stock">{ar ? "عند أو تحت حد الطلب" : "At or below reorder level"}</SelectItem><SelectItem value="all">{ar ? "كل الحالات" : "All status"}</SelectItem>
                   <SelectItem value="ok">{ar ? "طبيعي" : "Healthy"}</SelectItem>
                   <SelectItem value="low">{ar ? "منخفض" : "Low"}</SelectItem>
                   <SelectItem value="out">{ar ? "نفد" : "Out"}</SelectItem>
@@ -285,7 +289,7 @@ export function InventoryPanel({
                                 onClick={() => setHistoryItem(item)}
                                 aria-label={ar ? "السجل" : "History"}
                               >
-                                <History className="size-4" />
+                                <History className="size-4" />{ar ? "السجل" : "History"}
                               </Button>
                               <Button
                                 size="icon"
@@ -294,7 +298,7 @@ export function InventoryPanel({
                                 onClick={() => setDeleteItem(item)}
                                 aria-label={ar ? "حذف المادة" : "Delete item"}
                               >
-                                <Trash2 className="size-4" />
+                                <Trash2 className="size-4" />{ar ? "حذف" : "Delete"}
                               </Button>
                             </MasterActionSurface>
                           </td>
@@ -366,7 +370,7 @@ export function InventoryPanel({
                           onClick={() => setHistoryItem(item)}
                           aria-label={ar ? "السجل" : "History"}
                         >
-                          <History className="size-4" />
+                          <History className="size-4" />{ar ? "السجل" : "History"}
                         </Button>
                         <Button
                           size="sm"
@@ -375,7 +379,7 @@ export function InventoryPanel({
                           onClick={() => setDeleteItem(item)}
                           aria-label={ar ? "حذف المادة" : "Delete item"}
                         >
-                          <Trash2 className="size-4" />
+                          <Trash2 className="size-4" />{ar ? "حذف" : "Delete"}
                         </Button>
                       </MasterActionSurface>
                     </article>
@@ -433,7 +437,7 @@ export function InventoryPanel({
                   );
                 }}
               >
-                <Trash2 className="size-4" />
+                <Trash2 className="size-4" />{ar ? "حذف" : "Delete"}
                 {ar ? "حذف المادة" : "Delete item"}
               </Button>
             </DialogFooter>

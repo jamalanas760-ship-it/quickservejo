@@ -14,6 +14,7 @@ import {
   type StockMovement,
   type Supplier,
 } from "@/lib/erp";
+import { homePeriodRange } from "@/lib/home-period";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/audit";
 
@@ -105,12 +106,12 @@ export function useBackOffice(restaurantId: string, access: BackOfficeAccess, en
   });
 }
 
-export function backOfficeSummary(data: BackOfficeData | undefined) {
+export function backOfficeSummary(data: BackOfficeData | undefined, timezone = "Asia/Amman") {
   const inventory = data?.inventory ?? [];
   const movements = data?.movements ?? [];
   const expenses = data?.expenses ?? [];
-  const monthStart = monthStartDate();
-  const monthExpenses = expenses.filter((e) => e.expense_date >= monthStart);
+  const month = homePeriodRange("month", timezone);
+  const monthExpenses = expenses.filter(e => e.expense_date >= month.firstDay && e.expense_date <= month.lastDay);
   const lowStock = inventory
     .filter(isLowStock)
     .sort((a, b) => Number(a.quantity) - Number(b.quantity) || a.name.localeCompare(b.name));
@@ -152,6 +153,7 @@ export type BackOfficeWrite =
   | { kind: "supplier_edit"; id: string; name: string; contact: string }
   | {
       kind: "procurement";
+      id: string;
       item_id: string | null;
       item_name_snapshot: string;
       quantity: number;
@@ -231,7 +233,9 @@ export function useBackOfficeWrite(restaurantId: string) {
         };
       }
       if (input.kind === "procurement") {
-        await erpInsert("erp_procurement_requests", restaurantId, {
+        const existing = await erpSelect<ProcurementRequest>("erp_procurement_requests", q => q.select("*").eq("restaurant_id", restaurantId).eq("id", input.id).limit(1));
+        const created = existing[0] ?? await erpInsert("erp_procurement_requests", restaurantId, {
+          id: input.id,
           item_id: input.item_id,
           item_name_snapshot: input.item_name_snapshot,
           quantity: input.quantity,
@@ -244,7 +248,7 @@ export function useBackOfficeWrite(restaurantId: string) {
         return {
           action: "erp.procurement_requested" as const,
           entity: "erp_procurement_requests",
-          metadata: { item: input.item_name_snapshot, quantity: input.quantity, unit: input.unit },
+          metadata: { item: input.item_name_snapshot, quantity: input.quantity, unit: input.unit, po_reference: String(created.po_reference ?? "") },
         };
       }
       if (input.kind === "expense") {

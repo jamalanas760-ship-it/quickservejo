@@ -1,5 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
+import { SalesPeriodDetail } from "@/components/dashboard/SalesPeriodDetail";
+import { readHomeSelection } from "@/lib/home-period";
 import { HomeMetricDetail, isHomeMetricId } from "@/components/dashboard/HomeMetricDetail";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useWorkspaceScope } from "@/hooks/useWorkspace";
@@ -9,11 +11,13 @@ export const Route = createFileRoute("/_authenticated/dashboard_/$metric")({
   beforeLoad: ({ params }) => {
     if (!isHomeMetricId(params.metric)) throw redirect({ to: "/dashboard" });
   },
+  validateSearch: readHomeSelection,
   component: DashboardMetricPage,
 });
 
 function DashboardMetricPage() {
   const { metric } = Route.useParams();
+  const selection = Route.useSearch();
   const { lang } = useI18n();
   const ar = lang === "ar";
   const scope = useWorkspaceScope();
@@ -29,6 +33,8 @@ function DashboardMetricPage() {
       </div>
     );
   }
+
+  if (metric === "sales") return <SalesPeriodDetail restaurantId={restaurantId} currency={restaurant.data?.currency ?? scope.currency} timezone={restaurant.data?.timezone ?? "Asia/Amman"} selection={selection} />;
 
   return (
     <HomeMetricDetail

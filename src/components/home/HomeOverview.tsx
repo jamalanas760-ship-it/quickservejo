@@ -5,7 +5,7 @@ import { defaultHomeLayout, type HomeLayout, type HomeSectionId } from "@/lib/ho
 import type { Language } from "@/lib/i18n";
 import { formatMoney } from "@/lib/format";
 import "./home-overview.css";
-import { type HomePeriod } from "@/lib/home-period";
+import { type HomeDateSelection, type HomePeriod } from "@/lib/home-period";
 import { HomePeriodPicker } from "./HomePeriodPicker";
 
 export type HomeOverviewProps = {
@@ -49,6 +49,8 @@ export type HomeOverviewProps = {
   canAnalytics: boolean;
   layout?: HomeLayout;
   onCustomize?: (() => void) | undefined;
+  selection?: HomeDateSelection;
+  onSelectionChange?: (selection: HomeDateSelection) => void;
   period?: HomePeriod;
   onPeriodChange?: (period: HomePeriod) => void;
   periodHint?: string;
@@ -137,21 +139,18 @@ export function HomeOverview(p: HomeOverviewProps) {
           ) : null}
         </div>
       </header>
-      {p.onPeriodChange ? <HomePeriodPicker period={p.period ?? "today"} onChange={p.onPeriodChange} ar={ar} timezone={timeZone} now={now} /> : null}
+      {p.onPeriodChange ? <HomePeriodPicker period={p.period ?? "today"} onChange={p.onPeriodChange} ar={ar} timezone={timeZone} now={now} selection={p.selection} onSelectionChange={p.onSelectionChange} /> : null}
       <section
         style={sectionStyle("summary")}
         className="qs-home-summary qs-home-panel"
         aria-label={t("Selected period overview", "نظرة على الفترة المحددة")}
       >
-        {metrics.map((metric) => (
-          <Link key={metric.label} to={metric.to as never} className="qs-home-metric">
-            <span>{metric.label}</span>
-            <strong className={metric.accent ? "qs-home-sales" : undefined}>
-              <bdi dir={metric.accent ? "auto" : "ltr"}>{metric.value}</bdi>
-            </strong>
-            <small>{metric.hint}</small>
-          </Link>
-        ))}
+        {metrics.map(metric => {
+          const content = <><span>{metric.label}</span><strong className={metric.accent ? "qs-home-sales" : undefined}><bdi dir={metric.accent ? "auto" : "ltr"}>{metric.value}</bdi></strong><small>{metric.hint}</small></>;
+          return metric.to === "/dashboard/sales"
+            ? <Link key={metric.label} to="/dashboard/$metric" params={{ metric: "sales" }} search={p.selection ?? { period: p.period ?? "today" }} className="qs-home-metric">{content}</Link>
+            : <Link key={metric.label} to={metric.to as never} className="qs-home-metric">{content}</Link>;
+        })}
       </section>
       <div className="qs-home-main-grid">
         <section style={sectionStyle("orders")} className="qs-home-panel qs-home-orders">

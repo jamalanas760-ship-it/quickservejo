@@ -19,7 +19,7 @@ import {
 } from "@/lib/home-layout";
 import { HomeMetricDetail, isHomeMetricId } from "@/components/dashboard/HomeMetricDetail";
 import { HomeOverview, type HomeOverviewProps } from "@/components/home/HomeOverview";
-import { homePeriodRange, type HomePeriod } from "@/lib/home-period";
+import { readHomeSelection, selectedHomeRange } from "@/lib/home-period";
 import { useHomeOverview } from "@/hooks/useHomeOverview";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
       { name: "description", content: "QuickServe restaurant workspace overview." },
     ],
   }),
+  validateSearch: readHomeSelection,
   component: DashboardPage,
 });
 
@@ -60,8 +61,9 @@ function DashboardPage() {
   const rid = scope.restaurantId;
   const restaurant = useRestaurant(rid ?? "");
   const timezone = restaurant.data?.timezone || "Asia/Amman";
-  const [period, setPeriod] = useState<HomePeriod>("today");
-  const range = homePeriodRange(period, timezone);
+  const selection = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const range = selectedHomeRange(selection, timezone);
   const periodReport = useQuery<{
     sales: number;
     orderCount: number;
@@ -223,8 +225,10 @@ function DashboardPage() {
           currency={currency}
           restaurantId={rid}
           timeZone={timezone}
-          period={period}
-          onPeriodChange={setPeriod}
+          period={selection.period ?? "today"}
+          selection={selection}
+          onSelectionChange={(next) => void navigate({ search: next, replace: true })}
+          onPeriodChange={(period) => void navigate({ search: { period }, replace: true })}
           periodHint={`${range.firstDay} – ${range.lastDay}`}
           sales={
             periodReport.isPending

@@ -1,3 +1,4 @@
+import { floorCollision, type FloorBounds } from "@/lib/floor-collision";
 import { createLatestSaveQueue } from "@/lib/latest-save-queue";
 import { MoreHorizontal, Table2 } from "@/components/nav/QuickServeIcons";
 import { floorSeats } from "@/lib/floor-seating";
@@ -106,6 +107,7 @@ type FloorTable = {
   capacity?: number | null;
   shape?: string | null;
   layout?: Record<string, unknown> | null;
+  updated_at?: string;
 };
 type ServiceGroup = {
   id: string;
@@ -419,6 +421,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
   const [canvasSizeDraft, setCanvasSizeDraft] = useState({ width: "1000", height: "700" });
   const uploadRef = useRef<HTMLInputElement | null>(null);
   const tableDrag = useRef<TableDrag | null>(null);
+  const pendingTableSaves = useRef(new Set<string>());
   const zoneDrag = useRef<ZoneDrag | null>(null);
   const entranceDrag = useRef<EntranceDrag | null>(null);
   const [view, setView] = useState<"layout" | "list">("layout");
@@ -534,7 +537,10 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     setDraft((prev) => {
       const next: Record<string, Layout> = {};
       (tables.data ?? []).forEach(
-        (row, index) => (next[row.id] = prev[row.id] ?? layoutOf(row, index)),
+        (row, index) => (next[row.id] =
+          (tableDrag.current?.id === row.id || pendingTableSaves.current.has(row.id))
+            ? prev[row.id] ?? layoutOf(row, index)
+            : layoutOf(row, index)),
       );
       return next;
     });
@@ -559,10 +565,10 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       floorTables.filter(
         (row, index) =>
           activeZone === "all" ||
-          zoneContaining(draft[row.id] ?? layoutOf(row, index), currentFloor.zones)?.id ===
+          (row.zone ?? zoneContaining(layoutOf(row, index), currentFloor.zones)?.id ?? OUTSIDE_ZONE) ===
             activeZone,
       ),
-    [floorTables, activeZone, currentFloor.zones, draft],
+    [floorTables, activeZone, currentFloor.zones],
   );
   const selectedElement =
     (currentFloor.elements ?? []).find((element) => element.id === selectedElementId) ?? null;
@@ -627,6 +633,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       .eq("id", restaurantId)
       .single();
     if (current.error) throw current.error;
+    if (JSON.stringify(floorsFromTheme(current.data.menu_theme)) !== JSON.stringify(confirmedFloors.current)) throw new Error(ar ? "تغير المخطط في جلسة أخرى. أعد تحميله قبل الحفظ." : "Floor plan changed in another session. Reload before saving.");
     const theme = objectValue(current.data.menu_theme);
     const workspace = objectValue(theme.workspace);
     const ground = next.find((f) => f.id === "ground")?.backgroundUrl ?? null;
@@ -638,6 +645,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       .from("restaurants")
       .update({ menu_theme: menuTheme })
       .eq("id", restaurantId)
+      .filter("menu_theme", "eq", JSON.stringify(current.data.menu_theme))
       .select("id")
       .single();
     if (error) throw error;
@@ -648,18 +656,48 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     );
     if (!background) await qc.invalidateQueries({ queryKey: ["platform", "restaurant", restaurantId], exact: true });
   }
+  function tableBounds(row: FloorTable, layout: Layout, floor: FloorConfig): FloorBounds {
+    return { id: row.id, kind: "table", x: layout.x / W * normalizeCanvasSize(floor.canvasSize).width, y: layout.y / H * normalizeCanvasSize(floor.canvasSize).height,
+      width: 176 * layout.scale, height: 160 * layout.scale, rotation: layout.rotation };
+  }
+  function floorObjects(floor: FloorConfig): FloorBounds[] {
+    return [
+      ...(tables.data ?? []).filter(row => floorOf(row) === floor.id).map((row, index) => tableBounds(row, draft[row.id] ?? layoutOf(row, index), floor)),
+      ...(floor.elements ?? []).map(element => ({ id: element.id, kind: element.type, x: element.x / 100 * normalizeCanvasSize(floor.canvasSize).width, y: element.y / 100 * normalizeCanvasSize(floor.canvasSize).height, width: element.width / 100 * normalizeCanvasSize(floor.canvasSize).width, height: element.height / 100 * normalizeCanvasSize(floor.canvasSize).height, rotation: element.rotation })),
+    ];
+  }
+  function findTablePosition(row: FloorTable, layout: Layout, floor: FloorConfig, zone: Zone | null) {
+    const candidates = [layout];
+    const left = zone ? zone.x * 10 : 45, right = zone ? (zone.x + zone.width) * 10 : 955;
+    const top = zone ? zone.y * 7 : 45, bottom = zone ? (zone.y + zone.height) * 7 : 655;
+    for (let y = top + 40; y < bottom; y += 40) for (let x = left + 40; x < right; x += 40) candidates.push({ ...layout, x, y });
+    return candidates.find(candidate => validTablePosition(row, candidate, floor));
+  }
+  function validTablePosition(row: FloorTable, layout: Layout, floor: FloorConfig, notify = false) {
+    const blocked = floorCollision(tableBounds(row, layout, floor), floorObjects(floor));
+    if (blocked && notify) toast.error(ar ? "الموقع يتداخل مع عنصر آخر. اختر موقعاً فارغاً." : "Position overlaps another object. Choose a clear position.");
+    return !blocked;
+  }
   async function persistTableLayout(id: string, layout: Layout, extra?: Record<string, unknown>) {
     const row = (tables.data ?? []).find((r) => r.id === id);
     if (!row) return false;
     const raw = objectValue(row.layout);
     const floor = floors.find((f) => f.id === floorOf(row)) ?? currentFloor;
-    const zoneId = zoneContaining(layout, floor.zones)?.id ?? OUTSIDE_ZONE;
+    const originalZone = floor.zones.find(zone => zone.id === row.zone);
+    const zoneId = (originalZone ? zoneContaining(layout, [originalZone])?.id : null) ?? zoneContaining(layout, floor.zones)?.id ?? OUTSIDE_ZONE;
+    if (!validTablePosition(row, layout, floor, true)) { setDraft(value => ({ ...value, [id]: layoutOf(row, 0) })); return false; }
     const nextLayout = { ...raw, ...layout, ...extra };
-    const { error } = await (supabase.from("restaurant_tables") as any)
+    pendingTableSaves.current.add(id);
+    const { data: saved, error } = await (supabase.from("restaurant_tables") as any)
       .update({ layout: nextLayout, zone: zoneId })
       .eq("id", id)
-      .eq("restaurant_id", restaurantId);
-    if (error) {
+      .eq("restaurant_id", restaurantId)
+      .eq("updated_at", row.updated_at!)
+      .select("*")
+      .single()
+      .then((result: { data: FloorTable | null; error: unknown }) => result, (error: unknown) => ({ data: null, error }));
+    pendingTableSaves.current.delete(id);
+    if (error || !saved) {
       setDraft((value) => ({
         ...value,
         [id]: layoutOf(
@@ -667,14 +705,16 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
           (tables.data ?? []).findIndex((item) => item.id === id),
         ),
       }));
-      toast.error(humanError(error, lang));
+      void qc.invalidateQueries({queryKey: ["platform", "tables", restaurantId], exact: true});
+      toast.error(humanError(error ?? new Error("Table update was not saved"), lang));
       return false;
     }
     qc.setQueryData<FloorTable[]>(["platform", "tables", restaurantId], (current) =>
       (current ?? []).map((item) =>
-        item.id === id ? { ...item, zone: zoneId, layout: nextLayout } : item,
+        item.id === id ? saved as FloorTable : item,
       ),
     );
+    if (activeZone !== "all") setActiveZone(zoneId);
     recordLayout({
       kind: "table",
       id,
@@ -762,25 +802,26 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         };
       });
     }
+    const proposed = current.map(({row}) => tableBounds(row, nextLayouts[row.id]!, currentFloor));
+    const furniture = floorObjects(currentFloor).filter(object => object.kind !== "table");
+    if (proposed.some(object => floorCollision(object, [...proposed, ...furniture]))) { toast.error(ar ? "المحاذاة ستسبب تداخل العناصر" : "Alignment would overlap objects"); return; }
     setDraft((value) => ({ ...value, ...nextLayouts }));
     setBusy(true);
     try {
-      await Promise.all(
-        current.map(async ({ row }) => {
+      const { error } = await supabase.rpc("save_floor_table_batch" as never, {
+        _restaurant_id: restaurantId,
+        _changes: current.map(({ row }) => {
           const next = nextLayouts[row.id]!;
-          const raw = objectValue(row.layout);
-          const floor = floors.find((f) => f.id === floorOf(row)) ?? currentFloor;
-          const zoneId = zoneContaining(next, floor.zones)?.id ?? OUTSIDE_ZONE;
-          const { error } = await (supabase.from("restaurant_tables") as any)
-            .update({ layout: { ...raw, ...next }, zone: zoneId })
-            .eq("id", row.id)
-            .eq("restaurant_id", restaurantId);
-          if (error) throw error;
+          const floor = floors.find(f => f.id === floorOf(row)) ?? currentFloor;
+          return { id: row.id, updated_at: row.updated_at, layout: { ...objectValue(row.layout), ...next }, zone: zoneContaining(next, floor.zones)?.id ?? OUTSIDE_ZONE };
         }),
-      );
+      } as never);
+      if (error) throw error;
       await refresh();
       toast.success(ar ? "تم ترتيب الطاولات ومحاذاتها" : "Tables aligned and saved");
     } catch (error) {
+      setDraft(value => ({...value, ...Object.fromEntries(current.map(item => [item.row.id, item.layout]))}));
+      await refresh();
       toast.error(humanError(error, lang));
     } finally {
       setBusy(false);
@@ -860,6 +901,8 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       const zone = targetZone?.id ?? null;
       const startX = targetZone ? (targetZone.x + targetZone.width / 2) * 10 : slot[0];
       const startY = targetZone ? (targetZone.y + targetZone.height / 2) * 7 : slot[1];
+      const clear = findTablePosition({ id: "new" } as FloorTable, { x: startX, y: startY, rotation: 0, scale: 1 }, floor, targetZone);
+      if (!clear) throw new Error(ar ? "لا توجد مساحة خالية لطاولة في المنطقة" : "No clear table position is available in this zone");
       const { data, error } = await (supabase.from("restaurant_tables") as any)
         .insert({
           restaurant_id: restaurantId,
@@ -871,8 +914,8 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
           shape: form.shape,
           is_active: form.active,
           layout: {
-            x: startX,
-            y: startY,
+            x: clear.x,
+            y: clear.y,
             rotation: 0,
             scale: 1,
             floor: form.floor,
@@ -904,7 +947,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       const outsideZone = form.zone === OUTSIDE_ZONE;
       const zone = outsideZone ? OUTSIDE_ZONE : (targetZone?.id ?? OUTSIDE_ZONE);
       const insideTarget = targetZone ? zoneContaining(current, [targetZone]) !== null : true;
-      const next = {
+      let next = {
         ...current,
         rotation,
         ...(!outsideZone && !insideTarget && targetZone
@@ -914,6 +957,12 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
             }
           : {}),
       };
+      if (form.floor !== floorOf(selected) || zone !== selected.zone) {
+        const clear = findTablePosition(selected, next, floor, targetZone);
+        if (!clear) throw new Error(ar ? "لا توجد مساحة خالية في المنطقة" : "No clear position is available in this zone");
+        next = clear;
+      }
+      if (!validTablePosition(selected, next, floor, true)) return;
       const raw = objectValue(selected.layout);
       const { error } = await (supabase.from("restaurant_tables") as any)
         .update({
@@ -927,12 +976,14 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         })
         .eq("id", selected.id)
         .eq("restaurant_id", restaurantId)
-        .select("id")
+        .eq("updated_at", selected.updated_at!)
+        .select("*")
         .single();
       if (error) throw error;
       setDraft((value) => ({ ...value, [selected.id]: next }));
       await refresh();
       setActiveFloor(form.floor);
+      setActiveZone(zone);
       toast.success(ar ? "تم حفظ التغييرات" : "Table changes saved");
     } catch (error) {
       toast.error(humanError(error, lang));
@@ -1180,7 +1231,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     row: FloorTable,
     mode: "move" | "resize",
   ) {
-    if (!editing || floorBusy) {
+    if (!editing || floorBusy || pendingTableSaves.current.has(row.id)) {
       e.stopPropagation();
       setSelectedElementId(null);
       setSelectedTableId(row.id);
@@ -1231,6 +1282,8 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
             ),
           }
         : { ...state.start, scale: clamp(state.start.scale + (dx + dy) / 420, 0.65, 1.6) };
+    const row = (tables.data ?? []).find(row => row.id === state.id);
+    if (row && !validTablePosition(row, next, currentFloor)) return;
     state.latest = next;
     setDraft((value) => ({ ...value, [state.id]: next }));
   }
@@ -1395,7 +1448,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     });
   }
   function rotate(delta: number) {
-    if (!selected) return;
+    if (!selected || pendingTableSaves.current.has(selected.id)) return;
     const current = draft[selected.id] ?? layoutOf(selected, 0);
     const next = { ...current, rotation: clamp(current.rotation + delta, -180, 180) };
     setDraft((v) => ({ ...v, [selected.id]: next }));
@@ -1449,7 +1502,15 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
   if (tables.isPending || restaurantQuery.isPending)
     return <Skeleton className="h-[720px] rounded-2xl" />;
 
+  function elementPositionValid(next: FloorElement, notify = false) {
+    const size = normalizeCanvasSize(currentFloor.canvasSize);
+    const candidate = { id: next.id, kind: next.type, x: next.x / 100 * size.width, y: next.y / 100 * size.height, width: next.width / 100 * size.width, height: next.height / 100 * size.height, rotation: next.rotation };
+    const blocked = floorCollision(candidate, floorObjects(currentFloor));
+    if (blocked && notify) toast.error(ar ? "العنصر يتداخل مع عنصر آخر" : "Object overlaps another object");
+    return !blocked;
+  }
   function previewElement(next: FloorElement) {
+    if (!elementPositionValid(next)) return;
     const updated = latestFloors.current.map((f) => f.id === activeFloor
       ? { ...f, elements: (f.elements ?? []).map((e) => e.id === next.id ? next : e) } : f);
     latestFloors.current = updated;
@@ -1513,6 +1574,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       }),
     ];
     const element = placeFloorElement(createFloorElement(type, ar), occupied);
+    if (!elementPositionValid(element, true)) return;
     const saved = await saveElements([...(currentFloor.elements ?? []), element]);
     if (!saved) return;
     setSelectedTableId(null);
@@ -1523,6 +1585,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     setEditing(true);
   }
   function commitElement(next: FloorElement) {
+    if (!elementPositionValid(next, true)) { latestFloors.current = confirmedFloors.current; setFloors(confirmedFloors.current); return; }
     if (structuralFloorBusy || floorSaveInFlight.current) return;
     previewElement(normalizeFloorElement(next));
     if (!elementSaveQueue.current) {
@@ -1558,6 +1621,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       x: selectedElement.x + 4,
       y: selectedElement.y + 4,
     });
+    if (!elementPositionValid(copy, true)) return;
     void saveElements([...(currentFloor.elements ?? []), copy]);
     setSelectedElementId(copy.id);
   }
@@ -1978,9 +2042,10 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                       setSelectedZoneId(selection?.kind === "zone" ? selection.id : null);
                       setSelectedEntranceId(selection?.kind === "entrance" ? selection.id : null);
                     }}
-                    onTablePreview={(id, layout) =>
-                      setDraft((value) => ({ ...value, [id]: layout }))
-                    }
+                    onTablePreview={(id, layout) => {
+                      const row = floorTables.find(row => row.id === id);
+                      if (row && validTablePosition(row, layout, currentFloor)) setDraft(value => ({ ...value, [id]: layout }));
+                    }}
                     onTableCommit={async (id, layout) => {
                       setBusy(true);
                       try {
@@ -2366,6 +2431,8 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
               qr={qr}
               busy={busy}
               onRotate={() => rotate(15)}
+              layout={draft[selected.id] ?? layoutOf(selected, 0)}
+              onPosition={(x, y) => { if (pendingTableSaves.current.has(selected.id)) return; const current = draft[selected.id] ?? layoutOf(selected, 0); const next = { ...current, x: clamp(x, 45, 955), y: clamp(y, 45, 655) }; if (!validTablePosition(selected, next, currentFloor, true)) return; setDraft(value => ({...value, [selected.id]: next})); void persistTableLayout(selected.id, next); }}
               onSave={() => void saveSelected()}
               onDelete={() => void deleteSelected()}
               onMerge={openMerge}
@@ -2853,6 +2920,8 @@ function TableInspector({
   qr,
   busy,
   onRotate,
+  layout,
+  onPosition,
   onSave,
   onDelete,
   onMerge,
@@ -2870,6 +2939,8 @@ function TableInspector({
   qr: string | null;
   busy: boolean;
   onRotate: () => void;
+  layout: Layout;
+  onPosition: (x: number, y: number) => void;
   onSave: () => void;
   onDelete: () => void;
   onMerge: () => void;
@@ -2935,6 +3006,10 @@ function TableInspector({
             ? "تظهر تغييرات المادة والشكل والمقاعد مباشرة على المخطط. اضغط حفظ التغييرات للاحتفاظ بها."
             : "Material, shape and seat changes preview instantly on the floor plan. Choose Save Changes to keep them."}
         </p>
+        <Field label={ar ? "تحريك الطاولة" : "Move table"}>
+          <div className="grid grid-cols-2 gap-2">{[[-10,0,"Left","يسار"],[10,0,"Right","يمين"],[0,-10,"Up","أعلى"],[0,10,"Down","أسفل"]].map(([dx,dy,en,arabic]) => <Button key={String(en)} type="button" variant="outline" disabled={busy} onClick={() => onPosition(layout.x + Number(dx), layout.y + Number(dy))}>{ar ? arabic : en}</Button>)}</div>
+          <p className="mt-1 text-xs text-muted-foreground">X: {Math.round(layout.x)} · Y: {Math.round(layout.y)}</p>
+        </Field>
         <Field label={ar ? "الدوران" : "Rotation"}>
           <div className="flex gap-2">
             <Input

@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { InventoryItemPicker } from "./InventoryItemPicker";
 import { Info } from "lucide-react";
 import { toast } from "sonner";
 
@@ -48,7 +49,11 @@ export function RecordDialog({
   const [movementQuantity, setMovementQuantity] = useState(0);
   const [movementCost, setMovementCost] = useState(0);
   const [itemId, setItemId] = useState("");
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
+  const [searchedItem, setSearchedItem] = useState<InventoryBalance | undefined>();
+  const allItems = searchedItem ? [...inventory.filter(item => item.id !== searchedItem.id), searchedItem] : inventory;
   const busy = write.isPending;
+  useEffect(() => setRequestId(crypto.randomUUID()), [request]);
 
   const requestKind = request?.kind;
   const initialItemId =
@@ -59,6 +64,7 @@ export function RecordDialog({
     setMovementQuantity(0);
     setMovementCost(0);
     setError(null);
+    setSearchedItem(undefined);
     setItemId(initialItemId);
   }, [requestKind, initialItemId]);
 
@@ -141,10 +147,11 @@ export function RecordDialog({
         );
       } else if (request.kind === "procurement") {
         const itemId = text("item");
-        const item = inventory.find((row) => row.id === itemId);
+        const item = allItems.find((row) => row.id === itemId);
         if (!item) throw new Error(ar ? "اختر مادة مخزون" : "Choose an inventory item");
-        await write.mutateAsync({
+        const saved = await write.mutateAsync({
           kind: "procurement",
+          id: requestId,
           item_id: item.id,
           item_name_snapshot: item.name,
           quantity: Math.abs(number("quantity")),
@@ -154,6 +161,7 @@ export function RecordDialog({
           needed_by: text("neededBy") || null,
           notes: text("notes"),
         });
+        if ("po_reference" in saved.metadata && saved.metadata.po_reference) toast.success(`${ar ? "رقم طلب الشراء" : "Purchase order"}: ${saved.metadata.po_reference}`);
       } else if (request.kind === "expense") {
         await write.mutateAsync({
           kind: "expense",
@@ -165,7 +173,7 @@ export function RecordDialog({
         });
       } else {
         const magnitude = Math.abs(number("quantity"));
-        const selectedItem = inventory.find((row) => row.id === text("item"));
+        const selectedItem = allItems.find((row) => row.id === text("item"));
         if (!selectedItem) throw new Error(ar ? "اختر مادة مخزون" : "Choose an inventory item");
         if (request.kind === "issue" && magnitude > Number(selectedItem.quantity))
           throw new Error(
@@ -206,29 +214,14 @@ export function RecordDialog({
   const movement = request?.kind === "receive" || request?.kind === "issue";
   const receiving = request?.kind === "receive";
   const procurement = request?.kind === "procurement";
-  const selectedItem = inventory.find((row) => row.id === itemId);
+  const selectedItem = allItems.find((row) => row.id === itemId);
   const totalCost = Math.max(0, movementQuantity) * Math.max(0, movementCost);
   const stockAfter =
     Number(selectedItem?.quantity ?? 0) + (receiving ? movementQuantity : -movementQuantity);
   const itemField = (
     <label>
       <span>{ar ? "مادة المخزون" : "Inventory item"}</span>
-      <select
-        aria-label={ar ? "مادة المخزون" : "Inventory item"}
-        name="item"
-        required
-        value={itemId}
-        onChange={(e) => setItemId(e.target.value)}
-      >
-        <option value="" disabled>
-          {ar ? "اختر مادة" : "Choose an item"}
-        </option>
-        {inventory.map((item) => (
-          <option value={item.id} key={item.id}>
-            {item.name} ({item.unit})
-          </option>
-        ))}
-      </select>
+      <InventoryItemPicker restaurantId={restaurantId} selected={allItems.find(item => item.id === itemId)} onSelect={item => { setSearchedItem(item); setItemId(item.id); }} />
     </label>
   );
   const quantityField = (

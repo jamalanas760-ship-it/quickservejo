@@ -180,6 +180,7 @@ export function MasterKpi({
   hint,
   tone = "orange",
   action,
+  onClick,
 }: {
   icon: ElementType;
   label: ReactNode;
@@ -187,6 +188,7 @@ export function MasterKpi({
   hint?: ReactNode;
   tone?: "orange" | "green" | "blue" | "purple" | "slate" | "red";
   action?: ReactNode;
+  onClick?: () => void;
 }) {
   const toneClass = {
     orange: "bg-orange-500/10 text-[#e34d00]",
@@ -197,8 +199,9 @@ export function MasterKpi({
     red: "bg-red-500/10 text-red-700 dark:text-red-300",
   }[tone];
 
+  const Card = onClick ? "button" : "article";
   return (
-    <article className="qs-kpi-card group flex min-h-[104px] min-w-0 items-center gap-3.5 p-4 transition duration-150 hover:border-primary/25">
+    <Card type={onClick ? "button" : undefined} onClick={onClick} className="qs-kpi-card group text-start focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary flex min-h-[104px] min-w-0 items-center gap-3.5 p-4 transition duration-150 hover:border-primary/25">
       <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", toneClass)}>
         <Icon className="size-4.5" />
       </span>
@@ -214,7 +217,7 @@ export function MasterKpi({
           <MasterActionSurface>{action}</MasterActionSurface>
         </div>
       ) : null}
-    </article>
+    </Card>
   );
 }
 

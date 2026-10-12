@@ -104,6 +104,8 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
     else if (membership?.role === "accountant") setSection("finance");
     else if (membership?.role === "inventory") setSection("inventory");
   }, [requestedSection, membership?.role]);
+  const [summaryFilter, setSummaryFilter] = useState<"all" | "low" | "open" | "month" | "value">("all");
+  function openSummary(target: SectionKey, filter: typeof summaryFilter) { setSummaryFilter(filter); setSection(target); }
   const [request, setRequest] = useState<RecordRequest | null>(null);
 
   if (access.isPending) return <Skeleton className="h-96 rounded-2xl" />;
@@ -129,7 +131,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
     expenses: [],
     procurement: [],
   };
-  const summary = backOfficeSummary(query.data);
+  const summary = backOfficeSummary(query.data, restaurant.data?.timezone ?? "Asia/Amman");
 
   const allSections: Section[] = [
     { key: "overview", en: "Overview", ar: "نظرة عامة", icon: LayoutDashboard, show: true },
@@ -255,6 +257,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
         <section className="bo-summary">
           {moduleAccess.inventory ? (
             <MasterKpi
+              onClick={() => openSummary("inventory", "value")}
               icon={Package}
               label={ar ? "قيمة المخزون" : "Inventory value"}
               value={formatMoney(summary.valuation.value, currency, lang)}
@@ -264,6 +267,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
           ) : null}
           {moduleAccess.inventory ? (
             <MasterKpi
+              onClick={() => openSummary("inventory", "low")}
               icon={AlertTriangle}
               label={ar ? "مخزون منخفض" : "Low stock"}
               value={String(summary.lowStock.length)}
@@ -273,6 +277,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
           ) : null}
           {moduleAccess.procurement || canApproveProcurement ? (
             <MasterKpi
+              onClick={() => openSummary("procurement", "open")}
               icon={ShoppingCart}
               label={ar ? "طلبات مفتوحة" : "Open requests"}
               value={String(summary.pendingApproval + summary.pendingReceiving)}
@@ -282,6 +287,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
           ) : null}
           {moduleAccess.finance ? (
             <MasterKpi
+              onClick={() => openSummary("finance", "month")}
               icon={Coins}
               label={ar ? "مصروفات الشهر" : "Month expenses"}
               value={formatMoney(summary.monthTotal, currency, lang)}
@@ -318,6 +324,8 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
           <KitchenConfigPanel restaurantId={restaurantId} />
         ) : safeSection === "inventory" ? (
           <InventoryPanel
+            initialFilter={summaryFilter === "low" ? "low-stock" : "all"}
+            initialSort={summaryFilter === "value" ? "value" : "risk"}
             restaurantId={restaurantId}
             data={data}
             currency={currency}
@@ -334,6 +342,7 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
           />
         ) : safeSection === "procurement" ? (
           <ProcurementPanel
+            initialFilter={summaryFilter === "open" ? "open" : "all"}
             restaurantId={restaurantId}
             data={data}
             currency={currency}
@@ -360,6 +369,8 @@ export function BackOfficeShell({ restaurantId }: { restaurantId: string }) {
           />
         ) : safeSection === "finance" ? (
           <FinancePanel
+            monthOnly={summaryFilter === "month"}
+            timezone={restaurant.data?.timezone ?? "Asia/Amman"}
             data={data}
             currency={currency}
             restaurantName={restaurantName}

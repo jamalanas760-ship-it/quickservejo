@@ -1,3 +1,4 @@
+import { ShiftTemplates } from "@/components/workforce/ShiftTemplates";
 import { isUsableTeamPunch, isLiveTeamPunch } from "@/lib/team-attendance";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { workforceLocalTimestamp, workforceDayKey, workforceLocalInput, workforceInputTimestamp } from "@/lib/workforce-hours";
@@ -2013,7 +2014,7 @@ function CreateShiftDialog({
   const members = useWorkspaceMembers(restaurantId);
   const activeMembers = (members.data ?? []).filter((m) => m.is_active);
 
-  const overnight = Boolean(start && end && end <= start);
+  const overnight = Boolean(start && end && end < start);
 
   const create = useMutation({
     mutationFn: async () => {
@@ -2133,6 +2134,7 @@ function CreateShiftDialog({
     date &&
     start &&
     end &&
+    start !== end &&
     !invalidRange &&
     !tooLong &&
     (mode === "single" || recurringDays > 0),
@@ -2178,6 +2180,7 @@ function CreateShiftDialog({
               {ar ? "جدول متكرر" : "Recurring schedule"}
             </button>
           </div>
+          <ShiftTemplates restaurantId={restaurantId} ar={ar} lang={lang} values={{ name, start_time: start, end_time: end, notes, weekdays }} onApply={template => { setName(template.name); setStart(template.start_time); setEnd(template.end_time); setNotes(template.notes); setWeekdays(template.weekdays); }} />
           <div className="wf-shift-form-layout">
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-[1fr_180px]">
