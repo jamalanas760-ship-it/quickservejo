@@ -184,6 +184,7 @@ export type Database = {
           image_url: string | null
           is_available: boolean
           is_featured: boolean
+          menu_origin: string
           name_ar: string
           name_en: string
           preparation_time: number
@@ -204,6 +205,7 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean
           is_featured?: boolean
+          menu_origin?: string
           name_ar: string
           name_en: string
           preparation_time?: number
@@ -224,6 +226,7 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean
           is_featured?: boolean
+          menu_origin?: string
           name_ar?: string
           name_en?: string
           preparation_time?: number

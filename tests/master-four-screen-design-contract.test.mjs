@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const menu = await readFile(new URL("../src/components/manage/MasterMenuDesigner.tsx", import.meta.url), "utf8");
+const menuCards = await readFile(new URL("../src/components/manage/MenuModeCards.tsx", import.meta.url), "utf8");
 const appearance = await readFile(new URL("../src/components/manage/RestaurantAppearance.tsx", import.meta.url), "utf8");
 const profile = await readFile(new URL("../src/routes/_authenticated/profile.tsx", import.meta.url), "utf8");
 const settings = await readFile(new URL("../src/components/profile/RestaurantProfileSettings.tsx", import.meta.url), "utf8");
@@ -16,7 +17,8 @@ const masterPage = await readFile(new URL("../src/components/app/MasterPage.tsx"
 
 test("approved Menu Studio layout is implemented", () => {
   assert.match(menu,/qs-menu-studio-master/);
-  assert.match(menu,/qs-menu-workflow-card/);
+  assert.match(menu,/MenuModeCards/);
+  assert.match(menuCards,/p2-menu-mode/);
   assert.match(menu,/qs-live-menu-pill/);
   assert.match(menu,/Create and manage your restaurant menu with beautiful items, categories and pricing/);
   assert.match(appearance,/qs-menu-brand-preview/);
@@ -70,10 +72,10 @@ test("workspace and menu visual assets are restaurant-customizable", async () =>
   assert.match(settings,/form.logo_url/);
   assert.doesNotMatch(settings,/Card icon/);
   assert.match(settings,/Menu icons follow your system color/);
-  assert.match(menu,/appearance\.standardMenuCardImage/);
+  assert.match(menuCards,/appearance\.standardMenuCardImage/);
   assert.doesNotMatch(menu,/appearance\.standardMenuCardIcon/);
   assert.doesNotMatch(menu,/appearance\.pdfMenuCardIcon/);
-  assert.match(menu,/BookOpenText/);
+  assert.match(menuCards,/BookOpenText/);
   assert.match(nav,/appearance\.workspaceToolsImage/);
   assert.doesNotMatch(nav,/appearance\.workspaceToolsIcon/);
   assert.match(nav,/restaurant\?\.logo_url/);
@@ -111,15 +113,16 @@ test("quick styles apply across the restaurant shell and sidebar is customizable
 });
 
 test("PDF Menu selector mirrors the Standard Menu card design", () => {
-  assert.match(menu,/appearance\.pdfMenuCardImage \?\? appearance\.standardMenuCardImage \?\? restaurant\.data\?\.cover_image_url/);
+  assert.match(menuCards,/image: appearance\.pdfMenuCardImage/);
+  assert.doesNotMatch(menuCards,/pdfMenuCardImage \?\?/);
   assert.doesNotMatch(menu,/qs-menu-workflow-image qs-menu-workflow-image-logo/);
-  assert.match(menu,/workflow === "pdf" \? "is-active border-primary\/70 bg-primary\/\[\.045\]"/);
+  assert.match(menuCards,/aria-pressed=\{selected === id\}/);
 });
 
 
 test("menu type cards always use fixed system-colored icons", async () => {
-  assert.match(menu,/qs-menu-type-icon/);
-  assert.match(menu,/BookOpenText/);
+  assert.match(menuCards,/p2-menu-mode-fallback/);
+  assert.match(menuCards,/BookOpenText/);
   assert.match(menu,/FileText/);
   assert.doesNotMatch(menu,/standardMenuCardIcon/);
   assert.doesNotMatch(menu,/pdfMenuCardIcon/);

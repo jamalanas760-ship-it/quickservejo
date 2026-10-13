@@ -38,6 +38,7 @@ export function ShiftTemplates({
 }) {
   const qc = useQueryClient();
   const [selected, setSelected] = useState("");
+  const [managing, setManaging] = useState(false);
   const [saving, setSaving] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const key = ["shift-templates", restaurantId];
@@ -113,25 +114,60 @@ export function ShiftTemplates({
     onError: (error) => toast.error(humanError(error, lang)),
   });
   return (
-    <section className="rounded-xl border bg-muted/20 p-3 space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-bold">{ar ? "قوالب الورديات" : "Shift templates"}</h3>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={write.isPending || !values.name.trim() || values.start_time === values.end_time}
-          onClick={() => {
-            setTemplateName(values.name);
-            setSaving(true);
-          }}
-        >
-          {ar ? "حفظ كقالب" : "Save as template"}
-        </Button>
+    <section className="p2-shift-templates">
+      <div className="p2-template-picker">
+        <label>
+          <span>{ar ? "قالب الوردية" : "Shift template"}</span>
+          <select
+            value={selected}
+            disabled={templates.isPending || write.isPending}
+            onChange={(event) => {
+              const row = templates.data?.find((row) => row.id === event.target.value);
+              setSelected(event.target.value);
+              if (row?.is_active)
+                onApply({
+                  ...row,
+                  start_time: row.start_time.slice(0, 5),
+                  end_time: row.end_time.slice(0, 5),
+                });
+            }}
+          >
+            <option value="">{ar ? "إعداد مخصص" : "Custom shift"}</option>
+            {(templates.data ?? [])
+              .filter((row) => row.is_active)
+              .map((row) => (
+                <option key={row.id} value={row.id}>
+                  {row.name} · {row.start_time.slice(0, 5)}–{row.end_time.slice(0, 5)}
+                </option>
+              ))}
+          </select>
+        </label>
+        <ActionMenu
+          ar={ar}
+          label={ar ? "خيارات القوالب" : "Template options"}
+          actions={[
+            {
+              label: ar ? "حفظ النموذج كقالب" : "Save current as template",
+              icon: Copy,
+              disabled:
+                write.isPending || !values.name.trim() || values.start_time === values.end_time,
+              onSelect: () => {
+                setTemplateName(values.name);
+                setSaving(true);
+              },
+            },
+            {
+              label: ar ? "إدارة القوالب المحفوظة" : "Manage saved templates",
+              icon: Pencil,
+              onSelect: () => setManaging((value) => !value),
+            },
+          ]}
+        />
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="p2-template-hint">
         {ar
-          ? "اختر نمط الخدمة، ثم حدد التواريخ والفريق. القالب لا ينشئ ورديات تلقائياً."
-          : "Choose a service pattern, then set dates and team. Applying a template fills the form."}
+          ? "القالب يملأ الأوقات والأيام؛ اختر التواريخ والفريق قبل الإنشاء."
+          : "Templates fill times and weekdays. Choose dates and people before creating shifts."}
       </p>
       {templates.isPending ? (
         <p role="status">{ar ? "تحميل القوالب…" : "Loading templates…"}</p>
@@ -147,7 +183,7 @@ export function ShiftTemplates({
           </Button>
         </div>
       ) : (
-        <div className="wf-template-grid">
+        <div className="wf-template-grid" hidden={!managing}>
           {(templates.data ?? []).map((row) => (
             <div key={row.id} className="wf-template-card" aria-current={selected === row.id}>
               <button
