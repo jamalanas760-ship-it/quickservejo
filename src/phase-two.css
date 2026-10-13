@@ -629,3 +629,87 @@
     }
   }
 }
+/* Reservations share the approved Waitlist controls while retaining daily navigation. */
+.rs-phase-two-toolbar {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 12px;
+}
+.rs-phase-two-toolbar > .p2-toolbar {
+  width: 100%;
+}
+.rs-phase-two-date > svg:first-child {
+  color: var(--qs-brand);
+}
+.rs-phase-two-toolbar .rs-phase-two-tabs button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent !important;
+  padding-inline: 10px;
+}
+.rs-phase-two-toolbar .rs-phase-two-tabs button[aria-pressed="true"] {
+  border-bottom-color: var(--qs-brand);
+  color: var(--qs-brand);
+}
+.rs-phase-two-toolbar .rs-phase-two-tabs button b {
+  background: transparent;
+  font-weight: 500;
+}
+.rs-phase-two-calendar {
+  width: auto;
+  max-width: calc(100vw - 24px);
+  padding: 8px;
+  border-radius: 16px;
+}
+.rs-phase-two-calendar .group\/calendar {
+  --cell-size: 2.5rem;
+  padding: 8px;
+}
+.rs-phase-two-day-arrows {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.rs-phase-two-day-arrows button {
+  min-height: 44px;
+  font-size: 11px;
+  padding-inline: 10px;
+}
+.rs-phase-two-today {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 6px;
+}
+@media (max-width: 1100px) {
+  .rs-phase-two-toolbar .p2-search {
+    flex: 1 0 100%;
+  }
+}
+@media (max-width: 767px) {
+  .rs-phase-two-status {
+    display: none;
+  }
+  .rs-phase-two-date {
+    min-width: 0;
+    flex: 1;
+  }
+  .rs-phase-two-date > span {
+    max-width: none;
+  }
+  .rs-phase-two-tabs {
+    gap: 8px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+  .rs-phase-two-toolbar .rs-phase-two-tabs button {
+    flex-shrink: 0;
+  }
+  .rs-phase-two-calendar .group\/calendar {
+    --cell-size: 2.125rem;
+  }
+}

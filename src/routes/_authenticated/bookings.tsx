@@ -1,3 +1,4 @@
+import { ReservationsToolbar } from "@/components/reservations/ReservationsToolbar";
 import { Table2, MoreHorizontal } from "@/components/nav/QuickServeIcons";
 import { TimeSlotPicker } from "@/components/reservations/TimeSlotPicker";
 import { publicGuestUrl } from "@/lib/public-url";
@@ -219,11 +220,7 @@ function BookingsPage(){
         </section>
         <div className={cn("rs-schedule-layout",selected&&"has-detail")}>
           <section className="rs-schedule-panel">
-            <div className="rs-schedule-toolbar">
-              <div className="rs-date-nav"><Button variant="outline" size="icon" aria-label={ar?"اليوم السابق":"Previous day"} onClick={()=>setDay(addReservationDays(day,-1))}><ChevronLeft className="size-4"/></Button><Input type="date" aria-label={ar?"تاريخ الجدول":"Schedule date"} value={day} onChange={e=>{if(e.target.value)setDay(e.target.value);}}/><Button variant="outline" size="icon" aria-label={ar?"اليوم التالي":"Next day"} onClick={()=>setDay(addReservationDays(day,1))}><ChevronRight className="size-4"/></Button><Button variant="outline" onClick={()=>setDay(reservationDay(new Date(),timezone))}>{ar?"اليوم":"Today"}</Button></div>
-              <div className="rs-filters">{[["all",ar?"الكل":"All",dayRows.length],["upcoming",ar?"قادمة":"Upcoming",awaiting.length],["seated",ar?"جالسون":"Seated",active.filter(row=>row.status==="seated").length],["pending",ar?"معلقة":"Pending",active.filter(row=>row.status==="pending").length]].map(([key,label,count])=><button key={key} type="button" aria-pressed={statusFilter===key} onClick={()=>{setStatusFilter(String(key));setPageIndex(0);}}>{label}<b>{count}</b></button>)}</div>
-              <div className="rs-search"><Search className="size-4"/><Input aria-label={ar?"بحث عن حجز":"Search reservations"} value={search} onChange={e=>{setSearch(e.target.value);setPageIndex(0);}} placeholder={ar?"اسم الضيف، الهاتف أو الرمز":"Guest, phone or code"}/></div>
-            </div>
+            <ReservationsToolbar ar={ar} day={day} timeZone={timezone} status={statusFilter} search={search} onDay={setDay} onStatus={value=>{setStatusFilter(value);setPageIndex(0);}} onSearch={value=>{setSearch(value);setPageIndex(0);}} counts={{all:dayRows.length,upcoming:awaiting.length,seated:active.filter(row=>row.status==="seated").length,pending:active.filter(row=>row.status==="pending").length}}/>
             {bookings.isPending||tables.isPending?<div className="p-5"><Skeleton className="h-72 rounded-xl"/></div>:bookings.isError||tables.isError?<p role="alert" className="p-6 text-sm text-destructive">{humanError(bookings.error??tables.error,lang)}</p>:!rows.length?<div className="rs-empty"><CalendarCheck2 className="size-8"/><h3>{ar?"لا توجد حجوزات":"No reservations found"}</h3><p>{needle? (ar?"جرّب بحثاً آخر.":"Try another search."):(ar?"اختر يوماً آخر أو أضف حجزاً.":"Choose another day or add a booking.")}</p><Button variant="outline" onClick={()=>setCreateOpen(true)}><Plus className="size-4"/>{ar?"حجز جديد":"Add Booking"}</Button></div>:<div className="qs-reservation-table-wrap">
               <div className="qs-reservation-table" role="table" aria-label={ar?"جدول حجوزات الضيوف":"Guest reservation schedule"}>
                 <div className="qs-reservation-table-head" role="row">{[ar?"الضيف":"Guest",ar?"الوقت":"Time",ar?"الضيوف":"Guests",ar?"الطاولة":"Table",ar?"الحالة":"Status",ar?"الإجراءات":"Actions"].map(label=><div key={label} role="columnheader">{label}</div>)}</div>
