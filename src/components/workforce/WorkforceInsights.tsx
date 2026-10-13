@@ -1278,25 +1278,7 @@ export function WorkforceTimesheets({
       : 0;
   const selectedMember = selected ? memberById.get(selected.staff_id) : null;
   return (
-    <section className="space-y-4">
-      <div className="wf-toolbar">
-        <WeekControl
-          date={period}
-          onChange={(v) => {
-            setPeriod(v);
-            setFrom("");
-            setUntil("");
-            setSelectedId(null);
-          }}
-          ar={ar}
-        />
-        {canManage ? (
-          <Button variant="outline" onClick={() => setMissingOpen(true)}>
-            <Plus className="size-4" />
-            {ar ? "إضافة بصمة ناقصة" : "Add missing punch"}
-          </Button>
-        ) : null}
-      </div>
+    <section className="space-y-4 wf-phase-two">
       <div className="wf-metrics">
         <div>
           <small>{ar ? "مجدول" : "Scheduled"}</small>
@@ -1425,6 +1407,22 @@ export function WorkforceTimesheets({
             </div>
           </div>
           <WorkforceFilters
+            date={period}
+            timeZone={data.data?.timeZone ?? "Asia/Amman"}
+            onDate={(value) => {
+              setPeriod(value);
+              setFrom("");
+              setUntil("");
+              setSelectedId(null);
+            }}
+            action={
+              canManage ? (
+                <Button variant="outline" onClick={() => setMissingOpen(true)}>
+                  <Plus className="size-4" />
+                  {ar ? "إضافة بصمة ناقصة" : "Add missing punch"}
+                </Button>
+              ) : undefined
+            }
             ar={ar}
             search={search}
             onSearch={setSearch}

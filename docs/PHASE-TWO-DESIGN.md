@@ -1,0 +1,12 @@
+# Approved Phase 2 — 13 October 2026
+
+Implements the user's selected Phase 2 design, with the solid orange Home button retained from Phase 1.
+
+- Timesheets and Labor share compact date/employee/role/status chips, searchable employee popovers, removable active filters and a unified summary band. Advanced filters use an anchored panel on desktop/tablet and a bottom sheet on mobile. Changes in the advanced panel are staged until Apply; incomplete, reversed or oversized date ranges are blocked. Existing query scoping and payroll calculations are preserved. Mobile Labor export is available in the More menu.
+- Waitlist uses one reservation-style panel containing its summary, search/date/status controls, inline status tabs and queue. Its advanced filters apply date and request status together. Existing offers, direct bookings, notification status, cancellations, estimates, pagination and permission checks are preserved.
+- Orders and Sales Details share a solid orange, 44px Back to Home button above their titles, on the physical left in both English and Arabic. Sales retains its selected Home period when navigating back.
+- Sidebar is a floating 224px panel or 64px rail, inset 12px from the viewport. A modern circular panel/chevron toggle replaces the old icon. Its width and content gutter share the existing typed CSS property, with 280ms easing, fading/sliding labels, preserved collapsed-state preferences and reduced-motion support. Mobile workspace tools open as a slide-in drawer; all role-permitted destinations remain searchable.
+
+Validation: 205 tests, TypeScript and production build passed. Lint has 0 errors and the same 59 existing warnings. Chromium component checks covered 320, 390, 768, 1024 and 1440px, English/light and Arabic/dark, advanced filter apply and partial-range rejection, active chips, Waitlist status application, sidebar dimensions/content movement, mobile drawer bounds, Home-button alignment and reduced motion. Screenshots were visually reviewed. The isolated harness used test fixtures and extracted chrome markup; it did not add fixture data to production or establish signed-in production acceptance. GitHub CI validates the final committed source before merge.
+
+No database migrations, permission changes, new production dependencies, or generated bitmap UI assets are required. Deployment and Lovable synchronization remain independently verifiable.

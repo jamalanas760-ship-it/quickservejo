@@ -1,8 +1,18 @@
+import { FilterChip, FilterPanel } from "@/components/app/FilterChip";
 import { TimeInput } from "@/components/reservations/TimeInput";
 import { ReservationDateControl } from "@/components/reservations/ReservationDateControl";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Search, X, Clock3, RefreshCw, UsersRound } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  ListFilter,
+  X,
+  Clock3,
+  RefreshCw,
+  UsersRound,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -132,6 +142,9 @@ function WaitlistPage() {
   }, [routeRecord]);
   const [cancelTarget, setCancelTarget] = useState<WaitlistRow | null>(null);
   const [dateFilter, setDateFilter] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [draftFilter, setDraftFilter] = useState<WaitlistFilter>("active");
+  const [draftDate, setDraftDate] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -398,7 +411,10 @@ function WaitlistPage() {
   return (
     <div className="wl-page min-h-dvh bg-background">
       <AppHeader title={ar ? "قائمة انتظار الحجوزات" : "Reservation Waitlist"} />
-      <main className="qs-page qs-reservations-studio wl-studio" dir={ar ? "rtl" : "ltr"}>
+      <main
+        className="qs-page qs-reservations-studio wl-studio wl-phase-two"
+        dir={ar ? "rtl" : "ltr"}
+      >
         <header className="rs-page-heading wl-heading">
           <div>
             <h1>{ar ? "قائمة الانتظار" : "Waitlist"}</h1>
@@ -418,24 +434,6 @@ function WaitlistPage() {
             {ar ? "قائمة الانتظار" : "Waitlist"}
           </Link>
         </nav>
-        <section
-          className="rs-metrics wl-metrics"
-          aria-label={ar ? "ملخص قائمة الانتظار" : "Waitlist summary"}
-        >
-          {[
-            [ar ? "طلبات نشطة" : "Active requests", active.length, "green"],
-            [ar ? "انتظار" : "Waiting", waiting.length, "amber"],
-            [ar ? "تم التواصل" : "Notified", notified.length, "blue"],
-          ].map(([label, count, tone]) => (
-            <div key={String(tone)}>
-              <i className={`rs-dot ${tone}`} />
-              <span>
-                {label}
-                <strong>{query.isPending ? "—" : count}</strong>
-              </span>
-            </div>
-          ))}
-        </section>
         <div
           className={cn(
             "rs-schedule-layout wl-workspace",
@@ -446,8 +444,38 @@ function WaitlistPage() {
             className="rs-schedule-panel wl-queue"
             aria-label={ar ? "طابور الانتظار" : "Waitlist queue"}
           >
+            <section
+              className="rs-metrics wl-metrics"
+              aria-label={ar ? "ملخص قائمة الانتظار" : "Waitlist summary"}
+            >
+              {[
+                [ar ? "طلبات نشطة" : "Active requests", active.length, "green"],
+                [ar ? "انتظار" : "Waiting", waiting.length, "amber"],
+                [ar ? "تم التواصل" : "Notified", notified.length, "blue"],
+              ].map(([label, count, tone]) => (
+                <div key={String(tone)}>
+                  <i className={`rs-dot ${tone}`} />
+                  <span>
+                    {label}
+                    <strong>{query.isPending ? "—" : count}</strong>
+                  </span>
+                </div>
+              ))}
+            </section>
             <div className="rs-schedule-toolbar wl-toolbar">
-              <div className="wl-toolbar-main">
+              <div className="wl-toolbar-main p2-toolbar">
+                <label className="p2-search">
+                  <Search size={17} />
+                  <input
+                    aria-label={ar ? "ابحث بالاسم أو الهاتف" : "Search guest or phone"}
+                    placeholder={ar ? "ابحث بالاسم أو الهاتف…" : "Search guest or phone…"}
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPageIndex(0);
+                    }}
+                  />
+                </label>
                 <div className="wl-date-filter">
                   <ReservationDateControl
                     value={dateFilter}
@@ -460,18 +488,79 @@ function WaitlistPage() {
                     clearable
                   />
                 </div>
-                <div className="rs-search wl-search">
-                  <Search aria-hidden="true" />
-                  <Input
-                    aria-label={ar ? "ابحث بالاسم أو الهاتف" : "Search guest or phone"}
-                    placeholder={ar ? "ابحث بالاسم أو الهاتف" : "Search guest or phone"}
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setPageIndex(0);
-                    }}
+                <FilterChip
+                  ar={ar}
+                  icon={ListFilter}
+                  label={ar ? "الحالة" : "Status"}
+                  value={filter}
+                  onChange={(value) => {
+                    setFilter(value as WaitlistFilter);
+                    setPageIndex(0);
+                  }}
+                  options={[
+                    { value: "active", label: ar ? "طلبات نشطة" : "Active requests" },
+                    { value: "waiting", label: ar ? "انتظار" : "Waiting" },
+                    { value: "notified", label: ar ? "تم التواصل" : "Notified" },
+                    { value: "history", label: ar ? "السجل" : "History" },
+                  ]}
+                />
+                <FilterPanel
+                  ar={ar}
+                  open={filtersOpen}
+                  count={Number(Boolean(dateFilter)) + Number(filter !== "active")}
+                  onOpenChange={(open) => {
+                    if (open) {
+                      setDraftFilter(filter);
+                      setDraftDate(dateFilter);
+                    }
+                    setFiltersOpen(open);
+                  }}
+                  footer={
+                    <>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setDraftFilter("active");
+                          setDraftDate("");
+                        }}
+                      >
+                        {ar ? "إعادة ضبط" : "Reset"}
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setFilter(draftFilter);
+                          setDateFilter(draftDate);
+                          setPageIndex(0);
+                          setFiltersOpen(false);
+                        }}
+                      >
+                        {ar ? "تطبيق" : "Apply filters"}
+                      </Button>
+                    </>
+                  }
+                >
+                  <h4>{ar ? "الفترة" : "Period"}</h4>
+                  <ReservationDateControl
+                    value={draftDate}
+                    onChange={setDraftDate}
+                    ar={ar}
+                    emptyLabel={ar ? "كل التواريخ" : "All dates"}
+                    clearable
                   />
-                </div>
+                  <label className="p2-field">
+                    {ar ? "حالة الطلب" : "Request status"}
+                    <select
+                      aria-label={ar ? "حالة الطلب" : "Request status"}
+                      value={draftFilter}
+                      onChange={(e) => setDraftFilter(e.target.value as WaitlistFilter)}
+                    >
+                      <option value="active">{ar ? "طلبات نشطة" : "Active requests"}</option>
+                      <option value="waiting">{ar ? "انتظار" : "Waiting"}</option>
+                      <option value="notified">{ar ? "تم التواصل" : "Notified"}</option>
+                      <option value="history">{ar ? "السجل" : "History"}</option>
+                    </select>
+                  </label>
+                </FilterPanel>
               </div>
               <div className="rs-filters wl-filters">
                 {(
