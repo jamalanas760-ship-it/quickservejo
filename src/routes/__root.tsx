@@ -15,6 +15,7 @@ import type { ErrorComponentProps } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
 import quickServeSystemCss from "../quickserve-system.css?url";
+import phaseTwoCss from "../phase-two.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider } from "@/lib/i18n";
 import { Toaster } from "@/components/ui/sonner";
@@ -26,7 +27,9 @@ import launchCss from "../components/app/splash-screen.css?inline";
 import { LaunchScreenView, SplashScreen } from "@/components/app/SplashScreen";
 import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-bridge";
 
-const BOOT_STYLE = `html,body{min-height:100%;background:#fffdfa}body{min-height:100dvh;margin:0}html[data-qs-ready] #qs-boot{display:none}` + launchCss;
+const BOOT_STYLE =
+  `html,body{min-height:100%;background:#fffdfa}body{min-height:100dvh;margin:0}html[data-qs-ready] #qs-boot{display:none}` +
+  launchCss;
 const RUNTIME_RECOVERY_PREFIX = "quickserve:runtime-recovery:";
 const RUNTIME_RECOVERY_WINDOW_MS = 60_000;
 const THEME_BOOTSTRAP = `(function(){var p='light';try{p=localStorage.getItem('quickserve-theme')||'light'}catch(e){}var dark=p==='dark'||(p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',dark);document.documentElement.style.colorScheme=dark?'dark':'light';})();`;
@@ -44,7 +47,9 @@ function runtimeErrorMessage(error: unknown) {
  */
 function shouldHardRefresh(error: unknown) {
   if (error instanceof Response) return [408, 425, 429, 500, 502, 503, 504].includes(error.status);
-  return /chunkloaderror|loading chunk|failed to fetch dynamically imported module|importing a module script failed|dynamically imported module|module script|failed to fetch|networkerror|load failed|network request failed/i.test(runtimeErrorMessage(error));
+  return /chunkloaderror|loading chunk|failed to fetch dynamically imported module|importing a module script failed|dynamically imported module|module script|failed to fetch|networkerror|load failed|network request failed/i.test(
+    runtimeErrorMessage(error),
+  );
 }
 
 function hardRefreshOnce(error: unknown) {
@@ -53,7 +58,8 @@ function hardRefreshOnce(error: unknown) {
   const now = Date.now();
   try {
     const previous = Number(window.sessionStorage.getItem(key) ?? 0);
-    if (Number.isFinite(previous) && previous > 0 && now - previous < RUNTIME_RECOVERY_WINDOW_MS) return false;
+    if (Number.isFinite(previous) && previous > 0 && now - previous < RUNTIME_RECOVERY_WINDOW_MS)
+      return false;
     window.sessionStorage.setItem(key, String(now));
   } catch {
     // Storage may be unavailable in hardened/private browser contexts. A single
@@ -70,8 +76,14 @@ function NotFoundComponent() {
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">The page you're looking for doesn't exist or has been moved.</p>
-        <div className="mt-6"><Link to="/" className="qs-button-primary">Go home</Link></div>
+        <p className="mt-2 text-sm text-muted-foreground">
+          The page you're looking for doesn't exist or has been moved.
+        </p>
+        <div className="mt-6">
+          <Link to="/" className="qs-button-primary">
+            Go home
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -88,10 +100,15 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">This page didn't load</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Something went wrong on our end. You can try refreshing or head back home.</p>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          This page didn't load
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Something went wrong on our end. You can try refreshing or head back home.
+        </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button type="button"
+          <button
+            type="button"
             onClick={() => {
               if (recoverable && typeof window !== "undefined") {
                 window.location.reload();
@@ -104,7 +121,9 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
           >
             Try again
           </button>
-          <a href="/" className="qs-button-secondary">Go home</a>
+          <a href="/" className="qs-button-secondary">
+            Go home
+          </a>
         </div>
       </div>
     </div>
@@ -117,7 +136,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "QuickServe — QR ordering platform for restaurants" },
-      { name: "description", content: "QuickServe is a multi-tenant QR ordering platform: table QR menus, live kitchen display, waiter calls and cashier tools for every restaurant you run." },
+      {
+        name: "description",
+        content:
+          "QuickServe is a multi-tenant QR ordering platform: table QR menus, live kitchen display, waiter calls and cashier tools for every restaurant you run.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "theme-color", content: "#fffdfa" },
@@ -128,15 +151,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: quickServeSystemCss },
+      { rel: "stylesheet", href: phaseTwoCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap",
+      },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "preload", href: "/loading/cloche-lid.webp", as: "image" },
       { rel: "preload", href: "/loading/cloche-tray.webp", as: "image" },
-      ...[[402, 874], [393, 852], [390, 844], [430, 932], [440, 956], [428, 926]].map(([width, height]) => ({
+      ...[
+        [402, 874],
+        [393, 852],
+        [390, 844],
+        [430, 932],
+        [440, 956],
+        [428, 926],
+      ].map(([width, height]) => ({
         rel: "apple-touch-startup-image",
         href: `/loading/startup-${width}x${height}.png`,
         media: `(device-width: ${width}px) and (device-height: ${height}px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)`,
@@ -150,7 +184,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  return <html lang="en" suppressHydrationWarning><head><HeadContent /><script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} /><style dangerouslySetInnerHTML={{ __html: BOOT_STYLE }} /></head><body><div id="qs-boot"><LaunchScreenView /></div>{children}<Scripts /></body></html>;
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+        <style dangerouslySetInnerHTML={{ __html: BOOT_STYLE }} />
+      </head>
+      <body>
+        <div id="qs-boot">
+          <LaunchScreenView />
+        </div>
+        {children}
+        <Scripts />
+      </body>
+    </html>
+  );
 }
 
 function MenuThemeBridgeSync() {
@@ -198,7 +247,11 @@ function NavigationProgress() {
     return () => window.clearTimeout(timer);
   }, [loading]);
 
-  return <div className={`qs-route-progress ${visible ? "is-visible" : ""}`} aria-hidden="true"><i /></div>;
+  return (
+    <div className={`qs-route-progress ${visible ? "is-visible" : ""}`} aria-hidden="true">
+      <i />
+    </div>
+  );
 }
 
 function RootComponent() {
@@ -210,7 +263,10 @@ function RootComponent() {
     let syncTimer: number | null = null;
     let queuedAccessRefresh = false;
     let queuedAccountChange = false;
-    const scheduleAuthSync = (event: string, session: import("@supabase/supabase-js").Session | null) => {
+    const scheduleAuthSync = (
+      event: string,
+      session: import("@supabase/supabase-js").Session | null,
+    ) => {
       const previous = authIdentity.current;
       const next = session?.user.id ?? null;
       authIdentity.current = next;
@@ -252,7 +308,8 @@ function RootComponent() {
         // /auth performs the SIGNED_IN navigation itself. Avoid racing that
         // transition with a second router.invalidate(). USER_UPDATED, however,
         // needs the current route guards to re-evaluate after profile changes.
-        if (event === "USER_UPDATED" || (changed && window.location.pathname !== "/auth")) void router.invalidate();
+        if (event === "USER_UPDATED" || (changed && window.location.pathname !== "/auth"))
+          void router.invalidate();
       }, 0);
     };
 
@@ -265,14 +322,18 @@ function RootComponent() {
     return () => {
       if (syncTimer !== null) window.clearTimeout(syncTimer);
       data.subscription.unsubscribe();
-
     };
   }, [router, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
-        <a href="#main-content" className="sr-only fixed start-3 top-3 z-[200] rounded-lg bg-background px-3 py-2 text-sm font-bold text-foreground shadow-lg focus:not-sr-only">Skip to main content</a>
+        <a
+          href="#main-content"
+          className="sr-only fixed start-3 top-3 z-[200] rounded-lg bg-background px-3 py-2 text-sm font-bold text-foreground shadow-lg focus:not-sr-only"
+        >
+          Skip to main content
+        </a>
         <MenuThemeBridgeSync />
         <SplashScreen />
         <NavigationProgress />

@@ -1,8 +1,25 @@
+import { BackHomeButton } from "@/components/app/BackHomeButton";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ActionMenu } from "@/components/app/ActionMenu";
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAccess } from "@/hooks/useSession";
 import { membershipHasCapability } from "@/lib/permissions";
 import { supabase } from "@/integrations/supabase/client";
@@ -166,9 +183,7 @@ export function OrdersManager({
     [orders.data, service],
   );
 
-  const selected =
-    (orders.data ?? []).find((order) => order.id === selectedId) ??
-    null;
+  const selected = (orders.data ?? []).find((order) => order.id === selectedId) ?? null;
 
   const periodOptions: Array<{ value: HomePeriod | "all"; en: string; ar: string }> = [
     { value: "all", en: "All dates", ar: "كل التواريخ" },
@@ -180,12 +195,30 @@ export function OrdersManager({
   const periodLabel = periodOptions.find((option) => option.value === period)?.[ar ? "ar" : "en"];
   return (
     <div className="qs-orders-studio flex min-w-0 flex-col gap-4">
+      <BackHomeButton ar={ar} />
       <MasterPageHeader
         title={ar ? "الطلبات" : "Orders"}
-        description={tableId ? (ar ? "طلبات الطاولة المحددة" : "Orders for the selected table") : (ar ? "خدمتك، بكل وضوح." : "Your service, in motion.")}
-        actions={<Link to="/dashboard" className="qs-button-secondary min-h-11">{ar ? "العودة للرئيسية" : "Back to Home"}</Link>}
+        description={
+          tableId
+            ? ar
+              ? "طلبات الطاولة المحددة"
+              : "Orders for the selected table"
+            : ar
+              ? "خدمتك، بكل وضوح."
+              : "Your service, in motion."
+        }
       />
-      {tableId ? <Button variant="outline" onClick={() => setActiveOnly(value => !value)}>{activeOnly ? (ar ? "عرض كل سجل الطاولة" : "Show table order history") : (ar ? "عرض الطلبات النشطة فقط" : "Show active orders only")}</Button> : null}
+      {tableId ? (
+        <Button variant="outline" onClick={() => setActiveOnly((value) => !value)}>
+          {activeOnly
+            ? ar
+              ? "عرض كل سجل الطاولة"
+              : "Show table order history"
+            : ar
+              ? "عرض الطلبات النشطة فقط"
+              : "Show active orders only"}
+        </Button>
+      ) : null}
       <div className="qs-orders-toolbar">
         <button type="button" onClick={() => setFiltersOpen(true)}>
           <CalendarDays />
@@ -231,7 +264,13 @@ export function OrdersManager({
           <div>
             <ShoppingBag className="mx-auto size-8 text-muted-foreground" />
             <p className="mt-3 font-semibold">
-              {tableId && activeOnly ? (ar ? "لا يوجد طلب نشط لهذه الطاولة" : "This table has no active order") : (ar ? "لا توجد طلبات لهذا الفلتر" : "No orders for these filters")}
+              {tableId && activeOnly
+                ? ar
+                  ? "لا يوجد طلب نشط لهذه الطاولة"
+                  : "This table has no active order"
+                : ar
+                  ? "لا توجد طلبات لهذا الفلتر"
+                  : "No orders for these filters"}
             </p>
             <Button
               variant="outline"
@@ -390,7 +429,11 @@ export function OrdersManager({
             </DialogDescription>
           </DialogHeader>
           {selected ? (
-            <OrderDetail key={selected.id} order={selected} currency={selected.currency || currency} />
+            <OrderDetail
+              key={selected.id}
+              order={selected}
+              currency={selected.currency || currency}
+            />
           ) : (
             <p className="p-8">{ar ? "الطلب غير متاح" : "Order unavailable"}</p>
           )}
@@ -419,92 +462,251 @@ function OrderDetail({ order, currency }: { order: any; currency: string }) {
   const items = useOrderItems(order.id);
   const restaurant = useRestaurant(order.restaurant_id);
   const timezone = restaurant.data?.timezone || "Asia/Amman";
-  const subtotal = Number(order.subtotal ?? (items.data ?? []).reduce((sum, item) => sum + Number(item.total_price ?? 0), 0));
+  const subtotal = Number(
+    order.subtotal ??
+      (items.data ?? []).reduce((sum, item) => sum + Number(item.total_price ?? 0), 0),
+  );
   const total = Number(order.total ?? subtotal);
   const quantity = (items.data ?? []).reduce((sum, item) => sum + Number(item.quantity ?? 0), 0);
-  const paymentLabels: Record<string, [string,string]> = {
-    paid: ["Paid", "مدفوع"], unpaid: ["Payment pending", "بانتظار الدفع"],
-    pending: ["Payment pending", "بانتظار الدفع"], partially_paid: ["Partially paid", "مدفوع جزئياً"],
-    refunded: ["Refunded", "مسترد"], failed: ["Payment failed", "فشل الدفع"],
+  const paymentLabels: Record<string, [string, string]> = {
+    paid: ["Paid", "مدفوع"],
+    unpaid: ["Payment pending", "بانتظار الدفع"],
+    pending: ["Payment pending", "بانتظار الدفع"],
+    partially_paid: ["Partially paid", "مدفوع جزئياً"],
+    refunded: ["Refunded", "مسترد"],
+    failed: ["Payment failed", "فشل الدفع"],
   };
-  const service = order.table_id ? (ar ? "داخل المطعم" : "Dine-in")
-    : order.fulfillment_type === "delivery" ? (ar ? "توصيل" : "Delivery") : (ar ? "استلام" : "Takeaway");
+  const service = order.table_id
+    ? ar
+      ? "داخل المطعم"
+      : "Dine-in"
+    : order.fulfillment_type === "delivery"
+      ? ar
+        ? "توصيل"
+        : "Delivery"
+      : ar
+        ? "استلام"
+        : "Takeaway";
   const costs = [
     { label: ar ? "المجموع الفرعي" : "Subtotal", amount: subtotal, show: true },
     { label: ar ? "الضريبة" : "Tax", amount: Number(order.tax_amount ?? 0), show: true },
-    { label: ar ? "الخدمة" : "Service", amount: Number(order.service_amount ?? 0), show: Number(order.service_amount) > 0 },
-    { label: ar ? "التوصيل" : "Delivery", amount: Number(order.delivery_amount ?? 0), show: Number(order.delivery_amount) > 0 },
-    { label: ar ? "الخصم" : "Discount", amount: -Number(order.discount_amount ?? 0), show: Number(order.discount_amount) > 0 },
-    { label: ar ? "الإكرامية" : "Tip", amount: Number(order.tip_amount ?? 0), show: Number(order.tip_amount) > 0 },
+    {
+      label: ar ? "الخدمة" : "Service",
+      amount: Number(order.service_amount ?? 0),
+      show: Number(order.service_amount) > 0,
+    },
+    {
+      label: ar ? "التوصيل" : "Delivery",
+      amount: Number(order.delivery_amount ?? 0),
+      show: Number(order.delivery_amount) > 0,
+    },
+    {
+      label: ar ? "الخصم" : "Discount",
+      amount: -Number(order.discount_amount ?? 0),
+      show: Number(order.discount_amount) > 0,
+    },
+    {
+      label: ar ? "الإكرامية" : "Tip",
+      amount: Number(order.tip_amount ?? 0),
+      show: Number(order.tip_amount) > 0,
+    },
   ];
   return (
     <aside className="qs-right-panel qs-receipt" dir={ar ? "rtl" : "ltr"}>
       <header className="qs-receipt-header">
-        <h2>{ar ? "طلب" : "Order"} {order.order_number}</h2>
-        <p>{new Intl.DateTimeFormat(ar ? "ar-JO" : "en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: timezone }).format(new Date(order.created_at))}</p>
+        <h2>
+          {ar ? "طلب" : "Order"} {order.order_number}
+        </h2>
+        <p>
+          {new Intl.DateTimeFormat(ar ? "ar-JO" : "en-GB", {
+            dateStyle: "medium",
+            timeStyle: "short",
+            timeZone: timezone,
+          }).format(new Date(order.created_at))}
+        </p>
       </header>
       <div className="qs-receipt-status">
-        <span className={cn("qs-status", statusClass[order.status] ?? "bg-muted")}>{orderStatus(order.status, ar)}</span>
-        <span><CreditCard aria-hidden="true" />{paymentLabels[order.payment_status]?.[ar ? 1 : 0] ?? (ar ? "بانتظار الدفع" : "Payment pending")}</span>
+        <span className={cn("qs-status", statusClass[order.status] ?? "bg-muted")}>
+          {orderStatus(order.status, ar)}
+        </span>
+        <span>
+          <CreditCard aria-hidden="true" />
+          {paymentLabels[order.payment_status]?.[ar ? 1 : 0] ??
+            (ar ? "بانتظار الدفع" : "Payment pending")}
+        </span>
       </div>
       <div className="qs-scroll-region qs-receipt-body">
-        <section className="qs-receipt-meta" aria-label={ar ? "معلومات الطلب" : "Order information"}>
-          <ReceiptMeta icon={<Table2 />} label={ar ? "الطاولة" : "Table"} value={order.table?.table_number ? (ar ? "طاولة " : "Table ") + order.table.table_number : (ar ? "بدون طاولة" : "No table")} />
-          <ReceiptMeta icon={<UtensilsCrossed />} label={ar ? "نوع الخدمة" : "Service type"} value={service} />
-          <ReceiptMeta icon={<UserRound />} label={ar ? "الضيف" : "Guest"} value={order.guest_name || (ar ? "ضيف بدون حجز" : "Walk-in guest")} />
-          <ReceiptMeta icon={<ShoppingBag />} label={ar ? "العناصر" : "Items"} value={items.isPending ? "…" : items.isError ? "—" : `${quantity} ${ar ? "عناصر" : "items"}`} />
+        <section
+          className="qs-receipt-meta"
+          aria-label={ar ? "معلومات الطلب" : "Order information"}
+        >
+          <ReceiptMeta
+            icon={<Table2 />}
+            label={ar ? "الطاولة" : "Table"}
+            value={
+              order.table?.table_number
+                ? (ar ? "طاولة " : "Table ") + order.table.table_number
+                : ar
+                  ? "بدون طاولة"
+                  : "No table"
+            }
+          />
+          <ReceiptMeta
+            icon={<UtensilsCrossed />}
+            label={ar ? "نوع الخدمة" : "Service type"}
+            value={service}
+          />
+          <ReceiptMeta
+            icon={<UserRound />}
+            label={ar ? "الضيف" : "Guest"}
+            value={order.guest_name || (ar ? "ضيف بدون حجز" : "Walk-in guest")}
+          />
+          <ReceiptMeta
+            icon={<ShoppingBag />}
+            label={ar ? "العناصر" : "Items"}
+            value={
+              items.isPending ? "…" : items.isError ? "—" : `${quantity} ${ar ? "عناصر" : "items"}`
+            }
+          />
         </section>
         <section className="qs-receipt-items">
           <h3>{ar ? "العناصر" : "Items"}</h3>
-          {items.isPending ? <Skeleton className="h-24 rounded-xl" /> : items.isError ? (
-            <div role="alert" className="py-4 text-sm text-destructive"><p>{ar ? "تعذر تحميل العناصر" : "Could not load items"}</p><Button variant="outline" className="mt-2" onClick={() => void items.refetch()}>{ar ? "إعادة المحاولة" : "Retry"}</Button></div>
-          ) : (items.data ?? []).length ? (items.data ?? []).map(item => (
-            <div className="qs-receipt-item" key={item.id}>
-              <span className="qs-receipt-quantity">{item.quantity} ×</span>
-              <div>
-                <strong>{ar ? item.product_name_snapshot_ar || item.product_name_snapshot_en : item.product_name_snapshot_en || item.product_name_snapshot_ar}</strong>
-                <small>{formatMoney(Number(item.unit_price ?? 0), currency, lang)} {ar ? "للعنصر" : "each"}</small>
-                {item.notes ? <p className="qs-receipt-item-note">{item.notes}</p> : null}
-              </div>
-              <bdi>{formatMoney(Number(item.total_price), currency, lang)}</bdi>
+          {items.isPending ? (
+            <Skeleton className="h-24 rounded-xl" />
+          ) : items.isError ? (
+            <div role="alert" className="py-4 text-sm text-destructive">
+              <p>{ar ? "تعذر تحميل العناصر" : "Could not load items"}</p>
+              <Button variant="outline" className="mt-2" onClick={() => void items.refetch()}>
+                {ar ? "إعادة المحاولة" : "Retry"}
+              </Button>
             </div>
-          )) : <p className="py-4 text-sm text-muted-foreground">{ar ? "لا توجد عناصر" : "No items"}</p>}
+          ) : (items.data ?? []).length ? (
+            (items.data ?? []).map((item) => (
+              <div className="qs-receipt-item" key={item.id}>
+                <span className="qs-receipt-quantity">{item.quantity} ×</span>
+                <div>
+                  <strong>
+                    {ar
+                      ? item.product_name_snapshot_ar || item.product_name_snapshot_en
+                      : item.product_name_snapshot_en || item.product_name_snapshot_ar}
+                  </strong>
+                  <small>
+                    {formatMoney(Number(item.unit_price ?? 0), currency, lang)}{" "}
+                    {ar ? "للعنصر" : "each"}
+                  </small>
+                  {item.notes ? <p className="qs-receipt-item-note">{item.notes}</p> : null}
+                </div>
+                <bdi>{formatMoney(Number(item.total_price), currency, lang)}</bdi>
+              </div>
+            ))
+          ) : (
+            <p className="py-4 text-sm text-muted-foreground">
+              {ar ? "لا توجد عناصر" : "No items"}
+            </p>
+          )}
         </section>
-        {order.customer_notes ? <section className="qs-receipt-note"><FileText aria-hidden="true" /><div><h3>{ar ? "ملاحظة العميل" : "Customer note"}</h3><p>{order.customer_notes}</p></div></section> : null}
-        <dl className="qs-receipt-costs">{costs.filter(cost => cost.show).map(cost => <div key={cost.label}><dt>{cost.label}</dt><dd><bdi>{formatMoney(cost.amount, currency, lang)}</bdi></dd></div>)}</dl>
+        {order.customer_notes ? (
+          <section className="qs-receipt-note">
+            <FileText aria-hidden="true" />
+            <div>
+              <h3>{ar ? "ملاحظة العميل" : "Customer note"}</h3>
+              <p>{order.customer_notes}</p>
+            </div>
+          </section>
+        ) : null}
+        <dl className="qs-receipt-costs">
+          {costs
+            .filter((cost) => cost.show)
+            .map((cost) => (
+              <div key={cost.label}>
+                <dt>{cost.label}</dt>
+                <dd>
+                  <bdi>{formatMoney(cost.amount, currency, lang)}</bdi>
+                </dd>
+              </div>
+            ))}
+        </dl>
       </div>
-      <footer className="qs-receipt-total"><strong>{ar ? "الإجمالي" : "Total"}</strong><bdi>{formatMoney(total, currency, lang)}</bdi></footer>
+      <footer className="qs-receipt-total">
+        <strong>{ar ? "الإجمالي" : "Total"}</strong>
+        <bdi>{formatMoney(total, currency, lang)}</bdi>
+      </footer>
       <OrderStatusEditor order={order} />
     </aside>
   );
 }
 
-function ReceiptMeta({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return <div><span aria-hidden="true">{icon}</span><div><small>{label}</small><strong>{value}</strong></div></div>;
+function ReceiptMeta({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div>
+      <span aria-hidden="true">{icon}</span>
+      <div>
+        <small>{label}</small>
+        <strong>{value}</strong>
+      </div>
+    </div>
+  );
 }
 
 /** Reuse the kitchen's guarded transition RPC; never expose payment transitions here. */
-function OrderStatusEditor({ order }: { order: { id: string; restaurant_id: string; order_number: string; status: string } }) {
+function OrderStatusEditor({
+  order,
+}: {
+  order: { id: string; restaurant_id: string; order_number: string; status: string };
+}) {
   const { lang } = useI18n();
   const ar = lang === "ar";
   const access = useAccess();
   const membership = access.membershipFor(order.restaurant_id);
-  const canUpdate = access.isSuperAdmin || Boolean(membership
-    && membershipHasCapability(membership.role, membership.permission_overrides, "update_order_status"));
+  const canUpdate =
+    access.isSuperAdmin ||
+    Boolean(
+      membership &&
+      membershipHasCapability(
+        membership.role,
+        membership.permission_overrides,
+        "update_order_status",
+      ),
+    );
   const qc = useQueryClient();
   const [draft, setDraft] = useState(order.status);
   const [confirmCancel, setConfirmCancel] = useState(false);
-  useEffect(() => { setDraft(order.status); }, [order.status]);
-  const next = ({ new: "accepted", accepted: "preparing", preparing: "ready", ready: "served" } as Record<string, string>)[order.status];
+  useEffect(() => {
+    setDraft(order.status);
+  }, [order.status]);
+  const next = (
+    { new: "accepted", accepted: "preparing", preparing: "ready", ready: "served" } as Record<
+      string,
+      string
+    >
+  )[order.status];
   const update = useMutation({
     mutationFn: async (status: string) => {
-      if (!canUpdate || (status !== next && !(status === "cancelled" && next))) throw new Error(ar ? "هذا التغيير غير متاح." : "This transition is unavailable.");
-      const { data, error } = await (supabase as any).rpc("transition_order_status", { _order_id: order.id, _next: status, _note: null });
+      if (!canUpdate || (status !== next && !(status === "cancelled" && next)))
+        throw new Error(ar ? "هذا التغيير غير متاح." : "This transition is unavailable.");
+      const { data, error } = await (supabase as any).rpc("transition_order_status", {
+        _order_id: order.id,
+        _next: status,
+        _note: null,
+      });
       if (error) throw error;
       return Array.isArray(data) ? data[0] : data;
     },
     onSuccess: async (data) => {
-      if (data?.id === order.id) qc.setQueriesData({ queryKey: ["platform", "orders"] }, (rows: unknown) => Array.isArray(rows) ? rows.map(row => row.id === order.id ? { ...row, ...data } : row) : rows);
+      if (data?.id === order.id)
+        qc.setQueriesData({ queryKey: ["platform", "orders"] }, (rows: unknown) =>
+          Array.isArray(rows)
+            ? rows.map((row) => (row.id === order.id ? { ...row, ...data } : row))
+            : rows,
+        );
       setConfirmCancel(false);
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["platform", "orders"] }),
@@ -514,24 +716,86 @@ function OrderStatusEditor({ order }: { order: { id: string; restaurant_id: stri
       ]);
       toast.success(ar ? "تم تحديث الطلب" : "Order updated");
     },
-    onError: error => toast.error(humanError(error, lang)),
+    onError: (error) => toast.error(humanError(error, lang)),
   });
   if (!canUpdate || !next) return null;
-  return <div className="qs-receipt-editor">
-    <div className="qs-receipt-status-field"><label htmlFor={`order-status-${order.id}`}>{ar ? "الحالة" : "Status"}</label>
-      <Select value={draft} disabled={update.isPending} onValueChange={setDraft}>
-        <SelectTrigger id={`order-status-${order.id}`} aria-label={ar ? "حالة الطلب" : "Order status"}><SelectValue /></SelectTrigger>
-        <SelectContent><SelectGroup>{[order.status, next].map(status => <SelectItem key={status} value={status}>{orderStatus(status, ar)}</SelectItem>)}</SelectGroup></SelectContent>
-      </Select>
+  return (
+    <div className="qs-receipt-editor">
+      <div className="qs-receipt-status-field">
+        <label htmlFor={`order-status-${order.id}`}>{ar ? "الحالة" : "Status"}</label>
+        <Select value={draft} disabled={update.isPending} onValueChange={setDraft}>
+          <SelectTrigger
+            id={`order-status-${order.id}`}
+            aria-label={ar ? "حالة الطلب" : "Order status"}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {[order.status, next].map((status) => (
+                <SelectItem key={status} value={status}>
+                  {orderStatus(status, ar)}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+      {update.isError ? (
+        <p role="alert" className="text-xs text-destructive">
+          {humanError(update.error, lang)}
+        </p>
+      ) : null}
+      <div className="qs-receipt-actions">
+        <ActionMenu
+          ar={ar}
+          label={ar ? "إجراءات الطلب" : "Order actions"}
+          actions={[
+            {
+              label: ar ? "إلغاء الطلب" : "Cancel order",
+              destructive: true,
+              disabled: update.isPending,
+              onSelect: () => setConfirmCancel(true),
+            },
+          ]}
+        />
+        <Button
+          disabled={update.isPending || draft === order.status}
+          onClick={() => update.mutate(draft)}
+        >
+          {update.isPending ? (ar ? "جارٍ التحديث…" : "Updating…") : ar ? "تحديث" : "Update"}
+        </Button>
+      </div>
+      <AlertDialog
+        open={confirmCancel}
+        onOpenChange={(value) => !update.isPending && setConfirmCancel(value)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{ar ? "إلغاء الطلب؟" : "Cancel order?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {order.order_number} ·{" "}
+              {ar
+                ? "سيتم إلغاء هذا الطلب. لا يمكن التراجع عن هذا الإجراء."
+                : "This order will be cancelled. This action cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={update.isPending}>
+              {ar ? "الاحتفاظ بالطلب" : "Keep order"}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={update.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                update.mutate("cancelled");
+              }}
+            >
+              {ar ? "إلغاء الطلب" : "Cancel order"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
-    {update.isError ? <p role="alert" className="text-xs text-destructive">{humanError(update.error, lang)}</p> : null}
-    <div className="qs-receipt-actions">
-      <ActionMenu ar={ar} label={ar ? "إجراءات الطلب" : "Order actions"} actions={[{ label: ar ? "إلغاء الطلب" : "Cancel order", destructive: true, disabled: update.isPending, onSelect: () => setConfirmCancel(true) }]} />
-      <Button disabled={update.isPending || draft === order.status} onClick={() => update.mutate(draft)}>{update.isPending ? (ar ? "جارٍ التحديث…" : "Updating…") : (ar ? "تحديث" : "Update")}</Button>
-    </div>
-    <AlertDialog open={confirmCancel} onOpenChange={value => !update.isPending && setConfirmCancel(value)}><AlertDialogContent>
-      <AlertDialogHeader><AlertDialogTitle>{ar ? "إلغاء الطلب؟" : "Cancel order?"}</AlertDialogTitle><AlertDialogDescription>{order.order_number} · {ar ? "سيتم إلغاء هذا الطلب. لا يمكن التراجع عن هذا الإجراء." : "This order will be cancelled. This action cannot be undone."}</AlertDialogDescription></AlertDialogHeader>
-      <AlertDialogFooter><AlertDialogCancel disabled={update.isPending}>{ar ? "الاحتفاظ بالطلب" : "Keep order"}</AlertDialogCancel><AlertDialogAction disabled={update.isPending} onClick={event => { event.preventDefault(); update.mutate("cancelled"); }}>{ar ? "إلغاء الطلب" : "Cancel order"}</AlertDialogAction></AlertDialogFooter>
-    </AlertDialogContent></AlertDialog>
-  </div>;
+  );
 }

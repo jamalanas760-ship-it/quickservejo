@@ -1,3 +1,4 @@
+import { BackHomeButton } from "@/components/app/BackHomeButton";
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -96,14 +97,10 @@ export function SalesPeriodDetail({
     <div className="min-h-dvh bg-background">
       <AppHeader />
       <main className="qs-page space-y-4">
+        <BackHomeButton ar={ar} selection={selection} />
         <MasterPageHeader
           title={ar ? "تفاصيل المبيعات" : "Sales details"}
           description={`${range.firstDay} – ${range.lastDay} · ${timezone}`}
-          actions={
-            <Link to="/dashboard" search={selection} className="qs-button-secondary min-h-11">
-              {ar ? "العودة للرئيسية" : "Back to Home"}
-            </Link>
-          }
         />
         <section className="qs-card p-4">
           <p className="text-sm">

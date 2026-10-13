@@ -577,7 +577,7 @@ export function WorkforceLabor({
     URL.revokeObjectURL(url);
   }
   return (
-    <section className="wf-labor">
+    <section className="wf-labor wf-phase-two">
       <WorkforceFilters
         ar={ar}
         search={search}
@@ -607,17 +607,21 @@ export function WorkforceLabor({
           setUntil("");
           setLaborStatus("all");
         }}
-        period={
-          <WeekControl
-            date={date}
-            onChange={(value) => {
-              setDate(value);
-              setFrom("");
-              setUntil("");
-            }}
-            ar={ar}
-          />
-        }
+        date={date}
+        timeZone={timezone}
+        onDate={(value) => {
+          setDate(value);
+          setFrom("");
+          setUntil("");
+        }}
+        actionMenu={[
+          {
+            label: ar ? "تصدير CSV" : "Export payroll CSV",
+            icon: Download,
+            onSelect: exportCsv,
+            disabled: data.isPending || data.isError,
+          },
+        ]}
         action={
           <Button variant="outline" onClick={exportCsv} disabled={data.isPending || data.isError}>
             <Download className="size-4" />

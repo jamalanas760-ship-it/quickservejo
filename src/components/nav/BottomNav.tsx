@@ -41,7 +41,7 @@ import {
   MonitorSmartphone,
   Plus,
   LayoutGrid,
-  PanelLeftClose,
+  PanelLeft,
   PlugZap,
   Search,
   Settings,
@@ -106,7 +106,12 @@ export function BottomNav() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem("qs-sidebar-collapsed");
-      setSidebarCollapsed(saved === null ? (window.location.pathname.startsWith("/kitchen") || window.matchMedia("(min-width:768px) and (max-width:1023px)").matches) : saved === "true");
+      setSidebarCollapsed(
+        saved === null
+          ? window.location.pathname.startsWith("/kitchen") ||
+              window.matchMedia("(min-width:768px) and (max-width:1023px)").matches
+          : saved === "true",
+      );
     } catch {}
     setSidebarRestored(true);
   }, []);
@@ -117,7 +122,10 @@ export function BottomNav() {
     const frame = requestAnimationFrame(() => {
       nextFrame = requestAnimationFrame(() => setSidebarMotionReady(true));
     });
-    return () => { cancelAnimationFrame(frame); cancelAnimationFrame(nextFrame); };
+    return () => {
+      cancelAnimationFrame(frame);
+      cancelAnimationFrame(nextFrame);
+    };
   }, [sidebarRestored]);
   const [toolSearch, setToolSearch] = useState("");
   const [iosQuickItem, setIOSQuickItem] = useState<Item | null>(null);
@@ -136,18 +144,25 @@ export function BottomNav() {
   const access = useAccess();
   const session = useSupabaseSession();
   useLayoutEffect(() => {
-    document.documentElement.dataset.sidebarCollapsed = String(sidebarCollapsed && !access.isSuperAdmin);
+    document.documentElement.dataset.sidebarCollapsed = String(
+      sidebarCollapsed && !access.isSuperAdmin,
+    );
     document.documentElement.dataset.sidebarMotionReady = String(sidebarMotionReady);
     document.documentElement.dataset.kitchenWorkspace = String(pathname.startsWith("/kitchen"));
     if (sidebarRestored) {
-      try { localStorage.setItem("qs-sidebar-collapsed", String(sidebarCollapsed)); } catch {}
+      try {
+        localStorage.setItem("qs-sidebar-collapsed", String(sidebarCollapsed));
+      } catch {}
     }
   }, [sidebarCollapsed, sidebarMotionReady, sidebarRestored, access.isSuperAdmin, pathname]);
-  useEffect(() => () => {
-    delete document.documentElement.dataset.sidebarCollapsed;
-    delete document.documentElement.dataset.sidebarMotionReady;
-    delete document.documentElement.dataset.kitchenWorkspace;
-  }, []);
+  useEffect(
+    () => () => {
+      delete document.documentElement.dataset.sidebarCollapsed;
+      delete document.documentElement.dataset.sidebarMotionReady;
+      delete document.documentElement.dataset.kitchenWorkspace;
+    },
+    [],
+  );
 
   const selectedId = pathname.match(/^\/manage\/([^/]+)/)?.[1];
   const membership =
@@ -172,7 +187,11 @@ export function BottomNav() {
   const role = membership?.role ?? access.roles[0] ?? null;
   const overrides = membership?.permission_overrides ?? null;
   const can = (capability: Capability) =>
-    Boolean(role && !(role === "waiter" && capability === "manage_tables") && membershipHasCapability(role, overrides, capability));
+    Boolean(
+      role &&
+      !(role === "waiter" && capability === "manage_tables") &&
+      membershipHasCapability(role, overrides, capability),
+    );
   const appearance = readAppearance(restaurant?.menu_theme);
   const useRestaurantLogo = Boolean(restaurant?.logo_url && !appearance.useQuickServeLogo);
   const managerial =
@@ -180,8 +199,9 @@ export function BottomNav() {
   const multiLocation =
     new Set((access.data ?? []).map((row) => row.restaurant_id).filter(Boolean)).size > 1;
   const erpSpecialist = role === "inventory" || role === "procurement" || role === "accountant";
-  const homeTo = FRONTLINE_ITEMS[role ?? ""]?.to ?? (
-    role === "operations_manager" || role === "manager"
+  const homeTo =
+    FRONTLINE_ITEMS[role ?? ""]?.to ??
+    (role === "operations_manager" || role === "manager"
       ? "/manager"
       : erpSpecialist
         ? "/work"
@@ -348,7 +368,10 @@ export function BottomNav() {
         ] satisfies Item[]
       ).filter(
         (item) =>
-          (item.to !== "/hq" || multiLocation) && (!item.capability || can(item.capability) || (item.capability === "manage_menu" && can("manage_appearance"))),
+          (item.to !== "/hq" || multiLocation) &&
+          (!item.capability ||
+            can(item.capability) ||
+            (item.capability === "manage_menu" && can("manage_appearance"))),
       )
     : [];
 
@@ -401,7 +424,10 @@ export function BottomNav() {
               { to: "/profile", icon: Settings, en: "Settings", ar: "الإعدادات" },
             ];
 
-  const desktopItems = [...defaultDesktopItems, ...managementItems.filter(item => item.capability)].filter((item, index, all) => all.findIndex(other => other.to === item.to) === index);
+  const desktopItems = [
+    ...defaultDesktopItems,
+    ...managementItems.filter((item) => item.capability),
+  ].filter((item, index, all) => all.findIndex((other) => other.to === item.to) === index);
 
   const mobilePriority = managerial
     ? [homeTo, `/manage/${restaurantId}/orders`, "/bookings", "/work"]
@@ -933,7 +959,12 @@ export function BottomNav() {
 
   return (
     <>
-      <WorkspaceSearch restaurantId={restaurantId} userId={session.data?.user.id} items={desktopItems} ar={lang === "ar"} />
+      <WorkspaceSearch
+        restaurantId={restaurantId}
+        userId={session.data?.user.id}
+        items={desktopItems}
+        ar={lang === "ar"}
+      />
       <Button
         type="button"
         variant="outline"
@@ -944,7 +975,11 @@ export function BottomNav() {
       >
         <LayoutGrid className="size-5" />
       </Button>
-      <aside id="workspace-sidebar" data-collapsed={sidebarCollapsed} className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden flex-col lg:flex">
+      <aside
+        id="workspace-sidebar"
+        data-collapsed={sidebarCollapsed}
+        className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden flex-col lg:flex"
+      >
         <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-4">
           <Link
             to={homeTo as never}
@@ -956,8 +991,37 @@ export function BottomNav() {
         </div>
 
         <div className="qs-sidebar-collapse-row">
-          <Button className="qs-sidebar-collapse-button" type="button" variant="ghost" size="icon" onClick={()=>setSidebarCollapsed(value=>!value)} aria-controls="workspace-sidebar" aria-expanded={!sidebarCollapsed} aria-label={sidebarCollapsed?(lang==="ar"?"توسيع القائمة":"Expand sidebar"):(lang==="ar"?"طي القائمة":"Collapse sidebar")} title={sidebarCollapsed?(lang==="ar"?"توسيع القائمة":"Expand sidebar"):(lang==="ar"?"طي القائمة":"Collapse sidebar")}>
-            <PanelLeftClose className="qs-sidebar-toggle-icon size-5" aria-hidden="true" />
+          <Button
+            className="qs-sidebar-collapse-button"
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarCollapsed((value) => !value)}
+            aria-controls="workspace-sidebar"
+            aria-expanded={!sidebarCollapsed}
+            aria-label={
+              sidebarCollapsed
+                ? lang === "ar"
+                  ? "توسيع القائمة"
+                  : "Expand sidebar"
+                : lang === "ar"
+                  ? "طي القائمة"
+                  : "Collapse sidebar"
+            }
+            title={
+              sidebarCollapsed
+                ? lang === "ar"
+                  ? "توسيع القائمة"
+                  : "Expand sidebar"
+                : lang === "ar"
+                  ? "طي القائمة"
+                  : "Collapse sidebar"
+            }
+          >
+            <span className="p2-sidebar-toggle-glyph" aria-hidden="true">
+              <PanelLeft size={16} />
+              <ChevronRight className="qs-sidebar-toggle-icon" size={12} />
+            </span>
           </Button>
         </div>
         <nav
@@ -1154,8 +1218,8 @@ export function BottomNav() {
                         setMoreOpen(true);
                       }}
                       title={lang === "ar" ? "كل الأدوات" : "All tools"}
-              aria-label={lang === "ar" ? "كل الأدوات" : "All tools"}
-              aria-expanded={moreOpen}
+                      aria-label={lang === "ar" ? "كل الأدوات" : "All tools"}
+                      aria-expanded={moreOpen}
                       aria-haspopup="dialog"
                       className={cn(
                         "qs-mobile-nav-item qs-mobile-nav-more qs-ios-haptic-nav-item relative flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition",
@@ -1235,7 +1299,7 @@ export function BottomNav() {
       <Dialog open={moreOpen} onOpenChange={changeMoreOpen}>
         <DialogContent
           overlayClassName="qs-workspace-tools-overlay"
-          className="qs-workspace-tools-dialog max-h-[min(92dvh,820px)] max-w-[1120px] gap-0 overflow-hidden p-0"
+          className="p2-navigation-drawer qs-workspace-tools-dialog max-h-[min(92dvh,820px)] max-w-[1120px] gap-0 overflow-hidden p-0"
           onOpenAutoFocus={(event) => {
             if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches)
               event.preventDefault();
