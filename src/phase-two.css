@@ -480,9 +480,6 @@
     :is(.qs-sidebar-label, .qs-sidebar-count, .qs-sidebar-wordmark, .qs-sidebar-toggle-icon) {
     transition: none !important;
   }
-  .p2-navigation-drawer.qs-dialog-content {
-    animation: none !important;
-  }
 }
 
 .p2-mobile-action {
