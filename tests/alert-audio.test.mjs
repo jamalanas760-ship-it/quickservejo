@@ -32,3 +32,56 @@ test('alert audio resumes before scheduling, recovers interruption and recreates
     await assert.rejects(unlockAlertSound(), /unavailable/);
   } finally { globalThis.window = original; }
 });
+
+test('each selectable sound schedules a distinct bounded rhythm and timbre at the saved volume', async () => {
+  const { ALERT_TONES } = await import('../src/lib/notification-preferences.ts');
+  const original = globalThis.window;
+  let audio;
+  class Audio {
+    state = 'running'; currentTime = 0; sampleRate = 48000; destination = {}; voices = []; gains = [];
+    constructor() { audio = this; }
+    async resume() { this.state = 'running'; }
+    createBufferSource() { return { connect() {}, disconnect() {}, start() {} }; }
+    createBuffer() { return {}; }
+    createGain() {
+      const envelope = [];
+      this.gains.push(envelope);
+      return { gain: {
+        setValueAtTime(value, at) { envelope.push([value, at]); },
+        exponentialRampToValueAtTime(value, at) { envelope.push([value, at]); },
+      }, connect() {}, disconnect() {} };
+    }
+    createOscillator() {
+      const voice = { frequency: {}, connect() { return { connect() {} }; }, disconnect() {},
+        start(at) { this.startAt = at; }, stop(at) { this.stopAt = at; } };
+      this.voices.push(voice);
+      return voice;
+    }
+  }
+  try {
+    globalThis.window = { AudioContext: Audio };
+    const signatures = [];
+    for (const tone of ALERT_TONES) {
+      await playAlertChime(tone.id, 40);
+      const voices = audio.voices;
+      assert.ok(voices.length >= 2);
+      for (let i = 0; i < voices.length; i++) {
+        const voice = voices[i], envelope = audio.gains[i];
+        assert.ok(voice.frequency.value >= 200 && voice.frequency.value < 4000);
+        assert.ok(voice.startAt >= .025 && voice.stopAt <= 1.1);
+        assert.ok(envelope[1][1] > voice.startAt && envelope[2][1] > envelope[1][1]);
+        assert.ok(envelope[1][0] > 0 && envelope[1][0] <= .12);
+        assert.equal(envelope[2][0], .0001);
+      }
+      // Ignore pitch: even without transposition, rhythm/timbre/envelopes differ.
+      signatures.push(JSON.stringify(voices.map((v, i) => [v.type, v.startAt, v.stopAt, audio.gains[i]])));
+      audio.state = 'closed';
+    }
+    assert.equal(new Set(signatures).size, ALERT_TONES.length);
+    await assert.rejects(playAlertChime('soft', NaN), /muted/);
+    await assert.rejects(playAlertChime('soft', -10), /muted/);
+    await playAlertChime('soft', 200);
+    assert.equal(audio.gains[0][1][0], .3, 'values above 100 are clamped');
+    audio.state = 'closed';
+  } finally { globalThis.window = original; }
+});
