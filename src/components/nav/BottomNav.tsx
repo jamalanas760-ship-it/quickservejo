@@ -1340,8 +1340,8 @@ export function BottomNav() {
                 <span>{restaurant?.name ?? "QuickServe"}</span>
               </div>
             </aside>
-            <div className="min-w-0 bg-card">
-              <DialogHeader className="border-b border-border bg-card px-5 py-5 pe-14 text-start sm:px-6">
+            <div className="qs-workspace-tools-main min-w-0 bg-card">
+              <DialogHeader className="qs-workspace-tools-header border-b border-border bg-card px-5 py-5 pe-14 text-start sm:px-6">
                 <div className="flex items-start gap-3">
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
                     <LayoutGrid className="size-5" />

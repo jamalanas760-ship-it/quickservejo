@@ -1,6 +1,6 @@
 # Mobile UX fixes
 
-Mobile More now opens the centered All Tools popup using Add Booking’s shared dialog opening/closing animation, timing and blurred backdrop, inset margins, readable wrapping tool names and an internal scroll region. It no longer opens a side drawer. RTL and reduced-motion preferences remain supported.
+Mobile More now opens the centered All Tools popup with a right-to-left 320ms eased entrance, 180ms exit to the right and a blurred backdrop, inset margins, readable wrapping tool names and an internal scroll region. It no longer opens a side drawer. RTL and reduced-motion preferences remain supported.
 
 Single and recurring shift creation uses collapsible Basics, Time & repeat and Team sections on mobile. Section summaries show the current name, date/times and assigned count. Form values remain mounted when sections collapse. The creation footer stays visible; detailed upcoming shifts are available under a disclosure. Desktop sections start expanded. Existing templates, assignments, conflict checks and atomic creation are retained.
 
@@ -9,3 +9,5 @@ Dates use one responsive picker surface. Mobile uses a calendar sheet; advanced 
 Table-list previews focus the preview heading, leaving status unchanged until the user explicitly changes the status control. Waitlist uses Reservations' mobile summary strip, search/date/filter arrangement and horizontal underline tabs, preserving waitlist-specific statuses and all-date filtering.
 
 Validation: 210/210 contract tests, TypeScript, lint (zero errors/59 existing warnings), production build and diff checks. 48 browser component cases span 320/390/768/1440px in English/light and Arabic/dark: single picker surfaces, no mobile native date inputs, filter focus/apply, accordion sections, centered More popup, no horizontal overflow, and table status changes only after an explicit action. Six additional filter checks verify visible footer bounds and no horizontal body scrolling; a UTC+14 check confirms the selected calendar day is preserved. Browser services/navigation use isolated fixtures. Signed-in production, physical mobile keyboards and Lovable deployment remain unverified.
+
+The follow-up mobile refinement uses a two-column workforce metric grid, a compact search/period/filter/action toolbar and non-wrapping status tabs. Labor grid children can shrink to the viewport. Calendar labels use the browser’s local calendar day rather than formatting a local-noon timestamp in UTC. Shift creation is inset from iOS safe areas with clear heading/close spacing and a persistent footer. All Tools uses single-column mobile cards so longer tool titles remain readable, with safe-area bounds and internal scrolling. Physical iOS status-bar/keyboard behavior remains unverified.

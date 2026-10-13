@@ -412,22 +412,31 @@
     font-size: 16px;
   }
   .wf-phase-two .wf-metrics {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     padding: 0;
   }
   .wf-phase-two .wf-metrics > div {
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+    padding: 14px 16px !important;
+    border-inline-end: 0 !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+  .wf-phase-two .wf-metrics > div:nth-child(odd):not(:last-child) {
+    border-inline-end: 1px solid var(--border) !important;
+  }
+  .wf-phase-two .wf-metrics > div:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px !important;
-    border-inline-end: 0 !important;
-    border-bottom: 1px solid var(--border) !important;
   }
   .wf-phase-two .wf-metrics > div:last-child {
     border-bottom: 0 !important;
   }
   .wf-phase-two .wf-metrics strong {
-    font-size: 20px;
+    font-size: 22px;
     margin: 0;
   }
   .wl-phase-two .wl-metrics {
@@ -1858,5 +1867,211 @@
   .p2-filter-sheet,
   .p2-picker-overlay {
     animation: none !important;
+  }
+}
+
+/* Mobile workforce and launcher refinements. Motion offsets the popup without replacing its positioning transform. */
+@keyframes qs-tools-from-right {
+  from {
+    opacity: 0;
+    margin-left: min(64px, 12vw);
+  }
+  to {
+    opacity: 1;
+    margin-left: 0;
+  }
+}
+@keyframes qs-tools-to-right {
+  from {
+    opacity: 1;
+    margin-left: 0;
+  }
+  to {
+    opacity: 0;
+    margin-left: 40px;
+  }
+}
+@layer components {
+  .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content[data-state="open"] {
+    animation: qs-tools-from-right 320ms cubic-bezier(0.16, 1, 0.3, 1) both !important;
+  }
+  .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content[data-state="closed"] {
+    animation: qs-tools-to-right 180ms ease-in both !important;
+  }
+  @media (max-width: 767px) {
+    .wf-phase-two,
+    .wf-phase-two > *,
+    .wf-phase-two .wf-split > * {
+      min-width: 0;
+      max-width: 100%;
+    }
+    .wf-labor.wf-phase-two {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+    }
+    .wf-phase-two .wf-chart {
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+      padding: 24px 12px 12px;
+    }
+    .wf-phase-two .wf-chart > div {
+      min-width: 0;
+    }
+    .wf-phase-two .wf-chart p small {
+      overflow-wrap: anywhere;
+    }
+    .wf-phase-two .p2-controls {
+      padding: 12px;
+    }
+    .wf-phase-two .p2-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 8px;
+    }
+    .wf-phase-two .p2-search {
+      grid-column: 1 / -1;
+      min-width: 0;
+      width: 100%;
+    }
+    .wf-phase-two .p2-search input {
+      font-size: 16px;
+    }
+    .wf-phase-two .p2-period {
+      width: 100%;
+      min-width: 0;
+      padding: 8px 10px;
+    }
+    .wf-phase-two .p2-period > span {
+      flex: 1;
+      max-width: none;
+      font-size: 12px;
+    }
+    .wf-phase-two .p2-period small {
+      font-size: 11px;
+    }
+    .wf-phase-two .p2-filter-trigger {
+      padding: 8px 10px;
+    }
+    .wf-phase-two .p2-context-action:not(.p2-has-mobile-menu) {
+      grid-column: 1 / -1;
+    }
+    .wf-phase-two .wf-filter-tabs {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      max-width: 100%;
+      scrollbar-width: none;
+    }
+    .wf-phase-two .wf-filter-tabs button {
+      flex-shrink: 0;
+      white-space: nowrap;
+      padding-inline: 12px;
+    }
+    .qs-create-shift-dialog.p2-shift-studio {
+      top: max(12px, env(safe-area-inset-top)) !important;
+      bottom: max(12px, env(safe-area-inset-bottom)) !important;
+      left: 8px !important;
+      right: 8px !important;
+      width: calc(100vw - 16px) !important;
+      height: calc(
+        100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom))
+      ) !important;
+      max-height: calc(
+        100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom))
+      ) !important;
+      border-radius: 20px !important;
+    }
+    .p2-shift-studio .wf-dialog-heading {
+      padding: 20px 60px 12px 16px !important;
+    }
+    [dir="rtl"] .p2-shift-studio .wf-dialog-heading {
+      padding: 20px 16px 12px 60px !important;
+    }
+    .p2-shift-studio .wf-dialog-heading h2 {
+      font-size: 20px !important;
+      line-height: 1.25;
+    }
+    .p2-shift-studio .wf-dialog-heading p {
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .p2-shift-studio .wf-form-footer {
+      padding: 12px 16px !important;
+    }
+    .p2-shift-studio .p2-template-hint {
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content {
+      inset: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)) !important;
+      margin: auto;
+      width: calc(100vw - 24px) !important;
+      max-height: calc(
+        100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom))
+      ) !important;
+      height: fit-content !important;
+      transform: none !important;
+    }
+    [dir="rtl"] .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content {
+      left: 12px !important;
+      right: 12px !important;
+    }
+    .qs-workspace-tools-dialog.p2-navigation-drawer .qs-workspace-tools-layout {
+      max-height: calc(
+        100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom))
+      ) !important;
+    }
+    .qs-workspace-tools-main {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      max-height: inherit;
+    }
+    .qs-workspace-tools-main > .qs-dialog-header {
+      flex-shrink: 0;
+    }
+    .qs-workspace-tools-dialog.p2-navigation-drawer .qs-workspace-tools-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none !important;
+      overflow-y: auto;
+    }
+    .qs-workspace-tools-dialog .qs-dialog-header {
+      padding: 20px 56px 16px 16px !important;
+    }
+    [dir="rtl"] .qs-workspace-tools-dialog .qs-dialog-header {
+      padding: 20px 16px 16px 56px !important;
+    }
+    .qs-workspace-tools-dialog .qs-dialog-header h2 {
+      font-size: 20px;
+      line-height: 1.25;
+    }
+    .qs-workspace-tools-dialog .qs-dialog-header p {
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .qs-workspace-tools-dialog .qs-search-field {
+      min-height: 44px !important;
+    }
+    .qs-workspace-tools-dialog .qs-workspace-tools-scroll {
+      padding: 12px 16px !important;
+    }
+    .qs-workspace-tools-dialog.p2-navigation-drawer .qs-workspace-tools-groups .grid {
+      grid-template-columns: minmax(0, 1fr) !important;
+      gap: 8px;
+    }
+    .qs-workspace-tools-dialog .qs-workspace-tool-card {
+      min-height: 64px !important;
+      padding: 10px 12px !important;
+    }
+    .qs-workspace-tools-dialog .qs-workspace-tool-card strong {
+      overflow-wrap: normal !important;
+      word-break: normal;
+      font-size: 14px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content[data-state] {
+      animation: none !important;
+    }
   }
 }
