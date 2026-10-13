@@ -1,3 +1,4 @@
+import { useIsMobile } from "@/hooks/use-mobile";
 import { restaurantScheduleWindows } from "@/lib/restaurant-schedule";
 import { ActionMenu } from "@/components/app/ActionMenu";
 import { ShiftTemplates } from "@/components/workforce/ShiftTemplates";
@@ -2132,6 +2133,8 @@ function CreateShiftDialog({
   ar: boolean;
   lang: "en" | "ar";
 }) {
+  const mobile=useIsMobile();
+  const [mobileSection,setMobileSection]=useState("basics");
   const qc = useQueryClient();
   const restaurant = useRestaurant(restaurantId);
   const timeZone = restaurant.data?.timezone || "Asia/Amman";
@@ -2348,7 +2351,7 @@ function CreateShiftDialog({
           )}
           <div className="wf-shift-form-layout">
             <div className="p2-shift-editor">
-              <section className="p2-shift-section"><h3><b>1</b>{ar ? "التفاصيل الأساسية" : "Basics"}</h3>
+              <details className="p2-shift-section" open={!mobile || mobileSection === "basics"} onToggle={event=>{if(mobile){if(event.currentTarget.open)setMobileSection("basics");else setMobileSection(current=>current==="basics"?"":current);}}}><summary><b>1</b><span className="p2-step-copy"><strong>{ar ? "التفاصيل الأساسية" : "Basics"}</strong><small>{name || (ar ? "اختر اسم الوردية" : "Choose a shift name")}</small></span></summary>
               <div className="grid gap-4 sm:grid-cols-[1fr_180px]">
                 <Field label={ar ? "اسم الوردية" : "Shift name"}>
                   <Input maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
@@ -2363,8 +2366,8 @@ function CreateShiftDialog({
                   </div>
                 </Field>
               </div>
-              </section>
-              <section className="p2-shift-section"><h3><b>2</b>{ar ? "الوقت والتكرار" : "Time & repeat"}</h3>
+              </details>
+              <details className="p2-shift-section" open={!mobile || mobileSection === "time"} onToggle={event=>{if(mobile){if(event.currentTarget.open)setMobileSection("time");else setMobileSection(current=>current==="time"?"":current);}}}><summary><b>2</b><span className="p2-step-copy"><strong>{ar ? "الوقت والتكرار" : "Time & repeat"}</strong><small>{date} · {start}–{end}</small></span></summary>
                 {mode === "recurring" ? <div className="p2-repeat-choice" role="group" aria-label={ar ? "نمط التكرار" : "Repeat pattern"}>
                   <button type="button" aria-pressed={repeatMode === "week"} onClick={()=>{setRepeatMode("week");setRecurringRange(7);}}>{ar ? "أسبوع واحد" : "One week"}</button>
                   <button type="button" aria-pressed={repeatMode === "weekly"} onClick={()=>{setRepeatMode("weekly");setRecurringRange(28);}}>{ar ? "تكرار أسبوعي" : "Repeat weekly"}</button>
@@ -2449,8 +2452,8 @@ function CreateShiftDialog({
                   ? "أوقات النهاية قبل البداية تستمر في اليوم التالي."
                   : "End times before start continue into the next day."}
               </p>
-              </section>
-              <section className="p2-shift-section"><h3><b>3</b>{ar ? "الفريق" : "Team"}</h3>
+              </details>
+              <details className="p2-shift-section" open={!mobile || mobileSection === "team"} onToggle={event=>{if(mobile){if(event.currentTarget.open)setMobileSection("team");else setMobileSection(current=>current==="team"?"":current);}}}><summary><b>3</b><span className="p2-step-copy"><strong>{ar ? "الفريق" : "Team"}</strong><small>{assigned.length} {ar ? "أعضاء معيّنون" : "members assigned"}</small></span></summary>
               <Field label={ar ? "تعيين أعضاء الفريق" : "Assign team members"}>
                 <Input
                   aria-label={ar ? "بحث الأعضاء" : "Search members"}
@@ -2568,7 +2571,7 @@ function CreateShiftDialog({
                   )}
                 </div>
               )}
-              </section>
+              </details>
               <details className="p2-shift-notes"><summary>{ar ? "ملاحظات إضافية" : "Additional notes"}</summary>
               <Field label={ar ? "ملاحظات (اختياري)" : "Notes (optional)"}>
                 <Textarea
@@ -2587,7 +2590,7 @@ function CreateShiftDialog({
                 </p>
               ) : null}
             </div>
-            <aside className="wf-schedule-preview">
+            <aside className="wf-schedule-preview p2-mobile-schedule-preview">
               <h3>{ar ? "معاينة الجدول" : "Schedule preview"}</h3>
               <div className="wf-preview-metrics">
                 <span>
@@ -2615,7 +2618,7 @@ function CreateShiftDialog({
                 <UsersRound className="size-4" />
                 {assigned.length} {ar ? "أعضاء معيّنون" : "members assigned"}
               </p>
-              <h4>{ar ? "الورديات القادمة" : "Next shifts"}</h4>
+              <details className="p2-preview-more" open={!mobile}><summary>{ar ? "الورديات القادمة" : "Next shifts"}</summary>
               {previewDates.map((d) => (
                 <div className="wf-preview-shift" key={d}>
                   <span>
@@ -2642,6 +2645,7 @@ function CreateShiftDialog({
                     ? "ينشئ وردية واحدة فقط."
                     : "Creates one shift only."}
               </p>
+              </details>
             </aside>
           </div>
         </div>

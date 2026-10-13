@@ -1,3 +1,5 @@
+import { PickerSurface } from "@/components/app/PickerSurface";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
 import { arSA, enGB } from "date-fns/locale";
 import {
@@ -36,6 +38,7 @@ export function ReservationsToolbar({
   onStatus: (status: string) => void;
   onSearch: (value: string) => void;
 }) {
+  const mobile = useIsMobile();
   const [dateOpen, setDateOpen] = useState(false),
     [filtersOpen, setFiltersOpen] = useState(false);
   const [month, setMonth] = useState(() => new Date(`${day}T12:00:00`));
@@ -71,14 +74,18 @@ export function ReservationsToolbar({
             onChange={(e) => onSearch(e.target.value)}
           />
         </label>
-        <Popover
+        <PickerSurface
+          ar={ar}
+          title={ar ? "تاريخ الجدول" : "Schedule date"}
           open={dateOpen}
           onOpenChange={(open) => {
-            if (open) setMonth(selectedDate);
+            if (open) {
+              setMonth(selectedDate);
+              setFiltersOpen(false);
+            }
             setDateOpen(open);
           }}
-        >
-          <PopoverTrigger asChild>
+          trigger={
             <button
               type="button"
               className="p2-chip rs-phase-two-date"
@@ -88,19 +95,22 @@ export function ReservationsToolbar({
               <span>{dateLabel}</span>
               <ChevronDown size={14} aria-hidden="true" />
             </button>
-          </PopoverTrigger>
-          <PopoverContent className="rs-phase-two-calendar" align="start" dir={ar ? "rtl" : "ltr"}>
-            <label className="p2-field rs-phase-two-jump">
-              {ar ? "انتقل إلى تاريخ" : "Jump to date"}
-              <input
-                type="date"
-                aria-label={ar ? "انتقل إلى تاريخ" : "Jump to date"}
-                value={day}
-                onChange={(event) => {
-                  if (event.target.value) changeDay(event.target.value);
-                }}
-              />
-            </label>
+          }
+        >
+          <div className="rs-phase-two-calendar">
+            {!mobile && (
+              <label className="p2-field rs-phase-two-jump">
+                {ar ? "انتقل إلى تاريخ" : "Jump to date"}
+                <input
+                  type="date"
+                  aria-label={ar ? "انتقل إلى تاريخ" : "Jump to date"}
+                  value={day}
+                  onChange={(event) => {
+                    if (event.target.value) changeDay(event.target.value);
+                  }}
+                />
+              </label>
+            )}
             <Calendar
               mode="single"
               selected={selectedDate}
@@ -144,8 +154,8 @@ export function ReservationsToolbar({
             >
               {ar ? "اليوم" : "Today"}
             </Button>
-          </PopoverContent>
-        </Popover>
+          </div>
+        </PickerSurface>
         <div className="rs-phase-two-status">
           <FilterChip
             ar={ar}
@@ -162,6 +172,7 @@ export function ReservationsToolbar({
           count={Number(day !== today) + Number(status !== "all")}
           onOpenChange={(open) => {
             if (open) {
+              setDateOpen(false);
               setDraftDay(day);
               setDraftStatus(status);
             }
@@ -192,7 +203,7 @@ export function ReservationsToolbar({
           }
         >
           <h4>{ar ? "تاريخ الجدول" : "Schedule date"}</h4>
-          <ReservationDateControl value={draftDay} onChange={setDraftDay} ar={ar} />
+          <ReservationDateControl inlineMobile value={draftDay} onChange={setDraftDay} ar={ar} />
           <label className="p2-field">
             {ar ? "حالة الحجز" : "Reservation status"}
             <select

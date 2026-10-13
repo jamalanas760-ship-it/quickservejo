@@ -1,4 +1,4 @@
-import { useState, type ElementType, type ReactNode } from "react";
+import { useId, useState, type ElementType, type ReactNode } from "react";
 import { ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -107,6 +107,7 @@ export function FilterPanel({
   footer: ReactNode;
 }) {
   const mobile = useIsMobile();
+  const titleId = useId();
   const trigger = (
     <button type="button" className="p2-filter-trigger" aria-expanded={open}>
       <SlidersHorizontal size={16} />
@@ -123,9 +124,18 @@ export function FilterPanel({
   return mobile ? (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="p2-filter-sheet" dir={ar ? "rtl" : "ltr"}>
+      <DialogContent
+        className="p2-filter-sheet"
+        dir={ar ? "rtl" : "ltr"}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          document.getElementById(titleId)?.focus({ preventScroll: true });
+        }}
+      >
         <DialogHeader>
-          <DialogTitle>{ar ? "الفلاتر" : "Filters"}</DialogTitle>
+          <DialogTitle id={titleId} tabIndex={-1}>
+            {ar ? "الفلاتر" : "Filters"}
+          </DialogTitle>
           <DialogDescription>
             {ar ? "اختر الفلاتر ثم اضغط تطبيق." : "Choose your filters, then apply."}
           </DialogDescription>
@@ -136,8 +146,18 @@ export function FilterPanel({
   ) : (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent className="p2-filter-panel" align="end" dir={ar ? "rtl" : "ltr"}>
-        <h3>{ar ? "الفلاتر" : "Filters"}</h3>
+      <PopoverContent
+        className="p2-filter-panel"
+        align="end"
+        dir={ar ? "rtl" : "ltr"}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          document.getElementById(titleId)?.focus({ preventScroll: true });
+        }}
+      >
+        <h3 id={titleId} tabIndex={-1}>
+          {ar ? "الفلاتر" : "Filters"}
+        </h3>
         {content}
       </PopoverContent>
     </Popover>

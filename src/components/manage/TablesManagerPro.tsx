@@ -2390,8 +2390,8 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       </Dialog>
 
       <Dialog open={tablePreviewOpen && !!selected} onOpenChange={setTablePreviewOpen}>
-        <DialogContent placement="edge" className="qs-table-preview-dialog" dir={ar ? "rtl" : "ltr"}>
-          <DialogHeader><DialogTitle>{ar ? "الطاولة المحددة" : "Selected table"} {selected?.table_number}</DialogTitle><DialogDescription>{selected ? `${tableZoneName(selected)} · ${selected.capacity ?? 4} ${ar ? "مقاعد" : "seats"}` : ""}</DialogDescription></DialogHeader>
+        <DialogContent placement="edge" className="qs-table-preview-dialog" dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={event=>{event.preventDefault();document.getElementById("table-preview-title")?.focus({preventScroll:true});}}>
+          <DialogHeader><DialogTitle id="table-preview-title" tabIndex={-1}>{ar ? "الطاولة المحددة" : "Selected table"} {selected?.table_number}</DialogTitle><DialogDescription>{selected ? `${tableZoneName(selected)} · ${selected.capacity ?? 4} ${ar ? "مقاعد" : "seats"}` : ""}</DialogDescription></DialogHeader>
           <div className="qs-table-preview-body">{quickPanel}</div>
         </DialogContent>
       </Dialog>
