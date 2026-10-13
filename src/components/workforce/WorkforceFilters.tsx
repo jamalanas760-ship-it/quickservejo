@@ -92,7 +92,6 @@ export function WorkforceFilters(p: Props) {
     new Date(`${day}T12:00:00`).toLocaleDateString(ar ? "ar-JO" : "en-GB", {
       day: "numeric",
       month: "short",
-      timeZone: "UTC",
     });
   function apply() {
     if (invalid) return;
