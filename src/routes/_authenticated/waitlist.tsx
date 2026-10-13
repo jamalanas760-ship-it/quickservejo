@@ -462,7 +462,7 @@ function WaitlistPage() {
                 </div>
               ))}
             </section>
-            <div className="rs-schedule-toolbar wl-toolbar">
+            <div className="rs-schedule-toolbar rs-phase-two-toolbar wl-toolbar">
               <div className="wl-toolbar-main p2-toolbar">
                 <label className="p2-search">
                   <Search size={17} />
@@ -541,6 +541,7 @@ function WaitlistPage() {
                 >
                   <h4>{ar ? "الفترة" : "Period"}</h4>
                   <ReservationDateControl
+                    inlineMobile
                     value={draftDate}
                     onChange={setDraftDate}
                     ar={ar}
@@ -562,7 +563,7 @@ function WaitlistPage() {
                   </label>
                 </FilterPanel>
               </div>
-              <div className="rs-filters wl-filters">
+              <div className="rs-filters rs-phase-two-tabs wl-filters">
                 {(
                   [
                     ["active", ar ? "نشطة" : "Active", active.length],

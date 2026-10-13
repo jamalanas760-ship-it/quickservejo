@@ -1,3 +1,7 @@
+import { arSA, enGB } from "date-fns/locale";
+import { PickerSurface } from "@/components/app/PickerSurface";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Calendar } from "@/components/ui/calendar";
 import { ActionMenu, type CompactAction } from "@/components/app/ActionMenu";
 import { useState, type ReactNode } from "react";
 import {
@@ -18,6 +22,8 @@ import { ROLE_LABELS, type AppRole } from "@/lib/permissions";
 import { workforceDayKey } from "@/lib/workforce-hours";
 import { weekOf, moveDay } from "./WorkforcePrimitives";
 
+const calendarDay = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 type Props = {
   ar: boolean;
   search: string;
@@ -43,6 +49,9 @@ type Props = {
 };
 export function WorkforceFilters(p: Props) {
   const { ar } = p;
+  const mobile = useIsMobile();
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const [periodMonth, setPeriodMonth] = useState(() => new Date(`${p.date}T12:00:00`));
   const [open, setOpen] = useState(false);
   const current = () => ({
     employee: p.employee,
@@ -80,7 +89,7 @@ export function WorkforceFilters(p: Props) {
   const first = p.from || days[0],
     last = p.until || days.at(-1);
   const format = (day: string) =>
-    new Date(`${day}T12:00:00Z`).toLocaleDateString(ar ? "ar-JO" : "en-GB", {
+    new Date(`${day}T12:00:00`).toLocaleDateString(ar ? "ar-JO" : "en-GB", {
       day: "numeric",
       month: "short",
       timeZone: "UTC",
@@ -96,6 +105,7 @@ export function WorkforceFilters(p: Props) {
   }
   function selectWeek(day: string) {
     p.onDate(day);
+    setPeriodMonth(new Date(`${day}T12:00:00`));
     p.onFrom("");
     p.onUntil("");
   }
@@ -111,8 +121,18 @@ export function WorkforceFilters(p: Props) {
             onChange={(e) => p.onSearch(e.target.value)}
           />
         </label>
-        <Popover>
-          <PopoverTrigger asChild>
+        <PickerSurface
+          ar={ar}
+          title={ar ? "اختر الأسبوع" : "Choose week"}
+          open={periodOpen}
+          onOpenChange={(value) => {
+            if (value) {
+              setOpen(false);
+              setPeriodMonth(new Date(`${p.date}T12:00:00`));
+            }
+            setPeriodOpen(value);
+          }}
+          trigger={
             <button
               type="button"
               className="p2-chip p2-period"
@@ -133,19 +153,36 @@ export function WorkforceFilters(p: Props) {
               </span>
               <ChevronDown size={14} />
             </button>
-          </PopoverTrigger>
-          <PopoverContent className="p2-choice" align="start" dir={ar ? "rtl" : "ltr"}>
-            <label className="p2-field">
-              {ar ? "أسبوع التاريخ" : "Week of date"}
-              <input
-                type="date"
-                aria-label={ar ? "تاريخ الأسبوع" : "Week date"}
-                value={p.date}
-                onChange={(e) => {
-                  if (e.target.value) selectWeek(e.target.value);
+          }
+        >
+          <div className="p2-week-picker">
+            {mobile ? (
+              <Calendar
+                locale={ar ? arSA : enGB}
+                mode="single"
+                month={periodMonth}
+                onMonthChange={setPeriodMonth}
+                selected={new Date(`${p.date}T12:00:00`)}
+                onSelect={(date) => {
+                  if (date) {
+                    selectWeek(calendarDay(date));
+                    setPeriodOpen(false);
+                  }
                 }}
               />
-            </label>
+            ) : (
+              <label className="p2-field">
+                {ar ? "أسبوع التاريخ" : "Week of date"}
+                <input
+                  type="date"
+                  aria-label={ar ? "تاريخ الأسبوع" : "Week date"}
+                  value={p.date}
+                  onChange={(e) => {
+                    if (e.target.value) selectWeek(e.target.value);
+                  }}
+                />
+              </label>
+            )}
             <div className="p2-week-actions">
               <Button
                 variant="outline"
@@ -169,8 +206,8 @@ export function WorkforceFilters(p: Props) {
             >
               {ar ? "هذا الأسبوع" : "This week"}
             </Button>
-          </PopoverContent>
-        </Popover>
+          </div>
+        </PickerSurface>
         <div className="p2-desktop-chips">
           <FilterChip
             ar={ar}
@@ -202,7 +239,10 @@ export function WorkforceFilters(p: Props) {
           ar={ar}
           open={open}
           onOpenChange={(next) => {
-            if (next) setDraft(current());
+            if (next) {
+              setPeriodOpen(false);
+              setDraft(current());
+            }
             setOpen(next);
           }}
           count={count}
@@ -252,28 +292,58 @@ export function WorkforceFilters(p: Props) {
             </label>
           ))}
           <h4>{ar ? "الفترة" : "Period"}</h4>
-          <div className="p2-date-grid">
-            <label className="p2-field">
-              {ar ? "من" : "From"}
-              <input
-                aria-label={ar ? "من تاريخ" : "From date"}
-                type="date"
-                value={draft.from}
-                max={draft.until || undefined}
-                onChange={(e) => setDraft({ ...draft, from: e.target.value })}
+          {mobile ? (
+            <div className="p2-inline-calendar">
+              <Calendar
+                locale={ar ? arSA : enGB}
+                mode="range"
+                selected={
+                  draft.from
+                    ? {
+                        from: new Date(`${draft.from}T12:00:00`),
+                        to: draft.until ? new Date(`${draft.until}T12:00:00`) : undefined,
+                      }
+                    : undefined
+                }
+                onSelect={(range) =>
+                  setDraft({
+                    ...draft,
+                    from: range?.from ? calendarDay(range.from) : "",
+                    until: range?.to ? calendarDay(range.to) : "",
+                  })
+                }
               />
-            </label>
-            <label className="p2-field">
-              {ar ? "حتى" : "Through"}
-              <input
-                aria-label={ar ? "حتى تاريخ" : "Through date"}
-                type="date"
-                min={draft.from || undefined}
-                value={draft.until}
-                onChange={(e) => setDraft({ ...draft, until: e.target.value })}
-              />
-            </label>
-          </div>
+              <p className="p2-calendar-help">
+                {ar
+                  ? "اختر بداية الفترة ونهايتها، أو اتركها فارغة للأسبوع المحدد."
+                  : "Select the start and end, or leave empty to use the selected week."}
+              </p>
+            </div>
+          ) : (
+            <div className="p2-date-grid">
+              <label className="p2-field">
+                {ar ? "من" : "From"}
+                <input
+                  aria-label={ar ? "من تاريخ" : "From date"}
+                  type="date"
+                  value={draft.from}
+                  max={draft.until || undefined}
+                  onChange={(e) => setDraft({ ...draft, from: e.target.value })}
+                />
+              </label>
+              <label className="p2-field">
+                {ar ? "حتى" : "Through"}
+                <input
+                  aria-label={ar ? "حتى تاريخ" : "Through date"}
+                  type="date"
+                  min={draft.from || undefined}
+                  value={draft.until}
+                  onChange={(e) => setDraft({ ...draft, until: e.target.value })}
+                />
+              </label>
+            </div>
+          )}
+
           {invalid && (
             <p role="alert" className="text-destructive">
               {ar
