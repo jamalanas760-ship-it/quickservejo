@@ -2,7 +2,7 @@
 
 ## Delivery status
 
-These changes are integrated with `jamalanas760-ship-it/quickservejo` through a reviewable branch and pull request. The database migration remains staged and has not been applied persistently. GitHub merge status is tracked by the pull request; production deployment and Lovable synchronization require independent verification. Dependency declarations and the original Bun lockfile are preserved.
+These changes are integrated with `jamalanas760-ship-it/quickservejo` through a reviewable branch and pull request. The database migration was applied and verified on the configured Supabase project on 12 October 2026. GitHub merge status is tracked by the pull request; production deployment and Lovable synchronization require independent verification. Dependency declarations and the original Bun lockfile are preserved.
 
 The core source changes below are implemented. Browser acceptance, concurrent multi-session acceptance, and some advanced enhancements remain incomplete. This report does not claim production readiness or zero regressions.
 
@@ -44,7 +44,7 @@ The core source changes below are implemented. Browser acceptance, concurrent mu
 
 ## Database migration
 
-`supabase/migrations/20261012122007_quickserve_integrity_templates.sql` was created using the Supabase CLI.
+`supabase/migrations/20261012132023_quickserve_integrity_templates.sql` was created using the Supabase CLI.
 
 It adds:
 
@@ -53,7 +53,7 @@ It adds:
 - Invoker transactional floor alignment RPC with tenant/version guards.
 - Invoker overlapping-assignment trigger with employee transaction locks.
 
-There are no destructive data migrations, renumbering, service-role credentials, new security-definer functions or RLS bypasses. The full migration was validated in a transaction and rolled back. It is **not applied persistently**. Deploy the migration and matching frontend together; templates and batch alignment require it.
+There are no destructive data migrations, renumbering, service-role credentials, new security-definer functions or RLS bypasses. The full migration was validated in a transaction and rolled back. It was subsequently applied persistently on 12 October 2026 to the configured project. The missing template table is now present. The workforce scheduler follow-up is documented in `WORKFORCE-UX-REPORT.md`.
 
 ## Verification performed
 
@@ -77,7 +77,7 @@ A local development server started on loopback, but local HTTP probing failed in
 ## Remaining work and release gates
 
 1. Verify Lovable synchronization and the intended staging/publishing target after GitHub merge. The connected repository is `jamalanas760-ship-it/quickservejo`, with `main` as its default branch.
-2. Apply the staged migration to the intended staging database and test PO creation, templates, assignment conflicts and alignment as authorized users. Multi-session race tests have not been executed.
+2. Repeat authorized-user acceptance for PO creation, templates and alignment. Both migrations are installed in the configured project; multi-session race tests have not been executed.
 3. Run browser acceptance for all requested workflows at 320–430, 600–1024 and 1280+ widths, Arabic/English, light/dark themes, operational roles and multiple restaurants.
 4. Menu drag-and-drop ordering and full inline variant editing were not added; category/product/option editing uses the existing persistent editors. Subcategories were not invented because the current category schema lacks that hierarchy.
 5. Existing workforce/ERP list queries retain their bounded row limits. Full server pagination/aggregate reporting for very large workforce/ERP datasets remains unfinished; existing caps can truncate broad-range summaries. Narrow queries/filters help but do not replace that work.

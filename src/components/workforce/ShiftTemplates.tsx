@@ -5,6 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ActionMenu } from "@/components/app/ActionMenu";
 import { humanError } from "@/lib/errors";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Copy, Pencil, Trash2, Power } from "lucide-react";
 export type ShiftTemplateValues = {
   name: string;
@@ -29,6 +38,8 @@ export function ShiftTemplates({
 }) {
   const qc = useQueryClient();
   const [selected, setSelected] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [templateName, setTemplateName] = useState("");
   const key = ["shift-templates", restaurantId];
   const templates = useQuery({
     queryKey: key,
@@ -74,13 +85,21 @@ export function ShiftTemplates({
             restaurant_id: restaurantId,
             ...(input.duplicate && row
               ? {
-                  name: `${row.name} (copy)`,
+                  name: (() => {
+                    let n = 1;
+                    let candidate = `${row.name.slice(0, 65)} (copy ${n})`;
+                    while (
+                      templates.data?.some((t) => t.name.toLowerCase() === candidate.toLowerCase())
+                    )
+                      candidate = `${row.name.slice(0, 65)} (copy ${++n})`;
+                    return candidate;
+                  })(),
                   start_time: row.start_time,
                   end_time: row.end_time,
                   notes: row.notes,
                   weekdays: row.weekdays,
                 }
-              : values),
+              : { ...values, name: templateName.trim() }),
           } as never)
           .select("id")
           .single());
@@ -88,106 +107,181 @@ export function ShiftTemplates({
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: key });
+      setSaving(false);
       toast.success(ar ? "تم حفظ القالب" : "Template saved");
     },
     onError: (error) => toast.error(humanError(error, lang)),
   });
   return (
-    <section className="rounded-xl border bg-muted/20 p-3 space-y-2">
-      <label className="text-sm font-bold">
-        {ar ? "قوالب الورديات المحفوظة" : "Saved shift templates"}
-        <select
-          className="mt-2 min-h-11 w-full rounded-lg border bg-card px-3"
-          value={selected}
-          onChange={(event) => {
-            const id = event.target.value;
-            setSelected(id);
-            const row = templates.data?.find((row) => row.id === id);
-            if (row)
-              onApply({
-                ...row,
-                start_time: row.start_time.slice(0, 5),
-                end_time: row.end_time.slice(0, 5),
-              });
+    <section className="rounded-xl border bg-muted/20 p-3 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-bold">{ar ? "قوالب الورديات" : "Shift templates"}</h3>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={write.isPending || !values.name.trim() || values.start_time === values.end_time}
+          onClick={() => {
+            setTemplateName(values.name);
+            setSaving(true);
           }}
         >
-          <option value="">{ar ? "اختيار قالب" : "Choose a template"}</option>
-          {(templates.data ?? [])
-            .filter((row) => row.is_active)
-            .map((row) => (
-              <option key={row.id} value={row.id}>
-                {row.name} · {row.start_time.slice(0, 5)}–{row.end_time.slice(0, 5)}
-              </option>
-            ))}
-        </select>
-      </label>
-      {templates.isError ? (
-        <p role="alert" className="text-xs text-destructive">
-          {humanError(templates.error, lang)}
-        </p>
-      ) : (
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={
-              write.isPending || !values.name.trim() || values.start_time === values.end_time
-            }
-            onClick={() => write.mutate({})}
-          >
-            {ar ? "حفظ كقالب جديد" : "Save as new template"}
-          </Button>
-          <ActionMenu
-            ar={ar}
-            actions={(templates.data ?? []).flatMap((row) => [
-              {
-                label: `${ar ? "تحديث" : "Update"} ${row.name}`,
-                icon: Pencil,
-                onSelect: () => {
-                  if (
-                    confirm(
-                      ar
-                        ? "تحديث القالب من النموذج الحالي؟ الورديات السابقة لن تتغير."
-                        : "Update template from this form? Existing shifts will stay unchanged.",
-                    )
-                  )
-                    write.mutate({ id: row.id });
-                },
-              },
-              {
-                label: `${ar ? "نسخ" : "Duplicate"} ${row.name}`,
-                icon: Copy,
-                onSelect: () => write.mutate({ id: row.id, duplicate: true }),
-              },
-              {
-                label: `${row.is_active ? (ar ? "تعطيل" : "Deactivate") : ar ? "تفعيل" : "Activate"} ${row.name}`,
-                icon: Power,
-                onSelect: () => write.mutate({ id: row.id, active: !row.is_active }),
-              },
-              {
-                label: `${ar ? "حذف" : "Delete"} ${row.name}`,
-                icon: Trash2,
-                destructive: true,
-                onSelect: () => {
-                  if (
-                    confirm(
-                      ar
-                        ? "حذف القالب؟ تبقى الورديات المعينة محفوظة."
-                        : "Delete template? Assigned shifts will be preserved.",
-                    )
-                  )
-                    write.mutate({ id: row.id, remove: true });
-                },
-              },
-            ])}
-          />
-        </div>
-      )}
+          {ar ? "حفظ كقالب" : "Save as template"}
+        </Button>
+      </div>
       <p className="text-xs text-muted-foreground">
         {ar
-          ? "القالب يملأ النموذج. راجع الجدول والموظفين قبل إنشاء الورديات."
-          : "Templates fill this form. Review dates and employees before creating shifts."}
+          ? "اختر نمط الخدمة، ثم حدد التواريخ والفريق. القالب لا ينشئ ورديات تلقائياً."
+          : "Choose a service pattern, then set dates and team. Applying a template fills the form."}
       </p>
+      {templates.isPending ? (
+        <p role="status">{ar ? "تحميل القوالب…" : "Loading templates…"}</p>
+      ) : templates.isError ? (
+        <div role="alert" className="text-sm">
+          <p>
+            {ar
+              ? "تعذر تحميل القوالب. يمكنك إعداد الوردية يدوياً."
+              : "Templates could not be loaded. You can still configure this shift manually."}
+          </p>
+          <Button variant="outline" onClick={() => templates.refetch()}>
+            {ar ? "إعادة المحاولة" : "Retry"}
+          </Button>
+        </div>
+      ) : (
+        <div className="wf-template-grid">
+          {(templates.data ?? []).map((row) => (
+            <div key={row.id} className="wf-template-card" aria-current={selected === row.id}>
+              <button
+                type="button"
+                disabled={!row.is_active || write.isPending}
+                onClick={() => {
+                  setSelected(row.id);
+                  onApply({
+                    ...row,
+                    start_time: row.start_time.slice(0, 5),
+                    end_time: row.end_time.slice(0, 5),
+                  });
+                }}
+              >
+                <strong>
+                  {row.name}
+                  {!row.is_active ? (ar ? " · غير نشط" : " · Inactive") : ""}
+                </strong>
+                <small>
+                  {row.start_time.slice(0, 5)}–{row.end_time.slice(0, 5)} · {row.weekdays.length}{" "}
+                  {ar ? "أيام" : "days"}
+                </small>
+              </button>
+              <ActionMenu
+                ar={ar}
+                label={`${ar ? "إدارة" : "Manage"} ${row.name}`}
+                actions={[
+                  {
+                    label: ar ? "تحديث من النموذج الحالي" : "Update from current form",
+                    icon: Pencil,
+                    disabled: write.isPending,
+                    onSelect: () => {
+                      if (
+                        confirm(
+                          ar
+                            ? "تحديث القالب من النموذج الحالي؟"
+                            : "Replace this template with the current form values?",
+                        )
+                      )
+                        write.mutate({ id: row.id });
+                    },
+                  },
+                  {
+                    label: ar ? "نسخ" : "Duplicate",
+                    icon: Copy,
+                    disabled: write.isPending,
+                    onSelect: () => write.mutate({ id: row.id, duplicate: true }),
+                  },
+                  {
+                    label: row.is_active
+                      ? ar
+                        ? "تعطيل"
+                        : "Deactivate"
+                      : ar
+                        ? "تفعيل"
+                        : "Activate",
+                    icon: Power,
+                    disabled: write.isPending,
+                    onSelect: () => write.mutate({ id: row.id, active: !row.is_active }),
+                  },
+                  {
+                    label: ar ? "حذف" : "Delete",
+                    icon: Trash2,
+                    destructive: true,
+                    disabled: write.isPending,
+                    onSelect: () => {
+                      if (
+                        confirm(
+                          ar
+                            ? "حذف القالب؟"
+                            : "Delete this template? Existing shifts are preserved.",
+                        )
+                      )
+                        write.mutate({ id: row.id, remove: true });
+                    },
+                  },
+                ]}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      {!templates.isPending && !templates.isError && !templates.data?.length && (
+        <p className="text-xs text-muted-foreground">
+          {ar
+            ? "لا توجد قوالب بعد. اضبط أوقات الخدمة واحفظها لإعادة استخدامها."
+            : "No templates yet. Set your service times below and save them for reuse."}
+        </p>
+      )}
+      <Dialog
+        open={saving}
+        onOpenChange={(value) => {
+          if (!write.isPending) setSaving(value);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{ar ? "حفظ قالب وردية" : "Save shift template"}</DialogTitle>
+            <DialogDescription>
+              {ar
+                ? "يحفظ الأوقات والأيام والملاحظات. اختر الموظفين والتواريخ عند التطبيق."
+                : "Saves times, weekdays and notes. Choose employees and dates when applying it."}
+            </DialogDescription>
+          </DialogHeader>
+          <label className="grid gap-2 text-sm">
+            {ar ? "اسم القالب" : "Template name"}
+            <Input
+              autoFocus
+              value={templateName}
+              maxLength={80}
+              onChange={(e) => setTemplateName(e.target.value)}
+            />
+          </label>
+          <p className="text-sm">
+            {values.start_time}–{values.end_time} · {values.weekdays.length} {ar ? "أيام" : "days"}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" disabled={write.isPending} onClick={() => setSaving(false)}>
+              {ar ? "إلغاء" : "Cancel"}
+            </Button>
+            <Button
+              disabled={
+                write.isPending ||
+                !templateName.trim() ||
+                values.start_time === values.end_time ||
+                !values.weekdays.length
+              }
+              onClick={() => write.mutate({})}
+            >
+              {write.isPending ? (ar ? "حفظ…" : "Saving…") : ar ? "حفظ القالب" : "Save template"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
