@@ -1,4 +1,10 @@
-import { workforceHours, workforceDayKey, workforceDayStart, workforceNextDay } from "@/lib/workforce-hours";
+import { WorkforceFilters } from "./WorkforceFilters";
+import {
+  workforceHours,
+  workforceDayKey,
+  workforceDayStart,
+  workforceNextDay,
+} from "@/lib/workforce-hours";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useEffect, useState } from "react";
 import { Download, ChevronRight } from "lucide-react";
@@ -418,7 +424,16 @@ export function WorkforceLabor({
   const [employee, setEmployee] = useState("all");
   const [role, setRole] = useState("all");
   const [search, setSearch] = useState("");
-  const allowedStaff = new Set(members.filter(member => (employee === "all" || member.id === employee) && (role === "all" || member.role === role) && member.name.toLowerCase().includes(search.toLowerCase())).map(member => member.id));
+  const allowedStaff = new Set(
+    members
+      .filter(
+        (member) =>
+          (employee === "all" || member.id === employee) &&
+          (role === "all" || member.role === role) &&
+          member.name.toLowerCase().includes(search.toLowerCase()),
+      )
+      .map((member) => member.id),
+  );
   const [from, setFrom] = useState("");
   const [until, setUntil] = useState("");
   const [laborStatus, setLaborStatus] = useState("all");
@@ -427,8 +442,22 @@ export function WorkforceLabor({
     rangeDays.splice(0);
     for (let day = from; day <= until; day = workforceNextDay(day)) rangeDays.push(day);
   }
-  useEffect(() => { setDate(workforceDayKey(new Date(), timezone)); setFrom(""); setUntil(""); setEmployee("all"); setRole("all"); setSearch(""); setLaborStatus("all"); }, [restaurantId, timezone]);
-  const data = useWorkforceData(restaurantId, { start: rangeDays[0]!, end: rangeDays.at(-1)!, ...(employee !== "all" || role !== "all" || search ? { staffIds: [...allowedStaff].sort() } : {}) });
+  useEffect(() => {
+    setDate(workforceDayKey(new Date(), timezone));
+    setFrom("");
+    setUntil("");
+    setEmployee("all");
+    setRole("all");
+    setSearch("");
+    setLaborStatus("all");
+  }, [restaurantId, timezone]);
+  const data = useWorkforceData(restaurantId, {
+    start: rangeDays[0]!,
+    end: rangeDays.at(-1)!,
+    ...(employee !== "all" || role !== "all" || search
+      ? { staffIds: [...allowedStaff].sort() }
+      : {}),
+  });
   const days = rangeDays,
     start = workforceDayStart(days[0]!, timezone),
     end = workforceDayStart(workforceNextDay(days.at(-1)!), timezone),
@@ -476,12 +505,21 @@ export function WorkforceLabor({
         );
       return { m, planned, worked, variance: worked - planned };
     })
-    .filter(r => (r.planned || r.worked) && (laborStatus === "all" || (laborStatus === "over" ? r.variance > 0.25 : laborStatus === "under" ? r.variance < -0.25 : entries.some(entry => entry.staff_id === r.m.id && !entry.clock_out))));
-  const visibleStaff = new Set(rows.map(row => row.m.id));
+    .filter(
+      (r) =>
+        (r.planned || r.worked) &&
+        (laborStatus === "all" ||
+          (laborStatus === "over"
+            ? r.variance > 0.25
+            : laborStatus === "under"
+              ? r.variance < -0.25
+              : entries.some((entry) => entry.staff_id === r.m.id && !entry.clock_out))),
+    );
+  const visibleStaff = new Set(rows.map((row) => row.m.id));
   const planned = rows.reduce((n, r) => n + r.planned, 0),
     worked = rows.reduce((n, r) => n + r.worked, 0),
     over = rows.filter((r) => r.planned && r.variance > 0.25),
-    open = entries.filter(e => visibleStaff.has(e.staff_id) && !e.clock_out);
+    open = entries.filter((e) => visibleStaff.has(e.staff_id) && !e.clock_out);
   const chart = days.map((d) => {
     const ds = workforceDayStart(d, timezone),
       de = workforceDayStart(workforceNextDay(d), timezone);
@@ -489,26 +527,30 @@ export function WorkforceLabor({
       Math.max(0, (Math.min(e, de) - Math.max(s, ds)) / 3600000);
     return {
       d,
-      planned: scheduled.filter(assignment => visibleStaff.has(assignment.staff_id)).reduce(
-        (n, a) => n + span(new Date(a.starts_at!).getTime(), new Date(a.ends_at!).getTime()),
-        0,
-      ),
-      worked: entries.filter(entry => visibleStaff.has(entry.staff_id)).reduce((n, e) => {
-        const duration = span(
-          new Date(e.clock_in).getTime(),
-          e.clock_out ? new Date(e.clock_out).getTime() : now,
-        );
-        return (
-          n +
-          Math.max(
-            0,
-            duration -
-              (duration > 0 && workforceDayKey(new Date(e.clock_in), timezone) === d
-                ? (e.break_minutes || 0) / 60
-                : 0),
-          )
-        );
-      }, 0),
+      planned: scheduled
+        .filter((assignment) => visibleStaff.has(assignment.staff_id))
+        .reduce(
+          (n, a) => n + span(new Date(a.starts_at!).getTime(), new Date(a.ends_at!).getTime()),
+          0,
+        ),
+      worked: entries
+        .filter((entry) => visibleStaff.has(entry.staff_id))
+        .reduce((n, e) => {
+          const duration = span(
+            new Date(e.clock_in).getTime(),
+            e.clock_out ? new Date(e.clock_out).getTime() : now,
+          );
+          return (
+            n +
+            Math.max(
+              0,
+              duration -
+                (duration > 0 && workforceDayKey(new Date(e.clock_in), timezone) === d
+                  ? (e.break_minutes || 0) / 60
+                  : 0),
+            )
+          );
+        }, 0),
     };
   });
   const max = Math.max(1, ...chart.flatMap((v) => [v.planned, v.worked]));
@@ -536,14 +578,53 @@ export function WorkforceLabor({
   }
   return (
     <section className="wf-labor">
-      <div className="wf-toolbar">
-        <WeekControl date={date} onChange={value => { setDate(value); setFrom(""); setUntil(""); }} ar={ar} /><label className="text-xs">{ar ? "من" : "From"}<input type="date" className="min-h-11 rounded-lg border bg-card px-2" value={from} max={until || undefined} onChange={event => setFrom(event.target.value)} /></label><label className="text-xs">{ar ? "حتى" : "Through"}<input type="date" className="min-h-11 rounded-lg border bg-card px-2" value={until} min={from || undefined} onChange={event => setUntil(event.target.value)} /></label><select aria-label="Labor status" className="min-h-11 rounded-lg border bg-card px-2" value={laborStatus} onChange={event => setLaborStatus(event.target.value)}><option value="all">{ar ? "كل حالات العمل" : "All labor statuses"}</option><option value="over">{ar ? "أعلى من الخطة" : "Over plan"}</option><option value="under">{ar ? "أقل من الخطة" : "Under plan"}</option><option value="open">{ar ? "بصمات مفتوحة" : "Open clocks"}</option></select><SearchField value={search} onChange={setSearch} ar={ar} /><select aria-label="Employee" className="min-h-11 rounded-lg border bg-card px-2" value={employee} onChange={event => setEmployee(event.target.value)}><option value="all">{ar ? "كل الموظفين" : "All employees"}</option>{members.map(member => <option key={member.id} value={member.id}>{member.name}</option>)}</select><select aria-label="Role" className="min-h-11 rounded-lg border bg-card px-2" value={role} onChange={event => setRole(event.target.value)}><option value="all">{ar ? "كل الأدوار" : "All roles"}</option>{[...new Set(members.map(member => member.role))].map(value => <option key={value}>{value}</option>)}</select><Button variant="outline" onClick={() => { setEmployee("all"); setRole("all"); setSearch(""); setFrom(""); setUntil(""); setLaborStatus("all"); }}>{ar ? "إعادة ضبط" : "Reset filters"}</Button>
-        <Button variant="outline" onClick={exportCsv} disabled={data.isPending || data.isError}>
-          <Download className="size-4" />
-          {ar ? "تصدير CSV" : "Export payroll CSV"}
-        </Button>
-      </div>
-      {from && until && (from > until || (Date.parse(until) - Date.parse(from)) / 86400000 > 366) ? <p role="alert">{ar ? "اختر فترة صحيحة حتى 366 يوماً" : "Choose a valid range of up to 366 days"}</p> : null}
+      <WorkforceFilters
+        ar={ar}
+        search={search}
+        onSearch={setSearch}
+        employee={employee}
+        onEmployee={setEmployee}
+        role={role}
+        onRole={setRole}
+        members={members}
+        from={from}
+        until={until}
+        onFrom={setFrom}
+        onUntil={setUntil}
+        status={laborStatus}
+        onStatus={setLaborStatus}
+        statuses={[
+          { value: "all", label: ar ? "كل الحالات" : "All statuses" },
+          { value: "over", label: ar ? "أعلى من الخطة" : "Over plan" },
+          { value: "under", label: ar ? "أقل من الخطة" : "Under plan" },
+          { value: "open", label: ar ? "بصمات مفتوحة" : "Open clocks" },
+        ]}
+        onReset={() => {
+          setEmployee("all");
+          setRole("all");
+          setSearch("");
+          setFrom("");
+          setUntil("");
+          setLaborStatus("all");
+        }}
+        period={
+          <WeekControl
+            date={date}
+            onChange={(value) => {
+              setDate(value);
+              setFrom("");
+              setUntil("");
+            }}
+            ar={ar}
+          />
+        }
+        action={
+          <Button variant="outline" onClick={exportCsv} disabled={data.isPending || data.isError}>
+            <Download className="size-4" />
+            {ar ? "تصدير CSV" : "Export payroll CSV"}
+          </Button>
+        }
+      />
       <div className="wf-metrics">
         {[
           [ar ? "مجدول" : "Scheduled", hourLabel(planned, ar)],

@@ -1,7 +1,15 @@
+import { WorkforceFilters } from "./WorkforceFilters";
 import { MasterActionSurface } from "@/components/app/MasterPage";
 import { isLiveTeamPunch, teamPunchesByStaff } from "@/lib/team-attendance";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
-import { workforceDayStart, workforceNextDay, workforceDayKey, workforceHours, workforceLocalInput, workforceInputTimestamp } from "@/lib/workforce-hours";
+import {
+  workforceDayStart,
+  workforceNextDay,
+  workforceDayKey,
+  workforceHours,
+  workforceLocalInput,
+  workforceInputTimestamp,
+} from "@/lib/workforce-hours";
 import { RequestDateTimePicker, RequestDatePicker } from "@/components/workforce/RequestPickers";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -92,25 +100,48 @@ const H = (ms: number) => ms / 3_600_000;
 const fmtH = (h: number, ar: boolean) => `${h.toFixed(1)}${ar ? "س" : "h"}`;
 const fmtTime = (v: string | null | undefined, ar: boolean, timeZone = "Asia/Amman") =>
   v
-    ? new Date(v).toLocaleTimeString(ar ? "ar-JO" : "en-US", { timeZone, hour: "2-digit", minute: "2-digit" })
+    ? new Date(v).toLocaleTimeString(ar ? "ar-JO" : "en-US", {
+        timeZone,
+        hour: "2-digit",
+        minute: "2-digit",
+      })
     : "—";
-const dayKey = (v: string | Date, timeZone = "Asia/Amman") => workforceDayKey(new Date(v),timeZone);
-const toLocalInput = (value: string | null, timeZone = "Asia/Amman") => value ? workforceLocalInput(value,timeZone) : "";
+const dayKey = (v: string | Date, timeZone = "Asia/Amman") =>
+  workforceDayKey(new Date(v), timeZone);
+const toLocalInput = (value: string | null, timeZone = "Asia/Amman") =>
+  value ? workforceLocalInput(value, timeZone) : "";
 
-export function useWorkforceData(restaurantId: string, range?: { start: string; end: string; staffIds?: string[] }) {
+export function useWorkforceData(
+  restaurantId: string,
+  range?: { start: string; end: string; staffIds?: string[] },
+) {
   const restaurant = useRestaurant(restaurantId);
   const timeZone = restaurant.data?.timezone || "Asia/Amman";
   return useQuery({
-    queryKey: ["workforce", "insights", restaurantId, range?.start ?? "recent", range?.end ?? "", timeZone, range?.staffIds?.join(",") ?? "all"],
+    queryKey: [
+      "workforce",
+      "insights",
+      restaurantId,
+      range?.start ?? "recent",
+      range?.end ?? "",
+      timeZone,
+      range?.staffIds?.join(",") ?? "all",
+    ],
     refetchInterval: 30_000,
     queryFn: async () => {
       const since = range
-        ? new Date(workforceDayStart(range.start,timeZone)).toISOString()
+        ? new Date(workforceDayStart(range.start, timeZone)).toISOString()
         : new Date(Date.now() - 35 * 86400000).toISOString();
       const until = range
-        ? new Date(workforceDayStart(workforceNextDay(range.end),timeZone)).toISOString()
+        ? new Date(workforceDayStart(workforceNextDay(range.end), timeZone)).toISOString()
         : new Date(Date.now() + 86400000).toISOString();
-      let timeQuery = (supabase.from as any)("staff_time_entries").select("*").eq("restaurant_id", restaurantId).lt("clock_in", until).or(`clock_out.is.null,clock_out.gte.${since}`).order("clock_in", { ascending: false }).limit(1000);
+      let timeQuery = (supabase.from as any)("staff_time_entries")
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .lt("clock_in", until)
+        .or(`clock_out.is.null,clock_out.gte.${since}`)
+        .order("clock_in", { ascending: false })
+        .limit(1000);
       if (range?.staffIds) timeQuery = timeQuery.in("staff_id", range.staffIds);
       const [timeRes, leaveRes] = await Promise.all([
         timeQuery,
@@ -122,7 +153,11 @@ export function useWorkforceData(restaurantId: string, range?: { start: string; 
       ]);
       if (timeRes.error) throw timeRes.error;
       if (leaveRes.error) throw leaveRes.error;
-      return { entries: (timeRes.data ?? []) as Entry[], leave: (leaveRes.data ?? []) as Leave[], timeZone };
+      return {
+        entries: (timeRes.data ?? []) as Entry[],
+        leave: (leaveRes.data ?? []) as Leave[],
+        timeZone,
+      };
     },
   });
 }
@@ -139,23 +174,36 @@ export function memberDayStatus(
   now = Date.now(),
   timeZone = "Asia/Amman",
 ) {
-  const dayKey = (value: string | Date) => workforceDayKey(new Date(value),timeZone);
-  const accepted = entries.filter(e => e.review_status !== "rejected" && Date.parse(e.clock_in) <= now && (e.clock_out ? Date.parse(e.clock_out) > Date.parse(e.clock_in) : isLiveTeamPunch(e,now)));
-  const liveEntries = teamPunchesByStaff(accepted,now).live;
-  const validEntries = accepted.filter(e => e.clock_out || liveEntries.get(e.staff_id) === e);
-  const dayStart = workforceDayStart(dateKey,timeZone), dayEnd = workforceDayStart(workforceNextDay(dateKey),timeZone);
+  const dayKey = (value: string | Date) => workforceDayKey(new Date(value), timeZone);
+  const accepted = entries.filter(
+    (e) =>
+      e.review_status !== "rejected" &&
+      Date.parse(e.clock_in) <= now &&
+      (e.clock_out ? Date.parse(e.clock_out) > Date.parse(e.clock_in) : isLiveTeamPunch(e, now)),
+  );
+  const liveEntries = teamPunchesByStaff(accepted, now).live;
+  const validEntries = accepted.filter((e) => e.clock_out || liveEntries.get(e.staff_id) === e);
+  const dayStart = workforceDayStart(dateKey, timeZone),
+    dayEnd = workforceDayStart(workforceNextDay(dateKey), timeZone);
   const scheduled = assignments.filter(
     (a) =>
       a.staff_id === memberId &&
       a.status !== "released" &&
       a.starts_at &&
       a.ends_at &&
-      Date.parse(a.starts_at) < dayEnd && Date.parse(a.ends_at) > dayStart,
+      Date.parse(a.starts_at) < dayEnd &&
+      Date.parse(a.ends_at) > dayStart,
   );
   const dayEntries = validEntries.filter(
-    (e) => e.staff_id === memberId && Date.parse(e.clock_in) < dayEnd && (e.clock_out ? Date.parse(e.clock_out) : now) > dayStart,
+    (e) =>
+      e.staff_id === memberId &&
+      Date.parse(e.clock_in) < dayEnd &&
+      (e.clock_out ? Date.parse(e.clock_out) : now) > dayStart,
   );
-  const open = dateKey === dayKey(new Date(now)) ? teamPunchesByStaff(validEntries,now).live.get(memberId) : undefined;
+  const open =
+    dateKey === dayKey(new Date(now))
+      ? teamPunchesByStaff(validEntries, now).live.get(memberId)
+      : undefined;
   const first = scheduled.sort((a, b) => a.starts_at!.localeCompare(b.starts_at!))[0];
   const start = first ? new Date(first.starts_at!).getTime() : null;
   const end = first ? new Date(first.ends_at!).getTime() : null;
@@ -166,8 +214,15 @@ export function memberDayStatus(
     dayEntries.every((e) => e.clock_out) && dayEntries.length
       ? Math.max(...dayEntries.map((e) => new Date(e.clock_out!).getTime()))
       : null;
-  const {actualH, plannedH: scheduledH} = workforceHours(memberId,dateKey,assignments,validEntries,now,timeZone);
-  const breakMin = dayEntries.reduce((s,e) => s+(e.break_minutes || 0),0);
+  const { actualH, plannedH: scheduledH } = workforceHours(
+    memberId,
+    dateKey,
+    assignments,
+    validEntries,
+    now,
+    timeZone,
+  );
+  const breakMin = dayEntries.reduce((s, e) => s + (e.break_minutes || 0), 0);
   const lateMin =
     start && firstIn
       ? Math.max(0, (firstIn - start) / 60000)
@@ -281,10 +336,17 @@ export function WorkforceExceptions({
 
   const items = useMemo(() => {
     if (!data.data) return [];
-    const today = dayKey(new Date(),data.data?.timeZone);
+    const today = dayKey(new Date(), data.data?.timeZone);
     const out: Array<{ key: string; tone: string; title: string; detail: string }> = [];
     for (const m of members.filter((x) => x.is_active)) {
-      const d = memberDayStatus(m.id, today, assignments, data.data.entries, Date.now(), data.data.timeZone);
+      const d = memberDayStatus(
+        m.id,
+        today,
+        assignments,
+        data.data.entries,
+        Date.now(),
+        data.data.timeZone,
+      );
       if (d.missing)
         out.push({
           key: `miss-${today}-${m.id}`,
@@ -497,7 +559,7 @@ export function MemberWorkforceSheet({
 }) {
   const data = useWorkforceData(restaurantId);
   const now = Date.now();
-  const today = dayKey(new Date(),data.data?.timeZone);
+  const today = dayKey(new Date(), data.data?.timeZone);
   const d =
     member && data.data
       ? memberDayStatus(member.id, today, assignments, data.data.entries, now, data.data.timeZone)
@@ -653,7 +715,7 @@ export function WorkforceTeam({
   const [role, setRole] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const today = dayKey(new Date(),data.data?.timeZone);
+  const today = dayKey(new Date(), data.data?.timeZone);
   const roles = Array.from(new Set(members.map((m) => m.role)));
   const rows = members.filter(
     (m) =>
@@ -663,7 +725,14 @@ export function WorkforceTeam({
   );
   const selected = members.find((m) => m.id === selectedId);
   const d = selected
-    ? memberDayStatus(selected.id, today, assignments, data.data?.entries ?? [], Date.now(), data.data?.timeZone)
+    ? memberDayStatus(
+        selected.id,
+        today,
+        assignments,
+        data.data?.entries ?? [],
+        Date.now(),
+        data.data?.timeZone,
+      )
     : null;
   return (
     <div className={cn("wf-detail-layout", selected && "has-detail")}>
@@ -701,7 +770,14 @@ export function WorkforceTeam({
             </thead>
             <tbody>
               {rows.map((m) => {
-                const status = memberDayStatus(m.id, today, assignments, data.data?.entries ?? [], Date.now(), data.data?.timeZone);
+                const status = memberDayStatus(
+                  m.id,
+                  today,
+                  assignments,
+                  data.data?.entries ?? [],
+                  Date.now(),
+                  data.data?.timeZone,
+                );
                 const last = (data.data?.entries ?? []).find((e) => e.staff_id === m.id);
                 return (
                   <tr key={m.id} className={m.id === selectedId ? "is-selected" : ""}>
@@ -841,7 +917,17 @@ export function WorkforceAttendanceBoard({
   const roles = Array.from(new Set(members.map((m) => m.role)));
   const allRows = members
     .filter((m) => m.is_active && (role === "all" || m.role === role))
-    .map((m) => ({ m, d: memberDayStatus(m.id, date, assignments, data.data?.entries ?? [], Date.now(), data.data?.timeZone) }))
+    .map((m) => ({
+      m,
+      d: memberDayStatus(
+        m.id,
+        date,
+        assignments,
+        data.data?.entries ?? [],
+        Date.now(),
+        data.data?.timeZone,
+      ),
+    }))
     .filter((r) => r.d.status !== "off" || r.d.actualH > 0);
   const rows = allRows.filter(
     (r) =>
@@ -880,7 +966,15 @@ export function WorkforceAttendanceBoard({
           <div className="wf-toolbar">
             <h2>{ar ? "الحضور" : "Attendance"}</h2>
             <div className="wf-toolbar-actions">
-              <RequestDatePicker label={ar ? "تاريخ الحضور" : "Attendance date"} ar={ar} value={date} onChange={value => { setDate(value); setSelectedId(null); }} />
+              <RequestDatePicker
+                label={ar ? "تاريخ الحضور" : "Attendance date"}
+                ar={ar}
+                value={date}
+                onChange={(value) => {
+                  setDate(value);
+                  setSelectedId(null);
+                }}
+              />
               <RoleFilter value={role} onChange={setRole} roles={roles} ar={ar} />
             </div>
           </div>
@@ -1048,10 +1142,30 @@ export function WorkforceTimesheets({
   const [from, setFrom] = useState("");
   const [until, setUntil] = useState("");
   const defaultDays = weekOf(period);
-  const rangeDays = from && until && from <= until ? [from, until] : defaultDays;
-  const scopedStaff = members.filter(member => (employee === "all" || member.id === employee) && (role === "all" || member.role === role) && (canManage || member.id === currentStaffId)).map(member => member.id).sort();
-  const data = useWorkforceData(restaurantId, { start: rangeDays[0]!, end: rangeDays.at(-1)!, ...(employee !== "all" || role !== "all" || !canManage ? { staffIds: scopedStaff } : {}) });
+  const rangeDays =
+    from && until && from <= until && (Date.parse(until) - Date.parse(from)) / 86400000 <= 366
+      ? [from, until]
+      : defaultDays;
+  const scopedStaff = members
+    .filter(
+      (member) =>
+        (employee === "all" || member.id === employee) &&
+        (role === "all" || member.role === role) &&
+        (canManage || member.id === currentStaffId),
+    )
+    .map((member) => member.id)
+    .sort();
+  const data = useWorkforceData(restaurantId, {
+    start: rangeDays[0]!,
+    end: rangeDays.at(-1)!,
+    ...(employee !== "all" || role !== "all" || !canManage ? { staffIds: scopedStaff } : {}),
+  });
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  useEffect(
+    () => setPage(0),
+    [restaurantId, period, employee, role, punch, from, until, search, filter],
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Entry | null>(null);
   const [missingOpen, setMissingOpen] = useState(false);
@@ -1066,6 +1180,7 @@ export function WorkforceTimesheets({
       (punch === "all" || (punch === "missing" ? !e.clock_out : Boolean(e.clock_out))) &&
       (employee === "all" || e.staff_id === employee) &&
       (role === "all" || memberById.get(e.staff_id)?.role === role) &&
+      (memberById.get(e.staff_id)?.name ?? "").toLowerCase().includes(search.toLowerCase()) &&
       (canManage || e.staff_id === currentStaffId) &&
       workforceDayKey(new Date(e.clock_in), data.data?.timeZone ?? "Asia/Amman") >= days[0]! &&
       workforceDayKey(new Date(e.clock_in), data.data?.timeZone ?? "Asia/Amman") <= days.at(-1)!,
@@ -1075,6 +1190,8 @@ export function WorkforceTimesheets({
       (filter === "all" || reviewOf(e) === filter) &&
       (memberById.get(e.staff_id)?.name ?? "").toLowerCase().includes(search.toLowerCase()),
   );
+  const pageCount = Math.max(1, Math.ceil(entries.length / 25));
+  const currentPage = Math.min(page, pageCount - 1);
   const selected = periodEntries.find((e) => e.id === selectedId);
 
   const missingRequests = useQuery<MissingPunchRequest[]>({
@@ -1085,7 +1202,9 @@ export function WorkforceTimesheets({
       const { data: rows, error } = await (
         supabase.from("staff_missing_punch_requests" as any) as any
       )
-        .select("id,staff_id,clock_in,clock_out,break_minutes,reason,status,created_at,origin,time_entry_id,scheduled_end,recorded_clock_out")
+        .select(
+          "id,staff_id,clock_in,clock_out,break_minutes,reason,status,created_at,origin,time_entry_id,scheduled_end,recorded_clock_out",
+        )
         .eq("restaurant_id", restaurantId)
         .eq("status", "pending")
         .order("created_at", { ascending: false })
@@ -1095,14 +1214,17 @@ export function WorkforceTimesheets({
     },
   });
 
-  const caseSearch = useRouterState({select:state => state.location.searchStr});
+  const caseSearch = useRouterState({ select: (state) => state.location.searchStr });
   const handledCase = useRef<string | null>(null);
   useEffect(() => {
     const id = new URLSearchParams(caseSearch).get("record");
-    if(!id || handledCase.current === id || !canManage) return;
-    const request = missingRequests.data?.find(row=>row.id===id);
-    if(request) { handledCase.current=id;setReviewingMissing(request); }
-  },[caseSearch,missingRequests.data,canManage]);
+    if (!id || handledCase.current === id || !canManage) return;
+    const request = missingRequests.data?.find((row) => row.id === id);
+    if (request) {
+      handledCase.current = id;
+      setReviewingMissing(request);
+    }
+  }, [caseSearch, missingRequests.data, canManage]);
 
   const act = useMutation({
     mutationFn: async (p: {
@@ -1147,11 +1269,13 @@ export function WorkforceTimesheets({
   };
 
   const actualHours = (e: Entry) =>
-    Math.max(
-      0,
-      H(new Date(e.clock_out!).getTime() - new Date(e.clock_in).getTime()) -
-        (e.break_minutes || 0) / 60,
-    );
+    e.clock_out
+      ? Math.max(
+          0,
+          H(new Date(e.clock_out!).getTime() - new Date(e.clock_in).getTime()) -
+            (e.break_minutes || 0) / 60,
+        )
+      : 0;
   const selectedMember = selected ? memberById.get(selected.staff_id) : null;
   return (
     <section className="space-y-4">
@@ -1160,6 +1284,8 @@ export function WorkforceTimesheets({
           date={period}
           onChange={(v) => {
             setPeriod(v);
+            setFrom("");
+            setUntil("");
             setSelectedId(null);
           }}
           ar={ar}
@@ -1183,8 +1309,14 @@ export function WorkforceTimesheets({
                     a.starts_at &&
                     a.ends_at &&
                     (canManage || a.staff_id === currentStaffId) &&
-                    dayKey(a.starts_at) >= days[0] &&
-                    dayKey(a.starts_at) <= days[6],
+                    scopedStaff.includes(a.staff_id) &&
+                    (memberById.get(a.staff_id)?.name ?? "")
+                      .toLowerCase()
+                      .includes(search.toLowerCase()) &&
+                    workforceDayKey(new Date(a.starts_at), data.data?.timeZone ?? "Asia/Amman") >=
+                      days[0] &&
+                    workforceDayKey(new Date(a.starts_at), data.data?.timeZone ?? "Asia/Amman") <=
+                      days.at(-1)!,
                 )
                 .reduce(
                   (n, a) =>
@@ -1250,7 +1382,13 @@ export function WorkforceTimesheets({
                     </span>
                   </span>
                   <span className="shrink-0 rounded-full bg-blue-500/10 px-2 py-1 text-[9px] font-bold text-blue-700">
-                    {request.origin === "automatic" ? (ar ? "تلقائي · HR" : "Auto · HR") : (ar ? "مراجعة" : "Review")}
+                    {request.origin === "automatic"
+                      ? ar
+                        ? "تلقائي · HR"
+                        : "Auto · HR"
+                      : ar
+                        ? "مراجعة"
+                        : "Review"}
                   </span>
                 </button>
               );
@@ -1285,16 +1423,37 @@ export function WorkforceTimesheets({
                 </button>
               ))}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="text-xs">{ar ? "من" : "From"}<input type="date" className="min-h-11 rounded-lg border bg-card px-2" value={from} max={until || undefined} onChange={event => setFrom(event.target.value)} /></label>
-              <label className="text-xs">{ar ? "حتى" : "Through"}<input type="date" className="min-h-11 rounded-lg border bg-card px-2" value={until} min={from || undefined} onChange={event => setUntil(event.target.value)} /></label>
-              <select aria-label="Employee" className="min-h-11 rounded-lg border bg-card px-2" value={employee} onChange={event => setEmployee(event.target.value)}><option value="all">{ar ? "كل الموظفين" : "All employees"}</option>{members.filter(member => canManage || member.id === currentStaffId).map(member => <option key={member.id} value={member.id}>{member.name}</option>)}</select>
-              <select aria-label="Role" className="min-h-11 rounded-lg border bg-card px-2" value={role} onChange={event => setRole(event.target.value)}><option value="all">{ar ? "كل الأدوار" : "All roles"}</option>{[...new Set(members.map(member => member.role))].map(value => <option key={value}>{value}</option>)}</select>
-              <select aria-label="Clock-out status" className="min-h-11 rounded-lg border bg-card px-2" value={punch} onChange={event => setPunch(event.target.value)}><option value="complete">{ar ? "خروج مسجل" : "Clocked out"}</option><option value="missing">{ar ? "خروج ناقص" : "Missing clock-out"}</option><option value="all">{ar ? "كل السجلات" : "All punches"}</option></select>
-              <Button variant="outline" onClick={() => { setFrom(""); setUntil(""); setEmployee("all"); setRole("all"); setPunch("complete"); setFilter("pending"); setSearch(""); }}>{ar ? "إعادة ضبط" : "Reset filters"}</Button>
-            </div>
-            <SearchField value={search} onChange={setSearch} ar={ar} />
           </div>
+          <WorkforceFilters
+            ar={ar}
+            search={search}
+            onSearch={setSearch}
+            employee={employee}
+            onEmployee={setEmployee}
+            role={role}
+            onRole={setRole}
+            members={members.filter((member) => canManage || member.id === currentStaffId)}
+            from={from}
+            until={until}
+            onFrom={setFrom}
+            onUntil={setUntil}
+            status={punch}
+            onStatus={setPunch}
+            statuses={[
+              { value: "complete", label: ar ? "خروج مسجل" : "Clocked out" },
+              { value: "missing", label: ar ? "خروج ناقص" : "Missing clock-out" },
+              { value: "all", label: ar ? "كل البصمات" : "All punches" },
+            ]}
+            onReset={() => {
+              setFrom("");
+              setUntil("");
+              setEmployee("all");
+              setRole("all");
+              setPunch("complete");
+              setFilter("pending");
+              setSearch("");
+            }}
+          />
           <div className="wf-table-scroll">
             <table className="wf-table">
               <thead>
@@ -1313,7 +1472,7 @@ export function WorkforceTimesheets({
                 </tr>
               </thead>
               <tbody>
-                {entries.slice(0, 120).map((e) => {
+                {entries.slice(currentPage * 25, (currentPage + 1) * 25).map((e) => {
                   const m = memberById.get(e.staff_id),
                     sched = scheduledFor(e),
                     status = reviewOf(e);
@@ -1331,7 +1490,9 @@ export function WorkforceTimesheets({
                       <td data-label={ar ? "مجدول" : "Scheduled"}>
                         {sched === null ? "—" : fmtH(sched, ar)}
                       </td>
-                      <td data-label={ar ? "العمل" : "Worked"}>{fmtH(actualHours(e), ar)}</td>
+                      <td data-label={ar ? "العمل" : "Worked"}>
+                        {e.clock_out ? fmtH(actualHours(e), ar) : ar ? "مفتوح" : "Open"}
+                      </td>
                       <td data-label={ar ? "استراحة" : "Break"}>
                         {e.break_minutes || 0}
                         {ar ? "د" : "m"}
@@ -1370,6 +1531,30 @@ export function WorkforceTimesheets({
               </tbody>
             </table>
           </div>
+          {entries.length > 0 && (
+            <div className="wf-pagination">
+              <span>
+                {ar ? "السجلات" : "Records"} {currentPage * 25 + 1}–
+                {Math.min((currentPage + 1) * 25, entries.length)} / {entries.length}
+              </span>
+              <div>
+                <Button
+                  variant="outline"
+                  disabled={currentPage === 0}
+                  onClick={() => setPage(currentPage - 1)}
+                >
+                  {ar ? "السابق" : "Previous"}
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={currentPage + 1 >= pageCount}
+                  onClick={() => setPage(currentPage + 1)}
+                >
+                  {ar ? "التالي" : "Next"}
+                </Button>
+              </div>
+            </div>
+          )}
           {data.isError ? (
             <p className="wf-empty">
               {ar ? "تعذر تحميل السجلات." : "Timesheets could not be loaded."}
@@ -1438,7 +1623,12 @@ export function WorkforceTimesheets({
               value={fmtTime(selected.clock_out, ar)}
             />
             <DetailRow label={ar ? "العمل" : "Worked"} value={fmtH(actualHours(selected), ar)} />
-            {(selected.approved_overtime_minutes ?? 0)>0 ? <DetailRow label={ar ? "إضافي معتمد" : "Approved extra time"} value={`${selected.approved_overtime_minutes} ${ar ? "دقيقة" : "min"}`} /> : null}
+            {(selected.approved_overtime_minutes ?? 0) > 0 ? (
+              <DetailRow
+                label={ar ? "إضافي معتمد" : "Approved extra time"}
+                value={`${selected.approved_overtime_minutes} ${ar ? "دقيقة" : "min"}`}
+              />
+            ) : null}
             <DetailRow
               label={ar ? "الاستراحة" : "Break"}
               value={`${selected.break_minutes || 0} ${ar ? "دقيقة" : "min"}`}
@@ -1490,7 +1680,20 @@ export function WorkforceTimesheets({
           onClose={() => setMissingOpen(false)}
         />
       ) : null}
-      {reviewingMissing?.origin === "automatic" ? <AutomaticClockOutReview request={reviewingMissing} memberName={memberById.get(reviewingMissing.staff_id)?.name ?? (ar ? "عضو فريق" : "Team member")} restaurantId={restaurantId} timeZone={data.data?.timeZone ?? "Asia/Amman"} currentStaffId={currentStaffId} ar={ar} lang={lang} onClose={() => setReviewingMissing(null)} /> : reviewingMissing ? (
+      {reviewingMissing?.origin === "automatic" ? (
+        <AutomaticClockOutReview
+          request={reviewingMissing}
+          memberName={
+            memberById.get(reviewingMissing.staff_id)?.name ?? (ar ? "عضو فريق" : "Team member")
+          }
+          restaurantId={restaurantId}
+          timeZone={data.data?.timeZone ?? "Asia/Amman"}
+          currentStaffId={currentStaffId}
+          ar={ar}
+          lang={lang}
+          onClose={() => setReviewingMissing(null)}
+        />
+      ) : reviewingMissing ? (
         <MissingPunchRequestReviewSheet
           request={reviewingMissing}
           memberName={
@@ -1664,8 +1867,12 @@ function MissingPunchSheet({
           new Date(assignment.ends_at).getTime() <= Date.now() + 5 * 60_000,
       )
       .sort((a, b) => new Date(b.ends_at!).getTime() - new Date(a.ends_at!).getTime())[0] ?? null;
-  const defaultIn = selectedAssignment?.starts_at ? toLocalInput(selectedAssignment.starts_at,timeZone) : "";
-  const defaultOut = selectedAssignment?.ends_at ? toLocalInput(selectedAssignment.ends_at,timeZone) : "";
+  const defaultIn = selectedAssignment?.starts_at
+    ? toLocalInput(selectedAssignment.starts_at, timeZone)
+    : "";
+  const defaultOut = selectedAssignment?.ends_at
+    ? toLocalInput(selectedAssignment.ends_at, timeZone)
+    : "";
   const [clockIn, setClockIn] = useState<string | null>(null);
   const [clockOut, setClockOut] = useState<string | null>(null);
   const [breakMinutes, setBreakMinutes] = useState("0");
@@ -1674,25 +1881,31 @@ function MissingPunchSheet({
   const cin = clockIn ?? defaultIn;
   const cout = clockOut ?? defaultOut;
   const durationMinutes =
-    cin && cout ? Math.round((workforceInputTimestamp(cout,timeZone) - workforceInputTimestamp(cin,timeZone)) / 60000) : 0;
+    cin && cout
+      ? Math.round(
+          (workforceInputTimestamp(cout, timeZone) - workforceInputTimestamp(cin, timeZone)) /
+            60000,
+        )
+      : 0;
   const invalid =
     !staffId ||
     !cin ||
     !cout ||
-    !Number.isFinite(durationMinutes) || durationMinutes <= 0 ||
+    !Number.isFinite(durationMinutes) ||
+    durationMinutes <= 0 ||
     Number(breakMinutes) < 0 ||
     Number(breakMinutes) >= durationMinutes ||
     !reason.trim() ||
-    workforceInputTimestamp(cin,timeZone) > Date.now() + 5 * 60_000 ||
-    workforceInputTimestamp(cout,timeZone) > Date.now() + 5 * 60_000;
+    workforceInputTimestamp(cin, timeZone) > Date.now() + 5 * 60_000 ||
+    workforceInputTimestamp(cout, timeZone) > Date.now() + 5 * 60_000;
 
   const create = useMutation({
     mutationFn: async () => {
       const { error } = await (supabase as any).rpc("create_missing_time_entry", {
         _restaurant_id: restaurantId,
         _staff_id: staffId,
-        _clock_in: new Date(workforceInputTimestamp(cin,timeZone)).toISOString(),
-        _clock_out: new Date(workforceInputTimestamp(cout,timeZone)).toISOString(),
+        _clock_in: new Date(workforceInputTimestamp(cin, timeZone)).toISOString(),
+        _clock_out: new Date(workforceInputTimestamp(cout, timeZone)).toISOString(),
         _break_minutes: Number(breakMinutes) || 0,
         _reason: reason.trim(),
       });
@@ -1712,8 +1925,8 @@ function MissingPunchSheet({
 
   const applySchedule = () => {
     if (!selectedAssignment?.starts_at || !selectedAssignment.ends_at) return;
-    setClockIn(toLocalInput(selectedAssignment.starts_at,timeZone));
-    setClockOut(toLocalInput(selectedAssignment.ends_at,timeZone));
+    setClockIn(toLocalInput(selectedAssignment.starts_at, timeZone));
+    setClockOut(toLocalInput(selectedAssignment.ends_at, timeZone));
   };
 
   return (
@@ -1803,13 +2016,19 @@ function MissingPunchSheet({
         ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <RequestDateTimePicker timeZone={timeZone} label={ar ? "الدخول" : "Clock in"} ar={ar}
+            <RequestDateTimePicker
+              timeZone={timeZone}
+              label={ar ? "الدخول" : "Clock in"}
+              ar={ar}
               value={cin}
               onChange={(value) => setClockIn(value)}
             />
           </div>
           <div className="space-y-2">
-            <RequestDateTimePicker timeZone={timeZone} label={ar ? "الخروج" : "Clock out"} ar={ar}
+            <RequestDateTimePicker
+              timeZone={timeZone}
+              label={ar ? "الخروج" : "Clock out"}
+              ar={ar}
               value={cout}
               onChange={(value) => setClockOut(value)}
             />
@@ -1876,12 +2095,18 @@ function CorrectionSheet({
   onClose: () => void;
   onSave: (p: { clock_in: string; clock_out: string; break_minutes: number; note: string }) => void;
 }) {
-  const [cin, setCin] = useState(toLocalInput(entry.clock_in,timeZone));
-  const [cout, setCout] = useState(toLocalInput(entry.clock_out,timeZone));
+  const [cin, setCin] = useState(toLocalInput(entry.clock_in, timeZone));
+  const [cout, setCout] = useState(toLocalInput(entry.clock_out, timeZone));
   const [brk, setBrk] = useState(String(entry.break_minutes || 0));
   const [reason, setReason] = useState("");
   const invalid =
-    !cin || !cout || !Number.isFinite(workforceInputTimestamp(cin,timeZone)) || !Number.isFinite(workforceInputTimestamp(cout,timeZone)) || workforceInputTimestamp(cout,timeZone) <= workforceInputTimestamp(cin,timeZone) || Number(brk) < 0 || !reason.trim();
+    !cin ||
+    !cout ||
+    !Number.isFinite(workforceInputTimestamp(cin, timeZone)) ||
+    !Number.isFinite(workforceInputTimestamp(cout, timeZone)) ||
+    workforceInputTimestamp(cout, timeZone) <= workforceInputTimestamp(cin, timeZone) ||
+    Number(brk) < 0 ||
+    !reason.trim();
   return (
     <DetailSheet
       open
@@ -1900,8 +2125,8 @@ function CorrectionSheet({
             disabled={invalid || pending}
             onClick={() =>
               onSave({
-                clock_in: new Date(workforceInputTimestamp(cin,timeZone)).toISOString(),
-                clock_out: new Date(workforceInputTimestamp(cout,timeZone)).toISOString(),
+                clock_in: new Date(workforceInputTimestamp(cin, timeZone)).toISOString(),
+                clock_out: new Date(workforceInputTimestamp(cout, timeZone)).toISOString(),
                 break_minutes: Number(brk),
                 note: reason.trim(),
               })
@@ -1915,13 +2140,19 @@ function CorrectionSheet({
     >
       <div className="space-y-4 py-2">
         <div className="space-y-2">
-          <RequestDateTimePicker timeZone={timeZone} label={ar ? "الدخول" : "Clock in"} ar={ar}
+          <RequestDateTimePicker
+            timeZone={timeZone}
+            label={ar ? "الدخول" : "Clock in"}
+            ar={ar}
             value={cin}
             onChange={(value) => setCin(value)}
           />
         </div>
         <div className="space-y-2">
-          <RequestDateTimePicker timeZone={timeZone} label={ar ? "الخروج" : "Clock out"} ar={ar}
+          <RequestDateTimePicker
+            timeZone={timeZone}
+            label={ar ? "الخروج" : "Clock out"}
+            ar={ar}
             value={cout}
             onChange={(value) => setCout(value)}
           />

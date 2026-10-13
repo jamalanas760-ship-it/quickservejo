@@ -1,7 +1,14 @@
+import { restaurantScheduleWindows } from "@/lib/restaurant-schedule";
+import { ActionMenu } from "@/components/app/ActionMenu";
 import { ShiftTemplates } from "@/components/workforce/ShiftTemplates";
 import { isUsableTeamPunch, isLiveTeamPunch } from "@/lib/team-attendance";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
-import { workforceLocalTimestamp, workforceDayKey, workforceLocalInput, workforceInputTimestamp } from "@/lib/workforce-hours";
+import {
+  workforceLocalTimestamp,
+  workforceDayKey,
+  workforceLocalInput,
+  workforceInputTimestamp,
+} from "@/lib/workforce-hours";
 import { RequestDateTimePicker } from "@/components/workforce/RequestPickers";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -67,8 +74,6 @@ import {
   acknowledgeShiftHandover,
   assignStaffToShift,
   closeShift,
-  createShift,
-  createRecurringShifts,
   deleteShift,
   createShiftHandover,
   openShift,
@@ -183,9 +188,9 @@ function ShiftsPage() {
       setWorkforceSection(requestedSection as WorkforceSection);
   }, [requestedSection]);
   const [memberSheet, setMemberSheet] = useState<WorkforceMember | null>(null);
-  const [selectedDate, setSelectedDate] = useState(() => workforceDayKey(new Date(),timeZone));
+  const [selectedDate, setSelectedDate] = useState(() => workforceDayKey(new Date(), timeZone));
   const [liveNow, setLiveNow] = useState(() => Date.now());
-  const [liveToday, setLiveToday] = useState(() => workforceDayKey(new Date(),timeZone));
+  const [liveToday, setLiveToday] = useState(() => workforceDayKey(new Date(), timeZone));
 
   useEffect(() => {
     if (!rid || !canView) return;
@@ -209,7 +214,7 @@ function ShiftsPage() {
   useEffect(() => {
     const refresh = () => {
       const nextNow = Date.now();
-      const nextToday = workforceDayKey(new Date(nextNow),timeZone);
+      const nextToday = workforceDayKey(new Date(nextNow), timeZone);
       setLiveNow(nextNow);
       setLiveToday((previous) => {
         if (previous !== nextToday) {
@@ -794,7 +799,9 @@ function addShiftDays(dateKey: string, amount: number) {
   value.setDate(value.getDate() + amount);
   return value.toLocaleDateString("en-CA");
 }
-function toWorkforceLocalInput(value: string | null | undefined, timeZone = "Asia/Amman") { return value ? workforceLocalInput(value,timeZone) : ""; }
+function toWorkforceLocalInput(value: string | null | undefined, timeZone = "Asia/Amman") {
+  return value ? workforceLocalInput(value, timeZone) : "";
+}
 
 function formatShiftDateLabel(dateKey: string, ar: boolean) {
   return new Date(`${dateKey}T12:00:00`).toLocaleDateString(ar ? "ar-JO" : "en-US", {
@@ -931,16 +938,36 @@ function WorkforceClockHero({
   useEffect(() => {
     const refresh = () => {
       setClockNow(Date.now());
-      void qc.invalidateQueries({queryKey:["workforce-clock", restaurantId, currentStaffId]});
-      void qc.invalidateQueries({queryKey:["workforce-clock-history", restaurantId, currentStaffId]});
+      void qc.invalidateQueries({ queryKey: ["workforce-clock", restaurantId, currentStaffId] });
+      void qc.invalidateQueries({
+        queryKey: ["workforce-clock-history", restaurantId, currentStaffId],
+      });
     };
-    const visible = () => { if (document.visibilityState === "visible") refresh(); };
-    const channel = supabase.channel(`my-clock:${restaurantId}:${currentStaffId}`)
-      .on("postgres_changes", {event:"*", schema:"public", table:"staff_time_entries", filter:`restaurant_id=eq.${restaurantId}`}, refresh).subscribe();
+    const visible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    const channel = supabase
+      .channel(`my-clock:${restaurantId}:${currentStaffId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "staff_time_entries",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
+        refresh,
+      )
+      .subscribe();
     const timer = window.setInterval(() => setClockNow(Date.now()), 1000);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", visible);
-    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", visible); void supabase.removeChannel(channel); };
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", visible);
+      void supabase.removeChannel(channel);
+    };
   }, [qc, restaurantId, currentStaffId]);
 
   const clockStatus = useQuery<ClockStatus | null>({
@@ -990,18 +1017,31 @@ function WorkforceClockHero({
     : 0;
   const todayKey = workforceDayKey(new Date(clockNow), timeZone);
   const todayStart = workforceLocalTimestamp(todayKey, "00:00", timeZone);
-  const tomorrowKey = new Date(Date.parse(`${todayKey}T12:00:00Z`) + 86400000).toISOString().slice(0,10);
+  const tomorrowKey = new Date(Date.parse(`${todayKey}T12:00:00Z`) + 86400000)
+    .toISOString()
+    .slice(0, 10);
   const todayEnd = workforceLocalTimestamp(tomorrowKey, "00:00", timeZone);
-  const todayWorkedSeconds = (history.data ?? []).filter(entry => isUsableTeamPunch(entry, clockNow)).reduce((sum, entry) => {
-    const start = Date.parse(entry.clock_in), end = entry.clock_out ? Date.parse(entry.clock_out) : clockNow;
-    const overlap = Math.max(0, Math.min(end, todayEnd) - Math.max(start, todayStart));
-    const rate = end > start ? Math.max(0, 1 - Number(entry.break_minutes || 0)*60000/(end-start)) : 0;
-    return sum + Math.floor(overlap*rate/1000);
-  }, 0);
+  const todayWorkedSeconds = (history.data ?? [])
+    .filter((entry) => isUsableTeamPunch(entry, clockNow))
+    .reduce((sum, entry) => {
+      const start = Date.parse(entry.clock_in),
+        end = entry.clock_out ? Date.parse(entry.clock_out) : clockNow;
+      const overlap = Math.max(0, Math.min(end, todayEnd) - Math.max(start, todayStart));
+      const rate =
+        end > start
+          ? Math.max(0, 1 - (Number(entry.break_minutes || 0) * 60000) / (end - start))
+          : 0;
+      return sum + Math.floor((overlap * rate) / 1000);
+    }, 0);
 
   const latestCompletedEntry =
     (history.data ?? [])
-      .filter((entry) => entry.staff_id === currentStaffId && entry.clock_out && isUsableTeamPunch(entry, clockNow))
+      .filter(
+        (entry) =>
+          entry.staff_id === currentStaffId &&
+          entry.clock_out &&
+          isUsableTeamPunch(entry, clockNow),
+      )
       .sort((a, b) => new Date(b.clock_out!).getTime() - new Date(a.clock_out!).getTime())[0] ??
     null;
   const latestCompletedSeconds = latestCompletedEntry?.clock_out
@@ -1039,7 +1079,14 @@ function WorkforceClockHero({
         return Math.abs(a.startMs - clockNow) - Math.abs(b.startMs - clockNow);
       })[0]?.assignment ?? null;
 
-  const expectedEnd = liveEntry && liveAssignment?.starts_at && liveAssignment.ends_at && Date.parse(liveEntry.clock_in) >= Date.parse(liveAssignment.starts_at) - 4*3600000 && Date.parse(liveEntry.clock_in) < Date.parse(liveAssignment.ends_at) ? liveAssignment.ends_at : null;
+  const expectedEnd =
+    liveEntry &&
+    liveAssignment?.starts_at &&
+    liveAssignment.ends_at &&
+    Date.parse(liveEntry.clock_in) >= Date.parse(liveAssignment.starts_at) - 4 * 3600000 &&
+    Date.parse(liveEntry.clock_in) < Date.parse(liveAssignment.ends_at)
+      ? liveAssignment.ends_at
+      : null;
   const nextShift = !openEntry
     ? (assignments
         .filter(
@@ -1067,12 +1114,27 @@ function WorkforceClockHero({
 
   const toggleClock = useMutation({
     mutationFn: async () => {
-      if (clockStatus.isError || clockStatus.isPending) throw new Error(ar ? "تعذر تأكيد حالة الدوام. أعد المحاولة." : "Unable to confirm clock status. Retry first.");
+      if (clockStatus.isError || clockStatus.isPending)
+        throw new Error(
+          ar
+            ? "تعذر تأكيد حالة الدوام. أعد المحاولة."
+            : "Unable to confirm clock status. Retry first.",
+        );
       const rpc = openEntry ? "clock_out_staff" : "clock_in_staff";
       const { data, error } = await (supabase as any).rpc(rpc, { _restaurant_id: restaurantId });
       if (error) throw error;
       const result = (Array.isArray(data) ? data[0] : data) as ClockResult;
-      if (!result?.action || !["clocked_in", "already_clocked_in", "clocked_out", "already_clocked_out"].includes(result.action.toLowerCase())) throw new Error(ar ? "لم يتم تأكيد تسجيل الدوام. أعد المحاولة." : "Attendance was not confirmed. Please retry.");
+      if (
+        !result?.action ||
+        !["clocked_in", "already_clocked_in", "clocked_out", "already_clocked_out"].includes(
+          result.action.toLowerCase(),
+        )
+      )
+        throw new Error(
+          ar
+            ? "لم يتم تأكيد تسجيل الدوام. أعد المحاولة."
+            : "Attendance was not confirmed. Please retry.",
+        );
       return result;
     },
     onSuccess: async (result) => {
@@ -1133,12 +1195,14 @@ function WorkforceClockHero({
 
   const expectedLabel = expectedEnd
     ? new Date(expectedEnd).toLocaleTimeString(ar ? "ar-JO" : "en-JO", {
-        timeZone, hour: "2-digit",
+        timeZone,
+        hour: "2-digit",
         minute: "2-digit",
       })
     : nextShift?.starts_at
       ? new Date(nextShift.starts_at).toLocaleTimeString(ar ? "ar-JO" : "en-JO", {
-          timeZone, hour: "2-digit",
+          timeZone,
+          hour: "2-digit",
           minute: "2-digit",
         })
       : "—";
@@ -1148,7 +1212,8 @@ function WorkforceClockHero({
       ? (ar ? "الوردية القادمة" : "Next shift") +
         " · " +
         new Date(nextShift.starts_at).toLocaleDateString(ar ? "ar-JO" : "en-JO", {
-          timeZone, month: "short",
+          timeZone,
+          month: "short",
           day: "numeric",
         })
       : ar
@@ -1157,7 +1222,21 @@ function WorkforceClockHero({
 
   return (
     <>
-      <section className="wf-clock" data-clock-state={clockStatus.isError ? "error" : clockStatus.isPending ? "loading" : needsReview ? "review" : liveEntry ? "on" : "off"} aria-label={ar ? "ساعة الدوام" : "Time clock"}>
+      <section
+        className="wf-clock"
+        data-clock-state={
+          clockStatus.isError
+            ? "error"
+            : clockStatus.isPending
+              ? "loading"
+              : needsReview
+                ? "review"
+                : liveEntry
+                  ? "on"
+                  : "off"
+        }
+        aria-label={ar ? "ساعة الدوام" : "Time clock"}
+      >
         <div className="wf-clock-person">
           <span className="wf-avatar">
             {(staffMember?.name ?? "T")
@@ -1170,18 +1249,31 @@ function WorkforceClockHero({
             <strong>{staffMember?.name ?? (ar ? "عضو الفريق" : "Team member")}</strong>
             <small role="status" aria-live="polite">
               <i className={liveEntry ? "is-active" : ""} />
-              {clockStatus.isError ? (ar ? "تعذر تحميل الحالة" : "Status unavailable") : clockStatus.isPending ? (ar ? "جارٍ تأكيد الحالة…" : "Checking status…") : needsReview ? (ar ? "جلسة سابقة تحتاج مراجعة" : "Previous session needs review") : liveEntry
+              {clockStatus.isError
                 ? ar
-                  ? "على رأس العمل"
-                  : "On shift"
-                : ar
-                  ? "جاهز للبدء"
-                  : "Ready to clock in"}
+                  ? "تعذر تحميل الحالة"
+                  : "Status unavailable"
+                : clockStatus.isPending
+                  ? ar
+                    ? "جارٍ تأكيد الحالة…"
+                    : "Checking status…"
+                  : needsReview
+                    ? ar
+                      ? "جلسة سابقة تحتاج مراجعة"
+                      : "Previous session needs review"
+                    : liveEntry
+                      ? ar
+                        ? "على رأس العمل"
+                        : "On shift"
+                      : ar
+                        ? "جاهز للبدء"
+                        : "Ready to clock in"}
               {liveEntry
                 ? " · " +
                   (ar ? "الدخول " : "Clocked in ") +
                   new Date(liveEntry.clock_in).toLocaleTimeString(ar ? "ar-JO" : "en-US", {
-                    timeZone, hour: "numeric",
+                    timeZone,
+                    hour: "numeric",
                     minute: "2-digit",
                   })
                 : ""}
@@ -1199,7 +1291,12 @@ function WorkforceClockHero({
                 : "Last session"}
           </small>
           <strong>
-            {clockStatus.isError ? "—" : formatClockDuration(needsReview ? 0 : openEntry ? currentSessionSeconds : latestCompletedSeconds, ar)}
+            {clockStatus.isError
+              ? "—"
+              : formatClockDuration(
+                  needsReview ? 0 : openEntry ? currentSessionSeconds : latestCompletedSeconds,
+                  ar,
+                )}
           </strong>
           <small>
             {ar ? "وقت العمل اليوم" : "Worked today"} ·{" "}
@@ -1243,8 +1340,30 @@ function WorkforceClockHero({
           </button>
         </div>
       </section>
-      {clockStatus.isError || toggleClock.isError ? <div role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs"><span>{humanError(clockStatus.error ?? toggleClock.error, lang)}</span>{clockStatus.isError ? <Button variant="outline" disabled={clockStatus.isFetching} onClick={() => void clockStatus.refetch()}>{ar ? "إعادة المحاولة" : "Retry status"}</Button> : null}</div> : null}
-      {needsReview ? <p className="mt-2 text-xs text-muted-foreground">{ar ? "الجلسة السابقة متجاوزة للمدة. أغلقها أو اطلب تصحيح البصمة؛ لن تُحسب كحضور حيّ." : "The previous session is overdue. Close it or request a punch correction; it is excluded from live attendance."}</p> : null}
+      {clockStatus.isError || toggleClock.isError ? (
+        <div
+          role="alert"
+          className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs"
+        >
+          <span>{humanError(clockStatus.error ?? toggleClock.error, lang)}</span>
+          {clockStatus.isError ? (
+            <Button
+              variant="outline"
+              disabled={clockStatus.isFetching}
+              onClick={() => void clockStatus.refetch()}
+            >
+              {ar ? "إعادة المحاولة" : "Retry status"}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      {needsReview ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {ar
+            ? "الجلسة السابقة متجاوزة للمدة. أغلقها أو اطلب تصحيح البصمة؛ لن تُحسب كحضور حيّ."
+            : "The previous session is overdue. Close it or request a punch correction; it is excluded from live attendance."}
+        </p>
+      ) : null}
       {missingPunchOpen ? (
         <SelfMissingPunchRequestSheet
           restaurantId={restaurantId}
@@ -1274,33 +1393,42 @@ function SelfMissingPunchRequestSheet({
   const qc = useQueryClient();
   const restaurant = useRestaurant(restaurantId);
   const timeZone = restaurant.data?.timezone || "Asia/Amman";
-  const scheduledIn = assignment?.starts_at ? toWorkforceLocalInput(assignment.starts_at,timeZone) : "";
-  const scheduledOut = assignment?.ends_at ? toWorkforceLocalInput(assignment.ends_at,timeZone) : "";
+  const scheduledIn = assignment?.starts_at
+    ? toWorkforceLocalInput(assignment.starts_at, timeZone)
+    : "";
+  const scheduledOut = assignment?.ends_at
+    ? toWorkforceLocalInput(assignment.ends_at, timeZone)
+    : "";
   const [clockIn, setClockIn] = useState(scheduledIn);
   const [clockOut, setClockOut] = useState(scheduledOut);
   const [breakMinutes, setBreakMinutes] = useState("0");
   const [reason, setReason] = useState("");
   const durationMinutes =
     clockIn && clockOut
-      ? Math.round((workforceInputTimestamp(clockOut,timeZone) - workforceInputTimestamp(clockIn,timeZone)) / 60000)
+      ? Math.round(
+          (workforceInputTimestamp(clockOut, timeZone) -
+            workforceInputTimestamp(clockIn, timeZone)) /
+            60000,
+        )
       : 0;
   const invalid =
     !clockIn ||
     !clockOut ||
-    !Number.isFinite(durationMinutes) || durationMinutes <= 0 ||
+    !Number.isFinite(durationMinutes) ||
+    durationMinutes <= 0 ||
     durationMinutes > 2160 ||
     Number(breakMinutes) < 0 ||
     Number(breakMinutes) >= durationMinutes ||
     reason.trim().length < 3 ||
-    workforceInputTimestamp(clockIn,timeZone) > Date.now() + 5 * 60_000 ||
-    workforceInputTimestamp(clockOut,timeZone) > Date.now() + 5 * 60_000;
+    workforceInputTimestamp(clockIn, timeZone) > Date.now() + 5 * 60_000 ||
+    workforceInputTimestamp(clockOut, timeZone) > Date.now() + 5 * 60_000;
 
   const submit = useMutation({
     mutationFn: async () => {
       const { error } = await (supabase as any).rpc("submit_missing_punch_request", {
         _restaurant_id: restaurantId,
-        _clock_in: new Date(workforceInputTimestamp(clockIn,timeZone)).toISOString(),
-        _clock_out: new Date(workforceInputTimestamp(clockOut,timeZone)).toISOString(),
+        _clock_in: new Date(workforceInputTimestamp(clockIn, timeZone)).toISOString(),
+        _clock_out: new Date(workforceInputTimestamp(clockOut, timeZone)).toISOString(),
         _break_minutes: Number(breakMinutes) || 0,
         _reason: reason.trim(),
       });
@@ -1324,8 +1452,8 @@ function SelfMissingPunchRequestSheet({
 
   const applySchedule = () => {
     if (!assignment?.starts_at || !assignment.ends_at) return;
-    setClockIn(toWorkforceLocalInput(assignment.starts_at,timeZone));
-    setClockOut(toWorkforceLocalInput(assignment.ends_at,timeZone));
+    setClockIn(toWorkforceLocalInput(assignment.starts_at, timeZone));
+    setClockOut(toWorkforceLocalInput(assignment.ends_at, timeZone));
   };
 
   return (
@@ -1386,13 +1514,19 @@ function SelfMissingPunchRequestSheet({
         ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <RequestDateTimePicker timeZone={timeZone} label={ar ? "وقت الدخول" : "Clock in"} ar={ar}
+            <RequestDateTimePicker
+              timeZone={timeZone}
+              label={ar ? "وقت الدخول" : "Clock in"}
+              ar={ar}
               value={clockIn}
               onChange={(value) => setClockIn(value)}
             />
           </div>
           <div className="space-y-2">
-            <RequestDateTimePicker timeZone={timeZone} label={ar ? "وقت الخروج" : "Clock out"} ar={ar}
+            <RequestDateTimePicker
+              timeZone={timeZone}
+              label={ar ? "وقت الخروج" : "Clock out"}
+              ar={ar}
               value={clockOut}
               onChange={(value) => setClockOut(value)}
             />
@@ -1448,7 +1582,9 @@ function formatRelativeClock(value: string, nowMs: number, ar: boolean) {
   return ar ? "بعد " + hours + "س " + minutes + "د" : "in " + hours + "h " + minutes + "m";
 }
 function localShiftDateTimeIso(date: string, time: string, addDays = 0, timeZone = "Asia/Amman") {
-  return new Date(workforceLocalTimestamp(addDays ? addShiftDays(date,addDays) : date,time,timeZone)).toISOString();
+  return new Date(
+    workforceLocalTimestamp(addDays ? addShiftDays(date, addDays) : date, time, timeZone),
+  ).toISOString();
 }
 
 function countRecurringDays(startDate: string, endDate: string, weekdays: number[]) {
@@ -1999,11 +2135,11 @@ function CreateShiftDialog({
   const qc = useQueryClient();
   const restaurant = useRestaurant(restaurantId);
   const timeZone = restaurant.data?.timezone || "Asia/Amman";
-  const today = workforceDayKey(new Date(),timeZone);
+  const today = workforceDayKey(new Date(), timeZone);
   const [mode, setMode] = useState<"single" | "recurring">("single");
   const [name, setName] = useState(ar ? "وردية اليوم" : "Service shift");
   const [date, setDate] = useState(today);
-  const [rangeEnd, setRangeEnd] = useState(() => addShiftDays(today, 83));
+  const [rangeEnd, setRangeEnd] = useState(() => addShiftDays(today, 6));
   const [weekdays, setWeekdays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("17:00");
@@ -2011,6 +2147,8 @@ function CreateShiftDialog({
   const [type, setType] = useState<"A" | "B" | "C">("A");
   const [assigned, setAssigned] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [teamRole, setTeamRole] = useState("all");
+  const [unassigned, setUnassigned] = useState(false);
   const members = useWorkspaceMembers(restaurantId);
   const activeMembers = (members.data ?? []).filter((m) => m.is_active);
 
@@ -2018,78 +2156,18 @@ function CreateShiftDialog({
 
   const create = useMutation({
     mutationFn: async () => {
-      const started = new Date().toISOString();
-      const savedNotes = `Shift type: ${type}${notes.trim() ? `\n${notes.trim()}` : ""}`;
-      let created: Shift[] = [];
-      let count = 1;
-      if (mode === "recurring") {
-        count = await createRecurringShifts({
-          restaurant_id: restaurantId,
-          name: name.trim(),
-          start_date: date,
-          end_date: rangeEnd,
-          weekdays,
-          planned_start: start,
-          planned_end: end,
-          notes: savedNotes,
-        });
-        if (assigned.length && count) {
-          const result = await supabase
-            .from("shifts" as any)
-            .select("*")
-            .eq("restaurant_id", restaurantId)
-            .eq("name", name.trim())
-            .eq("notes", savedNotes)
-            .gte("created_at", started)
-            .gte("shift_date", date)
-            .lte("shift_date", rangeEnd);
-          if (result.error || (result.data?.length ?? 0) !== count) {
-            toast.warning(
-              ar
-                ? "تم إنشاء الجدول. افتح الورديات لتعيين الفريق."
-                : "Schedule created. Open the shifts to assign your team.",
-            );
-            return count;
-          }
-          created = result.data as unknown as Shift[];
-        }
-      } else {
-        const row = await createShift({
-          restaurant_id: restaurantId,
-          name: name.trim(),
-          shift_date: date,
-          planned_start: localShiftDateTimeIso(date, start, 0, timeZone),
-          planned_end: localShiftDateTimeIso(date, end, overnight ? 1 : 0, timeZone),
-          notes: savedNotes,
-        });
-        created = [row];
-      }
-      let failedAssignments = 0;
-      for (const shift of created) {
-        const results = await Promise.allSettled(
-          assigned.map((id) => {
-            const member = activeMembers.find((m) => m.id === id)!;
-            return assignStaffToShift({
-              restaurant_id: restaurantId,
-              shift_id: shift.id,
-              staff_id: id,
-              role_snapshot: member.role,
-              starts_at: shift.planned_start,
-              ends_at: shift.planned_end,
-            });
-          }),
-        );
-        failedAssignments += results.filter((r) => r.status === "rejected").length;
-      }
-      if (failedAssignments)
-        toast.warning(
-          ar
-            ? "تم إنشاء الورديات، لكن بعض التعيينات تحتاج مراجعة من تفاصيل الوردية."
-            : "Shifts created; some assignments need review in shift details.",
-        );
-      return count;
+      const { data, error } = await (supabase as any).rpc("save_restaurant_schedule", {
+        _restaurant_id: restaurantId,
+        _name: name.trim(),
+        _notes: `Shift type: ${type}${notes.trim() ? `\n${notes.trim()}` : ""}`,
+        _windows: scheduleWindows,
+        _staff_ids: assigned,
+        _preview: false,
+      });
+      if (error) throw error;
+      return data as { created: number; assigned: number; skipped: number };
     },
-    onSuccess: async (count) => {
+    onSuccess: async (result) => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["operations", "shifts", restaurantId] }),
         qc.invalidateQueries({ queryKey: ["operations", "shift-assignments", restaurantId] }),
@@ -2097,13 +2175,9 @@ function CreateShiftDialog({
       ]);
       setAssigned([]);
       toast.success(
-        mode === "recurring"
-          ? ar
-            ? `تم إنشاء ${count} ورديات مجدولة`
-            : `${count} scheduled shifts created`
-          : ar
-            ? "تم إنشاء الوردية"
-            : "Shift created",
+        ar
+          ? `تم حفظ الجدول: ${result.created} ورديات جديدة، ${result.assigned} تعيينات، ${result.skipped} محفوظة سابقاً`
+          : `Schedule saved: ${result.created} new shifts, ${result.assigned} assignments, ${result.skipped} already assigned`,
       );
       onOpenChange(false);
     },
@@ -2152,6 +2226,45 @@ function CreateShiftDialog({
       if (mode === "single" || weekdays.includes(new Date(`${d}T12:00:00`).getDay()))
         previewDates.push(d);
 
+  let scheduleWindows: ReturnType<typeof restaurantScheduleWindows> = [];
+  let scheduleError = "";
+  if (ready)
+    try {
+      scheduleWindows = restaurantScheduleWindows({
+        first: date,
+        last: mode === "single" ? date : rangeEnd,
+        start,
+        end,
+        weekdays: mode === "single" ? [0, 1, 2, 3, 4, 5, 6] : weekdays,
+        timeZone,
+      });
+    } catch (error) {
+      scheduleError = error instanceof Error ? error.message : "Invalid schedule";
+    }
+  const preview = useQuery<{
+    conflicts: { staff_id: string; name: string; day: string; reason: string }[];
+  }>({
+    queryKey: ["schedule-preview", restaurantId, name, scheduleWindows, assigned.slice().sort()],
+    enabled: open && ready && !scheduleError && assigned.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("save_restaurant_schedule", {
+        _restaurant_id: restaurantId,
+        _name: name.trim(),
+        _notes: notes,
+        _windows: scheduleWindows,
+        _staff_ids: assigned,
+        _preview: true,
+      });
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 0,
+  });
+  const matchingMembers = activeMembers.filter(
+    (m) =>
+      (teamRole === "all" || m.role === teamRole) &&
+      m.name.toLowerCase().includes(search.toLowerCase()),
+  );
   return (
     <Dialog
       open={open}
@@ -2180,7 +2293,58 @@ function CreateShiftDialog({
               {ar ? "جدول متكرر" : "Recurring schedule"}
             </button>
           </div>
-          <ShiftTemplates restaurantId={restaurantId} ar={ar} lang={lang} values={{ name, start_time: start, end_time: end, notes, weekdays }} onApply={template => { setName(template.name); setStart(template.start_time); setEnd(template.end_time); setNotes(template.notes); setWeekdays(template.weekdays); }} />
+          <ShiftTemplates
+            restaurantId={restaurantId}
+            ar={ar}
+            lang={lang}
+            values={{ name, start_time: start, end_time: end, notes, weekdays }}
+            onApply={(template) => {
+              setName(template.name);
+              setStart(template.start_time);
+              setEnd(template.end_time);
+              setNotes(template.notes);
+              setWeekdays(template.weekdays);
+            }}
+          />
+          <details className="rounded-xl border p-3 mb-4">
+            <summary className="cursor-pointer min-h-11 text-sm font-semibold">
+              {ar ? "أنماط خدمة المطعم" : "Restaurant service patterns"}
+            </summary>
+            <p className="text-xs text-muted-foreground mb-3">
+              {ar
+                ? "نقاط بداية قابلة للتعديل حسب ساعات مطعمك."
+                : "Editable starting points. Adjust these times to your restaurant."}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { en: "Opening & prep", ar: "افتتاح وتحضير", start: "07:00", end: "11:00" },
+                { en: "Lunch service", ar: "خدمة الغداء", start: "11:00", end: "16:00" },
+                { en: "Dinner service", ar: "خدمة العشاء", start: "16:00", end: "23:00" },
+                { en: "Closing", ar: "الإغلاق", start: "21:00", end: "02:00" },
+              ].map((pattern) => (
+                <button
+                  type="button"
+                  key={pattern.en}
+                  className="text-start rounded-lg border min-h-14 px-3 py-2 hover:bg-muted"
+                  onClick={() => {
+                    setName(ar ? pattern.ar : pattern.en);
+                    setStart(pattern.start);
+                    setEnd(pattern.end);
+                  }}
+                >
+                  <strong className="block text-xs">{ar ? pattern.ar : pattern.en}</strong>
+                  <small>
+                    {pattern.start}–{pattern.end}
+                  </small>
+                </button>
+              ))}
+            </div>
+          </details>
+          {scheduleError && (
+            <p role="alert" className="text-destructive text-sm mb-3">
+              {ar ? "اختر أوقاتاً وتواريخ صحيحة في المنطقة الزمنية للمطعم." : scheduleError}
+            </p>
+          )}
           <div className="wf-shift-form-layout">
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-[1fr_180px]">
@@ -2212,13 +2376,13 @@ function CreateShiftDialog({
                   value={date}
                   onChange={(d) => {
                     setDate(d);
-                    if (rangeEnd < d) setRangeEnd(addShiftDays(d, 27));
+                    if (rangeEnd < d) setRangeEnd(addShiftDays(d, 6));
                   }}
                   ar={ar}
                 />
                 {mode === "recurring" ? (
                   <RequestDatePicker
-                  timeZone={timeZone}
+                    timeZone={timeZone}
                     label={ar ? "تاريخ النهاية" : "End date"}
                     value={rangeEnd}
                     min={date}
@@ -2247,6 +2411,9 @@ function CreateShiftDialog({
                     </button>
                     <button onClick={() => applyDays([5, 6])}>
                       {ar ? "نهاية الأسبوع" : "Weekend"}
+                    </button>
+                    <button onClick={() => setRecurringRange(7)}>
+                      {ar ? "أسبوع واحد" : "1 week"}
                     </button>
                     <button onClick={() => setRecurringRange(28)}>
                       {ar ? "4 أسابيع" : "4 weeks"}
@@ -2280,29 +2447,116 @@ function CreateShiftDialog({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
-                <div className="wf-member-options">
-                  {activeMembers
-                    .filter((m) => m.name.toLowerCase().includes(search.toLowerCase()))
-                    .map((m) => (
-                      <button
-                        key={m.id}
-                        aria-pressed={assigned.includes(m.id)}
-                        onClick={() =>
-                          setAssigned((ids) =>
-                            ids.includes(m.id) ? ids.filter((id) => id !== m.id) : [...ids, m.id],
-                          )
-                        }
-                      >
-                        {assigned.includes(m.id) ? (
-                          <CheckCircle2 className="size-3.5" />
-                        ) : (
-                          <Plus className="size-3.5" />
-                        )}
-                        {m.name}
-                      </button>
+                <div className="grid grid-cols-[1fr_auto] gap-2 mt-2">
+                  <select
+                    aria-label={ar ? "تصفية حسب الدور" : "Filter team by role"}
+                    className="min-h-11 min-w-0 rounded-lg border bg-card px-2"
+                    value={teamRole}
+                    onChange={(e) => setTeamRole(e.target.value)}
+                  >
+                    <option value="all">{ar ? "كل الأدوار" : "All roles"}</option>
+                    {[...new Set(activeMembers.map((m) => m.role))].map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
                     ))}
+                  </select>
+                  <ActionMenu
+                    ar={ar}
+                    actions={[
+                      {
+                        label: ar ? "اختيار المطابقين" : "Select matching employees",
+                        onSelect: () =>
+                          setAssigned((ids) => [
+                            ...new Set([...ids, ...matchingMembers.map((m) => m.id)]),
+                          ]),
+                      },
+                      {
+                        label: ar ? "إلغاء اختيار الكل" : "Clear selection",
+                        onSelect: () => setAssigned([]),
+                      },
+                    ]}
+                  />
+                </div>
+                <div className="wf-member-options">
+                  {matchingMembers.map((m) => (
+                    <button
+                      key={m.id}
+                      aria-pressed={assigned.includes(m.id)}
+                      onClick={() =>
+                        setAssigned((ids) =>
+                          ids.includes(m.id) ? ids.filter((id) => id !== m.id) : [...ids, m.id],
+                        )
+                      }
+                    >
+                      {assigned.includes(m.id) ? (
+                        <CheckCircle2 className="size-3.5" />
+                      ) : (
+                        <Plus className="size-3.5" />
+                      )}
+                      {m.name}
+                    </button>
+                  ))}
                 </div>
               </Field>
+              {assigned.length === 0 && (
+                <label className="flex items-center gap-3 text-sm min-h-11">
+                  <input
+                    type="checkbox"
+                    checked={unassigned}
+                    onChange={(e) => setUnassigned(e.target.checked)}
+                  />
+                  {ar
+                    ? "إنشاء ورديات مفتوحة لتعيين الفريق لاحقاً"
+                    : "Create open shifts to assign the team later"}
+                </label>
+              )}
+              {assigned.length > 0 && (
+                <div role="status" className="rounded-xl border p-3 text-sm">
+                  {preview.isPending ? (
+                    ar ? (
+                      "فحص التداخل والإجازات…"
+                    ) : (
+                      "Checking overlaps and approved leave…"
+                    )
+                  ) : preview.isError ? (
+                    ar ? (
+                      "تعذر التحقق. أعد المحاولة قبل الحفظ."
+                    ) : (
+                      "Could not verify the schedule. Retry before saving."
+                    )
+                  ) : preview.data?.conflicts.length ? (
+                    <>
+                      <strong>
+                        {ar ? "تحتاج مراجعة قبل الإنشاء" : "Resolve conflicts before creating"}
+                      </strong>
+                      <ul className="mt-2 space-y-1">
+                        {preview.data.conflicts.map((c, i) => (
+                          <li key={i}>
+                            {c.name} · {c.day} ·{" "}
+                            {c.reason === "leave"
+                              ? ar
+                                ? "إجازة معتمدة"
+                                : "Approved leave"
+                              : ar
+                                ? "وردية متداخلة"
+                                : "Overlapping shift"}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : ar ? (
+                    "لا يوجد تداخل أو إجازات معتمدة للفريق المحدد."
+                  ) : (
+                    "No overlaps or approved leave for the selected team."
+                  )}
+                  {preview.isError && (
+                    <Button variant="outline" onClick={() => preview.refetch()}>
+                      {ar ? "إعادة المحاولة" : "Retry"}
+                    </Button>
+                  )}
+                </div>
+              )}
               <Field label={ar ? "ملاحظات (اختياري)" : "Notes (optional)"}>
                 <Textarea
                   maxLength={2000}
@@ -2385,7 +2639,17 @@ function CreateShiftDialog({
           <Button variant="outline" disabled={create.isPending} onClick={() => onOpenChange(false)}>
             {ar ? "إلغاء" : "Cancel"}
           </Button>
-          <Button disabled={!ready || create.isPending} onClick={() => create.mutate()}>
+          <Button
+            disabled={
+              !ready ||
+              Boolean(scheduleError) ||
+              create.isPending ||
+              (assigned.length === 0 && !unassigned) ||
+              (assigned.length > 0 &&
+                (preview.isPending || preview.isError || Boolean(preview.data?.conflicts.length)))
+            }
+            onClick={() => create.mutate()}
+          >
             {create.isPending
               ? ar
                 ? "جارٍ الإنشاء…"
