@@ -616,7 +616,8 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content[data-state] {
+    .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content[data-state],
+    .qs-tools-motion-overlay[data-state] {
       animation: none !important;
     }
   }
@@ -1747,7 +1748,8 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content[data-state] {
+    .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content[data-state],
+    .qs-tools-motion-overlay[data-state] {
       animation: none !important;
     }
   }
@@ -1872,31 +1874,66 @@
 
 /* Mobile workforce and launcher refinements. Motion offsets the popup without replacing its positioning transform. */
 @keyframes qs-tools-from-right {
-  from {
+  0% {
     opacity: 0;
-    margin-left: min(64px, 12vw);
+    margin-left: min(88px, 18vw);
+    scale: 0.965;
   }
-  to {
+  72% {
+    opacity: 1;
+    margin-left: -2px;
+    scale: 1.003;
+  }
+  100% {
     opacity: 1;
     margin-left: 0;
+    scale: 1;
   }
 }
 @keyframes qs-tools-to-right {
   from {
     opacity: 1;
     margin-left: 0;
+    scale: 1;
   }
   to {
     opacity: 0;
-    margin-left: 40px;
+    margin-left: 48px;
+    scale: 0.98;
+  }
+}
+@keyframes qs-tools-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes qs-tools-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 @layer components {
+  .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content {
+    transform-origin: right center;
+  }
+  .qs-tools-motion-overlay[data-state="open"] {
+    animation: qs-tools-backdrop-in 260ms ease-out both !important;
+  }
+  .qs-tools-motion-overlay[data-state="closed"] {
+    animation: qs-tools-backdrop-out 200ms ease-in both !important;
+  }
+
   .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content[data-state="open"] {
-    animation: qs-tools-from-right 320ms cubic-bezier(0.16, 1, 0.3, 1) both !important;
+    animation: qs-tools-from-right 440ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
   }
   .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content[data-state="closed"] {
-    animation: qs-tools-to-right 180ms ease-in both !important;
+    animation: qs-tools-to-right 200ms cubic-bezier(0.4, 0, 1, 1) both !important;
   }
   @media (max-width: 767px) {
     .wf-phase-two,
@@ -2070,7 +2107,8 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content[data-state] {
+    .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content[data-state],
+    .qs-tools-motion-overlay[data-state] {
       animation: none !important;
     }
   }

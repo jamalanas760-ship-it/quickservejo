@@ -1,6 +1,6 @@
 # Mobile UX fixes
 
-Mobile More now opens the centered All Tools popup with a right-to-left 320ms eased entrance, 180ms exit to the right and a blurred backdrop, inset margins, readable wrapping tool names and an internal scroll region. It no longer opens a side drawer. RTL and reduced-motion preferences remain supported.
+Mobile More now opens the centered All Tools popup with a right-to-left 440ms Mac-inspired entrance with subtle scale and settling, a 200ms exit to the right and a coordinated 260ms blurred backdrop fade, inset margins, readable wrapping tool names and an internal scroll region. It no longer opens a side drawer. RTL and reduced-motion preferences remain supported.
 
 Single and recurring shift creation uses collapsible Basics, Time & repeat and Team sections on mobile. Section summaries show the current name, date/times and assigned count. Form values remain mounted when sections collapse. The creation footer stays visible; detailed upcoming shifts are available under a disclosure. Desktop sections start expanded. Existing templates, assignments, conflict checks and atomic creation are retained.
 

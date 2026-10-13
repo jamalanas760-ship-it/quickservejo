@@ -1298,6 +1298,7 @@ export function BottomNav() {
       ) : null}
       <Dialog open={moreOpen} onOpenChange={changeMoreOpen}>
         <DialogContent
+          overlayClassName="qs-tools-motion-overlay"
           className="p2-navigation-drawer qs-workspace-tools-dialog max-h-[min(92dvh,820px)] max-w-[1120px] gap-0 overflow-hidden p-0"
           onOpenAutoFocus={(event) => {
             if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches)
