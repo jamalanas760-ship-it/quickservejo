@@ -1,3 +1,4 @@
+import { FilterChip } from "@/components/app/FilterChip";
 import { UtensilsCrossed } from "@/components/nav/QuickServeIcons";
 import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +11,7 @@ import {
   Search,
   Tags,
   Trash2,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -55,7 +57,9 @@ import { humanError } from "@/lib/errors";
 import { logAudit } from "@/lib/audit";
 import { cn } from "@/lib/utils";
 
-const ModifiersDialog = lazy(() => import("./MenuManager").then((module) => ({default: module.ModifiersDialog})));
+const ModifiersDialog = lazy(() =>
+  import("./MenuManager").then((module) => ({ default: module.ModifiersDialog })),
+);
 
 type CategoryRow = Database["public"]["Tables"]["menu_categories"]["Row"];
 type ItemRow = Database["public"]["Tables"]["menu_items"]["Row"];
@@ -132,7 +136,10 @@ export function MenuCatalogMaster({
   function restoreEditorFocus(event: Event) {
     event.preventDefault();
     if (editorTrigger.current?.isConnected) editorTrigger.current.focus({ preventScroll: true });
+    else (document.querySelector(".p2-catalog input") as HTMLElement | null)?.focus({preventScroll:true});
   }
+  const [moveItem, setMoveItem] = useState<ItemRow | null>(null);
+  const [moveTarget, setMoveTarget] = useState("uncategorized");
   const [modifierProduct, setModifierProduct] = useState<ItemRow | null>(null);
   const [deleteItem, setDeleteItem] = useState<ItemRow | null>(null);
   const [busy, setBusy] = useState(false);
@@ -164,14 +171,18 @@ export function MenuCatalogMaster({
   });
 
   const standardProducts = useMemo(
-    () => (products.data ?? []).filter((item) => (item as { menu_origin?: string }).menu_origin === "standard"),
+    () =>
+      (products.data ?? []).filter(
+        (item) => (item as { menu_origin?: string }).menu_origin === "standard",
+      ),
     [products.data],
   );
   const categoryList = categories.data ?? [];
   const rows = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return standardProducts.filter((item) => {
-      if (categoryId !== "all" && item.category_id !== categoryId) return false;
+      if (categoryId !== "all" && (item.category_id ?? "uncategorized") !== categoryId)
+        return false;
       if (status === "available" && !item.is_available) return false;
       if (status === "unavailable" && item.is_available) return false;
       if (!needle) return true;
@@ -185,10 +196,66 @@ export function MenuCatalogMaster({
     await queryClient.invalidateQueries({ queryKey: ["platform"] });
   }
 
+  async function moveProduct() {
+    if (!moveItem || busy) return;
+    const category = moveTarget === "uncategorized" ? null : moveTarget;
+    if (
+      standardProducts.some(
+        (item) =>
+          item.id !== moveItem.id &&
+          item.category_id === category &&
+          item.name_en.trim().toLowerCase() === moveItem.name_en.trim().toLowerCase(),
+      )
+    ) {
+      toast.error(
+        ar
+          ? "اسم المنتج مستخدم في الفئة"
+          : "A product with this name already exists in this category",
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase
+        .from("menu_items")
+        .update({ category_id: category })
+        .eq("id", moveItem.id)
+        .eq("restaurant_id", restaurantId)
+        .eq("menu_origin", "standard")
+        .select("id")
+        .single();
+      if (error) throw error;
+      await refresh();
+      setMoveItem(null);
+      toast.success(ar ? "تم نقل المنتج" : "Product moved");
+    } catch (error) {
+      toast.error(humanError(error, lang));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveProduct() {
     if (!productForm || busy || !productForm.name_en.trim() || !productForm.price) return;
-    if (!Number.isFinite(Number(productForm.price)) || Number(productForm.price) < 0) { toast.error(ar ? "السعر غير صالح" : "Enter a valid non-negative price"); return; }
-    if (standardProducts.some(item => item.id !== productForm.id && item.category_id === (productForm.category_id || null) && item.name_en.trim().toLowerCase() === productForm.name_en.trim().toLowerCase())) { toast.error(ar ? "اسم المنتج مستخدم في الفئة" : "A product with this name already exists in this category"); return; }
+    if (!Number.isFinite(Number(productForm.price)) || Number(productForm.price) < 0) {
+      toast.error(ar ? "السعر غير صالح" : "Enter a valid non-negative price");
+      return;
+    }
+    if (
+      standardProducts.some(
+        (item) =>
+          item.id !== productForm.id &&
+          item.category_id === (productForm.category_id || null) &&
+          item.name_en.trim().toLowerCase() === productForm.name_en.trim().toLowerCase(),
+      )
+    ) {
+      toast.error(
+        ar
+          ? "اسم المنتج مستخدم في الفئة"
+          : "A product with this name already exists in this category",
+      );
+      return;
+    }
     setBusy(true);
     try {
       const payload = {
@@ -242,7 +309,16 @@ export function MenuCatalogMaster({
 
   async function saveCategory() {
     if (!categoryForm?.name_en.trim() || busy) return;
-    if (categoryList.some(category => category.id !== categoryForm.id && category.name_en.trim().toLowerCase() === categoryForm.name_en.trim().toLowerCase())) { toast.error(ar ? "اسم الفئة مستخدم" : "A category with this name already exists"); return; }
+    if (
+      categoryList.some(
+        (category) =>
+          category.id !== categoryForm.id &&
+          category.name_en.trim().toLowerCase() === categoryForm.name_en.trim().toLowerCase(),
+      )
+    ) {
+      toast.error(ar ? "اسم الفئة مستخدم" : "A category with this name already exists");
+      return;
+    }
     setBusy(true);
     try {
       const payload = {
@@ -328,27 +404,40 @@ export function MenuCatalogMaster({
   }
 
   function editProduct(item: ItemRow, trigger: HTMLElement | null) {
-    openProduct({
-      id: item.id,
-      category_id: item.category_id ?? "",
-      name_en: item.name_en,
-      name_ar: item.name_ar,
-      description_en: item.description_en ?? "",
-      description_ar: item.description_ar ?? "",
-      price: String(item.price),
-      compare_at_price: item.compare_at_price ? String(item.compare_at_price) : "",
-      image_url: item.image_url,
-      preparation_time: String(item.preparation_time),
-      is_available: item.is_available,
-      is_featured: item.is_featured,
-    }, trigger);
+    openProduct(
+      {
+        id: item.id,
+        category_id: item.category_id ?? "",
+        name_en: item.name_en,
+        name_ar: item.name_ar,
+        description_en: item.description_en ?? "",
+        description_ar: item.description_ar ?? "",
+        price: String(item.price),
+        compare_at_price: item.compare_at_price ? String(item.compare_at_price) : "",
+        image_url: item.image_url,
+        preparation_time: String(item.preparation_time),
+        is_available: item.is_available,
+        is_featured: item.is_featured,
+      },
+      trigger,
+    );
   }
 
   async function deleteCategory(category: CategoryRow) {
-    if ((products.data ?? []).some(item => item.category_id === category.id)) { toast.error(ar ? "انقل منتجات الفئة أولاً" : "Move the category’s products first"); return; }
+    if ((products.data ?? []).some((item) => item.category_id === category.id)) {
+      toast.error(ar ? "انقل منتجات الفئة أولاً" : "Move the category’s products first");
+      return;
+    }
     if (!confirm(ar ? "حذف هذه الفئة؟" : "Delete this empty category?")) return;
-    const { error } = await supabase.from("menu_categories").delete().eq("id", category.id).eq("restaurant_id", restaurantId).select("id").single();
-    if (error) toast.error(humanError(error, lang)); else await refresh();
+    const { error } = await supabase
+      .from("menu_categories")
+      .delete()
+      .eq("id", category.id)
+      .eq("restaurant_id", restaurantId)
+      .select("id")
+      .single();
+    if (error) toast.error(humanError(error, lang));
+    else await refresh();
   }
   const loading = products.isPending || categories.isPending;
 
@@ -370,7 +459,9 @@ export function MenuCatalogMaster({
             <button
               type="button"
               className="qs-button-primary"
-              onClick={(event) => openCategory({ name_en: "", name_ar: "", is_active: true }, event.currentTarget)}
+              onClick={(event) =>
+                openCategory({ name_en: "", name_ar: "", is_active: true }, event.currentTarget)
+              }
             >
               <Plus className="size-4" />
               {ar ? "إضافة فئة" : "Add Category"}
@@ -420,12 +511,15 @@ export function MenuCatalogMaster({
                       type="button"
                       className="qs-button-secondary shrink-0"
                       onClick={(event) =>
-                        openCategory({
-                          id: category.id,
-                          name_en: category.name_en,
-                          name_ar: category.name_ar,
-                          is_active: category.is_active,
-                        }, event.currentTarget)
+                        openCategory(
+                          {
+                            id: category.id,
+                            name_en: category.name_en,
+                            name_ar: category.name_ar,
+                            is_active: category.is_active,
+                          },
+                          event.currentTarget,
+                        )
                       }
                     >
                       <Pencil className="size-4" />
@@ -438,16 +532,229 @@ export function MenuCatalogMaster({
           )}
         </section>
       ) : mode === "unified" ? (
-        <section className="qs-card space-y-3 p-4">
-          <div className="flex items-center gap-2"><Input aria-label={ar ? "بحث في القائمة" : "Search menu"} value={search} onChange={event => setSearch(event.target.value)} placeholder={ar ? "بحث في المنتجات" : "Search products"} /><button type="button" className="qs-button-primary shrink-0" onClick={event => openCategory({ name_en: "", name_ar: "", is_active: true }, event.currentTarget)}><Plus className="size-4" />{ar ? "فئة" : "Category"}</button></div>
-          {categories.isError || products.isError ? <p role="alert" className="text-destructive">{humanError(categories.error ?? products.error, lang)}</p> : loading ? <Skeleton className="h-64" /> : [...categoryList, { id: "uncategorized", name_en: "Uncategorized", name_ar: "بدون فئة", is_active: true }].map(category => {
-            const children = rows.filter(item => (item.category_id ?? "uncategorized") === category.id);
-            if (search && !children.length) return null;
-            return <details key={category.id} open className="rounded-xl border bg-card"><summary className="cursor-pointer p-3 font-bold">{pick(category.name_en, category.name_ar)} <span className="text-xs text-muted-foreground">({children.length})</span></summary>
-              <div className="flex items-center justify-between gap-2 border-t px-3 py-2"><Button variant="outline" disabled={busy} onClick={event => openProduct(emptyProduct(category.id === "uncategorized" ? "" : category.id), event.currentTarget)}><Plus className="size-4" />{ar ? "إضافة منتج" : "Add product"}</Button>{category.id !== "uncategorized" ? <ActionMenu ar={ar} actions={[{label: ar ? "تعديل الفئة" : "Edit category", icon: Pencil, onSelect: () => { setCategoryForm({id: category.id, name_en: category.name_en, name_ar: category.name_ar, is_active: category.is_active}); setCategoryOpen(true); }}, {label: ar ? "حذف الفئة" : "Delete category", icon: Trash2, destructive: true, onSelect: () => void deleteCategory(category as CategoryRow)}]} /> : null}</div>
-              <div className="ms-4 border-s ps-3">{children.map(item => <article key={item.id} className="flex min-w-0 items-center justify-between gap-2 border-t p-3"><div className="min-w-0"><button type="button" className="min-h-11 text-start font-semibold" onClick={event => editProduct(item, event.currentTarget)}>{pick(item.name_en, item.name_ar)}</button><p className="ms-3 border-s ps-3 text-xs text-muted-foreground">{ar ? "السعر الأساسي" : "Base price"}: {formatMoney(item.price, currency, lang)} · {item.is_available ? (ar ? "متاح" : "Available") : (ar ? "غير متاح" : "Unavailable")}</p><MenuOptionTree productId={item.id} restaurantId={restaurantId} currency={currency} /></div><ActionMenu ar={ar} actions={[{label: ar ? "تعديل / نقل / تسعير" : "Edit / move / price", icon: Pencil, onSelect: () => editProduct(item, null)}, {label: ar ? "الخيارات والأسعار" : "Options and pricing", icon: Tags, onSelect: () => setModifierProduct(item)}, {label: ar ? "حذف المنتج" : "Delete product", icon: Trash2, destructive: true, onSelect: () => setDeleteItem(item)}]} /></article>)}</div>
-            </details>;
-          })}
+        <section className="p2-catalog">
+          <div className="p2-toolbar p2-catalog-toolbar">
+            <div className="p2-search">
+              <Search aria-hidden="true" />
+              <Input
+                aria-label={ar ? "بحث في القائمة" : "Search menu"}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={ar ? "بحث في المنتجات" : "Search products"}
+              />
+            </div>
+            <div className="p2-catalog-filters">
+              <FilterChip
+                icon={Tags}
+                label={ar ? "الفئة" : "Category"}
+                value={categoryId}
+                ar={ar}
+                onChange={setCategoryId}
+                options={[
+                  { value: "all", label: ar ? "كل الفئات" : "All categories" },
+                  { value: "uncategorized", label: ar ? "بدون فئة" : "Uncategorized" },
+                  ...categoryList.map((category) => ({
+                    value: category.id,
+                    label: pick(category.name_en, category.name_ar),
+                  })),
+                ]}
+              />
+              <FilterChip
+                icon={Tags}
+                label={ar ? "الحالة" : "Availability"}
+                value={status}
+                ar={ar}
+                onChange={(value) => setStatus(value as typeof status)}
+                options={[
+                  { value: "all", label: ar ? "الكل" : "All availability" },
+                  { value: "available", label: ar ? "متاح" : "Available" },
+                  { value: "unavailable", label: ar ? "غير متاح" : "Unavailable" },
+                ]}
+              />
+            </div>
+            <button
+              type="button"
+              className="qs-button-primary p2-catalog-add"
+              disabled={busy}
+              onClick={(event) =>
+                openCategory({ name_en: "", name_ar: "", is_active: true }, event.currentTarget)
+              }
+            >
+              <Plus className="size-4" />
+              {ar ? "فئة" : "Add category"}
+            </button>
+          </div>
+          <div className="p2-catalog-columns" aria-hidden="true">
+            <span>{ar ? "العنصر" : "Item"}</span>
+            <span>{ar ? "السعر" : "Price"}</span>
+            <span>{ar ? "الحالة" : "Status"}</span>
+          </div>
+          {categories.isError || products.isError ? (
+            <p role="alert" className="text-destructive">
+              {humanError(categories.error ?? products.error, lang)}
+            </p>
+          ) : loading ? (
+            <Skeleton className="h-64" />
+          ) : (
+            [
+              ...categoryList,
+              {
+                id: "uncategorized",
+                name_en: "Uncategorized",
+                name_ar: "بدون فئة",
+                is_active: true,
+              },
+            ].map((category) => {
+              const children = rows.filter(
+                (item) => (item.category_id ?? "uncategorized") === category.id,
+              );
+              if ((search || status !== "all") && !children.length) return null;
+              if (categoryId !== "all" && categoryId !== category.id) return null;
+              return (
+                <details
+                  key={category.id}
+                  open={children.length > 0}
+                  className="p2-catalog-category"
+                >
+                  <summary>
+                    <span>{pick(category.name_en, category.name_ar)}</span>
+                    <small>
+                      {children.length} {ar ? "منتجات" : "products"}
+                    </small>
+                  </summary>
+                  <div className="p2-catalog-category-actions">
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={(event) =>
+                        openProduct(
+                          emptyProduct(category.id === "uncategorized" ? "" : category.id),
+                          event.currentTarget,
+                        )
+                      }
+                    >
+                      <Plus className="size-4" />
+                      {ar ? "إضافة منتج" : "Add product"}
+                    </Button>
+                    {category.id !== "uncategorized" ? (
+                      <ActionMenu
+                        ar={ar}
+                        label={`${ar ? "إدارة" : "Manage"} ${pick(category.name_en, category.name_ar)}`}
+                        actions={[
+                          {
+                            label: ar ? "تعديل الفئة" : "Edit category",
+                            icon: Pencil,
+                            onSelect: () => {
+                              setCategoryForm({
+                                id: category.id,
+                                name_en: category.name_en,
+                                name_ar: category.name_ar,
+                                is_active: category.is_active,
+                              });
+                              setCategoryOpen(true);
+                            },
+                          },
+                          {
+                            label: ar ? "حذف الفئة" : "Delete category",
+                            icon: Trash2,
+                            destructive: true,
+                            onSelect: () => void deleteCategory(category as CategoryRow),
+                          },
+                        ]}
+                      />
+                    ) : null}
+                  </div>
+                  <div className="p2-catalog-products">
+                    {children.map((item) => (
+                      <article
+                        key={item.id}
+                        className="p2-catalog-product"
+                        data-product-id={item.id}
+                      >
+                        <div className="p2-catalog-product-row">
+                          <div className="p2-catalog-product-name">
+                            {item.image_url ? (
+                              <img src={item.image_url} alt="" loading="lazy" />
+                            ) : (
+                              <span className="p2-catalog-product-placeholder">
+                                <UtensilsCrossed aria-hidden="true" />
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(event) => editProduct(item, event.currentTarget)}
+                            >
+                              {pick(item.name_en, item.name_ar)}
+                            </button>
+                          </div>
+                          <span className="p2-catalog-price">
+                            {formatMoney(item.price, currency, lang)}
+                          </span>
+                          <span className="p2-catalog-status" data-available={item.is_available}>
+                            {item.is_available
+                              ? ar
+                                ? "متاح"
+                                : "Available"
+                              : ar
+                                ? "غير متاح"
+                                : "Unavailable"}
+                          </span>
+                          <ActionMenu
+                            ar={ar}
+                            label={`${ar ? "إدارة" : "Manage"} ${pick(item.name_en, item.name_ar)}`}
+                            actions={[
+                              {
+                                label: ar ? "تعديل المنتج" : "Edit product",
+                                icon: Pencil,
+                                onSelect: () => editProduct(item, null),
+                              },
+                              {
+                                label: ar ? "نقل إلى فئة" : "Move to category",
+                                icon: ArrowRight,
+                                onSelect: () => {
+                                  editorTrigger.current = document.querySelector(
+                                    `[data-product-id="${CSS.escape(item.id)}"] .qs-action-trigger`,
+                                  );
+                                  setMoveTarget(item.category_id ?? "uncategorized");
+                                  setMoveItem(item);
+                                },
+                              },
+                              {
+                                label: ar ? "الخيارات والأسعار" : "Options and pricing",
+                                icon: Tags,
+                                onSelect: () => setModifierProduct(item),
+                              },
+                              {
+                                label: ar ? "حذف المنتج" : "Delete product",
+                                icon: Trash2,
+                                destructive: true,
+                                onSelect: () => setDeleteItem(item),
+                              },
+                            ]}
+                          />
+                        </div>
+                        <MenuOptionTree
+                          productId={item.id}
+                          restaurantId={restaurantId}
+                          currency={currency}
+                        />
+                      </article>
+                    ))}
+                  </div>
+                  {!children.length ? (
+                    <p className="p2-catalog-empty">
+                      {ar ? "لا توجد منتجات في هذه الفئة" : "No products in this category"}
+                    </p>
+                  ) : null}
+                </details>
+              );
+            })
+          )}
+          <p className="p2-catalog-hint">
+            {ar
+              ? "المسافات توضح الفئة ← المنتج ← الخيارات. انقل المنتجات من قائمة الإجراءات."
+              : "Indentation shows category → product → options. Move products using their action menu."}
+          </p>
         </section>
       ) : (
         <>
@@ -506,7 +813,9 @@ export function MenuCatalogMaster({
                 <button
                   type="button"
                   className="qs-button-primary min-h-11"
-                  onClick={(event) => openProduct(emptyProduct(categoryList[0]?.id ?? ""), event.currentTarget)}
+                  onClick={(event) =>
+                    openProduct(emptyProduct(categoryList[0]?.id ?? ""), event.currentTarget)
+                  }
                 >
                   <Plus className="size-4" />
                   {ar ? "إضافة منتج" : "Add Product"}
@@ -594,8 +903,15 @@ export function MenuCatalogMaster({
                             ar={ar}
                             label={ar ? "إجراءات المنتج" : "Product actions"}
                             actions={[
-                              { label: ar ? "الخيارات" : "Options", onSelect: () => setModifierProduct(item) },
-                              { label: ar ? "تعديل" : "Edit", icon: Pencil, onSelect: () => editProduct(item, null) },
+                              {
+                                label: ar ? "الخيارات" : "Options",
+                                onSelect: () => setModifierProduct(item),
+                              },
+                              {
+                                label: ar ? "تعديل" : "Edit",
+                                icon: Pencil,
+                                onSelect: () => editProduct(item, null),
+                              },
                             ]}
                           />
                         </div>
@@ -661,8 +977,15 @@ export function MenuCatalogMaster({
                                 ar={ar}
                                 label={ar ? "إجراءات المنتج" : "Product actions"}
                                 actions={[
-                                  { label: ar ? "الخيارات" : "Options", onSelect: () => setModifierProduct(item) },
-                                  { label: ar ? "تعديل" : "Edit", icon: Pencil, onSelect: () => editProduct(item, null) },
+                                  {
+                                    label: ar ? "الخيارات" : "Options",
+                                    onSelect: () => setModifierProduct(item),
+                                  },
+                                  {
+                                    label: ar ? "تعديل" : "Edit",
+                                    icon: Pencil,
+                                    onSelect: () => editProduct(item, null),
+                                  },
                                 ]}
                               />
                             </td>
@@ -730,8 +1053,18 @@ export function MenuCatalogMaster({
                             ar={ar}
                             label={ar ? "إجراءات المنتج" : "Product actions"}
                             actions={[
-                              { label: ar ? "تعديل المنتج" : "Edit product", icon: Pencil, onSelect: () => editProduct(item, null) },
-                              { label: ar ? "حذف المنتج" : "Delete product", icon: Trash2, destructive: true, separatorBefore: true, onSelect: () => setDeleteItem(item) },
+                              {
+                                label: ar ? "تعديل المنتج" : "Edit product",
+                                icon: Pencil,
+                                onSelect: () => editProduct(item, null),
+                              },
+                              {
+                                label: ar ? "حذف المنتج" : "Delete product",
+                                icon: Trash2,
+                                destructive: true,
+                                separatorBefore: true,
+                                onSelect: () => setDeleteItem(item),
+                              },
                             ]}
                           />
                         </div>
@@ -810,8 +1143,18 @@ export function MenuCatalogMaster({
                                 ar={ar}
                                 label={ar ? "إجراءات المنتج" : "Product actions"}
                                 actions={[
-                                  { label: ar ? "تعديل" : "Edit", icon: Pencil, onSelect: () => editProduct(item, null) },
-                                  { label: ar ? "حذف" : "Delete", icon: Trash2, destructive: true, separatorBefore: true, onSelect: () => setDeleteItem(item) },
+                                  {
+                                    label: ar ? "تعديل" : "Edit",
+                                    icon: Pencil,
+                                    onSelect: () => editProduct(item, null),
+                                  },
+                                  {
+                                    label: ar ? "حذف" : "Delete",
+                                    icon: Trash2,
+                                    destructive: true,
+                                    separatorBefore: true,
+                                    onSelect: () => setDeleteItem(item),
+                                  },
                                 ]}
                               />
                             </td>
@@ -841,222 +1184,314 @@ export function MenuCatalogMaster({
         </>
       )}
 
-      {productOpen ? <Dialog open onOpenChange={open => { if (!open && productOpen && JSON.stringify(productForm) !== JSON.stringify(savedProductDraft.current) && !confirm(ar ? "إغلاق المحرر وتجاهل التغييرات غير المحفوظة؟" : "Close editor and discard unsaved changes?")) return; setProductOpen(open); }}>
-        <DialogContent placement="edge" className="qs-menu-editor-drawer" overlayClassName="qs-menu-editor-overlay" onCloseAutoFocus={restoreEditorFocus} dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
-          <DialogHeader className="qs-menu-editor-header">
-            <DialogTitle>
-              {productForm?.id
-                ? ar
-                  ? "تعديل منتج القائمة العادية"
-                  : "Edit Standard Menu Product"
-                : ar
-                  ? "منتج قائمة عادية جديد"
-                  : "New Standard Menu Product"}
-            </DialogTitle>
-            <DialogDescription>
-              {ar
-                ? "هذا المنتج ينتمي للقائمة العادية وليس لمناطق PDF."
-                : "This product belongs to the Standard Menu, not PDF hotspots."}
-            </DialogDescription>
-          </DialogHeader>
-          {JSON.stringify(productForm) !== JSON.stringify(savedProductDraft.current) ? <p role="status" className="px-4 text-xs text-amber-700">{ar ? "تغييرات غير محفوظة" : "Unsaved changes"}</p> : null}
-          {productForm ? (
-            <div className="qs-menu-editor-body space-y-4">
-              <ImageUploader
-                restaurantId={restaurantId}
-                kind="product"
-                value={productForm.image_url}
-                onChange={(url) => setProductForm({ ...productForm, image_url: url })}
-                label={ar ? "صورة المنتج" : "Product Image"}
-              />
-              <Field label={ar ? "اسم المنتج" : "Product Name"}>
-                <Input
-                  value={productForm.name_en}
-                  onChange={(event) =>
-                    setProductForm({ ...productForm, name_en: event.target.value })
-                  }
+      {productOpen ? (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (
+              !open &&
+              productOpen &&
+              JSON.stringify(productForm) !== JSON.stringify(savedProductDraft.current) &&
+              !confirm(
+                ar
+                  ? "إغلاق المحرر وتجاهل التغييرات غير المحفوظة؟"
+                  : "Close editor and discard unsaved changes?",
+              )
+            )
+              return;
+            setProductOpen(open);
+          }}
+        >
+          <DialogContent
+            placement="edge"
+            className="qs-menu-editor-drawer"
+            overlayClassName="qs-menu-editor-overlay"
+            onCloseAutoFocus={restoreEditorFocus}
+            dir={ar ? "rtl" : "ltr"}
+            onOpenAutoFocus={(event) => event.preventDefault()}
+          >
+            <DialogHeader className="qs-menu-editor-header">
+              <DialogTitle>
+                {productForm?.id
+                  ? ar
+                    ? "تعديل منتج القائمة العادية"
+                    : "Edit Standard Menu Product"
+                  : ar
+                    ? "منتج قائمة عادية جديد"
+                    : "New Standard Menu Product"}
+              </DialogTitle>
+              <DialogDescription>
+                {ar
+                  ? "هذا المنتج ينتمي للقائمة العادية وليس لمناطق PDF."
+                  : "This product belongs to the Standard Menu, not PDF hotspots."}
+              </DialogDescription>
+            </DialogHeader>
+            {JSON.stringify(productForm) !== JSON.stringify(savedProductDraft.current) ? (
+              <p role="status" className="px-4 text-xs text-amber-700">
+                {ar ? "تغييرات غير محفوظة" : "Unsaved changes"}
+              </p>
+            ) : null}
+            {productForm ? (
+              <div className="qs-menu-editor-body space-y-4">
+                <ImageUploader
+                  restaurantId={restaurantId}
+                  kind="product"
+                  value={productForm.image_url}
+                  onChange={(url) => setProductForm({ ...productForm, image_url: url })}
+                  label={ar ? "صورة المنتج" : "Product Image"}
                 />
-              </Field>
-              <Field label={ar ? "الاسم بالعربية" : "Arabic Name"}>
-                <Input
-                  dir="rtl"
-                  value={productForm.name_ar}
-                  onChange={(event) =>
-                    setProductForm({ ...productForm, name_ar: event.target.value })
-                  }
-                />
-              </Field>
-              <Field label={ar ? "الفئة" : "Category"}>
-                <Select
-                  value={productForm.category_id}
-                  onValueChange={(value) => setProductForm({ ...productForm, category_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoryList.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {pick(category.name_en, category.name_ar)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label={ar ? "الوصف" : "Description"}>
-                <Textarea
-                  className="min-h-28"
-                  value={productForm.description_en}
-                  onChange={(event) =>
-                    setProductForm({ ...productForm, description_en: event.target.value })
-                  }
-                />
-              </Field>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Field label={ar ? "السعر" : "Price"}>
+                <Field label={ar ? "اسم المنتج" : "Product Name"}>
                   <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={productForm.price}
+                    value={productForm.name_en}
                     onChange={(event) =>
-                      setProductForm({ ...productForm, price: event.target.value })
+                      setProductForm({ ...productForm, name_en: event.target.value })
                     }
                   />
                 </Field>
-                <Field label={ar ? "السعر قبل الخصم" : "Compare at"}>
+                <Field label={ar ? "الاسم بالعربية" : "Arabic Name"}>
                   <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={productForm.compare_at_price}
+                    dir="rtl"
+                    value={productForm.name_ar}
                     onChange={(event) =>
-                      setProductForm({ ...productForm, compare_at_price: event.target.value })
+                      setProductForm({ ...productForm, name_ar: event.target.value })
                     }
                   />
                 </Field>
-                <Field label={ar ? "وقت التحضير" : "Prep Time"}>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={productForm.preparation_time}
+                <Field label={ar ? "الفئة" : "Category"}>
+                  <Select
+                    value={productForm.category_id}
+                    onValueChange={(value) =>
+                      setProductForm({ ...productForm, category_id: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoryList.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {pick(category.name_en, category.name_ar)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label={ar ? "الوصف" : "Description"}>
+                  <Textarea
+                    className="min-h-28"
+                    value={productForm.description_en}
                     onChange={(event) =>
-                      setProductForm({ ...productForm, preparation_time: event.target.value })
+                      setProductForm({ ...productForm, description_en: event.target.value })
                     }
                   />
                 </Field>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Field label={ar ? "السعر" : "Price"}>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={productForm.price}
+                      onChange={(event) =>
+                        setProductForm({ ...productForm, price: event.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field label={ar ? "السعر قبل الخصم" : "Compare at"}>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={productForm.compare_at_price}
+                      onChange={(event) =>
+                        setProductForm({ ...productForm, compare_at_price: event.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field label={ar ? "وقت التحضير" : "Prep Time"}>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={productForm.preparation_time}
+                      onChange={(event) =>
+                        setProductForm({ ...productForm, preparation_time: event.target.value })
+                      }
+                    />
+                  </Field>
+                </div>
+                <label className="flex items-center justify-between rounded-xl border border-border p-3">
+                  <span>
+                    <span className="flex items-center gap-2 text-sm font-bold">
+                      <Crown className="size-4 text-[#e85d2a]" />
+                      {ar ? "مميز" : "Mark as Best Seller"}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                      {ar ? "إظهار شارة مميزة" : "Show a best seller badge"}
+                    </span>
+                  </span>
+                  <Switch
+                    checked={productForm.is_featured}
+                    onCheckedChange={(value) =>
+                      setProductForm({ ...productForm, is_featured: value })
+                    }
+                  />
+                </label>
+                <label className="flex items-center justify-between rounded-xl border border-border p-3">
+                  <span>
+                    <span className="block text-sm font-bold">
+                      {ar ? "التوفر" : "Availability"}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                      {ar ? "يظهر في القائمة ونقاط البيع" : "Visible on POS and online menus"}
+                    </span>
+                  </span>
+                  <Switch
+                    checked={productForm.is_available}
+                    onCheckedChange={(value) =>
+                      setProductForm({ ...productForm, is_available: value })
+                    }
+                  />
+                </label>
               </div>
-              <label className="flex items-center justify-between rounded-xl border border-border p-3">
-                <span>
-                  <span className="flex items-center gap-2 text-sm font-bold">
-                    <Crown className="size-4 text-[#e85d2a]" />
-                    {ar ? "مميز" : "Mark as Best Seller"}
-                  </span>
-                  <span className="mt-0.5 block text-[10px] text-muted-foreground">
-                    {ar ? "إظهار شارة مميزة" : "Show a best seller badge"}
-                  </span>
-                </span>
-                <Switch
-                  checked={productForm.is_featured}
-                  onCheckedChange={(value) =>
-                    setProductForm({ ...productForm, is_featured: value })
-                  }
-                />
-              </label>
-              <label className="flex items-center justify-between rounded-xl border border-border p-3">
-                <span>
-                  <span className="block text-sm font-bold">{ar ? "التوفر" : "Availability"}</span>
-                  <span className="mt-0.5 block text-[10px] text-muted-foreground">
-                    {ar ? "يظهر في القائمة ونقاط البيع" : "Visible on POS and online menus"}
-                  </span>
-                </span>
-                <Switch
-                  checked={productForm.is_available}
-                  onCheckedChange={(value) =>
-                    setProductForm({ ...productForm, is_available: value })
-                  }
-                />
-              </label>
-            </div>
-          ) : null}
-          <DialogFooter className="qs-menu-editor-footer">
-            <Button variant="ghost" onClick={() => setProductOpen(false)}>
-              {ar ? "إلغاء" : "Cancel"}
-            </Button>
-            <Button
-              disabled={busy || !productForm?.name_en.trim() || !productForm?.price}
-              onClick={() => void saveProduct()}
-              className="bg-[#e85d2a] text-white hover:bg-[#e94f00]"
-            >
-              {busy ? (ar ? "جارٍ الحفظ…" : "Saving…") : ar ? "حفظ المنتج" : "Save Product"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog> : null}
+            ) : null}
+            <DialogFooter className="qs-menu-editor-footer">
+              <Button variant="ghost" onClick={() => setProductOpen(false)}>
+                {ar ? "إلغاء" : "Cancel"}
+              </Button>
+              <Button
+                disabled={busy || !productForm?.name_en.trim() || !productForm?.price}
+                onClick={() => void saveProduct()}
+                className="bg-[#e85d2a] text-white hover:bg-[#e94f00]"
+              >
+                {busy ? (ar ? "جارٍ الحفظ…" : "Saving…") : ar ? "حفظ المنتج" : "Save Product"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
 
-      {categoryOpen ? <Dialog open onOpenChange={setCategoryOpen}>
-        <DialogContent placement="edge" className="qs-menu-editor-drawer" overlayClassName="qs-menu-editor-overlay" onCloseAutoFocus={restoreEditorFocus} dir={ar ? "rtl" : "ltr"} onOpenAutoFocus={(event) => event.preventDefault()}>
-          <DialogHeader className="qs-menu-editor-header">
-            <DialogTitle>
-              {categoryForm?.id
-                ? ar
-                  ? "تعديل الفئة"
-                  : "Edit Category"
-                : ar
-                  ? "فئة جديدة"
-                  : "New Category"}
-            </DialogTitle>
+      {categoryOpen ? (
+        <Dialog open onOpenChange={setCategoryOpen}>
+          <DialogContent
+            placement="edge"
+            className="qs-menu-editor-drawer"
+            overlayClassName="qs-menu-editor-overlay"
+            onCloseAutoFocus={restoreEditorFocus}
+            dir={ar ? "rtl" : "ltr"}
+            onOpenAutoFocus={(event) => event.preventDefault()}
+          >
+            <DialogHeader className="qs-menu-editor-header">
+              <DialogTitle>
+                {categoryForm?.id
+                  ? ar
+                    ? "تعديل الفئة"
+                    : "Edit Category"
+                  : ar
+                    ? "فئة جديدة"
+                    : "New Category"}
+              </DialogTitle>
+              <DialogDescription>
+                {ar
+                  ? "نظم القائمة العادية باستخدام فئات واضحة."
+                  : "Organize the Standard Menu with clear categories."}
+              </DialogDescription>
+            </DialogHeader>
+            {categoryForm ? (
+              <div className="qs-menu-editor-body space-y-4">
+                <Field label={ar ? "الاسم بالإنجليزية" : "English Name"}>
+                  <Input
+                    value={categoryForm.name_en}
+                    onChange={(event) =>
+                      setCategoryForm({ ...categoryForm, name_en: event.target.value })
+                    }
+                  />
+                </Field>
+                <Field label={ar ? "الاسم بالعربية" : "Arabic Name"}>
+                  <Input
+                    dir="rtl"
+                    value={categoryForm.name_ar}
+                    onChange={(event) =>
+                      setCategoryForm({ ...categoryForm, name_ar: event.target.value })
+                    }
+                  />
+                </Field>
+                <label className="flex items-center justify-between rounded-xl border border-border p-3">
+                  <span className="text-sm font-bold">{ar ? "الفئة نشطة" : "Active category"}</span>
+                  <Switch
+                    checked={categoryForm.is_active}
+                    onCheckedChange={(value) =>
+                      setCategoryForm({ ...categoryForm, is_active: value })
+                    }
+                  />
+                </label>
+              </div>
+            ) : null}
+            <DialogFooter className="qs-menu-editor-footer">
+              <Button variant="ghost" onClick={() => setCategoryOpen(false)}>
+                {ar ? "إلغاء" : "Cancel"}
+              </Button>
+              <Button
+                disabled={busy || !categoryForm?.name_en.trim()}
+                onClick={() => void saveCategory()}
+              >
+                {ar ? "حفظ" : "Save"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+
+      <Dialog
+        open={Boolean(moveItem)}
+        onOpenChange={(open) => {
+          if (!open && !busy) setMoveItem(null);
+        }}
+      >
+        <DialogContent onCloseAutoFocus={restoreEditorFocus}>
+          <DialogHeader>
+            <DialogTitle>{ar ? "نقل إلى فئة" : "Move to category"}</DialogTitle>
             <DialogDescription>
-              {ar
-                ? "نظم القائمة العادية باستخدام فئات واضحة."
-                : "Organize the Standard Menu with clear categories."}
+              {moveItem ? pick(moveItem.name_en, moveItem.name_ar) : ""}
             </DialogDescription>
           </DialogHeader>
-          {categoryForm ? (
-            <div className="qs-menu-editor-body space-y-4">
-              <Field label={ar ? "الاسم بالإنجليزية" : "English Name"}>
-                <Input
-                  value={categoryForm.name_en}
-                  onChange={(event) =>
-                    setCategoryForm({ ...categoryForm, name_en: event.target.value })
-                  }
-                />
-              </Field>
-              <Field label={ar ? "الاسم بالعربية" : "Arabic Name"}>
-                <Input
-                  dir="rtl"
-                  value={categoryForm.name_ar}
-                  onChange={(event) =>
-                    setCategoryForm({ ...categoryForm, name_ar: event.target.value })
-                  }
-                />
-              </Field>
-              <label className="flex items-center justify-between rounded-xl border border-border p-3">
-                <span className="text-sm font-bold">{ar ? "الفئة نشطة" : "Active category"}</span>
-                <Switch
-                  checked={categoryForm.is_active}
-                  onCheckedChange={(value) =>
-                    setCategoryForm({ ...categoryForm, is_active: value })
-                  }
-                />
-              </label>
-            </div>
-          ) : null}
-          <DialogFooter className="qs-menu-editor-footer">
-            <Button variant="ghost" onClick={() => setCategoryOpen(false)}>
+          <label className="p2-move-category">
+            <span>{ar ? "الفئة" : "Category"}</span>
+            <select
+              value={moveTarget}
+              onChange={(event) => setMoveTarget(event.target.value)}
+              disabled={busy}
+            >
+              <option value="uncategorized">{ar ? "بدون فئة" : "Uncategorized"}</option>
+              {categoryList.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {pick(category.name_en, category.name_ar)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <DialogFooter>
+            <Button variant="outline" disabled={busy} onClick={() => setMoveItem(null)}>
               {ar ? "إلغاء" : "Cancel"}
             </Button>
             <Button
-              disabled={busy || !categoryForm?.name_en.trim()}
-              onClick={() => void saveCategory()}
+              disabled={busy || moveTarget === (moveItem?.category_id ?? "uncategorized")}
+              onClick={() => void moveProduct()}
             >
-              {ar ? "حفظ" : "Save"}
+              {ar ? "نقل المنتج" : "Move product"}
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog> : null}
-
-      {modifierProduct ? <Suspense fallback={<Skeleton className="h-20" />}><ModifiersDialog key={modifierProduct.id} restaurantId={restaurantId} product={modifierProduct} onClose={() => setModifierProduct(null)} /></Suspense> : null}
+      </Dialog>
+      {modifierProduct ? (
+        <Suspense fallback={<Skeleton className="h-20" />}>
+          <ModifiersDialog
+            key={modifierProduct.id}
+            restaurantId={restaurantId}
+            product={modifierProduct}
+            onClose={() => setModifierProduct(null)}
+          />
+        </Suspense>
+      ) : null}
       <AlertDialog open={deleteItem !== null} onOpenChange={(open) => !open && setDeleteItem(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1105,18 +1540,73 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function MenuOptionTree({ productId, restaurantId, currency }: { productId: string; restaurantId: string; currency: string }) {
+function MenuOptionTree({
+  productId,
+  restaurantId,
+  currency,
+}: {
+  productId: string;
+  restaurantId: string;
+  currency: string;
+}) {
   const { lang, pick } = useI18n();
   const ar = lang === "ar";
   const [open, setOpen] = useState(false);
-  const groups = useQuery({ queryKey: ["platform", "modifier-groups", productId], enabled: open, queryFn: async () => {
-    const [groups, options] = await Promise.all([
-      supabase.from("modifier_groups").select("*").eq("restaurant_id", restaurantId).eq("menu_item_id", productId).order("display_order"),
-      supabase.from("item_modifiers").select("*").eq("restaurant_id", restaurantId).eq("menu_item_id", productId).order("display_order"),
-    ]);
-    if (groups.error) throw groups.error;
-    if (options.error) throw options.error;
-    return (groups.data ?? []).map(group => ({...group, options: (options.data ?? []).filter(option => option.group_id === group.id)}));
-  }});
-  return <details className="ms-3 mt-2 border-s ps-3 text-xs" onToggle={event => setOpen(event.currentTarget.open)}><summary className="min-h-11 cursor-pointer py-3">{ar ? "الخيارات والأسعار" : "Options and pricing"}</summary>{open ? groups.isPending ? <p>…</p> : groups.isError ? <p role="alert">{humanError(groups.error, lang)}</p> : groups.data.length ? groups.data.map(group => <div key={group.id} className="py-2"><strong>{pick(group.name_en, group.name_ar)}</strong><ul className="ms-3 border-s ps-3">{group.options.map(option => <li key={option.id} className="py-1">{pick(option.name_en, option.name_ar)} · {formatMoney(option.price_delta, currency, lang)}{!option.is_active ? (ar ? " · غير فعال" : " · Inactive") : ""}</li>)}</ul></div>) : <p>{ar ? "لا توجد خيارات محفوظة" : "No saved options"}</p> : null}</details>;
+  const groups = useQuery({
+    queryKey: ["platform", "modifier-groups", productId],
+    enabled: open,
+    queryFn: async () => {
+      const [groups, options] = await Promise.all([
+        supabase
+          .from("modifier_groups")
+          .select("*")
+          .eq("restaurant_id", restaurantId)
+          .eq("menu_item_id", productId)
+          .order("display_order"),
+        supabase
+          .from("item_modifiers")
+          .select("*")
+          .eq("restaurant_id", restaurantId)
+          .eq("menu_item_id", productId)
+          .order("display_order"),
+      ]);
+      if (groups.error) throw groups.error;
+      if (options.error) throw options.error;
+      return (groups.data ?? []).map((group) => ({
+        ...group,
+        options: (options.data ?? []).filter((option) => option.group_id === group.id),
+      }));
+    },
+  });
+  return (
+    <details className="p2-catalog-options" onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary className="min-h-11 cursor-pointer py-3">
+        {ar ? "الخيارات والأسعار" : "Options and pricing"}
+      </summary>
+      {open ? (
+        groups.isPending ? (
+          <p>…</p>
+        ) : groups.isError ? (
+          <p role="alert">{humanError(groups.error, lang)}</p>
+        ) : groups.data.length ? (
+          groups.data.map((group) => (
+            <div key={group.id} className="py-2">
+              <strong>{pick(group.name_en, group.name_ar)}</strong>
+              <ul className="ms-3 border-s ps-3">
+                {group.options.map((option) => (
+                  <li key={option.id} className="py-1">
+                    {pick(option.name_en, option.name_ar)} ·{" "}
+                    {formatMoney(option.price_delta, currency, lang)}
+                    {!option.is_active ? (ar ? " · غير فعال" : " · Inactive") : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        ) : (
+          <p>{ar ? "لا توجد خيارات محفوظة" : "No saved options"}</p>
+        )
+      ) : null}
+    </details>
+  );
 }

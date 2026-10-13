@@ -990,7 +990,7 @@ export function BottomNav() {
           </Link>
         </div>
 
-        <div className="qs-sidebar-collapse-row">
+        <div className="qs-sidebar-collapse-row p2-sidebar-edge">
           <Button
             className="qs-sidebar-collapse-button"
             type="button"
@@ -1018,9 +1018,8 @@ export function BottomNav() {
                   : "Collapse sidebar"
             }
           >
-            <span className="p2-sidebar-toggle-glyph" aria-hidden="true">
-              <PanelLeft size={16} />
-              <ChevronRight className="qs-sidebar-toggle-icon" size={12} />
+            <span className="p2-edge-chevron" aria-hidden="true">
+              <ChevronRight className="qs-sidebar-toggle-icon" size={18} />
             </span>
           </Button>
         </div>

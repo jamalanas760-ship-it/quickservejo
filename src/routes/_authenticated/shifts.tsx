@@ -2139,6 +2139,7 @@ function CreateShiftDialog({
   const [mode, setMode] = useState<"single" | "recurring">("single");
   const [name, setName] = useState(ar ? "وردية اليوم" : "Service shift");
   const [date, setDate] = useState(today);
+  const [repeatMode, setRepeatMode] = useState<"week" | "weekly">("week");
   const [rangeEnd, setRangeEnd] = useState(() => addShiftDays(today, 6));
   const [weekdays, setWeekdays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [start, setStart] = useState("09:00");
@@ -2241,6 +2242,7 @@ function CreateShiftDialog({
     } catch (error) {
       scheduleError = error instanceof Error ? error.message : "Invalid schedule";
     }
+  const totalScheduledH = Math.round(scheduleWindows.reduce((sum,window)=>sum + (new Date(window.end).getTime()-new Date(window.start).getTime())/3600000,0)*100)/100;
   const preview = useQuery<{
     conflicts: { staff_id: string; name: string; day: string; reason: string }[];
   }>({
@@ -2273,8 +2275,7 @@ function CreateShiftDialog({
       }}
     >
       <DialogContent
-        className="qs-create-shift-dialog wf-form-dialog wf-shift-dialog"
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="qs-create-shift-dialog wf-form-dialog wf-shift-dialog p2-shift-studio"
       >
         <DialogHeader className="wf-dialog-heading">
           <DialogTitle>{ar ? "إنشاء جدول الورديات" : "Create shift schedule"}</DialogTitle>
@@ -2306,7 +2307,7 @@ function CreateShiftDialog({
               setWeekdays(template.weekdays);
             }}
           />
-          <details className="rounded-xl border p-3 mb-4">
+          <details className="p2-service-patterns">
             <summary className="cursor-pointer min-h-11 text-sm font-semibold">
               {ar ? "أنماط خدمة المطعم" : "Restaurant service patterns"}
             </summary>
@@ -2346,7 +2347,8 @@ function CreateShiftDialog({
             </p>
           )}
           <div className="wf-shift-form-layout">
-            <div className="space-y-4">
+            <div className="p2-shift-editor">
+              <section className="p2-shift-section"><h3><b>1</b>{ar ? "التفاصيل الأساسية" : "Basics"}</h3>
               <div className="grid gap-4 sm:grid-cols-[1fr_180px]">
                 <Field label={ar ? "اسم الوردية" : "Shift name"}>
                   <Input maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
@@ -2361,6 +2363,13 @@ function CreateShiftDialog({
                   </div>
                 </Field>
               </div>
+              </section>
+              <section className="p2-shift-section"><h3><b>2</b>{ar ? "الوقت والتكرار" : "Time & repeat"}</h3>
+                {mode === "recurring" ? <div className="p2-repeat-choice" role="group" aria-label={ar ? "نمط التكرار" : "Repeat pattern"}>
+                  <button type="button" aria-pressed={repeatMode === "week"} onClick={()=>{setRepeatMode("week");setRecurringRange(7);}}>{ar ? "أسبوع واحد" : "One week"}</button>
+                  <button type="button" aria-pressed={repeatMode === "weekly"} onClick={()=>{setRepeatMode("weekly");setRecurringRange(28);}}>{ar ? "تكرار أسبوعي" : "Repeat weekly"}</button>
+                  <p>{repeatMode === "week" ? (ar ? "أيام العمل المحددة خلال أسبوع واحد فقط." : "Selected weekdays within this one week only.") : (ar ? "يتكرر كل أسبوع حتى تاريخ النهاية المحدد." : "Repeats every week through your selected end date.")}</p>
+                </div> : null}
               <div className="grid gap-4 sm:grid-cols-2">
                 <RequestDatePicker
                   timeZone={timeZone}
@@ -2376,7 +2385,7 @@ function CreateShiftDialog({
                   value={date}
                   onChange={(d) => {
                     setDate(d);
-                    if (rangeEnd < d) setRangeEnd(addShiftDays(d, 6));
+                    if (repeatMode === "week" || rangeEnd < d) setRangeEnd(addShiftDays(d, repeatMode === "week" ? 6 : 27));
                   }}
                   ar={ar}
                 />
@@ -2386,7 +2395,7 @@ function CreateShiftDialog({
                     label={ar ? "تاريخ النهاية" : "End date"}
                     value={rangeEnd}
                     min={date}
-                    onChange={setRangeEnd}
+                    onChange={(value)=>{setRangeEnd(value);setRepeatMode("weekly");}}
                     ar={ar}
                   />
                 ) : null}
@@ -2412,10 +2421,10 @@ function CreateShiftDialog({
                     <button onClick={() => applyDays([5, 6])}>
                       {ar ? "نهاية الأسبوع" : "Weekend"}
                     </button>
-                    <button onClick={() => setRecurringRange(7)}>
+                    <button onClick={() => {setRepeatMode("week");setRecurringRange(7);}}>
                       {ar ? "أسبوع واحد" : "1 week"}
                     </button>
-                    <button onClick={() => setRecurringRange(28)}>
+                    <button onClick={() => {setRepeatMode("weekly");setRecurringRange(28);}}>
                       {ar ? "4 أسابيع" : "4 weeks"}
                     </button>
                   </div>
@@ -2440,6 +2449,8 @@ function CreateShiftDialog({
                   ? "أوقات النهاية قبل البداية تستمر في اليوم التالي."
                   : "End times before start continue into the next day."}
               </p>
+              </section>
+              <section className="p2-shift-section"><h3><b>3</b>{ar ? "الفريق" : "Team"}</h3>
               <Field label={ar ? "تعيين أعضاء الفريق" : "Assign team members"}>
                 <Input
                   aria-label={ar ? "بحث الأعضاء" : "Search members"}
@@ -2557,6 +2568,8 @@ function CreateShiftDialog({
                   )}
                 </div>
               )}
+              </section>
+              <details className="p2-shift-notes"><summary>{ar ? "ملاحظات إضافية" : "Additional notes"}</summary>
               <Field label={ar ? "ملاحظات (اختياري)" : "Notes (optional)"}>
                 <Textarea
                   maxLength={2000}
@@ -2565,6 +2578,7 @@ function CreateShiftDialog({
                   onChange={(e) => setNotes(e.target.value)}
                 />
               </Field>
+              </details>
               {invalidRange || tooLong ? (
                 <p role="alert" className="text-xs text-destructive">
                   {ar
@@ -2585,7 +2599,7 @@ function CreateShiftDialog({
                   <small>{ar ? "لكل وردية" : "per shift"}</small>
                 </span>
                 <span>
-                  <strong>{count * durationH}h</strong>
+                  <strong>{totalScheduledH}h</strong>
                   <small>{ar ? "لكل عضو معيّن" : "per assigned member"}</small>
                 </span>
               </div>
@@ -2623,7 +2637,7 @@ function CreateShiftDialog({
                 {mode === "recurring"
                   ? ar
                     ? "يتكرر في أيام العمل المحددة."
-                    : "Repeats on selected workdays."
+                    : "Repeats on selected weekdays through the end date, then stops."
                   : ar
                     ? "ينشئ وردية واحدة فقط."
                     : "Creates one shift only."}
