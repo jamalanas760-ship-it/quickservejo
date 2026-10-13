@@ -113,8 +113,8 @@ test("quick styles apply across the restaurant shell and sidebar is customizable
 });
 
 test("PDF Menu selector mirrors the Standard Menu card design", () => {
-  assert.match(menuCards,/image: appearance\.pdfMenuCardImage/);
-  assert.doesNotMatch(menuCards,/pdfMenuCardImage \?\?/);
+  assert.match(menuCards,/menuCardImage\("pdf", appearance\.pdfMenuCardImage\)/);
+  assert.doesNotMatch(menuCards,/pdfMenuCardImage \?\? appearance\.standardMenuCardImage/);
   assert.doesNotMatch(menu,/qs-menu-workflow-image qs-menu-workflow-image-logo/);
   assert.match(menuCards,/aria-pressed=\{selected === id\}/);
 });

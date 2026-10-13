@@ -1,3 +1,4 @@
+import { DEFAULT_MENU_IMAGES, menuCardImage } from "@/lib/menu-card-images";
 import { BookOpenText, CheckCircle2, FileText } from "lucide-react";
 import type { RestaurantAppearance } from "@/lib/restaurant-appearance";
 
@@ -22,7 +23,7 @@ export function MenuModeCards({
         [
           {
             id: "standard",
-            image: appearance.standardMenuCardImage,
+            image: menuCardImage("standard", appearance.standardMenuCardImage),
             icon: BookOpenText,
             title: ar ? "القائمة العادية" : "Standard Menu",
             description: ar
@@ -31,7 +32,7 @@ export function MenuModeCards({
           },
           {
             id: "pdf",
-            image: appearance.pdfMenuCardImage,
+            image: menuCardImage("pdf", appearance.pdfMenuCardImage),
             icon: FileText,
             title: ar ? "قائمة PDF التفاعلية" : "Clickable PDF Menu",
             description: ar
@@ -56,7 +57,10 @@ export function MenuModeCards({
                 alt=""
                 loading="lazy"
                 onError={(event) => {
-                  event.currentTarget.hidden = true;
+                  const image = event.currentTarget;
+                  const fallback = DEFAULT_MENU_IMAGES[id];
+                  if (image.getAttribute("src") !== fallback) image.src = fallback;
+                  else image.hidden = true;
                 }}
               />
             ) : null}
