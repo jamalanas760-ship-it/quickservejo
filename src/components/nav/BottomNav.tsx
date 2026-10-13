@@ -980,7 +980,7 @@ export function BottomNav() {
         data-collapsed={sidebarCollapsed}
         className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden flex-col lg:flex"
       >
-        <div className="flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-4">
+        <div className="p2-sidebar-header flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-4">
           <Link
             to={homeTo as never}
             className="qs-sidebar-brand-link min-w-0 text-foreground"
@@ -988,9 +988,7 @@ export function BottomNav() {
           >
             {brand}
           </Link>
-        </div>
-
-        <div className="qs-sidebar-collapse-row p2-sidebar-edge">
+        <div className="qs-sidebar-collapse-row p2-sidebar-toggle-slot">
           <Button
             className="qs-sidebar-collapse-button"
             type="button"
@@ -1023,6 +1021,9 @@ export function BottomNav() {
             </span>
           </Button>
         </div>
+        </div>
+
+
         <nav
           className="qs-scroll flex-1 overflow-y-auto px-3 py-4"
           aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"}

@@ -1,0 +1,8 @@
+# Menu defaults and navigation polish
+
+- Standard and Clickable PDF cards use separate bundled illustrations when their Workspace Interface image setting is empty. Illustrations follow the supplied reference without a restaurant title. Custom images take priority. Failed custom image loads fall back once to the correct bundled illustration; a failed default falls back to the existing accessible card/icon.
+- Defaults are display-only and never written into saved workspace settings. WebP encoding preserves the generated PNG pixels exactly, while reducing the combined asset size from about 3 MB to about 2 MB. Images load lazily and use versioned filenames.
+- Sidebar collapse/expand is aligned within its header, beside the brand when expanded and centered when collapsed. The control stays within the sidebar in both LTR and RTL, retains a 44px target, labels, focus styling and synchronized width/label animation.
+- All Tools uses a desktop fade/scale open/close transition and retains the mobile directional drawer glide. Reduced motion disables animation.
+
+Validation: 210/210 contracts, TypeScript, lint (zero errors, 59 existing warnings), production build and diff checks. 64 browser component cases cover default/custom/broken-image loading, selection, no horizontal overflow, expanded/collapsed toggle containment in English/light and Arabic/dark, and All Tools motion at mobile/tablet/desktop sizes with reduced motion. Visual review confirms the toggle no longer overlaps the page-title area. Backend calls are isolated fixtures; signed-in production and Lovable deployment remain unverified.
