@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMcpOAuthReadiness } from "@/lib/mcp-readiness.functions";
-import { quickServeSupabase } from "@/integrations/supabase/public-config";
 import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
@@ -151,10 +150,10 @@ export function McpConnectionStudio({ ar, restaurantId }: { ar: boolean; restaur
                 <p>
                   {t(
                     readiness.data?.status === "oauth_disabled"
-                      ? "The project owner must enable Supabase OAuth Server before any AI client can connect."
+                      ? "AI connection is unavailable. Authentication remains enforced; a separate OAuth provider is required while Supabase OAuth stays disabled."
                       : "This checks public OAuth configuration. Complete authorization in each AI client to connect.",
                     readiness.data?.status === "oauth_disabled"
-                      ? "يجب على مالك المشروع تفعيل خادم OAuth في Supabase قبل ربط أي تطبيق."
+                      ? "اتصال الذكاء الاصطناعي غير متاح. تبقى حماية المصادقة فعالة؛ يلزم مزود OAuth مستقل مع إبقاء OAuth في Supabase معطلاً."
                       : "يفحص هذا إعدادات OAuth العامة. أكمل التفويض في كل تطبيق للربط.",
                   )}
                 </p>
@@ -169,14 +168,6 @@ export function McpConnectionStudio({ ar, restaurantId }: { ar: boolean; restaur
                 >
                   {t("Check OAuth setup", "فحص إعداد OAuth")}
                 </Button>
-                <a
-                  className="inline-flex min-h-11 items-center underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  href={`https://supabase.com/dashboard/project/${new URL(quickServeSupabase.url).hostname.split(".")[0]}/auth/oauth-server`}
-                >
-                  {t("Project owner settings", "إعدادات مالك المشروع")}
-                </a>
               </div>
               {readiness.isFetching && <p role="status">{t("Checking…", "جارٍ الفحص…")}</p>}
               {(readiness.isError || readiness.data?.status === "unavailable") && (
@@ -190,8 +181,8 @@ export function McpConnectionStudio({ ar, restaurantId }: { ar: boolean; restaur
               {readiness.data?.status === "registration_required" && (
                 <p role="alert">
                   {t(
-                    "Enable dynamic client registration in Supabase.",
-                    "فعّل التسجيل التلقائي للعملاء في Supabase.",
+                    "OAuth client registration is not available. This connection has not been verified.",
+                    "تسجيل عميل OAuth غير متاح. لم يتم التحقق من هذا الاتصال.",
                   )}
                 </p>
               )}
@@ -203,40 +194,6 @@ export function McpConnectionStudio({ ar, restaurantId }: { ar: boolean; restaur
                   )}
                 </p>
               )}
-              <details>
-                <summary className="min-h-11 cursor-pointer py-3 font-semibold">
-                  {t("Owner setup checklist", "قائمة إعداد مالك المشروع")}
-                </summary>
-                <ol className="list-inside list-decimal space-y-2">
-                  <li>
-                    {t(
-                      "Enable OAuth Server and dynamic client registration.",
-                      "فعّل خادم OAuth والتسجيل التلقائي للعملاء.",
-                    )}
-                  </li>
-                  <li>
-                    {t(
-                      "Set Site URL to your published QuickServe origin:",
-                      "اضبط رابط الموقع على أصل موقع QuickServe المنشور:",
-                    )}{" "}
-                    <code dir="ltr" className="break-all">
-                      {url ? new URL(url).origin : "…"}
-                    </code>
-                  </li>
-                  <li>
-                    {t("Set Authorization Path to:", "اضبط مسار التفويض على:")}{" "}
-                    <code dir="ltr" className="break-all">
-                      /.lovable/oauth/consent
-                    </code>
-                  </li>
-                  <li>
-                    {t(
-                      "Allow this site's consent return URL for sign-in, then restart the connection in your AI client.",
-                      "اسمح برابط عودة التفويض لهذا الموقع عند تسجيل الدخول، ثم أعد الربط من التطبيق.",
-                    )}
-                  </li>
-                </ol>
-              </details>
             </div>
             <div className="qs-mcp-columns">
               <section className="qs-mcp-connection">
@@ -261,7 +218,7 @@ export function McpConnectionStudio({ ar, restaurantId }: { ar: boolean; restaur
                 <div className="qs-mcp-connection-actions">
                   <Button
                     type="button"
-                    disabled={!url}
+                    disabled={!url || readiness.data?.status !== "ready"}
                     onClick={async () => {
                       try {
                         await navigator.clipboard.writeText(url);
@@ -304,8 +261,8 @@ export function McpConnectionStudio({ ar, restaurantId }: { ar: boolean; restaur
                     <p>
                       <strong>Claude:</strong>{" "}
                       {t(
-                        "Add a custom connector and choose Register automatically for OAuth.",
-                        "أضف موصلاً مخصصاً واختر التسجيل التلقائي لـ OAuth.",
+                        "Add a custom connector only after OAuth readiness is confirmed. Use the registration method supported by the configured provider.",
+                        "أضف موصلاً مخصصاً بعد تأكيد جاهزية OAuth. استخدم طريقة التسجيل المدعومة من المزود المهيأ.",
                       )}
                     </p>
                     <p>
