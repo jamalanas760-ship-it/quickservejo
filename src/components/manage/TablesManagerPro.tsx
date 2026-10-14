@@ -423,6 +423,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
   const tableDrag = useRef<TableDrag | null>(null);
   const pendingTableSaves = useRef(new Set<string>());
   const zoneDrag = useRef<ZoneDrag | null>(null);
+  const [zoneSaving, setZoneSaving] = useState(false);
   const entranceDrag = useRef<EntranceDrag | null>(null);
   const [view, setView] = useState<"layout" | "list">("layout");
   const [floors, setFloors] = useState<FloorConfig[]>([{ ...DEFAULT_FLOOR }]);
@@ -1301,7 +1302,8 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     void persistTableLayout(state.id, state.latest);
   }
   function beginZoneDrag(e: ReactPointerEvent<HTMLElement>, zone: Zone, mode: "move" | "resize") {
-    if (!editing || floorBusy) {
+    if (!e.isPrimary || e.button !== 0 || zoneDrag.current) return;
+    if (!editing || floorBusy || zoneSaving) {
       e.stopPropagation();
       setSelectedElementId(null);
       setSelectedZoneId(zone.id);
@@ -1363,10 +1365,15 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}
+    const restoreZone = () => setFloors(value => value.map(f => f.id === activeFloor
+      ? { ...f, zones: f.zones.map(z => z.id === state.id ? state.start : z) } : f));
     if (e.type === "pointercancel") {
-      setFloors(floorsFromTheme(restaurant?.menu_theme));
+      restoreZone();
       return;
     }
+    if (state.start.x === state.latest.x && state.start.y === state.latest.y &&
+        state.start.width === state.latest.width && state.start.height === state.latest.height) return;
+    setZoneSaving(true);
     void persistFloors(
       floors.map((f) =>
         f.id === activeFloor
@@ -1374,9 +1381,9 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
           : f,
       ),
     ).catch((error) => {
-      setFloors(floorsFromTheme(restaurant?.menu_theme));
+      restoreZone();
       toast.error(humanError(error, lang));
-    });
+    }).finally(() => setZoneSaving(false));
   }
   function beginEntranceDrag(e: ReactPointerEvent<HTMLElement>, entry: Entrance) {
     if (!editing || floorBusy) {
@@ -2101,6 +2108,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                         zone={zone}
                         ar={ar}
                         selected={selectedZoneId === zone.id}
+                        editable={editing && !floorBusy && !zoneSaving}
                         onDown={(e, m) => beginZoneDrag(e, zone, m)}
                         onMove={moveZone}
                         onUp={endZoneDrag}
@@ -2653,6 +2661,7 @@ function ZoneBox({
   zone,
   ar,
   selected,
+  editable,
   onDown,
   onMove,
   onUp,
@@ -2660,6 +2669,7 @@ function ZoneBox({
   zone: Zone;
   ar: boolean;
   selected: boolean;
+  editable: boolean;
   onDown: (e: ReactPointerEvent<HTMLElement>, mode: "move" | "resize") => void;
   onMove: (e: ReactPointerEvent<HTMLElement>) => void;
   onUp: (e: ReactPointerEvent<HTMLElement>) => void;
@@ -2678,12 +2688,13 @@ function ZoneBox({
     >
       <button
         type="button"
+        title={editable ? (ar ? "اسحب لتحريك المنطقة" : "Drag to move zone") : (ar ? "حدد المنطقة؛ فعّل تعديل المخطط للتحريك" : "Select zone; enable Edit layout to move")}
         onPointerDown={(e) => onDown(e, "move")}
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
-        className="qs-floor-zone-label absolute start-2 top-2 z-10 flex touch-none items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-bold text-white shadow-sm"
-        style={{ background: zone.color }}
+        className="qs-floor-zone-label absolute start-2 top-2 z-10 flex touch-none items-center gap-2 rounded-lg min-h-11 px-3 py-2 text-[11px] font-bold text-white shadow-sm"
+        style={{ background: zone.color, cursor: editable ? "grab" : "pointer" }}
       >
         <span className="grid grid-cols-2 gap-[2px]">
           {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -2692,17 +2703,18 @@ function ZoneBox({
         </span>
         {ar ? zone.ar : zone.en}
       </button>
-      {selected ? (
+      {selected && editable ? (
         <button
           type="button"
-          aria-label="Resize zone"
+          aria-label={ar ? "تغيير حجم المنطقة" : "Resize zone"}
+          title={ar ? "اسحب الزاوية لتغيير الحجم" : "Drag corner to resize"}
           onPointerDown={(e) => onDown(e, "resize")}
           onPointerMove={onMove}
           onPointerUp={onUp}
           onPointerCancel={onUp}
-          className="absolute -bottom-2 -end-2 size-5 touch-none rounded-full border-2 border-white shadow"
-          style={{ background: zone.color }}
-        />
+          className="absolute bottom-0 right-0 grid size-11 touch-none place-items-center rounded-full cursor-se-resize focus-visible:outline-2 focus-visible:outline-offset-2"
+          style={{ color: zone.color }}
+        ><span className="grid size-6 place-items-center rounded-full border-2 border-white shadow" style={{ background: zone.color }}><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M4 10L10 4M7 10L10 7" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg></span></button>
       ) : null}
     </div>
   );
@@ -3209,8 +3221,8 @@ function ZoneInspector({
       <h2 className="text-lg font-bold">{ar ? zone.ar : zone.en}</h2>
       <p className="mt-1 text-xs text-muted-foreground">
         {ar
-          ? "اسحب عنوان المنطقة لتحريكها، واسحب المقبض لتغيير حجمها."
-          : "Drag the zone label to move it and the corner handle to resize it."}
+          ? "فعّل تعديل المخطط، ثم اسحب عنوان المنطقة للتحريك والزاوية السفلية اليمنى لتغيير الحجم."
+          : "Enable Edit layout, drag the zone title to move, then drag the bottom-right corner to resize."}
       </p>
       <div className="mt-5 grid grid-cols-2 gap-2">
         <button type="button" onClick={onRename} className="qs-button-secondary">
