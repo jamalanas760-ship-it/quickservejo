@@ -100,6 +100,19 @@ export function BottomNav() {
   const { lang } = useI18n();
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [navigationMotion, setNavigationMotion] = useState<"full" | "reduced">("full");
+  useEffect(() => {
+    try { if (localStorage.getItem("qs-navigation-motion") === "reduced") setNavigationMotion("reduced"); } catch {}
+  }, []);
+  useLayoutEffect(() => {
+    document.documentElement.dataset.qsNavigationMotion = navigationMotion;
+    return () => { delete document.documentElement.dataset.qsNavigationMotion; };
+  }, [navigationMotion]);
+  function toggleNavigationMotion() {
+    const next = navigationMotion === "full" ? "reduced" : "full";
+    setNavigationMotion(next);
+    try { localStorage.setItem("qs-navigation-motion", next); } catch {}
+  }
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarRestored, setSidebarRestored] = useState(false);
   const [sidebarMotionReady, setSidebarMotionReady] = useState(false);
@@ -1358,6 +1371,10 @@ export function BottomNav() {
                     </DialogDescription>
                   </div>
                 </div>
+                <button type="button" className="qs-navigation-motion-control" onClick={toggleNavigationMotion}
+                  aria-pressed={navigationMotion === "full"}>
+                  {lang === "ar" ? (navigationMotion === "full" ? "الحركة: كاملة" : "الحركة: مخفّضة") : (navigationMotion === "full" ? "Animation: Full" : "Animation: Reduced")}
+                </button>
                 <div className="qs-search-field mt-4">
                   <Search />
                   <Input
