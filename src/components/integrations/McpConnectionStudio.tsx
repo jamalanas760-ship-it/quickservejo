@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMcpOAuthReadiness } from "@/lib/mcp-readiness.functions";
+import { resolveMcpPublicUrl } from "@/lib/mcp-public-url";
 import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
@@ -34,7 +35,11 @@ export function McpConnectionStudio({ ar, restaurantId }: { ar: boolean; restaur
     input = useRef<HTMLInputElement>(null);
   const t = (en: string, arabic: string) => (ar ? arabic : en);
   useEffect(() => {
-    setUrl(new URL("/mcp", window.location.href).href);
+    try {
+      setUrl(resolveMcpPublicUrl(import.meta.env.VITE_QUICKSERVE_MCP_URL, window.location.origin));
+    } catch {
+      setUrl("");
+    }
   }, []);
   useEffect(() => {
     if (open) heading.current?.focus({ preventScroll: true });

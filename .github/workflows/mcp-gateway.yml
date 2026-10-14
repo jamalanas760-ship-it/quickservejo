@@ -1,0 +1,28 @@
+name: QuickServe MCP Gateway
+on:
+  push:
+    branches: [main]
+    paths: ["services/mcp-gateway/**", ".github/workflows/mcp-gateway.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["services/mcp-gateway/**", ".github/workflows/mcp-gateway.yml"]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/mcp-gateway
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: services/mcp-gateway/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm audit --omit=dev --audit-level=high
+      - name: Verify deployable container
+        run: docker build -t quickserve-mcp-gateway:test .
