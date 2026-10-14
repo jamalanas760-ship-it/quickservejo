@@ -1,3 +1,4 @@
+import { McpConnectionStudio } from "@/components/integrations/McpConnectionStudio";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, BarChart3, CreditCard, Link2, MessageSquareText, PlugZap, Printer, Truck, Webhook } from "lucide-react";
@@ -163,6 +164,8 @@ function IntegrationsPage() {
         title={ar ? "الإعدادات والتكاملات" : "Settings & Integrations"}
         description={ar ? "أدر المدفوعات والرسائل والتوصيل والمحاسبة والطباعة وواجهات API من مكان واحد." : "Manage payments, messaging, delivery, accounting, printing and API connectivity from one place."}
       />
+
+      <McpConnectionStudio ar={ar} restaurantId={rid} />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MasterKpi icon={PlugZap} label={ar?"موصلات مهيأة":"Configured"} value={String(configuredCount)} hint={ar?`من ${PRESETS.length} موصلات`:`of ${PRESETS.length} connectors`} tone="blue"/>
