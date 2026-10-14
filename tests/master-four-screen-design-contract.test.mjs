@@ -191,7 +191,9 @@ test("tables mobile floor plan uses compact selectors, contextual controls and s
   assert.match(tablesPro,/qs-floor-canvas/);
   assert.match(tablesPro,/qs-floor-table-piece/);
   assert.match(tablesPro,/canvasSize\.width/);
-  assert.match(tablesPro,/floorSeats\(shape, seats\)/);
+  const planSymbol = await readFile(new URL("../src/components/manage/TablePlanSymbol.tsx", import.meta.url), "utf8");
+  assert.match(tablesPro, /TablePlanSymbol shape=\{shape\} material=\{material\} seats=\{seats\}/);
+  assert.match(planSymbol, /floorSeats\(shape, seats\)/);
   assert.doesNotMatch(tablesPro,/<Switch checked=\{grid\}/);
   assert.match(switchControl,/qs-master-switch/);
   assert.match(styles,/Tables mobile floor-plan master pass/);

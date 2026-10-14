@@ -9,6 +9,7 @@ export type GuestMenuPalette = {
 };
 
 export type RestaurantAppearance = {
+  navigationMotion: "full" | "reduced";
   menuMode: "pdf" | "products";
   menuLogo: string | null;
   workspaceToolsImage: string | null;
@@ -69,6 +70,7 @@ export function readAppearance(theme: unknown): RestaurantAppearance {
   return {
     menuMode: value.menuMode === "products" ? "products" : "pdf",
     menuLogo: imageUrl(value.menuLogo),
+    navigationMotion: value.navigationMotion === "reduced" ? "reduced" : "full",
     workspaceToolsImage: imageUrl(value.workspaceToolsImage),
     workspaceToolsIcon: imageUrl(value.workspaceToolsIcon),
     standardMenuCardImage: imageUrl(value.standardMenuCardImage),

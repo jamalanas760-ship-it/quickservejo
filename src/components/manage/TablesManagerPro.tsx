@@ -1,16 +1,21 @@
+import { resizeFloorZone, type ZoneDragMode, type ZoneResizeCorner } from "@/lib/floor-zone-resize";
+import { TablePlanSymbol } from "./TablePlanSymbol";
+import { FloorPlanSymbol } from "./FloorPlanSymbol";
+import { floorFitZoom, stepFloorZoom } from "@/lib/floor-zoom";
 import { floorCollision, type FloorBounds } from "@/lib/floor-collision";
 import { createLatestSaveQueue } from "@/lib/latest-save-queue";
 import { MoreHorizontal, Table2 } from "@/components/nav/QuickServeIcons";
-import { floorSeats } from "@/lib/floor-seating";
 import { normalizeCanvasSize } from "@/lib/floor-canvas";
 import {
   lazy,
   Suspense,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
+  type CSSProperties,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -168,7 +173,7 @@ type ZoneDrag = {
   startY: number;
   start: Zone;
   latest: Zone;
-  mode: "move" | "resize";
+  mode: ZoneDragMode;
 };
 type EntranceDrag = {
   id: string;
@@ -434,11 +439,12 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
   const [selectedEntranceId, setSelectedEntranceId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, Layout>>({});
   const [zoom, setZoom] = useState(1);
+  const viewport2DRef = useRef<HTMLDivElement>(null);
   const [grid, setGrid] = useState(true);
   const [busy, setBusy] = useState(false);
   const [structuralFloorBusy, setFloorBusy] = useState(false);
   const [elementSaving, setElementSaving] = useState(false);
-  const floorBusy = structuralFloorBusy || elementSaving;
+  const floorBusy = structuralFloorBusy || elementSaving || zoneSaving;
   const latestFloors = useRef(floors);
   latestFloors.current = floors;
   const confirmedFloors = useRef(floors);
@@ -557,6 +563,18 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     setActiveFloor((current) => (next.some((f) => f.id === current) ? current : next[0]!.id));
   }, [restaurant?.menu_theme]);
   const currentFloor = floors.find((f) => f.id === activeFloor) ?? floors[0] ?? DEFAULT_FLOOR;
+  const canvasSize2D = normalizeCanvasSize(currentFloor.canvasSize);
+  const fit2D = () => floorFitZoom(canvasSize2D, { width: viewport2DRef.current?.clientWidth ?? 0, height: Math.max(0, (viewport2DRef.current?.offsetHeight ?? 0) - 2) });
+  function changeZoom(direction: number) { setZoom(value => depth ? clamp(value + direction * .1, .4, 1.8) : stepFloorZoom(value, direction, fit2D())); }
+  function fitView() { setZoom(depth ? 1 : fit2D()); }
+  useLayoutEffect(() => {
+    const viewport = viewport2DRef.current;
+    if (depth || !viewport) return;
+    const fit = () => setZoom(floorFitZoom({ width: canvasSize2D.width, height: canvasSize2D.height }, { width: viewport.clientWidth, height: Math.max(0, viewport.offsetHeight - 2) }));
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [depth, activeFloor, canvasSize2D.width, canvasSize2D.height, editing]);
   const floorTables = useMemo(
     () => (tables.data ?? []).filter((row) => floorOf(row) === activeFloor),
     [tables.data, activeFloor],
@@ -1301,7 +1319,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     }
     void persistTableLayout(state.id, state.latest);
   }
-  function beginZoneDrag(e: ReactPointerEvent<HTMLElement>, zone: Zone, mode: "move" | "resize") {
+  function beginZoneDrag(e: ReactPointerEvent<HTMLElement>, zone: Zone, mode: ZoneDragMode) {
     if (!e.isPrimary || e.button !== 0 || zoneDrag.current) return;
     if (!editing || floorBusy || zoneSaving) {
       e.stopPropagation();
@@ -1344,11 +1362,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
             x: clamp(state.start.x + dx, 0, 100 - state.start.width),
             y: clamp(state.start.y + dy, 0, 100 - state.start.height),
           }
-        : {
-            ...state.start,
-            width: clamp(state.start.width + dx, 8, 100 - state.start.x),
-            height: clamp(state.start.height + dy, 8, 100 - state.start.y),
-          };
+        : resizeFloorZone(state.start, dx, dy, state.mode === "resize" ? "se" : state.mode.slice(7) as ZoneResizeCorner);
     state.latest = next;
     setFloors((value) =>
       value.map((f) =>
@@ -1386,7 +1400,8 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     }).finally(() => setZoneSaving(false));
   }
   function beginEntranceDrag(e: ReactPointerEvent<HTMLElement>, entry: Entrance) {
-    if (!editing || floorBusy) {
+    if (!e.isPrimary || e.button !== 0 || entranceDrag.current) return;
+    if (!editing || floorBusy || zoneSaving) {
       e.stopPropagation();
       setSelectedElementId(null);
       setSelectedEntranceId(entry.id);
@@ -1439,10 +1454,13 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}
+    const restoreEntrance = () => setFloors(value => value.map(f => f.id === activeFloor ? { ...f, entrances: f.entrances.map(v => v.id === state.id ? state.start : v) } : f));
     if (e.type === "pointercancel") {
-      setFloors(floorsFromTheme(restaurant?.menu_theme));
+      restoreEntrance();
       return;
     }
+    if (state.start.x === state.latest.x && state.start.y === state.latest.y) return;
+    setZoneSaving(true);
     void persistFloors(
       floors.map((f) =>
         f.id === activeFloor
@@ -1450,9 +1468,9 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
           : f,
       ),
     ).catch((error) => {
-      setFloors(floorsFromTheme(restaurant?.menu_theme));
+      restoreEntrance();
       toast.error(humanError(error, lang));
-    });
+    }).finally(() => setZoneSaving(false));
   }
   function rotate(delta: number) {
     if (!selected || pendingTableSaves.current.has(selected.id)) return;
@@ -1554,7 +1572,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       setFloorBusy(false);
     }
   }
-  async function addElement(type: FloorElementType) {
+  async function addElement(type: FloorElementType, preset: Partial<Pick<FloorElement, "width" | "height" | "label">> = {}) {
     if ((currentFloor.elements ?? []).length >= 250) {
       toast.error(ar ? "الحد الأقصى 250 عنصراً لكل طابق" : "Maximum 250 elements per floor");
       return;
@@ -1580,7 +1598,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         };
       }),
     ];
-    const element = placeFloorElement(createFloorElement(type, ar), occupied);
+    const element = placeFloorElement(normalizeFloorElement({ ...createFloorElement(type, ar), ...preset }), occupied);
     if (!elementPositionValid(element, true)) return;
     const saved = await saveElements([...(currentFloor.elements ?? []), element]);
     if (!saved) return;
@@ -1796,25 +1814,27 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       <section
         className={cn(
           "qs-tables-workspace qs-tables-studio-workspace",
-          view !== "list" && depth && editing && "qs-tables-3d-workspace",
+          view !== "list" && editing && "qs-tables-3d-workspace",
         )}
       >
-        {view !== "list" && depth && editing && (
+        {view !== "list" && editing && (
           <aside className="qs-floor-asset-sidebar">
             <div className="qs-floor-asset-heading">
               <h2>{ar ? "العناصر" : "Elements"}</h2>
-              <span>3D</span>
+              <span>{depth ? "3D" : "2D"}</span>
             </div>
             <FloorElementLibrary
               ar={ar}
+              flat={!depth}
               busy={floorBusy}
-              onAddTable={(shape) => {
+              onAddEntrance={() => setEntranceOpen(true)}
+              onAddTable={(shape, capacity) => {
                 openCreate();
-                setForm((value) => ({ ...value, shape }));
+                setForm((value) => ({ ...value, shape, capacity: String(capacity ?? 4) }));
               }}
-              onAdd={(type) => {
+              onAdd={(type, preset) => {
                 setEditing(true);
-                void addElement(type);
+                void addElement(type, preset);
               }}
             />
           </aside>
@@ -1882,9 +1902,9 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="min-w-56">
                         <DropdownMenuItem onSelect={() => setGrid(!grid)}><Grid3X3/>{grid ? (ar ? "إخفاء الشبكة" : "Hide grid") : (ar ? "إظهار الشبكة" : "Show grid")}</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setZoom(value => clamp(value + .1, .4, 1.8))}><Plus/>{ar ? "تكبير" : "Zoom in"}</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setZoom(value => clamp(value - .1, .4, 1.8))}><Minus/>{ar ? "تصغير" : "Zoom out"}</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setZoom(depth ? 1 : W / normalizeCanvasSize(currentFloor.canvasSize).width)}>{ar ? "ملاءمة العرض" : "Fit view"}</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => changeZoom(1)}><Plus/>{ar ? "تكبير" : "Zoom in"}</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => changeZoom(-1)}><Minus/>{ar ? "تصغير" : "Zoom out"}</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => fitView()}>{ar ? "ملاءمة العرض" : "Fit view"}</DropdownMenuItem>
                         <DropdownMenuItem disabled={!history.past.length || busy || floorBusy} onSelect={() => void applyLayoutHistory(false)}><Undo2/>{ar ? "تراجع" : "Undo layout change"}</DropdownMenuItem>
                         <DropdownMenuItem disabled={!history.future.length || busy || floorBusy} onSelect={() => void applyLayoutHistory(true)}><Redo2/>{ar ? "إعادة" : "Redo layout change"}</DropdownMenuItem>
                         <DropdownMenuSeparator/>
@@ -2074,16 +2094,23 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                   />
                 </Suspense>
               ) : (
-                <div className="qs-floor-canvas-viewport flex h-[calc(100%-32px)] min-h-0 items-center justify-center overflow-hidden">
+                <div className="qs-floor-2d-surface relative flex h-[calc(100%-32px)] min-h-0 flex-col">
+                  <div role="group" aria-label={ar ? "تكبير وتصغير المخطط" : "2D zoom controls"} className="mb-2 flex shrink-0 self-end items-center rounded-xl border border-border bg-card shadow-sm">
+                    <button type="button" aria-label={ar ? "تصغير" : "Zoom out"} className="grid size-11 place-items-center rounded-s-xl hover:bg-muted" onClick={() => changeZoom(-1)}><Minus className="size-4" /></button>
+                    <button type="button" aria-label={ar ? "ملاءمة العرض" : "Fit 2D view"} title={ar ? "ملاءمة المخطط" : "Fit floor plan"} className="min-h-11 min-w-16 px-2 text-xs font-semibold hover:bg-muted" onClick={fitView}><span>{Math.round(zoom / fit2D() * 100)}%</span><span className="ms-1 text-muted-foreground">{ar ? "ملاءمة" : "Fit"}</span></button>
+                    <button type="button" aria-label={ar ? "تكبير" : "Zoom in"} className="grid size-11 place-items-center rounded-e-xl hover:bg-muted" onClick={() => changeZoom(1)}><Plus className="size-4" /></button>
+                  </div>
+                  <div ref={viewport2DRef} className="qs-floor-canvas-viewport min-h-0 w-full flex-1 overflow-auto overscroll-contain">
                   <div
                     ref={canvasRef}
                     data-depth={depth}
                     className={cn(
-                      "qs-floor-canvas relative max-h-full w-full max-w-[1040px] origin-center overflow-hidden rounded-xl border border-border bg-white shadow-inner",
+                      "qs-floor-canvas relative mx-auto shrink-0 origin-center overflow-hidden rounded-xl border border-border bg-white shadow-inner",
                       grid &&
                         "bg-[linear-gradient(to_right,rgba(148,163,184,.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,.12)_1px,transparent_1px)] bg-[size:22px_22px]",
                     )}
                     style={{
+                      "--qs-floor-render-width": `${(zoom * 100 * normalizeCanvasSize(currentFloor.canvasSize).width) / W}%`,
                       aspectRatio: `${normalizeCanvasSize(currentFloor.canvasSize).width}/${normalizeCanvasSize(currentFloor.canvasSize).height}`,
                       width: `${(zoom * 100 * normalizeCanvasSize(currentFloor.canvasSize).width) / W}%`,
                       ...(currentFloor.backgroundUrl
@@ -2094,7 +2121,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                             backgroundRepeat: "no-repeat",
                           }
                         : {}),
-                    }}
+                    } as CSSProperties}
                     onPointerDown={() => {
                       setSelectedElementId(null);
                       setSelectedTableId(null);
@@ -2138,6 +2165,8 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                         key={entry.id}
                         entry={entry}
                         selected={selectedEntranceId === entry.id}
+                        editable={editing && !floorBusy && !zoneSaving}
+                        ar={ar}
                         onDown={(e) => beginEntranceDrag(e, entry)}
                         onMove={moveEntrance}
                         onUp={endEntranceDrag}
@@ -2165,6 +2194,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                       );
                     })}
                   </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -2176,6 +2206,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
               key={selectedElement.id}
               element={selectedElement}
               ar={ar}
+              flat={!depth}
               busy={structuralFloorBusy}
               showRotation={!depth}
               onSave={commitElement}
@@ -2301,13 +2332,15 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
           </DialogHeader>
           <FloorElementLibrary
             ar={ar}
+            flat={!depth}
             busy={floorBusy}
-            onAddTable={(shape) => {
+            onAddEntrance={() => { setElementsOpen(false); setEntranceOpen(true); }}
+            onAddTable={(shape, capacity) => {
               setElementsOpen(false);
               openCreate();
-              setForm((value) => ({ ...value, shape }));
+              setForm((value) => ({ ...value, shape, capacity: String(capacity ?? 4) }));
             }}
-            onAdd={(type) => void addElement(type)}
+            onAdd={(type, preset) => void addElement(type, preset)}
           />
         </DialogContent>
       </Dialog>
@@ -2670,7 +2703,7 @@ function ZoneBox({
   ar: boolean;
   selected: boolean;
   editable: boolean;
-  onDown: (e: ReactPointerEvent<HTMLElement>, mode: "move" | "resize") => void;
+  onDown: (e: ReactPointerEvent<HTMLElement>, mode: ZoneDragMode) => void;
   onMove: (e: ReactPointerEvent<HTMLElement>) => void;
   onUp: (e: ReactPointerEvent<HTMLElement>) => void;
 }) {
@@ -2678,13 +2711,14 @@ function ZoneBox({
     <div
       className="qs-floor-zone absolute z-[2] rounded-xl border-2 bg-white/28 backdrop-blur-[1px]"
       style={{
+        "--qs-zone-color": zone.color,
         left: `${zone.x}%`,
         top: `${zone.y}%`,
         width: `${zone.width}%`,
         height: `${zone.height}%`,
         borderColor: zone.color,
         boxShadow: selected ? `0 0 0 3px ${zone.color}22` : undefined,
-      }}
+      } as CSSProperties}
     >
       <button
         type="button"
@@ -2702,32 +2736,36 @@ function ZoneBox({
           ))}
         </span>
         {ar ? zone.ar : zone.en}
+        {selected && editable ? <span className="text-[10px] font-normal text-white/90">· {ar ? "اسحب للتحريك" : "Drag to move"}</span> : null}
       </button>
-      {selected && editable ? (
-        <button
-          type="button"
-          aria-label={ar ? "تغيير حجم المنطقة" : "Resize zone"}
-          title={ar ? "اسحب الزاوية لتغيير الحجم" : "Drag corner to resize"}
-          onPointerDown={(e) => onDown(e, "resize")}
-          onPointerMove={onMove}
-          onPointerUp={onUp}
-          onPointerCancel={onUp}
-          className="absolute bottom-0 right-0 grid size-11 touch-none place-items-center rounded-full cursor-se-resize focus-visible:outline-2 focus-visible:outline-offset-2"
-          style={{ color: zone.color }}
-        ><span className="grid size-6 place-items-center rounded-full border-2 border-white shadow" style={{ background: zone.color }}><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M4 10L10 4M7 10L10 7" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg></span></button>
-      ) : null}
+      {selected && editable ? ([
+        { mode: "resize-nw", position: "-top-5 -left-5 cursor-nwse-resize", dot: "-top-1.5 -left-1.5", en: "top left", ar: "العلوية اليسرى" },
+        { mode: "resize-ne", position: "-top-5 -right-5 cursor-nesw-resize", dot: "-top-1.5 -right-1.5", en: "top right", ar: "العلوية اليمنى" },
+        { mode: "resize-sw", position: "-bottom-5 -left-5 cursor-nesw-resize", dot: "-bottom-1.5 -left-1.5", en: "bottom left", ar: "السفلية اليسرى" },
+        { mode: "resize", position: "-bottom-5 -right-5 cursor-nwse-resize", dot: "-bottom-1.5 -right-1.5", en: "bottom right", ar: "السفلية اليمنى" },
+      ] as const).map(handle => <button key={handle.mode} type="button"
+        aria-label={handle.mode === "resize" ? (ar ? "تغيير حجم المنطقة" : "Resize zone") : (ar ? `تغيير حجم المنطقة من الزاوية ${handle.ar}` : `Resize zone ${handle.en}`)}
+        title={ar ? `اسحب الزاوية ${handle.ar}` : `Drag ${handle.en} corner to resize`}
+        onPointerDown={e => onDown(e, handle.mode)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+        className={`absolute z-20 grid size-11 touch-none place-items-center rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 ${handle.position}`}>
+        <span className="pointer-events-none size-3 rounded-full border-2 border-white shadow" style={{background:zone.color}} />
+      </button>) : null}
     </div>
   );
 }
 function EntrancePiece({
   entry,
   selected,
+  editable,
+  ar,
   onDown,
   onMove,
   onUp,
 }: {
   entry: Entrance;
   selected: boolean;
+  editable: boolean;
+  ar: boolean;
   onDown: (e: ReactPointerEvent<HTMLElement>) => void;
   onMove: (e: ReactPointerEvent<HTMLElement>) => void;
   onUp: (e: ReactPointerEvent<HTMLElement>) => void;
@@ -2735,21 +2773,23 @@ function EntrancePiece({
   return (
     <button
       type="button"
+      title={editable ? (ar ? "اسحب لتحريك المدخل" : "Drag to move entrance") : (ar ? "فعّل تعديل المخطط لتحريك المدخل" : "Enable Edit layout to move entrance")}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onUp}
       className={cn(
-        "qs-floor-entrance absolute z-[8] flex touch-none items-center gap-1.5 rounded-lg border bg-white px-2.5 py-1.5 text-[10px] font-bold text-slate-700 shadow",
+        "qs-floor-entrance absolute z-[8] flex min-h-11 min-w-11 touch-none items-center gap-1.5 rounded-lg border bg-white px-2.5 py-1.5 text-[10px] font-bold text-slate-700 shadow",
         selected ? "border-[#e85d2a] ring-2 ring-orange-500/20" : "border-slate-300",
       )}
       style={{
+        cursor: editable ? "grab" : "pointer",
         left: `${entry.x}%`,
         top: `${entry.y}%`,
         transform: `translate(-50%,-50%) rotate(${entry.rotation}deg)`,
       }}
     >
-      <DoorOpen className="size-3.5" />
+      <span className="size-9 shrink-0"><FloorPlanSymbol type="door" doubleDoor={entry.type === "main"} /></span>
       {entry.label}
     </button>
   );
@@ -2784,47 +2824,6 @@ export function TablePiece({
   const seats = clamp(previewCapacity ?? row.capacity ?? 4, 2, 8);
   const status = serviceStatusOf(row);
   const tone = serviceTone(status);
-  const styles: Record<
-    Material,
-    { top: string; chair: string; text: string; border: string; shadow: string }
-  > = {
-    wood: {
-      top: "linear-gradient(90deg,#875029,#c27c42 46%,#75411f)",
-      chair: "#8b5a3c",
-      text: "#fff",
-      border: "#6f3d20",
-      shadow: "0 8px 16px rgba(99,55,27,.28)",
-    },
-    glass: {
-      top: "linear-gradient(135deg,rgba(215,244,255,.86),rgba(255,255,255,.22) 52%,rgba(173,225,242,.58))",
-      chair: "#93aeb8",
-      text: "#27485b",
-      border: "#78bacf",
-      shadow: "0 8px 18px rgba(73,147,171,.22)",
-    },
-    aluminum: {
-      top: "linear-gradient(135deg,#f7f9fa 0%,#b9c2ca 42%,#eef1f3 60%,#929ea8 100%)",
-      chair: "#77838d",
-      text: "#26323b",
-      border: "#7d8993",
-      shadow: "0 8px 16px rgba(71,85,105,.24)",
-    },
-    marble: {
-      top: "linear-gradient(135deg,#fbfaf7 0 27%,#d8d5cf 28% 32%,#ffffff 33% 56%,#c5c8cc 57% 61%,#f1efe9 62% 82%,#d0ccc3 83% 86%,#faf9f5 87%)",
-      chair: "#59635c",
-      text: "#26312a",
-      border: "#aeb3af",
-      shadow: "0 8px 18px rgba(55,65,60,.18)",
-    },
-    neutral: {
-      top: "linear-gradient(135deg,#d9d6cf,#b7b3aa 55%,#cbc7bf)",
-      chair: "#88847d",
-      text: "#2e2d2a",
-      border: "#9c978e",
-      shadow: "0 8px 16px rgba(80,76,70,.18)",
-    },
-  };
-  const s = styles[material];
   return (
     <div
       role="button"
@@ -2854,43 +2853,8 @@ export function TablePiece({
         transform: `translate(-50%,-50%) rotate(${layout.rotation}deg) scale(${layout.scale})`,
       }}
     >
-      {floorSeats(shape, seats).map((seat, index) => (
-        <i
-          key={index}
-          className="qs-floor-chair absolute"
-          style={{
-            left: `${50 + (seat.x / 2.2) * 100}%`,
-            top: `${50 + (seat.y / 2) * 100}%`,
-            width: `${(0.46 / 2.2) * 100}%`,
-            height: "21%",
-            transform: `translate(-50%,-50%) rotate(${(-seat.rotation * 180) / Math.PI}deg)`,
-            background: s.chair,
-            borderColor: s.border,
-          }}
-        />
-      ))}
-      <span
-        className={cn(
-          "qs-floor-table-top absolute inset-[11px] grid place-items-center border-2 font-display text-sm font-bold transition-all",
-          shape === "round" ? "rounded-full" : shape === "square" ? "rounded-xl" : "rounded-[14px]",
-        )}
-        style={{
-          inset: "auto",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%,-50%)",
-          width: `${((shape === "round" ? 0.92 : shape === "rectangle" ? 1.18 : 0.8) / 2.2) * 100}%`,
-          height: `${((shape === "round" ? 0.92 : 0.8) / 2) * 100}%`,
-          background: s.top,
-          color: s.text,
-          borderColor: selected ? "#2486ff" : tone.dot,
-          boxShadow: selected
-            ? "0 0 0 4px rgba(36,134,255,.18), " + s.shadow
-            : `0 0 0 4px ${tone.ring}, ${s.shadow}`,
-        }}
-      >
-        {row.table_number}
-      </span>
+      <TablePlanSymbol shape={shape} material={material} seats={seats} selected={selected} centerpiece={false} />
+      <span className="qs-floor-table-number pointer-events-none absolute left-1/2 top-1/2 grid h-5 min-w-5 max-w-[80%] -translate-x-1/2 -translate-y-1/2 place-items-center whitespace-nowrap rounded-full border border-[#cabd9e] px-1 bg-[#fffdf4] text-[10px] font-bold text-[#263b2c]">{row.table_number}</span>
       <span
         className="qs-floor-table-status absolute -top-3 start-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/70 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-white shadow-sm"
         style={{ background: tone.dot }}
@@ -2906,7 +2870,7 @@ export function TablePiece({
       ) : null}
       {selected ? (
         <>
-          <span className="pointer-events-none absolute -inset-1 rounded-xl border-2 border-[#2486ff]" />
+          <span className="pointer-events-none absolute -inset-1 rounded-xl border-2 border-[#f2551d]" />
           <button
             type="button"
             aria-label="Resize table"
@@ -2914,7 +2878,7 @@ export function TablePiece({
             onPointerMove={onMove}
             onPointerUp={onUp}
             onPointerCancel={onUp}
-            className="absolute -bottom-2 -end-2 z-30 size-4 touch-none rounded-full border-2 border-white bg-[#2486ff] shadow"
+            className="absolute -bottom-2 -end-2 z-30 size-4 touch-none rounded-full border-2 border-white bg-[#f2551d] shadow"
           />
         </>
       ) : null}
@@ -3221,8 +3185,8 @@ function ZoneInspector({
       <h2 className="text-lg font-bold">{ar ? zone.ar : zone.en}</h2>
       <p className="mt-1 text-xs text-muted-foreground">
         {ar
-          ? "فعّل تعديل المخطط، ثم اسحب عنوان المنطقة للتحريك والزاوية السفلية اليمنى لتغيير الحجم."
-          : "Enable Edit layout, drag the zone title to move, then drag the bottom-right corner to resize."}
+          ? "فعّل تعديل المخطط، ثم اسحب عنوان المنطقة للتحريك وأي زاوية لتغيير الحجم. استخدم التكبير للمناطق الصغيرة."
+          : "Enable Edit layout, drag the zone title to move, then drag any corner to resize. Use zoom for smaller zones."}
       </p>
       <div className="mt-5 grid grid-cols-2 gap-2">
         <button type="button" onClick={onRename} className="qs-button-secondary">

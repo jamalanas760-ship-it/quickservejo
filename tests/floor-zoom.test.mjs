@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import ts from 'typescript';
+import vm from 'node:vm';
+const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/lib/floor-zoom.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports,Math});
+const {floorFitZoom,stepFloorZoom}=exports;
+test('fit keeps wide and tall floor plans within both viewport dimensions',()=>{for(const size of [{width:1000,height:700},{width:2400,height:400},{width:600,height:1600}])for(const viewport of [{width:320,height:400},{width:1440,height:500}]){const fit=floorFitZoom(size,viewport);assert.ok(fit*viewport.width*size.width/1000<=viewport.width+.001);assert.ok(fit*viewport.width*size.height/1000<=viewport.height+.001);}});
+test('zoom buttons change scale relative to fit and remain bounded',()=>{for(const fit of [.2,.7,1.5]){assert.ok(stepFloorZoom(fit,1,fit)>fit);assert.ok(stepFloorZoom(fit,-1,fit)<fit);assert.equal(stepFloorZoom(fit*.4,-1,fit),fit*.4);assert.equal(stepFloorZoom(fit*4,1,fit),fit*4);}});
+test('unmounted viewport uses a finite width-fit fallback',()=>{assert.equal(floorFitZoom({width:2000,height:700},{width:0,height:0}),.5);});

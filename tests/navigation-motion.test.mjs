@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import ts from 'typescript';import vm from 'node:vm';
+const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/lib/restaurant-appearance.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports,Math,Number,Set});
+test('organization motion defaults to full for legacy and malformed settings',()=>{for(const theme of [null,{}, {workspace:{navigationMotion:'unknown'}},{workspace:{navigationMotion:false}}])assert.equal(exports.readAppearance(theme).navigationMotion,'full');});
+test('reduced motion is restored from the organization workspace settings',()=>{assert.equal(exports.readAppearance({workspace:{navigationMotion:'reduced'}}).navigationMotion,'reduced');});

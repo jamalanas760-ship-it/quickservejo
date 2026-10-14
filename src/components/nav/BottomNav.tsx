@@ -100,19 +100,6 @@ export function BottomNav() {
   const { lang } = useI18n();
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
-  const [navigationMotion, setNavigationMotion] = useState<"full" | "reduced">("full");
-  useEffect(() => {
-    try { if (localStorage.getItem("qs-navigation-motion") === "reduced") setNavigationMotion("reduced"); } catch {}
-  }, []);
-  useLayoutEffect(() => {
-    document.documentElement.dataset.qsNavigationMotion = navigationMotion;
-    return () => { delete document.documentElement.dataset.qsNavigationMotion; };
-  }, [navigationMotion]);
-  function toggleNavigationMotion() {
-    const next = navigationMotion === "full" ? "reduced" : "full";
-    setNavigationMotion(next);
-    try { localStorage.setItem("qs-navigation-motion", next); } catch {}
-  }
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarRestored, setSidebarRestored] = useState(false);
   const [sidebarMotionReady, setSidebarMotionReady] = useState(false);
@@ -206,6 +193,10 @@ export function BottomNav() {
       membershipHasCapability(role, overrides, capability),
     );
   const appearance = readAppearance(restaurant?.menu_theme);
+  useLayoutEffect(() => {
+    document.documentElement.dataset.qsNavigationMotion = appearance.navigationMotion;
+    return () => { delete document.documentElement.dataset.qsNavigationMotion; };
+  }, [appearance.navigationMotion]);
   const useRestaurantLogo = Boolean(restaurant?.logo_url && !appearance.useQuickServeLogo);
   const managerial =
     role === "restaurant_admin" || role === "operations_manager" || role === "manager";
@@ -1050,7 +1041,7 @@ export function BottomNav() {
                 <li key={`${item.to}-${item.en}`}>
                   <Link
                     to={item.to as never}
-                    preload="render"
+                    preload="intent"
                     data-active={active}
                     className="qs-sidebar-item"
                     title={lang === "ar" ? item.ar : item.en}
@@ -1095,7 +1086,7 @@ export function BottomNav() {
           {!desktopPrimary.some((item) => item.to === "/profile") ? (
             <Link
               to="/profile"
-              preload="render"
+              preload="intent"
               data-active={activeFor({
                 to: "/profile",
                 icon: Settings,
@@ -1138,7 +1129,7 @@ export function BottomNav() {
                 <Link
                   key={`${item.to}-${item.en}`}
                   to={item.to as never}
-                  preload="render"
+                  preload="intent"
                   aria-current={active ? "page" : undefined}
                   aria-label={
                     count > 0
@@ -1311,6 +1302,7 @@ export function BottomNav() {
       ) : null}
       <Dialog open={moreOpen} onOpenChange={changeMoreOpen}>
         <DialogContent
+          placement="edge"
           overlayClassName="qs-tools-motion-overlay"
           className="p2-navigation-drawer qs-workspace-tools-dialog max-h-[min(92dvh,820px)] max-w-[1120px] gap-0 overflow-hidden p-0"
           onOpenAutoFocus={(event) => {
@@ -1371,10 +1363,6 @@ export function BottomNav() {
                     </DialogDescription>
                   </div>
                 </div>
-                <button type="button" className="qs-navigation-motion-control" onClick={toggleNavigationMotion}
-                  aria-pressed={navigationMotion === "full"}>
-                  {lang === "ar" ? (navigationMotion === "full" ? "الحركة: كاملة" : "الحركة: مخفّضة") : (navigationMotion === "full" ? "Animation: Full" : "Animation: Reduced")}
-                </button>
                 <div className="qs-search-field mt-4">
                   <Search />
                   <Input
