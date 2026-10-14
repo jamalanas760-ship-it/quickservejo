@@ -400,6 +400,18 @@ function RestaurantProfileSettingsForm({
                 </p>
               </TabsContent>
               <TabsContent value="navigation" className="ps-workspace-panel">
+                <section className="rounded-xl border border-border p-4 mb-4">
+                  <h3 className="font-semibold">{ar ? "حركة التنقل" : "Navigation animation"}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{ar ? "اختر حركة أدوات مساحة العمل وفتح وإغلاق القائمة الجانبية." : "Choose how All Tools and the sidebar open and close."}</p>
+                  <label className="mt-3 grid gap-2 text-sm">
+                    {ar ? "مستوى الحركة" : "Animation level"}
+                    <select className="min-h-11 w-full rounded-lg border border-border bg-background px-3" value={brand.navigationMotion}
+                      onChange={event => setBrand(current => ({ ...current, navigationMotion: event.target.value === "reduced" ? "reduced" : "full" }))}>
+                      <option value="full">{ar ? "كاملة" : "Full"}</option>
+                      <option value="reduced">{ar ? "مخفّضة" : "Reduced"}</option>
+                    </select>
+                  </label>
+                </section>
                 <WorkspaceNavigation
                   ar={ar}
                   selected={pinnedSidebarTools}

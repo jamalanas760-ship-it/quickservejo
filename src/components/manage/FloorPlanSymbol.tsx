@@ -1,7 +1,8 @@
+import { memo } from "react";
 import type { FloorElementType } from "@/lib/floor-plan-elements";
 
 /** Architectural plan symbols: scalable artwork, with the same front as the 3D model. */
-export function FloorPlanSymbol({ type }: { type: FloorElementType }) {
+export const FloorPlanSymbol = memo(function FloorPlanSymbol({ type, doubleDoor = false }: { type: FloorElementType; doubleDoor?: boolean }) {
   const plant = type === "plant" || type === "tree" || type === "planter";
   return (
     <svg
@@ -37,7 +38,7 @@ export function FloorPlanSymbol({ type }: { type: FloorElementType }) {
           ))}
           <circle cx="50" cy="50" r="10" fill="#c7d8ad" />
         </>
-      ) : type === "door" ? (
+      ) : type === "door" && doubleDoor ? <><path d="M3 92H97" stroke="#35443d" strokeWidth="5" /><path d="M8 90V50M92 90V50" stroke="#56625c" strokeWidth="3" /><path d="M8 50A40 40 0 0 1 48 90M92 50A40 40 0 0 0 52 90" fill="none" stroke="#82928a" strokeWidth="1.5" /></> : type === "door" ? (
         <>
           <path d="M5 95V5H12V88H95V95Z" fill="#a88a64" />
           <path d="M12 88V12M12 12A76 76 0 0 1 88 88" fill="none" strokeDasharray="4 3" />
@@ -45,9 +46,9 @@ export function FloorPlanSymbol({ type }: { type: FloorElementType }) {
         </>
       ) : type === "wall" ? (
         <>
-          <rect x="1" y="1" width="98" height="98" fill="#bcb7ae" />
+          <rect x="1" y="1" width="98" height="98" rx="3" fill="#4c5953" stroke="#293630" />
           {[0, 20, 40, 60, 80].map((x) => (
-            <path key={x} d={`M${x} 100L${x + 20} 0`} stroke="#dedbd3" />
+            <path key={x} d={`M${x} 100L${x + 20} 0`} stroke="#829087" />
           ))}
         </>
       ) : type === "window" ? (
@@ -62,9 +63,9 @@ export function FloorPlanSymbol({ type }: { type: FloorElementType }) {
         </>
       ) : type === "chair" || type === "sofa" ? (
         <>
-          <rect x="5" y="8" width="90" height="85" rx="12" fill="#bfae9e" />
-          <rect x="15" y="24" width="70" height="62" rx="8" fill="#e6d7c7" />
-          <rect x="8" y="6" width="84" height="20" rx="6" fill="#d4c1af" />
+          <rect x="5" y="8" width="90" height="85" rx="12" fill="#a65d32" />
+          <rect x="15" y="24" width="70" height="62" rx="8" fill="#d28b4d" />
+          <rect x="8" y="6" width="84" height="20" rx="6" fill="#c47c43" />
           <rect x="3" y="24" width="12" height="65" rx="5" />
           <rect x="85" y="24" width="12" height="65" rx="5" />
           {type === "sofa" && <path d="M38 29V82M62 29V82" stroke="#bba794" />}
@@ -107,4 +108,4 @@ export function FloorPlanSymbol({ type }: { type: FloorElementType }) {
       )}
     </svg>
   );
-}
+});

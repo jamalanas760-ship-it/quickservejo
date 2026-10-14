@@ -1,8 +1,8 @@
+import { TablePlanSymbol } from "./TablePlanSymbol";
 import { ActionMenu } from "@/components/app/ActionMenu";
 import { FloorRotationControl } from "./FloorRotationControl";
 import { FloorPlanSymbol } from "./FloorPlanSymbol";
-import { FloorElementPreview } from "./FloorElementPreview";
-import { useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
 import {
   Armchair,
   CookingPot,
@@ -28,6 +28,7 @@ import {
   type FloorElement,
   type FloorElementType,
 } from "@/lib/floor-plan-elements";
+const FloorElementPreview = lazy(() => import("./FloorElementPreview").then(module => ({ default: module.FloorElementPreview })));
 const icons = {
   wall: Fence,
   door: DoorOpen,
@@ -45,14 +46,18 @@ const icons = {
 };
 export function FloorElementLibrary({
   ar,
+  flat = false,
+  onAddEntrance,
   busy,
   onAdd,
   onAddTable,
 }: {
   ar: boolean;
+  flat?: boolean;
   busy: boolean;
-  onAdd: (type: FloorElementType) => void;
-  onAddTable?: ((shape: "round" | "square" | "rectangle") => void) | undefined;
+  onAdd: (type: FloorElementType, preset?: Partial<Pick<FloorElement, "width" | "height" | "label">>) => void;
+  onAddEntrance?: () => void;
+  onAddTable?: ((shape: "round" | "square" | "rectangle", capacity?: number) => void) | undefined;
 }) {
   const [search, setSearch] = useState("");
   const groups = [
@@ -63,8 +68,14 @@ export function FloorElementLibrary({
     },
     { title: ar ? "النباتات" : "Plants", types: ["tree", "plant", "planter"] },
   ];
+  const matches = (...labels: string[]) => labels.some(label => label.toLowerCase().includes(search.trim().toLowerCase()));
+  const labelsFor = (type: FloorElementType) => [...FLOOR_ELEMENT_LABELS[type], ...(flat && type === "sofa" ? ["Booth", "جلسة بوث"] : flat && type === "door" ? ["Service door", "باب خدمة"] : [])];
+  const tableShapes = onAddTable ? (["round", "square", "rectangle"] as const).filter(shape => (!search || flat) && matches(shape, shape === "round" ? "طاولة دائرية" : shape === "square" ? "طاولة مربعة" : "طاولة مستطيلة")) : [];
+  const showCommunal = flat && Boolean(onAddTable) && matches("Communal table", "طاولة مشتركة");
+  const showEntrance = flat && Boolean(onAddEntrance) && matches("Main entrance", "المدخل الرئيسي");
+  const showColumn = flat && matches("Column", "عمود");
   return (
-    <div className="qs-element-library-wrap">
+    <div className="qs-element-library-wrap" data-flat={flat}>
       <label className="qs-element-search">
         <Search className="size-4" />
         <input
@@ -75,13 +86,13 @@ export function FloorElementLibrary({
           onChange={(e) => setSearch(e.target.value)}
         />
       </label>
-      {onAddTable && !search && (
+      {onAddTable && (tableShapes.length > 0 || showCommunal) && (
         <section>
           <h3>{ar ? "الطاولات" : "Tables"}</h3>
           <div className="qs-element-library">
-            {(["round", "square", "rectangle"] as const).map((shape) => (
+            {tableShapes.map((shape) => (
               <button key={shape} type="button" disabled={busy} onClick={() => onAddTable(shape)}>
-                <FloorElementPreview type={shape}/>
+                {flat ? <span className="qs-floor-library-preview"><TablePlanSymbol shape={shape} /></span> : <Suspense fallback={<TablePlanSymbol shape={shape} />}><FloorElementPreview type={shape}/></Suspense>}
                 <span>
                   {
                     {
@@ -93,12 +104,17 @@ export function FloorElementLibrary({
                 </span>
               </button>
             ))}
+            {showCommunal && <button type="button" disabled={busy} onClick={() => onAddTable("rectangle", 8)}><span className="qs-floor-library-preview"><TablePlanSymbol shape="rectangle" seats={8} /></span><span>{ar ? "طاولة مشتركة" : "Communal table"}</span></button>}
           </div>
         </section>
       )}
+      {(showEntrance || showColumn) && <section><h3>{ar ? "المداخل والهيكل" : "Entrances & structure"}</h3><div className="qs-element-library">
+        {showEntrance && <button type="button" disabled={busy} onClick={onAddEntrance}><span className="qs-floor-library-preview"><FloorPlanSymbol type="door" doubleDoor /></span><span>{ar ? "المدخل الرئيسي" : "Main entrance"}</span></button>}
+        {showColumn && <button type="button" disabled={busy} onClick={() => onAdd("wall", { width: 4, height: 6, label: ar ? "عمود" : "Column" })}><span className="qs-floor-library-preview"><FloorPlanSymbol type="wall" /></span><span>{ar ? "عمود" : "Column"}</span></button>}
+      </div></section>}
       {groups.map((group) => {
         const types = group.types.filter((type) =>
-          FLOOR_ELEMENT_LABELS[type as FloorElementType].some((label) =>
+          labelsFor(type as FloorElementType).some((label) =>
             label.toLowerCase().includes(search.trim().toLowerCase()),
           ),
         ) as FloorElementType[];
@@ -109,9 +125,9 @@ export function FloorElementLibrary({
             <div className="qs-element-library">
               {types.map((type) => {
                 return (
-                  <button key={type} type="button" disabled={busy} onClick={() => onAdd(type)}>
-                    <FloorElementPreview type={type}/>
-                    <span>{FLOOR_ELEMENT_LABELS[type][ar ? 1 : 0]}</span>
+                  <button key={type} type="button" disabled={busy} onClick={() => onAdd(type, flat && type === "sofa" ? { label: ar ? "جلسة بوث" : "Booth" } : flat && type === "door" ? { label: ar ? "باب خدمة" : "Service door" } : undefined)}>
+                    {flat ? <span className="qs-floor-library-preview"><FloorPlanSymbol type={type} /></span> : <Suspense fallback={<FloorPlanSymbol type={type} />}><FloorElementPreview type={type}/></Suspense>}
+                    <span>{flat && type === "sofa" ? (ar ? "جلسة بوث" : "Booth") : flat && type === "door" ? (ar ? "باب خدمة" : "Service door") : FLOOR_ELEMENT_LABELS[type][ar ? 1 : 0]}</span>
                   </button>
                 );
               })}
@@ -119,9 +135,9 @@ export function FloorElementLibrary({
           </section>
         );
       })}
-      {!groups.some((group) =>
+      {!tableShapes.length && !showCommunal && !showEntrance && !showColumn && !groups.some((group) =>
         group.types.some((type) =>
-          FLOOR_ELEMENT_LABELS[type as FloorElementType].some((label) =>
+          labelsFor(type as FloorElementType).some((label) =>
             label.toLowerCase().includes(search.trim().toLowerCase()),
           ),
         ),
@@ -264,6 +280,7 @@ export function FloorElementPiece({
 export function FloorElementInspector({
   element,
   ar,
+  flat = false,
   busy,
   onSave,
   showRotation = true,
@@ -272,6 +289,7 @@ export function FloorElementInspector({
 }: {
   element: FloorElement;
   ar: boolean;
+  flat?: boolean;
   busy: boolean;
   onSave: (next: FloorElement) => void;
   showRotation?: boolean;
@@ -283,7 +301,7 @@ export function FloorElementInspector({
   return (
     <div className="qs-element-inspector space-y-4 p-5">
       <div className="qs-element-inspector-preview">
-        <FloorElementPreview type={element.type}/>
+        {flat ? <FloorPlanSymbol type={element.type} /> : <Suspense fallback={<FloorPlanSymbol type={element.type} />}><FloorElementPreview type={element.type}/></Suspense>}
       </div>
       <h2 className="text-lg font-bold">{FLOOR_ELEMENT_LABELS[element.type][ar ? 1 : 0]}</h2>
       <p className="text-xs text-muted-foreground">
