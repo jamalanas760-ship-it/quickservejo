@@ -49,3 +49,199 @@
 }}
 
 @media(max-width:480px){.qs-home-period{padding:14px;gap:10px}.qs-home-period-copy strong{font-size:14px}.qs-home-period-copy small{font-size:11px}.qs-home-period-live{grid-column:1/-1;justify-self:start}.qs-home-period-range{grid-column:1/-1}.qs-home-period-options button{padding:10px;min-height:68px}.qs-home-period-options strong{font-size:13px}.qs-home-period-trigger{padding:10px;font-size:12px}}
+
+/* Keep native date controls aligned, including Safari's date value box. */
+.qs-home-period-custom {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+.qs-home-period-dates {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.qs-home-period-date {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.qs-home-period-date input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 48px;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--background);
+  color: var(--foreground);
+  padding: 12px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  text-align: start;
+  font-variant-numeric: tabular-nums;
+}
+.qs-home-period-date input::-webkit-date-and-time-value {
+  min-height: 24px;
+  line-height: 24px;
+  text-align: start;
+  margin: 0;
+}
+.qs-home-period-date input::-webkit-datetime-edit {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  line-height: 24px;
+}
+.qs-home-period-date input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.qs-home-period-actions {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.qs-home-period-actions button {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  padding-inline: 10px;
+  font-size: 13px;
+  line-height: 1.3;
+  text-align: center;
+}
+@media (min-width: 480px) {
+  .qs-home-period-dates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .qs-focused-period .qs-home-period-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .qs-focused-period .qs-home-period-options button {
+    min-height: 44px;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    padding: 10px 8px;
+    justify-content: start;
+    gap: 12px;
+    background: transparent;
+    box-shadow: none;
+  }
+  .qs-focused-period .qs-home-period-options button[aria-pressed="true"] {
+    background: color-mix(in srgb, var(--primary) 10%, var(--card));
+    border-radius: 8px;
+  }
+  .qs-focused-period .qs-home-period-options button > span {
+    flex: 1;
+  }
+  .qs-focused-period .qs-home-period-options button > svg {
+    width: 20px;
+    height: 20px;
+  }
+  .qs-focused-period .qs-home-period-options small {
+    display: none;
+  }
+  .qs-focused-period .qs-home-period-options strong {
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .qs-focused-caption {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.5;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  [dir="rtl"] .qs-focused-caption {
+    letter-spacing: 0;
+  }
+  .qs-focused-period .qs-home-period-custom {
+    padding-top: 10px;
+    gap: 10px;
+  }
+  .qs-focused-period .qs-home-period-dates {
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .qs-focused-period .qs-home-period-date {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding-inline: 12px;
+    font-size: 14px;
+    font-weight: 400;
+  }
+  .qs-focused-period .qs-home-period-date + .qs-home-period-date {
+    border-top: 1px solid var(--border);
+  }
+  .qs-focused-period .qs-home-period-date input {
+    border: 0;
+    border-radius: 0;
+    height: 48px;
+    padding: 12px 0;
+    font-size: 16px;
+    background: transparent;
+  }
+  .qs-focused-period .qs-home-period-note {
+    font-size: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .qs-focused-period > .qs-dialog-header h2 {
+    font-size: 22px !important;
+    line-height: 1.3;
+  }
+  .qs-focused-period > .qs-dialog-header p {
+    display: none;
+  }
+  .qs-focused-period .qs-home-period-options button > svg:first-child {
+    color: var(--foreground);
+  }
+  .qs-focused-period .qs-home-period-options button[aria-pressed="true"] > svg:first-child {
+    color: var(--primary);
+  }
+  .qs-focused-period .qs-home-period-options button > svg:last-child:not(:first-child) {
+    display: none;
+  }
+  .qs-focused-period .qs-home-period-options button:after {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .qs-focused-period .qs-home-period-options button[aria-pressed="true"]:after {
+    border-color: var(--primary);
+    background: var(--primary);
+    box-shadow: inset 0 0 0 3px var(--card);
+  }
+  .qs-focused-period .qs-home-period-actions {
+    flex-direction: row-reverse;
+  }
+}
+@media (min-width: 768px) {
+  .qs-focused-period .qs-focused-caption {
+    display: none;
+  }
+}

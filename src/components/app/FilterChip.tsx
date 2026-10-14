@@ -98,8 +98,10 @@ export function FilterPanel({
   count = 0,
   children,
   footer,
+  className,
 }: {
   ar: boolean;
+  className?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   count?: number;
@@ -125,7 +127,7 @@ export function FilterPanel({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent
-        className="p2-filter-sheet"
+        className={`p2-filter-sheet ${className ?? ""}`}
         dir={ar ? "rtl" : "ltr"}
         onOpenAutoFocus={(event) => {
           event.preventDefault();

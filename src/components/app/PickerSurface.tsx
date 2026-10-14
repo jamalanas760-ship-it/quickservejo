@@ -17,12 +17,14 @@ export function PickerSurface({
   title,
   ar,
   children,
+  className,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: ReactNode;
   title: string;
   ar: boolean;
+  className?: string;
   children: ReactNode;
 }) {
   const mobile = useIsMobile(),
@@ -32,7 +34,7 @@ export function PickerSurface({
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent
         overlayClassName="p2-picker-overlay"
-        className="p2-date-sheet"
+        className={`p2-date-sheet ${className ?? ""}`}
         dir={ar ? "rtl" : "ltr"}
         aria-describedby={undefined}
         onOpenAutoFocus={(event) => {
