@@ -2113,3 +2113,70 @@
     }
   }
 }
+
+/* Navigation motion is explicit and device-independent. Animate the actual
+   layout properties rather than an inherited @property (browser support varies). */
+@layer components {
+  .qs-navigation-motion-control {
+    min-height: 44px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+  .qs-navigation-motion-control:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  :root[data-qs-navigation-motion="full"]
+    .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content[data-state="open"] {
+    animation: qs-tools-from-right 440ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
+  }
+  :root[data-qs-navigation-motion="full"]
+    .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content[data-state="closed"] {
+    animation: qs-tools-to-right 200ms cubic-bezier(0.4, 0, 1, 1) both !important;
+  }
+  :root[data-qs-navigation-motion="full"] .qs-tools-motion-overlay[data-state="open"] {
+    animation: qs-tools-backdrop-in 260ms ease-out both !important;
+  }
+  :root[data-qs-navigation-motion="full"] .qs-tools-motion-overlay[data-state="closed"] {
+    animation: qs-tools-backdrop-out 200ms ease-in both !important;
+  }
+  :root[data-qs-navigation-motion="reduced"]
+    :is(
+      .qs-workspace-tools-dialog.p2-navigation-drawer.qs-dialog-content,
+      .qs-tools-motion-overlay
+    )[data-state] {
+    animation: none !important;
+  }
+  :root[data-qs-navigation-motion="full"][data-sidebar-motion-ready="true"]
+    :is(.qs-sidebar-label, .qs-sidebar-count, .qs-sidebar-wordmark, .qs-sidebar-toggle-icon) {
+    transition:
+      opacity 150ms ease,
+      transform 280ms var(--qs-rail-ease) !important;
+  }
+  :root[data-qs-navigation-motion="reduced"]
+    :is(
+      .qs-sidebar-shell,
+      .qs-sidebar-content,
+      .qs-sidebar-label,
+      .qs-sidebar-count,
+      .qs-sidebar-wordmark,
+      .qs-sidebar-toggle-icon
+    ) {
+    transition: none !important;
+  }
+  @media (min-width: 768px) {
+    :root[data-qs-navigation-motion][data-sidebar-motion-ready="true"] {
+      transition: none !important;
+    }
+    :root[data-qs-navigation-motion="full"][data-sidebar-motion-ready="true"] .qs-sidebar-shell {
+      transition: width 280ms var(--qs-rail-ease) !important;
+    }
+    :root[data-qs-navigation-motion="full"][data-sidebar-motion-ready="true"] .qs-sidebar-content {
+      transition: padding-inline-start 280ms var(--qs-rail-ease) !important;
+    }
+  }
+}
