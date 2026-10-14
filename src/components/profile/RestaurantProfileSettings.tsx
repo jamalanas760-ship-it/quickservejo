@@ -1,3 +1,4 @@
+import { GpsAttendanceSettings } from "./GpsAttendanceSettings";
 import { capturePunchLocation } from "@/lib/geofence";
 import { WorkspaceNavigation } from "@/components/profile/WorkspaceNavigation";
 import { useRef, useState, type FormEvent } from "react";
@@ -204,83 +205,35 @@ function RestaurantProfileSettingsForm({
       onSubmit={save}
       className="ps-organization-form space-y-4"
     >
-      <section className="ps-card space-y-4">
-        <h2>{ar ? "موقع المطعم والتحقق من الحضور" : "Restaurant location & attendance"}</h2>
-        <p className="text-sm text-muted-foreground">
-          {ar
-            ? "يتم التحقق من الموقع عند تسجيل الدخول والخروج فقط. المواقع خارج النطاق أو غير المتاحة تظهر للمراجعة."
-            : "Location is checked only when clocking in or out. Off-premise or unavailable locations are flagged for review."}
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="ps-field">
-            {ar ? "خط العرض" : "Latitude"}
-            <input
-              type="number"
-              step="any"
-              min={-90}
-              max={90}
-              inputMode="decimal"
-              value={form.latitude}
-              onChange={(e) => field("latitude", e.target.value)}
-            />
-          </label>
-          <label className="ps-field">
-            {ar ? "خط الطول" : "Longitude"}
-            <input
-              type="number"
-              step="any"
-              min={-180}
-              max={180}
-              inputMode="decimal"
-              value={form.longitude}
-              onChange={(e) => field("longitude", e.target.value)}
-            />
-          </label>
-        </div>
-        <label className="ps-field">
-          {ar ? "نطاق التحقق" : "Geofence radius"} · {form.geofence_radius_meters}{" "}
-          {ar ? "متر" : "m"}
-          <input
-            type="range"
-            min={50}
-            max={300}
-            step={10}
-            value={form.geofence_radius_meters}
-            onChange={(e) => field("geofence_radius_meters", Number(e.target.value))}
-          />
-        </label>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={locating}
-          onClick={async () => {
-            setLocating(true);
-            const location = await capturePunchLocation();
-            setLocating(false);
-            if (location.latitude == null || location.longitude == null) {
-              toast.error(
-                ar
-                  ? "تعذر الحصول على الموقع. اسمح بالوصول أو أدخل الإحداثيات يدوياً."
-                  : "Location unavailable. Allow access or enter coordinates manually.",
-              );
-              return;
-            }
-            setForm((f) => ({
-              ...f,
-              latitude: String(location.latitude),
-              longitude: String(location.longitude),
-            }));
-          }}
-        >
-          {locating
-            ? ar
-              ? "جارٍ تحديد الموقع…"
-              : "Locating…"
-            : ar
-              ? "استخدام الموقع الحالي"
-              : "Use Current Location"}
-        </Button>
-      </section>
+      <GpsAttendanceSettings
+        ar={ar}
+        latitude={form.latitude}
+        longitude={form.longitude}
+        radius={form.geofence_radius_meters}
+        locating={locating}
+        saving={saving}
+        onLatitude={(value) => field("latitude", value)}
+        onLongitude={(value) => field("longitude", value)}
+        onRadius={(value) => field("geofence_radius_meters", value)}
+        onLocate={async () => {
+          setLocating(true);
+          const location = await capturePunchLocation();
+          setLocating(false);
+          if (location.latitude == null || location.longitude == null) {
+            toast.error(
+              ar
+                ? "تعذر الحصول على الموقع. اسمح بالوصول أو أدخل الإحداثيات يدوياً."
+                : "Location unavailable. Allow access or enter coordinates manually.",
+            );
+            return;
+          }
+          setForm((f) => ({
+            ...f,
+            latitude: String(location.latitude),
+            longitude: String(location.longitude),
+          }));
+        }}
+      />
       <div className="ps-org-grid">
         <section className="ps-card ps-org-identity">
           <h2>{ar ? "تفاصيل المطعم" : "Restaurant details"}</h2>

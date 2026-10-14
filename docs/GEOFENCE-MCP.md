@@ -14,3 +14,9 @@ MCP tools accept an authenticated OAuth bearer token; no service-role client is 
 - `get_attendance_status`: current open, non-rejected punches less than 24 hours old, active staff, verification and whether a current shift assignment exists; requires workforce management access. Raw location is returned only to authorized managers.
 
 Migration: `20261014153345_geofenced_attendance_mcp.sql`. Database integration checks: run `supabase/tests/geofence_mcp.sql` after migration; synthetic users, tenants, punches, bookings and sales are transactionally rolled back. No production attendance/booking fixture remains. Browser GPS requires HTTPS or localhost and OS location permissions. Supabase schema deployment and web/MCP runtime deployment are separate steps.
+
+## Location Studio UI
+
+Open **All Tools → Connect → MCP & AI** for the highlighted MCP card and setup panel. Its URL is the current website origin plus `/mcp`, matching the SDK-generated route. Open the published site before copying a stable URL. Setup guide explains custom MCP configuration and OAuth. Tool tiles open reservations, new reservation, tenant analytics and workforce attendance; external AI clients invoke the registered MCP tools. No client secrets or service credentials are displayed.
+
+**Organization Settings → GPS attendance** provides the approved Location Studio layout: illustrative SVG geofence, live radius label and slider, coordinates, Current Location, example review legend and Save settings. The preview is schematic, not a real map or proof of a location fix. GPS saving still uses the existing organization settings form and permissions.
