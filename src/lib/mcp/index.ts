@@ -1,3 +1,7 @@
+import getTableAvailability from "./tools/get-table-availability";
+import createReservation from "./tools/create-reservation";
+import getDailySalesSummary from "./tools/get-daily-sales-summary";
+import getAttendanceStatus from "./tools/get-attendance-status";
 import { auth, defineMcp } from "@lovable.dev/mcp-js";
 
 import listRestaurants from "./tools/list-restaurants";
@@ -13,9 +17,9 @@ const projectRef = import.meta.env['VITE_SUPABASE_PROJECT_ID'] ?? "project-ref-u
 export default defineMcp({
   name: "quickserve",
   title: "QuickServe",
-  version: "0.1.0",
+  version: "0.2.0",
   instructions:
-    "Tools for QuickServe, a multi-tenant QR restaurant ordering platform. Start with `list_restaurants` to get a restaurant id, then use `list_menu_items` / `set_item_availability` for the menu and `list_orders` / `update_order_status` for service. All access is scoped to the signed-in user's restaurants.",
+    "Tools for QuickServe, a multi-tenant QR restaurant ordering platform. Start with `list_restaurants` to get a restaurant id, then use `list_menu_items` / `set_item_availability` for the menu and `list_orders` / `update_order_status` for service. Use get_table_availability and create_reservation for bookings, get_daily_sales_summary for paid sales, and get_attendance_status for workforce. Dates and times use the restaurant timezone. All access is scoped to the signed-in user's restaurants.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
@@ -28,5 +32,9 @@ export default defineMcp({
     setItemAvailability,
     listOrders,
     updateOrderStatus,
+    getTableAvailability,
+    createReservation,
+    getDailySalesSummary,
+    getAttendanceStatus,
   ] as never,
 });

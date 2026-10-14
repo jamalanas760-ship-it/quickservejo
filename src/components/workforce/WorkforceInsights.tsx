@@ -1,3 +1,5 @@
+import { GeofenceBadge } from "./GeofenceBadge";
+import type { GeofenceVerification } from "@/lib/geofence";
 import { WorkforceFilters } from "./WorkforceFilters";
 import { MasterActionSurface } from "@/components/app/MasterPage";
 import { isLiveTeamPunch, teamPunchesByStaff } from "@/lib/team-attendance";
@@ -63,6 +65,8 @@ type Entry = {
   clock_in: string;
   clock_out: string | null;
   break_minutes: number;
+  clock_in_location?: GeofenceVerification | null;
+  clock_out_location?: GeofenceVerification | null;
   approved_overtime_minutes?: number;
   review_status?: "pending" | "approved" | "rejected" | null;
   reviewed_at?: string | null;
@@ -1484,7 +1488,13 @@ export function WorkforceTimesheets({
                           </small>
                         </button>
                       </td>
-                      <td data-label={ar ? "التاريخ" : "Date"}>{dayKey(e.clock_in)}</td>
+                      <td data-label={ar ? "التاريخ" : "Date"}>
+                        {dayKey(e.clock_in)}
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          <GeofenceBadge ar={ar} action="in" verification={e.clock_in_location} />
+                          <GeofenceBadge ar={ar} action="out" verification={e.clock_out_location} />
+                        </div>
+                      </td>
                       <td data-label={ar ? "مجدول" : "Scheduled"}>
                         {sched === null ? "—" : fmtH(sched, ar)}
                       </td>
@@ -1615,6 +1625,8 @@ export function WorkforceTimesheets({
               {selectedMember ? <Person member={selectedMember} /> : null}
               <p>{dayKey(selected.clock_in)}</p>
             </div>
+            <GeofenceBadge ar={ar} action="in" verification={selected.clock_in_location} />
+            <GeofenceBadge ar={ar} action="out" verification={selected.clock_out_location} />
             <DetailRow label={ar ? "الدخول" : "Clock in"} value={fmtTime(selected.clock_in, ar)} />
             <DetailRow
               label={ar ? "الخروج" : "Clock out"}

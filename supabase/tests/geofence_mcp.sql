@@ -1,0 +1,31 @@
+-- Run after the geofenced attendance migration; leaves no test records.
+begin;
+insert into auth.users(id,aud,role,email) values('10000000-0000-4000-8000-000000000001','authenticated','authenticated','qs-geofence-test@example.invalid');
+insert into public.restaurants(id,name,slug,timezone,currency,latitude,longitude) values('20000000-0000-4000-8000-000000000001','Geofence transaction test','qs-geo-transaction-test','Asia/Amman','JOD',0,0),('20000000-0000-4000-8000-000000000002','Other transaction test','qs-geo-transaction-other','Asia/Amman','JOD',0,0);
+insert into public.staff(id,restaurant_id,auth_user_id,name,role,is_active) values('30000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Test manager','operations_manager',true);
+insert into public.booking_settings(restaurant_id) values('20000000-0000-4000-8000-000000000001');
+insert into public.restaurant_tables(id,restaurant_id,table_number,capacity) values('40000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','TEST',4);
+insert into public.orders(id,restaurant_id,order_number,status,payment_status,total,paid_at) values('50000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','GEO-TEST-PAID','served','paid',20,current_date::timestamp at time zone 'Asia/Amman'),('50000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000002','GEO-TEST-OTHER','served','paid',999,current_date::timestamp at time zone 'Asia/Amman');
+insert into public.order_items(restaurant_id,order_id,product_name_snapshot_en,product_name_snapshot_ar,quantity,unit_price,total_price) values('20000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000001','Test item','صنف تجريبي',2,10,20);
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+do $$declare r jsonb;rid uuid:='20000000-0000-4000-8000-000000000001';other uuid:='20000000-0000-4000-8000-000000000002';begin
+ r:=public.clock_staff_geofenced(rid,'in',0,0,10,null);assert r->>'action'='clocked_in';assert r->'verification'->>'status'='on_premise';
+ r:=public.clock_staff_geofenced(rid,'in',0,1,10,null);assert r->>'action'='already_clocked_in';assert r->'verification'->>'status'='on_premise','retry must preserve original verification';
+ r:=public.mcp_attendance_status(rid);assert jsonb_array_length(r->'clocked_in')=1;
+ r:=public.clock_staff_geofenced(rid,'out',0,0.01,10,null);assert r->'verification'->>'status'='off_premise';assert (r->'verification'->>'distance_meters')::numeric>1000;
+ r:=public.clock_staff_geofenced(rid,'in',null,null,null,'permission_denied');assert r->'verification'->>'status'='unverified';
+ r:=public.clock_staff_geofenced(rid,'out',0,0,200,null);assert r->'verification'->>'status'='unverified';
+ r:=public.mcp_table_availability(rid,current_date+1,'18:00',4,90);assert jsonb_array_length(r->'tables')=1;
+ r:=public.mcp_create_reservation(rid,current_date+1,'18:00',4,'Test guest');assert r->>'status'='confirmed';
+ r:=public.mcp_table_availability(rid,current_date+1,'18:00',4,90);assert jsonb_array_length(r->'tables')=0,'confirmed booking blocks overlapping time';
+ r:=public.mcp_daily_sales_summary(rid,current_date);assert (r->>'order_count')::integer=1;assert (r->>'revenue')::numeric=20;assert (r->'top_selling_items'->0->>'quantity')::integer=2;
+ begin perform public.clock_staff_geofenced(other,'in',0,0,10,null);raise exception 'Isolation failure';exception when insufficient_privilege then null;end;
+ begin perform public.mcp_attendance_status(other);raise exception 'Isolation failure';exception when insufficient_privilege then null;end;
+ begin perform public.mcp_daily_sales_summary(other,current_date);raise exception 'Isolation failure';exception when insufficient_privilege then null;end;
+ begin perform public.mcp_table_availability(other,current_date,'18:00',4,90);raise exception 'Isolation failure';exception when insufficient_privilege then null;end;
+ begin perform public.mcp_create_reservation(other,current_date,'18:00',4,'Test');raise exception 'Isolation failure';exception when insufficient_privilege then null;end;
+end;$$;
+reset role;
+select 'geofence, booking, attendance, sales and five cross-tenant denial checks passed; all fixtures rolled back' as verification;
+rollback;

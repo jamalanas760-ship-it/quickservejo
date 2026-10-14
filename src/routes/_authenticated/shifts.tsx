@@ -1,3 +1,5 @@
+import { capturePunchLocation, verifyGeofence, type GeofenceVerification } from "@/lib/geofence";
+import { GeofenceBadge } from "@/components/workforce/GeofenceBadge";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { restaurantScheduleWindows } from "@/lib/restaurant-schedule";
 import { ActionMenu } from "@/components/app/ActionMenu";
@@ -899,6 +901,8 @@ type TimeEntry = {
   clock_out: string | null;
   break_minutes: number;
   review_status?: string | null;
+  clock_in_location?: GeofenceVerification | null;
+  clock_out_location?: GeofenceVerification | null;
 };
 type ClockStatus = {
   entry_id: string;
@@ -908,6 +912,7 @@ type ClockStatus = {
   elapsed_seconds?: number;
 };
 type ClockResult = {
+  verification?: GeofenceVerification;
   action?: string;
   entry_id?: string | null;
   staff_id?: string | null;
@@ -934,6 +939,8 @@ function WorkforceClockHero({
   const [clockNow, setClockNow] = useState(() => Date.now());
   const restaurant = useRestaurant(restaurantId);
   const timeZone = restaurant.data?.timezone || "Asia/Amman";
+  const [verification, setVerification] = useState<GeofenceVerification | null>(null);
+  useEffect(()=>setVerification(null),[restaurantId,currentStaffId]);
   const [missingPunchOpen, setMissingPunchOpen] = useState(false);
 
   useEffect(() => {
@@ -991,7 +998,7 @@ function WorkforceClockHero({
     queryFn: async () => {
       const since = new Date(Date.now() - 14 * 86_400_000).toISOString();
       const { data, error } = await (supabase.from("staff_time_entries" as any) as any)
-        .select("id,staff_id,clock_in,clock_out,break_minutes,review_status")
+        .select("id,staff_id,clock_in,clock_out,break_minutes,review_status,clock_in_location,clock_out_location")
         .eq("restaurant_id", restaurantId)
         .eq("staff_id", currentStaffId)
         .gte("clock_in", since)
@@ -1122,7 +1129,14 @@ function WorkforceClockHero({
             : "Unable to confirm clock status. Retry first.",
         );
       const rpc = openEntry ? "clock_out_staff" : "clock_in_staff";
-      const { data, error } = await (supabase as any).rpc(rpc, { _restaurant_id: restaurantId });
+      const location = await capturePunchLocation();
+      // Advisory Haversine check; the server computes the stored verification.
+      if (restaurant.data) verifyGeofence(location, restaurant.data as any);
+      const { data, error } = await (supabase as any).rpc("clock_staff_geofenced", {
+        _restaurant_id: restaurantId, _action: rpc === "clock_out_staff" ? "out" : "in",
+        _latitude: location.latitude, _longitude: location.longitude,
+        _accuracy: location.accuracy, _reason: location.reason,
+      });
       if (error) throw error;
       const result = (Array.isArray(data) ? data[0] : data) as ClockResult;
       if (
@@ -1139,6 +1153,7 @@ function WorkforceClockHero({
       return result;
     },
     onSuccess: async (result) => {
+      setVerification(result?.verification ?? null);
       const action = result?.action?.toLowerCase();
       const at = result?.at ?? new Date().toISOString();
       const isOut = action === "clocked_out" || action === "already_clocked_out";
@@ -1279,6 +1294,7 @@ function WorkforceClockHero({
                   })
                 : ""}
             </small>
+        <GeofenceBadge ar={ar} verification={verification ?? history.data?.find(e=>e.id===openEntry?.id)?.clock_in_location ?? history.data?.[0]?.clock_out_location} />
           </span>
         </div>
         <div className="wf-clock-metric">
