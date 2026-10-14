@@ -1335,10 +1335,11 @@ export function BottomNav() {
               </div>
               <div className="qs-workspace-tools-spotlight-brand">
                 {restaurant?.logo_url ? (
-                  <img src={restaurant?.logo_url ?? ""} alt="" />
+                  <img src={restaurant?.logo_url ?? ""} alt={restaurant?.name ?? "Workspace logo"} />
                 ) : (
                   <BrandLogo
-                    className="size-8"
+                    markOnly
+                    className="size-12"
                     accentClassName="text-[#ff6a1a]"
                     textClassName="text-xl text-white"
                   />
@@ -1411,13 +1412,13 @@ export function BottomNav() {
                                 >
                                   <span
                                     className={cn(
-                                      "qs-workspace-tool-icon grid size-9 shrink-0 place-items-center rounded-[10px] transition",
+                                      "qs-workspace-tool-icon grid size-11 shrink-0 place-items-center rounded-xl transition",
                                       active
                                         ? "bg-primary/12 text-primary"
                                         : "bg-[#f7f2ea] text-[#8a7661] dark:bg-muted dark:text-muted-foreground group-hover:text-foreground",
                                     )}
                                   >
-                                    <Icon className="size-[17px]" />
+                                    <Icon className="size-6" aria-hidden="true" />
                                   </span>
                                   <span className="min-w-0 flex-1 text-start">
                                     <strong className="block truncate text-xs">

@@ -812,32 +812,36 @@
 .qs-workspace-tools-spotlight-brand{position:relative;z-index:1}
 .qs-workspace-tools-spotlight-copy strong{
   display:block;
-  max-width:180px;
+  max-width:100%;
   font-family:var(--font-display);
-  font-size:28px;
-  line-height:1.04;
-  letter-spacing:-.045em;
+  font-size:clamp(24px,2.2vw,28px);
+  line-height:1.18;
+  letter-spacing:-.02em;
+  text-wrap:balance;
 }
 .qs-workspace-tools-spotlight-copy p{
   margin-top:12px;
-  max-width:180px;
-  color:rgb(255 255 255/.8);
-  font-size:10px;
+  max-width:100%;
+  color:rgb(255 255 255/.88);
+  font-size:13px;
   line-height:1.55;
 }
 .qs-workspace-tools-spotlight-brand{
   display:flex;
   align-items:center;
   gap:9px;
-  margin-top:42px;
+  margin-top:24px;
+  flex-shrink:0;
+  min-width:0;
   font-family:var(--font-display);
   font-size:20px;
   font-weight:800;
 }
 .qs-workspace-tools-spotlight-brand img{
-  width:34px;
-  height:34px;
-  border-radius:10px;
+  width:48px;
+  height:48px;
+  flex-shrink:0;
+  border-radius:12px;
   background:#fff;
   object-fit:contain;
   padding:4px;
@@ -866,6 +870,27 @@
 .qs-workspace-tool-card{
   box-shadow:0 2px 7px rgb(23 32 51/.025);
 }
+/* Tool tiles own their icon geometry; group columns never apply inside a tile. */
+.qs-workspace-tools-dialog .qs-workspace-tool-icon{
+  display:grid;grid-template-columns:1fr;place-items:center;
+  width:44px;height:44px;flex:0 0 44px;border-radius:12px;
+}
+.qs-workspace-tools-dialog .qs-workspace-tool-icon>svg{
+  display:block;width:24px;height:24px;max-width:none;flex-shrink:0;stroke-width:1.9;
+}
+.qs-workspace-tools-dialog .qs-workspace-tool-card{gap:12px;padding:14px 12px;align-items:center}
+.qs-workspace-tools-dialog .qs-workspace-tool-card strong{
+  font-size:14px!important;line-height:1.4;font-weight:700;
+  white-space:normal;overflow-wrap:anywhere;
+}
+.qs-workspace-tools-dialog .qs-workspace-tool-card small{
+  font-size:12px;line-height:1.45;font-weight:400;
+  white-space:normal;overflow-wrap:anywhere;
+}
+.qs-workspace-tools-spotlight-brand>span{min-width:0;overflow-wrap:anywhere;line-height:1.25}
+.qs-workspace-tools-spotlight-brand>span:first-child{flex-shrink:0}
+.qs-workspace-tools-spotlight{min-height:0;height:100%;background-repeat:no-repeat}
+[dir=rtl] .qs-workspace-tools-group>p{letter-spacing:normal}
 .qs-workspace-tool-card:hover{
   transform:translateY(-1px);
   box-shadow:0 9px 22px rgb(23 32 51/.065);
