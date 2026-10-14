@@ -1,4 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getMcpOAuthReadiness } from "@/lib/mcp-readiness.functions";
+import { quickServeSupabase } from "@/integrations/supabase/public-config";
 import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
@@ -19,6 +22,13 @@ export function McpConnectionStudio({ ar, restaurantId }: { ar: boolean; restaur
   const [open, setOpen] = useState(false),
     [guide, setGuide] = useState(false),
     [url, setUrl] = useState("");
+  const readiness = useQuery({
+    queryKey: ["mcp-oauth-readiness"],
+    queryFn: () => getMcpOAuthReadiness(),
+    enabled: open,
+    staleTime: 15000,
+    retry: false,
+  });
   const id = useId(),
     trigger = useRef<HTMLButtonElement>(null),
     heading = useRef<HTMLHeadingElement>(null),
@@ -124,14 +134,109 @@ export function McpConnectionStudio({ ar, restaurantId }: { ar: boolean; restaur
             <div className="qs-mcp-setup-note">
               <span className="qs-mcp-dashed-dot" />
               <div>
-                <strong>{t("Setup required", "الإعداد مطلوب")}</strong>
+                <strong>
+                  {t(
+                    readiness.data?.status === "ready"
+                      ? "OAuth discovery ready"
+                      : readiness.data?.status === "oauth_disabled"
+                        ? "OAuth server is disabled"
+                        : "Connection setup check",
+                    readiness.data?.status === "ready"
+                      ? "اكتشاف OAuth جاهز"
+                      : readiness.data?.status === "oauth_disabled"
+                        ? "خادم OAuth غير مفعل"
+                        : "فحص إعداد الاتصال",
+                  )}
+                </strong>
                 <p>
                   {t(
-                    "Connect from your AI client to use the tools.",
-                    "اتصل من تطبيق الذكاء الاصطناعي لاستخدام الأدوات.",
+                    readiness.data?.status === "oauth_disabled"
+                      ? "The project owner must enable Supabase OAuth Server before any AI client can connect."
+                      : "This checks public OAuth configuration. Complete authorization in each AI client to connect.",
+                    readiness.data?.status === "oauth_disabled"
+                      ? "يجب على مالك المشروع تفعيل خادم OAuth في Supabase قبل ربط أي تطبيق."
+                      : "يفحص هذا إعدادات OAuth العامة. أكمل التفويض في كل تطبيق للربط.",
                   )}
                 </p>
               </div>
+            </div>
+            <div className="mb-4 space-y-3 rounded-xl border p-4 text-sm">
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  disabled={readiness.isFetching}
+                  onClick={() => void readiness.refetch()}
+                >
+                  {t("Check OAuth setup", "فحص إعداد OAuth")}
+                </Button>
+                <a
+                  className="inline-flex min-h-11 items-center underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  href={`https://supabase.com/dashboard/project/${new URL(quickServeSupabase.url).hostname.split(".")[0]}/auth/oauth-server`}
+                >
+                  {t("Project owner settings", "إعدادات مالك المشروع")}
+                </a>
+              </div>
+              {readiness.isFetching && <p role="status">{t("Checking…", "جارٍ الفحص…")}</p>}
+              {(readiness.isError || readiness.data?.status === "unavailable") && (
+                <p role="alert">
+                  {t(
+                    "OAuth discovery is unreachable. Check hosting and retry.",
+                    "تعذر الوصول لإعدادات OAuth. تحقق من الاستضافة وأعد المحاولة.",
+                  )}
+                </p>
+              )}
+              {readiness.data?.status === "registration_required" && (
+                <p role="alert">
+                  {t(
+                    "Enable dynamic client registration in Supabase.",
+                    "فعّل التسجيل التلقائي للعملاء في Supabase.",
+                  )}
+                </p>
+              )}
+              {readiness.data?.status === "discovery_invalid" && (
+                <p role="alert">
+                  {t(
+                    "OAuth discovery or signing keys need a project-owner review.",
+                    "يجب على مالك المشروع مراجعة إعدادات OAuth ومفاتيح التوقيع.",
+                  )}
+                </p>
+              )}
+              <details>
+                <summary className="min-h-11 cursor-pointer py-3 font-semibold">
+                  {t("Owner setup checklist", "قائمة إعداد مالك المشروع")}
+                </summary>
+                <ol className="list-inside list-decimal space-y-2">
+                  <li>
+                    {t(
+                      "Enable OAuth Server and dynamic client registration.",
+                      "فعّل خادم OAuth والتسجيل التلقائي للعملاء.",
+                    )}
+                  </li>
+                  <li>
+                    {t(
+                      "Set Site URL to your published QuickServe origin:",
+                      "اضبط رابط الموقع على أصل موقع QuickServe المنشور:",
+                    )}{" "}
+                    <code dir="ltr" className="break-all">
+                      {url ? new URL(url).origin : "…"}
+                    </code>
+                  </li>
+                  <li>
+                    {t("Set Authorization Path to:", "اضبط مسار التفويض على:")}{" "}
+                    <code dir="ltr" className="break-all">
+                      /.lovable/oauth/consent
+                    </code>
+                  </li>
+                  <li>
+                    {t(
+                      "Allow this site's consent return URL for sign-in, then restart the connection in your AI client.",
+                      "اسمح برابط عودة التفويض لهذا الموقع عند تسجيل الدخول، ثم أعد الربط من التطبيق.",
+                    )}
+                  </li>
+                </ol>
+              </details>
             </div>
             <div className="qs-mcp-columns">
               <section className="qs-mcp-connection">
@@ -187,6 +292,44 @@ export function McpConnectionStudio({ ar, restaurantId }: { ar: boolean; restaur
                     {t("Setup guide", "دليل الإعداد")}
                   </Button>
                 </div>
+                {guide && (
+                  <div className="mt-4 space-y-3 text-sm">
+                    <p>
+                      <strong>ChatGPT:</strong>{" "}
+                      {t(
+                        "Add a custom MCP app in developer mode using this URL and OAuth. Availability depends on your account and workspace.",
+                        "أضف تطبيق MCP مخصصاً في وضع المطور باستخدام هذا الرابط وOAuth. التوفر يعتمد على الحساب ومساحة العمل.",
+                      )}
+                    </p>
+                    <p>
+                      <strong>Claude:</strong>{" "}
+                      {t(
+                        "Add a custom connector and choose Register automatically for OAuth.",
+                        "أضف موصلاً مخصصاً واختر التسجيل التلقائي لـ OAuth.",
+                      )}
+                    </p>
+                    <p>
+                      <strong>Gemini:</strong>{" "}
+                      {t(
+                        "Custom apps currently require an eligible US personal account. Use Gemini CLI with a Streamable HTTP MCP server and OAuth where custom apps are unavailable.",
+                        "التطبيقات المخصصة تتطلب حالياً حساباً شخصياً مؤهلاً في الولايات المتحدة. استخدم Gemini CLI مع خادم MCP عبر Streamable HTTP وOAuth عند عدم توفرها.",
+                      )}
+                    </p>
+                    <p>
+                      <strong>Grok:</strong>{" "}
+                      {t(
+                        "Open Connectors, choose New Connector → Custom, then enter this MCP URL and authorize.",
+                        "افتح الموصلات واختر موصلاً جديداً ثم مخصصاً، وأدخل رابط MCP وأكمل التفويض.",
+                      )}
+                    </p>
+                    <p>
+                      {t(
+                        "Never enter a Supabase service-role key or management token in an AI client.",
+                        "لا تدخل مفتاح service-role أو رمز إدارة Supabase في تطبيق الذكاء الاصطناعي.",
+                      )}
+                    </p>
+                  </div>
+                )}
                 {guide && (
                   <ol id={`${id}-guide`} className="qs-mcp-guide">
                     <li>
