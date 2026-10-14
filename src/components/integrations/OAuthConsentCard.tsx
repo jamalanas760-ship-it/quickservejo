@@ -1,13 +1,12 @@
 import { useState } from "react";
 import type { OAuthAuthorizationDetails } from "@supabase/supabase-js";
 import { Link } from "@tanstack/react-router";
-import { ShieldCheck, ExternalLink } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useI18n } from "@/lib/i18n";
 import { oauthErrorKind, safeOAuthCallback } from "@/lib/mcp-oauth";
-import { quickServeSupabase } from "@/integrations/supabase/public-config";
 export function OAuthConsentCard({
   details,
   authorizationId,
@@ -123,7 +122,6 @@ export function OAuthConsentError({ error }: { error: unknown }) {
   const { lang } = useI18n(),
     ar = lang === "ar",
     disabled = oauthErrorKind(error) === "disabled";
-  const ref = new URL(quickServeSupabase.url).hostname.split(".")[0];
   return (
     <main
       className="flex min-h-dvh items-center justify-center bg-background p-4"
@@ -143,23 +141,12 @@ export function OAuthConsentError({ error }: { error: unknown }) {
         <p role="alert" className="text-sm leading-6 text-muted-foreground">
           {disabled
             ? ar
-              ? "يجب على مالك المشروع تفعيل خادم OAuth والتسجيل التلقائي للعملاء في Supabase ثم إعادة الربط."
-              : "The project owner must enable OAuth Server and dynamic client registration in Supabase, then restart this connection."
+              ? "الاتصال غير متاح لأن مزود التفويض معطل. تبقى حماية المصادقة فعالة. يلزم تهيئة مزود OAuth مستقل للربط دون تفعيل OAuth في Supabase."
+              : "This connection is unavailable while its authorization provider is disabled. Authentication remains enforced. A separate OAuth provider must be configured to connect without enabling Supabase OAuth."
             : ar
               ? "قد يكون الطلب منتهياً أو الاتصال غير متاح. ابدأ الربط مجدداً من تطبيق الذكاء الاصطناعي."
               : "The request may have expired or the service is unreachable. Restart the connection from your AI client."}
         </p>
-        {disabled && (
-          <a
-            className="qs-button-primary min-h-11"
-            href={`https://supabase.com/dashboard/project/${ref}/auth/oauth-server`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {ar ? "إعدادات OAuth لمالك المشروع" : "Project owner: OAuth settings"}
-            <ExternalLink className="size-4" />
-          </a>
-        )}
         <Link to="/dashboard" className="qs-button-secondary min-h-11">
           {ar ? "العودة إلى QuickServe" : "Return to QuickServe"}
         </Link>

@@ -1,37 +1,61 @@
-# Connecting AI clients to QuickServe
+# QuickServe MCP connection status and safe replacement
 
-The deployed Supabase project currently returns `OAuth server is disabled`.
-Application changes alone cannot enable the hosted authentication service.
-A project owner must configure Authentication → OAuth Server for project
-`gtcmyaksmyiarokloyje`:
+The live `/mcp` endpoint advertises the Supabase issuer
+`https://gtcmyaksmyiarokloyje.supabase.co/auth/v1`. On 2026-10-14 that
+issuer's discovery endpoint returned `feature_disabled`: OAuth server is disabled.
+The authorization preview in the reported screenshot points to
+`http://localhost:3000/oauth/consent`, which is not the published QuickServe
+consent route `/.lovable/oauth/consent`. Neither issue can be fixed by hiding a UI panel.
 
-1. Enable OAuth Server.
-2. Enable dynamic client registration.
-3. Set Site URL to the published QuickServe origin (HTTPS).
-4. Set Authorization Path to `/.lovable/oauth/consent`.
-5. Add the published site's consent URL to allowed sign-in redirects, preserving existing entries.
+## Required constraint
 
-The signing keys already support ES256; do not rotate keys or disable authentication
-to work around this error. Never put a service-role key or management token in an AI client.
+Keep Supabase OAuth Server and dynamic OAuth app registration disabled.
+The app must not recommend enabling either feature. The owner setup checklist
+and project-owner settings links are removed from the customer-facing MCP flow.
+Existing JWT validation, restaurant permissions and RLS remain enforced.
+Server URL copying is disabled until the existing provider passes readiness checks.
+A readiness check never means that an AI client has successfully connected.
 
-In QuickServe, open Integrations → MCP & AI → Check OAuth setup.
-“OAuth discovery ready” verifies public metadata and signing keys, not a completed
-connection in any AI client. Copy the published site's `/mcp` URL.
-Sign in and explicitly approve each client. Existing tenant permissions still apply.
+## Safe architecture without those settings
 
-- **ChatGPT:** add a custom MCP app in developer mode with OAuth. Account/workspace access policies apply.
-- **Claude:** add a custom connector; choose **Register automatically** for OAuth.
-- **Gemini:** custom apps currently require an eligible US personal account, age 18+, English, and activity enabled. Use Gemini CLI's Streamable HTTP MCP + OAuth support if consumer custom apps are unavailable.
-- **Grok:** Connectors → New Connector → Custom; add the MCP URL and complete authorization.
+Use a separately hosted, maintained OAuth 2.1 authorization provider. This is a
+provisioning and integration task, not a change of browser settings. Do not create
+an unauthenticated endpoint, accept copied browser sessions, or use a Supabase
+service-role key in an AI client as a workaround.
 
-After changing server settings, restart the failed authorization from the AI client
-to obtain a fresh request. Test listing restaurants first, then read-only tools.
-Reservation creation changes live data and requires appropriate restaurant permissions.
+Before changing the issuer, provision the following:
 
-Primary references:
-- https://supabase.com/docs/guides/auth/oauth-server/getting-started
-- https://developers.openai.com/api/docs/guides/custom-mcp-server
-- https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp
-- https://support.google.com/gemini/answer/17209137
-- https://geminicli.com/docs/tools/mcp-server/
-- https://docs.x.ai/grok/connectors
+- Public HTTPS authorization, token, metadata and signing-key endpoints.
+  The hosted consent/login URL must use the production domain, never a localhost
+  fallback. Localhost callbacks are legitimate only for a local CLI client.
+- Explicitly registered clients with exact callback URLs, authorization code
+  flow and PKCE S256. Client registration support must be checked against each
+  target AI client; static registration is not universally supported.
+- Short-lived tokens bound to the MCP resource, restricted scopes, explicit
+  consent, revocation and refresh-token rotation where applicable.
+- A verified mapping from the external subject to the existing QuickServe user
+  and restaurant memberships. Changing `issuer` alone is insufficient: current
+  tools forward Supabase user tokens so database RLS runs as that user. External
+  tokens require a supported Supabase third-party auth integration or a reviewed
+  server-side delegation layer preserving that exact permission model.
+- Rate limits and redacted operational logs; credentials stay server-side.
+
+Do not advertise the replacement issuer or mark the UI ready until it is deployed
+and the following checks pass: public metadata discovery, successful consent and
+PKCE token exchange, MCP initialization/tool listing, permitted restaurant reads,
+rejection of anonymous/expired/wrong-audience tokens, and cross-tenant denial.
+Verify each AI client separately; the existence of an MCP URL does not establish
+compatibility with ChatGPT, Claude, Gemini or Grok.
+
+## What this patch does
+
+Removes the setup checklist and links encouraging the prohibited settings,
+replaces enable-setting instructions with accurate blocked-state messages, and
+prevents copying the server URL as a ready connection before readiness succeeds.
+It does not provision a replacement identity provider or claim to repair the
+live OAuth flow. Existing connections continue to require valid delegated tokens.
+
+References:
+
+- https://modelcontextprotocol.io/specification/latest/basic/authorization
+- https://www.npmjs.com/package/@lovable.dev/mcp-js
