@@ -59,3 +59,9 @@ References:
 
 - https://modelcontextprotocol.io/specification/latest/basic/authorization
 - https://www.npmjs.com/package/@lovable.dev/mcp-js
+
+## Separate managed-OAuth gateway implementation
+
+The implementation is in `services/mcp-gateway/`, with a pinned dependency lockfile, container definition, dedicated CI, deployment setup SQL and security tests. See its README for provider configuration, operator-verified identity bindings and release acceptance. It supports all nine QuickServe tools and keeps Supabase OAuth settings disabled.
+
+After deploying that service, set `VITE_QUICKSERVE_MCP_URL` in Lovable to its exact HTTPS `/mcp` endpoint and `MCP_GATEWAY_OAUTH_ISSUER` in the website server environment to the managed issuer. Republish the website to show and validate the new connection URL. Without those explicit values, the existing website continues to report its original Supabase provider status; this code does not silently switch production authentication.
