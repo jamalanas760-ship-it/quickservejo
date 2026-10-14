@@ -1,3 +1,5 @@
+import "./focused-pickers.css";
+import { FocusedWeekPicker } from "./FocusedWeekPicker";
 import { arSA, enGB } from "date-fns/locale";
 import { PickerSurface } from "@/components/app/PickerSurface";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -52,6 +54,7 @@ export function WorkforceFilters(p: Props) {
   const mobile = useIsMobile();
   const [periodOpen, setPeriodOpen] = useState(false);
   const [periodMonth, setPeriodMonth] = useState(() => new Date(`${p.date}T12:00:00`));
+  const [customOpen, setCustomOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const current = () => ({
     employee: p.employee,
@@ -122,6 +125,7 @@ export function WorkforceFilters(p: Props) {
         </label>
         <PickerSurface
           ar={ar}
+          className="qs-focused-week-sheet"
           title={ar ? "اختر الأسبوع" : "Choose week"}
           open={periodOpen}
           onOpenChange={(value) => {
@@ -156,17 +160,13 @@ export function WorkforceFilters(p: Props) {
         >
           <div className="p2-week-picker">
             {mobile ? (
-              <Calendar
-                locale={ar ? arSA : enGB}
-                mode="single"
-                month={periodMonth}
-                onMonthChange={setPeriodMonth}
-                selected={new Date(`${p.date}T12:00:00`)}
-                onSelect={(date) => {
-                  if (date) {
-                    selectWeek(calendarDay(date));
-                    setPeriodOpen(false);
-                  }
+              <FocusedWeekPicker
+                ar={ar}
+                date={p.date}
+                timeZone={p.timeZone ?? "Asia/Amman"}
+                onApply={(day) => {
+                  selectWeek(day);
+                  setPeriodOpen(false);
                 }}
               />
             ) : (
@@ -182,29 +182,35 @@ export function WorkforceFilters(p: Props) {
                 />
               </label>
             )}
-            <div className="p2-week-actions">
-              <Button
-                variant="outline"
-                aria-label={ar ? "الأسبوع السابق" : "Previous week"}
-                onClick={() => selectWeek(moveDay(p.date, -7))}
-              >
-                <ChevronLeft size={16} />
-              </Button>
-              <Button
-                variant="outline"
-                aria-label={ar ? "الأسبوع التالي" : "Next week"}
-                onClick={() => selectWeek(moveDay(p.date, 7))}
-              >
-                <ChevronRight size={16} />
-              </Button>
-            </div>
-            <Button
-              variant="ghost"
-              className="w-full"
-              onClick={() => selectWeek(workforceDayKey(new Date(), p.timeZone ?? "Asia/Amman"))}
-            >
-              {ar ? "هذا الأسبوع" : "This week"}
-            </Button>
+            {!mobile && (
+              <>
+                <div className="p2-week-actions">
+                  <Button
+                    variant="outline"
+                    aria-label={ar ? "الأسبوع السابق" : "Previous week"}
+                    onClick={() => selectWeek(moveDay(p.date, -7))}
+                  >
+                    <ChevronLeft size={16} />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    aria-label={ar ? "الأسبوع التالي" : "Next week"}
+                    onClick={() => selectWeek(moveDay(p.date, 7))}
+                  >
+                    <ChevronRight size={16} />
+                  </Button>
+                </div>
+                <Button
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() =>
+                    selectWeek(workforceDayKey(new Date(), p.timeZone ?? "Asia/Amman"))
+                  }
+                >
+                  {ar ? "هذا الأسبوع" : "This week"}
+                </Button>
+              </>
+            )}
           </div>
         </PickerSurface>
         <div className="p2-desktop-chips">
@@ -235,12 +241,14 @@ export function WorkforceFilters(p: Props) {
           />
         </div>
         <FilterPanel
+          className="qs-focused-filter-sheet"
           ar={ar}
           open={open}
           onOpenChange={(next) => {
             if (next) {
               setPeriodOpen(false);
               setDraft(current());
+              setCustomOpen(false);
             }
             setOpen(next);
           }}
@@ -267,7 +275,7 @@ export function WorkforceFilters(p: Props) {
             </>
           }
         >
-          <h4>{ar ? "الفريق" : "People"}</h4>
+          {!mobile && <h4>{ar ? "الفريق" : "People"}</h4>}
           {(
             [
               { key: "employee", label: ar ? "الموظف" : "Employee", options: employeeOptions },
@@ -275,8 +283,16 @@ export function WorkforceFilters(p: Props) {
               { key: "status", label: ar ? "الحالة" : "Status", options: p.statuses },
             ] as const
           ).map((field) => (
-            <label key={field.key} className="p2-field">
-              {field.label}
+            <label key={field.key} className={mobile ? "qs-focused-filter-row" : "p2-field"}>
+              {mobile &&
+                (field.key === "employee" ? (
+                  <UsersRound aria-hidden="true" />
+                ) : field.key === "role" ? (
+                  <BriefcaseBusiness aria-hidden="true" />
+                ) : (
+                  <Clock3 aria-hidden="true" />
+                ))}
+              <span>{field.label}</span>
               <select
                 aria-label={field.label}
                 value={draft[field.key]}
@@ -284,7 +300,15 @@ export function WorkforceFilters(p: Props) {
               >
                 {field.options.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {mobile && option.value === "all" && field.key !== "status"
+                      ? field.key === "employee"
+                        ? ar
+                          ? "كل الموظفين"
+                          : "All employees"
+                        : ar
+                          ? "كل الأدوار"
+                          : "All roles"
+                      : option.label}
                   </option>
                 ))}
               </select>
@@ -292,31 +316,94 @@ export function WorkforceFilters(p: Props) {
           ))}
           <h4>{ar ? "الفترة" : "Period"}</h4>
           {mobile ? (
-            <div className="p2-inline-calendar">
-              <Calendar
-                locale={ar ? arSA : enGB}
-                mode="range"
-                selected={
-                  draft.from
-                    ? {
-                        from: new Date(`${draft.from}T12:00:00`),
-                        to: draft.until ? new Date(`${draft.until}T12:00:00`) : undefined,
+            <div className="qs-focused-filter-period">
+              <button
+                type="button"
+                className="qs-focused-period-row"
+                aria-expanded={customOpen}
+                onClick={() => setCustomOpen((value) => !value)}
+              >
+                <CalendarDays aria-hidden="true" />
+                <span>{ar ? "الفترة" : "Period"}</span>
+                <strong>
+                  {format(draft.from || days[0]!)} – {format(draft.until || days[6]!)}
+                </strong>
+                <ChevronRight aria-hidden="true" />
+              </button>
+              <p className="qs-focused-caption">{ar ? "فترات سريعة" : "Quick periods"}</p>
+              <div className="qs-focused-quick-periods">
+                {([0, -7, "month"] as const).map((offset) => {
+                  const range =
+                    offset === "month"
+                      ? [
+                          p.date.slice(0, 7) + "-01",
+                          calendarDay(
+                            new Date(Number(p.date.slice(0, 4)), Number(p.date.slice(5, 7)), 0),
+                          ),
+                        ]
+                      : weekOf(moveDay(p.date, offset));
+                  const from = range[0]!,
+                    until = range.at(-1)!;
+                  return (
+                    <button
+                      type="button"
+                      key={offset}
+                      aria-pressed={
+                        offset === 0
+                          ? !draft.from || (draft.from === from && draft.until === until)
+                          : draft.from === from && draft.until === until
                       }
-                    : undefined
-                }
-                onSelect={(range) =>
-                  setDraft({
-                    ...draft,
-                    from: range?.from ? calendarDay(range.from) : "",
-                    until: range?.to ? calendarDay(range.to) : "",
-                  })
-                }
-              />
-              <p className="p2-calendar-help">
-                {ar
-                  ? "اختر بداية الفترة ونهايتها، أو اتركها فارغة للأسبوع المحدد."
-                  : "Select the start and end, or leave empty to use the selected week."}
-              </p>
+                      onClick={() => {
+                        setDraft({
+                          ...draft,
+                          from: offset === 0 ? "" : from,
+                          until: offset === 0 ? "" : until,
+                        });
+                        setCustomOpen(false);
+                      }}
+                    >
+                      {offset === 0
+                        ? ar
+                          ? "هذا الأسبوع"
+                          : "This week"
+                        : offset === -7
+                          ? ar
+                            ? "الأسبوع الماضي"
+                            : "Last week"
+                          : ar
+                            ? "هذا الشهر"
+                            : "This month"}
+                    </button>
+                  );
+                })}
+              </div>
+              {customOpen && (
+                <div className="p2-inline-calendar">
+                  <Calendar
+                    locale={ar ? arSA : enGB}
+                    weekStartsOn={1}
+                    mode="range"
+                    selected={
+                      draft.from
+                        ? {
+                            from: new Date(`${draft.from}T12:00:00`),
+                            to: draft.until ? new Date(`${draft.until}T12:00:00`) : undefined,
+                          }
+                        : undefined
+                    }
+                    onSelect={(range) =>
+                      setDraft({
+                        ...draft,
+                        from: range?.from ? calendarDay(range.from) : "",
+                        until: range?.to ? calendarDay(range.to) : "",
+                      })
+                    }
+                  />
+                  <p className="p2-calendar-help">
+                    {ar ? "اختر بداية الفترة ونهايتها" : "Select the start and end of your range"}
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="p2-date-grid">
