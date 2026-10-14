@@ -1,7 +1,7 @@
 import express from "express";
 import { pathToFileURL } from "node:url";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
+import { toNodeHandler } from "@modelcontextprotocol/node";
 import { loadConfig } from "./config.mjs";
 import { AccessError, createVerifier } from "./auth.mjs";
 import { createDatabase } from "./database.mjs";
@@ -26,7 +26,8 @@ export function createApp(config, database, verify = createVerifier(config)) {
       res.set({
         "Access-Control-Allow-Origin": origin,
         Vary: "Origin",
-        "Access-Control-Allow-Headers": "Authorization, Content-Type, MCP-Protocol-Version",
+        "Access-Control-Allow-Headers":
+          "Authorization, Content-Type, MCP-Protocol-Version, MCP-Method, MCP-Name",
         "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
         "Access-Control-Expose-Headers": "WWW-Authenticate",
       });
@@ -83,71 +84,74 @@ export function createApp(config, database, verify = createVerifier(config)) {
         .json({ error: error instanceof AccessError ? error.code : "invalid_token" });
     }
   });
-  app.post("/mcp", express.json({ limit: "64kb" }), async (req, res) => {
-    const identity = req.identity;
-    const server = new McpServer(
-      { name: "quickserve", version: "0.1.0" },
-      {
-        instructions:
-          "Access QuickServe using your linked account and existing restaurant permissions. Start with list_restaurants. Obtain explicit approval before creating reservations or changing orders/menu items.",
-      },
-    );
-    for (const tool of tools) {
-      if (tool.write && !identity.scopes.has("quickserve:write")) continue;
-      server.registerTool(
-        tool.name,
+  const handler = createMcpHandler(
+    ({ authInfo }) => {
+      const identity = authInfo?.extra?.quickserveIdentity;
+      if (!identity) throw new AccessError(401, "invalid_token");
+      const server = new McpServer(
+        { name: "quickserve", version: "0.1.0" },
         {
-          title: tool.title,
-          description: tool.description,
-          inputSchema: tool.schema,
-          annotations: {
-            readOnlyHint: !tool.write,
-            destructiveHint: tool.name === "update_order_status",
-            idempotentHint: tool.name !== "create_reservation",
-            openWorldHint: false,
-          },
-        },
-        async (args) => {
-          try {
-            const result = await executeTool(tool, args, identity, database);
-            return {
-              content: [{ type: "text", text: JSON.stringify(result) }],
-              structuredContent: result,
-            };
-          } catch (error) {
-            return {
-              isError: true,
-              content: [
-                {
-                  type: "text",
-                  text:
-                    error instanceof AccessError
-                      ? error.code
-                      : error?.code === "42501"
-                        ? "access_denied"
-                        : "Request failed. Check your permissions, inputs and availability.",
-                },
-              ],
-            };
-          }
+          instructions:
+            "Access QuickServe using your linked account and existing restaurant permissions. Start with list_restaurants. Obtain explicit approval before creating reservations or changing orders/menu items.",
         },
       );
-    }
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true,
-    });
-    res.on("close", () => {
-      void transport.close();
-      void server.close();
-    });
-    try {
-      await server.connect(transport);
-      await transport.handleRequest(req, res, req.body);
-    } catch {
-      if (!res.headersSent) res.status(500).json({ error: "service_unavailable" });
-    }
+      for (const tool of tools) {
+        if (tool.write && !identity.scopes.has("quickserve:write")) continue;
+        server.registerTool(
+          tool.name,
+          {
+            title: tool.title,
+            description: tool.description,
+            inputSchema: tool.schema,
+            annotations: {
+              readOnlyHint: !tool.write,
+              destructiveHint: tool.name === "update_order_status",
+              idempotentHint: tool.name !== "create_reservation",
+              openWorldHint: false,
+            },
+          },
+          async (args) => {
+            try {
+              const result = await executeTool(tool, args, identity, database);
+              return {
+                content: [{ type: "text", text: JSON.stringify(result) }],
+                structuredContent: result,
+              };
+            } catch (error) {
+              return {
+                isError: true,
+                content: [
+                  {
+                    type: "text",
+                    text:
+                      error instanceof AccessError
+                        ? error.code
+                        : error?.code === "42501"
+                          ? "access_denied"
+                          : "Request failed. Check your permissions, inputs and availability.",
+                  },
+                ],
+              };
+            }
+          },
+        );
+      }
+      return server;
+    },
+    { legacy: "stateless", maxRequestBodySize: 65536 },
+  );
+  const handle = toNodeHandler(handler, { maxRequestBodySize: 65536 });
+  app.post("/mcp", express.json({ limit: "64kb" }), async (req, res) => {
+    req.auth = {
+      token: req.headers.authorization.slice(7),
+      clientId: req.identity.clientId,
+      scopes: [...req.identity.scopes],
+      expiresAt: req.identity.expiresAt,
+      extra: { quickserveIdentity: req.identity },
+    };
+    await handle(req, res, req.body);
   });
+  app.gatewayClose = () => handler.close();
   app.use((_error, _req, res, _next) => {
     if (!res.headersSent) res.status(400).json({ error: "invalid_request" });
   });
@@ -158,13 +162,15 @@ async function start() {
   await assertProviderReady(config);
   const database = createDatabase(config);
   await database.assertRole();
-  const listener = createApp(config, database).listen(config.port, "0.0.0.0", () =>
+  const app = createApp(config, database);
+  const listener = app.listen(config.port, "0.0.0.0", () =>
     console.info("QuickServe MCP gateway started"),
   );
   for (const signal of ["SIGTERM", "SIGINT"])
     process.once(signal, () => {
-      listener.close();
-      void database.close().finally(() => process.exit(0));
+      listener.close(() => {
+        void app.gatewayClose().finally(() => database.close().finally(() => process.exit(0)));
+      });
     });
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)

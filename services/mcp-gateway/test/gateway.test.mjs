@@ -9,6 +9,18 @@ import { createApp } from "../server.mjs";
 import { tools, executeTool } from "../tools.mjs";
 import { assertProviderReady } from "../discovery.mjs";
 
+async function decodeMcp(response) {
+  const text = await response.text();
+  if (response.headers.get("content-type")?.includes("text/event-stream")) {
+    const line = text
+      .split("\n")
+      .filter((line) => line.startsWith("data:"))
+      .at(-1);
+    return JSON.parse(line.slice(5));
+  }
+  return JSON.parse(text);
+}
+
 const user = "00000000-0000-4000-8000-000000000001",
   other = "00000000-0000-4000-8000-000000000002";
 const env = {
@@ -166,7 +178,10 @@ test("HTTP MCP handshake and listing work; anonymous access, write discovery, ho
   await new Promise((resolve) => listener.once("listening", resolve));
   const origin = `http://127.0.0.1:${listener.address().port}`;
   local.host = new URL(origin).host;
-  t.after(() => new Promise((resolve) => listener.close(resolve)));
+  t.after(async () => {
+    await app.gatewayClose();
+    await new Promise((resolve) => listener.close(resolve));
+  });
   const headers = {
     "Content-Type": "application/json",
     Accept: "application/json, text/event-stream",
@@ -195,18 +210,45 @@ test("HTTP MCP handshake and listing work; anonymous access, write discovery, ho
     bearer,
   );
   assert.equal(init.status, 200);
-  assert.equal((await init.json()).result.serverInfo.name, "quickserve");
-  const listing = await (await send(request("tools/list"), bearer)).json();
+  assert.equal((await decodeMcp(init)).result.serverInfo.name, "quickserve");
+  const listing = await decodeMcp(await send(request("tools/list"), bearer));
   assert.equal(listing.result.tools.length, 6);
   assert.ok(!listing.result.tools.some((t) => t.name === "create_reservation"));
+  const modernMeta = {
+    "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+    "io.modelcontextprotocol/clientInfo": { name: "modern-test", version: "1" },
+    "io.modelcontextprotocol/clientCapabilities": {},
+  };
+  const modernHeaders = {
+    ...headers,
+    Authorization: "Bearer " + bearer,
+    "MCP-Protocol-Version": "2026-07-28",
+    "MCP-Method": "tools/list",
+  };
+  const modern = await fetch(origin + "/mcp", {
+    method: "POST",
+    headers: modernHeaders,
+    body: JSON.stringify(request("tools/list", { _meta: modernMeta })),
+  });
+  assert.equal(modern.status, 200);
+  assert.equal((await decodeMcp(modern)).result.tools.length, 6);
+  const mirrored = await fetch(origin + "/mcp", {
+    method: "POST",
+    headers: { ...modernHeaders, "MCP-Method": "tools/call", "MCP-Name": "different-tool" },
+    body: JSON.stringify(
+      request("tools/call", { name: "list_restaurants", arguments: {}, _meta: modernMeta }),
+    ),
+  });
+  assert.equal(mirrored.status, 400);
+  assert.equal(calls, 0);
   const writable = await token({ scope: "quickserve:read quickserve:write" });
-  const all = await (await send(request("tools/list"), writable)).json();
+  const all = await decodeMcp(await send(request("tools/list"), writable));
   assert.equal(all.result.tools.length, 9);
   const call = await send(
     request("tools/call", { name: "list_restaurants", arguments: {} }),
     bearer,
   );
-  const result = await call.json();
+  const result = await decodeMcp(call);
   assert.equal(result.result.isError, true);
   assert.ok(!JSON.stringify(result).includes("SECRET"));
   assert.equal(calls, 1);

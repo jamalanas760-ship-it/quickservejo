@@ -1,5 +1,7 @@
 # QuickServe managed-OAuth MCP gateway
 
+The pinned official MCP SDK v2 serves both the finalized 2026-07-28 protocol and stateless compatibility for initialization-era clients. Both paths are covered by HTTP tests, including rejection of mismatched method/name headers.
+
 This separately deployable service removes the MCP runtime's dependency on
 Lovable publication and Supabase's disabled OAuth Server. It does **not** enable
 Supabase OAuth Server or Dynamic OAuth Apps. The existing `/mcp` on the Lovable
