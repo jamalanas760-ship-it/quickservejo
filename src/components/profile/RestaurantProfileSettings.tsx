@@ -1,3 +1,4 @@
+import { capturePunchLocation } from "@/lib/geofence";
 import { WorkspaceNavigation } from "@/components/profile/WorkspaceNavigation";
 import { useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -85,6 +86,9 @@ function RestaurantProfileSettingsForm({
 }) {
   const [brand, setBrand] = useState(() => readAppearance(restaurant.menu_theme));
   const [form, setForm] = useState({
+    latitude: restaurant.latitude == null ? "" : String(restaurant.latitude),
+    longitude: restaurant.longitude == null ? "" : String(restaurant.longitude),
+    geofence_radius_meters: restaurant.geofence_radius_meters ?? 100,
     name: restaurant.name as string,
     timezone: restaurant.timezone as string,
     logo_url: restaurant.logo_url as string | null,
@@ -92,6 +96,7 @@ function RestaurantProfileSettingsForm({
     primary_color: restaurant.primary_color as string,
     accent_color: restaurant.accent_color as string,
   });
+  const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const advancedBody = useRef<HTMLDivElement>(null);
@@ -103,6 +108,10 @@ function RestaurantProfileSettingsForm({
 
   async function save(event: FormEvent) {
     event.preventDefault();
+    if (Boolean(form.latitude) !== Boolean(form.longitude)) {
+      toast.error(ar ? "أدخل الإحداثيين معاً" : "Enter both coordinates");
+      return;
+    }
     setSaving(true);
     try {
       const current = await supabase
@@ -125,6 +134,9 @@ function RestaurantProfileSettingsForm({
       const { data, error } = await supabase
         .from("restaurants")
         .update({
+          latitude: form.latitude === "" ? null : Number(form.latitude),
+          longitude: form.longitude === "" ? null : Number(form.longitude),
+          geofence_radius_meters: form.geofence_radius_meters,
           name: form.name.trim(),
           timezone: form.timezone,
           logo_url: form.logo_url,
@@ -192,6 +204,83 @@ function RestaurantProfileSettingsForm({
       onSubmit={save}
       className="ps-organization-form space-y-4"
     >
+      <section className="ps-card space-y-4">
+        <h2>{ar ? "موقع المطعم والتحقق من الحضور" : "Restaurant location & attendance"}</h2>
+        <p className="text-sm text-muted-foreground">
+          {ar
+            ? "يتم التحقق من الموقع عند تسجيل الدخول والخروج فقط. المواقع خارج النطاق أو غير المتاحة تظهر للمراجعة."
+            : "Location is checked only when clocking in or out. Off-premise or unavailable locations are flagged for review."}
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="ps-field">
+            {ar ? "خط العرض" : "Latitude"}
+            <input
+              type="number"
+              step="any"
+              min={-90}
+              max={90}
+              inputMode="decimal"
+              value={form.latitude}
+              onChange={(e) => field("latitude", e.target.value)}
+            />
+          </label>
+          <label className="ps-field">
+            {ar ? "خط الطول" : "Longitude"}
+            <input
+              type="number"
+              step="any"
+              min={-180}
+              max={180}
+              inputMode="decimal"
+              value={form.longitude}
+              onChange={(e) => field("longitude", e.target.value)}
+            />
+          </label>
+        </div>
+        <label className="ps-field">
+          {ar ? "نطاق التحقق" : "Geofence radius"} · {form.geofence_radius_meters}{" "}
+          {ar ? "متر" : "m"}
+          <input
+            type="range"
+            min={50}
+            max={300}
+            step={10}
+            value={form.geofence_radius_meters}
+            onChange={(e) => field("geofence_radius_meters", Number(e.target.value))}
+          />
+        </label>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={locating}
+          onClick={async () => {
+            setLocating(true);
+            const location = await capturePunchLocation();
+            setLocating(false);
+            if (location.latitude == null || location.longitude == null) {
+              toast.error(
+                ar
+                  ? "تعذر الحصول على الموقع. اسمح بالوصول أو أدخل الإحداثيات يدوياً."
+                  : "Location unavailable. Allow access or enter coordinates manually.",
+              );
+              return;
+            }
+            setForm((f) => ({
+              ...f,
+              latitude: String(location.latitude),
+              longitude: String(location.longitude),
+            }));
+          }}
+        >
+          {locating
+            ? ar
+              ? "جارٍ تحديد الموقع…"
+              : "Locating…"
+            : ar
+              ? "استخدام الموقع الحالي"
+              : "Use Current Location"}
+        </Button>
+      </section>
       <div className="ps-org-grid">
         <section className="ps-card ps-org-identity">
           <h2>{ar ? "تفاصيل المطعم" : "Restaurant details"}</h2>
@@ -402,11 +491,23 @@ function RestaurantProfileSettingsForm({
               <TabsContent value="navigation" className="ps-workspace-panel">
                 <section className="rounded-xl border border-border p-4 mb-4">
                   <h3 className="font-semibold">{ar ? "حركة التنقل" : "Navigation animation"}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{ar ? "اختر حركة أدوات مساحة العمل وفتح وإغلاق القائمة الجانبية." : "Choose how All Tools and the sidebar open and close."}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {ar
+                      ? "اختر حركة أدوات مساحة العمل وفتح وإغلاق القائمة الجانبية."
+                      : "Choose how All Tools and the sidebar open and close."}
+                  </p>
                   <label className="mt-3 grid gap-2 text-sm">
                     {ar ? "مستوى الحركة" : "Animation level"}
-                    <select className="min-h-11 w-full rounded-lg border border-border bg-background px-3" value={brand.navigationMotion}
-                      onChange={event => setBrand(current => ({ ...current, navigationMotion: event.target.value === "reduced" ? "reduced" : "full" }))}>
+                    <select
+                      className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
+                      value={brand.navigationMotion}
+                      onChange={(event) =>
+                        setBrand((current) => ({
+                          ...current,
+                          navigationMotion: event.target.value === "reduced" ? "reduced" : "full",
+                        }))
+                      }
+                    >
                       <option value="full">{ar ? "كاملة" : "Full"}</option>
                       <option value="reduced">{ar ? "مخفّضة" : "Reduced"}</option>
                     </select>

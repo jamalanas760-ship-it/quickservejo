@@ -185,6 +185,7 @@ export type Database = {
           is_available: boolean
           is_featured: boolean
           name_ar: string
+          menu_origin: string
           name_en: string
           preparation_time: number
           price: number
@@ -205,6 +206,7 @@ export type Database = {
           is_available?: boolean
           is_featured?: boolean
           name_ar: string
+          menu_origin?: string
           name_en: string
           preparation_time?: number
           price?: number
@@ -225,6 +227,7 @@ export type Database = {
           is_available?: boolean
           is_featured?: boolean
           name_ar?: string
+          menu_origin?: string
           name_en?: string
           preparation_time?: number
           price?: number
@@ -823,6 +826,7 @@ export type Database = {
           font_family: string
           id: string
           is_active: boolean
+          geofence_radius_meters: number
           latitude: number | null
           layout_style: string
           logo_url: string | null
@@ -867,6 +871,7 @@ export type Database = {
           font_family?: string
           id?: string
           is_active?: boolean
+          geofence_radius_meters?: number
           latitude?: number | null
           layout_style?: string
           logo_url?: string | null
@@ -911,6 +916,7 @@ export type Database = {
           font_family?: string
           id?: string
           is_active?: boolean
+          geofence_radius_meters?: number
           latitude?: number | null
           layout_style?: string
           logo_url?: string | null
