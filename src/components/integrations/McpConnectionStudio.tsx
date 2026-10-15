@@ -223,7 +223,7 @@ export function McpConnectionStudio({ ar, restaurantId }: { ar: boolean; restaur
                 <div className="qs-mcp-connection-actions">
                   <Button
                     type="button"
-                    disabled={!url || readiness.data?.status !== "ready"}
+                    disabled={!url}
                     onClick={async () => {
                       try {
                         await navigator.clipboard.writeText(url);
