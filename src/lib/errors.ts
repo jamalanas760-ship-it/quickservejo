@@ -4,6 +4,15 @@ type Msg = { en: string; ar: string };
 
 const FRIENDLY: Array<{ match: RegExp; msg: Msg }> = [
   {
+    match:
+      /outside attendance radius|verified GPS location required|accurate GPS location required|attendance location is not configured/i,
+    msg: {
+      en: "Clock in and clock out require a fresh, accurate location inside the attendance radius. Enable location access and refresh.",
+      ar: "يلزم موقع حديث ودقيق داخل نطاق الحضور لتسجيل الحضور والانصراف. اسمح بالوصول للموقع وحدّثه.",
+    },
+  },
+
+  {
     match: /session (is missing|expired)|no authorization header|invalid token/i,
     msg: {
       en: "Your session expired. Sign in again, then retry.",

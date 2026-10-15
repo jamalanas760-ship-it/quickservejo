@@ -38,6 +38,11 @@ export function verifyGeofence(
     return { status: "not_configured", distance_meters: null };
   if (location.latitude == null || location.longitude == null)
     return { status: "unverified", distance_meters: null, reason: location.reason };
+  if (
+    !validCoordinates(location.latitude, location.longitude) ||
+    !validCoordinates(restaurant.latitude, restaurant.longitude)
+  )
+    return { status: "unverified", distance_meters: null, reason: "invalid" };
   const radius = restaurant.geofence_radius_meters ?? 100,
     distance = haversineMeters(
       location.latitude,
@@ -45,9 +50,24 @@ export function verifyGeofence(
       restaurant.latitude,
       restaurant.longitude,
     );
-  if (location.accuracy == null || location.accuracy > radius)
+  if (
+    !Number.isFinite(radius) ||
+    radius <= 0 ||
+    location.accuracy == null ||
+    !Number.isFinite(location.accuracy) ||
+    location.accuracy < 0 ||
+    location.accuracy > radius
+  )
     return { status: "unverified", distance_meters: distance, reason: "inaccurate" };
   return { status: distance <= radius ? "on_premise" : "off_premise", distance_meters: distance };
+}
+export const ATTENDANCE_LOCATION_MAX_AGE_MS = 30000;
+export function freshAttendanceFix(timestamp: number, now = Date.now()): boolean {
+  return (
+    Number.isFinite(timestamp) &&
+    timestamp <= now &&
+    now - timestamp <= ATTENDANCE_LOCATION_MAX_AGE_MS
+  );
 }
 export function capturePunchLocation(): Promise<PunchLocation> {
   const fallback = (reason: string) => ({
@@ -72,7 +92,8 @@ export function capturePunchLocation(): Promise<PunchLocation> {
       navigator.geolocation.getCurrentPosition(
         (p) =>
           finish(
-            validCoordinates(p.coords.latitude, p.coords.longitude)
+            validCoordinates(p.coords.latitude, p.coords.longitude) &&
+              freshAttendanceFix(p.timestamp)
               ? {
                   latitude: p.coords.latitude,
                   longitude: p.coords.longitude,
