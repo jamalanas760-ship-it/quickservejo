@@ -1,5 +1,16 @@
+import { ROLE_LABELS, type AppRole } from "@/lib/permissions";
+import { toast } from "sonner";
+import { EmployeeSetupPanel } from "./EmployeeSetupPanel";
+import { HRSetupImport } from "./HRSetupImport";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -66,6 +77,28 @@ export function EmployeeHRWorkspace({
   onRequestLeave: () => void;
 }) {
   const today = workforceDayKey(new Date(), timeZone);
+  const qc = useQueryClient();
+  const [setupOpen, setSetupOpen] = useState(false),
+    [importOpen, setImportOpen] = useState(false);
+  const generate = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (supabase as any).rpc("generate_hr_drafts", {
+        _restaurant_id: restaurantId,
+        _period: `${month}-01`,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: async (data) => {
+      await qc.invalidateQueries({ queryKey: ["employee-hr", restaurantId] });
+      toast.success(
+        ar
+          ? `تم إنشاء ${data.drafts_created} مسودة و${data.accounts_created} أرصدة`
+          : `${data.drafts_created} drafts and ${data.accounts_created} leave accounts created`,
+      );
+    },
+    onError: (e) => toast.error(humanError(e, ar ? "ar" : "en")),
+  });
   const [year, setYear] = useState(Number(today.slice(0, 4))),
     [month, setMonth] = useState(today.slice(0, 7));
   const [scope, setScope] = useState<"self" | "team">("self"),
@@ -313,13 +346,48 @@ export function EmployeeHRWorkspace({
               : "Your time, leave and pay in one place."
         }
         actions={
-          <Button onClick={onRequestLeave}>
-            <CalendarDays className="size-4" />
-            {team ? (ar ? "طلب إجازتي" : "Request my leave") : ar ? "طلب إجازة" : "Request leave"}
-          </Button>
+          team ? (
+            <>
+              <Button onClick={() => generate.mutate()} disabled={generate.isPending}>
+                {ar ? "إنشاء المسودات" : "Generate drafts"}
+              </Button>
+              <ActionMenu
+                ar={ar}
+                actions={[
+                  {
+                    label: ar ? "استيراد إعداد الموظفين" : "Import employee setup",
+                    onSelect: () => setImportOpen(true),
+                  },
+                  { label: ar ? "طلب إجازتي" : "Request my leave", onSelect: onRequestLeave },
+                ]}
+              />
+            </>
+          ) : (
+            <Button onClick={onRequestLeave}>
+              <CalendarDays className="size-4" />
+              {ar ? "طلب إجازة" : "Request leave"}
+            </Button>
+          )
         }
       />
       <div className="hr-toolbar hr-top-toolbar">
+        {team && (
+          <label>
+            {ar ? "شهر الراتب" : "Payroll month"}
+            <input
+              type="month"
+              value={month}
+              min="2000-01"
+              max={today.slice(0, 7)}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setMonth(e.target.value);
+                  setYear(Number(e.target.value.slice(0, 4)));
+                }
+              }}
+            />
+          </label>
+        )}
         <label>
           {ar ? "السنة" : "Year"}
           <select
@@ -470,7 +538,9 @@ export function EmployeeHRWorkspace({
               <div>
                 <h2>{staff.name}</h2>
                 <p>
-                  {profile?.job_title || staff.role}
+                  {profile?.job_title ||
+                    ROLE_LABELS[staff.role as AppRole]?.[ar ? "ar" : "en"] ||
+                    staff.role}
                   {profile?.department ? ` · ${profile.department}` : ""}
                   {profile?.employee_number ? ` · ${profile.employee_number}` : ""}
                 </p>
@@ -488,6 +558,10 @@ export function EmployeeHRWorkspace({
               <ActionMenu
                 ar={ar}
                 actions={[
+                  {
+                    label: ar ? "إعداد الراتب والإجازات مرة واحدة" : "Salary & leave setup",
+                    onSelect: () => setSetupOpen(true),
+                  },
                   {
                     label: ar ? "بيانات التوظيف" : "Edit employment",
                     onSelect: () => openEditor("employment"),
@@ -514,17 +588,57 @@ export function EmployeeHRWorkspace({
           {tab === "overview" ? (
             <>
               <BalanceCards accounts={personAccounts} leaves={personLeaves} today={today} ar={ar} />
-              <div className="hr-destinations">
-                {tabs.slice(1).map(([id, label], index) => {
-                  const Icon = [HeartPulse, CalendarDays, FileText, FileText][index]!;
-                  return (
-                    <button type="button" key={id} onClick={() => setTab(id)}>
-                      <Icon aria-hidden="true" />
-                      <strong>{label}</strong>
-                      <ArrowUpRight aria-hidden="true" />
+              <div className="hr-recent-grid">
+                <section className="hr-panel">
+                  <div className="hr-record-heading">
+                    <h3>{ar ? "آخر الطلبات" : "Recent requests"}</h3>
+                    <button type="button" onClick={() => setTab("requests")}>
+                      {ar ? "عرض الكل" : "View all"} →
                     </button>
-                  );
-                })}
+                  </div>
+                  {requestRows.slice(0, 3).map((r) => (
+                    <article className="hr-record" key={r.id}>
+                      <div className="hr-record-heading">
+                        <strong>{r.kind.replaceAll("_", " ")}</strong>
+                        <span className="hr-status" data-status={r.status}>
+                          {r.status}
+                        </span>
+                      </div>
+                      <p>{r.date}</p>
+                    </article>
+                  ))}
+                  {!requestRows.length && (
+                    <p className="hr-caption">
+                      {ar ? "لا توجد طلبات حتى الآن." : "No requests yet."}
+                    </p>
+                  )}
+                </section>
+                <section className="hr-panel">
+                  <div className="hr-record-heading">
+                    <h3>{ar ? "آخر قسيمة راتب" : "Latest payslip"}</h3>
+                    <button type="button" onClick={() => setTab("payslips")}>
+                      {ar ? "عرض الكل" : "View all"} →
+                    </button>
+                  </div>
+                  {records.data?.slips[0] ? (
+                    <div className="hr-latest-pay">
+                      <strong>
+                        {new Date(`${records.data.slips[0].period}T12:00:00Z`).toLocaleDateString(
+                          ar ? "ar-JO" : "en-GB",
+                          { month: "long", year: "numeric", timeZone: "UTC" },
+                        )}
+                      </strong>
+                      <span className="hr-status">{records.data.slips[0].status}</span>
+                      <Button variant="ghost" onClick={() => setTab("payslips")}>
+                        {ar ? "عرض القسيمة" : "View payslip"} →
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="hr-caption">
+                      {ar ? "لا توجد قسائم راتب منشورة." : "No published payslips yet."}
+                    </p>
+                  )}
+                </section>
               </div>
             </>
           ) : tab === "leave" ? (
@@ -555,6 +669,33 @@ export function EmployeeHRWorkspace({
         <EmptyHR>
           {ar ? "السجل غير متاح لهذا الموظف." : "This employee record is unavailable."}
         </EmptyHR>
+      )}
+      {team && canManage && staff && (
+        <Dialog open={setupOpen} onOpenChange={setSetupOpen}>
+          <DialogContent className="hr-edit-dialog" dir={ar ? "rtl" : "ltr"}>
+            <DialogHeader>
+              <DialogTitle>{staff.name}</DialogTitle>
+              <DialogDescription>
+                {ar ? "بيانات التوظيف والإعداد المتكرر" : "Employment & recurring setup"}
+              </DialogDescription>
+            </DialogHeader>
+            <EmployeeSetupPanel
+              key={staff.id}
+              restaurantId={restaurantId}
+              staffId={staff.id}
+              ar={ar}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+      {team && canManage && (
+        <HRSetupImport
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          restaurantId={restaurantId}
+          staff={people}
+          ar={ar}
+        />
       )}
       {editor && team && canManage && staff && (
         <HREditor

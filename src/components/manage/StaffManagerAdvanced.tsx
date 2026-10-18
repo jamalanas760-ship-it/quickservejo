@@ -1,3 +1,5 @@
+import { EmployeeSetupPanel } from "@/components/workforce/EmployeeSetupPanel";
+import "@/components/workforce/workforce-refresh.css";
 import { ActionMenu } from "@/components/app/ActionMenu";
 import { MoreHorizontal } from "@/components/nav/QuickServeIcons";
 import { workforceLocalTimestamp, workforceLocalInput } from "@/lib/workforce-hours";
@@ -219,7 +221,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const teamCardsRef = useRef<HTMLDivElement>(null);
   const revealTeamPage = useRef(false);
   const [editing, setEditing] = useState<Editing | null>(null);
-  const [drawerTab, setDrawerTab] = useState<DrawerTab>("permissions");
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>("profile");
   const [pendingDelete, setPendingDelete] = useState<StaffRow | null>(null);
   const [credentials, setCredentials] = useState<any>(null);
   const [access, setAccess] = useState<any>(null);
@@ -575,7 +577,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       confirmPassword: "",
       permission_overrides: { ...(member.permission_overrides ?? {}) },
     });
-    setDrawerTab(isOwnRestaurantManager(member) ? "profile" : "permissions");
+    setDrawerTab("profile");
   }
   function permissionEnabled(cap: Capability) {
     if (!editing) return false;
@@ -979,9 +981,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                       {(ownRestaurantManager
                         ? ([["profile", ar ? "الاسم" : "Manager name", UserRound]] as const)
                         : ([
-                            ["permissions", ar ? "الصلاحيات" : "Permissions", ShieldCheck],
                             ["profile", ar ? "الملف" : "Profile", UserRound],
-                            ["log", ar ? "السجل" : "Access", History],
+                            ["permissions", ar ? "الصلاحيات" : "Permissions", ShieldCheck],
                           ] as const)
                       ).map(([id, label, Icon]) => (
                         <button
@@ -1005,22 +1006,21 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                     </div>
 
                     <div className="min-h-0 flex-1 overflow-y-auto bg-muted/10 p-4 sm:p-6">
+                      <div hidden={drawerTab !== "profile"} className="mx-auto mb-5 max-w-3xl"><EmployeeSetupPanel key={editing.id} restaurantId={restaurantId} staffId={editing.id} ar={ar} formId={`hr-setup-${editing.id}`} hideSubmit /></div>
                       {drawerTab === "permissions" ? (
                         <div className="qs-permission-editor">
                           <div className="qs-permission-summary">
                             <div><h3>{ar ? "صلاحيات المستخدم" : "Feature access"}</h3><p>{ROLE_NAMES[editing.role]?.[lang] ?? editing.role} · {PERMISSION_GROUPS.flatMap(g => g.items).filter(i => permissionEnabled(i.capability)).length}/{PERMISSION_GROUPS.flatMap(g => g.items).length} {ar ? "مفعّلة" : "enabled"}</p></div>
-                            {canEditPermissions ? <button type="button" disabled={busy || !Object.keys(editing.permission_overrides).length} onClick={() => setEditing({ ...editing, permission_overrides: {} })}>{ar ? "استعادة صلاحيات الدور" : "Use role defaults"}</button> : null}
+
                           </div>
                           <section className="qs-permission-groups">
                             <div className="qs-permission-group-list">
                               {PERMISSION_GROUPS.map((group) => (
-                                <section
+                                <details
                                   key={group.id}
-                                  className="qs-permission-group"
+                                  className="qs-permission-group qs-approved-permission-group"
                                 >
-                                  <h4 className="mb-3 text-xs font-bold">
-                                    {ar ? group.ar : group.en}
-                                  </h4>
+                                  <summary><span>{ar ? group.ar : group.en}</span><small>{group.items.filter(i => permissionEnabled(i.capability)).length}/{group.items.length} {ar ? "مفعلة" : "enabled"}</small></summary>
                                   <div className="space-y-3">
                                     {group.items.map((item) => {
                                       const roleDefault = roleHasCapability(
@@ -1052,7 +1052,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                       );
                                     })}
                                   </div>
-                                </section>
+                                </details>
                               ))}
                             </div>
                           </section>
@@ -1060,6 +1060,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                         </div>
                       ) : drawerTab === "profile" ? (
                         <div className="mx-auto max-w-3xl space-y-5">
+                          <details className="qs-member-personal-details"><summary>{ar ? "المعلومات الشخصية" : "Personal details"}</summary>
                           <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                             <h3 className="text-base font-bold">
                               {ownRestaurantManager
@@ -1111,7 +1112,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                 value={ROLE_NAMES[editing.role][lang]}
                               />
                               <Read
-                                label={ar ? "تاريخ الإضافة" : "Joined"}
+                                label={ar ? "تاريخ إنشاء الحساب" : "Account created"}
                                 value={new Date(editing.created_at).toLocaleDateString(
                                   ar ? "ar-JO" : "en-US",
                                 )}
@@ -1124,7 +1125,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                 onClick={() => void openAccess(editing.id)}
                               >
                                 <IdCard className="size-4" />
-                                {ar ? "عرض بطاقة الوصول" : "View Staff Access"}
+                                {ar ? "عرض بطاقة الوصول" : "View sign-in card"}
                               </button>
                             ) : null}
                           </section>
@@ -1220,6 +1221,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                               </div>
                             </section>
                           </div> : null}
+                          <Button disabled={busy || (!canManageStaff && !ownRestaurantManager)} onClick={() => void saveEdit()}>{ar ? "حفظ المعلومات الشخصية" : "Save personal details"}</Button>
+                          </details>
                         </div>
                       ) : (
                         <div className="mx-auto max-w-3xl">
@@ -1276,20 +1279,24 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                       <div className="flex items-center justify-end gap-2">
                         <ActionMenu ar={ar} label={ar ? "إجراءات المستخدم" : "Member actions"} actions={[
                           {label: ar ? "إلغاء" : "Cancel", disabled: busy, onSelect: () => setEditing(null)},
-                          {label: ar ? "الوصول" : "Access", icon: IdCard, hidden: ownRestaurantManager || !canEditPermissions, disabled: busy, onSelect: () => void openAccess(editing.id)},
+                          {label: ar ? "استعادة صلاحيات الدور" : "Reset role defaults", icon: ShieldCheck, hidden: ownRestaurantManager || !canEditPermissions, disabled: busy || !Object.keys(editing.permission_overrides).length, onSelect: () => setEditing({...editing, permission_overrides: {}})},
+                          {label: ar ? "سجل النشاط" : "Activity log", icon: History, hidden: ownRestaurantManager, onSelect: () => setDrawerTab("log")},
                           {label: ar ? "حذف المستخدم" : "Delete member", icon: Trash2, hidden: ownRestaurantManager || !canManageStaff, disabled: busy, destructive: true, separatorBefore: true, onSelect: () => setPendingDelete(editing)},
                         ]}/>
                         <button
-                          type="button"
                           className="qs-button-primary min-h-11 sm:min-w-44"
-                          disabled={busy || (!canManageStaff && !ownRestaurantManager)}
-                          onClick={() => void saveEdit()}
+                          type={drawerTab === "profile" && canManageShifts ? "submit" : "button"}
+                          form={drawerTab === "profile" && canManageShifts ? `hr-setup-${editing.id}` : undefined}
+                          disabled={busy || (drawerTab === "profile" && canManageShifts ? false : !canManageStaff && !ownRestaurantManager)}
+                          onClick={drawerTab === "profile" && canManageShifts ? undefined : () => void saveEdit()}
                         >
                           {busy
                             ? ar
                               ? "جارٍ الحفظ…"
                               : "Saving…"
-                            : ownRestaurantManager
+                            : drawerTab === "profile" && canManageShifts
+                              ? (ar ? "حفظ الإعداد" : "Save setup")
+                              : ownRestaurantManager
                               ? ar
                                 ? "حفظ الاسم"
                                 : "Save name"
