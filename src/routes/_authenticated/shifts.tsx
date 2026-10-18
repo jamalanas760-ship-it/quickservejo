@@ -1,3 +1,4 @@
+import { EmployeeHRWorkspace } from "@/components/workforce/EmployeeHRWorkspace";
 import {
   MissingPunchComposer,
   type MissingPunchMode,
@@ -128,7 +129,7 @@ export const Route = createFileRoute("/_authenticated/shifts")({
   component: ShiftsPage,
 });
 type WorkforceSection =
-  "overview" | "schedule" | "attendance" | "timesheets" | "time_off" | "team" | "labor";
+  "overview" | "schedule" | "attendance" | "timesheets" | "time_off" | "team" | "labor" | "my_workspace";
 
 const HANDOVER_ROLES: AppRole[] = [
   "restaurant_admin",
@@ -177,13 +178,14 @@ function ShiftsPage() {
   const handovers = useShiftHandovers(rid);
   const openWork = useOpenWorkCount(rid);
   const members = useWorkspaceMembers(canView ? rid : null);
+  const [hrRequestLeave, setHrRequestLeave] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [closingShift, setClosingShift] = useState<Shift | null>(null);
   const [deletingShift, setDeletingShift] = useState<Shift | null>(null);
   const [detailShiftId, setDetailShiftId] = useState<string | null>(null);
   const requestedSection = useRouterState({ select: (state) => state.location.hash });
   const [workforceSection, setWorkforceSection] = useState<WorkforceSection>(
-    ["overview", "schedule", "attendance", "timesheets", "time_off", "team", "labor"].includes(
+    ["overview", "schedule", "attendance", "timesheets", "time_off", "team", "labor", "my_workspace"].includes(
       requestedSection,
     )
       ? (requestedSection as WorkforceSection)
@@ -191,7 +193,7 @@ function ShiftsPage() {
   );
   useEffect(() => {
     if (
-      ["overview", "schedule", "attendance", "timesheets", "time_off", "team", "labor"].includes(
+      ["overview", "schedule", "attendance", "timesheets", "time_off", "team", "labor", "my_workspace"].includes(
         requestedSection,
       )
     )
@@ -606,8 +608,25 @@ function ShiftsPage() {
             )}
           />
         ) : null}
+        {workforceSection === "my_workspace" ? (
+          <EmployeeHRWorkspace
+            key={`${rid}-${membership.id}`}
+            restaurantId={rid}
+            currentStaffId={membership.id}
+            canManage={canManage}
+            ar={ar}
+            timeZone={timeZone}
+            currency={restaurant.data?.currency || scope.currency}
+            onRequestLeave={() => {
+              setHrRequestLeave(true);
+              setWorkforceSection("time_off");
+            }}
+          />
+        ) : null}
         {workforceSection === "time_off" ? (
           <WorkforceRequests
+            launchLeave={hrRequestLeave}
+            onLaunchConsumed={() => setHrRequestLeave(false)}
             restaurantId={rid}
             currentStaffId={membership.id}
             canManage={canManage}
@@ -866,6 +885,7 @@ function WorkforceNavigation({
   ar: boolean;
 }) {
   const tabs: Array<{ id: WorkforceSection; label: string; icon: typeof CalendarClock }> = [
+    { id: "my_workspace", label: ar ? "مساحتي" : "My workspace", icon: UserPlus },
     { id: "overview", label: ar ? "نظرة عامة" : "Overview", icon: UsersRound },
     { id: "schedule", label: ar ? "الجدول" : "Schedule", icon: CalendarClock },
     { id: "attendance", label: ar ? "الحضور" : "Attendance", icon: TimerReset },

@@ -698,3 +698,63 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Approved simplified missing-punch form. Date-picker styles remain scoped separately. */
+.qs-dialog-content.wf-missing-punch-dialog {
+  max-width: 560px !important;
+}
+.wf-missing-punch-dialog .wf-punch-layout {
+  display: block;
+  margin-top: 20px;
+}
+.wf-missing-punch-dialog .wf-punch-fields {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.wf-punch-context-line {
+  padding: 12px 14px;
+  background: var(--muted);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+.wf-punch-mode {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 12px;
+  margin-top: 8px;
+  color: var(--foreground);
+}
+.wf-punch-mode:focus-visible {
+  outline: 2px solid #ff5a0a;
+  outline-offset: 2px;
+}
+.wf-missing-punch-dialog .wf-punch-footer {
+  display: block;
+  padding: 16px 24px;
+}
+.wf-missing-punch-dialog .wf-punch-footer > div {
+  display: block;
+  margin-top: 12px;
+}
+.wf-missing-punch-dialog .wf-punch-footer button {
+  width: 100%;
+  min-height: 48px;
+}
+@media (max-width: 600px) {
+  .wf-missing-punch-dialog .wf-punch-date-time {
+    grid-template-columns: 1fr;
+  }
+  .wf-missing-punch-dialog .wf-punch-scroll {
+    padding: 0 20px 20px;
+  }
+  .wf-missing-punch-dialog > .qs-dialog-header {
+    padding: 24px 20px 18px;
+    padding-inline-end: 56px;
+  }
+}
