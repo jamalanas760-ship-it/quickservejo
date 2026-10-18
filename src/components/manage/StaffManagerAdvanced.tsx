@@ -1221,7 +1221,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                               </div>
                             </section>
                           </div> : null}
-                          <Button disabled={busy || (!canManageStaff && !ownRestaurantManager)} onClick={() => void saveEdit()}>{ar ? "حفظ المعلومات الشخصية" : "Save personal details"}</Button>
+                          <div className="qs-member-personal-save"><Button type="button" aria-busy={busy} disabled={busy || (!canManageStaff && !ownRestaurantManager)} onClick={() => void saveEdit()}>{busy ? (ar ? "جارٍ الحفظ…" : "Saving…") : ar ? "حفظ المعلومات الشخصية" : "Save personal details"}</Button></div>
                           </details>
                         </div>
                       ) : (

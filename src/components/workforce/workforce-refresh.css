@@ -544,3 +544,157 @@
     border-radius: 10px;
   }
 }
+
+/* Keep the three controls inside the shell expected by shared dock styles. */
+.wf-mobile-workforce-items > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  min-height: 56px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  padding: 6px;
+  cursor: pointer;
+}
+.wf-mobile-workforce-items > button svg {
+  width: 20px;
+  height: 20px;
+}
+.wf-mobile-workforce-items > button:is([aria-current="page"], [data-active="true"]) {
+  color: var(--primary);
+}
+.wf-mobile-workforce-items > button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -3px;
+}
+.wf-mobile-section-trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 16px;
+}
+.wf-mobile-section-trigger svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.wf-mobile-section-trigger > span {
+  flex: 1;
+  text-align: start;
+}
+.wf-section-menu {
+  width: min(280px, calc(100vw - 24px));
+  max-height: min(480px, var(--radix-popover-content-available-height));
+  padding: 6px !important;
+  border-radius: 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.wf-section-menu-list {
+  display: grid;
+  gap: 2px;
+}
+.wf-section-menu-list > button {
+  text-align: start;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--foreground);
+}
+.wf-section-menu-list > button[aria-current="page"] {
+  color: var(--primary);
+  background: var(--muted);
+}
+.wf-section-menu-list > button:is(:focus-visible, :hover) {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+  background: var(--muted);
+}
+.qs-member-personal-save {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.qs-member-personal-save button {
+  min-height: 48px;
+}
+@media (max-width: 767px) {
+  .qs-member-personal-save button {
+    width: 100%;
+    font-size: 14px;
+  }
+  .hr-workspace {
+    gap: 12px;
+  }
+  .hr-workspace .hr-scope {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 0;
+    padding: 2px;
+  }
+  .hr-workspace .hr-scope button {
+    padding: 8px;
+  }
+  .hr-workspace .qs-master-header > div > div:first-child {
+    display: none;
+  }
+  .hr-workspace .qs-master-header > div {
+    padding: 0;
+    gap: 0;
+  }
+  .hr-workspace .qs-page-actions > div {
+    width: 100%;
+  }
+  .hr-workspace .qs-page-actions button:first-child {
+    flex: 1;
+    min-height: 44px;
+  }
+  .hr-workspace .hr-top-toolbar {
+    justify-content: flex-start;
+    gap: 10px;
+  }
+  .hr-workspace .hr-top-toolbar > label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+  .hr-workspace .hr-top-toolbar > label select {
+    width: 110px;
+    min-height: 44px;
+    margin: 0;
+    font-size: 16px;
+  }
+  .hr-workspace .hr-identity {
+    padding: 16px;
+    gap: 12px;
+    border-radius: 12px;
+  }
+  .hr-workspace .hr-identity .hr-avatar {
+    width: 36px;
+    height: 36px;
+  }
+  .hr-workspace .hr-identity h2 {
+    font-size: 17px;
+  }
+}

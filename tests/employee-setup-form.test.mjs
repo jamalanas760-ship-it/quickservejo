@@ -128,3 +128,27 @@ test("invalid hidden field opens every ancestor disclosure before native focus",
   assert.equal(inner.open, true);
   assert.equal(outer.open, true);
 });
+
+test("managers can edit salary and leave while both automation switches are paused", () => {
+  const all = nodes(render());
+  const salaryCards = all.filter((n) => n.props?.className === "hr-panel hr-setup-summary-card");
+  assert.equal(salaryCards.length, 2);
+  for (const card of salaryCards) {
+    assert.equal(
+      nodes(card).some((n) => n.type === "fieldset" && n.props.disabled),
+      false,
+    );
+    assert.ok(nodes(card).some((n) => n.type === "input"));
+  }
+});
+test("paused blank setup can save employment without inventing salary or leave inputs", async () => {
+  render({ setup: null });
+  await mutation.mutationFn();
+  assert.equal(saved.args._setup.payroll_enabled, false);
+  assert.equal(saved.args._setup.income.length, 0);
+  assert.equal(saved.args._setup.leave_enabled, false);
+});
+test("a partly completed paused leave policy is rejected rather than silently discarded", async () => {
+  render({ setup: { ...setup, annual_opening: "" } });
+  await assert.rejects(mutation.mutationFn(), /Complete the leave policy/);
+});
