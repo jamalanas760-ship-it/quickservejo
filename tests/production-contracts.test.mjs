@@ -93,8 +93,10 @@ test("shift clock stays visible and uses server-authoritative attendance state",
   assert.match(shifts, /clock_in_staff/);
   assert.match(shifts, /clock_out_staff/);
   assert.doesNotMatch(shifts, /setClockOverride\(openEntry \? null :/);
-  assert.match(shifts, /aria-busy=\{toggleClock\.isPending\}/);
-  assert.match(shifts, /aria-live="polite"/);
+  const card = await file("src/components/workforce/WorkforceClockCard.tsx");
+  assert.match(shifts, /pending=\{toggleClock\.isPending\}/);
+  assert.match(card, /aria-busy=\{pending\}/);
+  assert.match(card, /aria-live="polite"/);
 });
 
 test("operations navigation and work board retain the polished interaction contract", async () => {
@@ -193,7 +195,7 @@ test("attendance shows live, completed-session, and daily hour-minute durations"
   const shifts = await file("src/routes/_authenticated/shifts.tsx");
   assert.match(shifts, /Current session/);
   assert.match(shifts, /Last session/);
-  assert.match(shifts, /Worked today/);
+  assert.match(await file("src/components/workforce/WorkforceClockCard.tsx"), /Worked today/);
   assert.match(shifts, /currentSessionSeconds/);
   assert.match(shifts, /latestCompletedSeconds/);
   assert.match(shifts, /todayWorkedSeconds/);
@@ -259,7 +261,8 @@ test("Workforce supports employee missing-punch requests and manager approval", 
   const shifts = await file("src/routes/_authenticated/shifts.tsx");
   const workforce = await file("src/components/workforce/WorkforceInsights.tsx");
   const migration = await file("supabase/migrations/20260929090409_workforce_attention_reads_and_missing_punch_requests.sql");
-  assert.match(shifts, /Forgot a punch\?/);
+  assert.match(await file("src/components/workforce/WorkforceClockCard.tsx"), /Report missing punch/);
+  assert.match(shifts, /onReportMissing=\{\(\) => setMissingPunchOpen\(true\)\}/);
   assert.match(shifts, /submit_missing_punch_request/);
   assert.match(workforce, /Missing punch requests/);
   assert.match(workforce, /review_missing_punch_request/);

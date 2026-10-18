@@ -1,6 +1,6 @@
 import { capturePunchLocation, verifyGeofence, type GeofenceVerification } from "@/lib/geofence";
 import { useAttendanceGeofence } from "@/hooks/useAttendanceGeofence";
-import { GeofenceBadge } from "@/components/workforce/GeofenceBadge";
+import { WorkforceClockCard } from "@/components/workforce/WorkforceClockCard";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { restaurantScheduleWindows } from "@/lib/restaurant-schedule";
 import { ActionMenu } from "@/components/app/ActionMenu";
@@ -51,6 +51,7 @@ import {
   timeLabel,
 } from "@/components/workforce/WorkforceStudio";
 import "@/components/workforce/workforce-studio.css";
+import "@/components/workforce/workforce-overview.css";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { DetailRow, DetailSheet, formatStamp } from "@/components/operations/DetailSheet";
 import { WorkforceButton as Button } from "@/components/workforce/WorkforceButton";
@@ -373,7 +374,7 @@ function ShiftsPage() {
   return (
     <div className="min-h-dvh bg-background">
       <AppHeader title={ar ? "القوى العاملة" : "Workforce"} />
-      <main className="qs-workforce-screen qs-workforce-shifts wf-studio qs-page qs-compact-page space-y-4">
+      <main className="qs-workforce-screen qs-workforce-shifts wf-studio wf-approved-overview qs-page qs-compact-page space-y-4">
         <header className="wf-page-heading">
           <div>
             <h1>{ar ? "القوى العاملة" : "Workforce"}</h1>
@@ -424,7 +425,7 @@ function ShiftsPage() {
 
         <section
           className={cn(
-            "qs-workforce-snapshot qs-card grid grid-cols-2 overflow-hidden sm:grid-cols-3 xl:grid-cols-6",
+            "qs-workforce-snapshot qs-card grid grid-cols-3 overflow-hidden xl:grid-cols-6",
             workforceSection !== "overview" && "hidden",
           )}
         >
@@ -838,9 +839,9 @@ function WorkforceSnapshotStat({
           ? "#ff5a0a"
           : "#f59e0b";
   return (
-    <article className="qs-workforce-snapshot-item">
+    <article className="qs-workforce-snapshot-item" title={hint}>
       <span className="wf-snapshot-label">
-        <i style={{ background: color }} />
+        <Icon aria-hidden="true" style={{ color }} />
         {label}
       </span>
       <strong>{value}</strong>
@@ -1275,9 +1276,10 @@ function WorkforceClockHero({
 
   return (
     <>
-      <section
-        className="wf-clock"
-        data-clock-state={
+      <WorkforceClockCard
+        ar={ar}
+        name={staffMember?.name ?? (ar ? "عضو الفريق" : "Team member")}
+        clockState={
           clockStatus.isError
             ? "error"
             : clockStatus.isPending
@@ -1288,122 +1290,65 @@ function WorkforceClockHero({
                   ? "on"
                   : "off"
         }
-        aria-label={ar ? "ساعة الدوام" : "Time clock"}
-      >
-        <div className="wf-clock-person">
-          <span className="wf-avatar">
-            {(staffMember?.name ?? "T")
-              .split(" ")
-              .map((v) => v[0])
-              .slice(0, 2)
-              .join("")}
-          </span>
-          <span>
-            <strong>{staffMember?.name ?? (ar ? "عضو الفريق" : "Team member")}</strong>
-            <small role="status" aria-live="polite">
-              <i className={liveEntry ? "is-active" : ""} />
-              {clockStatus.isError
+        status={
+          clockStatus.isError
+            ? ar
+              ? "تعذر تحميل الحالة"
+              : "Status unavailable"
+            : clockStatus.isPending
+              ? ar
+                ? "جارٍ تأكيد الحالة…"
+                : "Checking status…"
+              : needsReview
                 ? ar
-                  ? "تعذر تحميل الحالة"
-                  : "Status unavailable"
-                : clockStatus.isPending
-                  ? ar
-                    ? "جارٍ تأكيد الحالة…"
-                    : "Checking status…"
-                  : needsReview
+                  ? "جلسة سابقة تحتاج مراجعة"
+                  : "Previous session needs review"
+                : liveEntry
+                  ? (ar ? "الدخول " : "Clocked in ") +
+                    new Date(liveEntry.clock_in).toLocaleTimeString(ar ? "ar-JO" : "en-US", {
+                      timeZone,
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })
+                  : gps.eligible
                     ? ar
-                      ? "جلسة سابقة تحتاج مراجعة"
-                      : "Previous session needs review"
-                    : liveEntry
-                      ? ar
-                        ? "على رأس العمل"
-                        : "On shift"
-                      : ar
-                        ? "جاهز للبدء"
-                        : "Ready to clock in"}
-              {liveEntry
-                ? " · " +
-                  (ar ? "الدخول " : "Clocked in ") +
-                  new Date(liveEntry.clock_in).toLocaleTimeString(ar ? "ar-JO" : "en-US", {
-                    timeZone,
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })
-                : ""}
-            </small>
-            <GeofenceBadge ar={ar} verification={gps.verification} />
-          </span>
-        </div>
-        <div className="wf-clock-metric">
-          <small>
-            {openEntry
-              ? ar
-                ? "الجلسة الحالية"
-                : "Current session"
-              : ar
-                ? "آخر جلسة"
-                : "Last session"}
-          </small>
-          <strong>
-            {clockStatus.isError
-              ? "—"
-              : formatClockDuration(
-                  needsReview ? 0 : openEntry ? currentSessionSeconds : latestCompletedSeconds,
-                  ar,
-                )}
-          </strong>
-          <small>
-            {ar ? "وقت العمل اليوم" : "Worked today"} ·{" "}
-            {formatClockDuration(todayWorkedSeconds, ar)}
-          </small>
-        </div>
-        <div className="wf-clock-metric">
-          <small>
-            {openEntry
-              ? ar
-                ? "نهاية الوردية"
-                : "Shift ends"
-              : ar
-                ? "الوردية القادمة"
-                : "Next shift"}
-          </small>
-          <strong>{expectedLabel}</strong>
-          <small>{expectedHint}</small>
-        </div>
-        <div className="wf-clock-action">
-          <Button
-            aria-busy={toggleClock.isPending}
-            disabled={
-              toggleClock.isPending || clockStatus.isPending || clockStatus.isError || !gps.eligible
-            }
-            aria-describedby="attendance-location-status"
-            onClick={() => toggleClock.mutate()}
-          >
-            {openEntry ? <StopCircle className="size-4" /> : <PlayCircle className="size-4" />}
-            {toggleClock.isPending
-              ? ar
-                ? "جارٍ التحديث…"
-                : "Updating…"
-              : openEntry
-                ? ar
-                  ? "تسجيل الانصراف"
-                  : "Clock out"
-                : ar
-                  ? "تسجيل الحضور"
-                  : "Clock in"}
-          </Button>
-          <button className="wf-missing" onClick={() => setMissingPunchOpen(true)}>
-            {ar ? "نسيت البصمة؟" : "Forgot a punch?"}
-          </button>
-        </div>
-      </section>
-      <div
-        id="attendance-location-status"
-        className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
-        role="status"
-      >
-        <span>
-          {gps.eligible
+                      ? "جاهز للبدء"
+                      : "Ready to clock in"
+                    : ar
+                      ? "لم يسجل الدخول"
+                      : "Not clocked in"
+        }
+        verification={gps.verification}
+        phase={gps.phase}
+        updatedAt={gps.updatedAt}
+        now={clockNow}
+        radius={restaurant.data?.geofence_radius_meters ?? 100}
+        workedToday={clockStatus.isError ? "—" : formatClockDuration(todayWorkedSeconds, ar)}
+        sessionLabel={
+          openEntry ? (ar ? "الجلسة الحالية" : "Current session") : ar ? "آخر جلسة" : "Last session"
+        }
+        sessionValue={
+          clockStatus.isError
+            ? "—"
+            : formatClockDuration(
+                needsReview ? 0 : openEntry ? currentSessionSeconds : latestCompletedSeconds,
+                ar,
+              )
+        }
+        shiftLabel={
+          openEntry ? (ar ? "نهاية الوردية" : "Shift ends") : ar ? "الوردية القادمة" : "Next shift"
+        }
+        shiftValue={expectedLabel}
+        shiftHint={expectedHint}
+        pending={toggleClock.isPending}
+        disabled={
+          toggleClock.isPending || clockStatus.isPending || clockStatus.isError || !gps.eligible
+        }
+        clockOut={Boolean(openEntry)}
+        onPunch={() => toggleClock.mutate()}
+        onReportMissing={() => setMissingPunchOpen(true)}
+        locationMessage={
+          gps.eligible
             ? ar
               ? "موقعك داخل نطاق الحضور."
               : "Your location is inside the attendance radius."
@@ -1415,32 +1360,13 @@ function WorkforceClockHero({
                 ? ar
                   ? "يجب على المدير إعداد موقع الحضور أولاً."
                   : "A manager must configure the attendance location first."
-                : locationMessages[gps.verification.reason ?? "unavailable"] ??
+                : (locationMessages[gps.verification.reason ?? "unavailable"] ??
                   (ar
-                    ? "يلزم موقع حديث ودقيق داخل نطاق الحضور. حدّث الموقع للمحاولة مجددًا."
-                    : "A fresh, accurate location inside the attendance radius is required. Refresh to try again.")}
-        </span>
-        {gps.phase !== "checking" && gps.phase !== "locating" && !gps.eligible && (
-          <button
-            type="button"
-            className="min-h-11 underline disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={gps.phase === "insecure" || gps.verification.status === "not_configured"}
-            onClick={gps.refresh}
-          >
-            {gps.phase === "needs_permission"
-              ? ar
-                ? "إعادة المحاولة"
-                : "Try again"
-              : gps.phase === "permission_denied"
-                ? ar
-                  ? "تحقق مجددًا"
-                  : "Check again"
-                : ar
-                  ? "تحديث الموقع"
-                  : "Refresh location"}
-          </button>
-        )}
-      </div>
+                    ? "يلزم موقع حديث ودقيق داخل نطاق الحضور."
+                    : "A fresh, accurate location inside the attendance radius is required."))
+        }
+        onRetry={gps.refresh}
+      />
       {clockStatus.isError || toggleClock.isError ? (
         <div
           role="alert"
