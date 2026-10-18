@@ -56,3 +56,11 @@ Employee setup now opens with employment, derived salary and yearly entitlement 
 Missing-punch mode is a native three-choice radio group rather than a clipped mobile select. Opening the correction focuses its heading without activating an input. Date/time dialogs center their actual content inside the viewport and return focus to their invoking field when dismissed. Long forms and histories retain scrolling instead of shrinking content or hiding records. New overview-summary and mobile section-picker visual proposals still require design approval.
 
 Validation includes salary/leave template preservation, derived net pay, private editor gating, nested invalid-field disclosure, explicit punch-mode selection, existing overnight/session validation, TypeScript, targeted ESLint and production build. No browser/device interaction verification is claimed.
+
+### Approved minimal workforce layout (A4/B4)
+
+The overview uses a quiet four-column daily metric row with an orange missing-punch count and a compact attention/overtime line. The existing time-clock component is unchanged, including its light-gray disabled button, lock icon, clock-in/out labels and location-radius restrictions.
+
+On phones, one native section selector replaces wrapping top tabs. A viewport dock provides Overview, My workspace and More. The regular application dock is replaced only on the workforce route for users with workforce access; account-menu Workspace tools still exposes the other application destinations. Desktop/tablet retain direct horizontal navigation. Pay slips and leave transactions open the existing personal workspace records through a controlled tab, retaining the same privacy/query scope and team permissions. Smaller viewports and long histories keep normal scrolling for readable content.
+
+Verification covers manager-only Labor visibility, all ten manager destinations, personal salary/leave routing, unavailable destination rejection, quick navigation and both disabled outside-radius clock directions. The source contract checks now read the extracted navigation module. Real-device mobile/visual QA remains outstanding.

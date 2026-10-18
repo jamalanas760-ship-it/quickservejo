@@ -1,3 +1,5 @@
+import { WorkforceNavigation } from "@/components/workforce/WorkforceNavigation";
+import type { WorkforceDestination } from "@/lib/workforce-navigation";
 import "@/components/workforce/workforce-refresh.css";
 import { EmployeeHRWorkspace } from "@/components/workforce/EmployeeHRWorkspace";
 import {
@@ -180,6 +182,16 @@ function ShiftsPage() {
   const openWork = useOpenWorkCount(rid);
   const members = useWorkspaceMembers(canView ? rid : null);
   const [hrRequestLeave, setHrRequestLeave] = useState(false);
+  const [workspaceTab, setWorkspaceTab] = useState<"overview" | "leave" | "attendance" | "requests" | "payslips">("overview");
+  const navigateWorkforce = (destination: WorkforceDestination) => {
+    if (destination === "payslips" || destination === "leave") {
+      setWorkspaceTab(destination);
+      setWorkforceSection("my_workspace");
+    } else {
+      if (destination === "my_workspace") setWorkspaceTab("overview");
+      setWorkforceSection(destination);
+    }
+  };
   const [createOpen, setCreateOpen] = useState(false);
   const [closingShift, setClosingShift] = useState<Shift | null>(null);
   const [deletingShift, setDeletingShift] = useState<Shift | null>(null);
@@ -382,7 +394,7 @@ function ShiftsPage() {
   return (
     <div className="min-h-dvh bg-background">
       <AppHeader title={ar ? "القوى العاملة" : "Workforce"} />
-      <main className="qs-workforce-screen qs-workforce-shifts wf-studio wf-approved-overview qs-page qs-compact-page space-y-4">
+      <main className="qs-workforce-screen qs-workforce-shifts wf-studio wf-approved-overview wf-minimal-workforce qs-page qs-compact-page space-y-4">
         <header className={`wf-page-heading ${workforceSection === "my_workspace" ? "wf-heading-personal" : ""}`}>
           <div>
             <h1>{ar ? "القوى العاملة" : "Workforce"}</h1>
@@ -412,24 +424,11 @@ function ShiftsPage() {
         </header>
 
         <WorkforceNavigation
-          active={workforceSection}
-          onChange={setWorkforceSection}
+          active={workforceSection === "my_workspace" && (workspaceTab === "payslips" || workspaceTab === "leave") ? workspaceTab : workforceSection}
+          onChange={navigateWorkforce}
           canManage={canManage}
           ar={ar}
         />
-
-        {workforceSection === "overview" || workforceSection === "attendance" ? (
-          <div className="qs-workforce-punch-zone">
-            <WorkforceClockHero
-              restaurantId={rid}
-              currentStaffId={membership.id}
-              members={members.data ?? []}
-              assignments={assignments.data ?? []}
-              ar={ar}
-              lang={lang}
-            />
-          </div>
-        ) : null}
 
         <section
           className={cn(
@@ -468,6 +467,19 @@ function ShiftsPage() {
         </section>
 
         {workforceSection === "overview" && <p className="wf-overview-extra"><span>{ar ? "تحتاج انتباه" : "Needs attention"}: {needsAttention}</span><span>{ar ? "مخاطر الوقت الإضافي" : "Overtime risk"}: {overtimeRisk}</span></p>}
+        {workforceSection === "overview" || workforceSection === "attendance" ? (
+          <div className="qs-workforce-punch-zone">
+            <WorkforceClockHero
+              restaurantId={rid}
+              currentStaffId={membership.id}
+              members={members.data ?? []}
+              assignments={assignments.data ?? []}
+              ar={ar}
+              lang={lang}
+            />
+          </div>
+        ) : null}
+
         {workforceSection === "overview" ? (
           <section className="wf-split">
             <WorkforceToday
@@ -593,6 +605,8 @@ function ShiftsPage() {
             key={`${rid}-${membership.id}`}
             restaurantId={rid}
             currentStaffId={membership.id}
+            selectedTab={workspaceTab}
+            onTabChange={setWorkspaceTab}
             canManage={canManage}
             ar={ar}
             timeZone={timeZone}
@@ -843,7 +857,7 @@ function WorkforceSnapshotStat({
           ? "#ff5a0a"
           : "#f59e0b";
   return (
-    <article className="qs-workforce-snapshot-item" title={hint}>
+    <article className="qs-workforce-snapshot-item" title={hint} data-attention={tone === "red"}>
       <span className="wf-snapshot-label">
         <Icon aria-hidden="true" style={{ color }} />
         {label}
@@ -853,53 +867,6 @@ function WorkforceSnapshotStat({
   );
 }
 
-function WorkforceNavigation({
-  active,
-  onChange,
-  canManage,
-  ar,
-}: {
-  active: WorkforceSection;
-  onChange: (value: WorkforceSection) => void;
-  canManage: boolean;
-  ar: boolean;
-}) {
-  const tabs: Array<{ id: WorkforceSection; label: string; icon: typeof CalendarClock }> = [
-    { id: "overview", label: ar ? "نظرة عامة" : "Overview", icon: UsersRound },
-    { id: "my_workspace", label: ar ? "مساحتي" : "My workspace", icon: UserPlus },
-    { id: "schedule", label: ar ? "الجدول" : "Schedule", icon: CalendarClock },
-    { id: "attendance", label: ar ? "الحضور" : "Attendance", icon: TimerReset },
-    { id: "timesheets", label: ar ? "سجلات الدوام" : "Timesheets", icon: CheckCircle2 },
-    { id: "time_off", label: ar ? "الطلبات" : "Requests", icon: CalendarDays },
-    { id: "team", label: ar ? "الفريق" : "Team", icon: UserPlus },
-    ...(canManage
-      ? [{ id: "labor" as WorkforceSection, label: ar ? "العمالة" : "Labor", icon: Clock3 }]
-      : []),
-  ];
-
-  return (
-    <nav className="wf-tabs" aria-label={ar ? "أقسام القوى العاملة" : "Workforce sections"}>
-      <div role="tablist">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const selected = active === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => onChange(tab.id)}
-              className={selected ? "is-selected" : ""}
-            >
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </nav>
-  );
-}
 
 type TimeEntry = {
   id: string;
