@@ -365,7 +365,7 @@ test("shifts page places a modern live clock hero above shift coverage", async (
   assert.match(shifts, /Clocked in/);
   assert.match(shifts, /Worked/);
   assert.match(shifts, /Shift ends/);
-  assert.match(shifts, /Clock out/);
+  assert.match(await file("src/components/workforce/WorkforceClockCard.tsx"), /Clock out/);
   assert.match(shifts, /function WorkforceNavigation/);
   assert.match(shifts, /<WorkforceAttendanceBoard/);
   assert.match(shifts, /<WorkforceRequests/);
