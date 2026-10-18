@@ -22,8 +22,8 @@ type LocationBrowser = {
   >;
 };
 
-// Only request() may trigger a browser prompt. Automatic refresh requires a
-// current, affirmative Permissions API result; an unsupported query fails closed.
+// Request location automatically once per foreground visit, letting the browser
+// enforce permission. Timed renewal never requests a new permission prompt.
 export function createAttendanceLocationSession(
   onChange: (state: AttendanceLocationState) => void,
   browser: LocationBrowser,
@@ -35,6 +35,7 @@ export function createAttendanceLocationSession(
   let permissionRevision = 0;
   let permission: PermissionStatus | null = null;
   let blocked = false;
+  let automaticAttempted = false;
   let state: AttendanceLocationState = { phase: "checking", fix: null };
   const publish = (next: AttendanceLocationState) => {
     if (!disposed) {
@@ -60,6 +61,7 @@ export function createAttendanceLocationSession(
   };
   const start = (reset = true) => {
     if (disposed || document.visibilityState !== "visible" || !usable()) return;
+    automaticAttempted = true;
     stop();
     const ticket = generation;
     publish({ phase: "locating", fix: reset ? null : state.fix });
@@ -96,13 +98,15 @@ export function createAttendanceLocationSession(
       publish({ phase: "unavailable", fix: null });
     }
   };
-  const applyPermission = (value: PermissionState, reset: boolean) => {
+  const applyPermission = (value: PermissionState, reset: boolean, mayPrompt = false) => {
     if (value === "granted") {
       blocked = false;
       start(reset);
+    } else if (value === "prompt" && mayPrompt && !automaticAttempted && !blocked) {
+      start(reset);
     } else {
       stop();
-      blocked = value === "denied";
+      blocked = value === "denied" || blocked;
       publish({ phase: blocked ? "permission_denied" : "needs_permission", fix: null });
     }
   };
@@ -110,7 +114,7 @@ export function createAttendanceLocationSession(
     permissionRevision++;
     if (!disposed && permission) applyPermission(permission.state, true);
   };
-  const resume = async (reset = true) => {
+  const resume = async (reset = true, mayPrompt = true) => {
     if (disposed || document.visibilityState !== "visible" || !usable()) return;
     const revision = ++permissionRevision;
     try {
@@ -121,12 +125,14 @@ export function createAttendanceLocationSession(
         permission = result;
         permission.addEventListener("change", permissionChanged);
       }
-      applyPermission(result.state, reset);
+      applyPermission(result.state, reset, mayPrompt);
     } catch {
-      // Older browsers require an explicit click, including after returning to
-      // the tab. Never use a stored flag as proof of browser permission.
-      if (!disposed && revision === permissionRevision && watch === undefined)
-        publish({ phase: "needs_permission", fix: null });
+      if (disposed || revision !== permissionRevision) return;
+      // A missing Permissions API must not introduce an Enable location step.
+      // The geolocation API itself still enforces browser/OS permission.
+      if (mayPrompt && !automaticAttempted && !blocked) start(reset);
+      else if (watch === undefined)
+        publish({ phase: blocked ? "permission_denied" : "needs_permission", fix: null });
     }
   };
   const focus = () => {
@@ -138,11 +144,12 @@ export function createAttendanceLocationSession(
     } else {
       permissionRevision++;
       stop();
+      automaticAttempted = false;
       publish({ phase: blocked ? "permission_denied" : "needs_permission", fix: null });
     }
   };
   const timer = window.setInterval(() => {
-    if (!blocked && state.phase !== "locating") void resume(false);
+    if (!blocked && state.phase !== "locating") void resume(false, false);
   }, 20000);
   window.addEventListener("focus", focus);
   document.addEventListener("visibilitychange", visibility);

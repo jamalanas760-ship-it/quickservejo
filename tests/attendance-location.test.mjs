@@ -97,16 +97,14 @@ function harness(initial = "prompt", queryOverride) {
   };
 }
 
-test("opening Workforce, focusing and automatic refresh never prompt a first-time user", async () => {
+test("opening Workforce starts GPS without Enable location and does not duplicate a pending prompt", async () => {
   const h = harness();
   const session = h.begin();
   await flush();
-  assert.equal(h.state().phase, "needs_permission");
+  assert.equal(h.state().phase, "locating");
   await h.focus();
   await h.tick();
-  assert.equal(h.past.length, 0);
-  session.request();
-  assert.equal(h.past.length, 1, "the user gesture starts GPS synchronously");
+  assert.equal(h.past.length, 1, "only one automatic attempt per foreground visit");
   assert.equal(h.state().phase, "locating");
   assert.equal(h.past[0].options.maximumAge, 0);
   h.success();
@@ -181,32 +179,30 @@ test("hidden Workforce stops GPS and discards callbacks; returning checks curren
   assert.equal(h.queries(), count);
   old.ok({ timestamp: Date.now(), coords: { latitude: 0, longitude: 0, accuracy: 1 } });
   assert.equal(h.state().fix, null);
-  h.permission.state = "prompt";
+  h.permission.state = "granted";
   await h.visible("visible");
-  assert.equal(h.past.length, 1);
-  assert.equal(h.state().phase, "needs_permission");
+  assert.equal(h.past.length, 2);
+  assert.equal(h.state().phase, "locating");
   session.dispose();
 });
 
-test("unsupported Permissions API permits only explicit requests, including after returning", async () => {
+test("unsupported Permissions API automatically starts on entry and return without an Enable step", async () => {
   const h = harness("prompt", () => {
     throw new Error("Unsupported permission query");
   });
   const session = h.begin();
   await flush();
-  assert.equal(h.state().phase, "needs_permission");
+  assert.equal(h.state().phase, "locating");
   await h.focus();
   await h.tick();
-  assert.equal(h.past.length, 0);
-  session.request();
+  assert.equal(h.past.length, 1);
   h.success();
   await h.tick();
   assert.equal(h.past.length, 1);
   await h.visible("hidden");
   await h.visible("visible");
-  assert.equal(h.watches.size, 0);
-  assert.equal(h.state().phase, "needs_permission");
-  session.request();
+  assert.equal(h.state().phase, "locating");
+  assert.equal(h.past.length, 2);
   assert.equal(h.watches.size, 1);
   session.dispose();
 });
@@ -215,12 +211,14 @@ test("permission denial during a request clears location and is never automatica
   const h = harness();
   const session = h.begin();
   await flush();
-  session.request();
   h.past[0].fail({ code: 1 });
   assert.equal(h.state().phase, "permission_denied");
   assert.equal(h.state().fix, null);
   assert.equal(h.watches.size, 0);
   await h.tick();
+  await h.focus();
+  await h.visible("hidden");
+  await h.visible("visible");
   assert.equal(h.past.length, 1);
   session.dispose();
 });
@@ -294,6 +292,34 @@ test("a delayed initial permission query cannot override an explicit request", a
   resolve(h.permission);
   await flush();
   assert.equal(h.state().phase, "tracking");
+  assert.equal(h.watches.size, 1);
+  session.dispose();
+});
+
+test("a dismissed automatic request is not repeated by timers or focus", async () => {
+  const h = harness();
+  const session = h.begin();
+  await flush();
+  h.past[0].fail({ code: 3 });
+  await h.tick();
+  await h.focus();
+  assert.equal(h.past.length, 1);
+  assert.equal(h.state().fix, null);
+  await h.visible("hidden");
+  await h.visible("visible");
+  assert.equal(h.past.length, 2, "a new foreground visit makes one new attempt");
+  session.dispose();
+});
+
+test("allowing the browser prompt resumes automatically without an app click", async () => {
+  const h = harness();
+  const session = h.begin();
+  await flush();
+  await h.change("granted");
+  h.success();
+  assert.equal(h.state().phase, "tracking");
+  await h.tick();
+  assert.equal(h.state().phase, "locating");
   assert.equal(h.watches.size, 1);
   session.dispose();
 });
