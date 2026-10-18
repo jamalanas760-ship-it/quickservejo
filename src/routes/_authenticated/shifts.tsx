@@ -1484,6 +1484,11 @@ function SelfMissingPunchRequestSheet({
     >
       <DialogContent
         className="wf-missing-punch-dialog"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          // Announce the sheet without activating its first input on touch devices.
+          (event.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>("h2")?.focus();
+        }}
         dir={ar ? "rtl" : "ltr"}
         onEscapeKeyDown={(event) => {
           if (submit.isPending) event.preventDefault();
@@ -1494,7 +1499,7 @@ function SelfMissingPunchRequestSheet({
       >
         <div className="wf-picker-handle" aria-hidden="true" />
         <DialogHeader>
-          <DialogTitle>{ar ? "طلب بصمة ناقصة" : "Report missing punch"}</DialogTitle>
+          <DialogTitle tabIndex={-1}>{ar ? "طلب بصمة ناقصة" : "Report missing punch"}</DialogTitle>
           <DialogDescription>
             {ar ? "أخبرنا بما يحتاج إلى تصحيح." : "Tell us what needs correcting."}
           </DialogDescription>

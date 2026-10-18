@@ -97,3 +97,16 @@ test("single missed-punch mode retains both required session times and the submi
   assert.equal(changed.out, "2026-10-15T17:00");
   assert.equal(nodes.find((n) => n.props?.type === "submit").props.disabled, true);
 });
+
+test("missed-punch choices do not activate on opening and only change on selection", () => {
+  const modes = [];
+  const { nodes } = render({ onMode: (value) => modes.push(value) });
+  const radios = nodes.filter((n) => n.type === "input" && n.props.type === "radio");
+  assert.equal(radios.length, 3);
+  assert.deepEqual(modes, []);
+  assert.equal(radios.filter((n) => n.props.checked).length, 1);
+  radios.find((n) => n.props.value === "clock_out").props.onChange();
+  assert.deepEqual(modes, ["clock_out"]);
+  const pending = render({ pending: true });
+  assert.equal(pending.nodes.find((n) => n.type === "fieldset").props.disabled, true);
+});

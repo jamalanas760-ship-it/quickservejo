@@ -73,18 +73,29 @@ export function MissingPunchComposer({
       }}
     >
       <div className="wf-punch-scroll">
-        <Label htmlFor={`${id}-mode`}>{ar ? "ما البصمة المفقودة؟" : "What was missed?"}</Label>
-        <select
-          id={`${id}-mode`}
-          className="wf-punch-mode"
-          value={mode}
-          disabled={pending}
-          onChange={(e) => onMode(e.target.value as MissingPunchMode)}
-        >
-          <option value="both">{ar ? "البصمتان" : "Both punches"}</option>
-          <option value="clock_in">{ar ? "الدخول" : "Clock-in"}</option>
-          <option value="clock_out">{ar ? "الانصراف" : "Clock-out"}</option>
-        </select>
+        <fieldset className="wf-punch-mode-choices" disabled={pending}>
+          <legend>{ar ? "ما البصمة المفقودة؟" : "What was missed?"}</legend>
+          <div>
+            {(
+              [
+                ["both", ar ? "البصمتان" : "Both punches"],
+                ["clock_in", ar ? "الدخول" : "Clock-in"],
+                ["clock_out", ar ? "الانصراف" : "Clock-out"],
+              ] as const
+            ).map(([value, label]) => (
+              <label key={value} data-selected={mode === value}>
+                <input
+                  type="radio"
+                  name={`${id}-mode`}
+                  value={value}
+                  checked={mode === value}
+                  onChange={() => onMode(value)}
+                />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <RequestDatePicker
           label={ar ? "التاريخ" : "Date"}
           value={date}

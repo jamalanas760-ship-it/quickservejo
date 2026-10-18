@@ -48,3 +48,11 @@ Authorized workforce managers can open **Team view → employee → More → Sal
 - Pausing payroll/leave automation preserves saved recurring settings and existing records. Employees cannot view recurring setup or salary drafts; they continue to read only their own published slips.
 
 Validation includes authenticated-role database fixtures for atomic batch rollback, tenant/employee isolation, generated totals, partial employment proration, yearly rollover, repeat runs, preserved published slips and the actual scheduler entry point. All fixtures roll back; no sample records remain in production. Browser/device and print QA remain unavailable in this environment and are not implied by the automated rendering checks. Lovable publication remains a separate release step through the owning account.
+
+### Compact employee setup and mobile correction follow-up
+
+Employee setup now opens with employment, derived salary and yearly entitlement summaries. Expand a card to edit its existing fields; payroll scheduling and detailed leave policy inputs use nested disclosures. The automation switches use the system primary color. Named income/deduction lines, paused templates, tenant permissions and the save RPC remain intact. Native invalid-field events open every enclosing disclosure before browser focus so required fields cannot remain hidden on submission.
+
+Missing-punch mode is a native three-choice radio group rather than a clipped mobile select. Opening the correction focuses its heading without activating an input. Date/time dialogs center their actual content inside the viewport and return focus to their invoking field when dismissed. Long forms and histories retain scrolling instead of shrinking content or hiding records. New overview-summary and mobile section-picker visual proposals still require design approval.
+
+Validation includes salary/leave template preservation, derived net pay, private editor gating, nested invalid-field disclosure, explicit punch-mode selection, existing overnight/session validation, TypeScript, targeted ESLint and production build. No browser/device interaction verification is claimed.
