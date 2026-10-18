@@ -67,7 +67,11 @@ export function EmployeeHRWorkspace({
   timeZone,
   currency,
   onRequestLeave,
+  selectedTab,
+  onTabChange,
 }: {
+  selectedTab?: Tab;
+  onTabChange?: (tab: Tab) => void;
   restaurantId: string;
   currentStaffId: string;
   canManage: boolean;
@@ -103,7 +107,12 @@ export function EmployeeHRWorkspace({
     [month, setMonth] = useState(today.slice(0, 7));
   const [scope, setScope] = useState<"self" | "team">("self"),
     [selected, setSelected] = useState<string | null>(null),
-    [tab, setTab] = useState<Tab>("overview");
+    [internalTab, setInternalTab] = useState<Tab>("overview");
+  const tab = selectedTab ?? internalTab;
+  const setTab = (value: Tab) => {
+    setInternalTab(value);
+    onTabChange?.(value);
+  };
   const [search, setSearch] = useState(""),
     [department, setDepartment] = useState("all");
   const [editor, setEditor] = useState<"employment" | "balances" | "payslip" | null>(null),

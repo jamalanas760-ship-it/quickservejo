@@ -112,3 +112,13 @@ test("location age and localized distance remain visible without removing sessio
   assert.match(arabic, /خارج المطعم/);
   assert.match(arabic, /الموقع يتحدث تلقائيًا/);
 });
+
+test("both outside-radius punch directions retain the existing locked disabled button", () => {
+  for (const clockOut of [false, true]) {
+    const html = render({ clockOut });
+    assert.match(html, /lucide-lock-keyhole/);
+    assert.match(html, /<button[^>]*disabled=""[^>]*aria-describedby="attendance-location-status"/);
+    assert.match(html, clockOut ? /Clock out/ : /Clock in/);
+    assert.match(html, /available inside the attendance radius/);
+  }
+});

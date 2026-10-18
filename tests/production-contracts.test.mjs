@@ -341,7 +341,7 @@ test("Workforce Requests supports permissions, leave types, reasons and attachme
   const shifts = await file("src/routes/_authenticated/shifts.tsx");
   const requests = await file("src/components/workforce/WorkforceRequests.tsx");
   const migration = await file("supabase/migrations/20260929124843_workforce_permissions_leave_types_documents.sql");
-  assert.match(shifts, /label: ar \? "الطلبات" : "Requests"/);
+  assert.match(await file("src/lib/workforce-navigation.ts"), /label: ar \? "الطلبات" : "Requests"/);
   assert.match(shifts, /<WorkforceRequests/);
   assert.match(requests, /Personal permission/);
   assert.match(requests, /Lateness permission/);
@@ -366,7 +366,7 @@ test("shifts page places a modern live clock hero above shift coverage", async (
   assert.match(shifts, /Worked/);
   assert.match(shifts, /Shift ends/);
   assert.match(await file("src/components/workforce/WorkforceClockCard.tsx"), /Clock out/);
-  assert.match(shifts, /function WorkforceNavigation/);
+  assert.match(await file("src/components/workforce/WorkforceNavigation.tsx"), /function WorkforceNavigation/);
   assert.match(shifts, /<WorkforceAttendanceBoard/);
   assert.match(shifts, /<WorkforceRequests/);
 });
