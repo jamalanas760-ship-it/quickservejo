@@ -1246,6 +1246,33 @@ function WorkforceClockHero({
         ? "لا توجد وردية قادمة"
         : "No upcoming shift";
 
+  const locationMessages: Record<string, string> = {
+    checking: ar ? "جارٍ التحقق من إذن الموقع…" : "Checking location permission…",
+    loading: ar ? "جارٍ تحميل موقع الحضور…" : "Loading the attendance location…",
+    needs_permission: ar
+      ? "اضغط تفعيل الموقع ثم اسمح في المتصفح. نتحقق من موقعك فقط أثناء ظهور صفحة القوى العاملة."
+      : "Select Enable location, then Allow in your browser. Location is checked only while Workforce is visible.",
+    locating: ar ? "جارٍ تحديد موقعك الحالي…" : "Finding your current location…",
+    permission_denied: ar
+      ? "الوصول للموقع محظور. افتح إعدادات هذا الموقع في المتصفح واسمح بالموقع، ثم اضغط تحقق مجددًا. تأكد أيضًا من تفعيل خدمة الموقع في جهازك."
+      : "Location access is blocked. Allow Location in this site's browser settings, then select Check again. Also check that your device's location services are enabled.",
+    insecure: ar
+      ? "افتح التطبيق المنشور عبر HTTPS لتفعيل الموقع."
+      : "Open the published app over HTTPS to enable location.",
+    unavailable: ar
+      ? "تعذر تحديد الموقع. فعّل خدمة الموقع في جهازك وتحقق من أذونات المتصفح، ثم حاول مجددًا."
+      : "Location is unavailable. Enable device location services, check browser permissions, then try again.",
+    timeout: ar
+      ? "استغرق تحديد الموقع وقتًا طويلًا. تحقق من خدمة الموقع والاتصال، ثم حاول مجددًا."
+      : "Finding your location timed out. Check location services and your connection, then try again.",
+    inaccurate: ar
+      ? "دقة الموقع غير كافية. فعّل الموقع الدقيق في جهازك، ثم حدّث الموقع."
+      : "Location accuracy is too low. Enable precise location on your device, then refresh.",
+    stale: ar
+      ? "انتهت صلاحية الموقع. حدّثه للتحقق من نطاق الحضور."
+      : "Your location has expired. Refresh it to check the attendance radius.",
+  };
+
   return (
     <>
       <section
@@ -1388,12 +1415,30 @@ function WorkforceClockHero({
                 ? ar
                   ? "يجب على المدير إعداد موقع الحضور أولاً."
                   : "A manager must configure the attendance location first."
-                : ar
-                  ? "يلزم موقع حديث ودقيق داخل النطاق. اسمح بالوصول للموقع ثم حدّثه."
-                  : "A fresh, accurate location inside the radius is required. Allow location access, then refresh."}
+                : locationMessages[gps.verification.reason ?? "unavailable"] ??
+                  (ar
+                    ? "يلزم موقع حديث ودقيق داخل نطاق الحضور. حدّث الموقع للمحاولة مجددًا."
+                    : "A fresh, accurate location inside the attendance radius is required. Refresh to try again.")}
         </span>
-        <button type="button" className="min-h-11 underline" onClick={gps.refresh}>
-          {ar ? "تحديث الموقع" : "Refresh location"}
+        <button
+          type="button"
+          className="min-h-11 underline disabled:cursor-wait disabled:opacity-50"
+          disabled={
+            gps.phase === "checking" ||
+            gps.phase === "locating" ||
+            gps.phase === "insecure" ||
+            gps.verification.status === "not_configured"
+          }
+          aria-busy={gps.phase === "checking" || gps.phase === "locating"}
+          onClick={gps.refresh}
+        >
+          {gps.phase === "needs_permission"
+            ? ar ? "تفعيل الموقع" : "Enable location"
+            : gps.phase === "permission_denied"
+              ? ar ? "تحقق مجددًا" : "Check again"
+              : gps.phase === "checking" || gps.phase === "locating"
+                ? ar ? "جارٍ التحقق…" : "Checking…"
+                : ar ? "تحديث الموقع" : "Refresh location"}
         </button>
       </div>
       {clockStatus.isError || toggleClock.isError ? (
