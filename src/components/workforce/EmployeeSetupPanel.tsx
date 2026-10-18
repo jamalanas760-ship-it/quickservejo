@@ -344,14 +344,37 @@ function SetupForm({
   );
   return (
     <form
-      className="hr-setup-panel"
+      className="hr-setup-panel hr-setup-smart"
       id={formId}
+      onInvalidCapture={(event) => {
+        // Native form validation must reveal invalid fields inside closed disclosures.
+        const input = event.target as HTMLElement;
+        let parent = input.parentElement;
+        while (parent && parent !== event.currentTarget) {
+          if (parent instanceof HTMLDetailsElement) parent.open = true;
+          parent = parent.parentElement;
+        }
+      }}
       onSubmit={(e) => {
         e.preventDefault();
         if (canManage && !save.isPending) save.mutate();
       }}
     >
-      <section className="hr-panel">
+      <details
+        className="hr-panel hr-setup-employment"
+        open={!profile?.hired_on ? true : undefined}
+      >
+        <summary>
+          <span>
+            <BriefcaseBusiness className="size-4" />
+            {ar ? "بيانات التوظيف" : "Employment"}
+          </span>
+          <span className="hr-caption">
+            {employment.hired_on || (ar ? "حدد تاريخ التوظيف" : "Set joining date")} ·{" "}
+            {period ? `${period.years}y ${period.months}m ${period.days}d` : "—"}
+          </span>
+          <span className="hr-setup-edit-link">{ar ? "تعديل" : "Edit"}</span>
+        </summary>
         <h3>
           <BriefcaseBusiness className="size-4" />
           {ar ? "بيانات التوظيف" : "Employment"}
@@ -401,18 +424,197 @@ function SetupForm({
                 : "Set joining date"}
           </strong>
         </p>
-      </section>
+      </details>
       {canManage && (
         <>
-          <details className="hr-panel hr-setup-disclosure" open={!setup ? true : undefined}>
-            <summary>
-              {ar ? "إعداد الراتب والإجازات" : "Salary & leave setup"}
-              <small>{ar ? "اضبط مرة واحدة" : "Set up once"}</small>
-            </summary>
+          <div className="hr-setup-summary-grid">
+            <details className="hr-panel hr-setup-summary-card">
+              <summary>
+                <span className="hr-setup-card-heading">
+                  {ar ? "الراتب" : "Salary"}
+                  <small>
+                    {payroll
+                      ? ar
+                        ? "مسودات تلقائية"
+                        : "Automatic drafts"
+                      : ar
+                        ? "متوقف"
+                        : "Paused"}
+                  </small>
+                </span>
+                <strong className="hr-setup-summary-value">
+                  {income.some((i) => i.amount.trim())
+                    ? `${(totalIncome - totalDeductions).toFixed(3)} ${settings.currency}`
+                    : ar
+                      ? "لم يُعد بعد"
+                      : "Not configured"}
+                </strong>
+                <span className="hr-caption">{ar ? "صافي الراتب الشهري" : "Monthly net pay"}</span>
+                <span className="hr-setup-summary-line">
+                  {ar ? "الدخل" : "Income"} {totalIncome.toFixed(3)} ·{" "}
+                  {ar ? "الاستقطاعات" : "Deductions"} {totalDeductions.toFixed(3)}
+                </span>
+                <span className="hr-setup-edit-link">{ar ? "تعديل الإعداد" : "Edit setup"}</span>
+              </summary>
+              <fieldset disabled={save.isPending}>
+                <fieldset disabled={!payroll}>
+                  <details className="hr-setup-advanced">
+                    <summary>
+                      {ar ? "الجدول وإعدادات الراتب" : "Schedule & salary settings"}
+                    </summary>
+                    <div className="hr-form-grid">
+                      {field("currency", "Currency", "العملة")}
+                      {field("payroll_start", "First payroll month", "أول شهر راتب", "month")}
+                      {field(
+                        "generate_day",
+                        "Generate on day of month (1–28)",
+                        "يوم إنشاء المسودة (1–28)",
+                        "number",
+                      )}
+                      {select("salary_proration", "Partial employment month", "شهر عمل جزئي", [
+                        ["full_month", "Full monthly amounts", "مبالغ شهرية كاملة"],
+                        [
+                          "calendar_days",
+                          "Prorate all recurring items by calendar days",
+                          "تقسيم كل البنود حسب أيام العمل التقويمية",
+                        ],
+                      ])}
+                    </div>
+                  </details>
+                  {itemEditor(income, setIncome, false)}
+                  {itemEditor(deductions, setDeductions, true)}
+                  <dl className="hr-setup-totals">
+                    <div>
+                      <dt>{ar ? "الدخل" : "Income"}</dt>
+                      <dd>{totalIncome.toFixed(3)}</dd>
+                    </div>
+                    <div>
+                      <dt>{ar ? "الاستقطاعات" : "Deductions"}</dt>
+                      <dd>{totalDeductions.toFixed(3)}</dd>
+                    </div>
+                    <div>
+                      <dt>
+                        {ar ? "الصافي الشهري" : "Monthly net"} · {settings.currency}
+                      </dt>
+                      <dd>{(totalIncome - totalDeductions).toFixed(3)}</dd>
+                    </div>
+                  </dl>
+                </fieldset>
+              </fieldset>
+            </details>
+            <details className="hr-panel hr-setup-summary-card">
+              <summary>
+                <span className="hr-setup-card-heading">
+                  {ar ? "الإجازات" : "Leave"}
+                  <small>
+                    {leave
+                      ? ar
+                        ? "استحقاق تلقائي"
+                        : "Automatic accrual"
+                      : ar
+                        ? "متوقف"
+                        : "Paused"}
+                  </small>
+                </span>
+                <span className="hr-setup-leave-summary">
+                  <span>
+                    {ar ? "السنوية" : "Annual"}
+                    <strong>{settings.annual_days || "—"}</strong>
+                  </span>
+                  <span>
+                    {ar ? "المرضية" : "Sick"}
+                    <strong>{settings.sick_days || "—"}</strong>
+                  </span>
+                </span>
+                <span className="hr-caption">
+                  {ar ? "أيام الاستحقاق لسنة كاملة" : "Entitlement days per full year"}
+                </span>
+                <span className="hr-setup-edit-link">{ar ? "تعديل الإعداد" : "Edit setup"}</span>
+              </summary>
+              <fieldset disabled={save.isPending}>
+                <fieldset disabled={!leave}>
+                  <div className="hr-form-grid">
+                    {field("leave_start_year", "First policy year", "سنة بدء السياسة", "number")}
+                    {field(
+                      "annual_days",
+                      "Annual entitlement per full year",
+                      "استحقاق سنوي لسنة كاملة",
+                      "number",
+                    )}
+                    {field(
+                      "sick_days",
+                      "Sick entitlement per full year",
+                      "استحقاق مرضي لسنة كاملة",
+                      "number",
+                    )}
+                  </div>
+                  <details className="hr-setup-advanced">
+                    <summary>
+                      {ar
+                        ? "الأرصدة الافتتاحية وتفاصيل السياسة"
+                        : "Opening balances & policy details"}
+                    </summary>
+                    <div className="hr-form-grid">
+                      {field(
+                        "annual_opening",
+                        "Annual opening days in first year",
+                        "رصيد سنوي افتتاحي لسنة البداية",
+                        "number",
+                      )}
+                      {field(
+                        "sick_opening",
+                        "Sick opening days in first year",
+                        "رصيد مرضي افتتاحي لسنة البداية",
+                        "number",
+                      )}
+                      {select("annual_accrual", "Annual accrual", "الاستحقاق السنوي", [
+                        [
+                          "daily",
+                          "Daily · prorated employment year",
+                          "يومي · حسب مدة الخدمة في السنة",
+                        ],
+                        [
+                          "upfront",
+                          "Full grant at employment/year start",
+                          "منح كامل في بداية الخدمة/السنة",
+                        ],
+                      ])}
+                      {select("sick_accrual", "Sick accrual", "الاستحقاق المرضي", [
+                        [
+                          "daily",
+                          "Daily · prorated employment year",
+                          "يومي · حسب مدة الخدمة في السنة",
+                        ],
+                        [
+                          "upfront",
+                          "Full grant at employment/year start",
+                          "منح كامل في بداية الخدمة/السنة",
+                        ],
+                      ])}
+                      {select("day_basis", "Deduct leave on", "خصم أيام الإجازة", [
+                        ["calendar", "Calendar days", "الأيام التقويمية"],
+                        ["workdays", "Working days only", "أيام العمل فقط"],
+                      ])}
+                      {field("workweek", "Workdays (0=Sun … 6=Sat)", "أيام العمل (0 أحد … 6 سبت)")}
+                      {field("hours_per_day", "Hours per leave day", "ساعات يوم الإجازة", "number")}
+                    </div>
+                  </details>
+                  <p className="hr-caption">
+                    {ar
+                      ? "الأرصدة الافتتاحية لا تشمل طلبات السنة المختارة. في السنوات التالية يبدأ الرصيد الافتتاحي بصفر؛ لا ترحيل تلقائي. تبقى حسابات الإجازة الموجودة كما هي."
+                      : "Opening balances exclude requests in the selected year. Later years start with zero opening balance; no automatic carryover. Existing leave accounts are preserved."}
+                  </p>
+                </fieldset>
+              </fieldset>
+            </details>
+          </div>
+          <section className="hr-panel hr-setup-automation">
+            <h3>{ar ? "الأتمتة" : "Automation"}</h3>
             <fieldset disabled={save.isPending}>
               <label className="hr-setup-toggle">
                 <input
                   type="checkbox"
+                  role="switch"
                   checked={payroll}
                   onChange={(e) => setPayroll(e.target.checked)}
                 />
@@ -425,47 +627,10 @@ function SetupForm({
                   </small>
                 </span>
               </label>
-              <fieldset disabled={!payroll}>
-                <div className="hr-form-grid">
-                  {field("currency", "Currency", "العملة")}
-                  {field("payroll_start", "First payroll month", "أول شهر راتب", "month")}
-                  {field(
-                    "generate_day",
-                    "Generate on day of month (1–28)",
-                    "يوم إنشاء المسودة (1–28)",
-                    "number",
-                  )}
-                  {select("salary_proration", "Partial employment month", "شهر عمل جزئي", [
-                    ["full_month", "Full monthly amounts", "مبالغ شهرية كاملة"],
-                    [
-                      "calendar_days",
-                      "Prorate all recurring items by calendar days",
-                      "تقسيم كل البنود حسب أيام العمل التقويمية",
-                    ],
-                  ])}
-                </div>
-                {itemEditor(income, setIncome, false)}
-                {itemEditor(deductions, setDeductions, true)}
-                <dl className="hr-setup-totals">
-                  <div>
-                    <dt>{ar ? "الدخل" : "Income"}</dt>
-                    <dd>{totalIncome.toFixed(3)}</dd>
-                  </div>
-                  <div>
-                    <dt>{ar ? "الاستقطاعات" : "Deductions"}</dt>
-                    <dd>{totalDeductions.toFixed(3)}</dd>
-                  </div>
-                  <div>
-                    <dt>
-                      {ar ? "الصافي الشهري" : "Monthly net"} · {settings.currency}
-                    </dt>
-                    <dd>{(totalIncome - totalDeductions).toFixed(3)}</dd>
-                  </div>
-                </dl>
-              </fieldset>
               <label className="hr-setup-toggle">
                 <input
                   type="checkbox"
+                  role="switch"
                   checked={leave}
                   onChange={(e) => setLeave(e.target.checked)}
                 />
@@ -480,69 +645,13 @@ function SetupForm({
                   </small>
                 </span>
               </label>
-              <fieldset disabled={!leave}>
-                <div className="hr-form-grid">
-                  {field("leave_start_year", "First policy year", "سنة بدء السياسة", "number")}
-                  {field(
-                    "annual_days",
-                    "Annual entitlement per full year",
-                    "استحقاق سنوي لسنة كاملة",
-                    "number",
-                  )}
-                  {field(
-                    "sick_days",
-                    "Sick entitlement per full year",
-                    "استحقاق مرضي لسنة كاملة",
-                    "number",
-                  )}
-                  {field(
-                    "annual_opening",
-                    "Annual opening days in first year",
-                    "رصيد سنوي افتتاحي لسنة البداية",
-                    "number",
-                  )}
-                  {field(
-                    "sick_opening",
-                    "Sick opening days in first year",
-                    "رصيد مرضي افتتاحي لسنة البداية",
-                    "number",
-                  )}
-                  {select("annual_accrual", "Annual accrual", "الاستحقاق السنوي", [
-                    ["daily", "Daily · prorated employment year", "يومي · حسب مدة الخدمة في السنة"],
-                    [
-                      "upfront",
-                      "Full grant at employment/year start",
-                      "منح كامل في بداية الخدمة/السنة",
-                    ],
-                  ])}
-                  {select("sick_accrual", "Sick accrual", "الاستحقاق المرضي", [
-                    ["daily", "Daily · prorated employment year", "يومي · حسب مدة الخدمة في السنة"],
-                    [
-                      "upfront",
-                      "Full grant at employment/year start",
-                      "منح كامل في بداية الخدمة/السنة",
-                    ],
-                  ])}
-                  {select("day_basis", "Deduct leave on", "خصم أيام الإجازة", [
-                    ["calendar", "Calendar days", "الأيام التقويمية"],
-                    ["workdays", "Working days only", "أيام العمل فقط"],
-                  ])}
-                  {field("workweek", "Workdays (0=Sun … 6=Sat)", "أيام العمل (0 أحد … 6 سبت)")}
-                  {field("hours_per_day", "Hours per leave day", "ساعات يوم الإجازة", "number")}
-                </div>
-                <p className="hr-caption">
-                  {ar
-                    ? "الأرصدة الافتتاحية لا تشمل طلبات السنة المختارة. في السنوات التالية يبدأ الرصيد الافتتاحي بصفر؛ لا ترحيل تلقائي. تبقى حسابات الإجازة الموجودة كما هي."
-                    : "Opening balances exclude requests in the selected year. Later years start with zero opening balance; no automatic carryover. Existing leave accounts are preserved."}
-                </p>
-              </fieldset>
-              <p className="hr-caption">
-                {ar
-                  ? "التغييرات تؤثر على السجلات الجديدة فقط. لا يفترض النظام ضرائب أو خصومات غياب؛ أضف قواعدك الفعلية."
-                  : "Changes apply to newly generated records only. No tax or attendance deductions are assumed; enter your actual recurring items."}
-              </p>
             </fieldset>
-          </details>
+            <p className="hr-caption">
+              {ar
+                ? "يتطلب نشر مسودات الراتب مراجعة المدير. التغييرات تؤثر على السجلات الجديدة فقط."
+                : "Salary drafts need manager review before publishing. Changes apply to newly generated records only."}
+            </p>
+          </section>
           {!hideSubmit && (
             <>
               <Button type="submit" disabled={save.isPending} aria-busy={save.isPending}>

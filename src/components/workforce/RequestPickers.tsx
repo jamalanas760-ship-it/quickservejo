@@ -137,7 +137,14 @@ export function RequestDatePicker({
           </span>
           <ChevronDown data-icon="inline-end" />
         </Button>
-        <DialogContent className="wf-compact-date-dialog" dir={ar ? "rtl" : "ltr"}>
+        <DialogContent
+          className="wf-compact-date-dialog wf-centered-picker"
+          dir={ar ? "rtl" : "ltr"}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            document.getElementById(id)?.focus();
+          }}
+        >
           <div className="wf-picker-handle" aria-hidden="true" />
           <DialogHeader>
             <DialogTitle>{ar ? "اختر التاريخ" : "Choose date"}</DialogTitle>
@@ -393,9 +400,13 @@ export function RequestTimePicker({
         <Dialog open={open} onOpenChange={setOpen}>
           {trigger}
           <DialogContent
-            className="qs-picker-dialog qs-time-picker-dialog"
+            className="qs-picker-dialog qs-time-picker-dialog wf-centered-picker"
             dir={ar ? "rtl" : "ltr"}
             onOpenAutoFocus={(event) => event.preventDefault()}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              document.getElementById(id)?.focus();
+            }}
           >
             <DialogHeader>
               <DialogTitle>{label}</DialogTitle>

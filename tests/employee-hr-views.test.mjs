@@ -93,7 +93,7 @@ test("payslip displays stored line items, totals, masked account and truthful pr
     assert.ok(html.includes(label), label);
   assert.doesNotMatch(html, /Edit draft|800\.000|950\.000/);
 });
-test("missing punch has a dropdown and one submit action while keeping complete session fields", () => {
+test("missing punch has three visible choices and one submit action while keeping complete session fields", () => {
   const html = renderToStaticMarkup(
     React.createElement(MissingPunchComposer, {
       ar: false,
@@ -117,9 +117,9 @@ test("missing punch has a dropdown and one submit action while keeping complete 
       onCancel: () => {},
     }),
   );
-  assert.match(html, /<select/);
+  assert.equal((html.match(/type="radio"/g) || []).length, 3);
   assert.equal((html.match(/type="submit"/g) || []).length, 1);
-  assert.doesNotMatch(html, /type="radio"|>Cancel<|wf-punch-timeline/);
+  assert.doesNotMatch(html, />Cancel<|wf-punch-timeline/);
   assert.match(html, /Clock-in/);
   assert.match(html, /Clock-out/);
   assert.doesNotMatch(html, /Session details|Break \(minutes\)|wf-punch-details/);
