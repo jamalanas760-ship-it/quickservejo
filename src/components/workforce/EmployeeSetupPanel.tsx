@@ -187,6 +187,18 @@ function SetupForm({
           "hours_per_day",
           "workweek",
         ].every((key) => settings[key]?.trim());
+      const policyKeys = [
+        "annual_days",
+        "sick_days",
+        "annual_opening",
+        "sick_opening",
+        "hours_per_day",
+        "workweek",
+      ];
+      if (!leave && policyKeys.some((key) => settings[key]?.trim()) && !saveLeave)
+        throw new Error(
+          ar ? "أكمل سياسة الإجازات قبل حفظها." : "Complete the leave policy before saving it.",
+        );
       const weekdays = saveLeave
         ? settings.workweek!.split(",").map((d) => {
             if (!d.trim()) throw new Error("Choose working weekdays.");
@@ -243,7 +255,10 @@ function SetupForm({
       <input
         type={type}
         value={settings[key]}
-        required={required}
+        required={
+          required &&
+          (["currency", "payroll_start", "generate_day"].includes(key) ? payroll : leave)
+        }
         onChange={(e) => change(key, e.target.value)}
         {...(key === "generate_day"
           ? { min: 1, max: 28 }
@@ -300,7 +315,7 @@ function SetupForm({
           <label>
             <span className="sr-only">{ar ? "الوصف" : "Description"}</span>
             <input
-              required
+              required={payroll}
               maxLength={120}
               value={item.label}
               onChange={(e) =>
@@ -311,7 +326,7 @@ function SetupForm({
           <label>
             <span className="sr-only">{ar ? "المبلغ" : "Amount"}</span>
             <input
-              required
+              required={payroll}
               type="number"
               min={0}
               step="0.001"
@@ -457,7 +472,7 @@ function SetupForm({
                 <span className="hr-setup-edit-link">{ar ? "تعديل الإعداد" : "Edit setup"}</span>
               </summary>
               <fieldset disabled={save.isPending}>
-                <fieldset disabled={!payroll}>
+                <fieldset>
                   <details className="hr-setup-advanced">
                     <summary>
                       {ar ? "الجدول وإعدادات الراتب" : "Schedule & salary settings"}
@@ -532,7 +547,7 @@ function SetupForm({
                 <span className="hr-setup-edit-link">{ar ? "تعديل الإعداد" : "Edit setup"}</span>
               </summary>
               <fieldset disabled={save.isPending}>
-                <fieldset disabled={!leave}>
+                <fieldset>
                   <div className="hr-form-grid">
                     {field("leave_start_year", "First policy year", "سنة بدء السياسة", "number")}
                     {field(
@@ -623,7 +638,7 @@ function SetupForm({
                   <small>
                     {ar
                       ? "يراجع المدير قبل النشر؛ لا تحويل مالي."
-                      : "Manager reviews before publishing; no money is transferred."}
+                      : "Edit settings anytime. Manager reviews drafts before publishing."}
                   </small>
                 </span>
               </label>
@@ -641,7 +656,7 @@ function SetupForm({
                   <small>
                     {ar
                       ? "يتحدث الرصيد من الطلبات المعتمدة."
-                      : "Balances update from approved requests."}
+                      : "Edit settings anytime. Balances update from approved requests."}
                   </small>
                 </span>
               </label>

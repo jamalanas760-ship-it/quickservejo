@@ -25,11 +25,15 @@ vm.runInNewContext(
     module,
     exports: module.exports,
     require: (id) =>
-      id === "@/lib/workforce-navigation"
-        ? { workforceDestinations }
-        : id === "@/components/nav/ViewportDock"
-          ? { ViewportDock: () => null }
-          : require(id),
+      id === "react"
+        ? { useState: (v) => [v, () => {}] }
+        : id === "@/components/ui/popover"
+          ? { Popover: () => null, PopoverTrigger: () => null, PopoverContent: () => null }
+          : id === "@/lib/workforce-navigation"
+            ? { workforceDestinations }
+            : id === "@/components/nav/ViewportDock"
+              ? { ViewportDock: () => null }
+              : require(id),
   },
 );
 const { WorkforceNavigation } = module.exports;
@@ -49,7 +53,7 @@ test("section selector exposes all ten manager destinations with the existing or
     false,
   );
 });
-test("mobile selector routes salary/leave directly and rejects unavailable manager destinations", () => {
+test("app menus route directly to leave records without exposing unavailable Labor or native menus", () => {
   const changes = [];
   const all = nodes(
     WorkforceNavigation({
@@ -59,11 +63,17 @@ test("mobile selector routes salary/leave directly and rejects unavailable manag
       onChange: (value) => changes.push(value),
     }),
   );
-  const select = all.find((node) => node.type === "select");
-  assert.equal(select.props.value, "payslips");
-  select.props.onChange({ target: { value: "leave" } });
-  select.props.onChange({ target: { value: "labor" } });
-  select.props.onChange({ target: { value: "foreign" } });
+  assert.equal(
+    all.some((node) => node.type === "select"),
+    false,
+  );
+  const menu = all.find((node) => node.props?.className === "wf-section-menu-list");
+  const buttons = nodes(menu).filter((node) => node.type === "button");
+  assert.equal(
+    buttons.some((node) => node.props.children === "Labor"),
+    false,
+  );
+  buttons.find((node) => node.props.children === "Leave transactions").props.onClick();
   assert.deepEqual(changes, ["leave"]);
 });
 test("quick navigation preserves Overview and My workspace and marks other sections under More", () => {
@@ -81,7 +91,12 @@ test("quick navigation preserves Overview and My workspace and marks other secti
   const dock = all.find(
     (node) => node.type === "nav" && node.props.className.includes("wf-mobile-workforce-dock"),
   );
-  const buttons = nodes(dock).filter((node) => node.type === "button");
+  const shell = nodes(dock).find((node) =>
+    node.props?.className?.includes("wf-mobile-workforce-items"),
+  );
+  assert.equal(shell.props.style.display, "grid");
+  assert.equal(shell.props.style.gridTemplateColumns, "repeat(3, minmax(0, 1fr))");
+  const buttons = nodes(shell.props.children[0]).filter((node) => node.type === "button");
   assert.equal(buttons.length, 2);
   buttons[1].props.onClick();
   assert.deepEqual(changes, ["my_workspace"]);
