@@ -318,7 +318,11 @@ export function EmployeeHRWorkspace({
   return (
     <section className="hr-workspace" dir={ar ? "rtl" : "ltr"}>
       {canManage && (
-        <div className="hr-tabs hr-scope" aria-label={ar ? "نطاق العرض" : "Workspace scope"}>
+        <div
+          className="hr-tabs hr-scope"
+          role="group"
+          aria-label={ar ? "نطاق العرض" : "Workspace scope"}
+        >
           <button
             type="button"
             aria-pressed={!team}

@@ -395,6 +395,13 @@ function ShiftsPage() {
     <div className="min-h-dvh bg-background">
       <AppHeader title={ar ? "القوى العاملة" : "Workforce"} />
       <main className="qs-workforce-screen qs-workforce-shifts wf-studio wf-approved-overview wf-minimal-workforce qs-page qs-compact-page space-y-4">
+        <WorkforceNavigation
+          active={workforceSection === "my_workspace" && (workspaceTab === "payslips" || workspaceTab === "leave") ? workspaceTab : workforceSection}
+          onChange={navigateWorkforce}
+          canManage={canManage}
+          ar={ar}
+        />
+
         <header className={`wf-page-heading ${workforceSection === "my_workspace" ? "wf-heading-personal" : ""}`}>
           <div>
             <h1>{ar ? "القوى العاملة" : "Workforce"}</h1>
@@ -415,20 +422,13 @@ function ShiftsPage() {
               })}
             </span>
             {canManage ? (
-              <Button onClick={() => setCreateOpen(true)}>
+              <Button className="wf-create-shift-button" onClick={() => setCreateOpen(true)}>
                 <Plus className="size-4" />
                 {ar ? "إنشاء وردية" : "Create shift"}
               </Button>
             ) : null}
           </div>
         </header>
-
-        <WorkforceNavigation
-          active={workforceSection === "my_workspace" && (workspaceTab === "payslips" || workspaceTab === "leave") ? workspaceTab : workforceSection}
-          onChange={navigateWorkforce}
-          canManage={canManage}
-          ar={ar}
-        />
 
         <section
           className={cn(
