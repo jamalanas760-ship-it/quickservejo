@@ -1,3 +1,4 @@
+import "@/components/workforce/workforce-refresh.css";
 import { EmployeeHRWorkspace } from "@/components/workforce/EmployeeHRWorkspace";
 import {
   MissingPunchComposer,
@@ -382,7 +383,7 @@ function ShiftsPage() {
     <div className="min-h-dvh bg-background">
       <AppHeader title={ar ? "القوى العاملة" : "Workforce"} />
       <main className="qs-workforce-screen qs-workforce-shifts wf-studio wf-approved-overview qs-page qs-compact-page space-y-4">
-        <header className="wf-page-heading">
+        <header className={`wf-page-heading ${workforceSection === "my_workspace" ? "wf-heading-personal" : ""}`}>
           <div>
             <h1>{ar ? "القوى العاملة" : "Workforce"}</h1>
             <p>
@@ -458,36 +459,15 @@ function ShiftsPage() {
             tone={needPunch ? "red" : "green"}
           />
           <WorkforceSnapshotStat
-            icon={AlertTriangle}
-            label={ar ? "تحتاج انتباه" : "Attention"}
-            value={needsAttention}
-            hint={
-              pendingHandovers
-                ? ar
-                  ? "يشمل تسليمات"
-                  : "Includes handovers"
-                : ar
-                  ? "استثناءات اليوم"
-                  : "Today's exceptions"
-            }
-            tone={needsAttention ? "red" : "green"}
-          />
-          <WorkforceSnapshotStat
             icon={CalendarDays}
             label={ar ? "الطلبات" : "Requests"}
             value={pendingTimeOff}
             hint={ar ? "بانتظار المراجعة" : "Pending review"}
             tone="orange"
           />
-          <WorkforceSnapshotStat
-            icon={Clock3}
-            label={ar ? "وقت إضافي" : "OT Risk"}
-            value={overtimeRisk}
-            hint={ar ? "خلال 30 دقيقة" : "Within 30 min"}
-            tone={overtimeRisk ? "orange" : "green"}
-          />
         </section>
 
+        {workforceSection === "overview" && <p className="wf-overview-extra"><span>{ar ? "تحتاج انتباه" : "Needs attention"}: {needsAttention}</span><span>{ar ? "مخاطر الوقت الإضافي" : "Overtime risk"}: {overtimeRisk}</span></p>}
         {workforceSection === "overview" ? (
           <section className="wf-split">
             <WorkforceToday
@@ -885,8 +865,8 @@ function WorkforceNavigation({
   ar: boolean;
 }) {
   const tabs: Array<{ id: WorkforceSection; label: string; icon: typeof CalendarClock }> = [
-    { id: "my_workspace", label: ar ? "مساحتي" : "My workspace", icon: UserPlus },
     { id: "overview", label: ar ? "نظرة عامة" : "Overview", icon: UsersRound },
+    { id: "my_workspace", label: ar ? "مساحتي" : "My workspace", icon: UserPlus },
     { id: "schedule", label: ar ? "الجدول" : "Schedule", icon: CalendarClock },
     { id: "attendance", label: ar ? "الحضور" : "Attendance", icon: TimerReset },
     { id: "timesheets", label: ar ? "سجلات الدوام" : "Timesheets", icon: CheckCircle2 },

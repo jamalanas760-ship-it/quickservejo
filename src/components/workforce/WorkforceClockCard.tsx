@@ -184,6 +184,13 @@ export function WorkforceClockCard({
                 ? "تسجيل الحضور"
                 : "Clock in"}
         </Button>
+        {verification.status === "off_premise" && (
+          <p className="wf-clock-radius-hint">
+            {ar
+              ? "التسجيل متاح داخل نطاق الحضور فقط."
+              : "Clock-in and clock-out are available inside the attendance radius."}
+          </p>
+        )}
         <button type="button" className="wf-missing" onClick={onReportMissing}>
           {ar ? "الإبلاغ عن بصمة مفقودة" : "Report missing punch"}
         </button>

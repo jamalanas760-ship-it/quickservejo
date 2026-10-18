@@ -122,7 +122,8 @@ test("missing punch has a dropdown and one submit action while keeping complete 
   assert.doesNotMatch(html, /type="radio"|>Cancel<|wf-punch-timeline/);
   assert.match(html, /Clock-in/);
   assert.match(html, /Clock-out/);
-  assert.match(html, /Session details &amp; break/);
+  assert.doesNotMatch(html, /Session details|Break \(minutes\)|wf-punch-details/);
+  assert.match(html, /Clock-out on next day/);
 });
 test("attendance never counts rejected sessions in completed-hour summary", () => {
   const html = renderToStaticMarkup(

@@ -1,3 +1,4 @@
+import "./workforce-refresh.css";
 import { MasterActionSurface } from "@/components/app/MasterPage";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -808,8 +809,8 @@ export function WorkforceRequests({
             ) : null}
             <Field label={ar ? "السبب" : "Reason"}>
               <Textarea
-                rows={4}
-                className="min-h-24"
+                rows={3}
+                className="min-h-20"
                 maxLength={2000}
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
@@ -817,54 +818,65 @@ export function WorkforceRequests({
               />
             </Field>
 
-            <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4">
-              <div className="flex items-start gap-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]">
-                  <Upload className="size-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <Label htmlFor="workforce-request-file" className="text-sm font-bold">
-                    {ar ? "المرفق" : "Attachment"}
-                  </Label>
-                  <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
-                    {leaveType === "sick" && kind === "leave"
-                      ? ar
-                        ? "مطلوب للإجازة المرضية. PDF أو صورة بحد أقصى 10 ميغابايت."
-                        : "Required for Sick Leave. PDF or image, max 10 MB."
-                      : ar
-                        ? "اختياري: PDF أو صورة بحد أقصى 10 ميغابايت."
-                        : "Optional: PDF or image, max 10 MB."}
-                  </p>
-                  <Input
-                    id="workforce-request-file"
-                    type="file"
-                    accept=".pdf,image/jpeg,image/png,image/webp"
-                    className="mt-3 min-h-11"
-                    onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}
-                  />
-                  {attachment ? (
-                    <p className="mt-2 flex items-center gap-2 truncate text-[11px] font-semibold text-foreground">
-                      <Paperclip className="size-3.5 shrink-0" />
-                      {attachment.name}
-                      <button
-                        type="button"
-                        className="text-destructive"
-                        onClick={() => setAttachment(null)}
-                      >
-                        {ar ? "إزالة" : "Remove"}
-                      </button>
+            <details
+              className="wf-request-attachment"
+              open={kind === "leave" && leaveType === "sick" ? true : undefined}
+            >
+              <summary>
+                {kind === "leave" && leaveType === "sick"
+                  ? ar
+                    ? "مرفق مطلوب"
+                    : "Required attachment"
+                  : ar
+                    ? "إضافة مرفق (اختياري)"
+                    : "Add attachment (optional)"}
+              </summary>
+              <div className="pt-3">
+                <div className="flex items-start gap-3">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-orange-500/10 text-[#e85d2a]">
+                    <Upload className="size-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <Label htmlFor="workforce-request-file" className="text-sm font-bold">
+                      {ar ? "المرفق" : "Attachment"}
+                    </Label>
+                    <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
+                      {leaveType === "sick" && kind === "leave"
+                        ? ar
+                          ? "مطلوب للإجازة المرضية. PDF أو صورة بحد أقصى 10 ميغابايت."
+                          : "Required for Sick Leave. PDF or image, max 10 MB."
+                        : ar
+                          ? "اختياري: PDF أو صورة بحد أقصى 10 ميغابايت."
+                          : "Optional: PDF or image, max 10 MB."}
                     </p>
-                  ) : null}
+                    <Input
+                      id="workforce-request-file"
+                      type="file"
+                      accept=".pdf,image/jpeg,image/png,image/webp"
+                      className="mt-3 min-h-11"
+                      onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}
+                    />
+                    {attachment ? (
+                      <p className="mt-2 flex items-center gap-2 truncate text-[11px] font-semibold text-foreground">
+                        <Paperclip className="size-3.5 shrink-0" />
+                        {attachment.name}
+                        <button
+                          type="button"
+                          className="text-destructive"
+                          onClick={() => setAttachment(null)}
+                        >
+                          {ar ? "إزالة" : "Remove"}
+                        </button>
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               </div>
-            </div>
+            </details>
           </div>
 
           <DialogFooter className="wf-form-footer border-t border-border bg-card px-5 py-4">
             <small>{ar ? "سيتم إرساله للمراجعة." : "Will be submitted for review."}</small>
-            <Button variant="outline" disabled={submit.isPending} onClick={() => setOpen(false)}>
-              {ar ? "إلغاء" : "Cancel"}
-            </Button>
             <Button disabled={invalid || submit.isPending} onClick={() => submit.mutate()}>
               {submit.isPending
                 ? ar
@@ -872,7 +884,7 @@ export function WorkforceRequests({
                   : "Submitting…"
                 : ar
                   ? "إرسال للمراجعة"
-                  : "Submit request"}
+                  : "Send request"}
             </Button>
           </DialogFooter>
         </DialogContent>
