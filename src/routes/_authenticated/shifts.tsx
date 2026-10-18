@@ -1,3 +1,8 @@
+import {
+  MissingPunchComposer,
+  type MissingPunchMode,
+} from "@/components/workforce/MissingPunchComposer";
+import { validateMissingPunch } from "@/lib/missing-punch";
 import { capturePunchLocation, verifyGeofence, type GeofenceVerification } from "@/lib/geofence";
 import { useAttendanceGeofence } from "@/hooks/useAttendanceGeofence";
 import { WorkforceClockCard } from "@/components/workforce/WorkforceClockCard";
@@ -1428,30 +1433,17 @@ function SelfMissingPunchRequestSheet({
     : "";
   const [clockIn, setClockIn] = useState(scheduledIn);
   const [clockOut, setClockOut] = useState(scheduledOut);
+  const [mode, setMode] = useState<MissingPunchMode>(scheduledIn ? "clock_out" : "both");
   const [breakMinutes, setBreakMinutes] = useState("0");
   const [reason, setReason] = useState("");
-  const durationMinutes =
-    clockIn && clockOut
-      ? Math.round(
-          (workforceInputTimestamp(clockOut, timeZone) -
-            workforceInputTimestamp(clockIn, timeZone)) /
-            60000,
-        )
-      : 0;
-  const invalid =
-    !clockIn ||
-    !clockOut ||
-    !Number.isFinite(durationMinutes) ||
-    durationMinutes <= 0 ||
-    durationMinutes > 2160 ||
-    Number(breakMinutes) < 0 ||
-    Number(breakMinutes) >= durationMinutes ||
-    reason.trim().length < 3 ||
-    workforceInputTimestamp(clockIn, timeZone) > Date.now() + 5 * 60_000 ||
-    workforceInputTimestamp(clockOut, timeZone) > Date.now() + 5 * 60_000;
+  const validation = validateMissingPunch(clockIn, clockOut, breakMinutes, reason, timeZone);
 
   const submit = useMutation({
     mutationFn: async () => {
+      if (!validateMissingPunch(clockIn, clockOut, breakMinutes, reason, timeZone).valid)
+        throw new Error(
+          ar ? "تحقق من أوقات الجلسة والسبب." : "Check the session times and reason.",
+        );
       const { error } = await (supabase as any).rpc("submit_missing_punch_request", {
         _restaurant_id: restaurantId,
         _clock_in: new Date(workforceInputTimestamp(clockIn, timeZone)).toISOString(),
@@ -1484,115 +1476,55 @@ function SelfMissingPunchRequestSheet({
   };
 
   return (
-    <DetailSheet
+    <Dialog
       open
       onOpenChange={(open) => {
         if (!open && !submit.isPending) onClose();
       }}
-      title={ar ? "طلب بصمة ناقصة" : "Report missing punch"}
-      description={
-        ar
-          ? "صحّح وقتاً نسيته بدون تعديل سجل الدوام مباشرة."
-          : "Report a forgotten clock-in or clock-out without changing the timesheet directly."
-      }
-      footer={
-        <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" disabled={submit.isPending} onClick={onClose}>
-            {ar ? "إلغاء" : "Cancel"}
-          </Button>
-          <Button disabled={invalid || submit.isPending} onClick={() => submit.mutate()}>
-            <Clock3 className="size-4" />
-            {submit.isPending
-              ? ar
-                ? "جارٍ الإرسال…"
-                : "Sending…"
-              : ar
-                ? "إرسال للمراجعة"
-                : "Send for review"}
-          </Button>
-        </div>
-      }
     >
-      <div className="space-y-4 py-2">
-        <div className="rounded-2xl border border-blue-200/70 bg-blue-500/[.045] p-3 text-xs leading-5 text-muted-foreground dark:border-blue-900/50">
-          <strong className="block text-foreground">
-            {ar ? "طلب آمن بموافقة المدير" : "Manager-approved correction"}
-          </strong>
-          <span>
-            {ar
-              ? "لن تتغير ساعاتك مباشرة. بعد موافقة المدير تُضاف البصمة تلقائياً مع سجل تدقيق."
-              : "Your hours do not change immediately. Once approved, the punch is added automatically with an audit trail."}
-          </span>
-        </div>
-        {assignment?.starts_at && assignment.ends_at ? (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/25 p-3">
-            <span className="min-w-0">
-              <strong className="block text-xs">
-                {ar ? "آخر وردية مكتملة" : "Latest completed shift"}
-              </strong>
-              <span className="mt-1 block text-[10px] tabular-nums text-muted-foreground">
-                {formatStamp(assignment.starts_at, ar)} → {formatStamp(assignment.ends_at, ar)}
-              </span>
-            </span>
-            <Button type="button" size="sm" variant="outline" onClick={applySchedule}>
-              {ar ? "استخدم الجدول" : "Use schedule"}
-            </Button>
-          </div>
-        ) : null}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <RequestDateTimePicker
-              timeZone={timeZone}
-              label={ar ? "وقت الدخول" : "Clock in"}
-              ar={ar}
-              value={clockIn}
-              onChange={(value) => setClockIn(value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <RequestDateTimePicker
-              timeZone={timeZone}
-              label={ar ? "وقت الخروج" : "Clock out"}
-              ar={ar}
-              value={clockOut}
-              onChange={(value) => setClockOut(value)}
-            />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label>{ar ? "الاستراحة (دقائق)" : "Break (minutes)"}</Label>
-          <Input
-            type="number"
-            min={0}
-            className="min-h-11"
-            value={breakMinutes}
-            onChange={(event) => setBreakMinutes(event.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>{ar ? "ما الذي نسيته؟ (مطلوب)" : "What was missed? (required)"}</Label>
-          <Textarea
-            rows={3}
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder={
-              ar
-                ? "مثال: نسيت تسجيل الانصراف بعد انتهاء ورديتي."
-                : "e.g. I forgot to clock out after my shift ended."
-            }
-          />
-        </div>
-        {durationMinutes > 0 ? (
-          <p className="text-[11px] font-semibold text-muted-foreground">
-            {ar
-              ? `المدة المقترحة: ${Math.floor(durationMinutes / 60)}س ${durationMinutes % 60}د`
-              : `Proposed duration: ${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`}
-          </p>
-        ) : null}
-      </div>
-    </DetailSheet>
+      <DialogContent
+        className="wf-missing-punch-dialog"
+        dir={ar ? "rtl" : "ltr"}
+        onEscapeKeyDown={(event) => {
+          if (submit.isPending) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (submit.isPending) event.preventDefault();
+        }}
+      >
+        <div className="wf-picker-handle" aria-hidden="true" />
+        <DialogHeader>
+          <DialogTitle>{ar ? "طلب بصمة ناقصة" : "Report missing punch"}</DialogTitle>
+          <DialogDescription>
+            {ar ? "أخبرنا بما يحتاج إلى تصحيح." : "Tell us what needs correcting."}
+          </DialogDescription>
+        </DialogHeader>
+        <MissingPunchComposer
+          ar={ar}
+          timeZone={timeZone}
+          mode={mode}
+          onMode={setMode}
+          clockIn={clockIn}
+          clockOut={clockOut}
+          onClockIn={setClockIn}
+          onClockOut={setClockOut}
+          breakMinutes={breakMinutes}
+          onBreakMinutes={setBreakMinutes}
+          reason={reason}
+          onReason={setReason}
+          validation={validation}
+          pending={submit.isPending}
+          scheduledIn={scheduledIn}
+          scheduledOut={scheduledOut}
+          onUseSchedule={applySchedule}
+          onSubmit={() => submit.mutate()}
+          onCancel={onClose}
+        />
+      </DialogContent>
+    </Dialog>
   );
 }
+
 function formatClockDuration(seconds: number, ar: boolean) {
   const total = Math.max(0, Math.floor(seconds / 60));
   const hours = Math.floor(total / 60);
