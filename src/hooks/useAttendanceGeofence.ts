@@ -47,6 +47,7 @@ export function useAttendanceGeofence(
   return {
     verification,
     phase,
+    updatedAt: fix?.timestamp ?? null,
     eligible: verification.status === "on_premise",
     refresh: () => session.current?.request(),
   };

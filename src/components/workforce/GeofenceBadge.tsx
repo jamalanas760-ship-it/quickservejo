@@ -3,10 +3,12 @@ export function GeofenceBadge({
   verification,
   ar,
   action,
+  compact = false,
 }: {
   verification?: GeofenceVerification | null | undefined;
   ar: boolean;
   action?: "in" | "out";
+  compact?: boolean;
 }) {
   if (!verification || verification.status === "not_configured") return null;
   const on = verification.status === "on_premise";
@@ -36,9 +38,13 @@ export function GeofenceBadge({
           ? "داخل المطعم"
           : "On Premise"
         : verification.status === "off_premise"
-          ? ar
-            ? `خارج المطعم (${distance} متر)${action ? " · للمراجعة" : ""}`
-            : `Off Premise (${distance} meters away)${action ? " · Review" : ""}`
+          ? compact
+            ? ar
+              ? "خارج المطعم"
+              : "Off premise"
+            : ar
+              ? `خارج المطعم (${distance} متر)${action ? " · للمراجعة" : ""}`
+              : `Off Premise (${distance} meters away)${action ? " · Review" : ""}`
           : action
             ? ar
               ? "الموقع غير متحقق · للمراجعة"

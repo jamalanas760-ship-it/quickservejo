@@ -7,7 +7,7 @@ import {
 } from "@/lib/workforce-hours";
 import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { useEffect, useState } from "react";
-import { Download, ChevronRight } from "lucide-react";
+import { Download, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { WorkforceButton as Button } from "./WorkforceButton";
 import type { Shift, ShiftAssignment } from "@/hooks/useOperations";
 import { ROLE_LABELS } from "@/lib/permissions";
@@ -302,6 +302,7 @@ export function WorkforceToday({
     today = workforceDayKey(new Date(), data.data?.timeZone);
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const rows = members
     .filter(
       (m) =>
@@ -322,12 +323,21 @@ export function WorkforceToday({
     }))
     .filter(({ d }) => d.status !== "off");
   return (
-    <section className="wf-panel">
+    <section className="wf-panel wf-today">
       <header className="wf-toolbar">
         <h2>
           {ar ? "فريق اليوم" : "Today's team"} <small>({rows.length})</small>
         </h2>
-        <div className="wf-toolbar-actions">
+        <button
+          type="button"
+          className="wf-today-filter-toggle"
+          aria-label={ar ? "تصفية فريق اليوم" : "Filter today's team"}
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen((open) => !open)}
+        >
+          <SlidersHorizontal className="size-4" />
+        </button>
+        <div className="wf-toolbar-actions" data-expanded={filtersOpen}>
           <select
             className="wf-select"
             aria-label={ar ? "الدور" : "Role"}
@@ -344,7 +354,19 @@ export function WorkforceToday({
           <SearchField value={search} onChange={setSearch} ar={ar} />
         </div>
       </header>
-      <div className="wf-table-scroll">
+      <div className="wf-today-mobile">
+        {rows.map(({ m, d }) => (
+          <button type="button" key={m.id} className="wf-today-member" onClick={() => onOpen(m)}>
+            <Person member={m} />
+            <StatusPill status={d.status} ar={ar} />
+            <small>
+              {timeLabel(d.assignment?.starts_at, ar)} – {timeLabel(d.assignment?.ends_at, ar)} ·{" "}
+              {hourLabel(d.actualH, ar)}
+            </small>
+          </button>
+        ))}
+      </div>
+      <div className="wf-table-scroll wf-today-table">
         <table className="wf-table">
           <thead>
             <tr>

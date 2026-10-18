@@ -1,3 +1,4 @@
+import { ActionMenu } from "@/components/app/ActionMenu";
 import { GeofenceBadge } from "./GeofenceBadge";
 import type { GeofenceVerification } from "@/lib/geofence";
 import { WorkforceFilters } from "./WorkforceFilters";
@@ -320,6 +321,7 @@ export function WorkforceExceptions({
   ar: boolean;
 }) {
   const qc = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
   const data = useWorkforceData(restaurantId);
   const readFeed = useQuery<Array<{ body: string | null }>>({
     queryKey: ["workforce", "attention-reads", restaurantId, currentStaffId],
@@ -453,24 +455,35 @@ export function WorkforceExceptions({
     purple: "bg-violet-500/10 text-violet-600",
   };
   return (
-    <section className="qs-card overflow-hidden">
+    <section className="qs-card wf-attention overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
         <div>
           <h2 className="qs-section-title">{ar ? "يحتاج انتباه" : "Needs attention"}</h2>
         </div>
         <div className="flex items-center gap-2">
-          {unreadItems.length ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 px-2.5 text-[10px]"
-              disabled={markRead.isPending}
-              onClick={() => markRead.mutate(unreadItems.map((item) => item.key))}
+          {items.length > 2 && (
+            <button
+              type="button"
+              className="wf-attention-toggle"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((value) => !value)}
             >
-              <CheckCircle2 className="size-3.5" />
-              {ar ? "قراءة الكل" : "Mark all read"}
-            </Button>
-          ) : null}
+              {expanded ? (ar ? "عرض أقل" : "Show less") : ar ? "عرض الكل" : "View all"}
+            </button>
+          )}
+          <ActionMenu
+            ar={ar}
+            variant="ghost"
+            label={ar ? "إجراءات التنبيهات" : "Attention actions"}
+            actions={[
+              {
+                label: ar ? "تعليم الكل كمقروء" : "Mark all read",
+                icon: CheckCircle2,
+                disabled: markRead.isPending || !unreadItems.length,
+                onSelect: () => markRead.mutate(unreadItems.map((item) => item.key)),
+              },
+            ]}
+          />
           <span
             className={cn(
               "rounded-full px-3 py-1 text-[10px] font-bold",
@@ -495,7 +508,7 @@ export function WorkforceExceptions({
         <EmptyCard text={ar ? "لا توجد استثناءات الآن." : "No workforce exceptions right now."} />
       ) : (
         <ul className="divide-y divide-border">
-          {items.slice(0, 12).map((item) => {
+          {(expanded ? items : items.slice(0, 2)).map((item) => {
             const read = readKeys.has(item.key);
             return (
               <li
@@ -526,15 +539,19 @@ export function WorkforceExceptions({
                     {ar ? "مقروء" : "Read"}
                   </span>
                 ) : (
-                  <Button
-                    size="sm"
+                  <ActionMenu
+                    ar={ar}
                     variant="ghost"
-                    className="h-8 shrink-0 px-2 text-[10px]"
-                    disabled={markRead.isPending}
-                    onClick={() => markRead.mutate([item.key])}
-                  >
-                    {ar ? "تعليم كمقروء" : "Mark read"}
-                  </Button>
+                    label={ar ? "إجراءات التنبيه" : "Alert actions"}
+                    actions={[
+                      {
+                        label: ar ? "تعليم كمقروء" : "Mark read",
+                        icon: CheckCircle2,
+                        disabled: markRead.isPending,
+                        onSelect: () => markRead.mutate([item.key]),
+                      },
+                    ]}
+                  />
                 )}
               </li>
             );
@@ -546,6 +563,8 @@ export function WorkforceExceptions({
 }
 
 /* ------------------------------ Member drawer ----------------------------- */
+
+
 export function MemberWorkforceSheet({
   member,
   onClose,
