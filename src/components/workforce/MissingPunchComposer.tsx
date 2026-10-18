@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { CalendarDays, ChevronDown, Clock3, Info, List, Send, ShieldCheck } from "lucide-react";
+import { ChevronDown, Info, List, Send } from "lucide-react";
 import { workforceDayKey } from "@/lib/workforce-hours";
 import type { validateMissingPunch } from "@/lib/missing-punch";
 import { RequestDatePicker, RequestTimePicker } from "./RequestPickers";
@@ -28,7 +28,6 @@ export function MissingPunchComposer({
   scheduledOut,
   onUseSchedule,
   onSubmit,
-  onCancel,
 }: {
   ar: boolean;
   timeZone: string;
@@ -56,15 +55,6 @@ export function MissingPunchComposer({
     clock_in: ar ? "دخول مفقود" : "Missing clock-in",
     clock_out: ar ? "انصراف مفقود" : "Missing clock-out",
     both: ar ? "البصمتان مفقودتان" : "Both punches",
-  };
-  const descriptions: Record<MissingPunchMode, string> = {
-    clock_in: ar
-      ? "نسيت تسجيل الدخول في بداية الوردية."
-      : "I forgot to clock in at the start of my shift.",
-    clock_out: ar
-      ? "نسيت تسجيل الانصراف في نهاية الوردية."
-      : "I forgot to clock out at the end of my shift.",
-    both: ar ? "نسيت تسجيل الدخول والانصراف." : "I missed both my clock-in and clock-out.",
   };
   const issueText: Record<NonNullable<typeof validation.issue>, string> = {
     missing_times: ar
@@ -140,107 +130,33 @@ export function MissingPunchComposer({
       }}
     >
       <div className="wf-punch-scroll">
-        <fieldset className="wf-punch-options" disabled={pending}>
-          <legend className="sr-only">
-            {ar ? "ما البصمة المفقودة؟" : "What needs correcting?"}
-          </legend>
+        <p className="wf-punch-context-line">
+          {dayLabel} ·{" "}
+          <span dir="ltr">
+            {displayTime(scheduledIn || clockIn)} – {displayTime(scheduledOut || clockOut)}
+          </span>
+        </p>
+        <Label htmlFor={`${id}-mode`}>{ar ? "ما البصمة المفقودة؟" : "What was missed?"}</Label>
+        <select
+          id={`${id}-mode`}
+          className="wf-punch-mode"
+          value={mode}
+          disabled={pending}
+          onChange={(event) => {
+            const value = event.target.value as MissingPunchMode;
+            onMode(value);
+            if ((value === "clock_out" && !clockIn) || (value === "clock_in" && !clockOut))
+              setExpanded(true);
+          }}
+        >
           {(["clock_in", "clock_out", "both"] as const).map((value) => (
-            <label className="wf-punch-option" data-selected={mode === value} key={value}>
-              <input
-                type="radio"
-                name={`${id}-mode`}
-                value={value}
-                checked={mode === value}
-                onChange={() => {
-                  onMode(value);
-                  if ((value === "clock_out" && !clockIn) || (value === "clock_in" && !clockOut))
-                    setExpanded(true);
-                }}
-              />
-              <span>
-                <strong>{labels[value]}</strong>
-                <small>{descriptions[value]}</small>
-              </span>
-            </label>
+            <option key={value} value={value}>
+              {labels[value]}
+            </option>
           ))}
-        </fieldset>
+        </select>
         <div className="wf-punch-layout">
-          <aside className="wf-punch-context">
-            <h3>{ar ? "ورديتك" : "Your shift"}</h3>
-            <p>
-              <CalendarDays aria-hidden="true" />
-              {dayLabel}
-            </p>
-            <p>
-              <Clock3 aria-hidden="true" />
-              <span dir="ltr">
-                {displayTime(scheduledIn || clockIn)} – {displayTime(scheduledOut || clockOut)}
-              </span>
-            </p>
-            {scheduledIn && scheduledOut && (
-              <button
-                type="button"
-                className="wf-punch-use-schedule"
-                disabled={pending}
-                onClick={onUseSchedule}
-              >
-                {ar ? "استخدم أوقات الجدول" : "Use schedule times"}
-              </button>
-            )}
-            <div className="wf-punch-timeline">
-              <div data-missing={mode !== "clock_out"}>
-                <i aria-hidden="true" />
-                <span>
-                  <strong>
-                    {mode !== "clock_out"
-                      ? labels.clock_in
-                      : ar
-                        ? "الدخول المقترح"
-                        : "Proposed clock-in"}
-                  </strong>
-                  <small>{displayTime(clockIn)}</small>
-                </span>
-              </div>
-              <div data-missing={mode !== "clock_in"}>
-                <i aria-hidden="true" />
-                <span>
-                  <strong>
-                    {mode !== "clock_in"
-                      ? labels.clock_out
-                      : ar
-                        ? "الانصراف المقترح"
-                        : "Proposed clock-out"}
-                  </strong>
-                  <small>{displayTime(clockOut)}</small>
-                </span>
-              </div>
-            </div>
-            <div className="wf-punch-approval">
-              <ShieldCheck aria-hidden="true" />
-              <span>
-                <strong>{ar ? "يراجعها مديرك" : "Reviewed by your manager"}</strong>
-                <small>
-                  {ar
-                    ? "لا تتغير الساعات إلا بعد الموافقة على أوقات الجلسة."
-                    : "Your hours update only after the session times are approved."}
-                </small>
-              </span>
-            </div>
-          </aside>
           <div className="wf-punch-fields">
-            <h3>
-              {mode === "clock_out"
-                ? ar
-                  ? "أضف وقت الانصراف"
-                  : "Add your clock-out"
-                : mode === "clock_in"
-                  ? ar
-                    ? "أضف وقت الدخول"
-                    : "Add your clock-in"
-                  : ar
-                    ? "أضف أوقات الجلسة"
-                    : "Add your session times"}
-            </h3>
             {mode !== "clock_out" && field("clock_in")}
             {mode !== "clock_in" && field("clock_out")}
             <div className="wf-punch-reason">
@@ -264,9 +180,7 @@ export function MissingPunchComposer({
               <summary>
                 <List aria-hidden="true" />
                 <span>
-                  <strong>
-                    {ar ? "الاستراحة والتفاصيل الإضافية" : "Break & additional details"}
-                  </strong>
+                  <strong>{ar ? "الاستراحة والتفاصيل الإضافية" : "Session details & break"}</strong>
                   <small>
                     {ar
                       ? "راجع أوقات الجلسة والاستراحة."
@@ -276,6 +190,16 @@ export function MissingPunchComposer({
                 <ChevronDown aria-hidden="true" />
               </summary>
               <div>
+                {scheduledIn && scheduledOut && (
+                  <button
+                    type="button"
+                    className="wf-punch-use-schedule"
+                    disabled={pending}
+                    onClick={onUseSchedule}
+                  >
+                    {ar ? "استخدم أوقات الجدول" : "Use schedule times"}
+                  </button>
+                )}
                 {mode === "clock_out" && field("clock_in")}
                 {mode === "clock_in" && field("clock_out")}
                 <Label htmlFor={`${id}-break`}>
@@ -316,9 +240,6 @@ export function MissingPunchComposer({
             : "A correction request will be sent for review."}
         </p>
         <div>
-          <Button type="button" variant="outline" disabled={pending} onClick={onCancel}>
-            {ar ? "إلغاء" : "Cancel"}
-          </Button>
           <Button type="submit" disabled={!validation.valid || pending} aria-busy={pending}>
             <Send className="size-4" />
             {pending ? (ar ? "جارٍ الإرسال…" : "Sending…") : ar ? "إرسال الطلب" : "Send request"}

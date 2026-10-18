@@ -1,6 +1,6 @@
 import { MasterActionSurface } from "@/components/app/MasterPage";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BriefcaseBusiness,
@@ -138,6 +138,8 @@ function shortTime(value: string | null) {
 }
 
 export function WorkforceRequests({
+  launchLeave = false,
+  onLaunchConsumed,
   restaurantId,
   currentStaffId,
   canManage,
@@ -145,6 +147,8 @@ export function WorkforceRequests({
   ar,
   lang,
 }: {
+  launchLeave?: boolean;
+  onLaunchConsumed?: () => void;
   restaurantId: string;
   currentStaffId: string;
   canManage: boolean;
@@ -159,6 +163,13 @@ export function WorkforceRequests({
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<"permission" | "leave">("permission");
+  useEffect(() => {
+    if (launchLeave) {
+      setKind("leave");
+      setOpen(true);
+      onLaunchConsumed?.();
+    }
+  }, [launchLeave, onLaunchConsumed]);
   const [permissionType, setPermissionType] = useState<PermissionType>("personal");
   const [leaveType, setLeaveType] = useState<LeaveType>("annual");
   const [familyDegree, setFamilyDegree] = useState<FamilyDegree>("first_degree");

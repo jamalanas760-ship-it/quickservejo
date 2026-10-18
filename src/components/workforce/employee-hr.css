@@ -1,0 +1,639 @@
+.hr-workspace {
+  --hr-accent: #e65b17;
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.hr-workspace h2,
+.hr-workspace h3,
+.hr-workspace h4 {
+  margin: 0;
+  font-weight: 700;
+}
+.hr-workspace h2 {
+  font-size: 20px;
+}
+.hr-workspace h3 {
+  font-size: 18px;
+}
+.hr-workspace h4 {
+  font-size: 14px;
+  margin-bottom: 14px;
+}
+.hr-panel,
+.hr-identity,
+.hr-balance {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  padding: 24px;
+  min-width: 0;
+}
+.hr-panel > h3 {
+  margin-bottom: 20px;
+}
+.hr-muted,
+.hr-caption,
+.hr-workspace dt {
+  color: var(--muted-foreground);
+}
+.hr-caption {
+  font-size: 12px;
+  line-height: 1.65;
+  margin-top: 12px;
+}
+.hr-muted {
+  font-size: 14px;
+}
+.hr-eyebrow {
+  font-size: 12px;
+  color: var(--hr-accent);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.hr-tabs {
+  display: flex;
+  gap: 8px;
+  overflow: auto;
+  white-space: nowrap;
+  min-width: 0;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.hr-tabs button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13px;
+  border: 1px solid transparent;
+}
+.hr-tabs button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--card) 90%, #ff7629);
+  color: var(--hr-accent);
+  border-color: color-mix(in srgb, var(--border) 70%, #ff7629);
+}
+.hr-scope {
+  border: 0;
+  justify-self: start;
+  background: var(--card);
+  padding: 4px;
+  border-radius: 12px;
+}
+.hr-workspace button:focus-visible,
+.hr-workspace input:focus-visible,
+.hr-workspace select:focus-visible,
+.hr-edit-form :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--hr-accent, #e65b17);
+  outline-offset: 3px;
+}
+.hr-identity {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  justify-content: space-between;
+}
+.hr-identity p {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  margin-top: 4px;
+}
+.hr-identity small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.hr-person-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.hr-avatar {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--muted);
+  color: var(--hr-accent);
+}
+.hr-balance-grid,
+.hr-destinations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.hr-card-heading {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.hr-card-heading svg {
+  width: 20px;
+  color: var(--hr-accent);
+}
+.hr-balance-sick .hr-card-heading svg {
+  color: #398f8b;
+}
+.hr-balance-value {
+  display: block;
+  font-size: 34px;
+  line-height: 1.4;
+  margin: 4px 0 20px;
+  font-weight: 750;
+  letter-spacing: -1px;
+}
+.hr-balance-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  gap: 16px;
+}
+.hr-balance-stats dt {
+  font-size: 12px;
+}
+.hr-balance-stats dd {
+  font-size: 17px;
+  font-weight: 650;
+  margin-top: 4px;
+}
+.hr-destinations {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.hr-destinations button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 86px;
+  text-align: start;
+  padding: 18px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 14px;
+}
+.hr-destinations svg {
+  width: 20px;
+  color: var(--hr-accent);
+  flex-shrink: 0;
+}
+.hr-destinations strong {
+  flex: 1;
+  font-size: 13px;
+}
+.hr-destinations svg:last-child {
+  width: 16px;
+  color: var(--muted-foreground);
+}
+.hr-toolbar {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.hr-top-toolbar {
+  margin: 0;
+  justify-content: space-between;
+}
+.hr-toolbar label,
+.hr-record-heading label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.hr-search {
+  flex: 1;
+  min-width: 180px;
+}
+.hr-workspace :is(input, select),
+.hr-edit-form :is(input, select, textarea) {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 14px;
+  min-width: 0;
+}
+.hr-people-list {
+  display: grid;
+  gap: 2px;
+}
+.hr-person-row {
+  display: grid;
+  grid-template-columns: 2fr 1.4fr 1fr 1fr 20px;
+  gap: 20px;
+  align-items: center;
+  text-align: start;
+  width: 100%;
+  padding: 18px 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.hr-person-row:hover {
+  background: var(--muted);
+}
+.hr-person-row small {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+.hr-person-row strong {
+  font-size: 14px;
+}
+.hr-table-wrap {
+  overflow: auto;
+}
+.hr-workspace table {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+  text-align: start;
+}
+.hr-workspace th {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-weight: 600;
+  background: var(--muted);
+  white-space: nowrap;
+}
+.hr-workspace :is(td, th) {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+}
+.hr-workspace td small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.hr-negative {
+  color: #bb3c39;
+}
+.hr-positive {
+  color: #278168;
+}
+.hr-record-heading {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.hr-record-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+.hr-record {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.hr-record p {
+  font-size: 13px;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+.hr-record dl,
+.hr-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.hr-record dt,
+.hr-info-grid dt {
+  font-size: 11px;
+}
+.hr-record dd,
+.hr-info-grid dd {
+  font-size: 13px;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+.hr-status {
+  padding: 5px 10px;
+  background: var(--muted);
+  border-radius: 7px;
+  font-size: 11px;
+  text-transform: capitalize;
+}
+.hr-status[data-status="approved"] {
+  background: #deefe5;
+  color: #256c45;
+}
+.hr-status[data-status="pending"] {
+  background: #fff0d6;
+  color: #875a11;
+}
+.hr-status[data-status="rejected"] {
+  background: #fbe4e4;
+  color: #943838;
+}
+.hr-mini-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 20px;
+  background: var(--muted);
+  border-radius: 12px;
+  margin-top: 16px;
+}
+.hr-mini-summary dt {
+  font-size: 12px;
+}
+.hr-mini-summary dd {
+  font-size: 24px;
+  font-weight: 700;
+  margin-top: 5px;
+}
+.hr-empty {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  min-height: 160px;
+  text-align: center;
+  color: var(--muted-foreground);
+  padding: 24px;
+}
+.hr-empty svg {
+  opacity: 0.5;
+}
+.hr-error {
+  padding: 20px;
+  border: 1px solid var(--destructive);
+  border-radius: 12px;
+}
+.hr-error button {
+  margin-top: 12px;
+}
+.hr-pay-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 20px;
+}
+.hr-pay-months {
+  padding: 10px;
+  align-self: start;
+  display: grid;
+  gap: 4px;
+}
+.hr-pay-months button {
+  display: flex;
+  text-align: start;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px;
+  border-radius: 10px;
+  min-height: 60px;
+}
+.hr-pay-months button[aria-pressed="true"] {
+  background: var(--muted);
+  color: var(--hr-accent);
+}
+.hr-pay-months svg {
+  width: 18px;
+}
+.hr-pay-months small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  margin-top: 4px;
+}
+.hr-salary-slip > section,
+.hr-pay-breakdown {
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  margin-top: 24px;
+}
+.hr-pay-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.hr-pay-breakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.hr-pay-breakdown dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  padding: 10px 0;
+}
+.hr-pay-breakdown dd {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.hr-pay-total {
+  border-top: 1px solid var(--border);
+  font-weight: 700;
+}
+.hr-net-pay {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px;
+  background: var(--muted);
+  border-radius: 12px;
+  margin-top: 20px;
+}
+.hr-net-pay strong {
+  font-size: 24px;
+}
+.qs-dialog-content.hr-edit-dialog {
+  max-width: 680px;
+  max-height: 90dvh;
+  overflow: auto;
+}
+.hr-edit-form {
+  display: grid;
+  gap: 20px;
+}
+.hr-edit-form fieldset {
+  border: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.hr-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.hr-edit-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.hr-edit-form > button {
+  width: 100%;
+  min-height: 48px;
+}
+.hr-edit-form textarea {
+  resize: vertical;
+}
+@media (max-width: 1000px) {
+  .hr-destinations {
+    grid-template-columns: 1fr 1fr;
+  }
+  .hr-person-row {
+    grid-template-columns: 2fr 1.4fr 1fr 1fr;
+    gap: 12px;
+  }
+  .hr-person-row > svg {
+    display: none;
+  }
+  .hr-pay-layout {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .hr-workspace {
+    gap: 16px;
+  }
+  .hr-panel,
+  .hr-identity,
+  .hr-balance {
+    padding: 18px;
+    border-radius: 14px;
+  }
+  .hr-balance-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .hr-identity {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .hr-identity > .hr-person-name {
+    flex-basis: 100%;
+  }
+  .hr-identity > div:nth-child(2) {
+    flex: 1;
+  }
+  .hr-balance-value {
+    font-size: 32px;
+  }
+  .hr-destinations {
+    gap: 10px;
+  }
+  .hr-destinations button {
+    padding: 12px;
+    gap: 8px;
+    min-height: 76px;
+  }
+  .hr-destinations svg:last-child {
+    display: none;
+  }
+  .hr-person-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 18px 6px;
+  }
+  .hr-person-row > .hr-person-name {
+    grid-column: 1/-1;
+  }
+  .hr-person-row > span:nth-child(2) {
+    grid-column: 1/-1;
+  }
+  .hr-toolbar {
+    gap: 10px;
+  }
+  .hr-toolbar label {
+    flex: 1;
+    min-width: 120px;
+  }
+  .hr-toolbar .hr-search {
+    flex-basis: 100%;
+  }
+  .hr-top-toolbar label {
+    flex: 0 1 140px;
+  }
+  .hr-pay-layout {
+    grid-template-columns: 1fr;
+  }
+  .hr-pay-months {
+    display: flex;
+    overflow: auto;
+    padding: 6px;
+  }
+  .hr-pay-months button {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .hr-pay-breakdown {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .hr-pay-actions {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+  .hr-pay-actions button {
+    flex: 1;
+    font-size: 12px;
+  }
+  .hr-net-pay strong {
+    font-size: 20px;
+  }
+  .hr-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .hr-record-heading h3 {
+    font-size: 17px;
+  }
+  .hr-mini-summary {
+    padding: 14px;
+  }
+  .hr-mini-summary dd {
+    font-size: 22px;
+  }
+}
+@media print {
+  body:has(#hr-salary-print) * {
+    visibility: hidden !important;
+  }
+  body:has(#hr-salary-print) #hr-salary-print,
+  body:has(#hr-salary-print) #hr-salary-print * {
+    visibility: visible !important;
+  }
+  #hr-salary-print {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    border: 0 !important;
+    background: white !important;
+    color: black !important;
+    padding: 20px !important;
+  }
+  #hr-salary-print .hr-pay-actions {
+    display: none !important;
+  }
+  #hr-salary-print .hr-info-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+  }
+  #hr-salary-print .hr-pay-breakdown {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+  }
+  #hr-salary-print section {
+    break-inside: avoid;
+  }
+  body:has(#hr-salary-print) {
+    background: white !important;
+  }
+}
