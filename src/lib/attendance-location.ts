@@ -23,8 +23,8 @@ type LocationBrowser = {
     Partial<Pick<Window, "localStorage">>;
 };
 
-// Granted permission refreshes automatically. Remember only whether the initial
-// browser prompt was attempted, never coordinates or an assumed permission grant.
+// Each page entry checks the real browser permission; never persist an assumed
+// grant or permanently suppress a future location request after one old prompt.
 export function createAttendanceLocationSession(
   onChange: (state: AttendanceLocationState) => void,
   browser: LocationBrowser,
@@ -40,13 +40,6 @@ export function createAttendanceLocationSession(
   let receivedFix = false;
   let startedAt = 0;
   let startedWithPrompt = false;
-  const promptKey = "quickserve:attendance-location-requested:v1";
-  let promptedBefore = false;
-  try {
-    promptedBefore = window.localStorage?.getItem(promptKey) === "1";
-  } catch {
-    /* Storage may be blocked. */
-  }
 
   let state: AttendanceLocationState = { phase: "checking", fix: null };
   const publish = (next: AttendanceLocationState) => {
@@ -82,14 +75,6 @@ export function createAttendanceLocationSession(
     )
       return;
     automaticAttempted = true;
-    if (permission?.state === "prompt") {
-      promptedBefore = true;
-      try {
-        window.localStorage?.setItem(promptKey, "1");
-      } catch {
-        /* Browser permission remains authoritative. */
-      }
-    }
     stop();
     const ticket = generation;
     startedAt = Date.now();
@@ -135,20 +120,16 @@ export function createAttendanceLocationSession(
       value === "prompt" &&
       startedWithPrompt &&
       watch !== undefined &&
-      state.phase === "locating"
-    )
-      return; // Keep the original prompt alive; polling must not dismiss it.
+      (state.phase === "locating" || receivedFix)
+    ) {
+      if (receivedFix) start(reset);
+      return; // Keep a live provider or unresolved original prompt intact.
+    }
 
     if (value === "granted") {
       blocked = false;
       start(reset);
-    } else if (
-      value === "prompt" &&
-      mayPrompt &&
-      !automaticAttempted &&
-      !promptedBefore &&
-      !blocked
-    ) {
+    } else if (value === "prompt" && mayPrompt && !automaticAttempted && !blocked) {
       start(reset);
     } else {
       stop();
@@ -158,7 +139,13 @@ export function createAttendanceLocationSession(
   };
   const permissionChanged = () => {
     permissionRevision++;
-    if (!disposed && permission) applyPermission(permission.state, true);
+    if (!disposed && permission) {
+      if (permission.state !== "granted") {
+        receivedFix = false;
+        stop();
+      }
+      applyPermission(permission.state, true);
+    }
   };
   const resume = async (reset = true, mayPrompt = true) => {
     if (disposed || document.visibilityState !== "visible" || !usable()) return;
@@ -190,7 +177,7 @@ export function createAttendanceLocationSession(
     } else {
       permissionRevision++;
       stop();
-      automaticAttempted = false;
+      automaticAttempted = automaticAttempted && !receivedFix && permission?.state !== "granted";
       publish({ phase: blocked ? "permission_denied" : "needs_permission", fix: null });
     }
   };
@@ -211,6 +198,8 @@ export function createAttendanceLocationSession(
     void resume(false, false);
   }, 20000);
   window.addEventListener("focus", focus);
+  window.addEventListener("pageshow", focus);
+  window.addEventListener("online", focus);
   document.addEventListener("visibilitychange", visibility);
   void resume();
   return {
@@ -233,6 +222,8 @@ export function createAttendanceLocationSession(
       stop();
       window.clearInterval(timer);
       window.removeEventListener("focus", focus);
+      window.removeEventListener("pageshow", focus);
+      window.removeEventListener("online", focus);
       document.removeEventListener("visibilitychange", visibility);
       permission?.removeEventListener("change", permissionChanged);
     },

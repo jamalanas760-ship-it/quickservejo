@@ -330,9 +330,9 @@ test("allowing the browser prompt resumes automatically without an app click", a
   session.dispose();
 });
 
-test("remembered prompt attempts suppress automatic prompts after app re-entry but never imply a grant", async () => {
+test("old persisted prompt markers cannot block automatic location checks on page re-entry", async () => {
   const h = harness();
-  const storage = new Map();
+  const storage = new Map([["quickserve:attendance-location-requested:v1", "1"]]);
   h.win.localStorage = {
     getItem: (key) => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, value),
@@ -343,9 +343,9 @@ test("remembered prompt attempts suppress automatic prompts after app re-entry b
   first.dispose();
   const second = h.begin();
   await flush();
-  assert.equal(h.past.length, 1);
-  assert.equal(h.state().phase, "needs_permission");
-  assert.equal(h.state().fix, null);
+  assert.equal(h.past.length, 2, "each page entry checks actual browser access");
+  assert.equal(h.state().phase, "locating");
+  assert.equal(h.state().fix, null, "starting a check never implies a grant");
   await h.change("granted");
   assert.equal(h.watches.size, 1);
   h.success();
@@ -435,5 +435,37 @@ test("fallback browsers renew stale successful fixes without a click", async () 
   await h.tick();
   assert.equal(h.past.length, 2);
   assert.equal(h.watches.size, 1);
+  session.dispose();
+});
+
+test("mobile page restoration and reconnection automatically check current permission", async () => {
+  for (const event of ["pageshow", "online"]) {
+    const h = harness("denied");
+    const session = h.begin();
+    await flush();
+    h.permission.state = "granted";
+    h.win.dispatchEvent(new Event(event));
+    await flush();
+    assert.equal(h.watches.size, 1);
+    session.dispose();
+    const count = h.queries();
+    h.win.dispatchEvent(new Event(event));
+    await flush();
+    assert.equal(h.queries(), count);
+  }
+});
+
+test("a browser still reporting prompt after a successful fix does not stop its active mobile watch", async () => {
+  const h = harness("prompt");
+  const session = h.begin();
+  await flush();
+  h.success();
+  await h.tick();
+  await h.focus();
+  assert.equal(h.state().phase, "tracking");
+  assert.equal(h.watches.size, 1);
+  await h.change("prompt");
+  assert.equal(h.state().fix, null, "an explicit revocation still clears the fix immediately");
+  assert.equal(h.watches.size, 0);
   session.dispose();
 });
