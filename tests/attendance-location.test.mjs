@@ -4,6 +4,12 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
 const exports = {};
+let clockOffset = 0;
+class LocationDate extends Date {
+  static now() {
+    return Date.now() + clockOffset;
+  }
+}
 vm.runInNewContext(
   ts.transpileModule(
     readFileSync(new URL("../src/lib/attendance-location.ts", import.meta.url), "utf8"),
@@ -11,7 +17,7 @@ vm.runInNewContext(
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
     },
   ).outputText,
-  { exports },
+  { exports, Date: LocationDate },
 );
 const { createAttendanceLocationSession } = exports;
 const flush = async () => {
@@ -351,15 +357,83 @@ test("stationary fixes renew after the freshness interval without a permission p
   const h = harness("granted");
   const session = h.begin();
   await flush();
-  h.past
-    .at(-1)
-    .ok({
-      timestamp: Date.now() - 21000,
-      coords: { latitude: 31.95, longitude: 35.91, accuracy: 8 },
-    });
+  h.past.at(-1).ok({
+    timestamp: Date.now() - 21000,
+    coords: { latitude: 31.95, longitude: 35.91, accuracy: 8 },
+  });
   await h.tick();
   assert.equal(h.past.length, 2);
   assert.equal(h.watches.size, 1);
   assert.equal(h.state().phase, "locating");
+  session.dispose();
+});
+
+test("denied permission recovers on polling without a button or change event", async () => {
+  const h = harness("denied");
+  const session = h.begin();
+  await flush();
+  h.permission.state = "granted";
+  await h.tick();
+  assert.equal(h.watches.size, 1);
+  session.dispose();
+});
+
+test("transient GPS failures automatically retry on the next foreground check", async () => {
+  for (const code of [2, 3]) {
+    for (const fallback of [false, true]) {
+      const h = harness(
+        "granted",
+        fallback
+          ? () => {
+              throw new Error("No Permissions API");
+            }
+          : undefined,
+      );
+      const session = h.begin();
+      await flush();
+      h.success();
+      h.past[0].fail({ code });
+      assert.equal(h.state().fix, null);
+      await h.tick();
+      assert.equal(h.past.length, 2);
+      assert.equal(h.state().phase, "locating");
+      h.success();
+      assert.equal(h.state().phase, "tracking");
+      session.dispose();
+    }
+  }
+});
+
+test("silent providers recover automatically but unresolved permission prompts are not restarted", async () => {
+  try {
+    for (const initial of ["granted", "prompt"]) {
+      const h = harness(initial);
+      const session = h.begin();
+      await flush();
+      clockOffset = 25000;
+      await h.tick();
+      assert.equal(h.past.length, initial === "granted" ? 2 : 1);
+      assert.equal(h.state().phase, "locating");
+      session.dispose();
+      clockOffset = 0;
+    }
+  } finally {
+    clockOffset = 0;
+  }
+});
+
+test("fallback browsers renew stale successful fixes without a click", async () => {
+  const h = harness("prompt", () => {
+    throw new Error("No Permissions API");
+  });
+  const session = h.begin();
+  await flush();
+  h.past[0].ok({
+    timestamp: Date.now() - 21000,
+    coords: { latitude: 31.95, longitude: 35.91, accuracy: 8 },
+  });
+  await h.tick();
+  assert.equal(h.past.length, 2);
+  assert.equal(h.watches.size, 1);
   session.dispose();
 });

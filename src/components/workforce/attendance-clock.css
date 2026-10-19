@@ -207,12 +207,7 @@
   color: var(--muted-foreground);
   margin-top: 12px;
 }
-.wf-arrival-retry {
-  min-height: 44px;
-  color: var(--arrival-blue);
-  font-size: 12px;
-  text-decoration: underline;
-}
+
 .wf-arrival-action {
   display: flex;
   flex-direction: column;
@@ -352,5 +347,59 @@
   .wf-arrival-marker-halo,
   .wf-arrival-clock .wf-arrival-punch[data-slot="button"][data-punch-direction] {
     transition: none;
+  }
+}
+
+/* Compact mobile preview keeps the clock action within easy reach. */
+@media (max-width: 640px) {
+  .wf-arrival-header {
+    padding: 14px 16px;
+  }
+  .wf-arrival-layout {
+    padding: 0 14px 12px;
+  }
+  .wf-arrival-location {
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+  .wf-arrival-distance {
+    font-size: 22px;
+    margin-top: 10px;
+  }
+  .wf-arrival-detail {
+    font-size: 11px;
+  }
+  .wf-arrival-roadmap {
+    height: 94px;
+    margin: 2px 0 5px;
+  }
+  .wf-arrival-office {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+  }
+  .wf-arrival-office > svg {
+    width: 15px;
+    height: 15px;
+  }
+  .wf-arrival-office > span {
+    top: 30px;
+    font-size: 11px;
+  }
+  .wf-arrival-schematic {
+    margin-top: 5px;
+  }
+  .wf-arrival-action {
+    padding-top: 14px;
+  }
+  .wf-arrival-worked {
+    font-size: 30px;
+    margin: 3px 0;
+  }
+  .wf-arrival-session {
+    margin-bottom: 12px;
+  }
+  .wf-arrival-footer {
+    padding: 12px 16px;
   }
 }

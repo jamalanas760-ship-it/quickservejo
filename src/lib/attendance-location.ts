@@ -37,6 +37,9 @@ export function createAttendanceLocationSession(
   let permission: PermissionStatus | null = null;
   let blocked = false;
   let automaticAttempted = false;
+  let receivedFix = false;
+  let startedAt = 0;
+  let startedWithPrompt = false;
   const promptKey = "quickserve:attendance-location-requested:v1";
   let promptedBefore = false;
   try {
@@ -89,11 +92,14 @@ export function createAttendanceLocationSession(
     }
     stop();
     const ticket = generation;
+    startedAt = Date.now();
+    startedWithPrompt = permission?.state === "prompt";
     publish({ phase: "locating", fix: reset ? null : state.fix });
     try {
       watch = navigator.geolocation.watchPosition(
         (position) => {
           if (disposed || ticket !== generation) return;
+          receivedFix = true;
           publish({
             phase: "tracking",
             fix: {
@@ -110,6 +116,7 @@ export function createAttendanceLocationSession(
         (error) => {
           if (disposed || ticket !== generation) return;
           blocked = error.code === 1;
+          if (blocked) receivedFix = false;
           stop();
           publish({
             phase: blocked ? "permission_denied" : error.code === 3 ? "timeout" : "unavailable",
@@ -124,6 +131,14 @@ export function createAttendanceLocationSession(
     }
   };
   const applyPermission = (value: PermissionState, reset: boolean, mayPrompt = false) => {
+    if (
+      value === "prompt" &&
+      startedWithPrompt &&
+      watch !== undefined &&
+      state.phase === "locating"
+    )
+      return; // Keep the original prompt alive; polling must not dismiss it.
+
     if (value === "granted") {
       blocked = false;
       start(reset);
@@ -161,13 +176,13 @@ export function createAttendanceLocationSession(
       if (disposed || revision !== permissionRevision) return;
       // A missing Permissions API must not introduce an Enable location step.
       // The geolocation API itself still enforces browser/OS permission.
-      if (mayPrompt && !automaticAttempted && !blocked) start(reset);
+      if (!blocked && ((mayPrompt && !automaticAttempted) || receivedFix)) start(reset);
       else if (watch === undefined)
         publish({ phase: blocked ? "permission_denied" : "needs_permission", fix: null });
     }
   };
   const focus = () => {
-    if (state.phase !== "locating") void resume();
+    void resume();
   };
   const visibility = () => {
     if (document.visibilityState === "visible") {
@@ -180,7 +195,20 @@ export function createAttendanceLocationSession(
     }
   };
   const timer = window.setInterval(() => {
-    if (!blocked && state.phase !== "locating") void resume(false, false);
+    if (document.visibilityState !== "visible") return;
+    // Recover a silent/hung provider only after access is known. Never restart
+    // an unresolved browser prompt or infer permission from persisted storage.
+    if (
+      state.phase === "locating" &&
+      (permission?.state === "granted" || receivedFix) &&
+      Date.now() - startedAt >= 15000
+    ) {
+      stop();
+      publish({ phase: "timeout", fix: null });
+    }
+    // Permission queries do not prompt. Keep checking even after denial so a
+    // browser-settings change can recover without a click or change event.
+    void resume(false, false);
   }, 20000);
   window.addEventListener("focus", focus);
   document.addEventListener("visibilitychange", visibility);

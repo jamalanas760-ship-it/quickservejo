@@ -1232,23 +1232,23 @@ function WorkforceClockHero({
       : "Browser location permission is required. Allow Location for this app to verify automatically while Workforce is visible.",
     locating: ar ? "جارٍ تحديد موقعك الحالي…" : "Finding your current location…",
     permission_denied: ar
-      ? "الوصول للموقع محظور. افتح إعدادات هذا الموقع في المتصفح واسمح بالموقع، ثم اضغط تحقق مجددًا. تأكد أيضًا من تفعيل خدمة الموقع في جهازك."
-      : "Location access is blocked. Allow Location in this site's browser settings, then select Check again. Also check that your device's location services are enabled.",
+      ? "الوصول للموقع محظور. افتح إعدادات هذا الموقع في المتصفح واسمح بالموقع، وسيتم التحقق تلقائيًا. تأكد أيضًا من تفعيل خدمة الموقع في جهازك."
+      : "Location access is blocked. Allow Location in this site's browser settings; verification will resume automatically. Also check that your device's location services are enabled.",
     insecure: ar
       ? "افتح التطبيق المنشور عبر HTTPS لتفعيل الموقع."
       : "Open the published app over HTTPS to enable location.",
     unavailable: ar
-      ? "تعذر تحديد الموقع. فعّل خدمة الموقع في جهازك وتحقق من أذونات المتصفح، ثم حاول مجددًا."
-      : "Location is unavailable. Enable device location services, check browser permissions, then try again.",
+      ? "تعذر تحديد الموقع. فعّل خدمة الموقع في جهازك وتحقق من أذونات المتصفح، وسيعاود التطبيق المحاولة تلقائيًا."
+      : "Location is unavailable. Enable device location services, check browser permissions. The app will retry automatically.",
     timeout: ar
-      ? "استغرق تحديد الموقع وقتًا طويلًا. تحقق من خدمة الموقع والاتصال، ثم حاول مجددًا."
-      : "Finding your location timed out. Check location services and your connection, then try again.",
+      ? "استغرق تحديد الموقع وقتًا طويلًا. تحقق من خدمة الموقع والاتصال، وسيعاود التطبيق المحاولة تلقائيًا."
+      : "Finding your location timed out. Check location services and your connection. The app will retry automatically.",
     inaccurate: ar
-      ? "دقة الموقع غير كافية. فعّل الموقع الدقيق في جهازك، ثم حدّث الموقع."
-      : "Location accuracy is too low. Enable precise location on your device, then refresh.",
+      ? "دقة الموقع غير كافية. فعّل الموقع الدقيق في جهازك، وسيتم التحقق تلقائيًا."
+      : "Location accuracy is too low. Enable precise location on your device. Checks continue automatically.",
     stale: ar
-      ? "انتهت صلاحية الموقع. حدّثه للتحقق من نطاق الحضور."
-      : "Your location has expired. Refresh it to check the attendance radius.",
+      ? "جارٍ تجديد الموقع تلقائيًا للتحقق من نطاق الحضور."
+      : "Your location is being renewed automatically to check the attendance radius.",
   };
 
   return (
@@ -1343,7 +1343,6 @@ function WorkforceClockHero({
                     ? "يلزم موقع حديث ودقيق داخل نطاق الحضور."
                     : "A fresh, accurate location inside the attendance radius is required."))
         }
-        onRetry={gps.refresh}
       />
       {clockStatus.isError || toggleClock.isError ? (
         <div
