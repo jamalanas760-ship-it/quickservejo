@@ -16,6 +16,7 @@ function load(path) {
   const module = { exports: {} };
   cache.set(path, module);
   const localRequire = (id) => {
+    if (id.endsWith(".css")) return {};
     if (!id.startsWith(".") && !id.startsWith("@/")) return require(id);
     const base = id.startsWith("@/")
       ? resolve(root, "src", id.slice(2))
@@ -127,4 +128,46 @@ test("clock card renders the saved employee image with an initials fallback", ()
   assert.match(html, /src="https:\/\/example.test\/avatar.png"/);
   assert.match(html, /wf-clock-profile-image/);
   assert.doesNotMatch(render({ avatarUrl: null }), /wf-clock-profile-image/);
+});
+
+test("verified inside-radius buttons hide locks and distinguish clock direction", () => {
+  for (const clockOut of [false, true]) {
+    const html = render({
+      clockOut,
+      disabled: false,
+      verification: { status: "on_premise", distance_meters: 15 },
+    });
+    assert.doesNotMatch(html, /lucide-lock-keyhole|<button[^>]*disabled=""/);
+    assert.match(html, new RegExp(`data-punch-direction="${clockOut ? "out" : "in"}"`));
+  }
+  assert.match(render({ disabled: false }), /<button[^>]*disabled=""/);
+  assert.match(
+    render({
+      pending: true,
+      disabled: false,
+      verification: { status: "on_premise", distance_meters: 15 },
+    }),
+    /<button[^>]*disabled=""/,
+  );
+});
+
+test("roadmap hides unknown positions and derives visible positions from actual distance", () => {
+  assert.doesNotMatch(
+    render({ verification: { status: "unverified", distance_meters: 20 } }),
+    /wf-arrival-marker-halo/,
+  );
+  const { attendanceRoadmapPosition } = load(resolve(root, "src/lib/attendance-roadmap.ts"));
+  for (const distance of [null, NaN, Infinity, -1])
+    assert.equal(attendanceRoadmapPosition(distance, 100), null);
+  for (const radius of [0, -1, Infinity, NaN])
+    assert.equal(attendanceRoadmapPosition(10, radius), null);
+  assert.equal(attendanceRoadmapPosition(1000, 100).progress, 0);
+  assert.deepEqual(JSON.parse(JSON.stringify(attendanceRoadmapPosition(0, 100))), {
+    progress: 1,
+    x: 425,
+    y: 66,
+  });
+  assert.ok(Math.abs(attendanceRoadmapPosition(100, 100).x - 382) < 0.001);
+  assert.ok(attendanceRoadmapPosition(101, 100).x < 382);
+  assert.ok(attendanceRoadmapPosition(50, 100).x > attendanceRoadmapPosition(200, 100).x);
 });
