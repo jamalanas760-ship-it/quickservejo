@@ -404,23 +404,6 @@
   }
 }
 
-/* Keep the attendance action reachable above the shared mobile/tablet dock. */
-@media (max-width: 1023px) {
-  .wf-arrival-clock .wf-arrival-punch[data-slot="button"][data-punch-direction] {
-    position: static;
-    inset-inline: 16px;
-    bottom: calc(var(--qs-mobile-dock-height, 90px) + 16px);
-    z-index: 35;
-    width: calc(100% - 32px);
-    max-width: 560px;
-    margin-inline: auto;
-    min-height: 48px;
-    box-shadow: 0 4px 18px #00000020;
-  }
-  .qs-app .qs-workforce-screen:has(.wf-arrival-clock) {
-    padding-bottom: calc(var(--qs-mobile-dock-height, 90px) + 100px) !important;
-  }
-}
 @media (max-width: 640px) {
   .wf-arrival-header {
     padding: 12px 14px;
@@ -470,31 +453,83 @@
   }
 }
 
-.wf-arrival-punch-portal {
-  display: none;
-}
-@media (max-width: 1023px) {
-  .wf-arrival-punch-portal {
-    display: contents;
+/* Keep the complete phone clock compact, with its action inside the card. */
+@media (max-width: 640px) {
+  .wf-arrival-header {
+    padding: 10px 12px;
   }
-  .wf-arrival-clock[data-punch-docked="true"] .wf-arrival-action > .wf-arrival-punch {
-    display: none;
+  .wf-arrival-avatar {
+    width: 34px;
+    height: 34px;
   }
-  .wf-arrival-punch-portal .wf-arrival-punch[data-slot="button"][data-punch-direction] {
-    position: fixed;
+  .wf-arrival-layout {
+    padding: 0 10px 8px;
   }
-  body:has(
-      [role="dialog"][data-state="open"],
-      input:focus,
-      textarea:focus,
-      [contenteditable="true"]:focus
-    )
-    .wf-arrival-punch-portal {
-    display: none;
+  .wf-arrival-location {
+    padding: 8px 10px;
+    border-radius: 13px;
   }
-}
-
-.wf-arrival-dock-host,
-.wf-arrival-dock-host > .qs-app {
-  display: contents;
+  .wf-arrival-distance {
+    font-size: 20px;
+    margin-top: 5px;
+  }
+  .wf-arrival-roadmap {
+    height: 52px;
+  }
+  .wf-arrival-office > span {
+    top: 20px;
+  }
+  .wf-arrival-schematic {
+    margin-top: 2px;
+    line-height: 1.3;
+  }
+  .wf-arrival-action {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 4px 10px;
+    align-items: center;
+    padding-top: 8px;
+  }
+  .wf-arrival-action > small {
+    text-align: start;
+  }
+  .wf-arrival-worked {
+    font-size: 25px;
+    text-align: end;
+    margin: 0;
+    letter-spacing: -0.7px;
+  }
+  .wf-arrival-session {
+    grid-column: 1 / -1;
+    margin: 0 0 4px;
+    text-align: start;
+  }
+  .wf-arrival-clock .wf-arrival-punch[data-slot="button"][data-punch-direction] {
+    grid-column: 1 / -1;
+    min-height: 46px;
+    padding: 10px 12px;
+  }
+  .wf-arrival-radius-hint {
+    margin: 0;
+    text-align: start;
+    line-height: 1.4;
+  }
+  .wf-arrival-missing {
+    padding: 0;
+    font-size: 11px;
+    text-align: end;
+  }
+  .wf-arrival-footer {
+    padding: 8px 12px;
+    gap: 12px;
+  }
+  .wf-arrival-footer > div {
+    gap: 3px;
+  }
+  .wf-arrival-footer > div + div {
+    padding-inline-start: 12px;
+  }
+  .wf-arrival-footer strong {
+    font-size: 14px;
+  }
 }
