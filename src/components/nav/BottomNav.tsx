@@ -1107,7 +1107,7 @@ export function BottomNav() {
         </div>
       </aside>
 
-      {pathname.replace(/\/$/, "") !== "/shifts" || !can("view_work") ? <ViewportDock dir={lang === "ar" ? "rtl" : "ltr"}>
+      <ViewportDock dir={lang === "ar" ? "rtl" : "ltr"}>
         <nav
           aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"}
           onContextMenu={(event) => {
@@ -1242,7 +1242,7 @@ export function BottomNav() {
               : null}
           </div>
         </nav>
-      </ViewportDock> : null}
+      </ViewportDock>
 
       {iosQuickItem && iosQuickAnchor ? (
         <div className="qs-ios-context-layer lg:hidden" role="presentation">

@@ -868,3 +868,113 @@
     }
   }
 }
+.wf-clock-profile-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+.wf-overview-clock .wf-clock-person > .wf-avatar {
+  overflow: hidden;
+  padding: 0;
+}
+@media (max-width: 767px) {
+  .qs-app .wf-minimal-workforce {
+    padding-bottom: calc(var(--qs-mobile-dock-height, 90px) + 16px) !important;
+  }
+}
+.wf-holiday-calendar {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.wf-holiday-year {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.wf-holiday-year input,
+.wf-holiday-year select {
+  width: 110px;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: var(--card);
+  font-size: 16px;
+}
+.wf-holiday-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.wf-holiday-list > li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+.wf-holiday-list > li > svg {
+  width: 20px;
+  height: 20px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.wf-holiday-list > li > div:first-of-type {
+  min-width: 0;
+  flex: 1;
+}
+.wf-holiday-list strong,
+.wf-holiday-list span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.wf-holiday-list span {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin-top: 4px;
+}
+.wf-holiday-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  background: var(--card);
+}
+.wf-holiday-notice svg {
+  width: 18px;
+  height: 18px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.wf-holiday-repeat {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+.wf-holiday-repeat input {
+  width: 20px !important;
+  min-height: 20px !important;
+}
+.wf-holiday-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+@media (max-width: 767px) {
+  .wf-holiday-calendar .qs-master-header h1 {
+    font-size: 22px !important;
+  }
+  .wf-holiday-list > li {
+    padding: 12px;
+  }
+}

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { CalendarDays, Clock3, LockKeyhole, PlayCircle, StopCircle } from "lucide-react";
 import type { GeofenceVerification } from "@/lib/geofence";
 import type { AttendanceLocationPhase } from "@/lib/attendance-location";
@@ -9,6 +9,7 @@ import { WorkforceButton as Button } from "./WorkforceButton";
 export function WorkforceClockCard({
   ar,
   name,
+  avatarUrl,
   status,
   verification,
   phase,
@@ -32,6 +33,7 @@ export function WorkforceClockCard({
 }: {
   ar: boolean;
   name: string;
+  avatarUrl?: string | null;
   status: ReactNode;
   verification: GeofenceVerification;
   phase: AttendanceLocationPhase;
@@ -53,6 +55,7 @@ export function WorkforceClockCard({
   locationMessage: string;
   onRetry: () => void;
 }) {
+  const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
   const verified = verification.status === "on_premise" || verification.status === "off_premise";
   const distance = verification.distance_meters;
   const locale = ar ? "ar-JO" : "en-GB";
@@ -81,11 +84,20 @@ export function WorkforceClockCard({
     >
       <div className="wf-clock-person">
         <span className="wf-avatar" aria-hidden="true">
-          {name
-            .split(" ")
-            .map((value) => value[0])
-            .slice(0, 2)
-            .join("")}
+          {avatarUrl && failedAvatar !== avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt=""
+              className="wf-clock-profile-image"
+              onError={() => setFailedAvatar(avatarUrl)}
+            />
+          ) : (
+            name
+              .split(" ")
+              .map((value) => value[0])
+              .slice(0, 2)
+              .join("")
+          )}
         </span>
         <div className="wf-clock-identity">
           <strong>{name}</strong>

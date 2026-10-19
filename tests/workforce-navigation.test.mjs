@@ -42,9 +42,9 @@ function nodes(node) {
   if (Array.isArray(node)) return node.flatMap(nodes);
   return [node, ...nodes(node.props?.children)];
 }
-test("section selector exposes all ten manager destinations with the existing order", () => {
+test("section selector exposes all workforce manager destinations with the existing order", () => {
   const items = workforceDestinations(false, true);
-  assert.equal(items.length, 10);
+  assert.equal(items.length, 11);
   assert.equal(items[0].id, "overview");
   assert.equal(items[1].id, "my_workspace");
   assert.equal(items.filter((item) => item.id === "payslips" || item.id === "leave").length, 2);
@@ -76,28 +76,14 @@ test("app menus route directly to leave records without exposing unavailable Lab
   buttons.find((node) => node.props.children === "Leave transactions").props.onClick();
   assert.deepEqual(changes, ["leave"]);
 });
-test("quick navigation preserves Overview and My workspace and marks other sections under More", () => {
-  const changes = [];
+test("workforce exposes local sections without rendering a second application dock", () => {
   const all = nodes(
-    WorkforceNavigation({
-      active: "attendance",
-      ar: true,
-      canManage: true,
-      onChange: (value) => changes.push(value),
-    }),
+    WorkforceNavigation({ active: "holidays", ar: false, canManage: true, onChange: () => {} }),
   );
-  const more = all.find((node) => node.props?.className === "wf-mobile-more");
-  assert.equal(more.props["data-active"], true);
-  const dock = all.find(
-    (node) => node.type === "nav" && node.props.className.includes("wf-mobile-workforce-dock"),
+  assert.equal(
+    all.some((n) => n.props?.className?.includes("wf-mobile-workforce-dock")),
+    false,
   );
-  const shell = nodes(dock).find((node) =>
-    node.props?.className?.includes("wf-mobile-workforce-items"),
-  );
-  assert.equal(shell.props.style.display, "grid");
-  assert.equal(shell.props.style.gridTemplateColumns, "repeat(3, minmax(0, 1fr))");
-  const buttons = nodes(shell.props.children[0]).filter((node) => node.type === "button");
-  assert.equal(buttons.length, 2);
-  buttons[1].props.onClick();
-  assert.deepEqual(changes, ["my_workspace"]);
+  const menu = all.find((n) => n.props?.className === "wf-section-menu-list");
+  assert.ok(nodes(menu).some((n) => n.type === "button" && n.props.children === "Holidays"));
 });

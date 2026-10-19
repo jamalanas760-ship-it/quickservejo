@@ -8,7 +8,8 @@ export type WorkforceDestination =
   | "team"
   | "labor"
   | "payslips"
-  | "leave";
+  | "leave"
+  | "holidays";
 export function workforceDestinations(ar: boolean, canManage: boolean) {
   return [
     { id: "overview", label: ar ? "نظرة عامة" : "Overview" },
@@ -19,6 +20,7 @@ export function workforceDestinations(ar: boolean, canManage: boolean) {
     { id: "time_off", label: ar ? "الطلبات" : "Requests" },
     { id: "team", label: ar ? "الفريق" : "Team" },
     ...(canManage ? [{ id: "labor", label: ar ? "العمالة" : "Labor" }] : []),
+    { id: "holidays", label: ar ? "العطلات" : "Holidays" },
     { id: "payslips", label: ar ? "قسائم الراتب" : "Pay slips" },
     { id: "leave", label: ar ? "حركات الإجازات" : "Leave transactions" },
   ] as const;

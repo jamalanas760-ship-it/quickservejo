@@ -122,3 +122,9 @@ test("both outside-radius punch directions retain the existing locked disabled b
     assert.match(html, /available inside the attendance radius/);
   }
 });
+test("clock card renders the saved employee image with an initials fallback", () => {
+  const html = render({ avatarUrl: "https://example.test/avatar.png" });
+  assert.match(html, /src="https:\/\/example.test\/avatar.png"/);
+  assert.match(html, /wf-clock-profile-image/);
+  assert.doesNotMatch(render({ avatarUrl: null }), /wf-clock-profile-image/);
+});

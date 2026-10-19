@@ -1,3 +1,4 @@
+import { isHrEmployeeRole } from "../../../supabase/functions/staff-admin/hr-policy";
 import { EmployeeSetupPanel } from "@/components/workforce/EmployeeSetupPanel";
 import "@/components/workforce/workforce-refresh.css";
 import { ActionMenu } from "@/components/app/ActionMenu";
@@ -196,10 +197,12 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
   const isSuperAdmin = accessHook.isSuperAdmin;
   const canEditPermissions = isSuperAdmin || canEditRestaurantPermissions(accessHook.membershipFor(restaurantId)?.role);
   const canManageStaff = accessHook.canFor(restaurantId, "manage_staff");
+  const isHrAccountManager = accessHook.membershipFor(restaurantId)?.role === "hr" && canManageStaff;
+  const canAddStaff = canEditPermissions || isHrAccountManager;
   const canManageShifts = accessHook.canFor(restaurantId, "manage_shifts");
   const assignableRoles = isSuperAdmin
     ? ROLES
-    : ROLES.filter((role) => role !== "restaurant_admin");
+    : isHrAccountManager ? ROLES.filter(isHrEmployeeRole) : ROLES.filter((role) => role !== "restaurant_admin");
   const qc = useQueryClient();
   const seats = useRestaurantSeatUsage(restaurantId);
   const seatLimit = seats.data?.limit ?? null;
@@ -591,7 +594,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
     });
   }
   async function create() {
-    if (!canEditPermissions) return;
+    if (!canAddStaff) return;
     if (seatsFull) {
       toast.error(
         ar
@@ -723,7 +726,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
       <header className="qs-team-heading">
         <div><p className="qs-team-eyebrow">{ar ? "القوى العاملة / الفريق" : "WORKFORCE / TEAM"}</p><h1>{ar ? "فريق مميز. خدمة سلسة." : "A great team. A smooth service."}</h1><p className="text-muted-foreground">{ar ? "أدر فريقك وغطّ كل وردية بسهولة." : "Manage people and keep every shift covered."}</p></div>
         <div className="flex items-center gap-2">
-          <Button disabled={seats.isPending || seatsFull || !canEditPermissions} onClick={() => setAddOpen(true)}>
+          <Button disabled={seats.isPending || seatsFull || !canAddStaff} onClick={() => setAddOpen(true)}>
             <Plus className="size-4" />
             {ar ? "إضافة موظف" : "Add staff"}
           </Button>
@@ -795,7 +798,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                 <thead><tr><th>{ar ? "الموظف" : "Staff Member"}</th><th>{ar ? "الدور" : "Role"}</th><th>{ar ? "وردية اليوم" : "Today's Shift"}</th><th>{ar ? "الحالة الحية" : "Status"}</th><th className="qs-action-column">{ar ? "إجراءات" : "Actions"}</th></tr></thead>
                 <tbody>
                   {visibleRows.map((member) => {
-                    const locked = member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member);
+                    const locked = (member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member)) || (isHrAccountManager && !isHrEmployeeRole(member.role) && member.auth_user_id !== currentUserId);
                     const avatar = member.avatar_url || (avatarPresetUrl(member.avatar_preset) || roleAvatarUrl(member.role));
                     const scheduleInfo = scheduleByStaff.get(member.id);
                     const cancelShiftInfo = cancellableShiftByStaff.get(member.id);
@@ -828,9 +831,8 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
             <div ref={teamCardsRef} role="region" tabIndex={-1} aria-label={ar ? `أعضاء الفريق، الصفحة ${currentTeamPage}` : `Team members, page ${currentTeamPage}`} className="qs-team-results space-y-2 p-3 xl:hidden">
               {visibleRows.map((member) => {
                 const locked =
-                  member.role === "restaurant_admin" &&
-                  !isSuperAdmin &&
-                  !isOwnRestaurantManager(member);
+                  (member.role === "restaurant_admin" && !isSuperAdmin && !isOwnRestaurantManager(member)) ||
+                  (isHrAccountManager && !isHrEmployeeRole(member.role) && member.auth_user_id !== currentUserId);
                 const avatar = member.avatar_url || (avatarPresetUrl(member.avatar_preset) || roleAvatarUrl(member.role));
                 const scheduleInfo = scheduleByStaff.get(member.id);
                 const cancelShiftInfo = cancellableShiftByStaff.get(member.id);
@@ -940,6 +942,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
             <>
               {(() => {
                 const ownRestaurantManager = isOwnRestaurantManager(editing);
+                const canManageAccount = canEditPermissions || (isHrAccountManager && isHrEmployeeRole(editing.role));
                 return (
                   <>
                     <div className="border-b border-border px-4 py-4 sm:px-6">
@@ -1099,7 +1102,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                 <Field label={ar ? "البريد الإلكتروني" : "Email"}>
                                   <Input
                                     type="email"
-                                    disabled={!canEditPermissions}
+                                    disabled={!canManageAccount}
                                     value={editing.email ?? ""}
                                     onChange={(event) =>
                                       setEditing({ ...editing, email: event.target.value })
@@ -1138,7 +1141,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                 <Field label={ar ? "الدور" : "Role"}>
                                   <Select
                                     value={editing.role}
-                                    disabled={!canEditPermissions}
+                                    disabled={!canManageAccount}
                                     onValueChange={(value) =>
                                       setEditing({
                                         ...editing,
@@ -1189,7 +1192,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                   <Input
                                     type="password"
                                     autoComplete="new-password"
-                                    disabled={!canEditPermissions}
+                                    disabled={!canManageAccount}
                                     value={editing.password}
                                     placeholder={
                                       ar ? "اتركها فارغة بدون تغيير" : "Leave blank to keep current"
@@ -1203,7 +1206,7 @@ export function StaffManagerAdvanced({ restaurantId }: { restaurantId: string })
                                   <Input
                                     type="password"
                                     autoComplete="new-password"
-                                    disabled={!canEditPermissions}
+                                    disabled={!canManageAccount}
                                     value={editing.confirmPassword}
                                     onChange={(event) =>
                                       setEditing({
