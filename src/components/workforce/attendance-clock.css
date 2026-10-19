@@ -533,3 +533,124 @@
     font-size: 14px;
   }
 }
+
+/* The live dot uses screen pixels so the compact SVG cannot flatten it. */
+.wf-arrival-user-position {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  pointer-events: none;
+  transition:
+    left 800ms ease,
+    top 800ms ease;
+}
+.wf-arrival-user-position .wf-arrival-marker-halo {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--arrival-blue) 14%, transparent);
+}
+.wf-arrival-user-position .wf-arrival-marker {
+  width: 12px;
+  height: 12px;
+  border: 3px solid var(--card);
+  border-radius: 50%;
+  background: var(--arrival-blue);
+}
+.wf-arrival-roadmap-labels {
+  display: none;
+}
+@media (max-width: 640px) {
+  .wf-arrival-location-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+  .wf-arrival-location-heading > span:first-child {
+    min-width: 0;
+    line-height: 1.35;
+  }
+  .wf-arrival-location-heading > span:first-child > svg {
+    flex-shrink: 0;
+  }
+  .wf-arrival-roadmap {
+    margin-top: 4px;
+    height: 48px;
+  }
+  .wf-arrival-office {
+    width: 24px;
+    height: 24px;
+    box-shadow: 0 1px 4px #00000008;
+  }
+  .wf-arrival-office > span {
+    display: none;
+  }
+  .wf-arrival-roadmap-labels {
+    display: grid;
+    grid-template-columns: 70% 30%;
+    direction: ltr;
+    margin: 0 0 7px;
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--muted-foreground);
+  }
+  .wf-arrival-roadmap-labels > span:first-child {
+    padding-left: 7%;
+    text-align: start;
+  }
+  .wf-arrival-roadmap-labels > span:last-child {
+    text-align: center;
+  }
+  .wf-arrival-location-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+    padding-top: 7px;
+    border-top: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  }
+  .wf-arrival-location-footer small {
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+  }
+  .wf-arrival-location-footer small:last-child {
+    text-align: end;
+  }
+  .wf-arrival-schematic {
+    margin-top: 5px;
+  }
+  .wf-arrival-user-position .wf-arrival-marker-halo {
+    width: 20px;
+    height: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wf-arrival-user-position {
+    transition: none;
+  }
+}
+.wf-arrival-office {
+  z-index: 2;
+}
+@media (max-width: 640px) {
+  .wf-arrival-roadmap-labels {
+    margin-bottom: 2px;
+  }
+  .wf-arrival-location-footer {
+    padding-top: 5px;
+  }
+  .wf-arrival-schematic {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+}
