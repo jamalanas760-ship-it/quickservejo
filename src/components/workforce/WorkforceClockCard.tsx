@@ -31,7 +31,6 @@ export function WorkforceClockCard({
   onPunch,
   onReportMissing,
   locationMessage,
-  onRetry,
 }: {
   ar: boolean;
   name: string;
@@ -55,7 +54,6 @@ export function WorkforceClockCard({
   onPunch: () => void;
   onReportMissing: () => void;
   locationMessage: string;
-  onRetry: () => void;
 }) {
   const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
   const verified = verification.status === "on_premise" || verification.status === "off_premise";
@@ -72,12 +70,6 @@ export function WorkforceClockCard({
           : `${Math.round(distance).toLocaleString(locale)} m away`
       : null;
   const age = updatedAt == null ? null : Math.max(0, Math.floor((now - updatedAt) / 1000));
-  const retry =
-    !verified &&
-    phase !== "checking" &&
-    phase !== "locating" &&
-    phase !== "insecure" &&
-    verification.status !== "not_configured";
   const onPremise = verification.status === "on_premise";
   const roadmap = verified ? attendanceRoadmapPosition(distance, radius) : null;
   const liveLabel = verified
@@ -207,17 +199,13 @@ export function WorkforceClockCard({
           >
             {locationMessage}
           </p>
-          {retry && (
-            <button type="button" className="wf-arrival-retry" onClick={onRetry}>
-              {ar ? "تحقق مجددًا" : "Check again"}
-            </button>
-          )}
         </div>
         <div className="wf-arrival-action">
           <small>{ar ? "وقت العمل اليوم" : "Worked today"}</small>
           <strong className="wf-arrival-worked">{workedToday}</strong>
           <div className="wf-arrival-session">{status}</div>
           <Button
+            variant="secondary"
             className="wf-arrival-punch"
             data-punch-direction={clockOut ? "out" : "in"}
             aria-busy={pending}

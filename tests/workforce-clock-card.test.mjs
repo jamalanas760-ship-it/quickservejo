@@ -94,7 +94,7 @@ test("unverified or stale locations cannot be presented as live verified attenda
     });
     assert.doesNotMatch(html, /Location updates automatically|km away|Updated just now/);
     assert.match(html, /Location verification required/);
-    assert.match(html, /Check again/);
+    assert.doesNotMatch(html, /Check again|wf-arrival-retry/);
     assert.match(html, /<button[^>]*disabled=""[^>]*aria-describedby="attendance-location-status"/);
   }
 });
@@ -170,4 +170,16 @@ test("roadmap hides unknown positions and derives visible positions from actual 
   assert.ok(Math.abs(attendanceRoadmapPosition(100, 100).x - 382) < 0.001);
   assert.ok(attendanceRoadmapPosition(101, 100).x < 382);
   assert.ok(attendanceRoadmapPosition(50, 100).x > attendanceRoadmapPosition(200, 100).x);
+});
+
+test("clock uses a non-brand button variant so global orange utility overrides cannot win", () => {
+  for (const clockOut of [false, true]) {
+    const html = render({
+      clockOut,
+      disabled: false,
+      verification: { status: "on_premise", distance_meters: 15 },
+    });
+    assert.match(html, /data-variant="secondary"/);
+    assert.doesNotMatch(html, /bg-\[\#e85d2a\]|data-variant="default"/);
+  }
 });
