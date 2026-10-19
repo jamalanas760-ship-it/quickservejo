@@ -181,15 +181,35 @@ export function WorkforceClockCard({
                     strokeDashoffset={1 - roadmap.progress}
                     d="M60 135H145Q185 135 185 100Q185 66 225 66H425"
                   />
-                  <circle className="wf-arrival-marker-halo" cx={roadmap.x} cy={roadmap.y} r="13" />
-                  <circle className="wf-arrival-marker" cx={roadmap.x} cy={roadmap.y} r="6" />
                 </>
               )}
             </svg>
+            {roadmap && (
+              <span
+                className="wf-arrival-user-position"
+                style={{ left: `${roadmap.x / 5}%`, top: `${roadmap.y / 1.8}%` }}
+              >
+                <span className="wf-arrival-marker-halo">
+                  <span className="wf-arrival-marker" />
+                </span>
+              </span>
+            )}
             <div className="wf-arrival-office">
               <Building2 />
               <span>{ar ? "موقع العمل" : "Workplace"}</span>
             </div>
+          </div>
+          <div className="wf-arrival-roadmap-labels" aria-hidden="true">
+            <span>
+              {roadmap
+                ? ar
+                  ? "موقعك"
+                  : "Your location"
+                : ar
+                  ? "بانتظار الموقع"
+                  : "Location pending"}
+            </span>
+            <span>{ar ? "موقع العمل" : "Workplace"}</span>
           </div>
           <div className="wf-arrival-location-footer">
             <small>
