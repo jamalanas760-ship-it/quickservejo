@@ -403,3 +403,98 @@
     padding: 12px 16px;
   }
 }
+
+/* Keep the attendance action reachable above the shared mobile/tablet dock. */
+@media (max-width: 1023px) {
+  .wf-arrival-clock .wf-arrival-punch[data-slot="button"][data-punch-direction] {
+    position: static;
+    inset-inline: 16px;
+    bottom: calc(var(--qs-mobile-dock-height, 90px) + 16px);
+    z-index: 35;
+    width: calc(100% - 32px);
+    max-width: 560px;
+    margin-inline: auto;
+    min-height: 48px;
+    box-shadow: 0 4px 18px #00000020;
+  }
+  .qs-app .qs-workforce-screen:has(.wf-arrival-clock) {
+    padding-bottom: calc(var(--qs-mobile-dock-height, 90px) + 100px) !important;
+  }
+}
+@media (max-width: 640px) {
+  .wf-arrival-header {
+    padding: 12px 14px;
+  }
+  .wf-arrival-layout {
+    padding: 0 12px 10px;
+  }
+  .wf-arrival-location {
+    padding: 10px 12px;
+  }
+  .wf-arrival-roadmap {
+    height: 68px;
+    margin: 0;
+  }
+  .wf-arrival-distance {
+    font-size: 20px;
+    margin-top: 7px;
+  }
+  .wf-arrival-office {
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+  }
+  .wf-arrival-office > svg {
+    width: 13px;
+    height: 13px;
+  }
+  .wf-arrival-office > span {
+    top: 23px;
+    font-size: 11px;
+  }
+  .wf-arrival-action {
+    padding-top: 10px;
+  }
+  .wf-arrival-worked {
+    font-size: 28px;
+    margin: 2px 0;
+  }
+  .wf-arrival-session {
+    margin-bottom: 0;
+  }
+  .wf-arrival-radius-hint {
+    margin-top: 4px;
+  }
+  .wf-arrival-footer {
+    padding: 10px 14px;
+  }
+}
+
+.wf-arrival-punch-portal {
+  display: none;
+}
+@media (max-width: 1023px) {
+  .wf-arrival-punch-portal {
+    display: contents;
+  }
+  .wf-arrival-clock[data-punch-docked="true"] .wf-arrival-action > .wf-arrival-punch {
+    display: none;
+  }
+  .wf-arrival-punch-portal .wf-arrival-punch[data-slot="button"][data-punch-direction] {
+    position: fixed;
+  }
+  body:has(
+      [role="dialog"][data-state="open"],
+      input:focus,
+      textarea:focus,
+      [contenteditable="true"]:focus
+    )
+    .wf-arrival-punch-portal {
+    display: none;
+  }
+}
+
+.wf-arrival-dock-host,
+.wf-arrival-dock-host > .qs-app {
+  display: contents;
+}
