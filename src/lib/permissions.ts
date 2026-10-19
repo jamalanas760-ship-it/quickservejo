@@ -101,7 +101,7 @@ export const ROLE_CAPABILITIES: Record<AppRole, Capability[]> = {
   host: ["view_orders", "manage_tables", "handle_waiter_calls", ...WORKER_WORK],
   inventory: [...WORKER_WORK, ...ERP_BASE, "manage_inventory"],
   procurement: [...WORKER_WORK, ...ERP_BASE, "manage_procurement"],
-  hr: [...WORKER_WORK, "manage_shifts"],
+  hr: [...WORKER_WORK, "manage_shifts", "manage_staff"],
   accountant: [...WORKER_WORK, ...ERP_BASE, "manage_finance", "view_analytics", "view_order_prices"],
 };
 

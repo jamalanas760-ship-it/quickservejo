@@ -37,5 +37,6 @@ test('the staff endpoint saves extra grants but protects granting authority befo
   const body=ts.transpileModule(edge.slice(start,end),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;
   const {sanitize}=await import(`data:text/javascript;base64,${Buffer.from(body+'\nexport const sanitize=sanitizeOverrides;').toString('base64')}`);
   assert.deepEqual(sanitize('waiter',{manage_finance:true,manage_platform:true,view_orders:false,manage_menu:'yes'}),{manage_finance:true,view_orders:false});
-  assert.ok(edge.indexOf('Only the Restaurant Manager can change roles and permissions') < edge.lastIndexOf('admin.auth.admin.updateUserById'));
+  const permissionGuard = edge.indexOf('Only the Restaurant Manager can change permissions');
+  assert.ok(permissionGuard >= 0 && permissionGuard < edge.lastIndexOf('admin.auth.admin.updateUserById'));
 });

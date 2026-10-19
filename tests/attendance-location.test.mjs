@@ -120,8 +120,8 @@ test("previously granted permission checks location automatically and renews a s
   h.success();
   const fix = h.state().fix;
   await h.tick();
-  assert.equal(h.past.length, 2);
-  assert.equal(h.watches.size, 1, "old watcher is cleaned before renewal");
+  assert.equal(h.past.length, 1, "fresh live watch is reused rather than restarted");
+  assert.equal(h.watches.size, 1);
   assert.equal(h.state().fix, fix, "renewal retains the fix for the geofence freshness check");
   session.dispose();
 });
@@ -307,7 +307,7 @@ test("a dismissed automatic request is not repeated by timers or focus", async (
   assert.equal(h.state().fix, null);
   await h.visible("hidden");
   await h.visible("visible");
-  assert.equal(h.past.length, 2, "a new foreground visit makes one new attempt");
+  assert.equal(h.past.length, 1, "returning must not reopen a dismissed browser prompt");
   session.dispose();
 });
 
@@ -319,7 +319,47 @@ test("allowing the browser prompt resumes automatically without an app click", a
   h.success();
   assert.equal(h.state().phase, "tracking");
   await h.tick();
-  assert.equal(h.state().phase, "locating");
+  assert.equal(h.state().phase, "tracking");
   assert.equal(h.watches.size, 1);
+  session.dispose();
+});
+
+test("remembered prompt attempts suppress automatic prompts after app re-entry but never imply a grant", async () => {
+  const h = harness();
+  const storage = new Map();
+  h.win.localStorage = {
+    getItem: (key) => storage.get(key) ?? null,
+    setItem: (key, value) => storage.set(key, value),
+  };
+  const first = h.begin();
+  await flush();
+  assert.equal(h.past.length, 1);
+  first.dispose();
+  const second = h.begin();
+  await flush();
+  assert.equal(h.past.length, 1);
+  assert.equal(h.state().phase, "needs_permission");
+  assert.equal(h.state().fix, null);
+  await h.change("granted");
+  assert.equal(h.watches.size, 1);
+  h.success();
+  assert.equal(h.state().phase, "tracking");
+  second.dispose();
+});
+
+test("stationary fixes renew after the freshness interval without a permission prompt", async () => {
+  const h = harness("granted");
+  const session = h.begin();
+  await flush();
+  h.past
+    .at(-1)
+    .ok({
+      timestamp: Date.now() - 21000,
+      coords: { latitude: 31.95, longitude: 35.91, accuracy: 8 },
+    });
+  await h.tick();
+  assert.equal(h.past.length, 2);
+  assert.equal(h.watches.size, 1);
+  assert.equal(h.state().phase, "locating");
   session.dispose();
 });

@@ -19,11 +19,12 @@ type LocationBrowser = {
   window: Pick<
     Window,
     "isSecureContext" | "addEventListener" | "removeEventListener" | "setInterval" | "clearInterval"
-  >;
+  > &
+    Partial<Pick<Window, "localStorage">>;
 };
 
-// Request location automatically once per foreground visit, letting the browser
-// enforce permission. Timed renewal never requests a new permission prompt.
+// Granted permission refreshes automatically. Remember only whether the initial
+// browser prompt was attempted, never coordinates or an assumed permission grant.
 export function createAttendanceLocationSession(
   onChange: (state: AttendanceLocationState) => void,
   browser: LocationBrowser,
@@ -36,6 +37,14 @@ export function createAttendanceLocationSession(
   let permission: PermissionStatus | null = null;
   let blocked = false;
   let automaticAttempted = false;
+  const promptKey = "quickserve:attendance-location-requested:v1";
+  let promptedBefore = false;
+  try {
+    promptedBefore = window.localStorage?.getItem(promptKey) === "1";
+  } catch {
+    /* Storage may be blocked. */
+  }
+
   let state: AttendanceLocationState = { phase: "checking", fix: null };
   const publish = (next: AttendanceLocationState) => {
     if (!disposed) {
@@ -61,7 +70,23 @@ export function createAttendanceLocationSession(
   };
   const start = (reset = true) => {
     if (disposed || document.visibilityState !== "visible" || !usable()) return;
+    if (
+      watch !== undefined &&
+      (state.phase === "locating" ||
+        (state.fix &&
+          Date.now() >= state.fix.timestamp &&
+          Date.now() - state.fix.timestamp < 20000))
+    )
+      return;
     automaticAttempted = true;
+    if (permission?.state === "prompt") {
+      promptedBefore = true;
+      try {
+        window.localStorage?.setItem(promptKey, "1");
+      } catch {
+        /* Browser permission remains authoritative. */
+      }
+    }
     stop();
     const ticket = generation;
     publish({ phase: "locating", fix: reset ? null : state.fix });
@@ -102,7 +127,13 @@ export function createAttendanceLocationSession(
     if (value === "granted") {
       blocked = false;
       start(reset);
-    } else if (value === "prompt" && mayPrompt && !automaticAttempted && !blocked) {
+    } else if (
+      value === "prompt" &&
+      mayPrompt &&
+      !automaticAttempted &&
+      !promptedBefore &&
+      !blocked
+    ) {
       start(reset);
     } else {
       stop();

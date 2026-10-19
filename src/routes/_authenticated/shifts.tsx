@@ -1,3 +1,5 @@
+import { WorkforceHolidays, WorkforceHolidayNotice } from "@/components/workforce/WorkforceHolidays";
+import { avatarPresetUrl } from "@/lib/avatar-presets";
 import { WorkforceNavigation } from "@/components/workforce/WorkforceNavigation";
 import type { WorkforceDestination } from "@/lib/workforce-navigation";
 import "@/components/workforce/workforce-refresh.css";
@@ -132,7 +134,7 @@ export const Route = createFileRoute("/_authenticated/shifts")({
   component: ShiftsPage,
 });
 type WorkforceSection =
-  "overview" | "schedule" | "attendance" | "timesheets" | "time_off" | "team" | "labor" | "my_workspace";
+  "overview" | "schedule" | "attendance" | "timesheets" | "time_off" | "team" | "labor" | "my_workspace" | "holidays";
 
 const HANDOVER_ROLES: AppRole[] = [
   "restaurant_admin",
@@ -198,15 +200,15 @@ function ShiftsPage() {
   const [detailShiftId, setDetailShiftId] = useState<string | null>(null);
   const requestedSection = useRouterState({ select: (state) => state.location.hash });
   const [workforceSection, setWorkforceSection] = useState<WorkforceSection>(
-    ["overview", "schedule", "attendance", "timesheets", "time_off", "team", "labor", "my_workspace"].includes(
+    ["overview", "schedule", "attendance", "timesheets", "time_off", "team", "labor", "my_workspace", "holidays"].includes(
       requestedSection,
     )
       ? (requestedSection as WorkforceSection)
-      : "overview",
+      : membership?.role === "hr" ? "my_workspace" : "overview",
   );
   useEffect(() => {
     if (
-      ["overview", "schedule", "attendance", "timesheets", "time_off", "team", "labor", "my_workspace"].includes(
+      ["overview", "schedule", "attendance", "timesheets", "time_off", "team", "labor", "my_workspace", "holidays"].includes(
         requestedSection,
       )
     )
@@ -430,6 +432,19 @@ function ShiftsPage() {
           </div>
         </header>
 
+        {workforceSection === "overview" || workforceSection === "attendance" ? (
+          <div className="qs-workforce-punch-zone">
+            <WorkforceClockHero
+              restaurantId={rid}
+              currentStaffId={membership.id}
+              members={members.data ?? []}
+              assignments={assignments.data ?? []}
+              ar={ar}
+              lang={lang}
+            />
+          </div>
+        ) : null}
+
         <section
           className={cn(
             "qs-workforce-snapshot qs-card grid grid-cols-3 overflow-hidden xl:grid-cols-6",
@@ -467,19 +482,6 @@ function ShiftsPage() {
         </section>
 
         {workforceSection === "overview" && <p className="wf-overview-extra"><span>{ar ? "تحتاج انتباه" : "Needs attention"}: {needsAttention}</span><span>{ar ? "مخاطر الوقت الإضافي" : "Overtime risk"}: {overtimeRisk}</span></p>}
-        {workforceSection === "overview" || workforceSection === "attendance" ? (
-          <div className="qs-workforce-punch-zone">
-            <WorkforceClockHero
-              restaurantId={rid}
-              currentStaffId={membership.id}
-              members={members.data ?? []}
-              assignments={assignments.data ?? []}
-              ar={ar}
-              lang={lang}
-            />
-          </div>
-        ) : null}
-
         {workforceSection === "overview" ? (
           <section className="wf-split">
             <WorkforceToday
@@ -541,6 +543,8 @@ function ShiftsPage() {
             </div>
           </section>
         ) : null}
+        {(workforceSection === "overview" || workforceSection === "schedule") && <WorkforceHolidayNotice restaurantId={rid} date={selectedDate} ar={ar} />}
+        {workforceSection === "holidays" && <WorkforceHolidays restaurantId={rid} today={workforceDayKey(new Date(liveNow), timeZone)} canManage={canManage} ar={ar} />}
         {workforceSection === "schedule" ? (
           <WorkforceWeekBoard
             restaurantId={rid}
@@ -605,6 +609,7 @@ function ShiftsPage() {
             key={`${rid}-${membership.id}`}
             restaurantId={rid}
             currentStaffId={membership.id}
+            hrMode={membership.role === "hr"}
             selectedTab={workspaceTab}
             onTabChange={setWorkspaceTab}
             canManage={canManage}
@@ -904,7 +909,7 @@ function WorkforceClockHero({
 }: {
   restaurantId: string;
   currentStaffId: string;
-  members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>;
+  members: Array<{ id: string; name: string; role: AppRole; is_active: boolean; avatar_url?: string | null; avatar_preset?: string | null }>;
   assignments: ShiftAssignment[];
   ar: boolean;
   lang: "en" | "ar";
@@ -1251,6 +1256,7 @@ function WorkforceClockHero({
       <WorkforceClockCard
         ar={ar}
         name={staffMember?.name ?? (ar ? "عضو الفريق" : "Team member")}
+        avatarUrl={staffMember?.avatar_url || avatarPresetUrl(staffMember?.avatar_preset)}
         clockState={
           clockStatus.isError
             ? "error"
@@ -1552,7 +1558,7 @@ function CurrentShift({
 }: {
   shift: Shift;
   assignments: ShiftAssignment[];
-  members: Array<{ id: string; name: string; role: AppRole; is_active: boolean }>;
+  members: Array<{ id: string; name: string; role: AppRole; is_active: boolean; avatar_url?: string | null; avatar_preset?: string | null }>;
   canManage: boolean;
   currentStaffId: string;
   ar: boolean;

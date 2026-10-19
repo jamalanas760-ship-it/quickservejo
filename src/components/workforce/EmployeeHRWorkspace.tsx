@@ -69,7 +69,9 @@ export function EmployeeHRWorkspace({
   onRequestLeave,
   selectedTab,
   onTabChange,
+  hrMode = false,
 }: {
+  hrMode?: boolean;
   selectedTab?: Tab;
   onTabChange?: (tab: Tab) => void;
   restaurantId: string;
@@ -105,7 +107,7 @@ export function EmployeeHRWorkspace({
   });
   const [year, setYear] = useState(Number(today.slice(0, 4))),
     [month, setMonth] = useState(today.slice(0, 7));
-  const [scope, setScope] = useState<"self" | "team">("self"),
+  const [scope, setScope] = useState<"self" | "team">(hrMode && canManage ? "team" : "self"),
     [selected, setSelected] = useState<string | null>(null),
     [internalTab, setInternalTab] = useState<Tab>("overview");
   const tab = selectedTab ?? internalTab;
@@ -343,12 +345,24 @@ export function EmployeeHRWorkspace({
               setTab("overview");
             }}
           >
-            {ar ? "الفريق" : "Team view"}
+            {hrMode ? (ar ? "إدارة الموارد البشرية" : "HR console") : ar ? "الفريق" : "Team view"}
           </button>
         </div>
       )}
       <MasterPageHeader
-        title={team ? (ar ? "مساحة الفريق" : "Team workspace") : ar ? "مساحتي" : "My workspace"}
+        title={
+          team
+            ? hrMode
+              ? ar
+                ? "الموارد البشرية"
+                : "HR workspace"
+              : ar
+                ? "مساحة الفريق"
+                : "Team workspace"
+            : ar
+              ? "مساحتي"
+              : "My workspace"
+        }
         description={
           team
             ? ar
