@@ -112,7 +112,7 @@ test("opening Workforce starts GPS without Enable location and does not duplicat
   await h.tick();
   assert.equal(h.past.length, 1, "only one automatic attempt per foreground visit");
   assert.equal(h.state().phase, "locating");
-  assert.equal(h.past[0].options.maximumAge, 0);
+  assert.equal(h.past[0].options.maximumAge, 5000);
   h.success();
   assert.equal(h.state().phase, "tracking");
   session.dispose();
@@ -358,7 +358,7 @@ test("stationary fixes renew after the freshness interval without a permission p
   const session = h.begin();
   await flush();
   h.past.at(-1).ok({
-    timestamp: Date.now() - 21000,
+    timestamp: Date.now() - 11000,
     coords: { latitude: 31.95, longitude: 35.91, accuracy: 8 },
   });
   await h.tick();

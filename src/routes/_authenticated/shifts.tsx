@@ -9,6 +9,7 @@ import {
   type MissingPunchMode,
 } from "@/components/workforce/MissingPunchComposer";
 import { validateMissingPunch } from "@/lib/missing-punch";
+import { dailyPunchSummary } from "@/lib/workforce-punch-summary";
 import { capturePunchLocation, verifyGeofence, type GeofenceVerification } from "@/lib/geofence";
 import { useAttendanceGeofence } from "@/hooks/useAttendanceGeofence";
 import { WorkforceClockCard } from "@/components/workforce/WorkforceClockCard";
@@ -975,17 +976,24 @@ function WorkforceClockHero({
     refetchInterval: 20_000,
     queryFn: async () => {
       const since = new Date(Date.now() - 14 * 86_400_000).toISOString();
-      const { data, error } = await (supabase.from("staff_time_entries" as any) as any)
-        .select(
-          "id,staff_id,clock_in,clock_out,break_minutes,review_status,clock_in_location,clock_out_location",
-        )
-        .eq("restaurant_id", restaurantId)
-        .eq("staff_id", currentStaffId)
-        .gte("clock_in", since)
-        .order("clock_in", { ascending: false })
-        .limit(100);
-      if (error) throw error;
-      return (data ?? []) as TimeEntry[];
+      const dayStart = workforceLocalTimestamp(workforceDayKey(new Date(), timeZone), "00:00", timeZone);
+      const rows: TimeEntry[] = [];
+      for (let offset = 0; ; offset += 100) {
+        const { data, error } = await (supabase.from("staff_time_entries" as any) as any)
+          .select("id,staff_id,clock_in,clock_out,break_minutes,review_status,clock_in_location,clock_out_location")
+          .eq("restaurant_id", restaurantId)
+          .eq("staff_id", currentStaffId)
+          .gte("clock_in", since)
+          .order("clock_in", { ascending: false })
+          .order("id", { ascending: false })
+          .range(offset, offset + 99);
+        if (error) throw error;
+        const page = (data ?? []) as TimeEntry[];
+        rows.push(...page);
+        // Load every punch today before calculating the first punch, even on
+        // unusually busy days. Older history remains bounded as before.
+        if (page.length < 100 || Date.parse(page[page.length - 1].clock_in) < dayStart) return rows;
+      }
     },
   });
 
@@ -1045,49 +1053,6 @@ function WorkforceClockHero({
     : 0;
 
   const staffMember = members.find((member) => member.id === currentStaffId) ?? null;
-  const liveAssignment =
-    assignments
-      .filter(
-        (assignment) =>
-          assignment.staff_id === currentStaffId &&
-          assignment.status !== "released" &&
-          assignment.starts_at &&
-          assignment.ends_at,
-      )
-      .map((assignment) => ({
-        assignment,
-        startMs: new Date(assignment.starts_at!).getTime(),
-        endMs: new Date(assignment.ends_at!).getTime(),
-      }))
-      .filter((item) => Number.isFinite(item.startMs) && Number.isFinite(item.endMs))
-      .sort((a, b) => {
-        const aLive = a.startMs <= clockNow && a.endMs >= clockNow;
-        const bLive = b.startMs <= clockNow && b.endMs >= clockNow;
-        if (aLive !== bLive) return aLive ? -1 : 1;
-        return Math.abs(a.startMs - clockNow) - Math.abs(b.startMs - clockNow);
-      })[0]?.assignment ?? null;
-
-  const expectedEnd =
-    liveEntry &&
-    liveAssignment?.starts_at &&
-    liveAssignment.ends_at &&
-    Date.parse(liveEntry.clock_in) >= Date.parse(liveAssignment.starts_at) - 4 * 3600000 &&
-    Date.parse(liveEntry.clock_in) < Date.parse(liveAssignment.ends_at)
-      ? liveAssignment.ends_at
-      : null;
-  const nextShift = !openEntry
-    ? (assignments
-        .filter(
-          (assignment) =>
-            assignment.staff_id === currentStaffId &&
-            assignment.status !== "released" &&
-            assignment.starts_at &&
-            new Date(assignment.starts_at).getTime() >= clockNow,
-        )
-        .sort((a, b) => new Date(a.starts_at!).getTime() - new Date(b.starts_at!).getTime())[0] ??
-      null)
-    : null;
-
   const recentCompletedAssignment =
     assignments
       .filter(
@@ -1109,7 +1074,7 @@ function WorkforceClockHero({
             : "Unable to confirm clock status. Retry first.",
         );
       const rpc = openEntry ? "clock_out_staff" : "clock_in_staff";
-      const location = await capturePunchLocation();
+      const location = gps.getPunchLocation() ?? await capturePunchLocation();
       if (!restaurant.data || verifyGeofence(location, restaurant.data).status !== "on_premise") {
         gps.refresh();
         throw new Error(
@@ -1141,7 +1106,7 @@ function WorkforceClockHero({
         );
       return result;
     },
-    onSuccess: async (result) => {
+    onSuccess: (result) => {
       const action = result?.action?.toLowerCase();
       const at = result?.at ?? new Date().toISOString();
       const isOut = action === "clocked_out" || action === "already_clocked_out";
@@ -1162,7 +1127,16 @@ function WorkforceClockHero({
           () => null,
         );
       }
-      await Promise.all([
+      setClockNow(Math.max(Date.now(), Date.parse(at)));
+      // Update from the acknowledged server result; never show an unconfirmed punch.
+      if ((action === "clocked_in" || action === "clocked_out") && result?.entry_id && result.staff_id === currentStaffId && result.clock_in) {
+        qc.setQueryData<TimeEntry[]>(["workforce-clock-history", restaurantId, currentStaffId], (rows = []) => {
+          const previous = rows.find(row => row.id === result.entry_id);
+          const confirmed: TimeEntry = { ...previous, id: result.entry_id!, staff_id: currentStaffId, clock_in: result.clock_in!, clock_out: isOut ? at : null, break_minutes: previous?.break_minutes ?? 0 };
+          return [confirmed, ...rows.filter(row => row.id !== result.entry_id)];
+        });
+      }
+      void Promise.allSettled([
         qc.invalidateQueries({ queryKey: ["workforce-clock", restaurantId, currentStaffId] }),
         qc.invalidateQueries({
           queryKey: ["workforce-clock-history", restaurantId, currentStaffId],
@@ -1197,32 +1171,11 @@ function WorkforceClockHero({
     onError: (error) => toast.error(humanError(error, lang)),
   });
 
-  const expectedLabel = expectedEnd
-    ? new Date(expectedEnd).toLocaleTimeString(ar ? "ar-JO" : "en-JO", {
-        timeZone,
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : nextShift?.starts_at
-      ? new Date(nextShift.starts_at).toLocaleTimeString(ar ? "ar-JO" : "en-JO", {
-          timeZone,
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : "—";
-  const expectedHint = expectedEnd
-    ? formatRelativeClock(expectedEnd, clockNow, ar)
-    : nextShift?.starts_at
-      ? (ar ? "الوردية القادمة" : "Next shift") +
-        " · " +
-        new Date(nextShift.starts_at).toLocaleDateString(ar ? "ar-JO" : "en-JO", {
-          timeZone,
-          month: "short",
-          day: "numeric",
-        })
-      : ar
-        ? "لا توجد وردية قادمة"
-        : "No upcoming shift";
+  const punches = dailyPunchSummary(
+    [...(history.data ?? []), ...(liveEntry ? [liveEntry] : [])], todayStart, todayEnd, clockNow,
+  );
+  const punchTime = (value: string | null) => value && !history.isError && !clockStatus.isError
+    ? new Date(value).toLocaleTimeString(ar ? "ar-JO" : "en-JO", {timeZone, hour: "2-digit", minute: "2-digit"}) : "—";
 
   const locationMessages: Record<string, string> = {
     checking: ar ? "جارٍ التحقق من إذن الموقع…" : "Checking location permission…",
@@ -1313,11 +1266,8 @@ function WorkforceClockHero({
                 ar,
               )
         }
-        shiftLabel={
-          openEntry ? (ar ? "نهاية الوردية" : "Shift ends") : ar ? "الوردية القادمة" : "Next shift"
-        }
-        shiftValue={expectedLabel}
-        shiftHint={expectedHint}
+        firstPunchIn={punchTime(punches.firstIn)}
+        lastPunchOut={punchTime(punches.lastOut)}
         pending={toggleClock.isPending}
         disabled={
           toggleClock.isPending || clockStatus.isPending || clockStatus.isError || !gps.eligible
@@ -1509,13 +1459,6 @@ function formatClockDuration(seconds: number, ar: boolean) {
   return ar
     ? String(hours) + "س " + String(minutes) + "د"
     : String(hours) + "h " + String(minutes) + "m";
-}
-function formatRelativeClock(value: string, nowMs: number, ar: boolean) {
-  const diff = Math.max(0, new Date(value).getTime() - nowMs);
-  const total = Math.floor(diff / 60000);
-  const hours = Math.floor(total / 60);
-  const minutes = total % 60;
-  return ar ? "بعد " + hours + "س " + minutes + "د" : "in " + hours + "h " + minutes + "m";
 }
 function localShiftDateTimeIso(date: string, time: string, addDays = 0, timeZone = "Asia/Amman") {
   return new Date(

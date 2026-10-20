@@ -83,3 +83,25 @@ test("attendance location fixes expire and future timestamps are rejected", () =
   for (const timestamp of [now - 30001, now + 1, NaN, Infinity])
     assert.equal(freshAttendanceFix(timestamp, now), false);
 });
+
+test("fast punch reuse accepts only recent, accurate on-premise readings", () => {
+  const r = { latitude: 0, longitude: 0, geofence_radius_meters: 100 };
+  const now = Date.now();
+  const fix = {
+    timestamp: now - 5000,
+    location: { latitude: 0, longitude: 0, accuracy: 8, reason: null },
+  };
+  assert.ok(exports.recentPunchLocation(fix, r, now));
+  for (const timestamp of [now - 10001, now + 1, NaN])
+    assert.equal(exports.recentPunchLocation({ ...fix, timestamp }, r, now), null);
+  assert.equal(exports.recentPunchLocation(fix, null, now), null);
+  assert.equal(exports.recentPunchLocation(null, r, now), null);
+  assert.equal(
+    exports.recentPunchLocation({ ...fix, location: { ...fix.location, accuracy: 101 } }, r, now),
+    null,
+  );
+  assert.equal(
+    exports.recentPunchLocation({ ...fix, location: { ...fix.location, longitude: 1 } }, r, now),
+    null,
+  );
+});

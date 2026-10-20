@@ -69,6 +69,20 @@ export function freshAttendanceFix(timestamp: number, now = Date.now()): boolean
     now - timestamp <= ATTENDANCE_LOCATION_MAX_AGE_MS
   );
 }
+/** Reuse only a very recent, accurate, on-premise watch fix at click time. */
+export function recentPunchLocation(
+  fix: { timestamp: number; location: PunchLocation } | null,
+  restaurant: Parameters<typeof verifyGeofence>[1] | null | undefined,
+  now = Date.now(),
+): PunchLocation | null {
+  return fix &&
+    restaurant &&
+    freshAttendanceFix(fix.timestamp, now) &&
+    now - fix.timestamp <= 10000 &&
+    verifyGeofence(fix.location, restaurant).status === "on_premise"
+    ? { ...fix.location }
+    : null;
+}
 export function capturePunchLocation(): Promise<PunchLocation> {
   const fallback = (reason: string) => ({
     latitude: null,
@@ -93,7 +107,8 @@ export function capturePunchLocation(): Promise<PunchLocation> {
         (p) =>
           finish(
             validCoordinates(p.coords.latitude, p.coords.longitude) &&
-              freshAttendanceFix(p.timestamp)
+              freshAttendanceFix(p.timestamp) &&
+              Date.now() - p.timestamp <= 10000
               ? {
                   latitude: p.coords.latitude,
                   longitude: p.coords.longitude,
@@ -106,7 +121,7 @@ export function capturePunchLocation(): Promise<PunchLocation> {
           finish(
             fallback(e.code === 1 ? "permission_denied" : e.code === 3 ? "timeout" : "unavailable"),
           ),
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
       );
     } catch {
       finish(fallback("unavailable"));

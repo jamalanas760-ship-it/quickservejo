@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { freshAttendanceFix, verifyGeofence, type GeofenceVerification } from "@/lib/geofence";
+import {
+  freshAttendanceFix,
+  recentPunchLocation,
+  verifyGeofence,
+  type GeofenceVerification,
+} from "@/lib/geofence";
 import {
   createAttendanceLocationSession,
   type AttendanceLocationState,
@@ -49,6 +54,7 @@ export function useAttendanceGeofence(
     phase,
     updatedAt: fix?.timestamp ?? null,
     eligible: verification.status === "on_premise",
+    getPunchLocation: () => recentPunchLocation(fix, restaurant),
     refresh: () => session.current?.request(),
   };
 }
