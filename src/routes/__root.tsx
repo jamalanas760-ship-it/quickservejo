@@ -29,7 +29,12 @@ import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-b
 
 const BOOT_STYLE =
   `html,body{min-height:100%;background:#fffdfa}body{min-height:100dvh;margin:0}html[data-qs-ready] #qs-boot{display:none}` +
-  launchCss;
+  launchCss + `
+#qs-boot .qs-launch-simple{animation:qs-boot-hide .01s 12s forwards}
+.qs-boot-recovery{visibility:hidden;animation:qs-boot-show .01s 12s forwards}
+@keyframes qs-boot-hide{to{visibility:hidden}}
+@keyframes qs-boot-show{to{visibility:visible}}
+`;
 const RUNTIME_RECOVERY_PREFIX = "quickserve:runtime-recovery:";
 const RUNTIME_RECOVERY_WINDOW_MS = 60_000;
 const THEME_BOOTSTRAP = `(function(){var p='light';try{p=localStorage.getItem('quickserve-theme')||'light'}catch(e){}var dark=p==='dark'||(p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',dark);document.documentElement.style.colorScheme=dark?'dark':'light';})();`;
@@ -194,6 +199,12 @@ function RootShell({ children }: { children: ReactNode }) {
       <body>
         <div id="qs-boot">
           <LaunchScreenView />
+          <section className="qs-workspace-recovery qs-boot-recovery" role="alert">
+            <h1>Workspace could not start</h1>
+            <p>Check your connection, then reload. Your data has not been changed.</p>
+            <div><a href="">Reload workspace</a><a href="/auth">Sign in</a></div>
+          </section>
+          <noscript><p>QuickServe needs JavaScript. Enable it and reload this page.</p></noscript>
         </div>
         {children}
         <Scripts />

@@ -1,3 +1,4 @@
+import { workforcePages } from "@/lib/workforce-pages";
 import { ActionMenu } from "@/components/app/ActionMenu";
 import { GeofenceBadge } from "./GeofenceBadge";
 import type { GeofenceVerification } from "@/lib/geofence";
@@ -140,27 +141,31 @@ export function useWorkforceData(
       const until = range
         ? new Date(workforceDayStart(workforceNextDay(range.end), timeZone)).toISOString()
         : new Date(Date.now() + 86400000).toISOString();
-      let timeQuery = (supabase.from as any)("staff_time_entries")
-        .select("*")
-        .eq("restaurant_id", restaurantId)
-        .lt("clock_in", until)
-        .or(`clock_out.is.null,clock_out.gte.${since}`)
-        .order("clock_in", { ascending: false })
-        .limit(1000);
-      if (range?.staffIds) timeQuery = timeQuery.in("staff_id", range.staffIds);
-      const [timeRes, leaveRes] = await Promise.all([
-        timeQuery,
-        (supabase.from as any)("staff_leave_requests")
-          .select("id,staff_id,start_date,end_date,status,reason")
-          .eq("restaurant_id", restaurantId)
-          .order("created_at", { ascending: false })
-          .limit(300),
+      const [entries, leave] = await Promise.all([
+        workforcePages<Entry>(() => {
+          let q = (supabase.from as any)("staff_time_entries")
+            .select("*")
+            .eq("restaurant_id", restaurantId)
+            .lt("clock_in", until)
+            .or(`clock_out.is.null,clock_out.gte.${since}`)
+            .order("clock_in", { ascending: false })
+            .order("id");
+          if (range?.staffIds) q = q.in("staff_id", range.staffIds);
+          return q;
+        }),
+        workforcePages<Leave>(() =>
+          (supabase.from as any)("staff_leave_requests")
+            .select("id,staff_id,start_date,end_date,status,reason")
+            .eq("restaurant_id", restaurantId)
+            .lte("start_date", until.slice(0, 10))
+            .gte("end_date", since.slice(0, 10))
+            .order("created_at", { ascending: false })
+            .order("id"),
+        ),
       ]);
-      if (timeRes.error) throw timeRes.error;
-      if (leaveRes.error) throw leaveRes.error;
       return {
-        entries: (timeRes.data ?? []) as Entry[],
-        leave: (leaveRes.data ?? []) as Leave[],
+        entries,
+        leave,
         timeZone,
       };
     },
@@ -563,7 +568,6 @@ export function WorkforceExceptions({
 }
 
 /* ------------------------------ Member drawer ----------------------------- */
-
 
 export function MemberWorkforceSheet({
   member,

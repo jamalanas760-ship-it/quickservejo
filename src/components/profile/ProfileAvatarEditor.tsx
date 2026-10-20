@@ -5,7 +5,12 @@ import { toast } from "sonner";
 
 import { useAccess } from "@/hooks/useSession";
 import { supabase } from "@/integrations/supabase/client";
-import { AVATAR_PRESETS, avatarPresetUrl, resolveAvatarPresetId, roleAvatarUrl } from "@/lib/avatar-presets";
+import {
+  AVATAR_PRESETS,
+  avatarPresetUrl,
+  resolveAvatarPresetId,
+  roleAvatarUrl,
+} from "@/lib/avatar-presets";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
 import { uploadProfileImage } from "@/lib/storage";
@@ -27,6 +32,7 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
   const [draftPreset, setDraftPreset] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [savingPreset, setSavingPreset] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<AvatarFilter>("all");
   const ar = lang === "ar";
 
@@ -47,6 +53,7 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
   }, [membership]);
 
   const filtered = AVATAR_PRESETS.filter((item) => {
+    if (!item.label.toLowerCase().includes(search.trim().toLowerCase())) return false;
     if (filter === "all") return true;
     if (filter === "male" || filter === "female") return item.gender === filter;
     if (filter === "service") return SERVICE_ROLES.has(item.role);
@@ -54,7 +61,9 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
   });
 
   const selectedId = draftPreset ?? (!avatarUrl ? resolveAvatarPresetId(preset) : null);
-  const preview = draftPreset ? avatarPresetUrl(draftPreset) : avatarUrl || avatarPresetUrl(preset) || roleAvatarUrl(membership?.role);
+  const preview = draftPreset
+    ? avatarPresetUrl(draftPreset)
+    : avatarUrl || avatarPresetUrl(preset) || roleAvatarUrl(membership?.role);
   const draftDirty = Boolean(draftPreset && (draftPreset !== preset || avatarUrl));
 
   async function refreshIdentity() {
@@ -156,10 +165,17 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
           ) : (
             <Camera className="size-7 text-muted-foreground" />
           )}
-          {draftPreset ? <small className="ps-avatar-preview-badge">{ar ? "معاينة" : "Preview"}</small> : null}
+          {draftPreset ? (
+            <small className="ps-avatar-preview-badge">{ar ? "معاينة" : "Preview"}</small>
+          ) : null}
         </span>
         <div>
-          <button className="ps-button" type="button" disabled={busy} onClick={() => inputRef.current?.click()}>
+          <button
+            className="ps-button"
+            type="button"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+          >
             <Camera />
             {ar ? "رفع صورة" : "Upload photo"}
           </button>
@@ -182,7 +198,9 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
         <div className="ps-avatar-toolbar">
           <div>
             <h3>{ar ? "اختر شخصيتك" : "Choose your avatar"}</h3>
-            <small>{AVATAR_PRESETS.length} {ar ? "خياراً" : "options"}</small>
+            <small>
+              {AVATAR_PRESETS.length} {ar ? "خياراً" : "options"}
+            </small>
           </div>
           <div className="ps-avatar-filters" aria-label={ar ? "فلاتر الصور" : "Avatar filters"}>
             {filters.map(([key, en, arabic]) => (
@@ -199,7 +217,23 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
           </div>
         </div>
 
-        <div className="ps-avatar-grid" role="list" aria-label={ar ? "صور الشخصيات" : "Avatar choices"}>
+        <label className="ps-avatar-search">
+          {ar ? "البحث عن شخصية" : "Find an avatar"}
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={ar ? "ابحث بالوظيفة" : "Search by role"}
+          />
+        </label>
+        <p className="ps-avatar-count" role="status">
+          {filtered.length} / {AVATAR_PRESETS.length} {ar ? "شخصية" : "avatars"}
+        </p>
+        <div
+          className="ps-avatar-grid"
+          role="group"
+          aria-label={ar ? "صور الشخصيات" : "Avatar choices"}
+        >
           {filtered.map((item) => {
             const selected = selectedId === item.id;
             return (
@@ -212,9 +246,16 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
                 aria-pressed={selected}
                 aria-label={`${ar ? "اختيار" : "Choose"} ${item.label}`}
                 title={item.label}
-                role="listitem"
               >
-                <img src={item.url} alt="" width="256" height="256" loading="lazy" />
+                <img
+                  src={item.url}
+                  alt=""
+                  width="256"
+                  height="256"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <span className="ps-avatar-name">{item.label}</span>
                 {selected ? (
                   <span className="ps-avatar-check" aria-hidden="true">
                     {savingPreset === item.id ? <Loader2 className="animate-spin" /> : <Check />}
@@ -225,6 +266,9 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
           })}
         </div>
 
+        {!filtered.length && (
+          <p role="status">{ar ? "لا توجد شخصيات مطابقة" : "No avatars match your search."}</p>
+        )}
         <div className="ps-avatar-footer">
           <span role="status">
             {busy
@@ -241,11 +285,21 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
           </span>
           {draftPreset ? (
             <div className="ps-avatar-actions">
-              <button type="button" className="ps-button border-transparent" disabled={busy} onClick={() => setDraftPreset(null)}>
+              <button
+                type="button"
+                className="ps-button border-transparent"
+                disabled={busy}
+                onClick={() => setDraftPreset(null)}
+              >
                 <X />
                 {ar ? "الاحتفاظ بالحالي" : "Keep current"}
               </button>
-              <button type="button" className="ps-button" disabled={busy || !draftDirty} onClick={() => void applyAvatar()}>
+              <button
+                type="button"
+                className="ps-button"
+                disabled={busy || !draftDirty}
+                onClick={() => void applyAvatar()}
+              >
                 {busy ? <Loader2 className="animate-spin" /> : <Check />}
                 {ar ? "تطبيق الشخصية" : "Apply avatar"}
               </button>

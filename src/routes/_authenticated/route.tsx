@@ -1,4 +1,10 @@
-import { createFileRoute, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  redirect,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { DeviceHeartbeat } from "@/components/app/DeviceHeartbeat";
@@ -24,10 +30,12 @@ export const Route = createFileRoute("/_authenticated")({
       user = await context.queryClient.fetchQuery({
         queryKey: ["auth", "route-user"],
         queryFn: getResilientAuthenticatedUser,
+        retry: false,
         staleTime: 5 * 60_000,
       });
     } catch (error) {
-      if (isAuthNetworkError(error)) throw redirect({ to: "/auth", search: { redirect: location.href } });
+      if (isAuthNetworkError(error))
+        throw redirect({ to: "/auth", search: { redirect: location.href } });
       throw error;
     }
     if (!user) throw redirect({ to: "/auth", search: { redirect: location.href } });
@@ -52,18 +60,22 @@ function AuthenticatedShell() {
 
   // Scoped feature pages enforce their own restaurant capability. Job titles
   // retain dedicated home routes without blocking explicitly granted tools.
-  const frontlineBlocked = frontline
-    && !isManager
-    && !isScopedFeatureRoute
-    && FRONTLINE_BLOCKED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  const frontlineBlocked =
+    frontline &&
+    !isManager &&
+    !isScopedFeatureRoute &&
+    FRONTLINE_BLOCKED_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    );
   const managerWrongHome = isManager && pathname === "/dashboard";
-  const roleRouteBlocked = frontline && (
-    (pathname.startsWith("/manager") && !isManager) ||
-    (pathname.startsWith("/kitchen") && !roles.some((role) => role === "kitchen" || role === "manager")) ||
-    (pathname.startsWith("/waiter") && !roles.includes("waiter")) ||
-    (pathname.startsWith("/host") && !roles.includes("host")) ||
-    (pathname.startsWith("/cashier") && !roles.includes("cashier"))
-  );
+  const roleRouteBlocked =
+    frontline &&
+    ((pathname.startsWith("/manager") && !isManager) ||
+      (pathname.startsWith("/kitchen") &&
+        !roles.some((role) => role === "kitchen" || role === "manager")) ||
+      (pathname.startsWith("/waiter") && !roles.includes("waiter")) ||
+      (pathname.startsWith("/host") && !roles.includes("host")) ||
+      (pathname.startsWith("/cashier") && !roles.includes("cashier")));
   const blocked = frontlineBlocked || managerWrongHome || roleRouteBlocked;
   const usesDedicatedChrome = /^\/(super-admin|kitchen|waiter|cashier)(?:\/|$)/.test(pathname);
   const persistentTitle = routeTitle(pathname, lang === "ar");
@@ -74,11 +86,23 @@ function AuthenticatedShell() {
 
   return (
     <TenantBrandShell>
-      <div className={cn("pb-24 lg:min-h-dvh lg:pb-0", !access.isSuperAdmin && "qs-sidebar-content lg:ps-[var(--qs-shell-sidebar)]", !usesDedicatedChrome && "qs-persistent-chrome")}>
+      <div
+        className={cn(
+          "pb-24 lg:min-h-dvh lg:pb-0",
+          !access.isSuperAdmin && "qs-sidebar-content lg:ps-[var(--qs-shell-sidebar)]",
+          !usesDedicatedChrome && "qs-persistent-chrome",
+        )}
+      >
         {!usesDedicatedChrome ? <AppHeader title={persistentTitle} /> : null}
         {blocked ? null : (
           <div className="qs-route-frame">
-            {usesDedicatedChrome ? <Outlet /> : <SuppressNestedAppHeader><Outlet /></SuppressNestedAppHeader>}
+            {usesDedicatedChrome ? (
+              <Outlet />
+            ) : (
+              <SuppressNestedAppHeader>
+                <Outlet />
+              </SuppressNestedAppHeader>
+            )}
           </div>
         )}
       </div>

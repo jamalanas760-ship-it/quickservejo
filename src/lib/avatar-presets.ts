@@ -19,8 +19,8 @@ export type AvatarPreset = {
   url: string;
 };
 
-// Independent crops of the approved male and female role artwork.
-const portrait = (id: string) => `/avatars/flat-approved/${id}.png`;
+// Independent, offline SVG portraits; stable IDs preserve saved profile selections.
+const portrait = (id: string) => `/avatars/${id}.svg`;
 export const AVATAR_PRESETS: AvatarPreset[] = [
   {
     id: "owner-male",

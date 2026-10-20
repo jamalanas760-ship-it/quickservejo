@@ -25,3 +25,11 @@
 /* Keep a live loading signal without spatial movement when reduced motion is requested. */
 @keyframes qs-service-dot-soft{0%,100%{opacity:.35}50%{opacity:.85}}
 @media(prefers-reduced-motion:reduce){.qs-service-lid,.qs-service-steam path{animation:none}.qs-service-lid{transform:translate(5px,-60px) rotate(18deg)}.qs-service-steam path{opacity:.5}.qs-launch-simple-dots i{animation-name:qs-service-dot-soft;animation-duration:1.8s;transform:none}.qs-launch-simple{transition:none}}
+
+.qs-workspace-recovery{position:fixed;inset:0;z-index:101;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;background:#fffdfa;color:#18202a}
+.dark .qs-workspace-recovery{background:#101519;color:#f5f6f8}
+.qs-workspace-recovery h1{font-size:20px;font-weight:600;margin:0}
+.qs-workspace-recovery p{max-width:420px;margin:0;font-size:14px}
+.qs-workspace-recovery>div{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
+.qs-workspace-recovery button,.qs-workspace-recovery a{min-height:44px;padding:12px 18px;border:1px solid currentColor;border-radius:10px;font-size:14px;background:transparent;color:inherit}
+html[data-qs-ready] #qs-boot{display:none}

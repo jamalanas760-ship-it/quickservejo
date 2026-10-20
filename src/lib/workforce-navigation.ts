@@ -17,7 +17,16 @@ export function workforceDestinations(ar: boolean, canManage: boolean) {
     { id: "schedule", label: ar ? "الجدول" : "Schedule" },
     { id: "attendance", label: ar ? "الحضور" : "Attendance" },
     { id: "timesheets", label: ar ? "سجلات الدوام" : "Timesheets" },
-    { id: "time_off", label: ar ? "الطلبات" : "Requests" },
+    {
+      id: "time_off",
+      label: canManage
+        ? ar
+          ? "الطلبات والموافقات"
+          : "Requests & approvals"
+        : ar
+          ? "الطلبات"
+          : "Requests",
+    },
     { id: "team", label: ar ? "الفريق" : "Team" },
     ...(canManage ? [{ id: "labor", label: ar ? "العمالة" : "Labor" }] : []),
     { id: "holidays", label: ar ? "العطلات" : "Holidays" },

@@ -35,7 +35,7 @@ export function SplashScreen() {
   }, [pathname]);
   useEffect(() => {
     if (!visible) return;
-    const minimum = window.setTimeout(() => setMinimumDone(true), 3500);
+    const minimum = window.setTimeout(() => setMinimumDone(true), 700);
     // Reveal the normal page loading/error controls even on a slow connection.
     const safety = window.setTimeout(() => {
       rememberLaunch();

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
+import { authDeadline } from "@/lib/session-token";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppRole, Capability, PermissionOverrides } from "@/lib/permissions";
 import { membershipHasCapability } from "@/lib/permissions";
@@ -40,7 +41,7 @@ export function useSupabaseSession() {
     queryKey: ["auth", "session"],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.auth.getSession();
+        const { data, error } = await authDeadline(supabase.auth.getSession());
         if (error) throw error;
         return data.session ?? null;
       } catch (err) {
@@ -84,14 +85,19 @@ export function useAccess() {
   const canFor = (restaurantId: string, capability: Capability) => {
     if (isSuperAdmin) return true;
     const membership = rows.find((row) => row.restaurant_id === restaurantId);
-    return membership ? membershipHasCapability(membership.role, membership.permission_overrides, capability) : false;
+    return membership
+      ? membershipHasCapability(membership.role, membership.permission_overrides, capability)
+      : false;
   };
   return {
     ...memberships,
     roles,
     isSuperAdmin,
-    can: (capability: Capability) => isSuperAdmin || rows.some((row) => membershipHasCapability(row.role, row.permission_overrides, capability)),
+    can: (capability: Capability) =>
+      isSuperAdmin ||
+      rows.some((row) => membershipHasCapability(row.role, row.permission_overrides, capability)),
     canFor,
-    membershipFor: (restaurantId: string) => rows.find((m) => m.restaurant_id === restaurantId) ?? null,
+    membershipFor: (restaurantId: string) =>
+      rows.find((m) => m.restaurant_id === restaurantId) ?? null,
   };
 }

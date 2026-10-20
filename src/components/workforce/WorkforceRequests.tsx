@@ -1,4 +1,5 @@
 import "./workforce-refresh.css";
+import { workforcePages } from "@/lib/workforce-pages";
 import { MasterActionSurface } from "@/components/app/MasterPage";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -184,31 +185,32 @@ export function WorkforceRequests({
   const [attachment, setAttachment] = useState<File | null>(null);
 
   const query = useQuery<{ permissions: PermissionRequest[]; leaves: LeaveRequest[] }>({
-    queryKey: ["workforce", "requests", restaurantId],
+    queryKey: ["workforce", "requests", restaurantId, currentStaffId, canManage],
     refetchInterval: 20_000,
     queryFn: async () => {
-      const [permissionRes, leaveRes] = await Promise.all([
-        (supabase.from("staff_permission_requests" as any) as any)
-          .select(
-            "id,staff_id,permission_type,request_date,start_time,end_time,expected_arrival_time,reason,attachment_path,attachment_name,attachment_mime,status,review_note,created_at",
-          )
+      const scoped = (table: string, columns: string) => {
+        const q = (supabase.from(table as any) as any)
+          .select(columns)
           .eq("restaurant_id", restaurantId)
           .order("created_at", { ascending: false })
-          .limit(300),
-        (supabase.from("staff_leave_requests" as any) as any)
-          .select(
-            "id,staff_id,leave_type,family_degree,start_date,end_date,reason,attachment_path,attachment_name,attachment_mime,status,review_note,created_at",
-          )
-          .eq("restaurant_id", restaurantId)
-          .order("created_at", { ascending: false })
-          .limit(300),
-      ]);
-      if (permissionRes.error) throw permissionRes.error;
-      if (leaveRes.error) throw leaveRes.error;
-      return {
-        permissions: (permissionRes.data ?? []) as PermissionRequest[],
-        leaves: (leaveRes.data ?? []) as LeaveRequest[],
+          .order("id");
+        return canManage ? q : q.eq("staff_id", currentStaffId);
       };
+      const [permissions, leaves] = await Promise.all([
+        workforcePages<PermissionRequest>(() =>
+          scoped(
+            "staff_permission_requests",
+            "id,staff_id,permission_type,request_date,start_time,end_time,expected_arrival_time,reason,attachment_path,attachment_name,attachment_mime,status,review_note,created_at",
+          ),
+        ),
+        workforcePages<LeaveRequest>(() =>
+          scoped(
+            "staff_leave_requests",
+            "id,staff_id,leave_type,family_degree,start_date,end_date,reason,attachment_path,attachment_name,attachment_mime,status,review_note,created_at",
+          ),
+        ),
+      ]);
+      return { permissions, leaves };
     },
   });
 
