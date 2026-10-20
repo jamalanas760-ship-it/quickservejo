@@ -422,7 +422,7 @@ test("silent providers recover automatically but unresolved permission prompts a
   }
 });
 
-test("fallback browsers renew stale successful fixes without a click", async () => {
+test("fallback browsers preserve their successful provider instead of restarting permission UI", async () => {
   const h = harness("prompt", () => {
     throw new Error("No Permissions API");
   });
@@ -433,7 +433,7 @@ test("fallback browsers renew stale successful fixes without a click", async () 
     coords: { latitude: 31.95, longitude: 35.91, accuracy: 8 },
   });
   await h.tick();
-  assert.equal(h.past.length, 2);
+  assert.equal(h.past.length, 1);
   assert.equal(h.watches.size, 1);
   session.dispose();
 });
@@ -467,5 +467,56 @@ test("a browser still reporting prompt after a successful fix does not stop its 
   await h.change("prompt");
   assert.equal(h.state().fix, null, "an explicit revocation still clears the fix immediately");
   assert.equal(h.watches.size, 0);
+  session.dispose();
+});
+
+test("Workforce re-entry reuses the same foreground GPS watch instead of prompting again", async () => {
+  const h = harness("prompt");
+  const firstStates = [], secondStates = [];
+  const first = exports.subscribeAttendanceLocation("restaurant:staff", s => firstStates.push(s), h.browser);
+  await flush();
+  h.success();
+  first.dispose();
+  assert.equal(h.watches.size, 1, "route changes keep the permitted foreground provider");
+  const second = exports.subscribeAttendanceLocation("restaurant:staff", s => secondStates.push(s), h.browser);
+  await flush();
+  assert.equal(h.past.length, 1);
+  assert.equal(secondStates.at(-1).phase, "tracking");
+  assert.equal(firstStates.length, 3, "detached route listeners no longer receive updates");
+  second.dispose();
+  exports.retainAttendanceLocationScope(null);
+  assert.equal(h.watches.size, 0);
+  assert.equal(h.timers.size, 0);
+});
+
+test("changing account or workspace disposes the old provider and never shares its fix", async () => {
+  const h = harness("granted");
+  const first = exports.subscribeAttendanceLocation("restaurant:staff-a", () => {}, h.browser);
+  await flush(); h.success();
+  const states = [];
+  const second = exports.subscribeAttendanceLocation("other:staff-b", s => states.push(s), h.browser);
+  assert.equal(states.at(-1).fix, null);
+  await flush();
+  assert.equal(h.watches.size, 1);
+  assert.equal(h.past.length, 2);
+  first.dispose(); second.dispose();
+  exports.retainAttendanceLocationScope(null);
+});
+
+test("a successful prompt-state mobile watch is not restarted just because its fix ages", async () => {
+  const h = harness("prompt");
+  const session = h.begin(); await flush(); h.success();
+  try { clockOffset = 20000; await h.tick(); assert.equal(h.past.length, 1); assert.equal(h.watches.size, 1); }
+  finally { clockOffset = 0; session.dispose(); }
+});
+
+test("background restoration never spends another automatic prompt on the same session", async () => {
+  const h = harness("prompt");
+  const session = h.begin(); await flush(); h.success();
+  await h.visible("hidden"); await h.visible("visible");
+  assert.equal(h.past.length, 1);
+  assert.equal(h.state().fix, null);
+  await h.change("granted");
+  assert.equal(h.watches.size, 1, "a saved browser grant resumes automatically");
   session.dispose();
 });
