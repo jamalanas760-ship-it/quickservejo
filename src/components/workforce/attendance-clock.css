@@ -1,15 +1,15 @@
-/* Approved live roadmap clock: isolated from legacy Overview grid rules. */
+/* Refined Balanced attendance: real GPS state, compact inline actions. */
 .wf-arrival-clock {
   --arrival-blue: light-dark(#2563d6, #8db7ff);
   --arrival-red: light-dark(#c5323e, #ff99a1);
   --arrival-green: light-dark(#247652, #8ed9b4);
   color-scheme: light;
+  container-type: inline-size;
   color: var(--card-foreground);
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 26px;
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 12px 40px #00000006;
   min-width: 0;
 }
 .dark .wf-arrival-clock {
@@ -17,25 +17,27 @@
 }
 .wf-arrival-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 20px 24px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
 }
 .wf-arrival-person {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
   min-width: 0;
 }
 .wf-arrival-person > div {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 .wf-arrival-person strong {
   overflow-wrap: anywhere;
   font-size: 16px;
+  font-weight: 500;
 }
 .wf-arrival-clock small {
   color: var(--muted-foreground);
@@ -44,14 +46,19 @@
 .wf-arrival-avatar {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
   border-radius: 50%;
   overflow: hidden;
-  background: var(--muted);
-  color: var(--arrival-blue);
-  font-weight: 600;
+  background: color-mix(in srgb, var(--primary) 8%, var(--card));
+  color: var(--primary);
+  font-weight: 500;
+}
+.wf-arrival-avatar > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .wf-arrival-live {
   display: flex;
@@ -59,27 +66,30 @@
   gap: 6px;
   font-size: 11px;
   color: var(--muted-foreground);
-  max-width: 50%;
+  max-width: 45%;
 }
 .wf-arrival-live[data-verified="true"] {
   color: var(--arrival-green);
 }
 .wf-arrival-live i {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   background: currentColor;
   border-radius: 50%;
   flex-shrink: 0;
 }
 .wf-arrival-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  padding: 0 24px 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  padding: 20px;
   gap: 24px;
+  align-items: stretch;
 }
 .wf-arrival-location {
-  border-radius: 20px;
-  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 15px;
+  padding: 16px;
   background: color-mix(in srgb, var(--muted) 65%, var(--card));
   min-width: 0;
 }
@@ -96,26 +106,29 @@
   align-items: center;
   font-size: 12px;
   color: var(--muted-foreground);
+  min-width: 0;
 }
 .wf-arrival-location-heading svg {
   width: 14px;
   height: 14px;
+  flex-shrink: 0;
 }
 .wf-arrival-distance {
   display: block;
-  font-size: clamp(22px, 2vw, 28px);
-  letter-spacing: -0.6px;
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.8px;
   font-variant-numeric: tabular-nums;
-  margin: 16px 0 2px;
+  margin: 20px 0 2px;
   overflow-wrap: anywhere;
 }
 .wf-arrival-detail {
   display: block;
 }
 .wf-arrival-roadmap {
-  height: 176px;
+  height: 90px;
   position: relative;
-  margin: 8px 0;
+  margin: 12px 0 8px;
   direction: ltr;
 }
 .wf-arrival-route {
@@ -150,409 +163,6 @@
   stroke-linecap: round;
   transition: stroke-dashoffset 800ms ease;
 }
-.wf-arrival-marker-halo {
-  fill: color-mix(in srgb, var(--arrival-blue) 14%, transparent);
-}
-.wf-arrival-marker {
-  fill: var(--arrival-blue);
-  stroke: var(--card);
-  stroke-width: 3;
-}
-.wf-arrival-marker,
-.wf-arrival-marker-halo {
-  transition:
-    cx 800ms ease,
-    cy 800ms ease;
-}
-.wf-arrival-office {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  left: 85%;
-  top: 36.7%;
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 11px;
-  background: var(--card);
-  color: var(--arrival-blue);
-}
-.wf-arrival-office > svg {
-  width: 18px;
-  height: 18px;
-}
-.wf-arrival-office > span {
-  position: absolute;
-  top: 44px;
-  font-size: 11px;
-  white-space: nowrap;
-  color: var(--muted-foreground);
-}
-.wf-arrival-location-footer {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.wf-arrival-location-footer small,
-.wf-arrival-schematic {
-  font-size: 11px !important;
-}
-.wf-arrival-schematic {
-  display: block;
-  margin-top: 8px;
-}
-.wf-arrival-location-help {
-  font-size: 12px;
-  color: var(--muted-foreground);
-  margin-top: 12px;
-}
-
-.wf-arrival-action {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  min-width: 0;
-  padding: 18px 4px 4px;
-}
-.wf-arrival-worked {
-  font-size: clamp(30px, 3.4vw, 46px);
-  font-weight: 500;
-  letter-spacing: -1.5px;
-  font-variant-numeric: tabular-nums;
-  margin: 8px 0;
-  overflow-wrap: anywhere;
-  max-width: 100%;
-}
-.wf-arrival-session {
-  font-size: 12px;
-  color: var(--muted-foreground);
-  margin-bottom: 23px;
-}
-.wf-arrival-clock .wf-arrival-punch[data-slot="button"][data-punch-direction] {
-  width: 100%;
-  min-height: 52px;
-  height: auto;
-  border: 0;
-  border-radius: 13px;
-  font-size: 14px;
-  font-weight: 600;
-  color: light-dark(#fff, #122b51);
-  background: var(--arrival-blue);
-  transition:
-    background 200ms,
-    color 200ms;
-  white-space: normal;
-  padding: 12px;
-}
-.wf-arrival-clock
-  .wf-arrival-punch[data-slot="button"][data-punch-direction][data-punch-direction="out"] {
-  background: var(--arrival-red);
-  color: light-dark(#fff, #430c16);
-}
-.wf-arrival-clock .wf-arrival-punch[data-slot="button"][data-punch-direction]:disabled {
-  opacity: 1;
-  background: var(--muted);
-  color: var(--muted-foreground);
-  cursor: not-allowed;
-}
-.wf-arrival-radius-hint {
-  font-size: 11px;
-  color: var(--muted-foreground);
-  margin: 11px 0 5px;
-}
-.wf-arrival-missing {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  width: 100%;
-  min-height: 48px;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--card));
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--primary) 6%, var(--card));
-  color: color-mix(in srgb, var(--primary) 75%, var(--foreground));
-  font-size: 14px;
-  font-weight: 500;
-}
-.wf-arrival-missing > svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-.wf-arrival-missing:hover {
-  background: color-mix(in srgb, var(--primary) 11%, var(--card));
-}
-
-.wf-arrival-footer {
-  border-top: 1px solid var(--border);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  padding: 18px 24px;
-  gap: 24px;
-}
-.wf-arrival-footer > div {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-}
-.wf-arrival-footer > div + div {
-  border-inline-start: 1px solid var(--border);
-  padding-inline-start: 24px;
-}
-.wf-arrival-footer small {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.wf-arrival-footer svg {
-  height: 14px;
-  width: 14px;
-  flex-shrink: 0;
-}
-.wf-arrival-footer strong {
-  font-size: 16px;
-  font-weight: 500;
-  overflow-wrap: anywhere;
-}
-@media (max-width: 640px) {
-  .wf-arrival-clock {
-    border-radius: 22px;
-  }
-  .wf-arrival-header {
-    padding: 18px;
-    gap: 10px;
-  }
-  .wf-arrival-live {
-    font-size: 10px;
-  }
-  .wf-arrival-layout {
-    grid-template-columns: 1fr;
-    padding: 0 18px 14px;
-    gap: 0;
-  }
-  .wf-arrival-location {
-    padding: 16px;
-  }
-  .wf-arrival-roadmap {
-    height: 153px;
-  }
-  .wf-arrival-action {
-    padding: 22px 0 0;
-  }
-  .wf-arrival-worked {
-    font-size: 36px;
-    margin: 5px 0;
-  }
-  .wf-arrival-session {
-    margin-bottom: 17px;
-  }
-  .wf-arrival-footer {
-    padding: 16px 18px;
-    gap: 14px;
-  }
-  .wf-arrival-footer > div + div {
-    padding-inline-start: 16px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .wf-arrival-route-progress,
-  .wf-arrival-marker,
-  .wf-arrival-marker-halo,
-  .wf-arrival-clock .wf-arrival-punch[data-slot="button"][data-punch-direction] {
-    transition: none;
-  }
-}
-
-/* Compact mobile preview keeps the clock action within easy reach. */
-@media (max-width: 640px) {
-  .wf-arrival-header {
-    padding: 14px 16px;
-  }
-  .wf-arrival-layout {
-    padding: 0 14px 12px;
-  }
-  .wf-arrival-location {
-    padding: 12px 14px;
-    border-radius: 16px;
-  }
-  .wf-arrival-distance {
-    font-size: 22px;
-    margin-top: 10px;
-  }
-  .wf-arrival-detail {
-    font-size: 11px;
-  }
-  .wf-arrival-roadmap {
-    height: 94px;
-    margin: 2px 0 5px;
-  }
-  .wf-arrival-office {
-    width: 26px;
-    height: 26px;
-    border-radius: 8px;
-  }
-  .wf-arrival-office > svg {
-    width: 15px;
-    height: 15px;
-  }
-  .wf-arrival-office > span {
-    top: 30px;
-    font-size: 11px;
-  }
-  .wf-arrival-schematic {
-    margin-top: 5px;
-  }
-  .wf-arrival-action {
-    padding-top: 14px;
-  }
-  .wf-arrival-worked {
-    font-size: 30px;
-    margin: 3px 0;
-  }
-  .wf-arrival-session {
-    margin-bottom: 12px;
-  }
-  .wf-arrival-footer {
-    padding: 12px 16px;
-  }
-}
-
-@media (max-width: 640px) {
-  .wf-arrival-header {
-    padding: 12px 14px;
-  }
-  .wf-arrival-layout {
-    padding: 0 12px 10px;
-  }
-  .wf-arrival-location {
-    padding: 10px 12px;
-  }
-  .wf-arrival-roadmap {
-    height: 68px;
-    margin: 0;
-  }
-  .wf-arrival-distance {
-    font-size: 20px;
-    margin-top: 7px;
-  }
-  .wf-arrival-office {
-    width: 22px;
-    height: 22px;
-    border-radius: 7px;
-  }
-  .wf-arrival-office > svg {
-    width: 13px;
-    height: 13px;
-  }
-  .wf-arrival-office > span {
-    top: 23px;
-    font-size: 11px;
-  }
-  .wf-arrival-action {
-    padding-top: 10px;
-  }
-  .wf-arrival-worked {
-    font-size: 28px;
-    margin: 2px 0;
-  }
-  .wf-arrival-session {
-    margin-bottom: 0;
-  }
-  .wf-arrival-radius-hint {
-    margin-top: 4px;
-  }
-  .wf-arrival-footer {
-    padding: 10px 14px;
-  }
-}
-
-/* Keep the complete phone clock compact, with its action inside the card. */
-@media (max-width: 640px) {
-  .wf-arrival-header {
-    padding: 10px 12px;
-  }
-  .wf-arrival-avatar {
-    width: 34px;
-    height: 34px;
-  }
-  .wf-arrival-layout {
-    padding: 0 10px 8px;
-  }
-  .wf-arrival-location {
-    padding: 8px 10px;
-    border-radius: 13px;
-  }
-  .wf-arrival-distance {
-    font-size: 20px;
-    margin-top: 5px;
-  }
-  .wf-arrival-roadmap {
-    height: 52px;
-  }
-  .wf-arrival-office > span {
-    top: 20px;
-  }
-  .wf-arrival-schematic {
-    margin-top: 2px;
-    line-height: 1.3;
-  }
-  .wf-arrival-action {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 4px 10px;
-    align-items: center;
-    padding-top: 8px;
-  }
-  .wf-arrival-action > small {
-    text-align: start;
-  }
-  .wf-arrival-worked {
-    font-size: 25px;
-    text-align: end;
-    margin: 0;
-    letter-spacing: -0.7px;
-  }
-  .wf-arrival-session {
-    grid-column: 1 / -1;
-    margin: 0 0 4px;
-    text-align: start;
-  }
-  .wf-arrival-clock .wf-arrival-punch[data-slot="button"][data-punch-direction] {
-    grid-column: 1 / -1;
-    min-height: 46px;
-    padding: 10px 12px;
-  }
-  .wf-arrival-radius-hint {
-    margin: 0;
-    text-align: start;
-    line-height: 1.4;
-  }
-  .wf-arrival-missing {
-    grid-column: 1 / -1;
-    min-height: 44px;
-    margin-top: 4px;
-    font-size: 13px;
-  }
-  .wf-arrival-footer {
-    padding: 8px 12px;
-    gap: 12px;
-  }
-  .wf-arrival-footer > div {
-    gap: 3px;
-  }
-  .wf-arrival-footer > div + div {
-    padding-inline-start: 12px;
-  }
-  .wf-arrival-footer strong {
-    font-size: 14px;
-  }
-}
-
-/* The live dot uses screen pixels so the compact SVG cannot flatten it. */
 .wf-arrival-user-position {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -577,31 +187,209 @@
   border-radius: 50%;
   background: var(--arrival-blue);
 }
+.wf-arrival-office {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  left: 85%;
+  top: 50%;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--card);
+  color: var(--arrival-blue);
+  z-index: 2;
+}
+.wf-arrival-office > svg {
+  width: 18px;
+  height: 18px;
+}
+.wf-arrival-office > span {
+  position: absolute;
+  top: 43px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+}
 .wf-arrival-roadmap-labels {
   display: none;
 }
-@media (max-width: 640px) {
-  .wf-arrival-location-heading {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+.wf-arrival-location-footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 14px;
+}
+.wf-arrival-location-footer small,
+.wf-arrival-schematic {
+  font-size: 11px !important;
+}
+.wf-arrival-schematic {
+  display: block;
+  margin-top: 6px;
+}
+.wf-arrival-location-help {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin-top: 10px;
+}
+.wf-arrival-action {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.wf-arrival-work-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.wf-arrival-session {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border-radius: 7px;
+  padding: 4px 8px;
+  overflow-wrap: anywhere;
+}
+.wf-arrival-worked {
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: -1.5px;
+  font-variant-numeric: tabular-nums;
+  margin: 9px 0 16px;
+  overflow-wrap: anywhere;
+}
+.wf-arrival-clock .wf-arrival-punch[data-slot="button"][data-punch-direction] {
+  width: 100%;
+  min-height: 48px;
+  height: auto;
+  border: 0;
+  border-radius: 11px;
+  font-size: 14px;
+  font-weight: 500;
+  color: light-dark(#fff, #122b51);
+  background: var(--arrival-blue);
+  transition:
+    background 200ms,
+    color 200ms;
+  white-space: normal;
+  padding: 10px 12px;
+}
+.wf-arrival-clock .wf-arrival-punch[data-slot="button"][data-punch-direction="out"] {
+  background: var(--arrival-red);
+  color: light-dark(#fff, #430c16);
+}
+.wf-arrival-clock .wf-arrival-punch[data-slot="button"][data-punch-direction]:disabled {
+  opacity: 1;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  cursor: not-allowed;
+}
+.wf-arrival-radius-hint {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  text-align: center;
+  margin: 8px 0 12px;
+}
+.wf-arrival-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--card));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--primary) 6%, var(--card));
+  color: color-mix(in srgb, var(--primary) 75%, var(--foreground));
+  font-size: 14px;
+  font-weight: 500;
+}
+.wf-arrival-missing > svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.wf-arrival-missing:hover {
+  background: color-mix(in srgb, var(--primary) 11%, var(--card));
+}
+.wf-arrival-footer {
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 16px 20px;
+  gap: 14px;
+}
+.wf-arrival-footer > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.wf-arrival-footer > div + div {
+  border-inline-start: 1px solid var(--border);
+  padding-inline-start: 14px;
+}
+.wf-arrival-footer small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.wf-arrival-footer svg {
+  height: 13px;
+  width: 13px;
+  flex-shrink: 0;
+}
+.wf-arrival-footer strong {
+  font-size: 16px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+/* Respond to the actual card width, including narrow desktop panels. */
+@container (max-width: 560px) {
+  .wf-arrival-header {
+    padding: 12px;
     gap: 8px;
-    align-items: center;
   }
-  .wf-arrival-location-heading > span:first-child {
-    min-width: 0;
-    line-height: 1.35;
+  .wf-arrival-avatar {
+    width: 34px;
+    height: 34px;
   }
-  .wf-arrival-location-heading > span:first-child > svg {
-    flex-shrink: 0;
+  .wf-arrival-live {
+    max-width: 38%;
+  }
+  .wf-arrival-layout {
+    padding: 12px;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .wf-arrival-location {
+    padding: 12px;
+  }
+  .wf-arrival-distance {
+    font-size: 23px;
+    margin-top: 10px;
   }
   .wf-arrival-roadmap {
-    margin-top: 4px;
-    height: 48px;
+    height: 54px;
+    margin: 2px 0 0;
   }
   .wf-arrival-office {
-    width: 24px;
-    height: 24px;
-    box-shadow: 0 1px 4px #00000008;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+  }
+  .wf-arrival-office > svg {
+    width: 15px;
+    height: 15px;
   }
   .wf-arrival-office > span {
     display: none;
@@ -610,55 +398,21 @@
     display: grid;
     grid-template-columns: 70% 30%;
     direction: ltr;
-    margin: 0 0 7px;
     font-size: 11px;
-    line-height: 1.3;
     color: var(--muted-foreground);
+    margin-bottom: 6px;
   }
   .wf-arrival-roadmap-labels > span:first-child {
     padding-left: 7%;
-    text-align: start;
   }
   .wf-arrival-roadmap-labels > span:last-child {
     text-align: center;
   }
   .wf-arrival-location-footer {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
-    gap: 8px;
-    padding-top: 7px;
-    border-top: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+    padding-top: 8px;
   }
   .wf-arrival-location-footer small {
-    line-height: 1.4;
     font-variant-numeric: tabular-nums;
-  }
-  .wf-arrival-location-footer small:last-child {
-    text-align: end;
-  }
-  .wf-arrival-schematic {
-    margin-top: 5px;
-  }
-  .wf-arrival-user-position .wf-arrival-marker-halo {
-    width: 20px;
-    height: 20px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .wf-arrival-user-position {
-    transition: none;
-  }
-}
-.wf-arrival-office {
-  z-index: 2;
-}
-@media (max-width: 640px) {
-  .wf-arrival-roadmap-labels {
-    margin-bottom: 2px;
-  }
-  .wf-arrival-location-footer {
-    padding-top: 5px;
   }
   .wf-arrival-schematic {
     position: absolute;
@@ -671,28 +425,48 @@
     white-space: nowrap;
     border: 0;
   }
-}
-
-/* Today's actual punches replace the shift forecast without growing the card. */
-.wf-arrival-footer {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-.wf-arrival-footer > div + div {
-  padding-inline-start: 14px;
-}
-.wf-arrival-footer strong {
-  font-variant-numeric: tabular-nums;
-}
-@media (max-width: 640px) {
+  .wf-arrival-action {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px 8px;
+    align-items: center;
+  }
+  .wf-arrival-work-heading {
+    display: grid;
+    gap: 3px;
+  }
+  .wf-arrival-session {
+    padding: 0;
+    background: transparent;
+  }
+  .wf-arrival-worked {
+    font-size: 30px;
+    margin: 0;
+    text-align: end;
+    letter-spacing: -1px;
+  }
+  .wf-arrival-clock .wf-arrival-punch[data-slot="button"][data-punch-direction] {
+    grid-column: 1 / -1;
+    min-height: 44px;
+    margin-top: 4px;
+  }
+  .wf-arrival-radius-hint {
+    grid-column: 1 / -1;
+    margin: 0 0 2px;
+  }
+  .wf-arrival-missing {
+    grid-column: 1 / -1;
+    min-height: 44px;
+  }
   .wf-arrival-footer {
-    gap: 8px;
+    padding: 12px;
+    gap: 9px;
   }
   .wf-arrival-footer > div + div {
-    padding-inline-start: 8px;
+    padding-inline-start: 9px;
   }
   .wf-arrival-footer small {
-    font-size: 11px;
+    min-height: 2.7em;
     align-items: start;
     line-height: 1.35;
   }
@@ -700,12 +474,13 @@
     display: none;
   }
   .wf-arrival-footer strong {
-    font-size: 13px;
+    font-size: 14px;
   }
 }
-
-@media (max-width: 640px) {
-  .wf-arrival-footer small {
-    min-height: 2.7em;
+@media (prefers-reduced-motion: reduce) {
+  .wf-arrival-route-progress,
+  .wf-arrival-user-position,
+  .wf-arrival-clock .wf-arrival-punch[data-slot="button"][data-punch-direction] {
+    transition: none;
   }
 }

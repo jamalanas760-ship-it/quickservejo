@@ -165,7 +165,7 @@ test("roadmap hides unknown positions and derives visible positions from actual 
   assert.deepEqual(JSON.parse(JSON.stringify(attendanceRoadmapPosition(0, 100))), {
     progress: 1,
     x: 425,
-    y: 66,
+    y: 90,
   });
   assert.ok(Math.abs(attendanceRoadmapPosition(100, 100).x - 382) < 0.001);
   assert.ok(attendanceRoadmapPosition(101, 100).x < 382);

@@ -161,15 +161,9 @@ export function WorkforceClockCard({
           </small>
           <div className="wf-arrival-roadmap" aria-hidden="true" data-location-known={!!roadmap}>
             <svg viewBox="0 0 500 180" preserveAspectRatio="none" className="wf-arrival-route">
-              <circle className="wf-arrival-zone" cx="425" cy="66" r="43" />
-              <path
-                className="wf-arrival-route-bed"
-                d="M60 135H145Q185 135 185 100Q185 66 225 66H425"
-              />
-              <path
-                className="wf-arrival-route-track"
-                d="M60 135H145Q185 135 185 100Q185 66 225 66H425"
-              />
+              <circle className="wf-arrival-zone" cx="425" cy="90" r="43" />
+              <path className="wf-arrival-route-bed" d="M60 90H425" />
+              <path className="wf-arrival-route-track" d="M60 90H425" />
               {roadmap && (
                 <>
                   <path
@@ -177,7 +171,7 @@ export function WorkforceClockCard({
                     pathLength="1"
                     strokeDasharray="1"
                     strokeDashoffset={1 - roadmap.progress}
-                    d="M60 135H145Q185 135 185 100Q185 66 225 66H425"
+                    d="M60 90H425"
                   />
                 </>
               )}
@@ -243,9 +237,11 @@ export function WorkforceClockCard({
           </p>
         </div>
         <div className="wf-arrival-action">
-          <small>{ar ? "وقت العمل اليوم" : "Worked today"}</small>
+          <div className="wf-arrival-work-heading">
+            <small>{ar ? "وقت العمل اليوم" : "Worked today"}</small>
+            <div className="wf-arrival-session">{status}</div>
+          </div>
           <strong className="wf-arrival-worked">{workedToday}</strong>
-          <div className="wf-arrival-session">{status}</div>
           {punchButton}
           <p className="wf-arrival-radius-hint">
             {onPremise
