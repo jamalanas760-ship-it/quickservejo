@@ -17,6 +17,7 @@ import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
 import { getResilientAuthenticatedUser, isAuthNetworkError } from "@/lib/auth-resilience";
 import { frontlineHome, isFrontlineOnly } from "@/lib/permissions";
 import { useI18n } from "@/lib/i18n";
+import { retainAttendanceLocationScope } from "@/lib/attendance-location";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -51,6 +52,18 @@ function AuthenticatedShell() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const access = useAccess();
+  const scopedRestaurant = pathname.match(/^\/manage\/([^/]+)/)?.[1];
+  const locationMember = (access.data ?? []).find(
+    (row) => row.restaurant_id && (!scopedRestaurant || row.restaurant_id === scopedRestaurant),
+  );
+  const locationScope = locationMember
+    ? `${locationMember.restaurant_id}:${locationMember.id}`
+    : null;
+  useEffect(() => {
+    if (!access.isPending) retainAttendanceLocationScope(locationScope);
+  }, [access.isPending, locationScope]);
+  useEffect(() => () => retainAttendanceLocationScope(null), []);
+
   usePresenceHeartbeat(!access.isPending && !access.isError);
   const { roles, isPending, isError } = access;
   const accessResolved = !isPending && !isError;

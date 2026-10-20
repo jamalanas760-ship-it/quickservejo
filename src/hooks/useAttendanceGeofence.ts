@@ -6,7 +6,7 @@ import {
   type GeofenceVerification,
 } from "@/lib/geofence";
 import {
-  createAttendanceLocationSession,
+  subscribeAttendanceLocation,
   type AttendanceLocationState,
 } from "@/lib/attendance-location";
 
@@ -25,9 +25,9 @@ export function useAttendanceGeofence(
     phase: "checking",
     fix: null,
   });
-  const session = useRef<ReturnType<typeof createAttendanceLocationSession> | null>(null);
+  const session = useRef<ReturnType<typeof subscribeAttendanceLocation> | null>(null);
   useEffect(() => {
-    const current = createAttendanceLocationSession((next) => setState({ ...next, key }), {
+    const current = subscribeAttendanceLocation(key, (next) => setState({ ...next, key }), {
       navigator,
       document,
       window,

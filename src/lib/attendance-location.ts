@@ -23,8 +23,7 @@ type LocationBrowser = {
     Partial<Pick<Window, "localStorage">>;
 };
 
-// Each page entry checks the real browser permission; never persist an assumed
-// grant or permanently suppress a future location request after one old prompt.
+// Browser permission remains authoritative; no persisted flag is treated as a grant.
 export function createAttendanceLocationSession(
   onChange: (state: AttendanceLocationState) => void,
   browser: LocationBrowser,
@@ -122,8 +121,7 @@ export function createAttendanceLocationSession(
       watch !== undefined &&
       (state.phase === "locating" || receivedFix)
     ) {
-      if (receivedFix) start(reset);
-      return; // Keep a live provider or unresolved original prompt intact.
+      return; // Keep this provider intact: restarting a prompt-state watch can reopen Safari permission UI.
     }
 
     if (value === "granted") {
@@ -161,6 +159,9 @@ export function createAttendanceLocationSession(
       applyPermission(result.state, reset, mayPrompt);
     } catch {
       if (disposed || revision !== permissionRevision) return;
+      // Preserve an already successful provider when permission cannot be queried.
+      // Recreating it just to renew a timestamp can reopen mobile permission UI.
+      if (watch !== undefined && receivedFix) return;
       // A missing Permissions API must not introduce an Enable location step.
       // The geolocation API itself still enforces browser/OS permission.
       if (!blocked && ((mayPrompt && !automaticAttempted) || receivedFix)) start(reset);
@@ -177,7 +178,8 @@ export function createAttendanceLocationSession(
     } else {
       permissionRevision++;
       stop();
-      automaticAttempted = automaticAttempted && !receivedFix && permission?.state !== "granted";
+      // Do not reset the prompt budget when backgrounding. Only an actual
+      // granted permission or an explicit request may start another provider.
       publish({ phase: blocked ? "permission_denied" : "needs_permission", fix: null });
     }
   };
@@ -228,4 +230,57 @@ export function createAttendanceLocationSession(
       permission?.removeEventListener("change", permissionChanged);
     },
   };
+}
+
+type SharedLocation = {
+  key: string;
+  state: AttendanceLocationState;
+  listeners: Set<(state: AttendanceLocationState) => void>;
+  controller: ReturnType<typeof createAttendanceLocationSession> | null;
+};
+let sharedLocation: SharedLocation | null = null;
+
+/** Retain a foreground provider within the authenticated app, not per route mount. */
+export function subscribeAttendanceLocation(
+  key: string,
+  onChange: (state: AttendanceLocationState) => void,
+  browser: LocationBrowser,
+) {
+  retainAttendanceLocationScope(key);
+  if (!sharedLocation) {
+    const entry: SharedLocation = {
+      key,
+      state: { phase: "checking", fix: null },
+      listeners: new Set(),
+      controller: null,
+    };
+    sharedLocation = entry;
+    entry.controller = createAttendanceLocationSession((next) => {
+      if (sharedLocation !== entry) return;
+      entry.state = next;
+      entry.listeners.forEach((listener) => listener(next));
+    }, browser);
+  }
+  const entry = sharedLocation;
+  entry.listeners.add(onChange);
+  onChange(entry.state);
+  return {
+    request: () => {
+      if (sharedLocation === entry) entry.controller?.request();
+    },
+    // Leaving a route removes its listener, not the browser's active permission session.
+    dispose: () => {
+      entry.listeners.delete(onChange);
+    },
+  };
+}
+
+/** Account/workspace changes and authenticated-shell teardown discard all GPS data. */
+export function retainAttendanceLocationScope(key: string | null) {
+  if (!sharedLocation || sharedLocation.key === key) return;
+  const old = sharedLocation;
+  sharedLocation = null;
+  old.controller?.dispose();
+  old.listeners.forEach((listener) => listener({ phase: "needs_permission", fix: null }));
+  old.listeners.clear();
 }
