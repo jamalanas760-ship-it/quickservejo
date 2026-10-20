@@ -448,7 +448,7 @@
 
   @media (max-width: 767px) {
     :root { --qs-shell-topbar: 60px; --qs-shell-sidebar: 0px; }
-    .qs-page { padding: 16px 16px calc(94px + env(safe-area-inset-bottom)) !important; }
+    .qs-page { padding: 16px !important; }
     .qs-page-title { font-size: 1.65rem !important; }
     .qs-page-subtitle { font-size: 1rem !important; }
     .qs-master-header,
@@ -5013,7 +5013,7 @@ html.qs-theme-view-transition *{
  }
  .qs-nav-portal .qs-mobile-nav-item:focus-visible{outline:2px solid var(--qs-brand)!important;outline-offset:-2px}
  .qs-nav-portal .qs-mobile-nav-item[data-ios-pressed=true]{transform:scale(.97)!important}
- .qs-persistent-chrome{padding-bottom:calc(var(--qs-mobile-dock-height,90px) + 20px)!important}
+ .qs-persistent-chrome{padding-bottom:calc(var(--qs-mobile-dock-height,90px) + 12px)!important}
 }
 @media(prefers-reduced-motion:reduce){
  .qs-nav-portal .qs-app nav.qs-mobile-bottom-nav :is(.qs-mobile-nav-item,.qs-mobile-nav-icon){transition:none!important}
@@ -5626,5 +5626,30 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
   .qs-workspace-search[role=dialog] {
     width:calc(100vw - 16px)!important; max-width:none!important;
     max-height:calc(100dvh - 24px); border-radius:16px!important;
+  }
+}
+
+/* Mobile navigation clearance belongs to the authenticated shell once, not each route. */
+@layer components {
+  @media (max-width: 767px) {
+    .qs-app .qs-authenticated-shell {
+      box-sizing: border-box;
+      min-height: 100dvh;
+      padding-bottom: calc(var(--qs-mobile-dock-height, 90px) + 12px) !important;
+    }
+    .qs-authenticated-shell .qs-route-frame {
+      min-height: 0 !important;
+    }
+    .qs-authenticated-shell .qs-route-frame > :is(.min-h-dvh, .min-h-screen, .restaurant-theme-scope),
+    .qs-authenticated-shell .qs-route-frame > .restaurant-theme-scope > :is(.min-h-dvh, .min-h-screen) {
+      min-height: 0 !important;
+      padding-bottom: 0 !important;
+    }
+    .qs-authenticated-shell .qs-route-frame :is(main.qs-page, .ps-page, .qs-home-overview, .wf-minimal-workforce) {
+      padding-bottom: 12px !important;
+    }
+    .qs-authenticated-shell .qs-route-frame .qs-viewport-page {
+      min-height: 0 !important;
+    }
   }
 }

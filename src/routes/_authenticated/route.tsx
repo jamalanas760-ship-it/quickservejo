@@ -88,7 +88,7 @@ function AuthenticatedShell() {
     <TenantBrandShell>
       <div
         className={cn(
-          "pb-24 lg:min-h-dvh lg:pb-0",
+          "qs-authenticated-shell lg:min-h-dvh",
           !access.isSuperAdmin && "qs-sidebar-content lg:ps-[var(--qs-shell-sidebar)]",
           !usesDedicatedChrome && "qs-persistent-chrome",
         )}

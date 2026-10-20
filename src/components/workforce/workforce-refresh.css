@@ -880,7 +880,7 @@
 }
 @media (max-width: 767px) {
   .qs-app .wf-minimal-workforce {
-    padding-bottom: calc(var(--qs-mobile-dock-height, 90px) + 16px) !important;
+    padding-bottom: 12px !important;
   }
 }
 .wf-holiday-calendar {
