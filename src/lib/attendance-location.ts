@@ -71,7 +71,7 @@ export function createAttendanceLocationSession(
       (state.phase === "locating" ||
         (state.fix &&
           Date.now() >= state.fix.timestamp &&
-          Date.now() - state.fix.timestamp < 20000))
+          Date.now() - state.fix.timestamp < 10000))
     )
       return;
     automaticAttempted = true;
@@ -108,7 +108,7 @@ export function createAttendanceLocationSession(
             fix: null,
           });
         },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
       );
     } catch {
       stop();
@@ -196,7 +196,7 @@ export function createAttendanceLocationSession(
     // Permission queries do not prompt. Keep checking even after denial so a
     // browser-settings change can recover without a click or change event.
     void resume(false, false);
-  }, 20000);
+  }, 5000);
   window.addEventListener("focus", focus);
   window.addEventListener("pageshow", focus);
   window.addEventListener("online", focus);

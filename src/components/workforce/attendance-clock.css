@@ -264,12 +264,29 @@
   margin: 11px 0 5px;
 }
 .wf-arrival-missing {
-  font-size: 12px;
-  color: var(--muted-foreground);
-  text-decoration: underline;
-  min-height: 44px;
-  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--card));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary) 6%, var(--card));
+  color: color-mix(in srgb, var(--primary) 75%, var(--foreground));
+  font-size: 14px;
+  font-weight: 500;
 }
+.wf-arrival-missing > svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.wf-arrival-missing:hover {
+  background: color-mix(in srgb, var(--primary) 11%, var(--card));
+}
+
 .wf-arrival-footer {
   border-top: 1px solid var(--border);
   display: grid;
@@ -515,9 +532,10 @@
     line-height: 1.4;
   }
   .wf-arrival-missing {
-    padding: 0;
-    font-size: 11px;
-    text-align: end;
+    grid-column: 1 / -1;
+    min-height: 44px;
+    margin-top: 4px;
+    font-size: 13px;
   }
   .wf-arrival-footer {
     padding: 8px 12px;
@@ -652,5 +670,42 @@
     clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
+  }
+}
+
+/* Today's actual punches replace the shift forecast without growing the card. */
+.wf-arrival-footer {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.wf-arrival-footer > div + div {
+  padding-inline-start: 14px;
+}
+.wf-arrival-footer strong {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+  .wf-arrival-footer {
+    gap: 8px;
+  }
+  .wf-arrival-footer > div + div {
+    padding-inline-start: 8px;
+  }
+  .wf-arrival-footer small {
+    font-size: 11px;
+    align-items: start;
+    line-height: 1.35;
+  }
+  .wf-arrival-footer small > svg {
+    display: none;
+  }
+  .wf-arrival-footer strong {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 640px) {
+  .wf-arrival-footer small {
+    min-height: 2.7em;
   }
 }

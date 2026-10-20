@@ -183,3 +183,13 @@ test("clock uses a non-brand button variant so global orange utility overrides c
     assert.doesNotMatch(html, /bg-\[\#e85d2a\]|data-variant="default"/);
   }
 });
+
+test("today's first and last punch replace the shift forecast alongside the missing-punch button", () => {
+  const html = render({ firstPunchIn: "08:15 AM", lastPunchOut: "05:30 PM" });
+  assert.match(html, /First punch in/);
+  assert.match(html, /Last punch out/);
+  assert.match(html, /08:15 AM/);
+  assert.match(html, /05:30 PM/);
+  assert.doesNotMatch(html, /Next shift|No upcoming shift/);
+  assert.match(html, /class="wf-arrival-missing"/);
+});

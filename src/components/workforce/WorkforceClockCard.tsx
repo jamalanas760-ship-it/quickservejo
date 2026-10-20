@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Building2, CalendarDays, Clock3, LockKeyhole, Route } from "lucide-react";
+import { Building2, CalendarDays, Clock3, ClockAlert, LockKeyhole, Route } from "lucide-react";
 import { attendanceRoadmapPosition } from "@/lib/attendance-roadmap";
 import "./attendance-clock.css";
 import type { GeofenceVerification } from "@/lib/geofence";
@@ -22,9 +22,8 @@ export function WorkforceClockCard({
   workedToday,
   sessionLabel,
   sessionValue,
-  shiftLabel,
-  shiftValue,
-  shiftHint,
+  firstPunchIn = "—",
+  lastPunchOut = "—",
   pending,
   disabled,
   clockOut,
@@ -45,9 +44,8 @@ export function WorkforceClockCard({
   workedToday: string;
   sessionLabel: string;
   sessionValue: string;
-  shiftLabel: string;
-  shiftValue: string;
-  shiftHint: string;
+  firstPunchIn?: string;
+  lastPunchOut?: string;
   pending: boolean;
   disabled: boolean;
   clockOut: boolean;
@@ -259,18 +257,28 @@ export function WorkforceClockCard({
                 : "Clock-in and clock-out are available inside the attendance radius."}
           </p>
           <button type="button" className="wf-arrival-missing" onClick={onReportMissing}>
+            <ClockAlert aria-hidden="true" />
             {ar ? "الإبلاغ عن بصمة مفقودة" : "Report missing punch"}
           </button>
         </div>
       </div>
-      <footer className="wf-arrival-footer">
+      <footer
+        className="wf-arrival-footer"
+        aria-label={ar ? "بصمات اليوم بتوقيت موقع العمل" : "Today’s punches in workplace time"}
+      >
         <div>
           <small>
             <CalendarDays aria-hidden="true" />
-            {shiftLabel}
+            {ar ? "أول حضور" : "First punch in"}
           </small>
-          <strong>{shiftValue}</strong>
-          <small>{shiftHint}</small>
+          <strong>{firstPunchIn}</strong>
+        </div>
+        <div>
+          <small>
+            <Clock3 aria-hidden="true" />
+            {ar ? "آخر انصراف" : "Last punch out"}
+          </small>
+          <strong>{lastPunchOut}</strong>
         </div>
         <div>
           <small>

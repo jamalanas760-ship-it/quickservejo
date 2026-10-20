@@ -364,7 +364,8 @@ test("shifts page places a modern live clock hero above shift coverage", async (
   assert.ok(shifts.indexOf("<WorkforceClockHero") < shifts.indexOf("<WorkforceWeekBoard"));
   assert.match(shifts, /Clocked in/);
   assert.match(shifts, /Worked/);
-  assert.match(shifts, /Shift ends/);
+  assert.match(shifts, /firstPunchIn=\{punchTime\(punches.firstIn\)\}/);
+  assert.match(shifts, /lastPunchOut=\{punchTime\(punches.lastOut\)\}/);
   assert.match(await file("src/components/workforce/WorkforceClockCard.tsx"), /Clock out/);
   assert.match(await file("src/components/workforce/WorkforceNavigation.tsx"), /function WorkforceNavigation/);
   assert.match(shifts, /<WorkforceAttendanceBoard/);
