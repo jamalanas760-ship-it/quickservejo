@@ -1,12 +1,12 @@
-/* Service Orbit — atmospheric 3D assembly and a light-to-dark camera transition. */
+/* The Service Dial — Anime.js + SVG, inspired by the supplied circular-motion reference. */
 .qs-launch-simple {
   position: fixed;
   inset: 0;
   z-index: 100;
   min-height: 100dvh;
   overflow: hidden;
-  background: radial-gradient(ellipse at 50% 40%, #3b2b1b, #111b25 46%, #070e16 80%);
-  color: #fff2d9;
+  background: #222321;
+  color: #f2eee5;
   isolation: isolate;
   transition: opacity 0.18s ease-out;
 }
@@ -14,58 +14,47 @@
   opacity: 0;
   pointer-events: none;
 }
-.qs-orbit-stage,
-.qs-orbit-world {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-}
-.qs-orbit-world canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.qs-orbit-fallback {
+.qs-dial-stage {
   position: absolute;
   left: 50%;
   top: 43%;
-  width: min(90vw, 850px);
-  max-height: 73vh;
+  width: min(84vh, 810px, 112vw);
+  aspect-ratio: 1;
   transform: translate(-50%, -50%);
 }
-.qs-orbit-stage:has(.qs-orbit-world[data-ready="true"]) .qs-orbit-fallback {
-  visibility: hidden;
+.qs-service-dial {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
-.qs-orbit-world:not([data-ready="true"]) canvas {
-  visibility: hidden;
-}
-.qs-orbit-header {
+.qs-dial-header {
   position: absolute;
   left: clamp(24px, 4vw, 54px);
   right: clamp(24px, 4vw, 54px);
   top: max(28px, env(safe-area-inset-top));
-  z-index: 2;
   display: flex;
   justify-content: space-between;
+  z-index: 2;
   font-size: 9px;
-  letter-spacing: 0.18em;
   font-weight: 650;
-  color: #d8b88c;
-  mix-blend-mode: difference;
+  letter-spacing: 0.18em;
+  color: #c7bcaa;
 }
-.qs-orbit-header > span:first-child > span {
-  color: #ffad5f;
+.qs-dial-header > span:first-child > span {
+  color: #ef9e63;
   margin-inline: 8px;
 }
-.qs-orbit-header > span:last-child {
+.qs-dial-header > span:last-child {
   font-weight: 450;
   letter-spacing: 0.24em;
+  color: #85877d;
 }
 .qs-launch-simple-content {
   position: absolute;
   left: 24px;
   right: 24px;
-  bottom: 8.5vh;
+  bottom: 5.5vh;
   z-index: 2;
   display: flex;
   justify-content: center;
@@ -76,62 +65,61 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  animation: qs-orbit-brand 0.7s 1.6s both cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: qs-dial-brand 0.6s 0.8s both cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .qs-launch-caption {
   display: block;
-  margin-bottom: 14px;
-  font-size: 9px;
+  margin-bottom: 12px;
+  font-size: 8px;
   font-weight: 600;
-  letter-spacing: 0.25em;
-  color: #dfb982;
+  letter-spacing: 0.23em;
+  color: #a7a18f;
 }
 .qs-launch-simple-content strong {
   display: block;
   font-family: var(--font-sans), sans-serif;
-  font-size: clamp(44px, 6vw, 78px);
+  font-size: clamp(36px, 4.4vw, 52px);
   line-height: 1.1;
-  letter-spacing: -3px;
+  letter-spacing: -2px;
   font-weight: 650;
-  color: #fff3e0;
-  text-shadow: 0 2px 24px #0005;
+  color: #f2eee5;
 }
 .qs-launch-simple-content strong span {
-  color: #f6a35b;
+  color: #ef9e63;
   font-weight: 450;
 }
 .qs-launch-simple-content p {
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.5;
-  margin: 12px 0 0;
-  color: #c7c0b3;
+  margin: 11px 0 0;
+  color: #92958a;
   letter-spacing: 0.025em;
 }
 .qs-launch-ambient {
-  width: clamp(130px, 17vw, 230px);
+  width: clamp(100px, 13vw, 180px);
   height: 1px;
-  margin-top: 25px;
-  background: #d8a66638;
+  margin-top: 20px;
+  background: #6a635438;
   overflow: hidden;
 }
 .qs-launch-ambient span {
   display: block;
   width: 40%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, #f5b974, #fff1cb, transparent);
-  animation: qs-orbit-ambient 1.7s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, #f0b276, #78b29d, transparent);
+  animation: qs-dial-ambient 1.7s ease-in-out infinite;
 }
-@keyframes qs-orbit-brand {
+@keyframes qs-dial-brand {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
     transform: none;
   }
 }
-@keyframes qs-orbit-ambient {
+@keyframes qs-dial-ambient {
   from {
     transform: translateX(-100%);
   }
@@ -140,42 +128,47 @@
   }
 }
 @media (max-width: 640px) {
+  .qs-dial-stage {
+    top: 42%;
+  }
   .qs-launch-simple-content {
-    bottom: max(10vh, 40px);
+    bottom: max(8vh, 32px);
   }
   .qs-launch-simple-content strong {
-    font-size: 48px;
-    letter-spacing: -2px;
+    font-size: 42px;
+  }
+  .qs-dial-header {
+    font-size: 8px;
+  }
+  .qs-dial-header > span:last-child {
+    letter-spacing: 0.12em;
   }
   .qs-launch-caption {
-    font-size: 8px;
-    letter-spacing: 0.18em;
-  }
-  .qs-orbit-header {
-    font-size: 8px;
-  }
-  .qs-orbit-header > span:last-child {
-    letter-spacing: 0.12em;
+    font-size: 7px;
   }
 }
 @media (max-height: 560px) {
+  .qs-dial-stage {
+    top: 42%;
+    width: min(80vh, 390px);
+  }
   .qs-launch-simple-content {
-    bottom: 5vh;
+    bottom: 4vh;
   }
   .qs-launch-simple-content strong {
-    font-size: 34px;
+    font-size: 28px;
   }
   .qs-launch-caption {
     display: none;
   }
   .qs-launch-simple-content p {
     font-size: 10px;
-    margin-top: 7px;
+    margin-top: 6px;
   }
   .qs-launch-ambient {
-    margin-top: 12px;
+    margin-top: 10px;
   }
-  .qs-orbit-header {
+  .qs-dial-header {
     top: 16px;
   }
 }
@@ -187,16 +180,10 @@
   .qs-launch-simple {
     transition: none;
   }
-  .qs-orbit-world {
-    display: none;
-  }
 }
 :root[data-qs-navigation-motion="reduced"] .qs-launch-simple * {
   animation: none !important;
   transition: none !important;
-}
-:root[data-qs-navigation-motion="reduced"] .qs-orbit-world {
-  display: none;
 }
 .qs-workspace-recovery {
   position: fixed;
@@ -244,12 +231,4 @@
 }
 html[data-qs-ready] #qs-boot {
   display: none;
-}
-
-/* Keep the white-to-dark reveal free of low-contrast branding. */
-.qs-launch-simple:has(.qs-orbit-world[data-ready="true"]):not(
-    :has(.qs-orbit-world[data-night="true"])
-  )
-  .qs-launch-brand {
-  visibility: hidden;
 }

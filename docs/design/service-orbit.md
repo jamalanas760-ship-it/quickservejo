@@ -1,4 +1,6 @@
-# Service Orbit launch
+# Service Orbit launch (previous design)
+
+Superseded by The Service Dial, which follows the later Anime.js reference.
 
 The supplied reference video uses atmospheric light, a rotating 3D hero, a rapid camera
 sweep and a bright-to-dark transition. Service Orbit adapts that motion language to a

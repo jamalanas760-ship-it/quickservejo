@@ -131,16 +131,16 @@ export function LaunchScreenView({
       aria-label={lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}
     >
       <LaunchScene />
-      <div className="qs-orbit-header" aria-hidden="true">
+      <div className="qs-dial-header" aria-hidden="true">
         <span>
           QS<span> / </span>QUICKSERVE
         </span>
-        <span>SERVICE IN MOTION</span>
+        <span>THE SERVICE DIAL</span>
       </div>
       <div className="qs-launch-simple-content">
         <div className="qs-launch-brand">
           <span className="qs-launch-caption">
-            {lang === "ar" ? "كل طلب. بإتقان." : "EVERY ORDER. PERFECTLY SERVED."}
+            {lang === "ar" ? "الدقة في كل خدمة." : "PRECISION IN EVERY SERVICE."}
           </span>
           <strong dir="ltr">
             Quick<span>Serve</span>
