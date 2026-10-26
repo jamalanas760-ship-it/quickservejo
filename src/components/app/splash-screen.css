@@ -5,8 +5,8 @@
   z-index: 100;
   min-height: 100dvh;
   overflow: hidden;
-  background: #222321;
-  color: #f2eee5;
+  background: radial-gradient(ellipse at 50% 40%, #ffffff 0%, #faf7f1 56%, #f1ede4 100%);
+  color: #263c39;
   isolation: isolate;
   transition: opacity 0.18s ease-out;
 }
@@ -27,28 +27,6 @@
   width: 100%;
   height: 100%;
   overflow: visible;
-}
-.qs-dial-header {
-  position: absolute;
-  left: clamp(24px, 4vw, 54px);
-  right: clamp(24px, 4vw, 54px);
-  top: max(28px, env(safe-area-inset-top));
-  display: flex;
-  justify-content: space-between;
-  z-index: 2;
-  font-size: 9px;
-  font-weight: 650;
-  letter-spacing: 0.18em;
-  color: #c7bcaa;
-}
-.qs-dial-header > span:first-child > span {
-  color: #ef9e63;
-  margin-inline: 8px;
-}
-.qs-dial-header > span:last-child {
-  font-weight: 450;
-  letter-spacing: 0.24em;
-  color: #85877d;
 }
 .qs-launch-simple-content {
   position: absolute;
@@ -73,7 +51,7 @@
   font-size: 8px;
   font-weight: 600;
   letter-spacing: 0.23em;
-  color: #a7a18f;
+  color: #68776e;
 }
 .qs-launch-simple-content strong {
   display: block;
@@ -82,31 +60,31 @@
   line-height: 1.1;
   letter-spacing: -2px;
   font-weight: 650;
-  color: #f2eee5;
+  color: #263c39;
 }
 .qs-launch-simple-content strong span {
-  color: #ef9e63;
+  color: #a84e25;
   font-weight: 450;
 }
 .qs-launch-simple-content p {
   font-size: 11px;
   line-height: 1.5;
   margin: 11px 0 0;
-  color: #92958a;
+  color: #606f68;
   letter-spacing: 0.025em;
 }
 .qs-launch-ambient {
   width: clamp(100px, 13vw, 180px);
   height: 1px;
   margin-top: 20px;
-  background: #6a635438;
+  background: #526d592e;
   overflow: hidden;
 }
 .qs-launch-ambient span {
   display: block;
   width: 40%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, #f0b276, #78b29d, transparent);
+  background: linear-gradient(90deg, transparent, #b9632b, #208974, transparent);
   animation: qs-dial-ambient 1.7s ease-in-out infinite;
 }
 @keyframes qs-dial-brand {
@@ -137,12 +115,6 @@
   .qs-launch-simple-content strong {
     font-size: 42px;
   }
-  .qs-dial-header {
-    font-size: 8px;
-  }
-  .qs-dial-header > span:last-child {
-    letter-spacing: 0.12em;
-  }
   .qs-launch-caption {
     font-size: 7px;
   }
@@ -167,9 +139,6 @@
   }
   .qs-launch-ambient {
     margin-top: 10px;
-  }
-  .qs-dial-header {
-    top: 16px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

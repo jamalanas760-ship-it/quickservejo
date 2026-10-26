@@ -131,12 +131,6 @@ export function LaunchScreenView({
       aria-label={lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}
     >
       <LaunchScene />
-      <div className="qs-dial-header" aria-hidden="true">
-        <span>
-          QS<span> / </span>QUICKSERVE
-        </span>
-        <span>THE SERVICE DIAL</span>
-      </div>
       <div className="qs-launch-simple-content">
         <div className="qs-launch-brand">
           <span className="qs-launch-caption">

@@ -28,3 +28,7 @@ checks independently moving rings/dots, the serving phase on desktop/mobile/land
 static reduced motion, stopping motion when the preference changes during playback,
 no WebGL canvas, four-second recovery and zero page errors. Screenshots were visually
 reviewed, including the scan-line gradient's user-space coordinate handling.
+
+## Light presentation
+
+The launch uses a warm ivory radial background, deep green branding, copper dish strokes and teal accents. The two decorative corner labels are removed. Motion, reduced-motion fallback and the 3.5–3.9 second launch timing are unchanged.
