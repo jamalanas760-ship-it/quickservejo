@@ -98,7 +98,7 @@ export function LaunchScene() {
           const angle = ((i / 24) * Math.PI) / 2;
           profile.push(new THREE.Vector2(Math.sin(angle) * 1.27, Math.cos(angle) * 1.08 + 0.04));
         }
-        const dome = mesh(new THREE.LatheGeometry(profile, 64));
+        const dome = mesh(new THREE.LatheGeometry(profile.reverse(), 64));
         lid.add(dome);
         const lip = mesh(new THREE.TorusGeometry(1.27, 0.055, 10, 64));
         lip.rotation.x = Math.PI / 2;
