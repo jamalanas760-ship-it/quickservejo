@@ -1,4 +1,6 @@
-# Service Symphony launch
+# Service Symphony launch (previous design)
+
+Superseded by Service Orbit. Its artwork is retained but is not loaded by the current screen.
 
 This is a photographic layered animation, not a fully modeled restaurant. The source
 is the user's approved third concept. The room, furniture, glass, wood and reflections
