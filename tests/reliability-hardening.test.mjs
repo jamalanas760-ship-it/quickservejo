@@ -56,3 +56,11 @@ test('batched reads bound IN filters and reject incomplete later pages',async()=
  assert.equal(largest,50);assert.deepEqual(rows,ids);
  await assert.rejects(batchedPages(['one'],()=>({range:async offset=>offset===0?{data:Array(500).fill('row'),error:null}:{data:null,error:Error('later page failed')}})),/later page/);
 });
+
+test('multiple hook consumers share resources and release only after the last consumer',async()=>{
+ const {retainResource}=await import('../src/lib/shared-resource.ts');const client={};let starts=0,stops=0;
+ const start=()=>{starts++;return()=>stops++;};
+ const a=retainResource(client,'tenant-a:user-a',start),b=retainResource(client,'tenant-a:user-a',start);
+ assert.equal(starts,1);a();a();assert.equal(stops,0);b();assert.equal(stops,1);
+ const c=retainResource(client,'tenant-b:user-a',start);assert.equal(starts,2);c();assert.equal(stops,2);
+});

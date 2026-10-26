@@ -59,7 +59,7 @@ test('counter snapshot uses caller RLS and rejects another tenant',async()=>{
  try {
   const {rows}=await db.query('select get_operational_counters($1::uuid) value',[A]);assert.equal(rows[0].value.orders,1);
   await assert.rejects(db.query('select get_operational_counters($1::uuid)',[B]),error=>error.code==='42501');
-  assert.deepEqual((await db.query('select id from orders where restaurant_id=$1',[B])).rows,[]);
+  assert.equal((await db.query('select id from orders where restaurant_id=$1',[B])).rows.length,0);
   await assert.rejects(db.query('select * from claim_integration_jobs()'),error=>error.code==='42501');
  } finally {await db.exec("reset role;select set_config('request.jwt.claim.sub','',false)");}
 });

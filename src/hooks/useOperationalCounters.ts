@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { retainResource } from "@/lib/shared-resource";
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useSupabaseSession } from "@/hooks/useSession";
@@ -33,13 +34,12 @@ export function useOperationalCounters(restaurantId: string | null) {
   const session = useSupabaseSession();
   const userId = session.data?.user.id;
   const key = operationalCountersKey(restaurantId, userId);
-  const [live, setLive] = useState(false);
 
   const query = useQuery<OperationalCounters>({
     queryKey: key,
     enabled: Boolean(restaurantId && userId),
     staleTime: 15_000,
-    refetchInterval: restaurantId ? (live ? 120_000 : 30_000) : false,
+    refetchInterval: false,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     retry: false,
@@ -56,7 +56,9 @@ export function useOperationalCounters(restaurantId: string | null) {
 
   useEffect(() => {
     if (!restaurantId || !userId) return;
-    setLive(false);
+    return retainResource(qc,JSON.stringify(operationalCountersKey(restaurantId,userId)),()=>{
+    let live=false;
+    let lastPoll=Date.now();
     const refresh = createCoalescedRefresh(() => void qc.invalidateQueries({ queryKey: operationalCountersKey(restaurantId, userId) }));
     const invalidate = refresh.schedule;
 
@@ -70,7 +72,7 @@ export function useOperationalCounters(restaurantId: string | null) {
         .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `restaurant_id=eq.${restaurantId}` }, invalidate)
         .on("postgres_changes", { event: "*", schema: "public", table: "order_view_receipts", filter: `restaurant_id=eq.${restaurantId}` }, invalidate)
         .subscribe((status) => {
-          setLive(status === "SUBSCRIBED");
+          live = status === "SUBSCRIBED";
           if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
             console.warn("Operational counter realtime unavailable; polling remains active.");
           }
@@ -79,10 +81,16 @@ export function useOperationalCounters(restaurantId: string | null) {
       console.warn("Operational counter realtime setup skipped:", error);
     }
 
+    const timer = window.setInterval(()=>{
+      if (document.visibilityState === "hidden") return;
+      if (!live || Date.now()-lastPoll >= 120_000) {lastPoll=Date.now();invalidate();}
+    },30_000+Math.floor(Math.random()*5_000));
     return () => {
+      window.clearInterval(timer);
       refresh.cancel();
       if (channel) void supabase.removeChannel(channel);
     };
+    });
   }, [qc, restaurantId, userId]);
 
   return { ...query, data: query.data ?? EMPTY, isUnavailable: Boolean(restaurantId) && (query.isError || !query.data) };

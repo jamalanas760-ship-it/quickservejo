@@ -1,4 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { retainResource } from "@/lib/shared-resource";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { authDeadline } from "@/lib/session-token";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,11 +59,21 @@ export function useSupabaseSession() {
 export function useMemberships() {
   const session = useSupabaseSession();
   const uid = session.data?.user.id ?? null;
+  const qc = useQueryClient();
+  useEffect(()=>{
+    if (!uid) return;
+    return retainResource(qc,`memberships:${uid}`,()=>{
+      const timer=window.setInterval(()=>{
+        if(document.visibilityState!=="hidden") void qc.invalidateQueries({queryKey:["staff","memberships",uid]});
+      },60_000+Math.floor(Math.random()*10_000));
+      return ()=>window.clearInterval(timer);
+    });
+  },[qc,uid]);
 
   return useQuery<StaffMembership[]>({
     queryKey: ["staff", "memberships", uid],
     enabled: session.isSuccess && Boolean(uid),
-    refetchInterval: 60_000,
+    refetchInterval: false,
     refetchIntervalInBackground: false,
     queryFn: async () => {
       if (!uid) return [];
