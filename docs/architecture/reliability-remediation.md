@@ -131,3 +131,19 @@ identity mappings, FK dependencies, ledgers, job acknowledgements and attachment
 importing a tenant subset. Do not restore the whole shared production database to fix one
 restaurant's deletion. Document operator, incident timeline, backup/restore points, actual
 RPO/RTO and post-recovery validation. A written runbook is not a successful restore drill.
+
+## Counter availability follow-up — 26 October 2026
+
+The published frontend called `get_operational_counters` before the RPC migration was
+applied, producing the header's Counts unavailable state. The additive counter/readiness
+migration was deployed separately as `20261026102952_operational_counter_snapshot`.
+Its local filename matches the recorded database migration version. No tenant FK or
+worker lease migrations were deployed as part of this fix. A live authenticated-role
+check returned all six counter fields for an active member; a nonmember was denied.
+Anonymous EXECUTE remains revoked and the function remains SECURITY INVOKER.
+
+The launch screen now uses a single coordinated overlay, a 3.5-second minimum with
+3.9-second safety dismissal, one-shot 3D choreography, and recovery controls at four
+seconds for stalled loading views. Old cloche image markup, preloads, and PWA startup
+artwork references were removed. The static fallback is part of the new cloche design;
+only one renderer is visible at a time. No paid resource was provisioned.

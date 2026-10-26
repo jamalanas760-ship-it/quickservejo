@@ -126,7 +126,7 @@ export function LaunchScene() {
           cloche.add(wisp);
           steam.push(wisp);
         }
-        const timeline = gsap.timeline({ repeat: -1, repeatDelay: 0.35 });
+        const timeline = gsap.timeline();
         timeline
           .to(lid.position, { y: 1.05, duration: 1.1, ease: "power3.inOut" }, 0.3)
           .to(lid.rotation, { z: -0.14, y: 0.18, duration: 1.1, ease: "power3.inOut" }, 0.3)
@@ -144,6 +144,13 @@ export function LaunchScene() {
           renderer.setSize(Math.max(width, 1), Math.max(height, 1));
           camera.aspect = width / Math.max(height, 1);
           camera.updateProjectionMatrix();
+          // setSize clears the drawing buffer; repaint before exposing a resized canvas.
+          try {
+            renderer.render(scene, camera);
+            element.dataset.ready = "true";
+          } catch {
+            stop();
+          }
         };
         const observer = new ResizeObserver(resize);
         observer.observe(element);

@@ -25,14 +25,14 @@ import { AppRuntimeMonitor } from "@/components/app/AppRuntimeMonitor";
 import { shouldClearAccountCache, shouldRefreshAuthAccess, shouldResetThemeForAuth } from "@/lib/auth-event-policy";
 import { clearAccountQueryCache } from "@/lib/account-query-cache";
 import launchCss from "../components/app/splash-screen.css?inline";
-import { LaunchScreenView, SplashScreen } from "@/components/app/SplashScreen";
+import { LaunchScreenView, LaunchScreenProvider } from "@/components/app/SplashScreen";
 import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-bridge";
 
 const BOOT_STYLE =
   `html,body{min-height:100%;background:#fffdfa}body{min-height:100dvh;margin:0}html[data-qs-ready] #qs-boot{display:none}` +
   launchCss + `
-#qs-boot .qs-launch-simple{animation:qs-boot-hide .01s 12s forwards}
-.qs-boot-recovery{visibility:hidden;animation:qs-boot-show .01s 12s forwards}
+#qs-boot .qs-launch-simple{animation:qs-boot-hide .01s 4s forwards}
+.qs-boot-recovery{visibility:hidden;animation:qs-boot-show .01s 4s forwards}
 @keyframes qs-boot-hide{to{visibility:hidden}}
 @keyframes qs-boot-show{to{visibility:visible}}
 `;
@@ -167,20 +167,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "preload", href: "/loading/cloche-lid.webp", as: "image" },
-      { rel: "preload", href: "/loading/cloche-tray.webp", as: "image" },
-      ...[
-        [402, 874],
-        [393, 852],
-        [390, 844],
-        [430, 932],
-        [440, 956],
-        [428, 926],
-      ].map(([width, height]) => ({
-        rel: "apple-touch-startup-image",
-        href: `/loading/startup-${width}x${height}.png`,
-        media: `(device-width: ${width}px) and (device-height: ${height}px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)`,
-      })),
     ],
   }),
   shellComponent: RootShell,
@@ -354,14 +340,15 @@ function RootComponent() {
           Skip to main content
         </a>
         <MenuThemeBridgeSync />
-        <SplashScreen />
-        <NavigationProgress />
-        <AppRuntimeMonitor />
-        <div id="main-content" tabIndex={-1}>
-          <Outlet />
-        </div>
-        <NotificationPrompt />
-        <Toaster />
+        <LaunchScreenProvider>
+          <NavigationProgress />
+          <AppRuntimeMonitor />
+          <div id="main-content" tabIndex={-1}>
+            <Outlet />
+          </div>
+          <NotificationPrompt />
+          <Toaster />
+        </LaunchScreenProvider>
       </I18nProvider>
     </QueryClientProvider>
   );

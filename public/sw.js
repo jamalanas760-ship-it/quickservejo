@@ -1,6 +1,6 @@
-const CACHE = "quickserve-runtime-v7";
+const CACHE = "quickserve-runtime-v8";
 const OFFLINE_PAGE = "/offline.html";
-const STATIC_SHELL = [OFFLINE_PAGE, "/manifest.webmanifest", "/favicon.png", "/icon-192.png", "/icon-512.png", "/loading/cloche-lid.webp", "/loading/cloche-tray.webp"];
+const STATIC_SHELL = [OFFLINE_PAGE, "/manifest.webmanifest", "/favicon.png", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(STATIC_SHELL)).catch(() => undefined));

@@ -1,5 +1,13 @@
 import { useRouterState } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useI18n } from "@/lib/i18n";
 import "./splash-screen.css";
 import { LaunchScene } from "./LaunchScene";
@@ -16,13 +24,32 @@ const WORKSPACE_PATH =
   /^\/(dashboard|manage|shifts|profile|bookings|automations|operations|team|settings|tables|menu|orders|analytics|notifications|work|manager|kitchen|waiter|host|cashier|hq|devices|integrations|guests|campaigns|approvals|daily-close|super-admin)(\/|$)/;
 
 /** Each new document gets a launch, including entry through sign-in. */
-export function SplashScreen() {
+const LaunchOverlay = createContext(false);
+
+export function LaunchScreenProvider({ children }: { children: ReactNode }) {
+  const [active, setActive] = useState(false);
+  return (
+    <LaunchOverlay.Provider value={active}>
+      <SplashScreen onVisibilityChange={setActive} />
+      {children}
+    </LaunchOverlay.Provider>
+  );
+}
+
+export function SplashScreen({
+  onVisibilityChange,
+}: {
+  onVisibilityChange?: (active: boolean) => void;
+}) {
   const { lang } = useI18n();
   const pending = useRouterState({ select: (state) => state.isLoading });
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const started = useRef(false);
   const [visible, setVisible] = useState(false);
   const [minimumDone, setMinimumDone] = useState(false);
+  useEffect(() => {
+    onVisibilityChange?.(visible);
+  }, [visible, onVisibilityChange]);
   useEffect(() => {
     const installedEntry =
       pathname === "/" &&
@@ -43,12 +70,12 @@ export function SplashScreen() {
   }, [pathname]);
   useEffect(() => {
     if (!visible) return;
-    const minimum = window.setTimeout(() => setMinimumDone(true), 700);
+    const minimum = window.setTimeout(() => setMinimumDone(true), 3500);
     // Reveal the normal page loading/error controls even on a slow connection.
     const safety = window.setTimeout(() => {
       rememberLaunch();
       setVisible(false);
-    }, 8000);
+    }, 3900);
     return () => {
       window.clearTimeout(safety);
       window.clearTimeout(minimum);
@@ -63,17 +90,48 @@ export function SplashScreen() {
     return () => window.clearTimeout(timer);
   }, [visible, pending, minimumDone]);
   if (!visible) return null;
-  return <LaunchScreenView lang={lang} leaving={minimumDone && !pending} />;
+  return <LaunchScreenView lang={lang} leaving={minimumDone && !pending} primary />;
 }
 
 /** Same artwork during server boot, session restoration and client launch. */
 export function LaunchScreenView({
   lang = "en",
   leaving = false,
+  primary = false,
 }: {
   lang?: "en" | "ar";
   leaving?: boolean;
+  primary?: boolean;
 }) {
+  const overlayActive = useContext(LaunchOverlay);
+  const [expired, setExpired] = useState(false);
+  const gradient = useId().replace(/:/g, "");
+  useEffect(() => {
+    const timer = window.setTimeout(() => setExpired(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, []);
+  if (overlayActive && !primary) return null;
+  if (expired)
+    return (
+      <section className="qs-workspace-recovery" role="alert">
+        <h1>
+          {lang === "ar"
+            ? "يستغرق الاتصال وقتاً أطول من المعتاد"
+            : "Connection is taking longer than expected"}
+        </h1>
+        <p>
+          {lang === "ar"
+            ? "تحقق من الاتصال ثم أعد المحاولة."
+            : "Check your connection, then retry."}
+        </p>
+        <div>
+          <button type="button" onClick={() => window.location.reload()}>
+            {lang === "ar" ? "إعادة المحاولة" : "Retry"}
+          </button>
+          <a href="/auth">{lang === "ar" ? "تسجيل الدخول" : "Sign in"}</a>
+        </div>
+      </section>
+    );
   return (
     <div
       className={`qs-launch-simple${leaving ? " is-leaving" : ""}`}
@@ -85,33 +143,48 @@ export function LaunchScreenView({
         <div className="qs-launch-stage" aria-hidden="true">
           <span className="qs-launch-halo" />
           <LaunchScene />
-          <div className="qs-launch-service-art">
-            <img
-              className="qs-service-tray"
-              src="/loading/cloche-tray.webp"
-              alt=""
-              width="600"
-              height="200"
-              fetchPriority="high"
+          <svg className="qs-launch-still" viewBox="0 0 360 280" focusable="false">
+            <defs>
+              <linearGradient id={`${gradient}-metal`} x1="0" y1="0" x2="1" y2=".3">
+                <stop stopColor="#a79a8b" />
+                <stop offset=".3" stopColor="#fff5e5" />
+                <stop offset=".6" stopColor="#e1c6a7" />
+                <stop offset="1" stopColor="#9f8065" />
+              </linearGradient>
+              <linearGradient id={`${gradient}-plate`}>
+                <stop stopColor="#a08568" />
+                <stop offset=".5" stopColor="#fff3e2" />
+                <stop offset="1" stopColor="#be9b78" />
+              </linearGradient>
+              <radialGradient id={`${gradient}-shadow`}>
+                <stop stopColor="#be6d36" stopOpacity=".18" />
+                <stop offset="1" stopColor="#be6d36" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            <ellipse cx="180" cy="225" rx="118" ry="23" fill={`url(#${gradient}-shadow)`} />
+            <ellipse cx="180" cy="201" rx="101" ry="17" fill={`url(#${gradient}-plate)`} />
+            <ellipse
+              cx="180"
+              cy="196"
+              rx="95"
+              ry="13"
+              fill="none"
+              stroke="#f68a36"
+              strokeWidth="2"
             />
-            <svg className="qs-service-steam" viewBox="0 0 100 100">
-              <path d="M28 93C8 73 45 60 27 36C17 22 29 11 29 5" />
-              <path d="M51 94C32 75 65 59 50 37C40 22 52 11 52 3" />
-              <path d="M74 92C56 73 87 59 73 41C64 29 75 19 75 11" />
-            </svg>
-            <img
-              className="qs-service-lid"
-              src="/loading/cloche-lid.webp"
-              alt=""
-              width="540"
-              height="360"
-              fetchPriority="high"
+            <path
+              d="M95 180C97 130 129 101 180 101S263 130 265 180Q180 207 95 180Z"
+              fill={`url(#${gradient}-metal)`}
             />
-          </div>
+            <path d="M97 180Q180 204 263 180" fill="none" stroke="#f8e7cf" strokeWidth="5" />
+            <path
+              d="M170 101V95C170 83 190 83 190 95V101"
+              fill="none"
+              stroke="#f78a35"
+              strokeWidth="5"
+            />
+          </svg>
         </div>
-        <span className="qs-launch-eyebrow">
-          {lang === "ar" ? "كل التفاصيل. بتناغم." : "EVERY DETAIL. IN SYNC."}
-        </span>
         <strong>
           Quick<span>Serve</span>
         </strong>
