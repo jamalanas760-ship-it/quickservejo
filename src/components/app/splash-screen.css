@@ -1,240 +1,243 @@
-/* The Perfect Serve — one fullscreen composition, no external artwork. */
+/* Service Symphony: layered photographic restaurant, live choreography and shader effects. */
 .qs-launch-simple {
   position: fixed;
   inset: 0;
   z-index: 100;
-  display: grid;
-  place-items: center;
   min-height: 100dvh;
-  padding: 24px;
   overflow: hidden;
-  background: radial-gradient(ellipse at 48% 43%, #ffedda 0%, #fcf7ef 36%, #fffdf8 76%);
-  color: #242920;
+  background: #17120e;
+  color: #fff3df;
   isolation: isolate;
   transition: opacity 0.18s ease-out;
-}
-.dark .qs-launch-simple {
-  background: radial-gradient(ellipse at 48% 43%, #35271e 0%, #191b1a 42%, #101412 78%);
-  color: #f7f4eb;
 }
 .qs-launch-simple.is-leaving {
   opacity: 0;
   pointer-events: none;
 }
-.qs-launch-corner {
+.qs-cine-stage {
   position: absolute;
-  inset: clamp(24px, 4vw, 48px) clamp(24px, 4vw, 56px) auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #81796d;
+  inset: 0;
+  overflow: hidden;
 }
-.qs-launch-corner > span:first-child {
-  font:
-    700 21px/1 var(--font-sans),
-    sans-serif;
-  letter-spacing: -1px;
-  color: #3d4238;
-}
-.qs-launch-corner > span:last-child {
-  font-size: 9px;
-  letter-spacing: 0.22em;
-  font-weight: 600;
-}
-.qs-launch-corner-dot {
-  color: #e97837;
-}
-.dark .qs-launch-corner {
-  color: #b4a58e;
-}
-.dark .qs-launch-corner > span:first-child {
-  color: #f1e9dc;
-}
-.qs-launch-simple-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  width: min(100%, 860px);
-  transform: translateY(-2vh);
-}
-.qs-launch-stage {
-  position: relative;
-  width: min(88vw, 760px);
-  height: clamp(260px, 45vh, 440px);
-  margin-bottom: 0;
-}
-.qs-launch-halo {
+.qs-cine-artboard {
   position: absolute;
   left: 50%;
-  top: 73%;
-  width: 62%;
-  height: 24%;
-  border: 1px solid #bc955323;
-  border-radius: 50%;
+  top: 50%;
+  width: max(100vw, 177.69vh);
+  height: max(100vh, 56.28vw);
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 80px #ed9c4210;
 }
-.qs-launch-still {
+.qs-cine-camera {
+  position: absolute;
+  inset: 0;
+  transform-origin: 44% 48%;
+  will-change: transform;
+}
+.qs-cine-background {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;
+  object-fit: fill;
 }
-.qs-launch-scene {
+.qs-cine-dish {
+  position: absolute;
+  left: 33.5%;
+  top: 43.5%;
+  width: 20.5%;
+  filter: drop-shadow(0 9px 8px #160b0780);
+}
+.qs-cine-dome {
+  position: absolute;
+  left: 35%;
+  top: 24%;
+  width: 18.5%;
+  filter: drop-shadow(0 5px 9px #27100555);
+}
+.qs-cine-dish img,
+.qs-cine-dome img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+.qs-cine-effects {
   position: absolute;
   inset: 0;
-  z-index: 1;
   pointer-events: none;
 }
-.qs-launch-scene canvas {
+.qs-cine-effects canvas {
   display: block;
   width: 100%;
   height: 100%;
 }
-.qs-launch-scene:not([data-ready="true"]) canvas {
-  visibility: hidden;
+.qs-cine-glow {
+  position: absolute;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.25;
+  background: radial-gradient(ellipse, #ffa63345, transparent 67%);
 }
-.qs-launch-stage:has(.qs-launch-scene[data-ready="true"]) .qs-launch-still {
-  visibility: hidden;
+.qs-cine-glow-pass {
+  left: 10%;
+  top: 7%;
+  width: 33%;
+  height: 42%;
+}
+.qs-cine-glow-dining {
+  left: 60%;
+  top: 2%;
+  width: 35%;
+  height: 40%;
+}
+.qs-cine-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, #0a060812, transparent 44%, #100b0750 65%, #0c0907dd 100%),
+    radial-gradient(ellipse, transparent 35%, #100a0730);
+}
+.qs-launch-simple-content {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 8vh;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  text-align: center;
 }
 .qs-launch-brand {
   display: flex;
   flex-direction: column;
   align-items: center;
-  animation: qs-serve-brand 0.7s 1.55s both cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: qs-cine-brand 0.7s 0.65s both cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .qs-launch-caption {
   display: block;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.28em;
-  color: #a2764d;
-}
-.dark .qs-launch-caption {
-  color: #c8a580;
+  color: #e4bd8b;
+  text-shadow: 0 2px 12px #000;
 }
 .qs-launch-simple-content strong {
   display: block;
   font-family: var(--font-sans), sans-serif;
-  font-size: clamp(38px, 5.5vw, 56px);
-  line-height: 1.15;
-  letter-spacing: -2.5px;
+  font-size: clamp(44px, 6.6vw, 92px);
+  line-height: 1.1;
+  letter-spacing: -3px;
   font-weight: 650;
+  text-shadow: 0 3px 32px #0008;
+  color: #fff1d9;
 }
 .qs-launch-simple-content strong span {
-  color: #e77735;
-  font-weight: 450;
+  color: #ff7a18;
+  font-weight: 550;
 }
 .qs-launch-simple-content p {
-  font-size: 12px;
+  font-size: clamp(12px, 1.25vw, 17px);
   line-height: 1.5;
-  margin: 16px 0 0;
-  color: #827e75;
+  margin: 12px 0 0;
+  color: #ead7b9;
+  text-shadow: 0 2px 12px #000;
   letter-spacing: 0.02em;
 }
-.dark .qs-launch-simple-content p {
-  color: #b3afa3;
-}
 .qs-launch-ambient {
-  position: fixed;
-  bottom: max(34px, env(safe-area-inset-bottom));
-  left: 50%;
-  width: 70px;
+  width: clamp(150px, 24vw, 330px);
   height: 2px;
-  background: #a67f4e20;
+  margin-top: 24px;
+  background: #d8a66638;
   overflow: hidden;
-  transform: translateX(-50%);
-  border-radius: 2px;
+  border-radius: 3px;
+  box-shadow: 0 0 18px #ff8a1520;
 }
 .qs-launch-ambient span {
   display: block;
-  width: 30px;
+  width: 40%;
   height: 100%;
-  background: #d99a60;
-  animation: qs-serve-ambient 1.8s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, #ff7c14, #ffe7af, transparent);
+  animation: qs-cine-ambient 1.7s ease-in-out infinite;
 }
-@keyframes qs-serve-brand {
+@keyframes qs-cine-brand {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(9px);
   }
   to {
     opacity: 1;
     transform: none;
   }
 }
-@keyframes qs-serve-ambient {
-  0% {
-    transform: translateX(-32px);
+@keyframes qs-cine-ambient {
+  from {
+    transform: translateX(-100%);
   }
-  100% {
-    transform: translateX(74px);
+  to {
+    transform: translateX(350%);
   }
 }
 @media (max-width: 640px) {
-  .qs-launch-stage {
-    width: 94vw;
-    height: 300px;
+  .qs-cine-artboard {
+    transform: translate(-43%, -50%);
   }
   .qs-launch-simple-content {
-    transform: translateY(-1vh);
+    bottom: max(9vh, 40px);
   }
-  .qs-launch-corner > span:last-child {
-    font-size: 8px;
-    letter-spacing: 0.15em;
+  .qs-launch-simple-content strong {
+    font-size: 48px;
+    letter-spacing: -2px;
   }
   .qs-launch-caption {
     font-size: 8px;
   }
-  .qs-launch-simple-content strong {
-    letter-spacing: -1.8px;
+  .qs-cine-shade {
+    background: linear-gradient(180deg, #10090530, transparent 35%, #100b0740 55%, #100b07ed 100%);
+  }
+  .qs-launch-ambient {
+    margin-top: 22px;
   }
 }
 @media (max-height: 560px) {
-  .qs-launch-stage {
-    height: 210px;
-    width: min(75vw, 570px);
-  }
   .qs-launch-simple-content {
-    transform: none;
-  }
-  .qs-launch-caption {
-    margin-bottom: 7px;
-    font-size: 8px;
+    bottom: 6vh;
   }
   .qs-launch-simple-content strong {
-    font-size: 32px;
+    font-size: 38px;
+  }
+  .qs-launch-caption {
+    display: none;
   }
   .qs-launch-simple-content p {
+    font-size: 11px;
     margin-top: 8px;
   }
-  .qs-launch-corner {
-    inset: 16px 24px auto;
-  }
   .qs-launch-ambient {
-    bottom: 16px;
+    margin-top: 12px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .qs-launch-simple * {
     animation: none !important;
     transition: none !important;
+    will-change: auto !important;
   }
   .qs-launch-simple {
     transition: none;
   }
-  .qs-launch-scene {
+  .qs-cine-effects {
     display: none;
   }
 }
 :root[data-qs-navigation-motion="reduced"] .qs-launch-simple * {
   animation: none !important;
   transition: none !important;
+  will-change: auto !important;
 }
-:root[data-qs-navigation-motion="reduced"] .qs-launch-scene {
+:root[data-qs-navigation-motion="reduced"] .qs-cine-effects {
   display: none;
 }
 .qs-workspace-recovery {
