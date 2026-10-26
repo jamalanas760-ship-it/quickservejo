@@ -2,12 +2,12 @@ import { useEffect, useId, useRef } from "react";
 import { dialArc, dialPoint, serviceFlow, servingWidth } from "@/lib/service-dial-geometry";
 
 const SEGMENTS = [
-  { start: 1, end: 58, color: "#fb7842" },
-  { start: 61, end: 118, color: "#f4b75e" },
-  { start: 121, end: 178, color: "#66d4ae" },
-  { start: 181, end: 238, color: "#399c87" },
-  { start: 241, end: 298, color: "#dba55e" },
-  { start: 301, end: 358, color: "#e98f55" },
+  { start: 1, end: 58, color: "#c45e32" },
+  { start: 61, end: 118, color: "#b6812a" },
+  { start: 121, end: 178, color: "#26977d" },
+  { start: 181, end: 238, color: "#237f70" },
+  { start: 241, end: 298, color: "#ba8c3d" },
+  { start: 301, end: 358, color: "#c37440" },
 ];
 const ROWS = Array.from({ length: 66 }, (_, i) => ({ y: 208 + i * 3.2, i }));
 const DOTS = Array.from({ length: 28 }, (_, i) => serviceFlow((i + 1) / 29));
@@ -184,9 +184,9 @@ export function LaunchScene() {
             x2="468"
             y2="405"
           >
-            <stop stopColor="#ed7545" />
-            <stop offset=".5" stopColor="#ffb86a" />
-            <stop offset="1" stopColor="#d77b49" />
+            <stop stopColor="#a94d28" />
+            <stop offset=".5" stopColor="#c87832" />
+            <stop offset="1" stopColor="#a9512c" />
           </linearGradient>
           <radialGradient id={`${uid}-core`}>
             <stop stopColor="#d97e3b" stopOpacity=".065" />
@@ -201,12 +201,12 @@ export function LaunchScene() {
             cy="320"
             r={r}
             fill="none"
-            stroke={i === 0 ? "#423c34" : "#35332e"}
+            stroke={i === 0 ? "#d8d5c9" : "#e3e1d7"}
             strokeWidth={i === 0 ? 1.5 : 1}
           />
         ))}
         <g className="qs-dial-outer" style={{ transformOrigin: "320px 320px" }}>
-          <g filter={`url(#${uid}-glow)`} opacity=".55">
+          <g filter={`url(#${uid}-glow)`} opacity=".25">
             {SEGMENTS.map((s) => (
               <path
                 key={s.start}
@@ -280,7 +280,7 @@ export function LaunchScene() {
         <g
           className="qs-dial-cutlery"
           fill="none"
-          stroke="#b3ad9e"
+          stroke="#66786e"
           strokeWidth="2"
           opacity=".65"
           style={{ transformOrigin: "320px 320px" }}
@@ -291,7 +291,7 @@ export function LaunchScene() {
         <g
           className="qs-dial-steam"
           fill="none"
-          stroke="#d3b08c"
+          stroke="#8a7054"
           strokeWidth="1.5"
           strokeLinecap="round"
           opacity=".65"
@@ -300,7 +300,7 @@ export function LaunchScene() {
           <path d="M320 207C305 194 334 185 320 167" />
           <path d="M350 215C334 202 363 193 349 175" />
         </g>
-        <g fill="#f5b471">
+        <g fill="#ab682f">
           {DOTS.map((p, i) => (
             <circle
               key={i}
@@ -312,8 +312,8 @@ export function LaunchScene() {
             />
           ))}
         </g>
-        <circle cx="320" cy="65" r="2.2" fill="#e7b577" />
-        <circle cx="320" cy="575" r="2.2" fill="#65b497" />
+        <circle cx="320" cy="65" r="2.2" fill="#af7d39" />
+        <circle cx="320" cy="575" r="2.2" fill="#258974" />
       </svg>
     </div>
   );
