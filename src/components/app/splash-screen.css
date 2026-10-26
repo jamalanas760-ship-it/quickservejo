@@ -1,4 +1,4 @@
-/* One launch identity across server boot, session restoration and client launch. */
+/* The Perfect Serve — one fullscreen composition, no external artwork. */
 .qs-launch-simple {
   position: fixed;
   inset: 0;
@@ -7,42 +7,73 @@
   place-items: center;
   min-height: 100dvh;
   padding: 24px;
-  background: radial-gradient(ellipse at 50% 43%, #fff0df 0%, #fffaf4 40%, #fffdfa 75%);
-  color: #18202a;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 48% 43%, #ffedda 0%, #fcf7ef 36%, #fffdf8 76%);
+  color: #242920;
   isolation: isolate;
   transition: opacity 0.18s ease-out;
 }
 .dark .qs-launch-simple {
-  background: radial-gradient(ellipse at 50% 43%, #30241d 0%, #17191b 42%, #101519 76%);
-  color: #f5f6f8;
+  background: radial-gradient(ellipse at 48% 43%, #35271e 0%, #191b1a 42%, #101412 78%);
+  color: #f7f4eb;
 }
 .qs-launch-simple.is-leaving {
   opacity: 0;
   pointer-events: none;
+}
+.qs-launch-corner {
+  position: absolute;
+  inset: clamp(24px, 4vw, 48px) clamp(24px, 4vw, 56px) auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #81796d;
+}
+.qs-launch-corner > span:first-child {
+  font:
+    700 21px/1 var(--font-sans),
+    sans-serif;
+  letter-spacing: -1px;
+  color: #3d4238;
+}
+.qs-launch-corner > span:last-child {
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  font-weight: 600;
+}
+.qs-launch-corner-dot {
+  color: #e97837;
+}
+.dark .qs-launch-corner {
+  color: #b4a58e;
+}
+.dark .qs-launch-corner > span:first-child {
+  color: #f1e9dc;
 }
 .qs-launch-simple-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  width: min(100%, 420px);
+  width: min(100%, 860px);
+  transform: translateY(-2vh);
 }
 .qs-launch-stage {
   position: relative;
-  width: min(100%, 360px);
-  height: 280px;
-  margin-bottom: 12px;
+  width: min(88vw, 760px);
+  height: clamp(260px, 45vh, 440px);
+  margin-bottom: 0;
 }
 .qs-launch-halo {
   position: absolute;
   left: 50%;
-  top: 68%;
-  width: 220px;
-  height: 80px;
-  border: 1px solid #eaa86b25;
+  top: 73%;
+  width: 62%;
+  height: 24%;
+  border: 1px solid #bc955323;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 55px #ff8a1808;
+  box-shadow: 0 0 80px #ed9c4210;
 }
 .qs-launch-still {
   position: absolute;
@@ -68,65 +99,123 @@
 .qs-launch-stage:has(.qs-launch-scene[data-ready="true"]) .qs-launch-still {
   visibility: hidden;
 }
+.qs-launch-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: qs-serve-brand 0.7s 1.55s both cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.qs-launch-caption {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: #a2764d;
+}
+.dark .qs-launch-caption {
+  color: #c8a580;
+}
 .qs-launch-simple-content strong {
+  display: block;
   font-family: var(--font-sans), sans-serif;
-  font-size: clamp(34px, 7vw, 44px);
-  line-height: 1.2;
-  letter-spacing: -1.8px;
+  font-size: clamp(38px, 5.5vw, 56px);
+  line-height: 1.15;
+  letter-spacing: -2.5px;
   font-weight: 650;
 }
 .qs-launch-simple-content strong span {
-  color: #f47725;
+  color: #e77735;
   font-weight: 450;
 }
 .qs-launch-simple-content p {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
-  margin: 14px 0 0;
-  color: #737579;
+  margin: 16px 0 0;
+  color: #827e75;
+  letter-spacing: 0.02em;
 }
 .dark .qs-launch-simple-content p {
-  color: #a0a8b3;
+  color: #b3afa3;
 }
-.qs-launch-simple-dots {
-  display: flex;
-  gap: 8px;
-  height: 8px;
-  margin-top: 24px;
+.qs-launch-ambient {
+  position: fixed;
+  bottom: max(34px, env(safe-area-inset-bottom));
+  left: 50%;
+  width: 70px;
+  height: 2px;
+  background: #a67f4e20;
+  overflow: hidden;
+  transform: translateX(-50%);
+  border-radius: 2px;
 }
-.qs-launch-simple-dots i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #f47725;
-  animation: qs-launch-breathe 1.2s ease-in-out infinite;
+.qs-launch-ambient span {
+  display: block;
+  width: 30px;
+  height: 100%;
+  background: #d99a60;
+  animation: qs-serve-ambient 1.8s ease-in-out infinite;
 }
-.qs-launch-simple-dots i:nth-child(2) {
-  animation-delay: 0.15s;
-}
-.qs-launch-simple-dots i:nth-child(3) {
-  animation-delay: 0.3s;
-}
-@keyframes qs-launch-breathe {
-  0%,
-  100% {
-    opacity: 0.25;
+@keyframes qs-serve-brand {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
-  50% {
+  to {
     opacity: 1;
+    transform: none;
+  }
+}
+@keyframes qs-serve-ambient {
+  0% {
+    transform: translateX(-32px);
+  }
+  100% {
+    transform: translateX(74px);
+  }
+}
+@media (max-width: 640px) {
+  .qs-launch-stage {
+    width: 94vw;
+    height: 300px;
+  }
+  .qs-launch-simple-content {
+    transform: translateY(-1vh);
+  }
+  .qs-launch-corner > span:last-child {
+    font-size: 8px;
+    letter-spacing: 0.15em;
+  }
+  .qs-launch-caption {
+    font-size: 8px;
+  }
+  .qs-launch-simple-content strong {
+    letter-spacing: -1.8px;
   }
 }
 @media (max-height: 560px) {
   .qs-launch-stage {
-    height: 180px;
-    width: 250px;
-    margin-bottom: 0;
+    height: 210px;
+    width: min(75vw, 570px);
+  }
+  .qs-launch-simple-content {
+    transform: none;
+  }
+  .qs-launch-caption {
+    margin-bottom: 7px;
+    font-size: 8px;
   }
   .qs-launch-simple-content strong {
-    font-size: 30px;
+    font-size: 32px;
   }
-  .qs-launch-simple-dots {
-    margin-top: 14px;
+  .qs-launch-simple-content p {
+    margin-top: 8px;
+  }
+  .qs-launch-corner {
+    inset: 16px 24px auto;
+  }
+  .qs-launch-ambient {
+    bottom: 16px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
