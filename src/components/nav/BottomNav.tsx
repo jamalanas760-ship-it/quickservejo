@@ -539,7 +539,7 @@ export function BottomNav() {
   }
 
   function countFor(item: Item) {
-    return item.badge ? counters.data[item.badge] : 0;
+    return item.badge && !counters.isUnavailable ? counters.data[item.badge] : 0;
   }
 
   function activeFor(item: Item) {

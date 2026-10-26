@@ -167,6 +167,8 @@ const awaitIdentity = await verify("Bearer " + (await token()));
 test("HTTP MCP handshake and listing work; anonymous access, write discovery, host spoofing and raw database errors are blocked", async (t) => {
   let calls = 0;
   const db = {
+    ready: async () => true,
+    consumeBudget: async () => true,
     run: async () => {
       calls++;
       throw Object.assign(new Error("SECRET DATABASE DETAILS"), { code: "42501" });

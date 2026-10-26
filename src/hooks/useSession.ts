@@ -61,7 +61,7 @@ export function useMemberships() {
   return useQuery<StaffMembership[]>({
     queryKey: ["staff", "memberships", uid],
     enabled: session.isSuccess && Boolean(uid),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
     refetchIntervalInBackground: false,
     queryFn: async () => {
       if (!uid) return [];

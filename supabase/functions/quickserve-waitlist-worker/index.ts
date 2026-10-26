@@ -1,4 +1,6 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { finishLeasedJob, ambiguousDelivery } from "../_shared/notification-lease.ts";
+import { mapConcurrent } from "../_shared/integration-transport.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.112.4";
 
 function serviceKey(){
   const direct=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"); if(direct)return direct;
@@ -16,19 +18,19 @@ async function sendTwilio(channel:"sms"|"whatsapp",to:string,message:string){
   const source=channel==="whatsapp"&&!from.startsWith("whatsapp:")?`whatsapp:${from}`:from;
   const body=new URLSearchParams({To:destination,From:source,Body:message});
   const res=await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,{
-    method:"POST",headers:{Authorization:"Basic "+btoa(`${sid}:${token}`),"Content-Type":"application/x-www-form-urlencoded"},body
+    method:"POST",redirect:"error",signal:AbortSignal.timeout(10_000),headers:{Authorization:"Basic "+btoa(`${sid}:${token}`),"Content-Type":"application/x-www-form-urlencoded"},body
   });
   const data=await res.json().catch(()=>({}));
   if(!res.ok)throw new Error(String(data?.message||`Twilio HTTP ${res.status}`));
   return String(data?.sid||"");
 }
 
-async function sendEmail(to:string,subject:string,message:string){
+async function sendEmail(to:string,subject:string,message:string,deliveryKey:string){
   const key=Deno.env.get("RESEND_API_KEY")?.trim();
   const from=Deno.env.get("RESEND_FROM_EMAIL")?.trim();
   if(!key||!from)throw new Error("Resend email credentials are not configured");
   const res=await fetch("https://api.resend.com/emails",{
-    method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},
+    method:"POST",redirect:"error",signal:AbortSignal.timeout(10_000),headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json","Idempotency-Key":deliveryKey},
     body:JSON.stringify({from,to:[to],subject,text:message})
   });
   const data=await res.json().catch(()=>({}));
@@ -48,17 +50,14 @@ Deno.serve(async req=>{
     const {data:authorized,error:authError}=await supabase.rpc("verify_waitlist_worker_secret",{_secret:workerSecret});
     if(authError||!authorized)return respond({error:"Unauthorized"},401);
 
-    const {data:jobs,error:jobsError}=await supabase.from("waitlist_notification_jobs")
-      .select("id,restaurant_id,waitlist_id,offer_sequence,channel,destination,status,attempt_count")
-      .in("status",["queued","retry"]).lte("next_attempt_at",new Date().toISOString()).order("created_at").limit(40);
+    const {data:jobs,error:jobsError}=await supabase.rpc("claim_notification_jobs",{_queue:"waitlist_notification_jobs"});
     if(jobsError)throw jobsError;
 
     const publicBase=(Deno.env.get("QUICKSERVE_PUBLIC_URL")?.trim()||"https://quickservejo.lovable.app").replace(/\/$/,"");
     const results:unknown[]=[];
 
-    for(const job of jobs??[]){
-      const attempts=Number(job.attempt_count??0)+1;
-      await supabase.from("waitlist_notification_jobs").update({status:"sending",attempt_count:attempts,last_error:null}).eq("id",job.id);
+    await mapConcurrent(jobs??[],4,async(job:any)=>{
+      const attempts=Number(job.attempt_count);
       try{
         const [{data:waitlist,error:waitError},{data:restaurant,error:restaurantError}]=await Promise.all([
           supabase.from("booking_waitlist")
@@ -70,14 +69,14 @@ Deno.serve(async req=>{
         if(restaurantError)throw restaurantError;
 
         if(waitlist.status!=="notified"||!waitlist.offer_booking_at||!waitlist.offer_expires_at||Number(waitlist.offer_count)!==Number(job.offer_sequence)){
-          await supabase.from("waitlist_notification_jobs").update({status:"skipped",last_error:"Offer is no longer active"}).eq("id",job.id);
+          await finishLeasedJob(supabase,"waitlist_notification_jobs",job,{status:"skipped",last_error:"Offer is no longer active"});
           results.push({id:job.id,status:"skipped"});
-          continue;
+          return;
         }
         if(new Date(waitlist.offer_expires_at).getTime()<=Date.now()){
-          await supabase.from("waitlist_notification_jobs").update({status:"skipped",last_error:"Offer expired before delivery"}).eq("id",job.id);
+          await finishLeasedJob(supabase,"waitlist_notification_jobs",job,{status:"skipped",last_error:"Offer expired before delivery"});
           results.push({id:job.id,status:"skipped"});
-          continue;
+          return;
         }
 
         const when=formatAt(waitlist.offer_booking_at,restaurant.timezone||"UTC");
@@ -87,25 +86,25 @@ Deno.serve(async req=>{
         const message=`Hi ${waitlist.customer_name}, a table is available at ${restaurant.name} for ${waitlist.guest_count} guest(s) at ${when}. This offer is held for about ${remaining} minutes. Accept or decline here: ${link}`;
 
         const reference=job.channel==="email"
-          ? await sendEmail(job.destination,subject,message)
+          ? await sendEmail(job.destination,subject,message,job.id)
           : await sendTwilio(job.channel as "sms"|"whatsapp",job.destination,message);
 
         const sentAt=new Date().toISOString();
         await Promise.all([
-          supabase.from("waitlist_notification_jobs").update({status:"sent",provider_reference:reference||null,sent_at:sentAt,last_error:null}).eq("id",job.id),
+          finishLeasedJob(supabase,"waitlist_notification_jobs",job,{status:"sent",provider_reference:reference||null,sent_at:sentAt,last_error:null}),
           supabase.from("booking_waitlist").update({offer_sent_at:sentAt,last_message_at:sentAt,last_message_channel:job.channel}).eq("id",waitlist.id),
         ]);
         results.push({id:job.id,status:"sent"});
       }catch(error){
-        const final=attempts>=3;
-        const detail=error instanceof Error?error.message:"Waitlist offer delivery failed";
-        await supabase.from("waitlist_notification_jobs").update({
-          status:final?"failed":"retry",last_error:detail.slice(0,1000),
+        const final=attempts>=3 || ambiguousDelivery(error);
+        const detail=ambiguousDelivery(error)?"Delivery outcome unknown; reconcile with provider before retry":"Provider delivery failed; inspect the provider dashboard";
+        await finishLeasedJob(supabase,"waitlist_notification_jobs",job,{
+          status:final?"failed":"retry",attempt_count:final?3:attempts,last_error:detail.slice(0,1000),
           next_attempt_at:new Date(Date.now()+Math.min(30,Math.pow(2,Math.max(0,attempts-1)))*60_000).toISOString()
-        }).eq("id",job.id);
+        });
         results.push({id:job.id,status:final?"failed":"retry",detail});
       }
-    }
+    });
 
     return respond({ok:true,processed:results.length,results});
   }catch(error){

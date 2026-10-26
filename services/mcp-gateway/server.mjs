@@ -48,30 +48,34 @@ export function createApp(config, database, verify = createVerifier(config)) {
   app.get("/health", (_req, res) =>
     res.json({ status: "ok", service: "quickserve-mcp-gateway", version: "0.1.0" }),
   );
-  const budgets = new Map();
+  app.get("/ready", async (_req, res) => {
+    try { await database.ready(); return res.json({ status: "ready" }); }
+    catch { return res.status(503).json({ status: "unavailable" }); }
+  });
+  let activeRequests = 0;
   app.all("/mcp", async (req, res, next) => {
     try {
       // Resource URL and discovery are pinned configuration, never reflected from a caller's Host.
       req.identity = await verify(req.headers.authorization);
-      const now = Date.now();
-      if (budgets.size >= 5000)
-        for (const [key, value] of budgets) if (now - value.at >= 60000) budgets.delete(key);
-      const budget = budgets.get(req.identity.subject);
-      if (budget && now - budget.at < 60000 && budget.count >= 120) {
+      if (activeRequests >= 16) {
+        res.set("Retry-After", "2");
+        return res.status(503).json({error:"busy"});
+      }
+      activeRequests++;
+      let released=false;
+      const release=()=>{if(!released){released=true;activeRequests--;}};
+      res.once("finish",release);res.once("close",release);
+      if (!await database.consumeBudget(req.identity)) {
         res.set("Retry-After", "60");
         return res.status(429).json({ error: "rate_limited" });
       }
-      if (!budget || now - budget.at >= 60000) {
-        if (budgets.size >= 5000) return res.status(503).json({ error: "busy" });
-        budgets.set(req.identity.subject, { at: now, count: 1 });
-      } else budget.count++;
       if (req.method !== "POST") {
         res.set("Allow", "POST, OPTIONS");
         return res.sendStatus(405);
       }
       next();
     } catch (error) {
-      const status = error instanceof AccessError ? error.status : 401;
+      const status = error instanceof AccessError ? error.status : 503;
       if (status === 401)
         res.set(
           "WWW-Authenticate",
@@ -81,7 +85,7 @@ export function createApp(config, database, verify = createVerifier(config)) {
         res.set("WWW-Authenticate", 'Bearer error="insufficient_scope", scope="quickserve:read"');
       return res
         .status(status)
-        .json({ error: error instanceof AccessError ? error.code : "invalid_token" });
+        .json({ error: error instanceof AccessError ? error.code : "service_unavailable" });
     }
   });
   const handler = createMcpHandler(

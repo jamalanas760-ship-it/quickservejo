@@ -76,7 +76,7 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
   const displayName = meta?.full_name || meta?.name || membership?.name || user?.email?.split("@")[0] || "QuickServe";
   const role = access.isSuperAdmin ? "super_admin" : membership?.role;
   const roleLabel = role && role in ROLE_LABELS ? ROLE_LABELS[role as keyof typeof ROLE_LABELS][lang] : (lang === "ar" ? "عضو" : "Member");
-  const notificationCount = counters.data.unread;
+  const notificationCount = counters.isUnavailable ? 0 : counters.data.unread;
   const homeTo = membership?.role === "manager" ? "/manager" : access.isSuperAdmin ? "/super-admin" : "/dashboard";
 
   async function signOut() {
@@ -121,6 +121,7 @@ function AppHeaderContent({ onMenu, className, title }: AppHeaderProps) {
         </Button>
 
         <div className="qs-topbar-controls ms-auto flex min-w-0 items-center gap-1 sm:gap-1.5">
+          {counters.isError ? <span role="status" className="max-w-24 text-[10px] text-amber-700 dark:text-amber-300">{lang === "ar" ? "العدادات غير متاحة" : "Counts unavailable"}</span> : null}
           <NotificationBell restaurantId={restaurantId} count={notificationCount} ar={lang === "ar"} />
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>

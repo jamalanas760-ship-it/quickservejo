@@ -1,3 +1,4 @@
+import { createCoalescedRefresh } from "@/lib/coalesced-refresh";
 import { useEffect, useState } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,9 +36,10 @@ export function useServiceLive(restaurantId: string | null | undefined) {
   useEffect(() => {
     if (!restaurantId) return;
     setLive(false);
-    const refresh = () => {
-      void invalidateServiceQueries(client, restaurantId);
-    };
+    const batch = createCoalescedRefresh(() => { void invalidateServiceQueries(client, restaurantId); });
+    const refresh = batch.schedule;
+    let subscribed = false;
+    let lastReconcile = 0;
     let channel = supabase.channel(`service:${restaurantId}:${crypto.randomUUID()}`);
     for (const table of [
       "orders",
@@ -48,8 +50,6 @@ export function useServiceLive(restaurantId: string | null | undefined) {
       "table_bookings",
       "booking_waitlist",
     ]) {
-      // order_items has no restaurant_id; parent orders events and polling handle it.
-      if (table === "order_items") continue;
       channel = channel.on(
         "postgres_changes",
         { event: "*", schema: "public", table, filter: `restaurant_id=eq.${restaurantId}` },
@@ -57,13 +57,18 @@ export function useServiceLive(restaurantId: string | null | undefined) {
       );
     }
     channel.subscribe((status) => {
-      setLive(status === "SUBSCRIBED");
+      subscribed = status === "SUBSCRIBED";
+      setLive(subscribed);
       if (status === "SUBSCRIBED") refresh();
     });
-    // Poll even when subscribed: tenants may not publish every table to Realtime.
-    const timer = window.setInterval(refresh, 15000);
+    // Reconcile slowly when healthy, with jitter to avoid synchronized refetches.
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      if (!subscribed || Date.now() - lastReconcile >= 120_000) { lastReconcile = Date.now(); refresh(); }
+    }, 30_000 + Math.floor(Math.random() * 5_000));
     window.addEventListener("online", refresh);
     return () => {
+      batch.cancel();
       window.clearInterval(timer);
       window.removeEventListener("online", refresh);
       void supabase.removeChannel(channel);

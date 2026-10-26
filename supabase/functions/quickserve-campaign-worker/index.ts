@@ -1,4 +1,6 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { finishLeasedJob, ambiguousDelivery } from "../_shared/notification-lease.ts";
+import { mapConcurrent } from "../_shared/integration-transport.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.112.4";
 
 function serviceKey() {
   const direct = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -17,7 +19,7 @@ function personalize(template: string, name: string | null) {
   return template.replaceAll("{{name}}", name?.trim() || "Guest");
 }
 
-function normalizeDestination(value: string) {
+function normalizeDestination(value: string): string {
   const raw = value.trim();
   if (raw.startsWith("whatsapp:")) return "whatsapp:" + normalizeDestination(raw.slice(9));
   if (raw.startsWith("+")) return raw;
@@ -42,7 +44,7 @@ async function sendTwilio(channel: "sms" | "whatsapp", to: string, message: stri
   const source = channel === "whatsapp" && !from.startsWith("whatsapp:") ? `whatsapp:${from}` : from;
   const body = new URLSearchParams({ To: destination, From: source, Body: message });
   const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-    method: "POST",
+    method: "POST", redirect: "error", signal: AbortSignal.timeout(10_000),
     headers: { Authorization: "Basic " + btoa(`${sid}:${token}`), "Content-Type": "application/x-www-form-urlencoded" },
     body,
   });
@@ -51,13 +53,13 @@ async function sendTwilio(channel: "sms" | "whatsapp", to: string, message: stri
   return String(data?.sid || "");
 }
 
-async function sendEmail(to: string, subject: string, message: string) {
+async function sendEmail(to: string, subject: string, message: string, deliveryKey: string) {
   const key = Deno.env.get("RESEND_API_KEY")?.trim();
   const from = Deno.env.get("RESEND_FROM_EMAIL")?.trim();
   if (!key || !from) throw new Error("RESEND_API_KEY and RESEND_FROM_EMAIL are required");
   const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    method: "POST", redirect: "error", signal: AbortSignal.timeout(10_000),
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "Idempotency-Key": deliveryKey },
     body: JSON.stringify({ from, to: [to], subject: subject || "Message from your restaurant", text: message }),
   });
   const data = await response.json().catch(() => ({}));
@@ -98,43 +100,36 @@ Deno.serve(async (req) => {
       }
 
       await supabase.from("crm_campaigns").update({ status: "processing", last_error: null }).eq("id", campaign.id);
-      const { data: recipients, error: recipientError } = await supabase.from("crm_campaign_recipients")
-        .select("id,guest_id,destination,status,attempt_count").eq("campaign_id", campaign.id)
-        .in("status", ["pending", "failed"]).lt("attempt_count", 3).order("created_at").limit(50);
+      const { data: recipients, error: recipientError } = await supabase.rpc("claim_notification_jobs", { _queue: "crm_campaign_recipients", _campaign_id: campaign.id });
       if (recipientError) throw recipientError;
 
-      const guestIds = [...new Set((recipients ?? []).map((row) => row.guest_id))];
+      const guestIds = [...new Set((recipients ?? []).map((row:any) => row.guest_id))];
       const { data: guests, error: guestError } = guestIds.length
         ? await supabase.from("crm_guests").select("id,name,marketing_opt_in").in("id", guestIds)
         : { data: [], error: null };
       if (guestError) throw guestError;
       const guestMap = new Map((guests ?? []).map((guest) => [guest.id, guest]));
 
-      for (const recipient of recipients ?? []) {
+      await mapConcurrent(recipients ?? [],4,async (recipient:any) => {
         const guest = guestMap.get(recipient.guest_id);
         if (!guest?.marketing_opt_in) {
-          await supabase.from("crm_campaign_recipients").update({ status: "skipped", last_error: "Marketing consent was withdrawn before delivery" }).eq("id", recipient.id);
-          continue;
+          await finishLeasedJob(supabase,"crm_campaign_recipients",recipient,{ status: "skipped", last_error: "Marketing consent was withdrawn before delivery" });
+          return;
         }
-        await supabase.from("crm_campaign_recipients").update({ status: "sending", attempt_count: Number(recipient.attempt_count ?? 0) + 1, last_error: null }).eq("id", recipient.id);
         try {
           const message = personalize(campaign.message, guest.name);
           const reference = channel === "email"
-            ? await sendEmail(recipient.destination, campaign.subject || campaign.name, message)
+            ? await sendEmail(recipient.destination, campaign.subject || campaign.name, message, recipient.id)
             : await sendTwilio(channel, recipient.destination, message);
-          await supabase.from("crm_campaign_recipients").update({ status: "sent", provider_reference: reference || null, sent_at: new Date().toISOString(), last_error: null }).eq("id", recipient.id);
+          await finishLeasedJob(supabase,"crm_campaign_recipients",recipient,{ status: "sent", provider_reference: reference || null, sent_at: new Date().toISOString(), last_error: null });
         } catch (error) {
-          await supabase.from("crm_campaign_recipients").update({ status: "failed", last_error: error instanceof Error ? error.message.slice(0, 1000) : "Provider delivery failed" }).eq("id", recipient.id);
+          await finishLeasedJob(supabase,"crm_campaign_recipients",recipient,{ status: "failed", attempt_count: ambiguousDelivery(error) ? 3 : Number(recipient.attempt_count), next_attempt_at: new Date(Date.now()+60_000).toISOString(), last_error: ambiguousDelivery(error) ? "Delivery outcome unknown; reconcile before retry" : "Provider delivery failed" });
         }
-      }
+      });
 
-      const { data: allRows, error: statsError } = await supabase.from("crm_campaign_recipients").select("status,attempt_count").eq("campaign_id", campaign.id);
+      const { data: counts, error: statsError } = await supabase.rpc("campaign_delivery_counts", { _campaign_id: campaign.id });
       if (statsError) throw statsError;
-      const rows = allRows ?? [];
-      const sent = rows.filter((row) => row.status === "sent").length;
-      const skipped = rows.filter((row) => row.status === "skipped").length;
-      const failed = rows.filter((row) => row.status === "failed" && Number(row.attempt_count) >= 3).length;
-      const remaining = rows.filter((row) => row.status === "pending" || (row.status === "failed" && Number(row.attempt_count) < 3)).length;
+      const {sent,failed,skipped,remaining}=counts;
       await supabase.from("crm_campaigns").update({
         status: remaining === 0 ? "completed" : "processing",
         sent_count: sent, failed_count: failed, skipped_count: skipped,

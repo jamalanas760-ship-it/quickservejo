@@ -330,7 +330,7 @@ test("Workforce navigation badge represents unread workforce alerts, not schedul
   const counters = await file("src/hooks/useOperationalCounters.ts");
   const nav = await file("src/components/nav/BottomNav.tsx");
   assert.match(counters, /workforceUnread/);
-  assert.match(counters, /source_type\.eq\.missing_punch_request/);
+  assert.match(await file("supabase/migrations/20261026072346_operational_counter_snapshot.sql"), /missing_punch_request/);
   assert.match(nav, /badge: "workforceUnread"/);
 });
 

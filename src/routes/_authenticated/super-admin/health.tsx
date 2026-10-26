@@ -46,13 +46,16 @@ function HealthPage() {
     refetchInterval: 30_000,
     queryFn: async () => {
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const [eventsRes, metricsRes] = await Promise.all([
+      const [eventsRes, metricsRes, reliabilityRes] = await Promise.all([
         supabase.from("system_events" as any).select("id,restaurant_id,severity,source,event_type,message,route,created_at").gte("created_at", since).order("created_at", { ascending: false }).limit(200),
         supabase.from("performance_samples" as any).select("metric,value,route,device,created_at").gte("created_at", since).order("created_at", { ascending: false }).limit(1000),
+        (supabase as any).rpc("platform_reliability_snapshot"),
       ]);
+      if (reliabilityRes.error) throw reliabilityRes.error;
       if (eventsRes.error) throw eventsRes.error;
       if (metricsRes.error) throw metricsRes.error;
       return {
+        reliability: reliabilityRes.data as {sampled_at:string;queues:Array<{queue:string;restaurant_id:string;pending:number;in_flight:number;expired_leases:number;failed:number;oldest_pending_seconds:number|null}>},
         events: (eventsRes.data ?? []) as unknown as EventRow[],
         metrics: (metricsRes.data ?? []) as unknown as MetricRow[],
       };
@@ -82,16 +85,21 @@ function HealthPage() {
   const inp = p75("INP");
   const cls = p75("CLS");
   const ttfb = avg("TTFB");
-  const healthy = critical === 0 && errors < 5 && (lcp === 0 || lcp <= 2500) && (inp === 0 || inp <= 200) && (cls === 0 || cls <= .1);
+  const queues = query.data?.reliability.queues ?? [];
+  const queueProblem = queues.some(q=>q.failed>0 || q.expired_leases>0 || Number(q.oldest_pending_seconds)>300);
+  const enoughSamples = metrics.filter(m=>m.metric==="LCP").length >= 100;
+  const healthy = enoughSamples && !queueProblem && critical === 0 && errors < 5 && (lcp === 0 || lcp <= 2500) && (inp === 0 || inp <= 200) && (cls === 0 || cls <= .1);
 
   return <div className="space-y-5">
     <MasterPageHeader
       eyebrow={<MasterEyebrow icon={Server}>{ar ? "مراقبة المنصة" : "Platform observability"}</MasterEyebrow>}
       title={ar ? "صحة وأداء المنصة" : "Platform health & performance"}
       description={ar ? "أخطاء الواجهة وإشارات الأداء خلال آخر 24 ساعة في مكان واحد." : "Runtime errors and performance signals from the last 24 hours in one operational control center."}
-      actions={<span className={cn("inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold", healthy ? "bg-emerald-500/10 text-emerald-700" : "bg-amber-500/10 text-amber-700")}>{healthy ? <CheckCircle2 className="size-4" /> : <AlertTriangle className="size-4" />}{healthy ? (ar ? "الوضع طبيعي" : "Healthy") : (ar ? "يحتاج مراجعة" : "Needs review")}</span>}
+      actions={<span className={cn("inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold", healthy ? "bg-emerald-500/10 text-emerald-700" : "bg-amber-500/10 text-amber-700")}>{healthy ? <CheckCircle2 className="size-4" /> : <AlertTriangle className="size-4" />}{healthy ? (ar ? "الوضع طبيعي" : "Healthy") : !enoughSamples && !queueProblem && errors===0 && critical===0 ? (ar ? "بيانات غير كافية" : "Insufficient samples") : (ar ? "يحتاج مراجعة" : "Needs review")}</span>}
     />
 
+    {queueProblem ? <p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">{ar ? "توجد مهام فاشلة أو متأخرة. راجع الطابور قبل إعادة المحاولة." : "Some background jobs are failed, overdue, or have expired leases. Review their delivery state before retrying."}</p> : null}
+    {queues.length ? <section className="qs-card overflow-x-auto p-4"><table className="qs-table"><thead><tr><th>{ar ? "الطابور" : "Queue"}</th><th>{ar ? "المطعم" : "Restaurant"}</th><th>{ar ? "بانتظار" : "Pending"}</th><th>{ar ? "قيد التنفيذ" : "In flight"}</th><th>{ar ? "فشل" : "Failed"}</th><th>{ar ? "أقدم مهمة (ث)" : "Oldest pending (s)"}</th></tr></thead><tbody>{queues.map(q=><tr key={`${q.queue}:${q.restaurant_id}`}><td>{q.queue}</td><td>{q.restaurant_id.slice(0,8)}</td><td>{q.pending}</td><td>{q.in_flight}</td><td>{q.failed}</td><td>{q.oldest_pending_seconds===null ? "—" : Math.round(q.oldest_pending_seconds)}</td></tr>)}</tbody></table></section> : null}
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <MasterKpi icon={TriangleAlert} label={ar ? "أخطاء" : "Errors"} value={formatNumber(errors + critical, lang)} tone={errors + critical ? "red" : "green"} />
       <MasterKpi icon={Gauge} label="LCP p75" value={lcp ? Math.round(lcp) + " ms" : "—"} tone={lcp && lcp > 2500 ? "orange" : "green"} />

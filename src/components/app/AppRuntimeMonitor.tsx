@@ -1,5 +1,7 @@
+import { useMemberships } from "@/hooks/useSession";
+import { safeTelemetryRoute } from "@/lib/telemetry-scope";
 import { installResumeRecovery } from "@/lib/resume-recovery";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { WifiOff } from "lucide-react";
 
 import { useConnectivity } from "@/hooks/useConnectivity";
@@ -16,7 +18,7 @@ function deviceLabel() {
 }
 
 function routeName() {
-  return typeof window === "undefined" ? "/" : window.location.pathname;
+  return typeof window === "undefined" ? "/" : safeTelemetryRoute(window.location.pathname);
 }
 
 async function recordEvent(type: string, message: string, metadata: Record<string, unknown> = {}) {
@@ -34,7 +36,7 @@ async function recordEvent(type: string, message: string, metadata: Record<strin
   }
 }
 
-async function recordMetric(metric: MetricName, value: number) {
+async function recordMetric(metric: MetricName, value: number, restaurantId: string | null = null) {
   if (!Number.isFinite(value) || value < 0) return;
   try {
     await (supabase as any).rpc("record_performance_sample", {
@@ -42,7 +44,7 @@ async function recordMetric(metric: MetricName, value: number) {
       _value: Math.round(value * 1000) / 1000,
       _route: routeName(),
       _device: deviceLabel(),
-      _restaurant_id: null,
+      _restaurant_id: restaurantId,
     });
   } catch {
     // Performance telemetry is best effort.
@@ -51,7 +53,13 @@ async function recordMetric(metric: MetricName, value: number) {
 
 export function AppRuntimeMonitor() {
   const connectivity = useConnectivity();
+  const memberships = useMemberships();
+  const tenant = useRef<string | null>(null);
+  const requested = typeof window === "undefined" ? null : window.location.pathname.match(/\/(?:manage|restaurants)\/([0-9a-f-]{36})(?:\/|$)/i)?.[1];
+  const rows = memberships.data ?? [];
+  tenant.current = rows.find((row) => row.restaurant_id === requested)?.restaurant_id ?? (rows.length === 1 ? rows[0].restaurant_id : null);
   const sent = useRef(new Set<string>());
+  const metric = useCallback((name: MetricName, value: number) => recordMetric(name, value, tenant.current), []);
 
   useEffect(() => {
     const stopRecovery = installResumeRecovery();
@@ -88,7 +96,7 @@ export function AppRuntimeMonitor() {
 
     const onError = (event: ErrorEvent) => {
       void recordEvent("window_error", event.message || "Unhandled browser error", {
-        filename: event.filename,
+        filename: safeTelemetryRoute(event.filename),
         line: event.lineno,
         column: event.colno,
       });
@@ -103,8 +111,8 @@ export function AppRuntimeMonitor() {
     runWhenIdle(() => {
       const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
       if (navigation) {
-        void recordMetric("TTFB", navigation.responseStart);
-        void recordMetric("route_load", navigation.loadEventEnd || navigation.domComplete || navigation.duration);
+        void metric("TTFB", navigation.responseStart);
+        void metric("route_load", navigation.loadEventEnd || navigation.domComplete || navigation.duration);
       }
     });
 
@@ -115,7 +123,7 @@ export function AppRuntimeMonitor() {
         const last = entries[entries.length - 1];
         if (last && !sent.current.has("LCP")) {
           sent.current.add("LCP");
-          void recordMetric("LCP", last.startTime);
+          void metric("LCP", last.startTime);
         }
       });
       lcp.observe({ type: "largest-contentful-paint", buffered: true });
@@ -134,7 +142,7 @@ export function AppRuntimeMonitor() {
       const flush = () => {
         if (!sent.current.has("CLS")) {
           sent.current.add("CLS");
-          void recordMetric("CLS", cls);
+          void metric("CLS", cls);
         }
       };
       visibilityHandler = () => {
@@ -149,7 +157,7 @@ export function AppRuntimeMonitor() {
         for (const entry of list.getEntries()) longest = Math.max(longest, entry.duration);
         if (longest > 0 && !sent.current.has("INP")) {
           sent.current.add("INP");
-          void recordMetric("INP", longest);
+          void metric("INP", longest);
         }
       });
       interaction.observe({ type: "event", buffered: true, durationThreshold: 40 } as PerformanceObserverInit);
@@ -169,7 +177,7 @@ export function AppRuntimeMonitor() {
       window.removeEventListener("unhandledrejection", onRejection);
       observers.forEach((observer) => observer.disconnect());
     };
-  }, []);
+  }, [metric]);
 
   if (connectivity !== "offline") return null;
   return <div role="status" aria-live="polite" className="fixed inset-x-0 top-0 z-[100] flex min-h-10 items-center justify-center gap-2 bg-amber-500 px-3 py-2 text-center text-xs font-bold text-black shadow-sm">

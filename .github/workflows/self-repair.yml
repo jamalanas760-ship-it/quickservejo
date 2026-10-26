@@ -1,58 +1,33 @@
-name: QuickServe Self Repair & Build
-
+name: QuickServe Self Repair Review
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
-  schedule:
-    - cron: "17 * * * *"
-
 permissions:
-  contents: write
-
+  contents: read
 concurrency:
-  group: quickserve-self-repair-main
+  group: quickserve-self-repair-review
   cancel-in-progress: false
-
 jobs:
-  repair-and-build:
-    if: github.actor != 'github-actions[bot]'
+  inspect:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-      - name: Apply PDF menu customer integration
-        run: node scripts/pdf-menu-migration.mjs
-      - name: Apply deterministic self-repairs
-        run: node scripts/self-repair.mjs
-      - name: Apply manual menu TypeScript repair
-        run: node scripts/manual-menu-repair.mjs
-      - name: Apply release type repairs
-        run: node scripts/release-repair.mjs
-      - name: Generate route tree and validate build
-        run: bun run build
-      - name: Commit safe repairs
+      - run: bun install --frozen-lockfile
+      - name: Prepare suggested repairs in an isolated checkout
         run: |
-          if git diff --quiet; then
-            echo "No automatic repairs needed."
-            exit 0
-          fi
-          git config user.name "quickserve-self-repair[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src scripts supabase tsconfig.json
-          git commit -m "chore: self-repair and harden app [skip self-repair]"
-          git push origin HEAD:main
-      - name: Typecheck
-        run: bunx tsc --noEmit
-      - name: Lint
-        run: bun run lint
-      - name: Production build
-        run: bun run build
+          node scripts/pdf-menu-migration.mjs
+          node scripts/self-repair.mjs
+          node scripts/manual-menu-repair.mjs
+          node scripts/release-repair.mjs
+      - run: bun run build
+      - run: bunx tsc --noEmit
+      - run: bun run test:contracts
+      - run: bun run lint
+      - name: Produce review patch
+        run: git diff --binary > suggested-repairs.patch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: suggested-repairs-review-before-applying
+          path: suggested-repairs.patch

@@ -1,3 +1,4 @@
+import { batchedPages } from "@/lib/batched-pages";
 /**
  * Shared order operations for the kitchen / management surfaces:
  * cancellations with mandatory reason codes, chef assignment and
@@ -77,13 +78,10 @@ export type StatusEvent = {
 
 export async function fetchStatusEvents(orderIds: string[]): Promise<StatusEvent[]> {
   if (orderIds.length === 0) return [];
-  const { data, error } = await (supabase as any)
+  return batchedPages<StatusEvent>(orderIds, batch => (supabase as any)
     .from("order_status_events")
     .select("id, order_id, from_status, to_status, actor_name, note, created_at")
-    .in("order_id", orderIds)
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as unknown as StatusEvent[];
+    .in("order_id", batch).order("created_at", { ascending: true }).order("id"));
 }
 
 /** Seconds spent in each stage, derived from consecutive events. */

@@ -1,4 +1,5 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { resolveIntegrationBinding, postIntegrationJson, mapConcurrent } from "../_shared/integration-transport.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.112.4";
 
 function serviceKey() {
   const direct = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -9,65 +10,36 @@ function serviceKey() {
 }
 const respond = (body: unknown, status=200) => new Response(JSON.stringify(body), { status, headers:{"Content-Type":"application/json"} });
 
-function credential(category:string) {
-  if (category === "delivery") return Deno.env.get("DELIVERY_PROVIDER_SECRET")?.trim() || "";
-  if (category === "accounting") return Deno.env.get("ACCOUNTING_PROVIDER_SECRET")?.trim() || "";
-  return "";
-}
-async function postJson(url:string, secret:string, externalKey:string, payload:unknown) {
-  const res = await fetch(url, {
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":`Bearer ${secret}`,
-      "Idempotency-Key":externalKey,
-      "User-Agent":"QuickServe-Connect/1.0",
-    },
-    body:JSON.stringify(payload),
-  });
-  const text = await res.text();
-  let data: any = null;
-  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw:text }; }
-  if (!res.ok) throw Object.assign(new Error(String(data?.message || data?.error || `HTTP ${res.status}`)), { status:res.status, body:text });
-  return { status:res.status, data, raw:text };
-}
-
 Deno.serve(async(req)=>{
   try{
-    const supabase=createClient(Deno.env.get("SUPABASE_URL")!,serviceKey(),{auth:{persistSession:false,autoRefreshToken:false}});
+    const supabase=createClient(Deno.env.get("SUPABASE_URL")!,serviceKey(),{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:(input,init)=>fetch(input,{...init,signal:init?.signal?AbortSignal.any([init.signal,AbortSignal.timeout(8000)]):AbortSignal.timeout(8000)})}});
     const secret=req.headers.get("x-quickserve-worker")??"";
     const {data:authorized,error:authError}=await supabase.rpc("verify_integration_worker_secret",{_secret:secret});
     if(authError||!authorized)return respond({error:"Unauthorized"},401);
 
-    const {data:jobs,error:jobError}=await supabase.from("integration_jobs")
-      .select("id,restaurant_id,connection_id,category,action,external_key,payload,status,attempt_count")
-      .in("status",["queued","retry"]).lte("next_attempt_at",new Date().toISOString())
-      .order("created_at").limit(25);
+    if (req.method !== "POST") return respond({error:"Method not allowed"},405);
+    const {data:jobs,error:jobError}=await supabase.rpc("claim_integration_jobs",{_limit:8});
     if(jobError)throw jobError;
 
-    const results:any[]=[];
-    for(const job of jobs??[]){
-      const {data:connection,error:connectionError}=await supabase.from("integration_connections")
-        .select("id,provider,display_name,status,config").eq("id",job.connection_id).maybeSingle();
-      if(connectionError)throw connectionError;
-      if(!connection||connection.status==="disabled"){
-        await supabase.from("integration_jobs").update({status:"failed",last_error:"Integration connection is unavailable",attempt_count:Number(job.attempt_count)+1}).eq("id",job.id);
-        results.push({id:job.id,status:"failed"});continue;
-      }
-      const endpoint=String(connection.config?.endpoint_url??"").trim();
-      const providerSecret=credential(job.category);
-      if(!endpoint.startsWith("https://")||!providerSecret){
-        const detail=!endpoint.startsWith("https://")?"HTTPS endpoint URL is not configured":`${job.category==="delivery"?"DELIVERY_PROVIDER_SECRET":"ACCOUNTING_PROVIDER_SECRET"} is not configured`;
-        await supabase.from("integration_jobs").update({
-          status:"retry",attempt_count:Number(job.attempt_count)+1,last_error:detail,
-          next_attempt_at:new Date(Date.now()+60*60_000).toISOString(),
-        }).eq("id",job.id);
-        await supabase.from("integration_connections").update({status:"degraded",last_error:detail,last_tested_at:new Date().toISOString()}).eq("id",connection.id);
-        results.push({id:job.id,status:"blocked",detail});continue;
-      }
-
-      await supabase.from("integration_jobs").update({status:"in_flight",request_started_at:new Date().toISOString(),attempt_count:Number(job.attempt_count)+1,last_error:null}).eq("id",job.id);
+    const results=await mapConcurrent(jobs??[],4,async(job:any)=>{
+      // Only the holder of the current, unexpired lease may acknowledge a job.
+      const settle=async(patch:Record<string,unknown>)=>{
+        const {data,error}=await supabase.from("integration_jobs").update({...patch,lease_token:null,lease_expires_at:null})
+          .eq("id",job.id).eq("lease_token",job.lease_token).eq("status","in_flight")
+          .gt("lease_expires_at",new Date().toISOString()).select("id").maybeSingle();
+        if(error)throw error;
+        if(!data)throw new Error("Integration job lease was lost");
+      };
       try{
+        const {data:connection,error:connectionError}=await supabase.from("integration_connections")
+          .select("id,restaurant_id,provider,status,config").eq("id",job.connection_id).eq("restaurant_id",job.restaurant_id).single();
+        if(connectionError)throw connectionError;
+        if(connection.status==="disabled") {
+          await settle({status:"failed",last_error:"Integration is disabled"});
+          return {id:job.id,status:"failed"};
+        }
+        const binding=resolveIntegrationBinding(Deno.env.get("QUICKSERVE_INTEGRATION_BINDINGS"),job,connection);
+
         let outgoing:any={event:job.action,idempotency_key:job.external_key,restaurant_id:job.restaurant_id};
 
         if(job.category==="delivery"&&job.action==="create_order"){
@@ -94,10 +66,7 @@ Deno.serve(async(req)=>{
           outgoing={...outgoing,entry:expense,provider:connection.provider};
         } else throw new Error("Unsupported integration job");
 
-        const response=await postJson(endpoint,providerSecret,job.external_key,outgoing);
-        await supabase.from("integration_jobs").update({
-          status:"completed",completed_at:new Date().toISOString(),response_status:response.status,response_body:response.raw.slice(0,4000),last_error:null,
-        }).eq("id",job.id);
+        const response=await postIntegrationJson(binding,job.external_key,outgoing);
         await supabase.from("integration_connections").update({status:"healthy",last_sync_at:new Date().toISOString(),last_error:null}).eq("id",connection.id);
 
         if(job.category==="delivery"){
@@ -112,28 +81,29 @@ Deno.serve(async(req)=>{
             delivery_status_updated_at:new Date().toISOString(),
           }).eq("id",orderId).eq("restaurant_id",job.restaurant_id);
         }
-        results.push({id:job.id,status:"completed"});
+        await settle({status:"completed",completed_at:new Date().toISOString(),response_status:response.status,response_body:null,last_error:null});
+        return {id:job.id,status:"completed"};
       }catch(error:any){
-        const attempts=Number(job.attempt_count)+1;
+        const attempts=Number(job.attempt_count);
         const final=attempts>=5;
         const delay=Math.min(60,Math.pow(2,Math.max(0,attempts-1)));
-        const detail=error instanceof Error?error.message:"Integration delivery failed";
-        await supabase.from("integration_jobs").update({
+        const detail=error instanceof Error && /^(An operator must approve|Integration (endpoint|bindings|credential|provider HTTP|response|job lease))/.test(error.message) ? error.message : "Integration attempt failed; inspect the worker trace";
+        try { await settle({
           status:final?"failed":"retry",last_error:detail.slice(0,1000),
-          response_status:Number(error?.status)||null,response_body:String(error?.body??"").slice(0,4000),
+          response_status:null,response_body:null,
           next_attempt_at:new Date(Date.now()+delay*60_000).toISOString(),
-        }).eq("id",job.id);
-        await supabase.from("integration_connections").update({status:final?"error":"degraded",last_error:detail.slice(0,1000),last_tested_at:new Date().toISOString()}).eq("id",connection.id);
+        }); } catch { return {id:job.id,status:"lease_lost"}; }
+        await supabase.from("integration_connections").update({status:final?"error":"degraded",last_error:detail.slice(0,1000),last_tested_at:new Date().toISOString()}).eq("id",job.connection_id);
         if(job.category==="delivery"&&final){
           await supabase.from("orders").update({delivery_status:"failed",delivery_status_updated_at:new Date().toISOString()})
             .eq("id",String(job.payload?.order_id??"")).eq("restaurant_id",job.restaurant_id);
         }
-        results.push({id:job.id,status:final?"failed":"retry",detail});
+        return {id:job.id,status:final?"failed":"retry",detail};
       }
-    }
+    });
     return respond({ok:true,processed:results.length,results});
   }catch(error){
-    console.error(error);
-    return respond({error:error instanceof Error?error.message:"Integration worker failed"},500);
+    console.error("Integration worker failed",{name:error instanceof Error?error.name:"Unknown"});
+    return respond({error:"Integration worker failed"},500);
   }
 });

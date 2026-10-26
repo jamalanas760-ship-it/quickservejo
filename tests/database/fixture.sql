@@ -1,0 +1,36 @@
+create role anon nologin;
+create role authenticated nologin;
+create role service_role nologin bypassrls;
+create schema auth;
+create schema app;
+create table auth.users(id uuid primary key,deleted_at timestamptz,banned_until timestamptz);
+create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+grant usage on schema auth to anon,authenticated,service_role;
+create table public.restaurants(id uuid primary key,timezone text default 'Asia/Amman');
+create table public.staff(id uuid primary key,restaurant_id uuid references public.restaurants(id),auth_user_id uuid references auth.users(id),role text default 'restaurant_admin',is_active boolean default true);
+create table public.menu_items(id uuid primary key,restaurant_id uuid not null references public.restaurants(id));
+create table public.orders(id uuid primary key,restaurant_id uuid not null references public.restaurants(id),assigned_staff_id uuid references public.staff(id) on delete set null,status text default 'new',created_at timestamptz default now());
+create table public.order_items(id uuid primary key,restaurant_id uuid not null references public.restaurants(id),order_id uuid references public.orders(id) on delete cascade,menu_item_id uuid references public.menu_items(id) on delete set null);
+create table public.integration_connections(id uuid primary key,restaurant_id uuid not null references public.restaurants(id));
+create table public.integration_jobs(id uuid primary key default gen_random_uuid(),restaurant_id uuid not null references public.restaurants(id),connection_id uuid references public.integration_connections(id),status text default 'queued',attempt_count integer default 0,next_attempt_at timestamptz default now(),request_started_at timestamptz,completed_at timestamptz,response_status integer,response_body text,last_error text,created_at timestamptz default now(),updated_at timestamptz default now());
+create table public.in_app_notifications(id uuid primary key,restaurant_id uuid not null references public.restaurants(id),read_at timestamptz,kind text,source_type text);
+create view public.visible_notifications with(security_invoker=true) as select * from public.in_app_notifications;
+create table public.work_tasks(id uuid primary key,restaurant_id uuid not null references public.restaurants(id),status text,deleted_at timestamptz);
+create table public.shifts(id uuid primary key,restaurant_id uuid not null references public.restaurants(id),status text,deleted_at timestamptz,shift_date date);
+create table public.booking_notification_jobs(id uuid primary key default gen_random_uuid(),restaurant_id uuid not null references public.restaurants(id),status text default 'queued',attempt_count integer default 0,next_attempt_at timestamptz default now(),last_error text,created_at timestamptz default now(),updated_at timestamptz default now());
+create table public.waitlist_notification_jobs(like public.booking_notification_jobs including all);
+create table public.booking_messages(id uuid primary key default gen_random_uuid(),restaurant_id uuid not null,provider_status text default 'queued',direction text default 'outbound',attempt_count integer default 0,next_attempt_at timestamptz default now(),last_error text,created_at timestamptz default now(),updated_at timestamptz default now());
+create table public.crm_campaign_recipients(id uuid primary key default gen_random_uuid(),restaurant_id uuid not null,campaign_id uuid not null,status text default 'pending',attempt_count integer default 0,last_error text,created_at timestamptz default now(),updated_at timestamptz default now());
+create function public.is_platform_owner() returns boolean language sql stable as 'select false';
+create function app.is_super_admin() returns boolean language sql stable as 'select false';
+create function app.has_capability(r uuid,c text) returns boolean language sql stable as $$select exists(select 1 from public.staff where restaurant_id=r and auth_user_id=auth.uid() and is_active)$$;
+create function public.unseen_order_count(r uuid) returns bigint language sql stable security invoker as $$select count(*) from public.orders where restaurant_id=r and status='new'$$;
+alter table public.staff enable row level security;
+create policy staff_self on public.staff to authenticated using(auth_user_id=auth.uid() and is_active);
+do $$ declare t text; begin
+foreach t in array array['orders','order_items','in_app_notifications','work_tasks','shifts'] loop
+ execute format('alter table public.%I enable row level security',t);
+ execute format('create policy fixture_tenant on public.%I to authenticated using(exists(select 1 from public.staff s where s.restaurant_id=%I.restaurant_id and s.auth_user_id=auth.uid() and s.is_active)) with check(exists(select 1 from public.staff s where s.restaurant_id=%I.restaurant_id and s.auth_user_id=auth.uid() and s.is_active))',t,t,t);
+end loop;end $$;
+grant usage on schema public,app to authenticated,service_role;
+grant select,insert,update,delete on all tables in schema public to authenticated,service_role;

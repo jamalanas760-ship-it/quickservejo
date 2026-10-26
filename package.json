@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test:contracts": "node --test tests/*.test.mjs",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test:database": "node --test tests/database/*.test.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -75,6 +76,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
     "@eslint/js": "^9.32.0",
     "@lovable.dev/vite-tanstack-config": "2.26.5",
     "@types/node": "^22.16.5",

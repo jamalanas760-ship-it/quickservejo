@@ -55,7 +55,7 @@ export function IntegrationOperationsPanel({restaurantId}:{restaurantId:string})
         restaurant_id:restaurantId,category,provider,
         display_name:category==="delivery"?"Delivery provider":"Accounting connector",
         status:endpoint?"configured":"not_configured",
-        credential_ref:category==="delivery"?"DELIVERY_PROVIDER_SECRET":"ACCOUNTING_PROVIDER_SECRET",
+        credential_ref:null,
         config:{...(existing?.config??{}),endpoint_url:endpoint.trim()},
         capabilities:category==="delivery"?["create_order","status_sync"]:["payments","refunds","expenses"],
         last_error:null,
@@ -63,7 +63,7 @@ export function IntegrationOperationsPanel({restaurantId}:{restaurantId:string})
       const {error}=await (supabase as any).from("integration_connections").upsert(payload,{onConflict:"restaurant_id,category,provider"});
       if(error)throw error;
     },
-    onSuccess:async()=>{await Promise.all([qc.invalidateQueries({queryKey:["integration-ops-connections",restaurantId]}),qc.invalidateQueries({queryKey:["integrations",restaurantId]})]);toast.success(ar?"تم حفظ إعداد الاتصال":"Integration endpoint saved");},
+    onSuccess:async()=>{await Promise.all([qc.invalidateQueries({queryKey:["integration-ops-connections",restaurantId]}),qc.invalidateQueries({queryKey:["integrations",restaurantId]})]);toast.success(ar?"تم الحفظ؛ يلزم اعتماد الاتصال":"Endpoint saved; operator approval required");},
     onError:(error)=>toast.error(humanError(error,lang)),
   });
 

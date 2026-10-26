@@ -1,3 +1,6 @@
+import { workforcePages } from "@/lib/workforce-pages";
+import { batchedPages } from "@/lib/batched-pages";
+import { createCoalescedRefresh } from "@/lib/coalesced-refresh";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChefHat, Clock3, Flame, History, PackageCheck, Printer, Volume2, VolumeX } from "lucide-react";
@@ -61,6 +64,7 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
   const queryClient = useQueryClient();
   const [now, setNow] = useState(() => Date.now());
   const [stationId, setStationId] = useState<string>("all");
+  const [visiblePerStage, setVisiblePerStage] = useState<Record<string,number>>({});
   const [realtimeStatus, setRealtimeStatus] = useState<"connected" | "fallback">("fallback");
   const [soundEnabled, setSoundEnabled] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -70,16 +74,15 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
 
   const orders = useQuery<KitchenOrder[]>({
     queryKey: ["kitchen-orders", restaurantId],
-    refetchInterval: 10_000,
+    refetchInterval: realtimeStatus === "connected" ? 120_000 : 15_000,
+    refetchIntervalInBackground: false,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      return workforcePages<KitchenOrder>(() => (supabase as any)
         .from("orders")
         .select("id, order_number, status, created_at, customer_notes, assigned_staff_id, assigned_at, accepted_at, preparing_at, ready_at, served_at, table:restaurant_tables(table_number, table_name)")
         .eq("restaurant_id", restaurantId)
         .in("status", ["new", "accepted", "preparing", "ready"])
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as KitchenOrder[];
+        .order("created_at", { ascending: true }).order("id"));
     },
   });
 
@@ -88,12 +91,10 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
     enabled: Boolean(orders.data?.length),
     queryFn: async () => {
       const ids = (orders.data ?? []).map((order) => order.id);
-      const { data, error } = await (supabase as any)
+      return batchedPages<KitchenItem>(ids, batch => (supabase as any)
         .from("order_items")
         .select("id, order_id, menu_item_id, product_name_snapshot_en, product_name_snapshot_ar, quantity, notes, selected_modifiers")
-        .in("order_id", ids);
-      if (error) throw error;
-      return (data ?? []) as KitchenItem[];
+        .eq("restaurant_id", restaurantId).in("order_id", batch).order("id"));
     },
   });
 
@@ -166,19 +167,19 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
   }, []);
 
   useEffect(() => {
+    const refresh = createCoalescedRefresh(() => {
+      void queryClient.invalidateQueries({ queryKey: ["kitchen-orders", restaurantId] });
+      void queryClient.invalidateQueries({ queryKey: ["kitchen-order-items", restaurantId] });
+      void queryClient.invalidateQueries({ queryKey: ["kitchen-order-events", restaurantId] });
+    });
     const channel = supabase
       .channel(`kds:${restaurantId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `restaurant_id=eq.${restaurantId}` }, () => {
-        void queryClient.invalidateQueries({ queryKey: ["kitchen-orders", restaurantId] });
-        void queryClient.invalidateQueries({ queryKey: ["kitchen-order-events", restaurantId] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_items", filter: `restaurant_id=eq.${restaurantId}` }, () => {
-        void queryClient.invalidateQueries({ queryKey: ["kitchen-order-items", restaurantId] });
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `restaurant_id=eq.${restaurantId}` }, refresh.schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items", filter: `restaurant_id=eq.${restaurantId}` }, refresh.schedule)
 .subscribe((status) => {
         setRealtimeStatus(status === "SUBSCRIBED" ? "connected" : "fallback");
       });
-    return () => { void supabase.removeChannel(channel); };
+    return () => { refresh.cancel(); void supabase.removeChannel(channel); };
   }, [queryClient, restaurantId]);
 
   useEffect(() => {
@@ -293,11 +294,14 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
     }
   }
 
+  if (orders.isError && !orders.data) return <div role="alert">{ar ? "تعذر تحميل الطلبات. أعد المحاولة." : "Orders could not be loaded. Please retry."}<Button variant="outline" onClick={() => void orders.refetch()}>{ar ? "إعادة المحاولة" : "Retry"}</Button></div>;
+
   if (orders.isPending) {
     return <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[1, 2, 3, 4].map((n) => <Skeleton key={n} className="h-72 rounded-3xl" />)}</div>;
   }
 
   return <div className="space-y-5">
+    {orders.isError || items.isError || events.isError ? <p role="status" className="text-sm text-amber-700">{ar ? "بعض البيانات غير متاحة؛ قد تكون البيانات المعروضة قديمة." : "Some data is unavailable; displayed information may be out of date."}</p> : null}
     <header className="flex flex-wrap items-end justify-between gap-3">
       <div>
         <div className="flex items-center gap-2"><ChefHat className="size-6" /><h1 className="text-[28px] font-bold tracking-[-0.04em]">{ar ? "شاشة المطبخ" : "Kitchen Display"}</h1></div>
@@ -320,7 +324,7 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
         return <section key={stage.id} className="rounded-3xl border bg-muted/20 p-3">
           <div className="flex items-center justify-between px-2 py-2"><div className="flex items-center gap-2 font-bold"><StageIcon className="size-4" />{ar ? stage.ar : stage.label}</div><Badge variant="secondary">{rows.length}</Badge></div>
           <div className="mt-2 space-y-3">
-            {rows.map((order) => {
+            {rows.slice(0,visiblePerStage[stage.id] ?? 50).map((order) => {
               const orderItems = byOrder.get(order.id) ?? [];
               const orderEvents = eventMap.get(order.id) ?? [];
               const durations = stageDurations(orderEvents, order.created_at, now);
@@ -356,6 +360,7 @@ export function KitchenDisplay({ restaurantId }: { restaurantId: string }) {
               </article>;
             })}
           </div>
+          {rows.length > (visiblePerStage[stage.id] ?? 50) ? <Button className="mt-3 w-full" variant="outline" onClick={() => setVisiblePerStage(current => ({...current,[stage.id]:(current[stage.id] ?? 50)+50}))}>{ar ? "عرض المزيد من الطلبات" : "Show more orders"}</Button> : null}
         </section>;
       })}
     </div>

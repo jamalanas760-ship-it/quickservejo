@@ -1,0 +1,28 @@
+name: QuickServe dependency uptime
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+permissions:
+  contents: read
+jobs:
+  probe:
+    if: vars.QUICKSERVE_PUBLIC_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe liveness and database readiness
+        env:
+          PROBE_ORIGIN: ${{ vars.QUICKSERVE_PUBLIC_URL }}
+        run: |
+          python3 - <<'PY'
+          import os, urllib.request, urllib.parse
+          origin = os.environ['PROBE_ORIGIN'].rstrip('/')
+          parsed = urllib.parse.urlsplit(origin)
+          if parsed.scheme != 'https' or parsed.username or parsed.password or parsed.path not in ('','/') or parsed.query or parsed.fragment:
+              raise SystemExit('Configure a valid HTTPS application origin')
+          for path in ('/health/live','/health/ready'):
+              with urllib.request.urlopen(origin+path,timeout=10) as response:
+                  if response.status != 200:
+                      raise SystemExit('QuickServe health check failed')
+          print('Liveness and dependency readiness passed')
+          PY

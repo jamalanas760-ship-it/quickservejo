@@ -42,6 +42,8 @@ import { Route as AuthenticatedWaitlistRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedWorkRouteImport } from './routes/_authenticated/work'
 import { Route as BookSlugRouteImport } from './routes/book/$slug'
 import { Route as BookingTokenRouteImport } from './routes/booking/$token'
+import { Route as HealthLiveRouteImport } from './routes/health/live'
+import { Route as HealthReadyRouteImport } from './routes/health/ready'
 import { Route as KioskSlugRouteImport } from './routes/kiosk/$slug'
 import { Route as MSlugRouteImport } from './routes/m/$slug'
 import { Route as OTokenRouteImport } from './routes/o/$token'
@@ -252,6 +254,16 @@ const BookSlugRoute = BookSlugRouteImport.update({
 const BookingTokenRoute = BookingTokenRouteImport.update({
   id: '/booking/$token',
   path: '/booking/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthLiveRoute = HealthLiveRouteImport.update({
+  id: '/health/live',
+  path: '/health/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthReadyRoute = HealthReadyRouteImport.update({
+  id: '/health/ready',
+  path: '/health/ready',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KioskSlugRoute = KioskSlugRouteImport.update({
@@ -528,6 +540,8 @@ export interface FileRoutesByFullPath {
   '/work': typeof AuthenticatedWorkRoute
   '/book/$slug': typeof BookSlugRoute
   '/booking/$token': typeof BookingTokenRoute
+  '/health/live': typeof HealthLiveRoute
+  '/health/ready': typeof HealthReadyRoute
   '/kiosk/$slug': typeof KioskSlugRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
@@ -600,6 +614,8 @@ export interface FileRoutesByTo {
   '/work': typeof AuthenticatedWorkRoute
   '/book/$slug': typeof BookSlugRoute
   '/booking/$token': typeof BookingTokenRoute
+  '/health/live': typeof HealthLiveRoute
+  '/health/ready': typeof HealthReadyRoute
   '/kiosk/$slug': typeof KioskSlugRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
@@ -674,6 +690,8 @@ export interface FileRoutesById {
   '/_authenticated/work': typeof AuthenticatedWorkRoute
   '/book/$slug': typeof BookSlugRoute
   '/booking/$token': typeof BookingTokenRoute
+  '/health/live': typeof HealthLiveRoute
+  '/health/ready': typeof HealthReadyRoute
   '/kiosk/$slug': typeof KioskSlugRoute
   '/m/$slug': typeof MSlugRoute
   '/o/$token': typeof OTokenRoute
@@ -750,6 +768,8 @@ export interface FileRouteTypes {
     | '/work'
     | '/book/$slug'
     | '/booking/$token'
+    | '/health/live'
+    | '/health/ready'
     | '/kiosk/$slug'
     | '/m/$slug'
     | '/o/$token'
@@ -822,6 +842,8 @@ export interface FileRouteTypes {
     | '/work'
     | '/book/$slug'
     | '/booking/$token'
+    | '/health/live'
+    | '/health/ready'
     | '/kiosk/$slug'
     | '/m/$slug'
     | '/o/$token'
@@ -895,6 +917,8 @@ export interface FileRouteTypes {
     | '/_authenticated/work'
     | '/book/$slug'
     | '/booking/$token'
+    | '/health/live'
+    | '/health/ready'
     | '/kiosk/$slug'
     | '/m/$slug'
     | '/o/$token'
@@ -949,6 +973,8 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   BookSlugRoute: typeof BookSlugRoute
   BookingTokenRoute: typeof BookingTokenRoute
+  HealthLiveRoute: typeof HealthLiveRoute
+  HealthReadyRoute: typeof HealthReadyRoute
   KioskSlugRoute: typeof KioskSlugRoute
   MSlugRoute: typeof MSlugRoute
   OTokenRoute: typeof OTokenRoute
@@ -1192,6 +1218,20 @@ declare module '@tanstack/react-router' {
       path: '/booking/$token'
       fullPath: '/booking/$token'
       preLoaderRoute: typeof BookingTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/health/live': {
+      id: '/health/live'
+      path: '/health/live'
+      fullPath: '/health/live'
+      preLoaderRoute: typeof HealthLiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/health/ready': {
+      id: '/health/ready'
+      path: '/health/ready'
+      fullPath: '/health/ready'
+      preLoaderRoute: typeof HealthReadyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kiosk/$slug': {
@@ -1675,6 +1715,8 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   BookSlugRoute: BookSlugRoute,
   BookingTokenRoute: BookingTokenRoute,
+  HealthLiveRoute: HealthLiveRoute,
+  HealthReadyRoute: HealthReadyRoute,
   KioskSlugRoute: KioskSlugRoute,
   MSlugRoute: MSlugRoute,
   OTokenRoute: OTokenRoute,
