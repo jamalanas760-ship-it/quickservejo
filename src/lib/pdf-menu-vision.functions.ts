@@ -1,3 +1,4 @@
+import { requireRestaurantAccess, MENU_EDITOR_ROLES } from "@/lib/server/restaurant-access.server";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -29,22 +30,6 @@ const productSchema = z.object({
 
 type Product = z.infer<typeof productSchema>;
 
-async function authorizeRestaurant(context: { supabase: any; userId: string }, restaurantId: string) {
-  const owner = await context.supabase.rpc("is_platform_owner");
-  if (owner.error) throw owner.error;
-  if (owner.data === true) return;
-
-  const result = await context.supabase
-    .from("staff")
-    .select("role")
-    .eq("restaurant_id", restaurantId)
-    .eq("auth_user_id", context.userId)
-    .eq("is_active", true);
-  if (result.error) throw result.error;
-
-  const allowed = (result.data ?? []).some((row: { role: string }) => row.role === "restaurant_admin" || row.role === "manager");
-  if (!allowed) throw new Error("Forbidden");
-}
 
 function getOutputText(payload: any): string {
   if (typeof payload?.output_text === "string") return payload.output_text;
@@ -78,7 +63,7 @@ export const extractPdfVisualProducts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await authorizeRestaurant(context, data.restaurantId);
+    await requireRestaurantAccess(context, data.restaurantId, MENU_EDITOR_ROLES);
 
     const apiKey = process.env["OPENAI_API_KEY"] ?? process.env["OPENAI_API_KEYS"];
     if (!apiKey?.trim()) return { products: [], ai: false };

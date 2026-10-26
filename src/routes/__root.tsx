@@ -22,7 +22,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationPrompt } from "@/components/app/NotificationPrompt";
 import { AppRuntimeMonitor } from "@/components/app/AppRuntimeMonitor";
-import { shouldRefreshAuthAccess, shouldResetThemeForAuth } from "@/lib/auth-event-policy";
+import { shouldClearAccountCache, shouldRefreshAuthAccess, shouldResetThemeForAuth } from "@/lib/auth-event-policy";
+import { clearAccountQueryCache } from "@/lib/account-query-cache";
 import launchCss from "../components/app/splash-screen.css?inline";
 import { LaunchScreenView, SplashScreen } from "@/components/app/SplashScreen";
 import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-bridge";
@@ -274,6 +275,7 @@ function RootComponent() {
     let syncTimer: number | null = null;
     let queuedAccessRefresh = false;
     let queuedAccountChange = false;
+    let queuedCacheClear = false;
     const scheduleAuthSync = (
       event: string,
       session: import("@supabase/supabase-js").Session | null,
@@ -289,13 +291,19 @@ function RootComponent() {
       if (event === "INITIAL_SESSION") return;
       queuedAccessRefresh ||= refreshAccess;
       queuedAccountChange ||= changedAccount;
+      queuedCacheClear ||= shouldClearAccountCache(event, previous, next);
       if (syncTimer !== null) window.clearTimeout(syncTimer);
       syncTimer = window.setTimeout(() => {
         syncTimer = null;
 
         const refresh = queuedAccessRefresh;
         const changed = queuedAccountChange;
+        const clearCache = queuedCacheClear;
+        queuedCacheClear = false;
         queuedAccessRefresh = queuedAccountChange = false;
+        // Also discard orders, reports, HR data, and completed mutation results.
+        // Clearing destroys old in-flight queries so they cannot refill the cache.
+        if (clearCache) clearAccountQueryCache(queryClient);
         queryClient.setQueryData(["auth", "session"], session);
         if (!refresh) return;
         if (changed) {

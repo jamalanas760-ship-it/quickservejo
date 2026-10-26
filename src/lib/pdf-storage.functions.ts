@@ -1,3 +1,4 @@
+import { requireRestaurantAccess, MENU_EDITOR_ROLES } from "@/lib/server/restaurant-access.server";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -19,23 +20,6 @@ const removeSchema = z.object({
   paths: z.array(z.string().min(1).max(500)).max(100),
 });
 
-async function authorizeRestaurant(context: { supabase: any; userId: string }, restaurantId: string) {
-  const owner = await context.supabase.rpc("is_platform_owner");
-  if (!owner.error && owner.data) return;
-
-  const { data, error } = await context.supabase
-    .from("staff")
-    .select("role")
-    .eq("restaurant_id", restaurantId)
-    .eq("auth_user_id", context.userId)
-    .eq("is_active", true);
-
-  if (error) throw error;
-  const allowed = (data ?? []).some(
-    (row: { role: string }) => row.role === "restaurant_admin" || row.role === "manager" || row.role === "super_admin",
-  );
-  if (!allowed) throw new Error("Forbidden");
-}
 
 function validatePath(restaurantId: string, path: string) {
   if (!path.startsWith(`${restaurantId}/`)) throw new Error("Invalid PDF storage path");
@@ -67,7 +51,7 @@ export const uploadPdfObject = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => uploadSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await authorizeRestaurant(context, data.restaurantId);
+    await requireRestaurantAccess(context, data.restaurantId, [...MENU_EDITOR_ROLES, "super_admin"]);
     validatePath(data.restaurantId, data.path);
 
     const bytes = Buffer.from(data.base64, "base64");
@@ -92,7 +76,7 @@ export const removePdfObjects = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => removeSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await authorizeRestaurant(context, data.restaurantId);
+    await requireRestaurantAccess(context, data.restaurantId, [...MENU_EDITOR_ROLES, "super_admin"]);
     for (const path of data.paths) validatePath(data.restaurantId, path);
     if (!data.paths.length) return { removed: true };
 
