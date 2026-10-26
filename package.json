@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test:contracts": "node --test tests/*.test.mjs",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test:database": "node --test tests/database/*.test.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -56,6 +57,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
+    "gsap": "3.15.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.575.0",
     "qrcode": "^1.5.4",
@@ -75,6 +77,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
     "@eslint/js": "^9.32.0",
     "@lovable.dev/vite-tanstack-config": "2.26.5",
     "@types/node": "^22.16.5",

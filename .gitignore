@@ -31,3 +31,7 @@ supabase/.temp/
 *.njsproj
 *.sln
 *.sw?
+
+# Load-test identities and reports may contain private tokens/data.
+tests/load/*.private.json
+tests/load/results*.json

@@ -2,6 +2,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import "./splash-screen.css";
+import { LaunchScene } from "./LaunchScene";
 
 const FLAG = "quickserve.splash.shown.v5";
 function rememberLaunch() {
@@ -23,8 +24,15 @@ export function SplashScreen() {
   const [visible, setVisible] = useState(false);
   const [minimumDone, setMinimumDone] = useState(false);
   useEffect(() => {
-    const installedEntry = pathname === "/" && (window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone);
-    if (started.current || !(WORKSPACE_PATH.test(pathname) || pathname === "/auth" || installedEntry)) return;
+    const installedEntry =
+      pathname === "/" &&
+      (window.matchMedia("(display-mode: standalone)").matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone);
+    if (
+      started.current ||
+      !(WORKSPACE_PATH.test(pathname) || pathname === "/auth" || installedEntry)
+    )
+      return;
     try {
       if (sessionStorage.getItem(FLAG) === String(performance.timeOrigin)) return;
     } catch {
@@ -59,7 +67,13 @@ export function SplashScreen() {
 }
 
 /** Same artwork during server boot, session restoration and client launch. */
-export function LaunchScreenView({ lang = "en", leaving = false }: { lang?: "en" | "ar"; leaving?: boolean }) {
+export function LaunchScreenView({
+  lang = "en",
+  leaving = false,
+}: {
+  lang?: "en" | "ar";
+  leaving?: boolean;
+}) {
   return (
     <div
       className={`qs-launch-simple${leaving ? " is-leaving" : ""}`}
@@ -68,15 +82,36 @@ export function LaunchScreenView({ lang = "en", leaving = false }: { lang?: "en"
       aria-label={lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}
     >
       <div className="qs-launch-simple-content">
-        <div className="qs-launch-service-art" aria-hidden="true">
-          <img className="qs-service-tray" src="/loading/cloche-tray.webp" alt="" width="600" height="200" fetchPriority="high" />
-          <svg className="qs-service-steam" viewBox="0 0 100 100">
-            <path d="M28 93C8 73 45 60 27 36C17 22 29 11 29 5" />
-            <path d="M51 94C32 75 65 59 50 37C40 22 52 11 52 3" />
-            <path d="M74 92C56 73 87 59 73 41C64 29 75 19 75 11" />
-          </svg>
-          <img className="qs-service-lid" src="/loading/cloche-lid.webp" alt="" width="540" height="360" fetchPriority="high" />
+        <div className="qs-launch-stage" aria-hidden="true">
+          <span className="qs-launch-halo" />
+          <LaunchScene />
+          <div className="qs-launch-service-art">
+            <img
+              className="qs-service-tray"
+              src="/loading/cloche-tray.webp"
+              alt=""
+              width="600"
+              height="200"
+              fetchPriority="high"
+            />
+            <svg className="qs-service-steam" viewBox="0 0 100 100">
+              <path d="M28 93C8 73 45 60 27 36C17 22 29 11 29 5" />
+              <path d="M51 94C32 75 65 59 50 37C40 22 52 11 52 3" />
+              <path d="M74 92C56 73 87 59 73 41C64 29 75 19 75 11" />
+            </svg>
+            <img
+              className="qs-service-lid"
+              src="/loading/cloche-lid.webp"
+              alt=""
+              width="540"
+              height="360"
+              fetchPriority="high"
+            />
+          </div>
         </div>
+        <span className="qs-launch-eyebrow">
+          {lang === "ar" ? "كل التفاصيل. بتناغم." : "EVERY DETAIL. IN SYNC."}
+        </span>
         <strong>
           Quick<span>Serve</span>
         </strong>

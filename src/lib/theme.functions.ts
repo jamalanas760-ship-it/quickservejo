@@ -1,3 +1,4 @@
+import { requireRestaurantAccess, MENU_EDITOR_ROLES } from "@/lib/server/restaurant-access.server";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -26,20 +27,8 @@ export const generateMenuTheme = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => generateSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const owner = await supabase.rpc("is_platform_owner");
-    if (owner.error) throw owner.error;
-    if (!owner.data) {
-      const { data: rows, error } = await supabase
-        .from("staff")
-        .select("role")
-        .eq("restaurant_id", data.restaurantId)
-        .eq("auth_user_id", userId)
-        .eq("is_active", true);
-      if (error) throw error;
-      const allowed = (rows ?? []).some((row) => row.role === "restaurant_admin" || row.role === "manager");
-      if (!allowed) throw new Error("Forbidden");
-    }
+    const { supabase } = context;
+    await requireRestaurantAccess(context, data.restaurantId, MENU_EDITOR_ROLES);
 
     const [{ data: restaurant, error: restaurantError }, { data: menuItems, error: menuError }] = await Promise.all([
       supabase

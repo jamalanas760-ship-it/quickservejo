@@ -21,3 +21,27 @@ $$;
 revoke all on function mcp_gateway.user_enabled(uuid) from public,anon,authenticated,service_role;
 grant execute on function mcp_gateway.user_enabled(uuid) to quickserve_mcp_gateway;
 commit;
+
+-- Shared per-account quota survives restarts and scales across gateway replicas.
+CREATE TABLE IF NOT EXISTS mcp_gateway.request_budgets (
+  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  window_start timestamptz NOT NULL,
+  requests integer NOT NULL
+);
+ALTER TABLE mcp_gateway.request_budgets ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON mcp_gateway.request_budgets FROM PUBLIC,anon,authenticated;
+GRANT SELECT,INSERT,UPDATE ON mcp_gateway.request_budgets TO quickserve_mcp_gateway;
+DROP POLICY IF EXISTS gateway_budget_access ON mcp_gateway.request_budgets;
+CREATE POLICY gateway_budget_access ON mcp_gateway.request_budgets
+  TO quickserve_mcp_gateway USING (true) WITH CHECK (true);
+CREATE OR REPLACE FUNCTION mcp_gateway.consume_request_budget(_user_id uuid)
+RETURNS boolean LANGUAGE sql SECURITY INVOKER SET search_path='' AS $$
+  INSERT INTO mcp_gateway.request_budgets(user_id,window_start,requests)
+  VALUES(_user_id,now(),1)
+  ON CONFLICT(user_id) DO UPDATE SET
+    window_start=CASE WHEN mcp_gateway.request_budgets.window_start<=now()-interval '1 minute' THEN now() ELSE mcp_gateway.request_budgets.window_start END,
+    requests=CASE WHEN mcp_gateway.request_budgets.window_start<=now()-interval '1 minute' THEN 1 ELSE mcp_gateway.request_budgets.requests+1 END
+  RETURNING requests<=120;
+$$;
+REVOKE ALL ON FUNCTION mcp_gateway.consume_request_budget(uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION mcp_gateway.consume_request_budget(uuid) TO quickserve_mcp_gateway;

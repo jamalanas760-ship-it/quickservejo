@@ -10,6 +10,14 @@ export function createDatabase(config, connect = postgres) {
     onnotice: () => {},
   });
   return {
+    async ready() {
+      await sql.begin(async tx => { await tx`set local statement_timeout = '2s'`; await tx`select 1`; });
+      return true;
+    },
+    async consumeBudget(identity) {
+      const [result] = await sql`select mcp_gateway.consume_request_budget(${identity.userId}::uuid) allowed`;
+      return result.allowed === true;
+    },
     async assertRole() {
       const [role] =
         await sql`select rolname, rolsuper, rolbypassrls, rolcreaterole, rolcreatedb, rolreplication, rolinherit,

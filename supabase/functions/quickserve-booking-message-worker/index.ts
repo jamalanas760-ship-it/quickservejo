@@ -1,4 +1,6 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { finishLeasedJob, ambiguousDelivery } from "../_shared/notification-lease.ts";
+import { mapConcurrent } from "../_shared/integration-transport.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.112.4";
 
 function serverKey(){
   const direct=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -9,7 +11,7 @@ function serverKey(){
 }
 const respond=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json"}});
 
-function normalizeDestination(value:string){
+function normalizeDestination(value:string): string {
   const raw=value.trim();
   if(raw.startsWith("whatsapp:"))return "whatsapp:"+normalizeDestination(raw.slice(9));
   if(raw.startsWith("+"))return raw;
@@ -29,7 +31,7 @@ async function sendTwilio(channel:"sms"|"whatsapp",to:string,bodyText:string,sta
   const source=channel==="whatsapp"&&!configuredFrom.startsWith("whatsapp:")?`whatsapp:${configuredFrom}`:configuredFrom;
   const form=new URLSearchParams({To:destination,From:source,Body:bodyText,StatusCallback:statusCallback});
   const response=await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,{
-    method:"POST",
+    method:"POST",redirect:"error",signal:AbortSignal.timeout(10_000),
     headers:{Authorization:"Basic "+btoa(`${sid}:${token}`),"Content-Type":"application/x-www-form-urlencoded"},
     body:form,
   });
@@ -45,49 +47,33 @@ Deno.serve(async(req)=>{
     const {data:authorized,error:authError}=await admin.rpc("verify_booking_message_worker_secret",{_secret:workerSecret});
     if(authError||!authorized)return respond({error:"Unauthorized"},401);
 
-    const {data:rows,error:readError}=await admin.from("booking_messages")
-      .select("id,restaurant_id,booking_id,channel,to_address,body,provider_status,attempt_count")
-      .eq("direction","outbound")
-      .in("provider_status",["queued","failed"])
-      .lte("next_attempt_at",new Date().toISOString())
-      .order("created_at")
-      .limit(40);
+    const {data:rows,error:readError}=await admin.rpc("claim_notification_jobs",{_queue:"booking_messages"});
     if(readError)throw readError;
 
     const publicUrl=(Deno.env.get("SUPABASE_URL")||"").replace(/\/$/,"");
     const results:unknown[]=[];
 
-    for(const row of rows??[]){
-      const attempts=Number(row.attempt_count??0)+1;
-      if(attempts>4)continue;
-      await admin.from("booking_messages").update({
-        provider_status:"sending",attempt_count:attempts,last_error:null,
-      }).eq("id",row.id);
+    await mapConcurrent(rows??[],4,async(row:any)=>{
+      const attempts=Number(row.attempt_count);
 
       try{
         const callback=`${publicUrl}/functions/v1/quickserve-twilio-booking-webhook?message_id=${encodeURIComponent(row.id)}`;
         const sent=await sendTwilio(row.channel as "sms"|"whatsapp",String(row.to_address||""),String(row.body),callback);
-        await admin.rpc("booking_message_provider_update",{
-          _message_id:row.id,
-          _provider_message_id:sent.sid,
-          _provider_status:"sent",
-          _from_address:sent.from,
-          _last_error:null,
-        });
+        await finishLeasedJob(admin,"booking_messages",row,{provider_status:"sent",provider_message_id:sent.sid,from_address:sent.from,sent_at:new Date().toISOString(),updated_at:new Date().toISOString(),last_error:null});
         results.push({id:row.id,status:"sent"});
       }catch(error){
-        const detail=error instanceof Error?error.message:"Twilio message delivery failed";
-        const final=attempts>=4;
-        await admin.from("booking_messages").update({
-          provider_status:"failed",
+        const detail=ambiguousDelivery(error)?"Delivery outcome unknown; reconcile with provider before retry":"Provider delivery failed; inspect the provider dashboard";
+        const final=attempts>=4 || ambiguousDelivery(error);
+        await finishLeasedJob(admin,"booking_messages",row,{
+          provider_status:"failed",attempt_count:final?4:attempts,
           last_error:detail.slice(0,1000),
           next_attempt_at:final
             ? new Date(Date.now()+24*60*60_000).toISOString()
             : new Date(Date.now()+Math.min(30,Math.pow(2,Math.max(0,attempts-1)))*60_000).toISOString(),
-        }).eq("id",row.id);
+        });
         results.push({id:row.id,status:final?"failed-final":"retry",detail});
       }
-    }
+    });
 
     return respond({ok:true,processed:results.length,results});
   }catch(error){

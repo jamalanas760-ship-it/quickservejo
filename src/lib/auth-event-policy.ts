@@ -13,6 +13,17 @@ export function shouldRefreshAuthAccess(
   );
 }
 
+/** Feature keys are not all account-scoped; never reuse them across accounts. */
+export function shouldClearAccountCache(
+  event: string,
+  previousUserId: string | null | undefined,
+  nextUserId: string | null,
+): boolean {
+  if (event === "SIGNED_OUT") return true;
+  if (event === "INITIAL_SESSION") return false;
+  return previousUserId !== nextUserId;
+}
+
 /** Only a new login or sign-out resets the default; foreground auth events do not. */
 export function shouldResetThemeForAuth(
   event: string,
