@@ -20,7 +20,7 @@ test("PWA has a service worker and standalone manifest", async () => {
   assert.match(sw, /addEventListener\("fetch"/);
   assert.match(sw, /Never cache server-rendered HTML/);
   assert.match(sw, /cacheableAsset/);
-  assert.match(sw, /quickserve-runtime-v7/);
+  assert.match(sw, /quickserve-runtime-v8/);
   assert.match(offline, /Connection interrupted/);
   assert.equal(manifest.display, "standalone");
   assert.ok(manifest.icons?.length >= 2);
@@ -133,7 +133,7 @@ test("authenticated navigation keeps stable chrome with a once-per-session launc
   assert.match(shell, /<AppHeader title=\{persistentTitle\}/);
   assert.match(shell, /SuppressNestedAppHeader/);
   assert.doesNotMatch(root, /<RouteProgress/);
-  assert.match(root, /<SplashScreen \/>/);
+  assert.match(root, /<LaunchScreenProvider>/);
   assert.match(splash, /quickserve\.splash\.shown/);
   assert.match(splash, /sessionStorage\.getItem\(FLAG\)/);
   assert.match(splash, /WORKSPACE_PATH/);
@@ -330,7 +330,7 @@ test("Workforce navigation badge represents unread workforce alerts, not schedul
   const counters = await file("src/hooks/useOperationalCounters.ts");
   const nav = await file("src/components/nav/BottomNav.tsx");
   assert.match(counters, /workforceUnread/);
-  assert.match(await file("supabase/migrations/20261026072346_operational_counter_snapshot.sql"), /missing_punch_request/);
+  assert.match(await file("supabase/migrations/20261026102952_operational_counter_snapshot.sql"), /missing_punch_request/);
   assert.match(nav, /badge: "workforceUnread"/);
 });
 

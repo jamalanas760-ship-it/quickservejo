@@ -5,7 +5,7 @@ const read = path => readFile(new URL(path, import.meta.url),'utf8');
 const root = '../../supabase/migrations/';
 const boundary = await read(root+'20261026072332_reliability_tenant_boundaries.sql');
 const dispatch = await read(root+'20261026072339_reliable_integration_dispatch.sql');
-const counters = await read(root+'20261026072346_operational_counter_snapshot.sql');
+const counters = await read(root+'20261026102952_operational_counter_snapshot.sql');
 const platform = await read(root+'20261026075951_platform_reliability_snapshot.sql');
 const notices = await read(root+'20261026073544_notification_job_leases.sql');
 let db, native;
