@@ -130,11 +130,15 @@ export function LaunchScreenView({
       aria-live="polite"
       aria-label={lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}
     >
+      <div className="qs-chrome-editorial" aria-hidden="true" dir="ltr">
+        <span>A little theatre.</span>
+        <span>A perfect serve.</span>
+      </div>
       <LaunchScene />
       <div className="qs-launch-simple-content">
         <div className="qs-launch-brand">
           <span className="qs-launch-caption">
-            {lang === "ar" ? "الدقة في كل خدمة." : "PRECISION IN EVERY SERVICE."}
+            {lang === "ar" ? "تفاصيل تصنع الفرق." : "THE ART OF A PERFECT SERVE."}
           </span>
           <strong dir="ltr">
             Quick<span>Serve</span>

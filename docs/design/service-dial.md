@@ -1,3 +1,5 @@
+> Superseded by [The Chrome Service Bell](chrome-service.md).
+
 # The Service Dial
 
 The latest supplied clip shows the Anime.js homepage: a charcoal background, segmented
