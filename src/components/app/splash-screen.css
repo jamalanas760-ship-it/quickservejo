@@ -47,10 +47,12 @@ html[data-qs-launch-lock] body {
 .qs-motion-active .qs-service-panel::before {
   visibility: visible;
   animation: qs-curtain-left 1.05s cubic-bezier(0.76, 0, 0.24, 1) both;
+  animation-delay: var(--qs-start-offset, 0ms);
 }
 .qs-motion-active .qs-service-panel::after {
   visibility: visible;
   animation: qs-curtain-right 1.05s cubic-bezier(0.76, 0, 0.24, 1) both;
+  animation-delay: var(--qs-start-offset, 0ms);
 }
 @keyframes qs-curtain-left {
   to {
@@ -89,6 +91,7 @@ html[data-qs-launch-lock] body {
 }
 .qs-motion-active .qs-service-video-mask video {
   animation: qs-video-reveal 1.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--qs-start-offset, 0ms);
 }
 @keyframes qs-video-reveal {
   from {
@@ -188,6 +191,26 @@ html[data-qs-launch-lock] body {
   }
   .qs-service-line {
     margin-top: 8px;
+  }
+}
+/* The server-rendered screen animates immediately, before React is ready. */
+#qs-boot .qs-motion-active .qs-service-eyebrow {
+  animation: qs-boot-copy 0.55s 0.5s both ease-out;
+}
+#qs-boot .qs-motion-active .qs-service-title {
+  animation: qs-boot-copy 0.95s 0.68s both cubic-bezier(0.22, 1, 0.36, 1);
+}
+#qs-boot .qs-motion-active .qs-service-brand {
+  animation: qs-boot-copy 0.65s 1.1s both ease-out;
+}
+@keyframes qs-boot-copy {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 @media (prefers-reduced-motion: reduce) {

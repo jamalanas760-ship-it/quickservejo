@@ -65,12 +65,17 @@ export function SplashScreen({
   }, [pathname, onVisibilityChange]);
   useEffect(() => {
     if (!visible) return;
-    const minimum = window.setTimeout(() => setMinimumDone(true), 4700);
+    const startedAt = window.__qsLaunchBoot?.startedAt;
+    const elapsed = startedAt === undefined ? 0 : Math.max(0, performance.now() - startedAt);
+    const minimum = window.setTimeout(() => setMinimumDone(true), Math.max(0, 4700 - elapsed));
     // Reveal the normal page loading/error controls even on a slow connection.
-    const safety = window.setTimeout(() => {
-      rememberLaunch();
-      setVisible(false);
-    }, 5600);
+    const safety = window.setTimeout(
+      () => {
+        rememberLaunch();
+        setVisible(false);
+      },
+      Math.max(0, 5600 - elapsed),
+    );
     return () => {
       window.clearTimeout(safety);
       window.clearTimeout(minimum);
@@ -101,11 +106,13 @@ export function LaunchScreenView({
   leaving = false,
   primary = false,
   onMediaSettled,
+  boot = false,
 }: {
   lang?: "en" | "ar";
   leaving?: boolean;
   primary?: boolean;
   onMediaSettled?: () => void;
+  boot?: boolean;
 }) {
   const overlay = useContext(LaunchOverlay);
   const [expired, setExpired] = useState(false);
@@ -148,13 +155,19 @@ export function LaunchScreenView({
   return (
     <div
       ref={viewRef}
+      suppressHydrationWarning={boot}
       className={`qs-launch-simple${leaving ? " is-leaving" : ""}`}
       role="status"
       aria-live="polite"
       aria-label={lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}
     >
       <div className="qs-service-panel">
-        <LaunchScene onSettled={onMediaSettled} animate={!suppressedByPrimary.current} />
+        <LaunchScene
+          onSettled={onMediaSettled}
+          animate={!suppressedByPrimary.current}
+          boot={boot}
+          primary={primary}
+        />
         <div className="qs-service-copy">
           <div className="qs-service-eyebrow">
             {lang === "ar" ? "الخدمة لعصر جديد من" : "SERVICE FOR THE NEW ERA OF"}

@@ -4,9 +4,13 @@ import { useEffect, useId, useRef } from "react";
 export function LaunchScene({
   onSettled,
   animate = true,
+  boot = false,
+  primary = false,
 }: {
   onSettled?: (() => void) | undefined;
   animate?: boolean;
+  boot?: boolean;
+  primary?: boolean;
 }) {
   const stage = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
@@ -56,7 +60,11 @@ export function LaunchScene({
         return;
       }
       played = true;
-      const start = performance.now();
+      const previousBoot = primary ? window.__qsLaunchBoot : undefined;
+      previousBoot?.stop();
+      const start = previousBoot?.startedAt ?? performance.now();
+      const elapsed = Math.max(0, performance.now() - start);
+      launch.style.setProperty("--qs-start-offset", `-${elapsed}ms`);
       launch.classList.add("qs-motion-active");
       const onError = () => {
         player.pause();
@@ -70,14 +78,36 @@ export function LaunchScene({
       player.defaultMuted = true;
       player.muted = true;
       player.defaultPlaybackRate = 0.8;
-      player.src = "/loading/service-motion/service.mp4";
-      player.load();
-      player.playbackRate = 0.8;
-      if (!document.hidden)
-        void player.play().catch(() => {
-          /* Poster stays visible if autoplay is blocked. */
+      const resumeAt = previousBoot?.currentTime ?? 0;
+      const play = () => {
+        if (resumeAt > 0 && Number.isFinite(player.duration)) {
+          player.currentTime = Math.min(resumeAt, Math.max(0, player.duration - 0.01));
+        }
+        if (previousBoot?.ended) {
+          player.pause();
           onSettled?.();
-        });
+        } else if (!document.hidden) {
+          void player.play().catch(() => {
+            onSettled?.();
+          });
+        }
+      };
+      const startVideo = (source: string) => {
+        if (disposed || current !== generation) return;
+        player.src = source;
+        player.load();
+        player.playbackRate = 0.8;
+        if (resumeAt > 0 && player.readyState < 1)
+          player.addEventListener("loadedmetadata", play, { once: true });
+        else play();
+      };
+      if (previousBoot?.sourceReady && typeof previousBoot.sourceReady.then === "function") {
+        void previousBoot.sourceReady.then((source) =>
+          startVideo(source ?? "/loading/service-motion/service.mp4"),
+        );
+      } else {
+        startVideo("/loading/service-motion/service.mp4");
+      }
       const visibility = () => {
         if (document.hidden) player.pause();
         else if (!player.ended && player.getAttribute("src"))
@@ -89,6 +119,9 @@ export function LaunchScene({
         document.removeEventListener("visibilitychange", visibility);
         player.removeEventListener("error", onError);
         player.removeEventListener("ended", onEnded);
+        player.removeEventListener("loadedmetadata", play);
+        launch.style.removeProperty("--qs-start-offset");
+        previousBoot?.release();
         releaseTimeline();
       };
       void Promise.all([import("gsap"), import("gsap/SplitText")])
@@ -149,7 +182,7 @@ export function LaunchScene({
       media.removeEventListener("change", update);
       connection?.removeEventListener?.("change", update);
     };
-  }, [onSettled, animate]);
+  }, [onSettled, animate, primary]);
 
   return (
     <div ref={stage} className="qs-service-media" aria-hidden="true">
@@ -166,6 +199,7 @@ export function LaunchScene({
       <div className="qs-service-video-mask" style={{ clipPath: `url(#${id})` }}>
         <video
           ref={video}
+          suppressHydrationWarning={boot}
           poster="/loading/service-motion/poster.webp"
           muted
           playsInline
