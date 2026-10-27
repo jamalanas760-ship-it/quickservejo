@@ -8,7 +8,10 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { chromeVertex, chromeFragment, steamVertex, steamFragment } from "./chrome-service-shaders";
 
 /** Bounded, self-contained renderer. All assets are local; no persistent GPU loop. */
-export function mountChromeService(host: HTMLDivElement): () => void {
+export function mountChromeService(
+  host: HTMLDivElement,
+  startedAt = performance.now(),
+): () => void {
   let renderer: THREE.WebGLRenderer | undefined;
   let composer: EffectComposer | undefined;
   let matcap: THREE.CanvasTexture | undefined;
@@ -25,7 +28,7 @@ export function mountChromeService(host: HTMLDivElement): () => void {
     ready = false,
     lastPaint = 0,
     hiddenAt: number | null = null;
-  let began = performance.now();
+  let began = startedAt;
   const cleanup = () => {
     if (!alive) return;
     alive = false;
@@ -66,7 +69,7 @@ export function mountChromeService(host: HTMLDivElement): () => void {
         began += performance.now() - hiddenAt;
         hiddenAt = null;
       }
-      if (ready && alive && performance.now() - began < 3400) frame = requestAnimationFrame(paint);
+      if (ready && alive) frame = requestAnimationFrame(paint);
     }
   }
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 80);
@@ -318,12 +321,10 @@ export function mountChromeService(host: HTMLDivElement): () => void {
       .to(state, { turn: 0.35, duration: 1.35, ease: "power2.inOut" }, 0)
       .to(state, { press: 0.14, duration: 0.16, ease: "power2.in" }, 1.03)
       .to(state, { press: 0, duration: 0.45, ease: "elastic.out(1,.5)" }, 1.19)
-      .to(
-        state,
-        { lift: 1.45, reveal: 1, tray: 1, turn: -0.38, duration: 1.2, ease: "power3.inOut" },
-        1.5,
-      )
-      .to(state, { steam: 0.42, duration: 0.6 }, 2.25)
+      .to(state, { lift: 1.45, tray: 1, turn: -0.38, duration: 0.8, ease: "power3.inOut" }, 1.5)
+      // Keep the food hidden until the cloche has lifted clear of the plate.
+      .to(state, { reveal: 1, duration: 0.45, ease: "power2.out" }, 2.3)
+      .to(state, { steam: 0.42, duration: 0.6 }, 2.4)
       .to(state, { turn: -0.1, duration: 0.7, ease: "sine.inOut" }, 2.7);
     resize();
     resizeObserver.observe(host);
@@ -356,7 +357,6 @@ export function mountChromeService(host: HTMLDivElement): () => void {
         });
         lid.add(gltf.scene);
         ready = true;
-        began = performance.now();
         document.addEventListener("visibilitychange", visibility);
         visibility();
       })
