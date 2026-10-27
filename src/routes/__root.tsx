@@ -31,8 +31,8 @@ import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-b
 const BOOT_STYLE =
   `html,body{min-height:100%;background:#fffdfa}body{min-height:100dvh;margin:0}html[data-qs-ready] #qs-boot{display:none}` +
   launchCss + `
-#qs-boot .qs-launch-simple{animation:qs-boot-hide .01s 4s forwards}
-.qs-boot-recovery{visibility:hidden;animation:qs-boot-show .01s 4s forwards}
+#qs-boot .qs-launch-simple{animation:qs-boot-hide .01s 6.2s forwards}
+.qs-boot-recovery{visibility:hidden;animation:qs-boot-show .01s 6.2s forwards}
 @keyframes qs-boot-hide{to{visibility:hidden}}
 @keyframes qs-boot-show{to{visibility:visible}}
 `;

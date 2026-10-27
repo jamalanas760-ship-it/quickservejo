@@ -7,7 +7,7 @@ export function WorkspacePending() {
   const [slow, setSlow] = useState(false);
   useEffect(() => {
     setLang(document.documentElement.lang.startsWith("ar") ? "ar" : "en");
-    const timer = window.setTimeout(() => setSlow(true), 4000);
+    const timer = window.setTimeout(() => setSlow(true), 6200);
     return () => window.clearTimeout(timer);
   }, []);
   if (!slow) return <LaunchScreenView lang={lang} />;
