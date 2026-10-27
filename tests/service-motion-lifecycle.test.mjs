@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
 
-function createHarness({ alreadyLaunched = false } = {}) {
+function createHarness({ alreadyLaunched = false, bootState, primary = false } = {}) {
   let effect;
   let observer;
   let playCalls = 0;
@@ -14,6 +14,9 @@ function createHarness({ alreadyLaunched = false } = {}) {
   const classNames = new Set();
   const player = {
     ended: false,
+    readyState: 1,
+    duration: 3.333,
+    currentTime: 0,
     pause() {
       pauseCalls++;
     },
@@ -35,6 +38,7 @@ function createHarness({ alreadyLaunched = false } = {}) {
     },
   };
   const launch = {
+    style: { setProperty() {}, removeProperty() {} },
     classList: { add: (name) => classNames.add(name), remove: (name) => classNames.delete(name) },
     querySelector: () => null,
   };
@@ -63,6 +67,7 @@ function createHarness({ alreadyLaunched = false } = {}) {
     exports,
     document,
     navigator: {},
+    window: { __qsLaunchBoot: bootState },
     performance: { now: () => 0 },
     matchMedia: () => reducedMotion,
     MutationObserver: class {
@@ -89,7 +94,7 @@ function createHarness({ alreadyLaunched = false } = {}) {
       throw Error(`Unexpected module: ${name}`);
     },
   });
-  exports.LaunchScene({ onSettled: () => settled++ });
+  exports.LaunchScene({ onSettled: () => settled++, primary });
   const dispose = effect();
   return {
     player,
@@ -148,4 +153,30 @@ test("later route loading animates even after the initial launch has completed",
   assert.ok(h.player.getAttribute("src"));
   assert.ok(h.classNames.has("qs-motion-active"));
   h.dispose();
+});
+
+test("primary overlay resumes the boot video playhead and releases its temporary source", async () => {
+  let stopped = 0;
+  let released = 0;
+  const bootState = {
+    startedAt: -1000,
+    currentTime: 1.25,
+    ended: false,
+    sourceReady: Promise.resolve("blob:boot-video"),
+    stop() {
+      stopped++;
+    },
+    release() {
+      released++;
+    },
+  };
+  const h = createHarness({ bootState, primary: true });
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(stopped, 1);
+  assert.equal(h.player.getAttribute("src"), "blob:boot-video");
+  assert.equal(h.player.currentTime, 1.25);
+  assert.equal(h.playCalls, 1);
+  h.dispose();
+  assert.equal(released, 1);
 });

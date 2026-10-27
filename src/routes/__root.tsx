@@ -26,6 +26,7 @@ import { shouldClearAccountCache, shouldRefreshAuthAccess, shouldResetThemeForAu
 import { clearAccountQueryCache } from "@/lib/account-query-cache";
 import launchCss from "../components/app/splash-screen.css?inline";
 import { LaunchScreenView, LaunchScreenProvider } from "@/components/app/SplashScreen";
+import { LAUNCH_BOOT_SCRIPT, stopLaunchBoot } from "@/lib/launch-boot";
 import { isMenuThemeBridgeMessage, MENU_THEME_CHANNEL } from "@/lib/menu-theme-bridge";
 
 const BOOT_STYLE =
@@ -187,7 +188,7 @@ function RootShell({ children }: { children: ReactNode }) {
       </head>
       <body>
         <div id="qs-boot">
-          <LaunchScreenView />
+          <LaunchScreenView boot />
           <section className="qs-workspace-recovery qs-boot-recovery" role="alert">
             <h1>Workspace could not start</h1>
             <p>Check your connection, then reload. Your data has not been changed.</p>
@@ -195,6 +196,7 @@ function RootShell({ children }: { children: ReactNode }) {
           </section>
           <noscript><p>QuickServe needs JavaScript. Enable it and reload this page.</p></noscript>
         </div>
+        <script dangerouslySetInnerHTML={{ __html: LAUNCH_BOOT_SCRIPT }} />
         {children}
         <Scripts />
       </body>
@@ -260,6 +262,7 @@ function RootComponent() {
   const authIdentity = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     document.documentElement.dataset.qsReady = "true";
+    stopLaunchBoot();
     let syncTimer: number | null = null;
     let queuedAccessRefresh = false;
     let queuedAccountChange = false;
