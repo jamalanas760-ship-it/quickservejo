@@ -1,25 +1,35 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 
-/** A minimal indicator stays visible until the optional WebGL scene has rendered. */
+/** One locally hosted video, shared across the mask, with a still-image fallback. */
 export function LaunchScene() {
-  const host = useRef<HTMLDivElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const video = useRef<HTMLVideoElement>(null);
+  const id = `qs-service-mask-${useId().replace(/:/g, "")}`;
+
   useEffect(() => {
-    const element = host.current;
-    if (!element || element.closest("#qs-boot")) return;
+    const element = stage.current;
+    const player = video.current;
+    if (!element || !player || element.closest("#qs-boot")) return;
+    const launch = element.closest<HTMLElement>(".qs-launch-simple");
+    if (!launch) return;
     const media = matchMedia("(prefers-reduced-motion: reduce)");
     const connection = (
       navigator as Navigator & { connection?: EventTarget & { saveData?: boolean } }
     ).connection;
-    let disposed = false;
-    let generation = 0;
-    let cleanup: (() => void) | undefined;
+    let generation = 0,
+      disposed = false;
+    let cleanup = () => {};
+    const stop = () => {
+      cleanup();
+      cleanup = () => {};
+      player.pause();
+      player.removeAttribute("src");
+      player.load();
+      launch.classList.remove("qs-motion-active");
+    };
     const update = () => {
       const current = ++generation;
-      const startedAt = performance.now();
-      cleanup?.();
-      cleanup = undefined;
-      element.dataset.motion = "false";
-      element.classList.remove("is-rendered");
+      stop();
       if (
         disposed ||
         media.matches ||
@@ -27,13 +37,71 @@ export function LaunchScene() {
         document.documentElement.dataset.qsNavigationMotion === "reduced"
       )
         return;
-      void import("./chrome-service-scene")
-        .then(({ mountChromeService }) => {
+      const start = performance.now();
+      launch.classList.add("qs-motion-active");
+      const onError = () => {
+        player.pause();
+        player.removeAttribute("src");
+        player.load();
+      };
+      player.addEventListener("error", onError);
+      player.src = "/loading/service-motion/service.mp4";
+      player.load();
+      if (!document.hidden)
+        void player.play().catch(() => {
+          /* Poster stays visible if autoplay is blocked. */
+        });
+      const visibility = () => {
+        if (document.hidden) player.pause();
+        else void player.play().catch(() => {});
+      };
+      document.addEventListener("visibilitychange", visibility);
+      let releaseTimeline = () => {};
+      cleanup = () => {
+        document.removeEventListener("visibilitychange", visibility);
+        player.removeEventListener("error", onError);
+        releaseTimeline();
+      };
+      void Promise.all([import("gsap"), import("gsap/SplitText")])
+        .then(([{ gsap }, { SplitText }]) => {
           if (disposed || current !== generation) return;
-          cleanup = mountChromeService(element, startedAt);
+          gsap.registerPlugin(SplitText);
+          const title = launch.querySelector<HTMLElement>(".qs-service-title");
+          const subheading = launch.querySelector<HTMLElement>(".qs-service-eyebrow");
+          const brand = launch.querySelector<HTMLElement>(".qs-service-brand");
+          if (!title || !subheading || !brand) return;
+          const split = SplitText.create(title, { type: "words", aria: "auto" });
+          const timeline = gsap
+            .timeline({ paused: true })
+            .fromTo(
+              subheading,
+              { y: 10, opacity: 0 },
+              { y: 0, opacity: 1, duration: 0.35, ease: "power2.out" },
+              0.35,
+            )
+            .fromTo(
+              split.words,
+              { y: 24, opacity: 0 },
+              { y: 0, opacity: 1, duration: 0.55, stagger: 0.045, ease: "power3.out" },
+              0.48,
+            )
+            .fromTo(
+              brand,
+              { y: 12, opacity: 0 },
+              { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" },
+              0.8,
+            );
+          timeline
+            .seek(Math.min((performance.now() - start) / 1000, timeline.duration()), true)
+            .play();
+          releaseTimeline = () => {
+            timeline.kill();
+            split.revert();
+            gsap.set([subheading, brand], { clearProps: "all" });
+          };
         })
         .catch(() => {
-          /* The loading indicator remains available. */
+          /* Static text remains readable if animation cannot load. */
         });
     };
     const observer = new MutationObserver(update);
@@ -47,18 +115,34 @@ export function LaunchScene() {
     return () => {
       disposed = true;
       generation++;
-      cleanup?.();
+      stop();
       observer.disconnect();
       media.removeEventListener("change", update);
       connection?.removeEventListener?.("change", update);
     };
   }, []);
+
   return (
-    <div ref={host} className="qs-chrome-stage" aria-hidden="true">
-      <div className="qs-chrome-fallback">
-        <span />
-        <span />
-        <span />
+    <div ref={stage} className="qs-service-media" aria-hidden="true">
+      <svg className="qs-service-mask-def" focusable="false">
+        <defs>
+          <clipPath id={id} clipPathUnits="objectBoundingBox">
+            <rect x="-.17" y="-.2" width=".39" height=".63" rx=".07" />
+            <rect x=".13" y=".28" width=".39" height=".72" rx=".07" />
+            <rect x=".43" y="-.2" width=".39" height=".63" rx=".07" />
+            <rect x=".73" y=".28" width=".39" height=".72" rx=".07" />
+          </clipPath>
+        </defs>
+      </svg>
+      <div className="qs-service-video-mask" style={{ clipPath: `url(#${id})` }}>
+        <video
+          ref={video}
+          poster="/loading/service-motion/poster.webp"
+          muted
+          playsInline
+          loop
+          preload="none"
+        />
       </div>
     </div>
   );

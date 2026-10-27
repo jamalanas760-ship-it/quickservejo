@@ -130,22 +130,21 @@ export function LaunchScreenView({
       aria-live="polite"
       aria-label={lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}
     >
-      <div className="qs-chrome-editorial" aria-hidden="true" dir="ltr">
-        <span>A little theatre.</span>
-        <span>A perfect serve.</span>
-      </div>
-      <LaunchScene />
-      <div className="qs-launch-simple-content">
-        <div className="qs-launch-brand">
-          <span className="qs-launch-caption">
-            {lang === "ar" ? "تفاصيل تصنع الفرق." : "THE ART OF A PERFECT SERVE."}
-          </span>
-          <strong dir="ltr">
-            Quick<span>Serve</span>
-          </strong>
-          <p>{lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}</p>
-          <div className="qs-launch-ambient" aria-hidden="true">
-            <span />
+      <div className="qs-service-panel">
+        <LaunchScene />
+        <div className="qs-service-copy">
+          <div className="qs-service-eyebrow">
+            {lang === "ar" ? "الخدمة لعصر جديد من" : "SERVICE FOR THE NEW ERA OF"}
+          </div>
+          <h1 className="qs-service-title">
+            {lang === "ar" ? "المطاعم العصرية" : "MODERN RESTAURANTS"}
+          </h1>
+          <div className="qs-service-brand">
+            <strong dir="ltr">
+              Quick<span>Serve</span>
+            </strong>
+            <p>{lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}</p>
+            <div className="qs-service-line" aria-hidden="true" />
           </div>
         </div>
       </div>

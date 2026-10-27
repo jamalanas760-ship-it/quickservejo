@@ -1,3 +1,5 @@
+> Superseded by [Service in Motion](service-in-motion.md).
+
 # The Chrome Service Bell
 
 The current QuickServe launch replaces the Service Dial with an original restaurant scene inspired by the supplied Gionatan Nese reference. It uses GSAP 3.15.0 and the existing Three.js dependency, GLTFLoader, a custom GLSL MatCap reflection shader and direct WebGL rendering. The original cloche glTF mesh and studio MatCap are authored for QuickServe; no reference-site model, texture, shader source or branding is copied.
