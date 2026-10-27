@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-/** Static silver artwork stays visible until the optional WebGL scene has rendered. */
+/** A minimal indicator stays visible until the optional WebGL scene has rendered. */
 export function LaunchScene() {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -32,7 +32,7 @@ export function LaunchScene() {
           cleanup = mountChromeService(element);
         })
         .catch(() => {
-          /* The static silver serving bell remains available. */
+          /* The loading indicator remains available. */
         });
     };
     const observer = new MutationObserver(update);
@@ -55,9 +55,9 @@ export function LaunchScene() {
   return (
     <div ref={host} className="qs-chrome-stage" aria-hidden="true">
       <div className="qs-chrome-fallback">
-        <div className="qs-chrome-knob" />
-        <div className="qs-chrome-dome" />
-        <div className="qs-chrome-tray" />
+        <span />
+        <span />
+        <span />
       </div>
     </div>
   );

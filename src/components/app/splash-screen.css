@@ -1,4 +1,4 @@
-/* The Service Dial — Anime.js + SVG, inspired by the supplied circular-motion reference. */
+/* Chrome Service Bell launch screen. */
 .qs-launch-simple {
   position: fixed;
   inset: 0;
@@ -64,52 +64,35 @@
 }
 .qs-chrome-fallback {
   position: absolute;
-  width: 260px;
-  height: 180px;
   left: 50%;
   top: 43%;
   transform: translate(-50%, -50%);
-  filter: drop-shadow(0 30px 18px #26262620);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qs-chrome-fallback span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #bd7952;
+  opacity: 0.35;
+  animation: qs-chrome-pulse 1.2s ease-in-out infinite;
+}
+.qs-chrome-fallback span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.qs-chrome-fallback span:nth-child(3) {
+  animation-delay: 0.32s;
 }
 .is-rendered .qs-chrome-fallback {
-  visibility: hidden;
+  display: none;
 }
-.qs-chrome-dome {
-  position: absolute;
-  bottom: 20px;
-  width: 100%;
-  height: 135px;
-  border-radius: 140px 140px 12px 12px;
-  background: linear-gradient(
-    100deg,
-    #555 0%,
-    #fafafa 17%,
-    #aaa 25%,
-    #17191c 43%,
-    #e3e3e3 62%,
-    #fff 69%,
-    #303236 88%,
-    #aaa
-  );
-  box-shadow: inset 0 -9px 10px #1a1a1a80;
-}
-.qs-chrome-knob {
-  position: absolute;
-  top: 8px;
-  left: 110px;
-  width: 40px;
-  height: 23px;
-  border-radius: 50%;
-  background: linear-gradient(110deg, #333, #fff 35%, #222 75%, #aaa);
-}
-.qs-chrome-tray {
-  position: absolute;
-  bottom: 9px;
-  left: -16px;
-  width: 292px;
-  height: 18px;
-  border-radius: 50%;
-  background: linear-gradient(#fafafa, #777 48%, #222 52%, #ccc);
+@keyframes qs-chrome-pulse {
+  50% {
+    opacity: 0.9;
+    transform: translateY(-3px);
+  }
 }
 .qs-launch-simple-content {
   position: absolute;
