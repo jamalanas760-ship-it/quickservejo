@@ -1,8 +1,13 @@
 import { useEffect, useId, useRef } from "react";
-import { hasLaunchedThisDocument } from "@/lib/launch-session";
 
 /** One locally hosted video, shared across the mask, with a still-image fallback. */
-export function LaunchScene({ onSettled }: { onSettled?: (() => void) | undefined }) {
+export function LaunchScene({
+  onSettled,
+  animate = true,
+}: {
+  onSettled?: (() => void) | undefined;
+  animate?: boolean;
+}) {
   const stage = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const id = `qs-service-mask-${useId().replace(/:/g, "")}`;
@@ -11,6 +16,10 @@ export function LaunchScene({ onSettled }: { onSettled?: (() => void) | undefine
     const element = stage.current;
     const player = video.current;
     if (!element || !player || element.closest("#qs-boot")) return;
+    if (!animate) {
+      onSettled?.();
+      return;
+    }
     const launch = element.closest<HTMLElement>(".qs-launch-simple");
     if (!launch) return;
     const media = matchMedia("(prefers-reduced-motion: reduce)");
@@ -42,7 +51,7 @@ export function LaunchScene({ onSettled }: { onSettled?: (() => void) | undefine
       lastDisabled = disabled;
       const current = ++generation;
       stop();
-      if (disposed || played || hasLaunchedThisDocument() || disabled) {
+      if (disposed || played || disabled) {
         onSettled?.();
         return;
       }
@@ -140,7 +149,7 @@ export function LaunchScene({ onSettled }: { onSettled?: (() => void) | undefine
       media.removeEventListener("change", update);
       connection?.removeEventListener?.("change", update);
     };
-  }, [onSettled]);
+  }, [onSettled, animate]);
 
   return (
     <div ref={stage} className="qs-service-media" aria-hidden="true">
