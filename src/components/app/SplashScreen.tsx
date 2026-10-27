@@ -147,13 +147,13 @@ export function LaunchScreenView({
           <h1 className="qs-service-title">
             {lang === "ar" ? "المطاعم والمقاهي" : "RESTAURANTS AND CAFES"}
           </h1>
-          <div className="qs-service-brand">
-            <strong dir="ltr">
-              Quick<span>Serve</span>
-            </strong>
-            <p>{lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}</p>
-            <div className="qs-service-line" aria-hidden="true" />
-          </div>
+        </div>
+        <div className="qs-service-brand">
+          <strong dir="ltr">
+            Quick<span>Serve</span>
+          </strong>
+          <p>{lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}</p>
+          <div className="qs-service-line" aria-hidden="true" />
         </div>
       </div>
     </div>

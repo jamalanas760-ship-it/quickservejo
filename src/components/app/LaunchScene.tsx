@@ -90,7 +90,7 @@ export function LaunchScene({ onSettled }: { onSettled?: (() => void) | undefine
           const subheading = launch.querySelector<HTMLElement>(".qs-service-eyebrow");
           const brand = launch.querySelector<HTMLElement>(".qs-service-brand");
           if (!title || !subheading || !brand) return;
-          const split = SplitText.create(title, { type: "words", aria: "auto" });
+          const split = SplitText.create(title, { type: "words", mask: "words", aria: "auto" });
           const timeline = gsap
             .timeline({ paused: true })
             .fromTo(
@@ -101,8 +101,8 @@ export function LaunchScene({ onSettled }: { onSettled?: (() => void) | undefine
             )
             .fromTo(
               split.words,
-              { y: 24, opacity: 0 },
-              { y: 0, opacity: 1, duration: 0.85, stagger: 0.08, ease: "power3.out" },
+              { yPercent: 110, opacity: 0 },
+              { yPercent: 0, opacity: 1, duration: 0.95, stagger: 0.1, ease: "power3.out" },
               0.68,
             )
             .fromTo(
