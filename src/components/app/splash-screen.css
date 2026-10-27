@@ -61,8 +61,8 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: min(29vw, 380px);
-  height: 100%;
+  width: 100%;
+  height: 39%;
 }
 .qs-service-mask-def {
   position: absolute;
@@ -98,8 +98,8 @@
 .qs-service-copy {
   position: absolute;
   left: 50%;
-  top: 50%;
-  width: min(62vw, 820px);
+  top: 52%;
+  width: min(calc(100% - 36px), 900px);
   transform: translate(-50%, -50%);
   text-align: center;
   z-index: 2;
@@ -111,11 +111,11 @@
   letter-spacing: -0.035em;
 }
 .qs-service-title {
-  max-width: 820px;
+  max-width: 9.2em;
   margin: 5px auto 0;
   font-family: "Arial Narrow", Impact, var(--font-sans, Arial), sans-serif;
   font-stretch: condensed;
-  font-size: clamp(34px, 5.6vw, 90px);
+  font-size: clamp(32px, min(10.4vw, 9vh), 68px);
   font-weight: 900;
   line-height: 0.9;
   letter-spacing: -0.065em;
@@ -125,7 +125,7 @@
   position: absolute;
   left: 16px;
   right: 16px;
-  bottom: max(5vh, calc(env(safe-area-inset-bottom) + 16px));
+  bottom: max(7vh, calc(env(safe-area-inset-bottom) + 20px));
   z-index: 2;
   text-align: center;
 }
@@ -171,31 +171,9 @@
     transform: translateX(350%);
   }
 }
-@media (max-width: 640px) and (orientation: portrait) {
-  .qs-service-media {
-    width: 100%;
-    height: 39%;
-  }
-  .qs-service-copy {
-    width: calc(100% - 36px);
-    top: 52%;
-  }
-  .qs-service-eyebrow {
-    font-size: 12px;
-  }
-  .qs-service-title {
-    font-size: clamp(32px, 10.4vw, 68px);
-  }
-  .qs-service-brand {
-    bottom: max(7vh, calc(env(safe-area-inset-bottom) + 20px));
-  }
-}
 @media (max-height: 560px) and (orientation: landscape) {
-  .qs-service-media {
-    width: 25vw;
-  }
   .qs-service-title {
-    font-size: clamp(34px, 6.2vw, 64px);
+    font-size: clamp(25px, 8vh, 42px);
   }
   .qs-service-brand {
     bottom: max(3vh, env(safe-area-inset-bottom));
