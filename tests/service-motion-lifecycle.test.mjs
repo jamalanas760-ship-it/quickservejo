@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
 
-function createHarness() {
+function createHarness({ alreadyLaunched = false } = {}) {
   let effect;
   let observer;
   let playCalls = 0;
@@ -82,7 +82,8 @@ function createHarness() {
           },
         };
       if (name === "react/jsx-runtime") return { jsx: () => null, jsxs: () => null };
-      if (name === "@/lib/launch-session") return { hasLaunchedThisDocument: () => false };
+      if (name === "@/lib/launch-session")
+        return { hasLaunchedThisDocument: () => alreadyLaunched };
       if (name === "gsap") return { gsap: { registerPlugin() {} } };
       if (name === "gsap/SplitText") return { SplitText: {} };
       throw Error(`Unexpected module: ${name}`);
@@ -136,5 +137,15 @@ test("switching to reduced motion stops playback without replaying it later", ()
   h.document.documentElement.dataset.qsNavigationMotion = "full";
   h.notify();
   assert.equal(h.playCalls, 1);
+  h.dispose();
+});
+
+// A later route is a new loading event: it should animate once even if the
+// document's initial entry animation has already completed.
+test("later route loading animates even after the initial launch has completed", () => {
+  const h = createHarness({ alreadyLaunched: true });
+  assert.equal(h.playCalls, 1);
+  assert.ok(h.player.getAttribute("src"));
+  assert.ok(h.classNames.has("qs-motion-active"));
   h.dispose();
 });

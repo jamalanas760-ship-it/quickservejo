@@ -1,4 +1,9 @@
 /* Service in Motion: a lightweight editorial launch with one local video. */
+html[data-qs-launch-lock],
+html[data-qs-launch-lock] body {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
 .qs-launch-simple {
   position: fixed;
   inset: 0;
