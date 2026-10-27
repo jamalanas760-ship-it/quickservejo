@@ -1,6 +1,6 @@
 # Service in Motion
 
-QuickServe's launch screen uses an opening black-to-white panel, bold editorial text and rounded cutouts of a short local restaurant video. GSAP and SplitText animate the text. A single 3.33-second H.264 video combines two Pexels clips (102 KiB, no audio) to avoid decoding multiple streams. The current application remains React; Webflow, scrolling libraries and scroll triggers are not needed for this short standalone loading screen.
+QuickServe's launch screen uses two opening curtains, centered editorial text and a bottom-aligned QuickServe status and rounded cutouts of a short local restaurant video. GSAP and masked SplitText reveal the words; a single CSS transform reveals the footage. A single 3.33-second H.264 video combines two Pexels clips (102 KiB, no audio) to avoid decoding multiple streams. The current application remains React; Webflow, scrolling libraries and scroll triggers are not needed for this short standalone loading screen.
 
 ## Footage and license
 
