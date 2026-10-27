@@ -1,10 +1,6 @@
 import * as THREE from "three";
 import { gsap } from "gsap";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { chromeVertex, chromeFragment, steamVertex, steamFragment } from "./chrome-service-shaders";
 
 /** Bounded, self-contained renderer. All assets are local; no persistent GPU loop. */
@@ -13,11 +9,11 @@ export function mountChromeService(
   startedAt = performance.now(),
 ): () => void {
   let renderer: THREE.WebGLRenderer | undefined;
-  let composer: EffectComposer | undefined;
   let matcap: THREE.CanvasTexture | undefined;
   let shadowTexture: THREE.CanvasTexture | undefined;
-  let bloom: UnrealBloomPass | undefined;
   let economical = false;
+  let slowFrames = 0;
+  const mobile = matchMedia("(pointer: coarse)").matches || host.clientWidth < 600;
   const scene = new THREE.Scene();
   const geometries = new Set<THREE.BufferGeometry>();
   const materials = new Set<THREE.Material>();
@@ -50,8 +46,6 @@ export function mountChromeService(
     materials.forEach((m) => m.dispose());
     matcap?.dispose();
     shadowTexture?.dispose();
-    composer?.passes.forEach((pass) => pass.dispose());
-    composer?.dispose();
     renderer?.dispose();
     renderer?.domElement.remove();
     host.classList.remove("is-rendered");
@@ -80,21 +74,23 @@ export function mountChromeService(
     const width = host.clientWidth,
       height = host.clientHeight;
     if (!width || !height) return;
-    // Max ~720k drawing pixels, including bloom targets, irrespective of device DPR.
+    // Bound the base drawing buffer; CSS keeps it fitted to the viewport.
+    const budget = economical ? 240000 : mobile ? 420000 : 650000;
     const ratio = Math.min(
       devicePixelRatio || 1,
-      1.5,
-      Math.sqrt((economical ? 240000 : 600000) / (width * height)),
+      mobile ? 1.15 : 1.5,
+      Math.sqrt(budget / (width * height)),
     );
-    renderer.setPixelRatio(ratio);
-    renderer.setSize(width, height);
-    composer?.setPixelRatio(ratio);
-    composer?.setSize(width, height);
+    renderer.setSize(
+      Math.max(1, Math.round(width * ratio)),
+      Math.max(1, Math.round(height * ratio)),
+      false,
+    );
     camera.aspect = width / height;
     camera.position.z = width < 600 && height > width ? 15.8 : 10.8;
     camera.lookAt(0, 0.65, 0);
     camera.updateProjectionMatrix();
-    if (ready) composer?.render();
+    if (ready && alive && performance.now() - began >= 3400) renderer.render(scene, camera);
   };
   const resizeObserver = new ResizeObserver(resize);
   const root = new THREE.Group();
@@ -105,8 +101,9 @@ export function mountChromeService(
   const state = { lift: 0, turn: -0.65, press: 0, tray: 0.78, reveal: 0, steam: 0, arrival: -1.6 };
   let chrome: THREE.ShaderMaterial;
   function paint(stamp: number) {
-    if (!alive || !ready || !composer) return;
-    if (stamp - lastPaint < 1000 / 30) {
+    if (!alive || !ready || !renderer) return;
+    // A small tolerance avoids dropping to 20fps on a 60Hz display.
+    if (stamp - lastPaint < 30) {
       frame = requestAnimationFrame(paint);
       return;
     }
@@ -128,10 +125,11 @@ export function mountChromeService(
     });
     try {
       const renderStarted = performance.now();
-      composer.render();
-      if (!economical && performance.now() - renderStarted > 90) {
+      renderer.render(scene, camera);
+      // Three consecutive slow main-thread renders trigger one resolution reduction.
+      slowFrames = performance.now() - renderStarted > 45 ? slowFrames + 1 : 0;
+      if (!economical && slowFrames >= 3) {
         economical = true;
-        if (bloom) bloom.enabled = false;
         host.dataset.quality = "economical";
         resize();
       }
@@ -147,7 +145,7 @@ export function mountChromeService(
   try {
     renderer = new THREE.WebGLRenderer({
       alpha: false,
-      antialias: true,
+      antialias: !mobile,
       powerPreference: "low-power",
     });
     renderer.setClearColor(new THREE.Color(10, 10, 10), 1);
@@ -311,11 +309,6 @@ export function mountChromeService(
       );
       ribbon.rotation.y = 0.2 * i;
     }
-    composer = new EffectComposer(renderer);
-    composer.addPass(new RenderPass(scene, camera));
-    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.14, 0.25, 0.94);
-    composer.addPass(bloom);
-    composer.addPass(new OutputPass());
     timeline
       .to(state, { arrival: 0, duration: 0.85, ease: "power3.out" }, 0)
       .to(state, { turn: 0.35, duration: 1.35, ease: "power2.inOut" }, 0)
