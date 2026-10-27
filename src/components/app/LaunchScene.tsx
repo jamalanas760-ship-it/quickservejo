@@ -21,6 +21,7 @@ export function LaunchScene({ onSettled }: { onSettled?: (() => void) | undefine
       disposed = false;
     let cleanup = () => {};
     let played = false;
+    let lastDisabled: boolean | undefined;
     const stop = () => {
       cleanup();
       cleanup = () => {};
@@ -30,16 +31,18 @@ export function LaunchScene({ onSettled }: { onSettled?: (() => void) | undefine
       launch.classList.remove("qs-motion-active");
     };
     const update = () => {
-      const current = ++generation;
-      stop();
-      if (
-        disposed ||
-        played ||
-        hasLaunchedThisDocument() ||
+      const disabled = Boolean(
         media.matches ||
         connection?.saveData ||
-        document.documentElement.dataset.qsNavigationMotion === "reduced"
-      ) {
+        document.documentElement.dataset.qsNavigationMotion === "reduced",
+      );
+      // Navigation can publish "full" repeatedly while the loader is playing.
+      // Ignore updates that do not actually change the effective motion setting.
+      if (lastDisabled === disabled) return;
+      lastDisabled = disabled;
+      const current = ++generation;
+      stop();
+      if (disposed || played || hasLaunchedThisDocument() || disabled) {
         onSettled?.();
         return;
       }
@@ -55,6 +58,8 @@ export function LaunchScene({ onSettled }: { onSettled?: (() => void) | undefine
       const onEnded = () => onSettled?.();
       player.addEventListener("error", onError);
       player.addEventListener("ended", onEnded);
+      player.defaultMuted = true;
+      player.muted = true;
       player.defaultPlaybackRate = 0.8;
       player.src = "/loading/service-motion/service.mp4";
       player.load();
