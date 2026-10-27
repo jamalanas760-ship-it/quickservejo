@@ -134,8 +134,10 @@ test("authenticated navigation keeps stable chrome with a once-per-session launc
   assert.match(shell, /SuppressNestedAppHeader/);
   assert.doesNotMatch(root, /<RouteProgress/);
   assert.match(root, /<LaunchScreenProvider>/);
-  assert.match(splash, /quickserve\.splash\.shown/);
-  assert.match(splash, /sessionStorage\.getItem\(FLAG\)/);
+  const launchSession = await file("src/lib/launch-session.ts");
+  assert.match(launchSession, /quickserve\.splash\.shown/);
+  assert.match(launchSession, /sessionStorage\.getItem\(FLAG\)/);
+  assert.match(splash, /hasLaunchedThisDocument/);
   assert.match(splash, /WORKSPACE_PATH/);
   assert.match(await file("src/components/app/splash-screen.css"), /prefers-reduced-motion/);
   assert.match(router, /defaultPendingMs: 1_200/);
@@ -152,7 +154,7 @@ test("launch screen follows loading state and preserves accessible topbar menus"
   const splash = await file("src/components/app/SplashScreen.tsx");
   const header = await file("src/components/nav/AppHeader.tsx");
   const css = await file("src/quickserve-system.css");
-  assert.match(splash, /quickserve\.splash\.shown\.v5/);
+  assert.match(await file("src/lib/launch-session.ts"), /quickserve\.splash\.shown\.v5/);
   assert.match(splash, /qs-launch-simple/);
   assert.match(splash, /state.isLoading/);
   assert.match(splash, /role="status"/);

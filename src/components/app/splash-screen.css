@@ -22,7 +22,7 @@
   transform-origin: 50% 50%;
 }
 .qs-motion-active .qs-service-panel {
-  animation: qs-service-open 0.65s cubic-bezier(0.76, 0, 0.24, 1) both;
+  animation: qs-service-open 1s cubic-bezier(0.76, 0, 0.24, 1) both;
 }
 @keyframes qs-service-open {
   from {
@@ -56,7 +56,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: saturate(0.72) contrast(1.04);
 }
 .qs-service-copy {
   position: absolute;
@@ -118,7 +117,7 @@
   width: 40%;
   height: 100%;
   background: #bf603c;
-  animation: qs-service-loading 1.7s ease-in-out infinite;
+  animation: qs-service-loading 3.6s ease-in-out 1 both;
 }
 @keyframes qs-service-loading {
   from {
@@ -143,7 +142,7 @@
     font-size: 12px;
   }
   .qs-service-title {
-    font-size: clamp(46px, 12vw, 68px);
+    font-size: clamp(32px, 10.4vw, 68px);
   }
   .qs-service-brand {
     margin-top: 28px;

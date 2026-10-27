@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef } from "react";
+import { hasLaunchedThisDocument } from "@/lib/launch-session";
 
 /** One locally hosted video, shared across the mask, with a still-image fallback. */
-export function LaunchScene() {
+export function LaunchScene({ onSettled }: { onSettled?: (() => void) | undefined }) {
   const stage = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const id = `qs-service-mask-${useId().replace(/:/g, "")}`;
@@ -19,6 +20,7 @@ export function LaunchScene() {
     let generation = 0,
       disposed = false;
     let cleanup = () => {};
+    let played = false;
     const stop = () => {
       cleanup();
       cleanup = () => {};
@@ -32,34 +34,47 @@ export function LaunchScene() {
       stop();
       if (
         disposed ||
+        played ||
+        hasLaunchedThisDocument() ||
         media.matches ||
         connection?.saveData ||
         document.documentElement.dataset.qsNavigationMotion === "reduced"
-      )
+      ) {
+        onSettled?.();
         return;
+      }
+      played = true;
       const start = performance.now();
       launch.classList.add("qs-motion-active");
       const onError = () => {
         player.pause();
         player.removeAttribute("src");
         player.load();
+        onSettled?.();
       };
+      const onEnded = () => onSettled?.();
       player.addEventListener("error", onError);
+      player.addEventListener("ended", onEnded);
+      player.defaultPlaybackRate = 0.8;
       player.src = "/loading/service-motion/service.mp4";
       player.load();
+      player.playbackRate = 0.8;
       if (!document.hidden)
         void player.play().catch(() => {
           /* Poster stays visible if autoplay is blocked. */
+          onSettled?.();
         });
       const visibility = () => {
         if (document.hidden) player.pause();
-        else void player.play().catch(() => {});
+        else if (!player.ended && player.getAttribute("src"))
+          void player.play().catch(() => onSettled?.());
       };
       document.addEventListener("visibilitychange", visibility);
       let releaseTimeline = () => {};
       cleanup = () => {
         document.removeEventListener("visibilitychange", visibility);
         player.removeEventListener("error", onError);
+        player.removeEventListener("ended", onEnded);
         releaseTimeline();
       };
       void Promise.all([import("gsap"), import("gsap/SplitText")])
@@ -76,20 +91,20 @@ export function LaunchScene() {
             .fromTo(
               subheading,
               { y: 10, opacity: 0 },
-              { y: 0, opacity: 1, duration: 0.35, ease: "power2.out" },
-              0.35,
+              { y: 0, opacity: 1, duration: 0.55, ease: "power2.out" },
+              0.5,
             )
             .fromTo(
               split.words,
               { y: 24, opacity: 0 },
-              { y: 0, opacity: 1, duration: 0.55, stagger: 0.045, ease: "power3.out" },
-              0.48,
+              { y: 0, opacity: 1, duration: 0.85, stagger: 0.08, ease: "power3.out" },
+              0.68,
             )
             .fromTo(
               brand,
               { y: 12, opacity: 0 },
-              { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" },
-              0.8,
+              { y: 0, opacity: 1, duration: 0.65, ease: "power2.out" },
+              1.1,
             );
           timeline
             .seek(Math.min((performance.now() - start) / 1000, timeline.duration()), true)
@@ -120,7 +135,7 @@ export function LaunchScene() {
       media.removeEventListener("change", update);
       connection?.removeEventListener?.("change", update);
     };
-  }, []);
+  }, [onSettled]);
 
   return (
     <div ref={stage} className="qs-service-media" aria-hidden="true">
@@ -140,7 +155,6 @@ export function LaunchScene() {
           poster="/loading/service-motion/poster.webp"
           muted
           playsInline
-          loop
           preload="none"
         />
       </div>
