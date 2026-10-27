@@ -8,7 +8,10 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { chromeVertex, chromeFragment, steamVertex, steamFragment } from "./chrome-service-shaders";
 
 /** Bounded, self-contained renderer. All assets are local; no persistent GPU loop. */
-export function mountChromeService(host: HTMLDivElement): () => void {
+export function mountChromeService(
+  host: HTMLDivElement,
+  startedAt = performance.now(),
+): () => void {
   let renderer: THREE.WebGLRenderer | undefined;
   let composer: EffectComposer | undefined;
   let matcap: THREE.CanvasTexture | undefined;
@@ -25,7 +28,7 @@ export function mountChromeService(host: HTMLDivElement): () => void {
     ready = false,
     lastPaint = 0,
     hiddenAt: number | null = null;
-  let began = performance.now();
+  let began = startedAt;
   const cleanup = () => {
     if (!alive) return;
     alive = false;
@@ -66,7 +69,7 @@ export function mountChromeService(host: HTMLDivElement): () => void {
         began += performance.now() - hiddenAt;
         hiddenAt = null;
       }
-      if (ready && alive && performance.now() - began < 3400) frame = requestAnimationFrame(paint);
+      if (ready && alive) frame = requestAnimationFrame(paint);
     }
   }
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 80);
@@ -354,7 +357,6 @@ export function mountChromeService(host: HTMLDivElement): () => void {
         });
         lid.add(gltf.scene);
         ready = true;
-        began = performance.now();
         document.addEventListener("visibilitychange", visibility);
         visibility();
       })

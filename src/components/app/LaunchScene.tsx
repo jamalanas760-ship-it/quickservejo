@@ -15,6 +15,7 @@ export function LaunchScene() {
     let cleanup: (() => void) | undefined;
     const update = () => {
       const current = ++generation;
+      const startedAt = performance.now();
       cleanup?.();
       cleanup = undefined;
       element.dataset.motion = "false";
@@ -29,7 +30,7 @@ export function LaunchScene() {
       void import("./chrome-service-scene")
         .then(({ mountChromeService }) => {
           if (disposed || current !== generation) return;
-          cleanup = mountChromeService(element);
+          cleanup = mountChromeService(element, startedAt);
         })
         .catch(() => {
           /* The loading indicator remains available. */

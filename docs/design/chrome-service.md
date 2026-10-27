@@ -10,7 +10,7 @@ A floating silver service bell enters and turns, presses gently, then lifts and 
 
 The WebGL module is imported only after checking system reduced motion, app reduced motion and Save Data. Before rendering, during server boot, or if the model or renderer fails, a neutral three-dot loading indicator is shown. Preference changes tear down the renderer. Model fetch is abortable; the local glTF embeds its buffer and needs no external textures. Hidden documents pause the animation. Unmount, preference change and WebGL context loss cancel frames and fetches, dispose model geometry, materials, textures, composer passes and renderer, and remove listeners.
 
-The GSAP timeline is manually sampled against elapsed time, capped at 30fps and 3400ms. Drawing resolution is capped at 600k pixels. A render exceeding 90ms disables bloom and lowers drawing resolution to 240k pixels for that launch. This is an adaptive quality limit, not a guarantee of frame rate on every device. No global GSAP ticker settings are changed.
+The GSAP timeline is sampled against elapsed time from the loading screen start, so a delayed model load does not restart the reveal. It is capped at 30fps and 3400ms. Drawing resolution is capped at 600k pixels. A render exceeding 90ms disables bloom and lowers drawing resolution to 240k pixels for that launch. This is an adaptive quality limit, not a guarantee of frame rate on every device. No global GSAP ticker settings are changed.
 
 ## Verification
 
