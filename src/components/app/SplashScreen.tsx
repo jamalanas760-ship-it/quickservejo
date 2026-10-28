@@ -12,11 +12,9 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { hasLaunchedThisDocument, rememberLaunch } from "@/lib/launch-session";
 import { acquireLaunchScrollLock } from "@/lib/launch-scroll-lock";
+import { isLaunchEntry } from "@/lib/launch-entry";
 import "./splash-screen.css";
 import { LaunchScene } from "./LaunchScene";
-
-const WORKSPACE_PATH =
-  /^\/(dashboard|manage|shifts|profile|bookings|automations|operations|team|settings|tables|menu|orders|analytics|notifications|work|manager|kitchen|waiter|host|cashier|hq|devices|integrations|guests|campaigns|approvals|daily-close|super-admin)(\/|$)/;
 
 /** Each new document gets a launch, including entry through sign-in. */
 const LaunchOverlay = createContext({ blocked: false, running: false });
@@ -49,15 +47,7 @@ export function SplashScreen({
     onVisibilityChange?.(visible);
   }, [visible, onVisibilityChange]);
   useEffect(() => {
-    const installedEntry =
-      pathname === "/" &&
-      (window.matchMedia("(display-mode: standalone)").matches ||
-        (navigator as Navigator & { standalone?: boolean }).standalone);
-    if (
-      started.current ||
-      !(WORKSPACE_PATH.test(pathname) || pathname === "/auth" || installedEntry)
-    )
-      return;
+    if (started.current || !isLaunchEntry(pathname)) return;
     if (hasLaunchedThisDocument()) return;
     started.current = true;
     onVisibilityChange?.(true);

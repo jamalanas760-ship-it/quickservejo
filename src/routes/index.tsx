@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Activity, ChefHat, ScanLine, ShieldCheck } from "lucide-react";
 
 import { LaunchScreenView } from "@/components/app/SplashScreen";
@@ -102,11 +102,14 @@ const plans = [
 ] as const;
 
 function Landing() {
+  const [hydrated, setHydrated] = useState(false);
   const { lang, t, toggleLang } = useI18n();
   const session = useSupabaseSession();
   const access = useAccess();
   const navigate = useNavigate();
   const signedIn = Boolean(session.data);
+
+  useEffect(() => setHydrated(true), []);
 
   useEffect(() => {
     if (!signedIn || access.isPending || access.isError) return;
@@ -118,7 +121,7 @@ function Landing() {
   }, [access.isError, access.isPending, access.isSuperAdmin, access.roles, navigate, signedIn]);
 
   // Keep the launch artwork visible while the persisted session is restored.
-  if (session.isPending) return <LaunchScreenView lang={lang} />;
+  if (!hydrated || session.isPending) return <LaunchScreenView lang={lang} />;
 
   // Signed-in users land in their workspace home instead of the marketing page.
   if (signedIn) {
