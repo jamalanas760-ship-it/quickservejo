@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 import { LAUNCH_BOOT_SCRIPT } from "../src/lib/launch-boot.ts";
 
-function bootHarness({ reduced = false, saveData = false, fetchImpl } = {}) {
+function bootHarness({ reduced = false, saveData = false, fetchImpl, search = "", savedMotion } = {}) {
   const classes = new Set();
   const attrs = new Map();
   const player = {
@@ -50,7 +50,16 @@ function bootHarness({ reduced = false, saveData = false, fetchImpl } = {}) {
     addEventListener() {},
     removeEventListener() {},
   };
-  const window = { matchMedia: () => ({ matches: reduced }) };
+  const storage = new Map(savedMotion ? [["quickserve.launch.motion", savedMotion]] : []);
+  const window = {
+    matchMedia: () => ({ matches: reduced }),
+    location: { search },
+    localStorage: {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, value),
+      removeItem: (key) => storage.delete(key),
+    },
+  };
   let requests = 0,
     revoked = 0,
     created = 0;
@@ -70,6 +79,7 @@ function bootHarness({ reduced = false, saveData = false, fetchImpl } = {}) {
     performance: { now: () => 100 },
     AbortController,
     URL: urlApi,
+    URLSearchParams,
     setTimeout: () => 1,
     clearTimeout() {},
     fetch: (...args) => {
@@ -81,6 +91,7 @@ function bootHarness({ reduced = false, saveData = false, fetchImpl } = {}) {
     window,
     player,
     classes,
+    storage,
     get requests() {
       return requests;
     },
@@ -111,6 +122,26 @@ test("boot starts the local video and retains its playhead for handoff", async (
   state.release();
   state.release();
   assert.equal(h.revoked, 1);
+});
+
+test("explicit loader opt-in plays under reduced motion and persists for the next visit", () => {
+  for (const options of [
+    { reduced: true, search: "?loadingAnimation=on" },
+    { reduced: true, savedMotion: "full" },
+    { saveData: true, search: "?loadingAnimation=on" },
+  ]) {
+    const h = bootHarness(options);
+    assert.equal(h.player.playCalls, 1);
+    assert.equal(h.storage.get("quickserve.launch.motion"), "full");
+    h.window.__qsLaunchBoot.stop();
+    h.window.__qsLaunchBoot.release();
+  }
+});
+
+test("automatic motion choice restores system preferences and clears the opt-in", () => {
+  const h = bootHarness({ reduced: true, savedMotion: "full", search: "?loadingAnimation=auto" });
+  assert.equal(h.player.playCalls, 0);
+  assert.equal(h.storage.has("quickserve.launch.motion"), false);
 });
 
 test("boot starts native playback even when the optional blob download never completes", () => {

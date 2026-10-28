@@ -12,4 +12,6 @@ No third-party request, account or paid service is needed at runtime. A small in
 
 ## Verification
 
+When device reduced motion, Save Data or workspace navigation settings suppress the loader, an “Enable loading animation” button provides an explicit loader-only choice. It reloads the current URL with `loadingAnimation=on`, preserving other parameters. Boot applies this choice before playback and remembers it in local storage. The same override governs both video/GSAP and CSS effects, so they cannot disagree. `loadingAnimation=auto` clears the choice and restores automatic preferences. No system or workspace setting is modified. Storage restrictions still allow the query choice for the current visit.
+
 Check mobile, desktop and landscape layout; actual video time progression; reduced motion and Save Data; video error and autoplay rejection; visibility pause/resume; launch recovery; and an indefinitely delayed optional boot fetch while native media playback remains available. Browser autoplay and decoding depend on device settings; the poster remains if playback cannot start. Test results do not guarantee performance on all phones.

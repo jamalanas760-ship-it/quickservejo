@@ -45,9 +45,10 @@ export function LaunchScene({
     };
     const update = () => {
       const disabled = Boolean(
-        media.matches ||
-        connection?.saveData ||
-        document.documentElement.dataset.qsNavigationMotion === "reduced",
+        document.documentElement.dataset.qsLaunchMotion !== "full" &&
+          (media.matches ||
+            connection?.saveData ||
+            document.documentElement.dataset.qsNavigationMotion === "reduced"),
       );
       // Navigation can publish "full" repeatedly while the loader is playing.
       // Ignore updates that do not actually change the effective motion setting.
@@ -165,7 +166,7 @@ export function LaunchScene({
     const observer = new MutationObserver(update);
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["data-qs-navigation-motion"],
+      attributeFilter: ["data-qs-navigation-motion", "data-qs-launch-motion"],
     });
     media.addEventListener("change", update);
     connection?.addEventListener?.("change", update);

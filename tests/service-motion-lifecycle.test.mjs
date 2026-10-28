@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
 
-function createHarness({ alreadyLaunched = false, bootState, primary = false } = {}) {
+function createHarness({ alreadyLaunched = false, bootState, primary = false, reduced = false, explicitMotion = false } = {}) {
   let effect;
   let observer;
   let playCalls = 0;
@@ -44,10 +44,10 @@ function createHarness({ alreadyLaunched = false, bootState, primary = false } =
   };
   const stage = { closest: (selector) => (selector === "#qs-boot" ? null : launch) };
   const refs = [stage, player];
-  const reducedMotion = { matches: false, addEventListener() {}, removeEventListener() {} };
+  const reducedMotion = { matches: reduced, addEventListener() {}, removeEventListener() {} };
   const document = {
     hidden: false,
-    documentElement: { dataset: {} },
+    documentElement: { dataset: explicitMotion ? { qsLaunchMotion: "full" } : {} },
     addEventListener() {},
     removeEventListener() {},
   };
@@ -142,6 +142,24 @@ test("switching to reduced motion stops playback without replaying it later", ()
   h.document.documentElement.dataset.qsNavigationMotion = "full";
   h.notify();
   assert.equal(h.playCalls, 1);
+  h.dispose();
+});
+
+test("explicit loader opt-in keeps video playing under system and workspace reduced motion", () => {
+  const h = createHarness({ reduced: true, explicitMotion: true });
+  assert.equal(h.playCalls, 1);
+  h.document.documentElement.dataset.qsNavigationMotion = "reduced";
+  h.notify();
+  assert.equal(h.playCalls, 1);
+  assert.ok(h.classNames.has("qs-motion-active"));
+  assert.ok(h.player.getAttribute("src"));
+  h.dispose();
+});
+
+test("system reduced motion remains respected without an explicit loader choice", () => {
+  const h = createHarness({ reduced: true });
+  assert.equal(h.playCalls, 0);
+  assert.equal(h.player.getAttribute("src"), null);
   h.dispose();
 });
 
