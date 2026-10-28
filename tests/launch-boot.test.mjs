@@ -124,7 +124,7 @@ test("boot starts the local video and retains its playhead for handoff", async (
   assert.equal(h.revoked, 1);
 });
 
-test("explicit loader opt-in plays under reduced motion and persists for the next visit", () => {
+test("loader playback needs no saved preference or special link", () => {
   for (const options of [
     { reduced: true, search: "?loadingAnimation=on" },
     { reduced: true, savedMotion: "full" },
@@ -132,16 +132,17 @@ test("explicit loader opt-in plays under reduced motion and persists for the nex
   ]) {
     const h = bootHarness(options);
     assert.equal(h.player.playCalls, 1);
-    assert.equal(h.storage.get("quickserve.launch.motion"), "full");
+    assert.equal(h.window.__qsLaunchBoot.stopped, false);
     h.window.__qsLaunchBoot.stop();
     h.window.__qsLaunchBoot.release();
   }
 });
 
-test("automatic motion choice restores system preferences and clears the opt-in", () => {
+test("legacy automatic query cannot disable loading animation", () => {
   const h = bootHarness({ reduced: true, savedMotion: "full", search: "?loadingAnimation=auto" });
-  assert.equal(h.player.playCalls, 0);
-  assert.equal(h.storage.has("quickserve.launch.motion"), false);
+  assert.equal(h.player.playCalls, 1);
+  h.window.__qsLaunchBoot.stop();
+  h.window.__qsLaunchBoot.release();
 });
 
 test("boot starts native playback even when the optional blob download never completes", () => {
@@ -153,12 +154,14 @@ test("boot starts native playback even when the optional blob download never com
   h.window.__qsLaunchBoot.release();
 });
 
-test("reduced motion and Save Data keep the boot poster static", () => {
+test("boot always animates under reduced motion and Save Data", () => {
   for (const options of [{ reduced: true }, { saveData: true }]) {
     const h = bootHarness(options);
-    assert.equal(h.window.__qsLaunchBoot, undefined);
-    assert.equal(h.requests, 0);
-    assert.equal(h.player.playCalls, 0);
+    assert.ok(h.window.__qsLaunchBoot);
+    assert.equal(h.requests, 1);
+    assert.equal(h.player.playCalls, 1);
+    h.window.__qsLaunchBoot.stop();
+    h.window.__qsLaunchBoot.release();
   }
 });
 

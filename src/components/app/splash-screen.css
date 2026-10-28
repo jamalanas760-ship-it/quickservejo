@@ -213,32 +213,6 @@ html[data-qs-launch-lock] body {
     transform: translateY(0);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  :root:not([data-qs-launch-motion="full"]) .qs-launch-simple,
-  :root:not([data-qs-launch-motion="full"]) .qs-launch-simple *,
-  :root:not([data-qs-launch-motion="full"]) .qs-launch-simple *::before,
-  :root:not([data-qs-launch-motion="full"]) .qs-launch-simple *::after {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-:root[data-qs-navigation-motion="reduced"]:not([data-qs-launch-motion="full"]) .qs-launch-simple *,
-:root[data-qs-navigation-motion="reduced"]:not([data-qs-launch-motion="full"]) .qs-launch-simple *::before,
-:root[data-qs-navigation-motion="reduced"]:not([data-qs-launch-motion="full"]) .qs-launch-simple *::after {
-  animation: none !important;
-  transition: none !important;
-}
-.qs-launch-motion-choice {
-  min-height: 44px;
-  margin-top: 8px;
-  padding: 8px 16px;
-  border: 1px solid #b7b7b1;
-  border-radius: 999px;
-  background: #fffdfa;
-  color: #242424;
-  font: 600 12px/1.3 var(--font-sans, Arial), sans-serif;
-  cursor: pointer;
-}
 .qs-workspace-recovery {
   position: fixed;
   inset: 0;

@@ -100,7 +100,7 @@ function createHarness({ alreadyLaunched = false, bootState, primary = false, re
     player,
     document,
     classNames,
-    notify: () => observer(),
+    notify: () => observer?.(),
     dispose,
     get playCalls() {
       return playCalls;
@@ -132,13 +132,13 @@ test("navigation updates that keep motion enabled do not interrupt or restart th
   h.dispose();
 });
 
-test("switching to reduced motion stops playback without replaying it later", () => {
+test("workspace reduced motion cannot stop or restart loader playback", () => {
   const h = createHarness();
   h.document.documentElement.dataset.qsNavigationMotion = "reduced";
   h.notify();
-  assert.equal(h.player.getAttribute("src"), null);
-  assert.equal(h.classNames.has("qs-motion-active"), false);
-  assert.equal(h.settled, 1);
+  assert.ok(h.player.getAttribute("src"));
+  assert.equal(h.classNames.has("qs-motion-active"), true);
+  assert.equal(h.settled, 0);
   h.document.documentElement.dataset.qsNavigationMotion = "full";
   h.notify();
   assert.equal(h.playCalls, 1);
@@ -156,10 +156,10 @@ test("explicit loader opt-in keeps video playing under system and workspace redu
   h.dispose();
 });
 
-test("system reduced motion remains respected without an explicit loader choice", () => {
+test("system reduced motion does not require an explicit loader choice", () => {
   const h = createHarness({ reduced: true });
-  assert.equal(h.playCalls, 0);
-  assert.equal(h.player.getAttribute("src"), null);
+  assert.equal(h.playCalls, 1);
+  assert.ok(h.player.getAttribute("src"));
   h.dispose();
 });
 

@@ -26,15 +26,9 @@ export function LaunchScene({
     }
     const launch = element.closest<HTMLElement>(".qs-launch-simple");
     if (!launch) return;
-    const media = matchMedia("(prefers-reduced-motion: reduce)");
-    const connection = (
-      navigator as Navigator & { connection?: EventTarget & { saveData?: boolean } }
-    ).connection;
     let generation = 0,
       disposed = false;
     let cleanup = () => {};
-    let played = false;
-    let lastDisabled: boolean | undefined;
     const stop = () => {
       cleanup();
       cleanup = () => {};
@@ -44,23 +38,10 @@ export function LaunchScene({
       launch.classList.remove("qs-motion-active");
     };
     const update = () => {
-      const disabled = Boolean(
-        document.documentElement.dataset.qsLaunchMotion !== "full" &&
-          (media.matches ||
-            connection?.saveData ||
-            document.documentElement.dataset.qsNavigationMotion === "reduced"),
-      );
-      // Navigation can publish "full" repeatedly while the loader is playing.
-      // Ignore updates that do not actually change the effective motion setting.
-      if (lastDisabled === disabled) return;
-      lastDisabled = disabled;
       const current = ++generation;
       stop();
-      if (disposed || played || disabled) {
-        onSettled?.();
-        return;
-      }
-      played = true;
+      if (disposed) return;
+      document.documentElement.dataset.qsLaunchMotion = "full";
       const previousBoot = primary ? window.__qsLaunchBoot : undefined;
       previousBoot?.stop();
       const start = previousBoot?.startedAt ?? performance.now();
@@ -163,21 +144,11 @@ export function LaunchScene({
           /* Static text remains readable if animation cannot load. */
         });
     };
-    const observer = new MutationObserver(update);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-qs-navigation-motion", "data-qs-launch-motion"],
-    });
-    media.addEventListener("change", update);
-    connection?.addEventListener?.("change", update);
     update();
     return () => {
       disposed = true;
       generation++;
       stop();
-      observer.disconnect();
-      media.removeEventListener("change", update);
-      connection?.removeEventListener?.("change", update);
     };
   }, [onSettled, animate, primary]);
 
