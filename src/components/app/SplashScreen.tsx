@@ -19,6 +19,49 @@ import { LaunchScene } from "./LaunchScene";
 /** Each new document gets a launch, including entry through sign-in. */
 const LaunchOverlay = createContext({ blocked: false, running: false });
 
+function LaunchMotionChoice({ lang }: { lang: "en" | "ar" }) {
+  const [suppressed, setSuppressed] = useState(false);
+  useEffect(() => {
+    const media = matchMedia("(prefers-reduced-motion: reduce)");
+    const connection = (navigator as Navigator & {
+      connection?: EventTarget & { saveData?: boolean };
+    }).connection;
+    const update = () => setSuppressed(
+      document.documentElement.dataset.qsLaunchMotion !== "full" && Boolean(
+        media.matches || connection?.saveData ||
+        document.documentElement.dataset.qsNavigationMotion === "reduced",
+      ),
+    );
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-qs-launch-motion", "data-qs-navigation-motion"],
+    });
+    media.addEventListener("change", update);
+    connection?.addEventListener?.("change", update);
+    update();
+    return () => {
+      observer.disconnect();
+      media.removeEventListener("change", update);
+      connection?.removeEventListener?.("change", update);
+    };
+  }, []);
+  if (!suppressed) return null;
+  return (
+    <button
+      type="button"
+      className="qs-launch-motion-choice"
+      onClick={() => {
+        const url = new URL(window.location.href);
+        url.searchParams.set("loadingAnimation", "on");
+        window.location.assign(url.href);
+      }}
+    >
+      {lang === "ar" ? "تفعيل حركة شاشة التحميل" : "Enable loading animation"}
+    </button>
+  );
+}
+
 export function LaunchScreenProvider({ children }: { children: ReactNode }) {
   // Hold nested pending views until the entry overlay decides whether it will run.
   const [active, setActive] = useState<boolean | null>(null);
@@ -172,6 +215,7 @@ export function LaunchScreenView({
           </strong>
           <p>{lang === "ar" ? "جارٍ تجهيز مساحة العمل" : "Preparing your workspace"}</p>
           <div className="qs-service-line" aria-hidden="true" />
+          {!boot && <LaunchMotionChoice lang={lang} />}
         </div>
       </div>
     </div>

@@ -19,12 +19,26 @@ declare global {
 /** Runs immediately after the server-rendered boot markup, before hydration. */
 export const LAUNCH_BOOT_SCRIPT = `(function(){
   try {
+    // A deliberate loader-only choice takes precedence over inherited motion
+    // preferences, without changing operating-system or workspace settings.
+    var choice=null;
+    try{choice=new URLSearchParams(window.location.search).get('loadingAnimation')}catch(e){}
+    if(choice==='on'){
+      document.documentElement.dataset.qsLaunchMotion='full';
+      try{window.localStorage.setItem('quickserve.launch.motion','full')}catch(e){}
+    }else if(choice==='auto'){
+      delete document.documentElement.dataset.qsLaunchMotion;
+      try{window.localStorage.removeItem('quickserve.launch.motion')}catch(e){}
+    }else{
+      try{if(window.localStorage.getItem('quickserve.launch.motion')==='full')document.documentElement.dataset.qsLaunchMotion='full'}catch(e){}
+    }
     var root=document.getElementById('qs-boot');
     var view=root&&root.querySelector('.qs-launch-simple');
     var video=root&&root.querySelector('video');
     var reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var saveData=navigator.connection&&navigator.connection.saveData;
-    if(!view||!video||reduced||saveData||document.documentElement.dataset.qsNavigationMotion==='reduced')return;
+    var explicit=document.documentElement.dataset.qsLaunchMotion==='full';
+    if(!view||!video||(!explicit&&(reduced||saveData||document.documentElement.dataset.qsNavigationMotion==='reduced')))return;
     var controller=new AbortController(),url=null,released=false,timer;
     var state={startedAt:performance.now(),currentTime:0,ended:false,failed:false,stopped:false,source:null,sourceReady:null,stop:function(){
       if(state.stopped)return;
