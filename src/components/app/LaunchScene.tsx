@@ -101,13 +101,9 @@ export function LaunchScene({
           player.addEventListener("loadedmetadata", play, { once: true });
         else play();
       };
-      if (previousBoot?.sourceReady && typeof previousBoot.sourceReady.then === "function") {
-        void previousBoot.sourceReady.then((source) =>
-          startVideo(source ?? "/loading/service-motion/service.mp4"),
-        );
-      } else {
-        startVideo("/loading/service-motion/service.mp4");
-      }
+      // Use the prepared seekable source when available, but never await the
+      // optional boot fetch: native media loading can start before it finishes.
+      startVideo(previousBoot?.source ?? "/loading/service-motion/service.mp4");
       const visibility = () => {
         if (document.hidden) player.pause();
         else if (!player.ended && player.getAttribute("src"))
