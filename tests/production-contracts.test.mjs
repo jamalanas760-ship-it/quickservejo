@@ -139,7 +139,8 @@ test("authenticated navigation keeps stable chrome with a once-per-session launc
   assert.match(launchSession, /sessionStorage\.getItem\(FLAG\)/);
   assert.match(splash, /hasLaunchedThisDocument/);
   assert.match(splash, /isLaunchEntry/);
-  assert.match(await file("src/components/app/splash-screen.css"), /prefers-reduced-motion/);
+  assert.doesNotMatch(await file("src/components/app/splash-screen.css"), /prefers-reduced-motion|qs-launch-motion-choice/);
+  assert.doesNotMatch(splash, /LaunchMotionChoice|Enable loading animation/);
   assert.match(router, /defaultPendingMs: 1_200/);
   assert.match(router, /defaultPreloadStaleTime: 5 \* 60_000/);
   assert.doesNotMatch(skeleton, /animate-pulse/);
