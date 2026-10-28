@@ -162,6 +162,7 @@ test("primary overlay resumes the boot video playhead and releases its temporary
     startedAt: -1000,
     currentTime: 1.25,
     ended: false,
+    source: "blob:boot-video",
     sourceReady: Promise.resolve("blob:boot-video"),
     stop() {
       stopped++;
@@ -179,4 +180,21 @@ test("primary overlay resumes the boot video playhead and releases its temporary
   assert.equal(h.playCalls, 1);
   h.dispose();
   assert.equal(released, 1);
+});
+
+test("hydrated entry does not wait for an unfinished boot download before playing", () => {
+  const bootState = {
+    startedAt: 0,
+    currentTime: 0,
+    ended: false,
+    source: null,
+    sourceReady: new Promise(() => {}),
+    stop() {},
+    release() {},
+  };
+  const h = createHarness({ bootState, primary: true });
+  assert.equal(h.player.getAttribute("src"), "/loading/service-motion/service.mp4");
+  assert.equal(h.playCalls, 1);
+  assert.ok(h.classNames.has("qs-motion-active"));
+  h.dispose();
 });

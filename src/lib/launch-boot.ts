@@ -5,6 +5,7 @@ export type LaunchBootState = {
   ended: boolean;
   failed: boolean;
   stopped: boolean;
+  source: string | null;
   sourceReady: Promise<string | null>;
   stop: () => void;
   release: () => void;
@@ -25,7 +26,7 @@ export const LAUNCH_BOOT_SCRIPT = `(function(){
     var saveData=navigator.connection&&navigator.connection.saveData;
     if(!view||!video||reduced||saveData||document.documentElement.dataset.qsNavigationMotion==='reduced')return;
     var controller=new AbortController(),url=null,released=false,timer;
-    var state={startedAt:performance.now(),currentTime:0,ended:false,failed:false,stopped:false,sourceReady:null,stop:function(){
+    var state={startedAt:performance.now(),currentTime:0,ended:false,failed:false,stopped:false,source:null,sourceReady:null,stop:function(){
       if(state.stopped)return;
       state.currentTime=video.currentTime||0; state.ended=video.ended; state.stopped=true;
       document.removeEventListener('visibilitychange',visibility);
@@ -33,19 +34,23 @@ export const LAUNCH_BOOT_SCRIPT = `(function(){
     },release:function(){
       if(released)return;
       released=true; clearTimeout(timer); controller.abort();
-      if(url){URL.revokeObjectURL(url);url=null}
+      if(url){URL.revokeObjectURL(url);url=null;state.source=null}
     }};
     function visibility(){if(document.hidden)video.pause();else if(!video.ended&&video.getAttribute('src'))video.play().catch(function(){state.failed=true})}
     window.__qsLaunchBoot=state;
     document.addEventListener('visibilitychange',visibility);
     view.classList.add('qs-motion-active');
     video.defaultMuted=true; video.muted=true; video.defaultPlaybackRate=.8;
+    // Let the media element stream immediately. A fetch/blob round trip must
+    // never hold the visible loader on its poster for the entire launch.
+    video.src='/loading/service-motion/service.mp4';video.load();video.playbackRate=.8;
+    if(!document.hidden)video.play().catch(function(){state.failed=true});
     state.sourceReady=fetch('/loading/service-motion/service.mp4',{signal:controller.signal})
       .then(function(response){if(!response.ok)throw Error('video unavailable');return response.blob()})
       .then(function(blob){
         if(released)return null;
         url=URL.createObjectURL(blob);
-        if(!state.stopped){video.src=url;video.load();video.playbackRate=.8;if(!document.hidden)video.play().catch(function(){state.failed=true})}
+        state.source=url;
         return url;
       }).catch(function(){state.failed=true;return null});
     timer=setTimeout(state.release,10000);

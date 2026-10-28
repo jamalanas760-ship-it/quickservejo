@@ -100,7 +100,8 @@ test("boot starts the local video and retains its playhead for handoff", async (
   assert.equal(await state.sourceReady, "blob:boot-video");
   assert.equal(h.requests, 1);
   assert.equal(h.player.playCalls, 1);
-  assert.equal(h.player.getAttribute("src"), "blob:boot-video");
+  assert.equal(h.player.getAttribute("src"), "/loading/service-motion/service.mp4");
+  assert.equal(state.source, "blob:boot-video");
   assert.ok(h.classes.has("qs-motion-active"));
   h.player.currentTime = 1.25;
   state.stop();
@@ -110,6 +111,15 @@ test("boot starts the local video and retains its playhead for handoff", async (
   state.release();
   state.release();
   assert.equal(h.revoked, 1);
+});
+
+test("boot starts native playback even when the optional blob download never completes", () => {
+  const h = bootHarness({ fetchImpl: () => new Promise(() => {}) });
+  assert.equal(h.player.getAttribute("src"), "/loading/service-motion/service.mp4");
+  assert.equal(h.player.playCalls, 1);
+  assert.equal(h.window.__qsLaunchBoot.source, null);
+  h.window.__qsLaunchBoot.stop();
+  h.window.__qsLaunchBoot.release();
 });
 
 test("reduced motion and Save Data keep the boot poster static", () => {
