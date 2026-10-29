@@ -1,4 +1,4 @@
-"""Build 32 lightweight option-B vector portraits while preserving preset IDs."""
+"""Build the legacy SVG portraits. The approved reference-b WebP assets are maintained separately."""
 from pathlib import Path
 from html import escape
 import re

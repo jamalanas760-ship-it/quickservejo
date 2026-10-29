@@ -30,7 +30,7 @@ test("approved Organization and appearance layout is implemented", () => {
   assert.match(profile,/ps-section-title/);
   assert.match(profile,/Profile sections/);
   assert.match(settings,/ps-org-grid/);
-  assert.match(settings,/Organization details/);
+  assert.match(settings,/Restaurant details/);
   assert.doesNotMatch(settings,/Guest experience/);
   assert.doesNotMatch(settings,/Brand system/);
   assert.doesNotMatch(settings,/Cover & home image/);

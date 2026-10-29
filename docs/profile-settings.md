@@ -1,8 +1,10 @@
 # Profile settings
 
-The Personal Information, Preferences, Security, and Organization & Appearance sections share compact identity chrome, scrolling pill navigation, consistent form spacing, keyboard focus, and responsive single-panel layouts.
+The Personal Information, Preferences, Security, and Organization & Appearance sections restore the earlier profile hero, underline tabs, and overview cards. Forms stack on mobile and retain wider layouts on tablet and desktop. A scoped header grid overrides the shared mobile action-width rule that previously squeezed the heading into a narrow column.
 
-Personal information updates the user's display metadata and contact number. Login email and organization roles are not editable here. Preferences are saved on the current device; theme and language changes are staged until Save. Detailed notification settings remain available. Restaurant branding, navigation, colors, imagery, regional settings, and GPS attendance configuration retain their existing permission checks.
+Personal information updates the user's display metadata and contact number. Login email and organization roles are not editable here. Preferences are saved on the current device; theme and language controls retain their earlier behavior. Detailed notification settings remain available. Restaurant branding, navigation, colors, imagery, regional settings, and GPS attendance configuration retain their existing permission checks.
+
+Bundled avatars use 32 reference-based vector portrait WebP assets in `public/avatars/reference-b/`, generated with the built-in image generator. The production brief is: polished modern flat-vector head-and-shoulder portraits matching the supplied style, 32 distinct characters, role-specific uniforms/accessories, and 32 different pastel backgrounds; no labels or text. Each catalogue role receives a distinct default portrait; gender variants and alternate portraits remain selectable. Legacy bundled SVG selections resolve to their corresponding new portrait; uploaded photos remain unchanged.
 
 ## Password policy scope
 
@@ -19,5 +21,5 @@ The username check uses the authenticated email's local-part tokens of at least 
 - TypeScript and targeted lint checks.
 - Contract tests including policy validation and authenticated password gateway behavior.
 - Isolated Postgres/PGlite tests for cross-tenant isolation, member read-only behavior, admin writes, input bounds, and privilege restrictions.
-- Chromium checks of actual page components with synthetic account data at 1440px, 820px, and 390px, plus Arabic, dark mode, the password dialog, and staged theme saving.
+- Chromium checks using full shared app styles at 320, 360, 390, 430, 768, 820, 1024, and 1440px across all four sections; heading sizing, horizontal overflow, Arabic, avatar gallery, and password dialog checks.
 - Live migration/privilege verification, Edge Function deployment, and an unauthenticated endpoint check returning HTTP 401. No real user's password was changed for testing.

@@ -14,16 +14,19 @@ export function SecuritySettings({
   restaurantId,
   canEdit,
   passwordAction,
+  compact = false,
 }: {
   restaurantId: string | null;
   canEdit: boolean;
   passwordAction: ReactNode;
+  compact?: boolean;
 }) {
   const { lang } = useI18n(),
     ar = lang === "ar";
   const query = useQuery({
     queryKey: ["password-policy", restaurantId],
     enabled: !!restaurantId,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("workspace_password_policies")
@@ -35,7 +38,7 @@ export function SecuritySettings({
     },
   });
   return (
-    <section className="ps-card simple-security">
+    <section className={`ps-card simple-security ${compact ? "restored-security" : ""}`}>
       <h2>{ar ? "الأمان" : "Security"}</h2>
       <p>
         {ar ? "إدارة كلمة المرور وقواعد كلمات المرور." : "Manage your password and password rules."}
@@ -47,29 +50,66 @@ export function SecuritySettings({
         </div>
         {passwordAction}
       </div>
-      {restaurantId ? (
-        query.isPending ? (
-          <p role="status">{ar ? "جارٍ تحميل القواعد…" : "Loading password rules…"}</p>
-        ) : query.isError ? (
-          <div role="alert">
-            <p>{ar ? "تعذر تحميل القواعد." : "Could not load password rules."}</p>
-            <button className="ps-button" onClick={() => void query.refetch()}>
-              {ar ? "إعادة المحاولة" : "Retry"}
-            </button>
-          </div>
-        ) : (
-          <PolicyForm
-            key={`${restaurantId}:${query.dataUpdatedAt}`}
-            policy={query.data ?? DEFAULT_PASSWORD_POLICY}
-            restaurantId={restaurantId}
-            canEdit={canEdit}
-            ar={ar}
-          />
-        )
+      {compact ? (
+        <details className="restored-policy-details">
+          <summary>{ar ? "قواعد كلمة المرور" : "Workspace password rules"}</summary>{" "}
+          {restaurantId ? (
+            query.isPending ? (
+              <p role="status">{ar ? "جارٍ تحميل القواعد…" : "Loading password rules…"}</p>
+            ) : query.isError ? (
+              <div role="alert">
+                <p>{ar ? "تعذر تحميل القواعد." : "Could not load password rules."}</p>
+                <button className="ps-button" onClick={() => void query.refetch()}>
+                  {ar ? "إعادة المحاولة" : "Retry"}
+                </button>
+              </div>
+            ) : (
+              <PolicyForm
+                key={`${restaurantId}:${query.dataUpdatedAt}`}
+                policy={query.data ?? DEFAULT_PASSWORD_POLICY}
+                restaurantId={restaurantId}
+                canEdit={canEdit}
+                ar={ar}
+              />
+            )
+          ) : (
+            <p>
+              {ar
+                ? "اختر مساحة عمل لإدارة القواعد."
+                : "Select a workspace to manage password rules."}
+            </p>
+          )}
+        </details>
       ) : (
-        <p>
-          {ar ? "اختر مساحة عمل لإدارة القواعد." : "Select a workspace to manage password rules."}
-        </p>
+        <>
+          {" "}
+          {restaurantId ? (
+            query.isPending ? (
+              <p role="status">{ar ? "جارٍ تحميل القواعد…" : "Loading password rules…"}</p>
+            ) : query.isError ? (
+              <div role="alert">
+                <p>{ar ? "تعذر تحميل القواعد." : "Could not load password rules."}</p>
+                <button className="ps-button" onClick={() => void query.refetch()}>
+                  {ar ? "إعادة المحاولة" : "Retry"}
+                </button>
+              </div>
+            ) : (
+              <PolicyForm
+                key={`${restaurantId}:${query.dataUpdatedAt}`}
+                policy={query.data ?? DEFAULT_PASSWORD_POLICY}
+                restaurantId={restaurantId}
+                canEdit={canEdit}
+                ar={ar}
+              />
+            )
+          ) : (
+            <p>
+              {ar
+                ? "اختر مساحة عمل لإدارة القواعد."
+                : "Select a workspace to manage password rules."}
+            </p>
+          )}
+        </>
       )}
     </section>
   );

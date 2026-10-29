@@ -19,8 +19,8 @@ export type AvatarPreset = {
   url: string;
 };
 
-// Independent, offline SVG portraits; stable IDs preserve saved profile selections.
-const portrait = (id: string) => `/avatars/${id}.svg`;
+// Reference-based Modern vector portraits; stable IDs preserve saved profile selections.
+const portrait = (id: string) => `/avatars/reference-b/${id}.webp`;
 export const AVATAR_PRESETS: AvatarPreset[] = [
   {
     id: "owner-male",
@@ -289,12 +289,19 @@ export function avatarPresetUrl(id: string | null | undefined) {
   return AVATAR_PRESETS.find((preset) => preset.id === resolved)?.url ?? null;
 }
 
+/** Upgrade only bundled legacy URLs; personal uploads and external photos stay untouched. */
+export function resolveBundledAvatarUrl(url: string | null | undefined) {
+  if (!url) return null;
+  const match = /^\/avatars\/([a-z0-9-]+)\.svg(?:\?.*)?$/.exec(url);
+  return match ? (avatarPresetUrl(match[1]) ?? url) : url;
+}
+
 const ROLE_PRESETS: Record<string, string> = {
   super_admin: "owner-male",
   restaurant_admin: "manager-female",
   owner: "owner-male",
   operations_manager: "operations-male",
-  manager: "shift-manager-female",
+  manager: "manager-female",
   shift_manager: "shift-manager-female",
   chef: "chef-female",
   kitchen: "kitchen-male",
