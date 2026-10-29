@@ -7,7 +7,15 @@ import {
   type ThemePreference,
 } from "@/lib/theme-preference";
 
-export function AppearancePreferences({ ar }: { ar: boolean }) {
+export function AppearancePreferences({
+  ar,
+  value,
+  onChange,
+}: {
+  ar: boolean;
+  value?: ThemePreference;
+  onChange?: (value: ThemePreference) => void;
+}) {
   const [theme, setTheme] = useState<ThemePreference>("light");
   useEffect(() => {
     const sync = () => setTheme(readThemePreference());
@@ -32,8 +40,8 @@ export function AppearancePreferences({ ar }: { ar: boolean }) {
           key={key}
           type="button"
           className="ps-theme"
-          aria-pressed={theme === key}
-          onClick={() => setThemePreference(key)}
+          aria-pressed={(value ?? theme) === key}
+          onClick={() => (onChange ? onChange(key) : setThemePreference(key))}
         >
           <span className={`ps-theme-preview ${key}`} aria-hidden="true">
             <i />
@@ -44,7 +52,7 @@ export function AppearancePreferences({ ar }: { ar: boolean }) {
             </span>
           </span>
           {ar ? arabic : en}
-          {theme === key ? <Check /> : null}
+          {(value ?? theme) === key ? <Check /> : null}
         </button>
       ))}
     </div>

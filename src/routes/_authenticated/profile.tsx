@@ -22,6 +22,8 @@ import {
 } from "@/components/profile/AppearancePreferences";
 import { MasterPageHeader } from "@/components/app/MasterPage";
 import { ActionMenu } from "@/components/app/ActionMenu";
+import { SecuritySettings } from "@/components/profile/SecuritySettings";
+import { ProfilePreferences } from "@/components/profile/ProfilePreferences";
 import { AppHeader } from "@/components/nav/AppHeader";
 import { ProfileAvatarEditor } from "@/components/profile/ProfileAvatarEditor";
 import { AccountCoverEditor } from "@/components/profile/AccountCoverEditor";
@@ -45,6 +47,7 @@ import { humanError } from "@/lib/errors";
 import { toast } from "sonner";
 import "@/components/profile/profile-studio.css";
 import "@/components/profile/personal-profile.css";
+import "@/components/profile/simple-settings.css";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({ meta: [{ title: "Profile & Settings — QuickServe" }] }),
@@ -126,7 +129,7 @@ function ProfilePage() {
   return (
     <div className="min-h-dvh bg-background">
       <AppHeader />
-      <main className="ps-page qs-profile-redesign" dir={ar ? "rtl" : "ltr"}>
+      <main className="ps-page qs-profile-redesign qs-simple-settings" dir={ar ? "rtl" : "ltr"}>
         <MasterPageHeader
           title={ar ? "ملفي الشخصي" : "My profile"}
           description={
@@ -149,26 +152,6 @@ function ProfilePage() {
           }
         />
         <section className="ps-card qp-hero">
-          <svg
-            className="qp-waves"
-            viewBox="0 0 1200 200"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <defs>
-              <linearGradient id="qp-orange">
-                <stop stopColor="#fff1e9" />
-                <stop offset="1" stopColor="#ffe0cc" />
-              </linearGradient>
-            </defs>
-            <path fill="url(#qp-orange)" d="M0 0H1200V60C990 230 850 205 640 110S240 20 0 80Z" />
-            <path fill="#ffb66c" opacity=".45" d="M0 0H850C650 150 490 170 280 95S70 30 0 65Z" />
-            <path
-              fill="#fff2e5"
-              opacity=".7"
-              d="M120 0H550C640 70 760 130 900 150C600 180 430 50 120 0Z"
-            />
-          </svg>
           <button
             type="button"
             className="qp-avatar"
@@ -221,132 +204,32 @@ function ProfilePage() {
                   metadata={meta}
                   ready={Boolean(user)}
                   ar={ar}
+                  roleLabel={roleLabel}
+                  restaurantName={restaurantName}
                 />
-                <section className="ps-card qp-overview">
-                  <h2>{ar ? "نظرة عامة على الحساب" : "Account overview"}</h2>
-                  <p>{ar ? "تفاصيل حسابك وإعداداته." : "Your account details and settings."}</p>
-                  <dl>
-                    {[
-                      { icon: UserRound, label: ar ? "الدور" : "Role", value: roleLabel },
-                      { icon: Store, label: ar ? "المطعم" : "Restaurant", value: restaurantName },
-                      {
-                        icon: Globe,
-                        label: ar ? "اللغة" : "Language",
-                        value: ar ? "العربية" : "English",
-                      },
-                      {
-                        icon: Clock3,
-                        label: ar ? "المنطقة الزمنية" : "Time zone",
-                        value: timeZone,
-                      },
-                    ].map((item) => (
-                      <div key={item.label}>
-                        <dt>
-                          <span className="qp-overview-icon">
-                            <item.icon />
-                          </span>
-                          {item.label}
-                        </dt>
-                        <dd>{item.value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <button
-                    type="button"
-                    className="qp-security-link"
-                    onClick={() => setSection("security")}
-                  >
-                    <span className="qp-overview-icon">
-                      <ShieldCheck />
-                    </span>
-                    <span>
-                      <strong>{ar ? "إعدادات الأمان" : "Security settings"}</strong>
-                      <small>
-                        {ar ? "كلمة المرور وحماية الحساب" : "Password and account protection"}
-                      </small>
-                    </span>
-                    <ChevronRight />
-                  </button>
-                  {canManageRestaurant && rid ? (
-                    <Link
-                      className="ps-link"
-                      to="/manage/$restaurantId/staff"
-                      params={{ restaurantId: rid }}
-                    >
-                      <UsersRound />
-                      {ar ? "إدارة الفريق" : "Manage team"}
-                      <ChevronRight />
-                    </Link>
-                  ) : null}
-                </section>
               </div>
-              <section className="ps-card qp-preferences">
-                <h2>{ar ? "التفضيلات" : "Preferences"}</h2>
-                <p>
-                  {ar
-                    ? "إدارة مظهر التطبيق والإشعارات."
-                    : "Manage your app experience and notification settings."}
-                </p>
-                <div className="qp-preference-row">
-                  <div>
-                    <Sun className="qp-preference-icon" />
-                    <span className="qp-preference-copy">
-                      <strong>{ar ? "المظهر" : "Appearance"}</strong>
-                      <small>{ar ? "اختر مظهر التطبيق" : "Choose your theme"}</small>
-                    </span>
-                    <AppearancePreferences ar={ar} />
-                  </div>
-                  <button
-                    type="button"
-                    className="qp-notification-link"
-                    onClick={() => setSection("notifications")}
-                  >
-                    <Bell />
-                    <span>
-                      <strong>{ar ? "الإشعارات" : "Notifications"}</strong>
-                      <small>
-                        {ar
-                          ? "اختر الإشعارات التي تريد تلقيها."
-                          : "Choose what you want to be notified about."}
-                      </small>
-                    </span>
-                    <ChevronRight />
-                  </button>
-                </div>
-              </section>
             </>
           ) : null}
           {section === "preferences" ? (
-            <section className="ps-card">
-              <h2>{ar ? "التفضيلات" : "Preferences"}</h2>
-              <div className="qp-preferences-panel">
-                <AppearancePreferences ar={ar} />
-                <LanguagePreference ar={ar} />
-                <button
-                  type="button"
-                  className="ps-button"
-                  onClick={() => setSection("notifications")}
-                >
-                  <Bell />
-                  {ar ? "إعدادات الإشعارات" : "Notification settings"}
-                </button>
-                {personalCoverEligible ? <AccountCoverEditor restaurantId={rid} /> : null}
-              </div>
-            </section>
+            <>
+              <ProfilePreferences
+                userId={user?.id}
+                onAdvanced={() => setSection("notifications")}
+              />
+              {personalCoverEligible ? (
+                <details className="ps-card simple-advanced">
+                  <summary>{ar ? "الغلاف الشخصي" : "Personal cover"}</summary>
+                  <AccountCoverEditor restaurantId={rid} />
+                </details>
+              ) : null}
+            </>
           ) : null}
           {section === "security" ? (
-            <section className="ps-card ps-security">
-              <ShieldCheck />
-              <div>
-                <h2>{ar ? "أمان الحساب" : "Account security"}</h2>
-                <p>
-                  {ar
-                    ? "حافظ على كلمة مرور قوية لحماية حسابك."
-                    : "Keep your account protected with a strong password."}
-                </p>
-              </div>
-              <PasswordEditor email={user?.email} ar={ar} />
-            </section>
+            <SecuritySettings
+              restaurantId={rid}
+              canEdit={access.isSuperAdmin || membership?.role === "restaurant_admin"}
+              passwordAction={<PasswordEditor email={user?.email} ar={ar} />}
+            />
           ) : null}
           {section === "notifications" ? <NotificationSettings userId={user?.id} ar={ar} /> : null}
           {section === "organization" && canManageRestaurant ? (
@@ -403,7 +286,11 @@ function PersonalInformation({
   metadata,
   ready,
   ar,
+  roleLabel,
+  restaurantName,
 }: {
+  roleLabel: string;
+  restaurantName: string;
   name: string;
   email: string | undefined;
   metadata: Record<string, unknown> | undefined;
@@ -434,6 +321,10 @@ function PersonalInformation({
         onSubmit={async (event) => {
           event.preventDefault();
           if (busy || !ready) return;
+          if (!draft.first.trim()) {
+            toast.error(ar ? "أدخل الاسم الأول" : "Enter your first name");
+            return;
+          }
           setBusy(true);
           try {
             const { error } = await supabase.auth.updateUser({
@@ -500,6 +391,16 @@ function PersonalInformation({
             />
           </label>
         </fieldset>
+        <dl className="simple-account-summary">
+          <div>
+            <dt>{ar ? "الدور" : "Role"}</dt>
+            <dd>{roleLabel}</dd>
+          </div>
+          <div>
+            <dt>{ar ? "مساحة العمل" : "Workspace"}</dt>
+            <dd>{restaurantName}</dd>
+          </div>
+        </dl>
         <div className="qp-form-actions">
           <button
             type="submit"
@@ -567,10 +468,17 @@ function PasswordEditor({ email, ar }: { email: string | undefined; ar: boolean 
               }
               setBusy(true);
               try {
-                const auth = await supabase.auth.signInWithPassword({ email, password: current });
-                if (auth.error) throw auth.error;
-                const { error } = await supabase.auth.updateUser({ password });
-                if (error) throw error;
+                const { data, error } = await supabase.functions.invoke("quickserve-password", {
+                  body: { currentPassword: current, password },
+                });
+                if (error) {
+                  if (error.context instanceof Response) {
+                    const payload = await error.context.json().catch(() => null);
+                    throw new Error(payload?.error ?? error.message);
+                  }
+                  throw error;
+                }
+                if (!data?.ok) throw new Error("Password could not be updated");
                 setOpen(false);
                 setCurrent("");
                 setPassword("");
@@ -610,6 +518,7 @@ function PasswordEditor({ email, ar }: { email: string | undefined; ar: boolean 
                     type="password"
                     required
                     minLength={i ? 8 : 1}
+                    maxLength={i ? 72 : 1024}
                     autoComplete={autocomplete as string}
                     value={value as string}
                     onChange={(event) => (setter as (v: string) => void)(event.target.value)}

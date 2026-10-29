@@ -18,6 +18,7 @@ export function ImageUploader({
   retainRemovedFile = false,
   compact = false,
   description,
+  directUpload = false,
 }: {
   restaurantId: string;
   kind: MediaKind;
@@ -28,6 +29,7 @@ export function ImageUploader({
   retainRemovedFile?: boolean;
   compact?: boolean;
   description?: string;
+  directUpload?: boolean;
 }) {
   const { t, lang } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -71,6 +73,23 @@ export function ImageUploader({
             {description && <p>{description}</p>}
           </div>
         )}
+        {directUpload ? (
+          <button
+            type="button"
+            className="ps-button qs-image-direct-upload"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+          >
+            <ImagePlus className="size-4" />
+            {busy
+              ? t("common.uploading")
+              : value
+                ? t("common.replace")
+                : lang === "ar"
+                  ? "رفع الشعار"
+                  : "Upload logo"}
+          </button>
+        ) : null}
         <ActionMenu
           className="qs-image-upload-actions"
           ar={lang === "ar"}
@@ -83,6 +102,7 @@ export function ImageUploader({
                   ? t("common.replace")
                   : t("common.upload"),
               icon: ImagePlus,
+              hidden: directUpload,
               disabled: busy,
               onSelect: () => inputRef.current?.click(),
             },
