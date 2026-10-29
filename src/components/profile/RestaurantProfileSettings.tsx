@@ -91,7 +91,7 @@ function RestaurantProfileSettingsForm({
   qc: ReturnType<typeof useQueryClient>;
 }) {
   const [brand, setBrand] = useState(() => readAppearance(restaurant.menu_theme));
-  const [theme, setTheme] = useState<ThemePreference>("light");
+  const [themePreference, setTheme] = useState<ThemePreference>("light");
   const [savedTheme, setSavedTheme] = useState<ThemePreference>("light");
   useEffect(() => {
     const initial = readThemePreference();
@@ -174,8 +174,8 @@ function RestaurantProfileSettingsForm({
         .single();
       if (error) throw error;
       if (!data) throw new Error("No organization settings were updated");
-      setThemePreference(theme);
-      setSavedTheme(theme);
+      setThemePreference(themePreference);
+      setSavedTheme(themePreference);
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["platform"] }),
         qc.invalidateQueries({ queryKey: ["staff", "memberships"] }),
@@ -297,7 +297,7 @@ function RestaurantProfileSettingsForm({
         </section>
         <section className="simple-preference-section">
           <h2>{ar ? "مظهر مساحة العمل" : "Workspace appearance"}</h2>
-          <AppearancePreferences ar={ar} value={theme} onChange={setTheme} />
+          <AppearancePreferences ar={ar} value={themePreference} onChange={setTheme} />
           {(
             [
               [
