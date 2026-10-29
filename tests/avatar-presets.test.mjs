@@ -98,7 +98,7 @@ test("the catalogue uses 32 unique independently loadable vector portraits", asy
     hashes.add(createHash("sha256").update(bytes).digest("hex"));
     const svg = bytes.toString("utf8");
     assert.match(svg, /<svg[^>]*viewBox="0 0 256 256"/);
-    assert.match(svg, /<title[^>]*>.+cartoon avatar<\/title>/);
+    assert.match(svg, /<title[^>]*>.+modern vector avatar<\/title>/);
     assert.doesNotMatch(svg, /<script|<image|(?:href|src)=|onload=|<foreignObject/i);
   }
   assert.equal(hashes.size, 32);

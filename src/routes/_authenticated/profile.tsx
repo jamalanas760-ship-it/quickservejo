@@ -5,6 +5,8 @@ import {
   Camera,
   Globe,
   Clock3,
+  Sun,
+  CheckCircle2,
   Bell,
   ChevronRight,
   LockKeyhole,
@@ -155,8 +157,8 @@ function ProfilePage() {
           >
             <defs>
               <linearGradient id="qp-orange">
-                <stop stopColor="#ffe4cc" />
-                <stop offset="1" stopColor="#ff6509" />
+                <stop stopColor="#fff1e9" />
+                <stop offset="1" stopColor="#ffe0cc" />
               </linearGradient>
             </defs>
             <path fill="url(#qp-orange)" d="M0 0H1200V60C990 230 850 205 640 110S240 20 0 80Z" />
@@ -190,14 +192,10 @@ function ProfilePage() {
               {restaurantName}
             </span>
           </div>
-          <button
-            type="button"
-            className="ps-button qp-change-avatar"
-            onClick={() => setAvatarOpen(true)}
-          >
-            <Camera />
-            {ar ? "تغيير الصورة" : "Change avatar"}
-          </button>
+          <span className="qp-active">
+            <CheckCircle2 />
+            {ar ? "نشط" : "Active"}
+          </span>
         </section>
         <nav className="qp-tabs" aria-label={ar ? "أقسام الملف الشخصي" : "Profile sections"}>
           {navItems.map((item) => (
@@ -244,13 +242,31 @@ function ProfilePage() {
                     ].map((item) => (
                       <div key={item.label}>
                         <dt>
-                          <item.icon />
+                          <span className="qp-overview-icon">
+                            <item.icon />
+                          </span>
                           {item.label}
                         </dt>
                         <dd>{item.value}</dd>
                       </div>
                     ))}
                   </dl>
+                  <button
+                    type="button"
+                    className="qp-security-link"
+                    onClick={() => setSection("security")}
+                  >
+                    <span className="qp-overview-icon">
+                      <ShieldCheck />
+                    </span>
+                    <span>
+                      <strong>{ar ? "إعدادات الأمان" : "Security settings"}</strong>
+                      <small>
+                        {ar ? "كلمة المرور وحماية الحساب" : "Password and account protection"}
+                      </small>
+                    </span>
+                    <ChevronRight />
+                  </button>
                   {canManageRestaurant && rid ? (
                     <Link
                       className="ps-link"
@@ -273,7 +289,11 @@ function ProfilePage() {
                 </p>
                 <div className="qp-preference-row">
                   <div>
-                    <strong>{ar ? "مظهر التطبيق" : "App theme"}</strong>
+                    <Sun className="qp-preference-icon" />
+                    <span className="qp-preference-copy">
+                      <strong>{ar ? "المظهر" : "Appearance"}</strong>
+                      <small>{ar ? "اختر مظهر التطبيق" : "Choose your theme"}</small>
+                    </span>
                     <AppearancePreferences ar={ar} />
                   </div>
                   <button
@@ -456,7 +476,7 @@ function PersonalInformation({
               />
             </label>
           ))}
-          <label className="ps-field">
+          <label className="ps-field qp-wide-field">
             {ar ? "البريد الإلكتروني" : "Email address"}
             <input type="email" value={email ?? ""} readOnly aria-describedby="qp-email-help" />
             <small id="qp-email-help">
@@ -465,7 +485,7 @@ function PersonalInformation({
                 : "Sign-in email is managed by your organization."}
             </small>
           </label>
-          <label className="ps-field">
+          <label className="ps-field qp-wide-field">
             {ar ? "رقم الهاتف" : "Phone number"}
             <input
               type="tel"
