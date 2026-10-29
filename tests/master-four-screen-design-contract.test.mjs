@@ -26,7 +26,7 @@ test("approved Menu Studio layout is implemented", () => {
 });
 
 test("approved Organization and appearance layout is implemented", () => {
-  assert.match(profile,/ps-layout/);
+  assert.match(profile,/qp-details-grid/);
   assert.match(profile,/ps-section-title/);
   assert.match(profile,/Profile sections/);
   assert.match(settings,/ps-org-grid/);
