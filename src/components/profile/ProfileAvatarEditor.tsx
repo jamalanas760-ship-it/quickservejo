@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   AVATAR_PRESETS,
   avatarPresetUrl,
+  resolveBundledAvatarUrl,
   resolveAvatarPresetId,
   roleAvatarUrl,
 } from "@/lib/avatar-presets";
@@ -63,7 +64,9 @@ export function ProfileAvatarEditor({ restaurantId }: { restaurantId: string | n
   const selectedId = draftPreset ?? (!avatarUrl ? resolveAvatarPresetId(preset) : null);
   const preview = draftPreset
     ? avatarPresetUrl(draftPreset)
-    : avatarUrl || avatarPresetUrl(preset) || roleAvatarUrl(membership?.role);
+    : resolveBundledAvatarUrl(avatarUrl) ||
+      avatarPresetUrl(preset) ||
+      roleAvatarUrl(membership?.role);
   const draftDirty = Boolean(draftPreset && (draftPreset !== preset || avatarUrl));
 
   async function refreshIdentity() {

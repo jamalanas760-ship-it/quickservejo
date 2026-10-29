@@ -1,9 +1,9 @@
 import { GpsAttendanceSettings } from "./GpsAttendanceSettings";
 import { capturePunchLocation } from "@/lib/geofence";
 import { WorkspaceNavigation } from "@/components/profile/WorkspaceNavigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Save, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Save, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -28,11 +28,6 @@ import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { supabase } from "@/integrations/supabase/client";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
-import {
-  readThemePreference,
-  setThemePreference,
-  type ThemePreference,
-} from "@/lib/theme-preference";
 import { readAppearance } from "@/lib/restaurant-appearance";
 
 const SIDEBAR_TOOL_CHOICES = [
@@ -91,18 +86,7 @@ function RestaurantProfileSettingsForm({
   qc: ReturnType<typeof useQueryClient>;
 }) {
   const [brand, setBrand] = useState(() => readAppearance(restaurant.menu_theme));
-  const [themePreference, setTheme] = useState<ThemePreference>("light");
-  const [savedTheme, setSavedTheme] = useState<ThemePreference>("light");
-  useEffect(() => {
-    const initial = readThemePreference();
-    setTheme(initial);
-    setSavedTheme(initial);
-  }, []);
-  const initialForm = {
-    contact_email:
-      typeof restaurant.menu_theme?.contact_email === "string"
-        ? restaurant.menu_theme.contact_email
-        : "",
+  const [form, setForm] = useState({
     latitude: restaurant.latitude == null ? "" : String(restaurant.latitude),
     longitude: restaurant.longitude == null ? "" : String(restaurant.longitude),
     geofence_radius_meters: restaurant.geofence_radius_meters ?? 100,
@@ -112,11 +96,9 @@ function RestaurantProfileSettingsForm({
     cover_image_url: restaurant.cover_image_url as string | null,
     primary_color: restaurant.primary_color as string,
     accent_color: restaurant.accent_color as string,
-  };
-  const [form, setForm] = useState(initialForm);
+  });
   const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [advancedTab, setAdvancedTab] = useState("navigation");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const advancedBody = useRef<HTMLDivElement>(null);
   const field = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
@@ -149,11 +131,7 @@ function RestaurantProfileSettingsForm({
         theme.workspace && typeof theme.workspace === "object" && !Array.isArray(theme.workspace)
           ? (theme.workspace as Record<string, unknown>)
           : {};
-      const menuTheme = {
-        ...theme,
-        contact_email: form.contact_email.trim(),
-        workspace: { ...workspace, ...brand },
-      };
+      const menuTheme = { ...theme, workspace: { ...workspace, ...brand } };
       const { data, error } = await supabase
         .from("restaurants")
         .update({
@@ -174,8 +152,6 @@ function RestaurantProfileSettingsForm({
         .single();
       if (error) throw error;
       if (!data) throw new Error("No organization settings were updated");
-      setThemePreference(themePreference);
-      setSavedTheme(themePreference);
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["platform"] }),
         qc.invalidateQueries({ queryKey: ["staff", "memberships"] }),
@@ -227,131 +203,60 @@ function RestaurantProfileSettingsForm({
     <form
       id="organization-settings-form"
       onSubmit={save}
-      onReset={() => {
-        setTheme(savedTheme);
-        setForm(initialForm);
-        setBrand(readAppearance(restaurant.menu_theme));
-      }}
       className="ps-organization-form space-y-4"
     >
-      <div className="ps-org-grid simple-org-panel">
-        <section className="simple-preference-section">
-          <h2>{ar ? "تفاصيل المؤسسة" : "Organization details"}</h2>
-          <div className="simple-org-fields">
-            <label className="ps-field">
-              {ar ? "اسم المطعم" : "Restaurant name"}
-              <input
-                required
-                maxLength={120}
-                value={form.name}
-                onChange={(e) => field("name", e.target.value)}
-              />
-            </label>
-            <label className="ps-field">
-              {ar ? "بريد التواصل" : "Contact email"}
-              <input
-                type="email"
-                maxLength={254}
-                value={form.contact_email}
-                onChange={(e) => field("contact_email", e.target.value)}
-              />
-            </label>
+      <GpsAttendanceSettings
+        ar={ar}
+        latitude={form.latitude}
+        longitude={form.longitude}
+        radius={form.geofence_radius_meters}
+        locating={locating}
+        saving={saving}
+        onLatitude={(value) => field("latitude", value)}
+        onLongitude={(value) => field("longitude", value)}
+        onRadius={(value) => field("geofence_radius_meters", value)}
+        onLocate={async () => {
+          setLocating(true);
+          const location = await capturePunchLocation();
+          setLocating(false);
+          if (location.latitude == null || location.longitude == null) {
+            toast.error(
+              ar
+                ? "تعذر الحصول على الموقع. اسمح بالوصول أو أدخل الإحداثيات يدوياً."
+                : "Location unavailable. Allow access or enter coordinates manually.",
+            );
+            return;
+          }
+          setForm((f) => ({
+            ...f,
+            latitude: String(location.latitude),
+            longitude: String(location.longitude),
+          }));
+        }}
+      />
+      <div className="ps-org-grid">
+        <section className="ps-card ps-org-identity">
+          <h2>{ar ? "تفاصيل المطعم" : "Restaurant details"}</h2>
+          <div className="ps-upload-logo">
+            <ImageUploader
+              restaurantId={restaurant.id}
+              kind="logo"
+              value={form.logo_url}
+              onChange={(value) => field("logo_url", value)}
+              label={ar ? "شعار المطعم" : "Restaurant logo"}
+              retainRemovedFile
+            />
           </div>
-        </section>
-        <section className="simple-preference-section">
-          <h2>{ar ? "الهوية" : "Branding"}</h2>
-          <div className="simple-org-fields">
-            <div className="ps-upload-logo">
-              <ImageUploader
-                restaurantId={restaurant.id}
-                kind="logo"
-                directUpload
-                value={form.logo_url}
-                onChange={(value) => field("logo_url", value)}
-                label={ar ? "شعار المطعم" : "Restaurant logo"}
-                retainRemovedFile
-              />
-            </div>
-            <label className="ps-field">
-              {ar ? "لون الهوية" : "Brand color"}
-              <span className="simple-brand-color">
-                <input
-                  type="color"
-                  aria-label={ar ? "لون الهوية" : "Brand color"}
-                  value={
-                    /^#[0-9a-f]{6}$/i.test(form.primary_color) ? form.primary_color : "#ff5a1f"
-                  }
-                  onChange={(e) => field("primary_color", e.target.value)}
-                />
-                <input
-                  aria-label={ar ? "رمز اللون" : "Brand color hex"}
-                  required
-                  pattern="#[0-9a-fA-F]{6}"
-                  maxLength={7}
-                  value={form.primary_color}
-                  onChange={(e) => field("primary_color", e.target.value)}
-                />
-              </span>
-            </label>
-          </div>
-        </section>
-        <section className="simple-preference-section">
-          <h2>{ar ? "مظهر مساحة العمل" : "Workspace appearance"}</h2>
-          <AppearancePreferences ar={ar} value={themePreference} onChange={setTheme} />
-          {(
-            [
-              [
-                "navigation",
-                ar ? "التنقل" : "Navigation",
-                ar ? "اختر تخطيط مساحة العمل." : "Choose your workspace layout.",
-              ],
-              [
-                "colors",
-                ar ? "الألوان" : "Colors",
-                ar ? "خصص ألوان الواجهة." : "Adjust interface colors.",
-              ],
-              [
-                "images",
-                ar ? "صور الواجهة" : "Interface images",
-                ar ? "صور الأدوات وبطاقات القائمة." : "Workspace tools and menu card images.",
-              ],
-            ] as const
-          ).map(([tab, title, help]) => (
-            <button
-              key={tab}
-              type="button"
-              className="simple-disclosure"
-              aria-haspopup="dialog"
-              onClick={() => {
-                setAdvancedTab(tab);
-                setAdvancedOpen(true);
-              }}
-            >
-              <span>
-                <strong>{title}</strong>
-                <small>{help}</small>
-              </span>
-              <ChevronRight />
-            </button>
-          ))}
-        </section>
-        <details className="simple-advanced">
-          <summary>{ar ? "إعدادات إضافية" : "Additional settings"}</summary>
-          <div className="simple-preference-section">
-            <h3>{ar ? "الإعدادات الإقليمية" : "Regional settings"}</h3>
-            <LanguagePreference ar={ar} />
-            <label className="ps-field">
-              {ar ? "المنطقة الزمنية" : "Time zone"}
-              <select value={form.timezone} onChange={(e) => field("timezone", e.target.value)}>
-                {zones.map((zone) => (
-                  <option key={zone} value={zone}>
-                    {zone}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="simple-preference-section ps-upload-cover">
+          <label className="ps-field">
+            {ar ? "اسم المطعم" : "Restaurant name"}
+            <input
+              required
+              maxLength={120}
+              value={form.name}
+              onChange={(event) => field("name", event.target.value)}
+            />
+          </label>
+          <div className="ps-upload-cover">
             <ImageUploader
               restaurantId={restaurant.id}
               kind="cover"
@@ -362,8 +267,15 @@ function RestaurantProfileSettingsForm({
               retainRemovedFile
             />
           </div>
-          <div className="simple-setting-row">
-            <span>{ar ? "استخدام شعار المؤسسة" : "Use organization logo"}</span>
+          <div className="ps-preference !border-0 !p-0">
+            <div>
+              <strong>{ar ? "استخدام شعار المؤسسة" : "Use organization logo"}</strong>
+              <p>
+                {ar
+                  ? "فعّله لإظهار شعار مطعمك في مساحة العمل."
+                  : "Show your restaurant logo throughout the workspace."}
+              </p>
+            </div>
             <ProfileSwitch
               label={ar ? "استخدام شعار المؤسسة" : "Use organization logo"}
               checked={!brand.useQuickServeLogo}
@@ -372,37 +284,82 @@ function RestaurantProfileSettingsForm({
               }
             />
           </div>
-          <GpsAttendanceSettings
-            ar={ar}
-            latitude={form.latitude}
-            longitude={form.longitude}
-            radius={form.geofence_radius_meters}
-            locating={locating}
-            saving={saving}
-            onLatitude={(value) => field("latitude", value)}
-            onLongitude={(value) => field("longitude", value)}
-            onRadius={(value) => field("geofence_radius_meters", value)}
-            onLocate={async () => {
-              setLocating(true);
-              const location = await capturePunchLocation();
-              setLocating(false);
-              if (location.latitude == null || location.longitude == null) {
-                toast.error(
-                  ar
-                    ? "تعذر الحصول على الموقع. اسمح بالوصول أو أدخل الإحداثيات يدوياً."
-                    : "Location unavailable. Allow access or enter coordinates manually.",
-                );
-                return;
-              }
-              setForm((f) => ({
-                ...f,
-                latitude: String(location.latitude),
-                longitude: String(location.longitude),
-              }));
-            }}
-          />
-        </details>
+        </section>
+        <div className="ps-org-right">
+          <section className="ps-card">
+            <h2>{ar ? "المظهر" : "Appearance"}</h2>
+            <p className="mt-1">
+              {ar
+                ? "اختر مظهر التطبيق على هذا الجهاز."
+                : "Choose how the app looks on this device."}
+            </p>
+            <AppearancePreferences ar={ar} />
+            <h3>{ar ? "لون الهوية" : "Brand color"}</h3>
+            <div className="ps-colors">
+              {colors.map((color) => (
+                <button
+                  type="button"
+                  className="ps-swatch"
+                  key={color}
+                  aria-label={`${ar ? "لون" : "Brand color"} ${color}`}
+                  aria-pressed={form.primary_color.toLowerCase() === color}
+                  style={{ background: color }}
+                  onClick={() => field("primary_color", color)}
+                />
+              ))}
+              <label className="ps-color-input">
+                <input
+                  type="color"
+                  aria-label={ar ? "لون مخصص" : "Custom brand color"}
+                  value={
+                    /^#[0-9a-f]{6}$/i.test(form.primary_color) ? form.primary_color : "#ff5a1f"
+                  }
+                  onChange={(event) => field("primary_color", event.target.value)}
+                />
+                <input
+                  type="text"
+                  aria-label={ar ? "رمز اللون" : "Brand color hex"}
+                  pattern="#[0-9a-fA-F]{6}"
+                  required
+                  value={form.primary_color}
+                  onChange={(event) => field("primary_color", event.target.value)}
+                  maxLength={7}
+                />
+              </label>
+            </div>
+          </section>
+          <section className="ps-card">
+            <h2>{ar ? "الإعدادات الإقليمية" : "Regional settings"}</h2>
+            <div className="ps-regional">
+              <LanguagePreference ar={ar} />
+              <label className="ps-field">
+                {ar ? "المنطقة الزمنية" : "Time zone"}
+                <select
+                  aria-label={ar ? "المنطقة الزمنية" : "Time zone"}
+                  value={form.timezone}
+                  onChange={(event) => field("timezone", event.target.value)}
+                >
+                  {zones.map((zone) => (
+                    <option key={zone} value={zone}>
+                      {zone}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </section>
+        </div>
       </div>
+      <button
+        type="button"
+        className="ps-advanced-trigger"
+        aria-haspopup="dialog"
+        onClick={() => setAdvancedOpen(true)}
+      >
+        <SlidersHorizontal />
+        {ar ? "إعدادات مساحة العمل المتقدمة" : "Advanced workspace settings"}
+        <ChevronDown />
+      </button>
       <Dialog
         open={advancedOpen}
         onOpenChange={(open) => {
@@ -421,13 +378,10 @@ function RestaurantProfileSettingsForm({
             </DialogDescription>
           </DialogHeader>
           <Tabs
-            value={advancedTab}
+            defaultValue="images"
             dir={ar ? "rtl" : "ltr"}
             className="ps-workspace-tabs"
-            onValueChange={(value) => {
-              setAdvancedTab(value);
-              advancedBody.current?.scrollTo({ top: 0 });
-            }}
+            onValueChange={() => advancedBody.current?.scrollTo({ top: 0 })}
           >
             <TabsList
               className="ps-workspace-tab-list"
@@ -559,9 +513,6 @@ function RestaurantProfileSettingsForm({
             ? "تُطبق الهوية والألوان على مساحة هذا المطعم."
             : "Branding and colors apply to this restaurant workspace."}
         </small>
-        <button type="reset" className="ps-button" disabled={saving}>
-          {ar ? "إلغاء" : "Cancel"}
-        </button>
         <Button
           type="submit"
           disabled={saving || !validColor || !form.name.trim()}
