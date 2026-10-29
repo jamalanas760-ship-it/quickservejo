@@ -1,7 +1,7 @@
 import { GpsAttendanceSettings } from "./GpsAttendanceSettings";
 import { capturePunchLocation } from "@/lib/geofence";
 import { WorkspaceNavigation } from "@/components/profile/WorkspaceNavigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Save, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
@@ -28,6 +28,11 @@ import { useRestaurant } from "@/hooks/useSuperAdmin";
 import { supabase } from "@/integrations/supabase/client";
 import { humanError } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
+import {
+  readThemePreference,
+  setThemePreference,
+  type ThemePreference,
+} from "@/lib/theme-preference";
 import { readAppearance } from "@/lib/restaurant-appearance";
 
 const SIDEBAR_TOOL_CHOICES = [
@@ -86,6 +91,13 @@ function RestaurantProfileSettingsForm({
   qc: ReturnType<typeof useQueryClient>;
 }) {
   const [brand, setBrand] = useState(() => readAppearance(restaurant.menu_theme));
+  const [theme, setTheme] = useState<ThemePreference>("light");
+  const [savedTheme, setSavedTheme] = useState<ThemePreference>("light");
+  useEffect(() => {
+    const initial = readThemePreference();
+    setTheme(initial);
+    setSavedTheme(initial);
+  }, []);
   const initialForm = {
     contact_email:
       typeof restaurant.menu_theme?.contact_email === "string"
@@ -162,6 +174,8 @@ function RestaurantProfileSettingsForm({
         .single();
       if (error) throw error;
       if (!data) throw new Error("No organization settings were updated");
+      setThemePreference(theme);
+      setSavedTheme(theme);
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["platform"] }),
         qc.invalidateQueries({ queryKey: ["staff", "memberships"] }),
@@ -214,6 +228,7 @@ function RestaurantProfileSettingsForm({
       id="organization-settings-form"
       onSubmit={save}
       onReset={() => {
+        setTheme(savedTheme);
         setForm(initialForm);
         setBrand(readAppearance(restaurant.menu_theme));
       }}
@@ -282,7 +297,7 @@ function RestaurantProfileSettingsForm({
         </section>
         <section className="simple-preference-section">
           <h2>{ar ? "مظهر مساحة العمل" : "Workspace appearance"}</h2>
-          <AppearancePreferences ar={ar} />
+          <AppearancePreferences ar={ar} value={theme} onChange={setTheme} />
           {(
             [
               [
