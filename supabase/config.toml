@@ -34,3 +34,7 @@ verify_jwt = false
 [functions.quickserve-restaurant-cleanup]
 # Authenticated using the private Vault-backed worker header.
 verify_jwt = false
+
+[functions.quickserve-password]
+# The platform and function both verify the authenticated caller.
+verify_jwt = true
