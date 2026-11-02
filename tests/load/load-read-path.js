@@ -6,6 +6,7 @@ import exec from 'k6/execution';
 import encoding from 'k6/encoding';
 import { Rate, Trend } from 'k6/metrics';
 import { validateConfig } from './load-config.mjs';
+import { capacityProfile } from './capacity-profiles.mjs';
 
 const mode = __ENV.MODE || 'smoke';
 if (__ENV.CONFIRM_STAGING !== 'yes') throw Error('Set CONFIRM_STAGING=yes after reviewing staging isolation');
@@ -18,13 +19,7 @@ for (let i = 0; i < config.tenants.length; i++) {
 }
 export const options = {
   scenarios: {
-    restaurant_reads: mode === 'smoke'
-      ? { executor: 'constant-vus', vus: 2, duration: '1m' }
-      : { executor: 'ramping-vus', startVUs: 0, stages: [
-          { duration: '2m', target: 100 }, { duration: '5m', target: 250 },
-          { duration: '5m', target: 500 }, { duration: '5m', target: 1000 },
-          { duration: '60m', target: 1000 }, { duration: '2m', target: 0 },
-        ], gracefulRampDown: '30s' },
+    restaurant_reads: capacityProfile(mode),
   },
   thresholds, setupTimeout: '15m', discardResponseBodies: false,
 };
@@ -52,7 +47,7 @@ export function setup() {
   config.tenants.forEach((tenant, index) => {
     for (const user of tenant.users) {
       const claims = JSON.parse(encoding.b64decode(user.accessToken.split('.')[1], 'rawurl', 's'));
-      if (claims.role !== 'authenticated' || claims.sub !== user.userId || claims.exp < Date.now() / 1000 + horizonSeconds || (mode === 'target' && !user.refreshToken)) {
+      if (claims.role !== 'authenticated' || claims.sub !== user.userId || claims.exp < Date.now() / 1000 + horizonSeconds || (mode !== 'smoke' && !user.refreshToken)) {
         throw Error('Use a valid authenticated staging token and a refresh token for long tests; never admin tokens');
       }
       const verified = http.get(`${config.supabaseUrl}/auth/v1/user`, params(user, 'fixture_identity'));

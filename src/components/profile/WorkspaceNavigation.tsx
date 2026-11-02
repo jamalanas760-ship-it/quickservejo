@@ -1,3 +1,4 @@
+import { PINNED_TOOL_LIMIT } from "@/lib/primary-navigation";
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, GripVertical, Trash2 } from "lucide-react";
 import { ActionMenu } from "@/components/app/ActionMenu";
@@ -99,8 +100,8 @@ export function WorkspaceNavigation({
           <h2>{ar ? "تخصيص التنقل" : "Customize navigation"}</h2>
           <p className="ps-workspace-help">
             {ar
-              ? "اختر حتى 5 أدوات. الرئيسية أولاً؛ الموبايل يعرض أول 3 أدوات."
-              : "Choose up to 5 tools. Home stays first; mobile shows the first 3 tools."}
+              ? `اختر حتى ${PINNED_TOOL_LIMIT} أدوات. الرئيسية أولاً؛ الموبايل يعرض أول 3 أدوات.`
+              : `Choose up to ${PINNED_TOOL_LIMIT} tools. Home stays first; mobile shows the first 3 tools.`}
           </p>
         </div>
         <div>
@@ -115,7 +116,7 @@ export function WorkspaceNavigation({
             {ar ? "إعادة ضبط" : "Reset"}
           </Button>
           <p className="ps-workspace-help">
-            {selected.length} / 5 {ar ? "أدوات" : "tools"}
+            {selected.length} / {PINNED_TOOL_LIMIT} {ar ? "أدوات" : "tools"}
           </p>
         </div>
       </div>
@@ -220,7 +221,7 @@ export function WorkspaceNavigation({
         <select
           id="workspace-sidebar-tool"
           value={tool}
-          disabled={selected.length >= 5}
+          disabled={selected.length >= PINNED_TOOL_LIMIT}
           onChange={(event) => setTool(event.target.value)}
         >
           <option value="">{ar ? "اختر أداة" : "Choose a tool"}</option>
@@ -235,9 +236,9 @@ export function WorkspaceNavigation({
         <Button
           type="button"
           variant="outline"
-          disabled={!tool || selected.length >= 5}
+          disabled={!tool || selected.length >= PINNED_TOOL_LIMIT}
           onClick={() => {
-            if (!tool || selected.includes(tool) || selected.length >= 5) return;
+            if (!tool || selected.includes(tool) || selected.length >= PINNED_TOOL_LIMIT) return;
             onChange([...selected, tool]);
             setTool("");
           }}

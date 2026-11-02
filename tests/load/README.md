@@ -58,3 +58,36 @@ Use the release gates, role mix, fault matrix and recovery criteria in the remed
 full campaign. Exclude secrets, bearer tokens, customer data and private result files from
 reports. After running, revoke test sessions and remove synthetic data through the approved
 staging reset process.
+
+## Load, stress, and spike profiles
+
+`MODE=load` ramps to 1,000 VUs, holds for 10 minutes, then checks recovery at
+100 VUs. `MODE=stress` increases to 2,000 VUs before recovery. `MODE=spike`
+increases from 10 to 1,000 VUs in one second, holds for two minutes and returns
+to baseline. `MODE=target` retains the original one-hour 1,000-VU soak.
+All modes use the same staging-only target and identity validation. Stress
+requires at least 2,000 distinct accounts; load and spike require at least 1,000.
+These profiles still exercise only authenticated order reads and isolation sentinels.
+
+```sh
+CONFIRM_STAGING=yes MODE=load k6 run --summary-export=load-results.private.json load-read-path.js
+CONFIRM_STAGING=yes MODE=stress k6 run --summary-export=stress-results.private.json load-read-path.js
+CONFIRM_STAGING=yes MODE=spike k6 run --summary-export=spike-results.private.json load-read-path.js
+```
+
+## Isolated public-render campaign
+
+`local-public-server.mjs` imports the production build and exposes only GET
+`/auth` on loopback. It blocks outbound fetches so no database, authentication,
+payment or notification service is exercised. After `npm run build`, launch this
+server and run `node tests/load/local-public-campaign.mjs` from the repository root.
+Run the server and client in the same network namespace. The campaign refuses
+remote targets and performs a preflight before any traffic.
+
+The bounded step-load, stress and spike runs cover up to 2,000 simulated HTTP
+clients with a one-second think time. The private JSON records per-phase p50/p95/p99,
+errors, throughput, peak in-flight requests, generator event-loop delay and recovery.
+This is a short, closed-loop local SSR test, with the client and server sharing a
+machine. It excludes browser assets, real user sessions, writes, database queries,
+Realtime, hosting infrastructure and long-duration stability. Results must never
+be presented as the deployed system's supported user count or a 1,000-user certification.

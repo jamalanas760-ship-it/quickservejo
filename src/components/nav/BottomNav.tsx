@@ -1,3 +1,4 @@
+import { DESKTOP_NAV_LIMIT, selectDesktopPrimary } from "@/lib/primary-navigation";
 import {
   Home,
   MoreHorizontal,
@@ -195,7 +196,9 @@ export function BottomNav() {
   const appearance = readAppearance(restaurant?.menu_theme);
   useLayoutEffect(() => {
     document.documentElement.dataset.qsNavigationMotion = appearance.navigationMotion;
-    return () => { delete document.documentElement.dataset.qsNavigationMotion; };
+    return () => {
+      delete document.documentElement.dataset.qsNavigationMotion;
+    };
   }, [appearance.navigationMotion]);
   const useRestaurantLogo = Boolean(restaurant?.logo_url && !appearance.useQuickServeLogo);
   const managerial =
@@ -444,6 +447,10 @@ export function BottomNav() {
         `/manage/${restaurantId}`,
         `/manage/${restaurantId}/staff`,
         `/manage/${restaurantId}/analytics`,
+        `/manage/${restaurantId}/tables`,
+        "/shifts",
+        "/work",
+        `/manage/${restaurantId}/operations`,
       ]
     : [
         homeTo,
@@ -471,20 +478,12 @@ export function BottomNav() {
             (item, index, list) =>
               list.findIndex((candidate) => candidate.to === item.to) === index,
           )
-          .slice(0, 6)
+          .slice(0, DESKTOP_NAV_LIMIT)
       : [];
-  const desktopPrimary =
-    customDesktopPrimary.length > 1
-      ? customDesktopPrimary
-      : desktopItems.length > 6
-        ? desktopPriority
-            .flatMap((to) => desktopItems.find((item) => item.to === to) ?? [])
-            .filter(
-              (item, index, list) =>
-                list.findIndex((candidate) => candidate.to === item.to) === index,
-            )
-            .slice(0, 6)
-        : desktopItems;
+  const desktopPrimary = selectDesktopPrimary(desktopItems, [
+    ...customDesktopPrimary,
+    ...desktopPriority.flatMap((to) => desktopItems.find((item) => item.to === to) ?? []),
+  ]);
   const desktopHasMore = desktopItems.some(
     (item) => !desktopPrimary.some((primary) => primary.to === item.to),
   );
@@ -992,41 +991,40 @@ export function BottomNav() {
           >
             {brand}
           </Link>
-        <div className="qs-sidebar-collapse-row p2-sidebar-toggle-slot">
-          <Button
-            className="qs-sidebar-collapse-button"
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarCollapsed((value) => !value)}
-            aria-controls="workspace-sidebar"
-            aria-expanded={!sidebarCollapsed}
-            aria-label={
-              sidebarCollapsed
-                ? lang === "ar"
-                  ? "توسيع القائمة"
-                  : "Expand sidebar"
-                : lang === "ar"
-                  ? "طي القائمة"
-                  : "Collapse sidebar"
-            }
-            title={
-              sidebarCollapsed
-                ? lang === "ar"
-                  ? "توسيع القائمة"
-                  : "Expand sidebar"
-                : lang === "ar"
-                  ? "طي القائمة"
-                  : "Collapse sidebar"
-            }
-          >
-            <span className="p2-edge-chevron" aria-hidden="true">
-              <ChevronRight className="qs-sidebar-toggle-icon" size={18} />
-            </span>
-          </Button>
+          <div className="qs-sidebar-collapse-row p2-sidebar-toggle-slot">
+            <Button
+              className="qs-sidebar-collapse-button"
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarCollapsed((value) => !value)}
+              aria-controls="workspace-sidebar"
+              aria-expanded={!sidebarCollapsed}
+              aria-label={
+                sidebarCollapsed
+                  ? lang === "ar"
+                    ? "توسيع القائمة"
+                    : "Expand sidebar"
+                  : lang === "ar"
+                    ? "طي القائمة"
+                    : "Collapse sidebar"
+              }
+              title={
+                sidebarCollapsed
+                  ? lang === "ar"
+                    ? "توسيع القائمة"
+                    : "Expand sidebar"
+                  : lang === "ar"
+                    ? "طي القائمة"
+                    : "Collapse sidebar"
+              }
+            >
+              <span className="p2-edge-chevron" aria-hidden="true">
+                <ChevronRight className="qs-sidebar-toggle-icon" size={18} />
+              </span>
+            </Button>
+          </div>
         </div>
-        </div>
-
 
         <nav
           className="qs-scroll flex-1 overflow-y-auto px-3 py-4"
@@ -1335,7 +1333,10 @@ export function BottomNav() {
               </div>
               <div className="qs-workspace-tools-spotlight-brand">
                 {restaurant?.logo_url ? (
-                  <img src={restaurant?.logo_url ?? ""} alt={restaurant?.name ?? "Workspace logo"} />
+                  <img
+                    src={restaurant?.logo_url ?? ""}
+                    alt={restaurant?.name ?? "Workspace logo"}
+                  />
                 ) : (
                   <BrandLogo
                     markOnly
