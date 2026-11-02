@@ -23,7 +23,7 @@ import {
 import { ViewportDock } from "./ViewportDock";
 import { WorkspaceSearch } from "./WorkspaceSearch";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import {
   BarChart3,
   Banknote,
@@ -981,7 +981,14 @@ export function BottomNav() {
       <aside
         id="workspace-sidebar"
         data-collapsed={sidebarCollapsed}
-        className="qs-sidebar-shell fixed inset-y-0 start-0 z-50 hidden flex-col lg:flex"
+        className="qs-sidebar-shell qs-sidebar-fit fixed inset-y-0 start-0 z-50 hidden flex-col lg:flex"
+        style={
+          {
+            "--qs-sidebar-primary-count": Math.max(1, desktopPrimary.length),
+            "--qs-sidebar-grid-rows": Math.max(1, Math.ceil(desktopPrimary.length / 2)),
+            "--qs-sidebar-short-rows": Math.max(1, Math.ceil(desktopPrimary.length / 3)),
+          } as CSSProperties
+        }
       >
         <div className="p2-sidebar-header flex h-[var(--qs-shell-topbar)] items-center border-b border-border/80 px-4">
           <Link
@@ -1027,10 +1034,10 @@ export function BottomNav() {
         </div>
 
         <nav
-          className="qs-scroll flex-1 overflow-y-auto px-3 py-4"
+          className="qs-sidebar-navigation flex-1 px-3 py-4"
           aria-label={lang === "ar" ? "التنقل الرئيسي" : "Primary navigation"}
         >
-          <ul className="space-y-1">
+          <ul className="qs-sidebar-links">
             {desktopPrimary.map((item) => {
               const active = activeFor(item);
               const Icon = item.icon;
@@ -1062,7 +1069,7 @@ export function BottomNav() {
           </ul>
         </nav>
 
-        <div className="border-t border-border/80 p-3">
+        <div className="qs-sidebar-footer border-t border-border/80 p-3">
           {desktopHasMore ? (
             <button
               type="button"
