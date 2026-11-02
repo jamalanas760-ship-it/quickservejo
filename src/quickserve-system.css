@@ -5693,3 +5693,121 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
     }
   }
 }
+
+/* The desktop/tablet rail fits its viewport instead of becoming a scroll pane. */
+@layer components {
+  @media (min-width: 768px) {
+    #workspace-sidebar.qs-sidebar-fit {
+      width: var(--qs-animated-sidebar-width) !important;
+      height: calc(100dvh - 24px) !important;
+      max-height: calc(100dvh - 24px);
+      overflow: hidden !important;
+    }
+    #workspace-sidebar.qs-sidebar-fit > .qs-sidebar-navigation {
+      display: flex;
+      min-height: 0;
+      padding-block: 8px !important;
+      overflow: hidden;
+    }
+    #workspace-sidebar.qs-sidebar-fit .qs-sidebar-links {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: repeat(var(--qs-sidebar-primary-count), minmax(0, 1fr));
+      gap: 2px;
+      width: 100%;
+      height: 100%;
+      max-height: calc(var(--qs-sidebar-primary-count) * 48px + (var(--qs-sidebar-primary-count) - 1) * 2px);
+      min-height: 0;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    #workspace-sidebar.qs-sidebar-fit .qs-sidebar-links > li {
+      min-height: 0;
+      margin: 0 !important;
+    }
+    #workspace-sidebar.qs-sidebar-fit .qs-sidebar-links .qs-sidebar-item {
+      height: 100%;
+      min-height: 44px !important;
+      padding-block: 4px !important;
+    }
+    #workspace-sidebar.qs-sidebar-fit > .qs-sidebar-footer {
+      flex: 0 0 auto;
+      padding-block: 8px !important;
+    }
+  }
+  @media (min-width: 768px) and (max-height: 700px) {
+    #workspace-sidebar.qs-sidebar-fit {
+      inset-block: 8px !important;
+      height: calc(100dvh - 16px) !important;
+      max-height: calc(100dvh - 16px);
+    }
+    #workspace-sidebar.qs-sidebar-fit > .p2-sidebar-header {
+      height: 52px !important;
+      min-height: 52px !important;
+    }
+    #workspace-sidebar.qs-sidebar-fit .qs-sidebar-links {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(var(--qs-sidebar-grid-rows), minmax(0, 1fr));
+      gap: 4px;
+      max-height: calc(var(--qs-sidebar-grid-rows) * 60px + (var(--qs-sidebar-grid-rows) - 1) * 4px);
+    }
+    #workspace-sidebar.qs-sidebar-fit .qs-sidebar-links .qs-sidebar-item {
+      flex-direction: column;
+      justify-content: center !important;
+      gap: 2px !important;
+      padding: 4px !important;
+      text-align: center;
+    }
+    #workspace-sidebar.qs-sidebar-fit .qs-sidebar-links .qs-sidebar-label {
+      flex: 0 0 auto;
+      max-width: 100%;
+      font-size: 10px;
+      line-height: 14px;
+    }
+    #workspace-sidebar.qs-sidebar-fit[data-collapsed="true"] .qs-sidebar-links .qs-sidebar-label {
+      display: none !important;
+    }
+    #workspace-sidebar.qs-sidebar-fit .qs-sidebar-links .qs-sidebar-count {
+      position: absolute;
+      inset-block-start: 2px;
+      inset-inline-end: 2px;
+      min-width: 14px;
+      padding: 1px 3px;
+      font-size: 8px;
+      line-height: 12px;
+    }
+    #workspace-sidebar.qs-sidebar-fit > .qs-sidebar-footer {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+      padding-block: 6px !important;
+    }
+    #workspace-sidebar.qs-sidebar-fit .qs-sidebar-footer .qs-sidebar-item {
+      min-width: 0;
+      min-height: 44px !important;
+      margin: 0 !important;
+      padding-inline: 6px !important;
+      justify-content: center !important;
+      gap: 4px !important;
+      font-size: 10px;
+    }
+    #workspace-sidebar.qs-sidebar-fit .qs-sidebar-footer .qs-sidebar-count {
+      display: none;
+    }
+  }
+  @media (min-width: 768px) and (max-height: 420px) {
+    #workspace-sidebar.qs-sidebar-fit .qs-sidebar-links {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: repeat(var(--qs-sidebar-short-rows), minmax(0, 1fr));
+      max-height: none;
+    }
+  }
+}
+/* Two/three 44px targets also fit when a short rail is collapsed. */
+@media (min-width: 768px) and (max-height: 700px) {
+  :root[data-sidebar-collapsed="true"] { --qs-animated-sidebar-width: 120px !important; }
+}
+@media (min-width: 768px) and (max-height: 420px) {
+  :root[data-sidebar-collapsed="true"] { --qs-animated-sidebar-width: 168px !important; }
+}
