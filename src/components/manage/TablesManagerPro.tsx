@@ -1,10 +1,13 @@
+import { TablesLayoutTools } from "./TablesLayoutTools";
+import { useIsMobile } from "@/hooks/use-mobile";
+import type { CompactAction } from "@/components/app/ActionMenu";
 import { resizeFloorZone, type ZoneDragMode, type ZoneResizeCorner } from "@/lib/floor-zone-resize";
 import { TablePlanSymbol } from "./TablePlanSymbol";
 import { FloorPlanSymbol } from "./FloorPlanSymbol";
 import { floorFitZoom, stepFloorZoom } from "@/lib/floor-zoom";
 import { floorCollision, type FloorBounds } from "@/lib/floor-collision";
 import { createLatestSaveQueue } from "@/lib/latest-save-queue";
-import { MoreHorizontal, Table2 } from "@/components/nav/QuickServeIcons";
+import { Table2 } from "@/components/nav/QuickServeIcons";
 import { normalizeCanvasSize } from "@/lib/floor-canvas";
 import {
   lazy,
@@ -19,8 +22,6 @@ import {
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlignHorizontalJustifyCenter,
-  AlignVerticalJustifyCenter,
   Building2,
   CalendarCheck2,
   Columns3,
@@ -56,13 +57,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -418,6 +412,8 @@ function floorsFromTheme(value: unknown): FloorConfig[] {
 export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
   const { lang, t } = useI18n();
   const ar = lang === "ar";
+  const isMobile = useIsMobile();
+  const elementLibraryRef = useRef<HTMLElement | null>(null);
   const qc = useQueryClient();
   const restaurantQuery = useRestaurant(restaurantId);
   const restaurant = restaurantQuery.data;
@@ -487,6 +483,16 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       setHistory((value) => ({ past: [...value.past.slice(-29), action], future: [] }));
   }
   const [elementsOpen, setElementsOpen] = useState(false);
+  useEffect(() => { if (!isMobile) setElementsOpen(false); }, [isMobile]);
+  function openElementLibrary() {
+    setView("layout");
+    setEditing(true);
+    setElementsOpen(isMobile);
+    if (!isMobile) requestAnimationFrame(() => {
+      elementLibraryRef.current?.scrollIntoView({ block: "nearest" });
+      elementLibraryRef.current?.focus({ preventScroll: true });
+    });
+  }
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const floorSaveInFlight = useRef(false);
   const [mergeOpen, setMergeOpen] = useState(false);
@@ -1732,6 +1738,26 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
       />
     ) : null;
 
+  const layoutTools: CompactAction[] = [
+    { label: ar ? "العناصر" : "Elements", icon: Plus, disabled: floorBusy, onSelect: openElementLibrary },
+    { label: ar ? "إضافة منطقة" : "Add zone", icon: Grid3X3, disabled: floorBusy, onSelect: () => { setZoneEditing(null); setZoneName(""); setZoneOpen(true); } },
+    { label: ar ? "إضافة طابق" : "Add floor", disabled: floorBusy, onSelect: () => setFloorOpen(true) },
+    { label: ar ? "إضافة مدخل" : "Add entrance", icon: DoorOpen, disabled: floorBusy, onSelect: () => setEntranceOpen(true) },
+    { label: ar ? "حجم المخطط" : "Canvas size", separatorBefore: true, disabled: floorBusy, onSelect: () => { const size = normalizeCanvasSize(currentFloor.canvasSize); setCanvasSizeDraft({ width: String(size.width), height: String(size.height) }); setCanvasSizeOpen(true); } },
+    { label: grid ? (ar ? "إخفاء الشبكة" : "Hide grid") : (ar ? "إظهار الشبكة" : "Show grid"), icon: Grid3X3, onSelect: () => setGrid(!grid) },
+    { label: ar ? "تكبير" : "Zoom in", icon: Plus, onSelect: () => changeZoom(1) },
+    { label: ar ? "تصغير" : "Zoom out", icon: Minus, onSelect: () => changeZoom(-1) },
+    { label: ar ? "ملاءمة العرض" : "Fit view", onSelect: () => fitView() },
+    { label: ar ? "تراجع" : "Undo layout change", icon: Undo2, disabled: !history.past.length || busy || floorBusy, onSelect: () => void applyLayoutHistory(false) },
+    { label: ar ? "إعادة" : "Redo layout change", icon: Redo2, disabled: !history.future.length || busy || floorBusy, onSelect: () => void applyLayoutHistory(true) },
+    { label: ar ? "ترتيب شبكي" : "Arrange as a grid", icon: LayoutGrid, disabled: busy, onSelect: () => void alignTables("grid") },
+    { label: currentFloor.backgroundUrl ? (ar ? "تغيير الخلفية" : "Replace floor plan") : (ar ? "رفع مخطط" : "Upload floor plan"), icon: ImagePlus, separatorBefore: true, disabled: floorBusy, onSelect: () => uploadRef.current?.click() },
+    { label: ar ? "طباعة رموز QR" : "Print QR codes", icon: Printer, onSelect: () => void printAll() },
+    { label: ar ? "حذف الطابق" : "Delete floor", destructive: true, separatorBefore: true, disabled: floors.length < 2 || floorBusy, onSelect: () => void deleteFloor() },
+    { label: ar ? "حذف المدخل" : "Remove entrance", icon: Trash2, destructive: true, hidden: !selectedEntrance, onSelect: () => void removeEntrance() },
+    { label: ar ? "إزالة الخلفية" : "Remove floor plan", icon: Trash2, destructive: true, hidden: !currentFloor.backgroundUrl, onSelect: () => void clearFloor() },
+  ];
+
   return (
     <div className="qs-tables-page qs-tables-studio flex min-h-0 flex-col gap-4">
       <MasterPageHeader
@@ -1818,7 +1844,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         )}
       >
         {view !== "list" && editing && (
-          <aside className="qs-floor-asset-sidebar">
+          <aside ref={elementLibraryRef} tabIndex={-1} aria-label={ar ? "عناصر المخطط" : "Floor elements"} className="qs-floor-asset-sidebar">
             <div className="qs-floor-asset-heading">
               <h2>{ar ? "العناصر" : "Elements"}</h2>
               <span>{depth ? "3D" : "2D"}</span>
@@ -1895,104 +1921,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                   <Pencil className="size-4" />
                   {editing ? (ar ? "تم" : "Done") : ar ? "تعديل المخطط" : "Edit layout"}
                 </button>
-                <>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button type="button" className="qs-button-secondary size-11 shrink-0 p-0" aria-label={ar?"أدوات المخطط":"Layout tools"} title={ar?"أدوات المخطط":"Layout tools"}><MoreHorizontal className="size-4"/></button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="min-w-56">
-                        <DropdownMenuItem onSelect={() => setGrid(!grid)}><Grid3X3/>{grid ? (ar ? "إخفاء الشبكة" : "Hide grid") : (ar ? "إظهار الشبكة" : "Show grid")}</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => changeZoom(1)}><Plus/>{ar ? "تكبير" : "Zoom in"}</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => changeZoom(-1)}><Minus/>{ar ? "تصغير" : "Zoom out"}</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => fitView()}>{ar ? "ملاءمة العرض" : "Fit view"}</DropdownMenuItem>
-                        <DropdownMenuItem disabled={!history.past.length || busy || floorBusy} onSelect={() => void applyLayoutHistory(false)}><Undo2/>{ar ? "تراجع" : "Undo layout change"}</DropdownMenuItem>
-                        <DropdownMenuItem disabled={!history.future.length || busy || floorBusy} onSelect={() => void applyLayoutHistory(true)}><Redo2/>{ar ? "إعادة" : "Redo layout change"}</DropdownMenuItem>
-                        <DropdownMenuSeparator/>
-                        <DropdownMenuItem disabled={floorBusy} onSelect={()=>{const size=normalizeCanvasSize(currentFloor.canvasSize);setCanvasSizeDraft({width:String(size.width),height:String(size.height)});setCanvasSizeOpen(true);}}>{ar?"حجم المخطط":"Canvas size"}</DropdownMenuItem>
-                        <DropdownMenuItem disabled={floorBusy} onSelect={()=>{setEditing(true);setElementsOpen(true);}}><Plus/>{ar?"العناصر":"Elements"}</DropdownMenuItem>
-                        <DropdownMenuSeparator/>
-
-                        <DropdownMenuItem
-                          onSelect={() => {
-                            setZoneEditing(null);
-                            setZoneName("");
-                            setZoneOpen(true);
-                          }}
-                        >
-                          <Grid3X3 />
-                          {ar ? "إضافة منطقة" : "Add zone"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setFloorOpen(true)}>
-                          {ar ? "إضافة طابق" : "Add floor"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={floors.length < 2}
-                          onSelect={() => void deleteFloor()}
-                        >
-                          {ar ? "حذف الطابق" : "Delete floor"}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem disabled={busy} onSelect={() => void alignTables("row")}>
-                          <AlignHorizontalJustifyCenter />
-                          {ar ? "محاذاة أفقية" : "Align in one row"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={busy}
-                          onSelect={() => void alignTables("column")}
-                        >
-                          <AlignVerticalJustifyCenter />
-                          {ar ? "محاذاة عمودية" : "Align in one column"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled={busy} onSelect={() => void alignTables("grid")}>
-                          <LayoutGrid />
-                          {ar ? "ترتيب شبكي" : "Arrange as a grid"}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => setEntranceOpen(true)}>
-                          <DoorOpen />
-                          {ar ? "إضافة مدخل" : "Add entrance"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={floorBusy}
-                          onSelect={() => uploadRef.current?.click()}
-                        >
-                          <ImagePlus />
-                          {currentFloor.backgroundUrl
-                            ? ar
-                              ? "تغيير الخلفية"
-                              : "Replace floor plan"
-                            : ar
-                              ? "رفع مخطط"
-                              : "Upload floor plan"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => void printAll()}>
-                          <Printer />
-                          {ar ? "طباعة رموز QR" : "Print QR codes"}
-                        </DropdownMenuItem>
-                        {selectedEntrance || currentFloor.backgroundUrl ? (
-                          <DropdownMenuSeparator />
-                        ) : null}
-                        {selectedEntrance ? (
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onSelect={() => void removeEntrance()}
-                          >
-                            <Trash2 />
-                            {ar ? "حذف المدخل" : "Remove entrance"}
-                          </DropdownMenuItem>
-                        ) : null}
-                        {currentFloor.backgroundUrl ? (
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onSelect={() => void clearFloor()}
-                          >
-                            <Trash2 />
-                            {ar ? "إزالة الخلفية" : "Remove floor plan"}
-                          </DropdownMenuItem>
-                        ) : null}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                </>
+                <TablesLayoutTools ar={ar} actions={layoutTools} />
 
               </div>
             </div>
@@ -2299,7 +2228,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
                   : "See its status, QR code and table details."}
               </p>
               {editing ? (
-                <Button type="button" variant="outline" onClick={() => setElementsOpen(true)}>
+                <Button type="button" variant="outline" onClick={openElementLibrary}>
                   {ar ? "إضافة عنصر للمخطط" : "Add floor element"}
                 </Button>
               ) : null}
@@ -2320,7 +2249,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         triggerRef={qrTriggerRef}
         onClose={() => setQrTarget(null)}
       />
-      <Dialog open={elementsOpen} onOpenChange={setElementsOpen}>
+      <Dialog open={isMobile && elementsOpen} onOpenChange={setElementsOpen}>
         <DialogContent className="qs-floor-elements-dialog" onOpenAutoFocus={event=>event.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{ar ? "عناصر المخطط" : "Floor elements"}</DialogTitle>
