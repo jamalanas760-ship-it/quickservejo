@@ -1,3 +1,4 @@
+import { PINNED_TOOL_LIMIT } from "@/lib/primary-navigation";
 import { GpsAttendanceSettings } from "./GpsAttendanceSettings";
 import { capturePunchLocation } from "@/lib/geofence";
 import { WorkspaceNavigation } from "@/components/profile/WorkspaceNavigation";
@@ -105,7 +106,7 @@ function RestaurantProfileSettingsForm({
     setForm((current) => ({ ...current, [key]: value }));
   const pinnedSidebarTools = brand.sidebarPinnedTools;
   const setPinnedSidebarTools = (items: string[]) =>
-    setBrand((current) => ({ ...current, sidebarPinnedTools: items.slice(0, 5) }));
+    setBrand((current) => ({ ...current, sidebarPinnedTools: items.slice(0, PINNED_TOOL_LIMIT) }));
 
   async function save(event: FormEvent) {
     event.preventDefault();

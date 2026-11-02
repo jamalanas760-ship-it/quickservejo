@@ -75,7 +75,7 @@ export function readAppearance(theme: unknown): RestaurantAppearance {
     workspaceToolsIcon: imageUrl(value.workspaceToolsIcon),
     standardMenuCardImage: imageUrl(value.standardMenuCardImage),
     pdfMenuCardImage: imageUrl(value.pdfMenuCardImage),
-    sidebarPinnedTools: stringList(value.sidebarPinnedTools, 5),
+    sidebarPinnedTools: stringList(value.sidebarPinnedTools, 9),
     homeTitle: typeof value.homeTitle === "string" ? value.homeTitle.slice(0, 100) : "",
     dashboardTitle: typeof value.dashboardTitle === "string" ? value.dashboardTitle.slice(0, 100) : "",
     useQuickServeLogo: value.useQuickServeLogo !== false,
