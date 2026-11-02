@@ -128,17 +128,25 @@ export function MasterPageHeader({
   description,
   actions,
   tabs,
+  layout = "responsive",
 }: {
   eyebrow?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
   tabs?: ReactNode;
+  /** Compact headers keep a single action beside the title at every screen size. */
+  layout?: "responsive" | "compact";
 }) {
   return (
-    <section className="qs-master-header qs-workspace-titlebar">
-      <div className="flex min-w-0 flex-col gap-4 py-2 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0 flex-1">
+    <section
+      className={cn(
+        "qs-master-header qs-workspace-titlebar",
+        layout === "compact" && "qs-master-header-compact",
+      )}
+    >
+      <div className="qs-master-header-layout flex min-w-0 flex-col gap-4 py-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="qs-master-header-copy min-w-0 flex-1">
           {eyebrow ? <div className="mb-2">{eyebrow}</div> : null}
           <h1 className="qs-page-title min-w-0 whitespace-normal leading-tight">{title}</h1>
           {description ? <p className="qs-page-subtitle mt-2">{description}</p> : null}
@@ -201,7 +209,11 @@ export function MasterKpi({
 
   const Card = onClick ? "button" : "article";
   return (
-    <Card type={onClick ? "button" : undefined} onClick={onClick} className="qs-kpi-card group text-start focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary flex min-h-[104px] min-w-0 items-center gap-3.5 p-4 transition duration-150 hover:border-primary/25">
+    <Card
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className="qs-kpi-card group text-start focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary flex min-h-[104px] min-w-0 items-center gap-3.5 p-4 transition duration-150 hover:border-primary/25"
+    >
       <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", toneClass)}>
         <Icon className="size-4.5" />
       </span>

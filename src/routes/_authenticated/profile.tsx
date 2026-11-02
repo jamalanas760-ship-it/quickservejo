@@ -130,6 +130,7 @@ function ProfilePage() {
       <AppHeader />
       <main className="ps-page qs-profile-redesign" dir={ar ? "rtl" : "ltr"}>
         <MasterPageHeader
+          layout="compact"
           title={ar ? "ملفي الشخصي" : "My profile"}
           description={
             ar

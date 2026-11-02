@@ -5653,3 +5653,32 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
     }
   }
 }
+
+/* A compact titlebar owns its sizing in the same layer as shared header rules.
+   Layered !important declarations outrank route-level unlayered overrides. */
+@layer components {
+  .qs-master-header-compact > .qs-master-header-layout {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start !important;
+    gap: 12px !important;
+    width: 100%;
+  }
+  .qs-master-header-compact .qs-master-header-copy {
+    min-width: 0 !important;
+    width: 100%;
+  }
+  .qs-master-header-compact .qs-page-actions {
+    width: auto !important;
+    min-width: 44px !important;
+    max-width: 100%;
+    justify-self: end;
+    align-self: start;
+  }
+  .qs-master-header-compact .qs-page-title,
+  .qs-master-header-compact .qs-page-subtitle {
+    word-break: normal;
+    overflow-wrap: normal;
+    text-wrap: initial;
+  }
+}
