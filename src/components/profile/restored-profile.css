@@ -132,27 +132,7 @@
 .simple-policy-note {
   margin-top: 18px;
 }
-/* Profile-only fix: the global mobile action width must not consume the title column. */
-.qs-profile-redesign > .qs-master-header > div {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 44px;
-  align-items: start !important;
-  gap: 12px !important;
-}
-.qs-profile-redesign > .qs-master-header > div > div:first-child {
-  width: 100%;
-  min-width: 0;
-}
-.qs-profile-redesign > .qs-master-header .qs-page-actions {
-  width: 44px !important;
-  min-width: 44px !important;
-  max-width: 44px !important;
-  justify-self: end;
-}
-.qs-profile-redesign > .qs-master-header .qs-master-actions {
-  min-width: 0 !important;
-  max-width: 100% !important;
-}
+/* Header sizing belongs to MasterPageHeader's compact layout in the shared styles. */
 .qs-profile-redesign > .qs-master-header .qs-page-title {
   word-break: normal;
   overflow-wrap: normal;
@@ -162,7 +142,10 @@
   word-break: normal;
   overflow-wrap: break-word;
 }
-.qs-profile-redesign {
+.ps-page.qs-profile-redesign {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -233,6 +216,16 @@
   .qs-profile-redesign .qp-identity {
     padding-top: 10px;
   }
+  .qs-profile-redesign .qp-identity > span {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .qs-profile-redesign .qp-identity > span svg {
+    flex-shrink: 0;
+  }
+  .qs-profile-redesign .qp-tabs button {
+    white-space: nowrap;
+  }
   .qs-profile-redesign .qp-tabs {
     gap: 0;
     margin-block: 10px 16px;
@@ -257,12 +250,15 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .qs-profile-redesign .qp-preference-row > div {
-    display: block;
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 12px;
   }
   .qs-profile-redesign .qp-preference-row .ps-themes {
     display: flex;
+    grid-column: 1 / -1;
     width: 100%;
-    margin-top: 10px;
+    margin-top: 0;
   }
   .qs-profile-redesign .qp-preference-row .ps-theme {
     min-width: 0;
