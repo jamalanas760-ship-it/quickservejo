@@ -1,3 +1,4 @@
+import { usePublicOrderRealtime } from "@/hooks/usePublicOrderRealtime";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Clock3, ReceiptText } from "lucide-react";
@@ -37,11 +38,13 @@ function OrderStatusPage() {
   const { token } = Route.useParams();
   const { lang, t } = useI18n();
   const ar = lang === "ar";
+  const live = usePublicOrderRealtime(token);
 
   const order = useQuery({
     queryKey: ["public-order-receipt", token],
     queryFn: () => fetchPublicOrderReceipt(token),
-    refetchInterval: 8000,
+    refetchInterval: live ? 30000 : 8000,
+    refetchOnWindowFocus: true,
   });
 
   if (order.isPending) {
@@ -65,7 +68,7 @@ function OrderStatusPage() {
         label: STATUS_LABELS[order.data.status]?.[lang] ?? order.data.status,
         tone: cancelled ? "red" : complete ? "green" : "orange",
       }}
-      footer={<p className="text-center text-[10px] text-muted-foreground">{ar ? "آخر تحديث تلقائي كل عدة ثوانٍ." : "Updates automatically every few seconds."}</p>}
+      footer={<p className="text-center text-[10px] text-muted-foreground">{live ? (ar ? "تحديثات مباشرة متصلة." : "Live updates connected.") : (ar ? "التحديث التلقائي نشط. جارٍ الاتصال بالتحديثات المباشرة…" : "Automatic refresh active. Connecting to live updates…")}</p>}
     >
       <div className="space-y-5">
         <section className="rounded-[18px] border border-border/80 bg-background p-5 text-center">

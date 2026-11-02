@@ -488,6 +488,9 @@ export function BottomNav() {
     (item) => !desktopPrimary.some((primary) => primary.to === item.to),
   );
 
+  const desktopFooterCount =
+    Number(desktopHasMore) + Number(!desktopPrimary.some((item) => item.to === "/profile"));
+
   // Mobile mirrors the same user-defined order while keeping ergonomic tap targets.
   // Home is fixed first, then the first three configured tools, followed by More when needed.
   const customMobilePrimary =
@@ -985,6 +988,8 @@ export function BottomNav() {
         style={
           {
             "--qs-sidebar-primary-count": Math.max(1, desktopPrimary.length),
+            "--qs-sidebar-footer-count": desktopFooterCount,
+            "--qs-sidebar-footer-rows": Math.min(1, desktopFooterCount),
             "--qs-sidebar-grid-rows": Math.max(1, Math.ceil(desktopPrimary.length / 2)),
             "--qs-sidebar-short-rows": Math.max(1, Math.ceil(desktopPrimary.length / 3)),
           } as CSSProperties

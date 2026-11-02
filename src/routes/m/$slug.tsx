@@ -446,7 +446,7 @@ function PdfOrderPage() {
 
       <Dialog open={placed !== null} onOpenChange={(open) => !open && setPlaced(null)}>
         <DialogContent
-          className="pdf-order-surface"
+          className="pdf-order-surface qs-order-sent-dialog"
           dir={lang === "ar" ? "rtl" : "ltr"}
           lang={lang}
         >
@@ -469,15 +469,15 @@ function PdfOrderPage() {
               <Money amount={placed?.total ?? 0} currency={placed?.currency ?? currency} />
             </p>
           </div>
-          <DialogFooter>
+          <DialogFooter className="qs-order-sent-actions">
             {placed ? (
-              <Button asChild>
+              <Button asChild className="qs-order-sent-track">
                 <Link to="/o/$token" params={{ token: placed.public_token }}>
                   {lang === "ar" ? "تتبع الطلب" : "Track order"}
                 </Link>
               </Button>
             ) : null}
-            <Button variant="outline" onClick={() => setPlaced(null)}>
+            <Button variant="outline" className="qs-order-sent-close" onClick={() => setPlaced(null)}>
               {lang === "ar" ? "إغلاق" : "Close"}
             </Button>
           </DialogFooter>
