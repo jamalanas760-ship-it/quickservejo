@@ -25,6 +25,7 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
+    scrollToTopSelectors: ["#workspace-scroll-content"],
     defaultPreload: "intent",
     defaultPreloadStaleTime: 5 * 60_000,
     // Keep the current screen mounted while normal route chunks resolve. This

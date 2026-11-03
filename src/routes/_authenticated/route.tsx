@@ -108,7 +108,7 @@ function AuthenticatedShell() {
       >
         {!usesDedicatedChrome ? <AppHeader title={persistentTitle} /> : null}
         {blocked ? null : (
-          <div className="qs-route-frame">
+          <div id="workspace-scroll-content" data-scroll-restoration-id="workspace-content" className="qs-route-frame">
             {usesDedicatedChrome ? (
               <Outlet />
             ) : (

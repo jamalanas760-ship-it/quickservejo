@@ -5686,6 +5686,40 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
 /* Opaque mobile topbar: no blurred content behind the logo or account controls. */
 @layer components {
   @media (max-width: 767px) {
+    /* Keep the document stationary. Safari's system scroll-edge treatment can
+       otherwise composite the moving document over the safe area and header,
+       even when the header itself has no CSS blur. Only the workspace body
+       scrolls; the header is a separate, non-scrolling flex sibling. */
+    html:has(.qs-authenticated-shell.qs-persistent-chrome),
+    html:has(.qs-authenticated-shell.qs-persistent-chrome) body {
+      height: 100% !important;
+      overflow: hidden !important;
+      overscroll-behavior-y: none;
+      background-color: var(--qs-surface);
+    }
+    .qs-app .qs-authenticated-shell.qs-persistent-chrome {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh !important;
+      min-height: 0 !important;
+      max-height: 100dvh;
+      overflow: hidden;
+      padding-bottom: 0 !important;
+    }
+    .qs-authenticated-shell.qs-persistent-chrome > .qs-topbar {
+      position: relative !important;
+      top: auto !important;
+      flex: 0 0 auto;
+    }
+    .qs-authenticated-shell.qs-persistent-chrome > #workspace-scroll-content {
+      flex: 1 1 0%;
+      min-height: 0 !important;
+      overflow-y: auto !important;
+      overflow-x: hidden;
+      overscroll-behavior-y: contain;
+      padding-bottom: calc(var(--qs-mobile-dock-height, 90px) + 12px);
+      scroll-padding-block: 16px calc(var(--qs-mobile-dock-height, 90px) + 16px);
+    }
     html .qs-app header.qs-topbar {
       /* Safari extends an edge-attached solid background into its obscured
          top inset. A gradient, even an opaque one, is not that solid color. */
