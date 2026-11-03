@@ -5839,13 +5839,14 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
     }
   }
 }
-/* Collapsed rail: labels do not reserve width, icons use centered 44px targets.
+/* Collapsed rail fills the viewport, with the footer anchored at the bottom.
+   Labels do not reserve width; icons use centered 44px targets.
    The shared width also updates the page offset, so no empty gutter is left behind. */
 @layer components {
   @media (min-width: 768px) {
     #workspace-sidebar.qs-sidebar-fit[data-collapsed="true"] {
       inset-block: 8px !important;
-      height: min(calc(100dvh - 16px), calc((var(--qs-sidebar-primary-count) + var(--qs-sidebar-footer-count)) * 44px + 71px)) !important;
+      height: calc(100dvh - 16px) !important;
       max-height: calc(100dvh - 16px);
     }
     #workspace-sidebar.qs-sidebar-fit[data-collapsed="true"] > .p2-sidebar-header {
@@ -5888,9 +5889,9 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
   @media (min-width: 768px) and (min-height: 620px) {
     #workspace-sidebar.qs-sidebar-fit[data-collapsed="true"] .qs-sidebar-links {
       grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: repeat(var(--qs-sidebar-primary-count), 44px);
+      grid-template-rows: repeat(var(--qs-sidebar-primary-count), minmax(44px, 1fr));
       gap: 0;
-      max-height: calc(var(--qs-sidebar-primary-count) * 44px);
+      max-height: none;
     }
     #workspace-sidebar.qs-sidebar-fit[data-collapsed="true"] > .qs-sidebar-footer {
       display: grid;
@@ -5898,20 +5899,14 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
     }
   }
   @media (min-width: 768px) and (min-height: 380px) and (max-height: 619px) {
-    #workspace-sidebar.qs-sidebar-fit[data-collapsed="true"] {
-      height: min(calc(100dvh - 16px), calc(var(--qs-sidebar-grid-rows) * 48px + var(--qs-sidebar-footer-rows) * 44px + 67px)) !important;
-    }
     #workspace-sidebar.qs-sidebar-fit[data-collapsed="true"] .qs-sidebar-links {
       grid-template-columns: repeat(2, minmax(0, 1fr));
       grid-template-rows: repeat(var(--qs-sidebar-grid-rows), minmax(44px, 1fr));
-      max-height: calc(var(--qs-sidebar-grid-rows) * 44px + (var(--qs-sidebar-grid-rows) - 1) * 4px);
+      max-height: none;
       gap: 4px;
     }
   }
   @media (min-width: 768px) and (max-height: 379px) {
-    #workspace-sidebar.qs-sidebar-fit[data-collapsed="true"] {
-      height: min(calc(100dvh - 16px), calc(var(--qs-sidebar-short-rows) * 48px + var(--qs-sidebar-footer-rows) * 44px + 67px)) !important;
-    }
     #workspace-sidebar.qs-sidebar-fit[data-collapsed="true"] .qs-sidebar-links {
       grid-template-columns: repeat(3, minmax(0, 1fr));
       grid-template-rows: repeat(var(--qs-sidebar-short-rows), minmax(44px, 1fr));
