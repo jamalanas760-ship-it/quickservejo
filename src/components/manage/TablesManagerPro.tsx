@@ -1,3 +1,4 @@
+import { TableDialogContent } from "./TableDialogContent";
 import { TablesLayoutTools } from "./TablesLayoutTools";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { CompactAction } from "@/components/app/ActionMenu";
@@ -2280,7 +2281,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
           if (!floorBusy) setCanvasSizeOpen(open);
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <TableDialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{ar ? "حجم المخطط" : "Canvas size"}</DialogTitle>
             <DialogDescription>
@@ -2356,7 +2357,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
           >
             {floorBusy ? (ar ? "جارٍ الحفظ…" : "Saving…") : ar ? "حفظ الحجم" : "Save size"}
           </Button>
-        </DialogContent>
+        </TableDialogContent>
       </Dialog>
 
       <Dialog open={tablePreviewOpen && !!selected} onOpenChange={setTablePreviewOpen}>
@@ -2510,7 +2511,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
         </DialogContent>
       </Dialog>
       <Dialog open={tableOpen} onOpenChange={setTableOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <TableDialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{ar ? "إضافة طاولة" : "Add Table"}</DialogTitle>
             <DialogDescription>
@@ -2528,7 +2529,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
               {ar ? "إضافة" : "Add Table"}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </TableDialogContent>
       </Dialog>
       <Dialog
         open={zoneOpen}
@@ -2537,7 +2538,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
           if (!open) setZoneEditing(null);
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <TableDialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
               {zoneEditing
@@ -2555,7 +2556,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
             </DialogDescription>
           </DialogHeader>
           <Field label={ar ? "اسم المنطقة" : "Zone name"}>
-            <Input autoFocus value={zoneName} onChange={(e) => setZoneName(e.target.value)} />
+            <Input autoFocus={!isMobile} value={zoneName} onChange={(e) => setZoneName(e.target.value)} />
           </Field>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setZoneOpen(false)}>
@@ -2565,10 +2566,10 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
               {ar ? "حفظ" : "Save"}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </TableDialogContent>
       </Dialog>
       <Dialog open={floorOpen} onOpenChange={setFloorOpen}>
-        <DialogContent className="sm:max-w-md">
+        <TableDialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{ar ? "إضافة طابق" : "Add Floor"}</DialogTitle>
             <DialogDescription>
@@ -2578,7 +2579,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
             </DialogDescription>
           </DialogHeader>
           <Field label={ar ? "اسم الطابق" : "Floor name"}>
-            <Input autoFocus value={floorName} onChange={(e) => setFloorName(e.target.value)} />
+            <Input autoFocus={!isMobile} value={floorName} onChange={(e) => setFloorName(e.target.value)} />
           </Field>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setFloorOpen(false)}>
@@ -2588,10 +2589,10 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
               {ar ? "إضافة" : "Add Floor"}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </TableDialogContent>
       </Dialog>
       <Dialog open={entranceOpen} onOpenChange={setEntranceOpen}>
-        <DialogContent className="sm:max-w-md">
+        <TableDialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{ar ? "إضافة مدخل" : "Add Entrance"}</DialogTitle>
             <DialogDescription>
@@ -2613,7 +2614,7 @@ export function TablesManagerPro({ restaurantId }: { restaurantId: string }) {
             </Button>
             <Button onClick={() => void addEntrance()}>{ar ? "إضافة" : "Add Entrance"}</Button>
           </DialogFooter>
-        </DialogContent>
+        </TableDialogContent>
       </Dialog>
     </div>
   );

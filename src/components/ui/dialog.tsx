@@ -31,7 +31,7 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   overlayClassName?: string;
-  placement?: "center" | "edge";
+  placement?: "center" | "edge" | "viewport-center";
 };
 
 const DialogContent = React.forwardRef<

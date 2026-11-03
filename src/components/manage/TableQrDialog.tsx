@@ -1,10 +1,10 @@
+import { TableDialogContent } from "./TableDialogContent";
 import { useEffect, useState, type RefObject } from "react";
 import { Download, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -73,7 +73,7 @@ export function TableQrDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent
+      <TableDialogContent
         dir={ar ? "rtl" : "ltr"}
         className="sm:max-w-md"
         onCloseAutoFocus={(event) => {
@@ -143,7 +143,7 @@ export function TableQrDialog({
             {ar ? "طباعة QR" : "Print QR"}
           </Button>
         </div>
-      </DialogContent>
+      </TableDialogContent>
     </Dialog>
   );
 }
