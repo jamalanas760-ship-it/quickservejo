@@ -181,6 +181,7 @@ export default function FloorPlan3D(props: Props) {
     let frame = 0,
       contextLost = false,
       lastZoom = NaN;
+    let renderedWidth = 0, renderedHeight = 0;
     const zoneMaterials = new Map<string, T.MeshStandardMaterial>();
     function projectLabels() {
       labels.current.forEach((el, id) => {
@@ -211,7 +212,11 @@ export default function FloorPlan3D(props: Props) {
       const w = container!.clientWidth,
         h = container!.clientHeight;
       if (!w || !h) return;
-      renderer.setSize(w, h, false);
+      if (w !== renderedWidth || h !== renderedHeight) {
+        renderer.setSize(w, h, false);
+        renderedWidth = w;
+        renderedHeight = h;
+      }
       const aspect = w / h;
       // Fit the actual orthographic footprint instead of shrinking phone views.
       camera.updateMatrixWorld();
@@ -230,7 +235,11 @@ export default function FloorPlan3D(props: Props) {
       camera.top = halfHeight;
       camera.bottom = -halfHeight;
       camera.updateProjectionMatrix();
-      requestRender();
+      // setSize clears the WebGL drawing buffer. ResizeObserver runs before
+      // paint, after animation-frame callbacks: delaying this redraw until the
+      // next frame exposes a blank canvas throughout sidebar transitions.
+      cancelAnimationFrame(frame);
+      render();
     }
     const pickMaterial = new T.MeshBasicMaterial({ transparent:true, opacity:0, depthWrite:false, colorWrite:false });
     const selectionMaterial = catalog.mat("#e85d2a", {
