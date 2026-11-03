@@ -5687,23 +5687,20 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
 @layer components {
   @media (max-width: 767px) {
     html .qs-app header.qs-topbar {
-      /* Composite any translucent tenant color over a solid surface. The
-         selector must also outrank the dark tenant header's background. */
-      background: linear-gradient(var(--restaurant-topbar-bg, var(--qs-surface)), var(--restaurant-topbar-bg, var(--qs-surface))), var(--qs-surface) !important;
+      /* Safari extends an edge-attached solid background into its obscured
+         top inset. A gradient, even an opaque one, is not that solid color. */
+      background: var(--qs-surface) !important;
+      background-color: rgb(from var(--restaurant-topbar-bg, var(--qs-surface)) r g b / 1) !important;
+      background-image: none !important;
       -webkit-backdrop-filter: none !important;
       backdrop-filter: none !important;
       filter: none !important;
+      transform: none !important;
+      will-change: auto;
     }
-    html .qs-app header.qs-topbar::before {
-      content: "";
-      position: absolute;
-      inset-inline: 0;
-      bottom: 100%;
-      height: env(safe-area-inset-top, 0px);
-      background: inherit;
-      pointer-events: none;
-      -webkit-backdrop-filter: none;
-      backdrop-filter: none;
+    html .qs-app header.qs-topbar .qs-topbar-menu-trigger {
+      transform: none !important;
+      will-change: auto;
     }
   }
 }
