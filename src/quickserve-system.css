@@ -5686,11 +5686,46 @@ table td:last-child button[aria-haspopup=menu]{margin-inline:auto}
 /* Opaque mobile topbar: no blurred content behind the logo or account controls. */
 @layer components {
   @media (max-width: 767px) {
-    .qs-app .qs-topbar {
-      background: var(--restaurant-topbar-bg, var(--qs-surface)) !important;
+    html .qs-app header.qs-topbar {
+      /* Composite any translucent tenant color over a solid surface. The
+         selector must also outrank the dark tenant header's background. */
+      background: linear-gradient(var(--restaurant-topbar-bg, var(--qs-surface)), var(--restaurant-topbar-bg, var(--qs-surface))), var(--qs-surface) !important;
       -webkit-backdrop-filter: none !important;
       backdrop-filter: none !important;
+      filter: none !important;
     }
+    html .qs-app header.qs-topbar::before {
+      content: "";
+      position: absolute;
+      inset-inline: 0;
+      bottom: 100%;
+      height: env(safe-area-inset-top, 0px);
+      background: inherit;
+      pointer-events: none;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+}
+
+/* Opt-in table editors: center inside safe device bounds, even in landscape.
+   Auto margins avoid transform animations fighting the positioning. */
+@layer components {
+  .qs-dialog-content[data-placement="viewport-center"] {
+    inset: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)) !important;
+    margin: auto !important;
+    width: calc(100% - 24px) !important;
+    max-width: 512px !important;
+    height: fit-content !important;
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom))) !important;
+    transform: none !important;
+    translate: none !important;
+    overflow: auto !important;
+    overscroll-behavior: contain;
+  }
+  .qs-dialog-content[data-placement="viewport-center"].sm\:max-w-md { max-width: 448px !important; }
+  @media (max-width: 767px) {
+    .qs-dialog-content[data-placement="viewport-center"] :is(input, textarea, select) { font-size: 16px; }
   }
 }
 
